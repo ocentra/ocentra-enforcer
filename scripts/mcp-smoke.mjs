@@ -1,0 +1,187 @@
+#!/usr/bin/env node
+import path from 'node:path';
+import process from 'node:process';
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+const SCRIPT_PATH = fileURLToPath(import.meta.url);
+const PACK_ROOT = path.resolve(path.join(path.dirname(SCRIPT_PATH), '..'));
+const SERVER_PATH = path.join(PACK_ROOT, 'mcp', 'rust-rules-mcp.mjs');
+
+const args = parseArgs(process.argv.slice(2));
+const server = spawn(process.execPath, [SERVER_PATH], {
+  cwd: PACK_ROOT,
+  stdio: ['pipe', 'pipe', 'pipe'],
+});
+
+let stderr = '';
+server.stderr.on('data', (chunk) => {
+  stderr += chunk.toString('utf8');
+});
+
+const client = createClient(server);
+
+try {
+  const initialized = await client.request('initialize', {
+    protocolVersion: '2025-06-18',
+    capabilities: {},
+    clientInfo: { name: 'ocentra-enforcer-mcp-smoke', version: '0.1.0' },
+  });
+  client.notify('notifications/initialized', {});
+
+  const tools = await client.request('tools/list', {});
+  const route = await client.request('tools/call', {
+    name: 'ocentra_enforcer_route',
+    arguments: {
+      root: path.resolve(args.root),
+      profile: args.profile,
+      scope: 'files',
+      files: [args.file],
+    },
+  });
+
+  const routeReport = JSON.parse(route.result.content[0].text);
+  const toolNames = tools.result.tools.map((tool) => tool.name).sort();
+  const requiredTools = [
+    'ocentra_enforcer_doctor',
+    'ocentra_enforcer_explain',
+    'ocentra_enforcer_route',
+    'ocentra_enforcer_scan',
+  ];
+  const missingTools = requiredTools.filter((tool) => !toolNames.includes(tool));
+  if (missingTools.length > 0) {
+    throw new Error(`MCP server is missing required tools: ${missingTools.join(', ')}`);
+  }
+
+  console.log(
+    JSON.stringify(
+      {
+        ok: true,
+        serverInfo: initialized.result.serverInfo,
+        requiredTools,
+        legacyAliasesPresent: toolNames.filter((tool) => tool.startsWith('rust_rules_')).length === 4,
+        route: {
+          profileName: routeReport.profileName,
+          docs: routeReport.docs,
+          ruleCount: routeReport.rules.length,
+        },
+      },
+      null,
+      2
+    )
+  );
+  await client.request('shutdown', {});
+  server.kill();
+  process.exit(0);
+} catch (error) {
+  server.kill();
+  console.error(`MCP smoke failed: ${error instanceof Error ? error.message : String(error)}`);
+  if (stderr.trim()) console.error(stderr.trim());
+  process.exit(1);
+}
+
+function parseArgs(argv) {
+  const parsed = {
+    root: process.cwd(),
+    profile: 'strict',
+    file: 'Cargo.toml',
+  };
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === '--root') parsed.root = argv[++i] ?? parsed.root;
+    else if (arg === '--profile') parsed.profile = argv[++i] ?? parsed.profile;
+    else if (arg === '--file') parsed.file = argv[++i] ?? parsed.file;
+    else if (arg === '--help' || arg === '-h') {
+      console.log('Usage: node scripts/mcp-smoke.mjs --root <target-repo> --profile <profile> --file <path>');
+      process.exit(0);
+    } else {
+      throw new Error(`Unknown argument: ${arg}`);
+    }
+  }
+  return parsed;
+}
+
+function createClient(child) {
+  let nextId = 1;
+  let output = Buffer.alloc(0);
+  const received = new Map();
+  const waiters = new Map();
+
+  child.stdout.on('data', (chunk) => {
+    output = Buffer.concat([output, chunk]);
+    while (output.length > 0) {
+      const frame = readFrame();
+      if (frame === null) return;
+      const message = JSON.parse(frame);
+      if (message.id !== undefined && waiters.has(message.id)) {
+        const waiter = waiters.get(message.id);
+        waiters.delete(message.id);
+        waiter.resolve(message);
+      } else if (message.id !== undefined) {
+        received.set(message.id, message);
+      }
+    }
+  });
+
+  return {
+    request(method, params) {
+      const id = nextId;
+      nextId += 1;
+      child.stdin.write(encodeFrame({ jsonrpc: '2.0', id, method, params }));
+      return waitFor(id);
+    },
+    notify(method, params) {
+      child.stdin.write(encodeFrame({ jsonrpc: '2.0', method, params }));
+    },
+  };
+
+  function waitFor(id) {
+    if (received.has(id)) {
+      const message = received.get(id);
+      received.delete(id);
+      return Promise.resolve(message);
+    }
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        waiters.delete(id);
+        reject(new Error(`Timed out waiting for MCP response ${id}`));
+      }, 5000);
+      waiters.set(id, {
+        resolve(message) {
+          clearTimeout(timeout);
+          resolve(message);
+        },
+      });
+    });
+  }
+
+  function readFrame() {
+    const crlfHeaderEnd = output.indexOf('\r\n\r\n');
+    const lfHeaderEnd = output.indexOf('\n\n');
+    let headerEnd = -1;
+    let separatorLength = 0;
+    if (crlfHeaderEnd !== -1 && (lfHeaderEnd === -1 || crlfHeaderEnd < lfHeaderEnd)) {
+      headerEnd = crlfHeaderEnd;
+      separatorLength = 4;
+    } else if (lfHeaderEnd !== -1) {
+      headerEnd = lfHeaderEnd;
+      separatorLength = 2;
+    }
+    if (headerEnd === -1) return null;
+    const header = output.slice(0, headerEnd).toString('utf8');
+    const lengthMatch = /content-length:\s*(\d+)/iu.exec(header);
+    if (!lengthMatch) throw new Error(`Missing Content-Length in MCP frame: ${header}`);
+    const contentLength = Number(lengthMatch[1]);
+    const start = headerEnd + separatorLength;
+    const end = start + contentLength;
+    if (output.length < end) return null;
+    const body = output.slice(start, end).toString('utf8');
+    output = output.slice(end);
+    return body;
+  }
+}
+
+function encodeFrame(message) {
+  const body = JSON.stringify(message);
+  return `Content-Length: ${Buffer.byteLength(body, 'utf8')}\r\n\r\n${body}`;
+}

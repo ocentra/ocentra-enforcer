@@ -48,6 +48,10 @@ rust-rules-mcp
 
 ## Install / Init Model
 
+Start with [INSTALL.md](INSTALL.md) for a fresh machine or fresh Codex setup.
+Use [docs/CODEX_SETUP.md](docs/CODEX_SETUP.md) for MCP and skill wiring, and
+[docs/TARGET_REPO_WIRING.md](docs/TARGET_REPO_WIRING.md) for target repo setup.
+
 Run init from the enforcer install path and pass the target repo explicitly:
 
 ```bash
@@ -87,6 +91,10 @@ ocentra_enforcer_explain
 Legacy `rust_rules_*` MCP tool aliases remain for one Rust-pack compatibility
 release.
 
+MCP setup is intentionally documented in detail because path mistakes are the
+most common failure. Run `npm run mcp:smoke` from this repo to verify the MCP
+server before blaming Codex.
+
 ## Indexed Rules
 
 Agents should read `rules/INDEX.md` first, call MCP `ocentra_enforcer_route`,
@@ -107,6 +115,10 @@ clients, and non-Effect consumers.
 - `rules/rules.json`: machine-readable rule registry.
 - `rules/rust/*.md`: small Rust rule-family docs for selective loading.
 - `adapters/`: templates for Codex/MCP wiring, plain Git hooks, Husky, Lefthook, GitHub Actions, CodeQL, dependency policy, secret scan, and SBOM.
+- `INSTALL.md`: clone/install/validate flow for a fresh machine or fresh Codex.
+- `docs/CODEX_SETUP.md`: Codex MCP registration, manual config fallback, skill setup, and troubleshooting.
+- `docs/TARGET_REPO_WIRING.md`: how a target repo calls the external enforcer.
+- `docs/BOOTSTRAP_PROMPT.md`: copy-paste prompt for a future Codex to install and wire the enforcer.
 - `profiles/ocentra-parent.json`: migrated Ocentra Parent strict Rust profile.
 - `rust-rules.config.json`: legacy strict default profile file, still supported.
 

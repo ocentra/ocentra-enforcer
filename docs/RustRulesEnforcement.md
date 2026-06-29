@@ -6,6 +6,10 @@ matching validators for later releases.
 
 ## Consumption Model
 
+For new installs, read [../INSTALL.md](../INSTALL.md) first. For Codex MCP
+setup, read [CODEX_SETUP.md](CODEX_SETUP.md). For target repo wiring, read
+[TARGET_REPO_WIRING.md](TARGET_REPO_WIRING.md).
+
 Default use is package plus Codex plugin/MCP:
 
 ```bash
@@ -54,6 +58,8 @@ non-Effect consumers.
 ## Adapter Layer
 
 `ocentra-enforcer init --dry-run` reports the exact file plan before writing.
+Use [BOOTSTRAP_PROMPT.md](BOOTSTRAP_PROMPT.md) when handing setup to a fresh
+Codex thread.
 
 Supported adapters in this slice:
 
