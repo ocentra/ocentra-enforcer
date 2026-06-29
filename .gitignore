@@ -1,0 +1,8 @@
+node_modules/
+target/
+coverage/
+dist/
+build/
+.turbo/
+.DS_Store
+*.log

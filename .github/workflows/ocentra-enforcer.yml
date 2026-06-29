@@ -1,0 +1,27 @@
+name: Ocentra Enforcer Rust Gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  ocentra-enforcer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Install Rust dependency policy tools
+        run: |
+          cargo install --locked cargo-deny
+      - name: Test validator and MCP wrapper
+        run: npm test
+      - name: Run Ocentra Enforcer scanner
+        run: npm run rust:rules:scan
+      - name: Run Ocentra Enforcer cargo hard gate
+        run: npm run rust:rules

@@ -1,0 +1,252 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import test from 'node:test';
+
+const PACK_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const SERVER_PATH = path.join(PACK_ROOT, 'mcp', 'rust-rules-mcp.mjs');
+
+test('MCP server lists tools, explains rules, and scans a scoped file', async (t) => {
+  const launcherRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rust-rules-mcp-launcher-'));
+  const server = spawn(process.execPath, [SERVER_PATH], {
+    cwd: launcherRoot,
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  t.after(() => {
+    server.kill();
+  });
+
+  const client = createMcpClient(server);
+  const initialized = await client.request(1, 'initialize', {
+    protocolVersion: '2025-06-18',
+    capabilities: {},
+    clientInfo: { name: 'rust-rules-test', version: '0.0.0' },
+  });
+  assert.equal(initialized.result.serverInfo.name, 'ocentra-enforcer');
+  client.notify('notifications/initialized', {});
+
+  const tools = await client.request(2, 'tools/list', {});
+  assert.deepEqual(
+    tools.result.tools.map((tool) => tool.name).sort(),
+    [
+      'ocentra_enforcer_doctor',
+      'ocentra_enforcer_explain',
+      'ocentra_enforcer_route',
+      'ocentra_enforcer_scan',
+      'rust_rules_doctor',
+      'rust_rules_explain',
+      'rust_rules_route',
+      'rust_rules_scan',
+    ]
+  );
+
+  const explain = await client.request(3, 'tools/call', {
+    name: 'ocentra_enforcer_explain',
+    arguments: { ruleId: 'RR-7.3' },
+  });
+  assert.equal(explain.result.isError, false);
+  assert.match(explain.result.content[0].text, /RR-7\.3/u);
+
+  const legacyExplain = await client.request(30, 'tools/call', {
+    name: 'rust_rules_explain',
+    arguments: { ruleId: 'RR-7.3' },
+  });
+  assert.equal(legacyExplain.result.isError, false);
+  assert.match(legacyExplain.result.content[0].text, /RR-7\.3/u);
+
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rust-rules-mcp-'));
+  fs.mkdirSync(path.join(tempRoot, 'src'));
+  fs.writeFileSync(
+    path.join(tempRoot, 'rust-rules.config.json'),
+    JSON.stringify(
+      {
+        schemaVersion: 2,
+        profileName: 'mcp-test',
+        enforceWorkspaceFiles: false,
+        requireCargoDeny: false,
+        publicReexportPolicy: 'forbid',
+        rustRoots: ['src'],
+      },
+      null,
+      2
+    )
+  );
+  fs.writeFileSync(path.join(tempRoot, 'src', 'lib.rs'), 'pub use crate::inner::Thing;\n');
+
+  const scan = await client.request(4, 'tools/call', {
+    name: 'rust_rules_scan',
+    arguments: {
+      root: tempRoot,
+      profile: 'ocentra-parent',
+      scope: 'files',
+      files: ['src/lib.rs'],
+    },
+  });
+  assert.equal(scan.result.isError, true);
+  assert.match(scan.result.content[0].text, /RR-7\.3/u);
+
+  const route = await client.request(5, 'tools/call', {
+    name: 'ocentra_enforcer_route',
+    arguments: {
+      root: tempRoot,
+      profile: 'ocentra-parent',
+      scope: 'files',
+      files: ['src/lib.rs'],
+    },
+  });
+  assert.equal(route.result.isError, false);
+  const routeReport = JSON.parse(route.result.content[0].text);
+  assert.equal(routeReport.profileName, 'ocentra-parent');
+  assert.deepEqual(
+    routeReport.docs.sort(),
+    [
+      'rules/rust/async-runtime.md#covered-rules',
+      'rules/rust/domain.md#covered-rules',
+      'rules/rust/imports-modules.md#covered-rules',
+      'rules/rust/source.md#covered-rules',
+    ]
+  );
+  assert.equal(routeReport.docs.some((doc) => doc.includes('toolchain-cargo')), false);
+  assert.equal(routeReport.docs.some((doc) => doc.includes('dependencies')), false);
+
+  const cargoRoute = await client.request(6, 'tools/call', {
+    name: 'ocentra_enforcer_route',
+    arguments: {
+      root: tempRoot,
+      profile: 'ocentra-parent',
+      scope: 'files',
+      files: ['Cargo.toml'],
+    },
+  });
+  const cargoRouteReport = JSON.parse(cargoRoute.result.content[0].text);
+  assert.deepEqual(cargoRouteReport.docs.sort(), [
+    'rules/rust/dependencies.md#covered-rules',
+    'rules/rust/toolchain-cargo.md#covered-rules',
+  ]);
+
+  const explicitRoute = await client.request(7, 'tools/call', {
+    name: 'ocentra_enforcer_route',
+    arguments: {
+      root: tempRoot,
+      ruleId: 'RR-7.3',
+    },
+  });
+  const explicitRouteReport = JSON.parse(explicitRoute.result.content[0].text);
+  assert.deepEqual(explicitRouteReport.rules.map((rule) => rule.id), ['RR-7.3']);
+  assert.deepEqual(explicitRouteReport.docs, ['rules/rust/imports-modules.md#covered-rules']);
+
+  const unknownRoute = await client.request(8, 'tools/call', {
+    name: 'ocentra_enforcer_route',
+    arguments: {
+      root: tempRoot,
+      scope: 'files',
+      files: ['README.md'],
+    },
+  });
+  const unknownRouteReport = JSON.parse(unknownRoute.result.content[0].text);
+  assert.deepEqual(unknownRouteReport.docs, []);
+  assert.deepEqual(unknownRouteReport.rules, []);
+
+  const doctor = await client.request(9, 'tools/call', {
+    name: 'ocentra_enforcer_doctor',
+    arguments: {
+      root: tempRoot,
+      profile: 'ocentra-parent',
+      scope: 'files',
+      files: ['src/lib.rs'],
+    },
+  });
+  assert.equal(doctor.result.isError, false);
+  assert.match(doctor.result.content[0].text, /"profileName": "ocentra-parent"/u);
+
+  const invalidRoute = await client.request(10, 'tools/call', {
+    name: 'ocentra_enforcer_route',
+    arguments: {
+      root: tempRoot,
+      scope: 'files',
+      files: 'src/lib.rs',
+    },
+  });
+  assert.equal(invalidRoute.result.isError, true);
+  assert.match(invalidRoute.result.content[0].text, /route request schema validation failed/u);
+});
+
+function createMcpClient(server) {
+  let output = Buffer.alloc(0);
+  const received = new Map();
+  const waiters = new Map();
+  let stderr = '';
+
+  server.stderr.on('data', (chunk) => {
+    stderr += chunk.toString('utf8');
+  });
+
+  server.stdout.on('data', (chunk) => {
+    output = Buffer.concat([output, chunk]);
+    while (output.length > 0) {
+      const frame = readFrame();
+      if (frame === null) return;
+      const message = JSON.parse(frame);
+      if (message.id !== undefined && waiters.has(message.id)) {
+        const waiter = waiters.get(message.id);
+        waiters.delete(message.id);
+        waiter.resolve(message);
+      } else if (message.id !== undefined) {
+        received.set(message.id, message);
+      }
+    }
+  });
+
+  return {
+    request(id, method, params) {
+      server.stdin.write(encodeFrame({ jsonrpc: '2.0', id, method, params }));
+      return waitFor(id);
+    },
+    notify(method, params) {
+      server.stdin.write(encodeFrame({ jsonrpc: '2.0', method, params }));
+    },
+  };
+
+  function waitFor(id) {
+    if (received.has(id)) {
+      const message = received.get(id);
+      received.delete(id);
+      return Promise.resolve(message);
+    }
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        waiters.delete(id);
+        reject(new Error(`Timed out waiting for MCP response ${id}. stderr=${stderr}`));
+      }, 5000);
+      waiters.set(id, {
+        resolve(message) {
+          clearTimeout(timeout);
+          resolve(message);
+        },
+      });
+    });
+  }
+
+  function readFrame() {
+    const headerEnd = output.indexOf('\r\n\r\n');
+    if (headerEnd === -1) return null;
+    const header = output.slice(0, headerEnd).toString('utf8');
+    const lengthMatch = /content-length:\s*(\d+)/iu.exec(header);
+    assert.ok(lengthMatch, `missing Content-Length in ${header}`);
+    const contentLength = Number(lengthMatch[1]);
+    const start = headerEnd + 4;
+    const end = start + contentLength;
+    if (output.length < end) return null;
+    const body = output.slice(start, end).toString('utf8');
+    output = output.slice(end);
+    return body;
+  }
+}
+
+function encodeFrame(message) {
+  const body = JSON.stringify(message);
+  return `Content-Length: ${Buffer.byteLength(body, 'utf8')}\r\n\r\n${body}`;
+}

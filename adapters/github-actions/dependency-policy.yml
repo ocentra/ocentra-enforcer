@@ -1,0 +1,22 @@
+name: Dependency Policy
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  dependency-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install dependency policy tools
+        run: |
+          cargo install --locked cargo-deny
+          cargo install --locked cargo-audit
+      - name: Ocentra Enforcer dependency policy
+        run: ocentra-enforcer cargo --root . --workspace

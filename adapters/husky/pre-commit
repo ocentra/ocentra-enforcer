@@ -1,0 +1,4 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+ocentra-enforcer scan --root . --workspace --config "${OCENTRA_ENFORCER_CONFIG:-ocentra-enforcer.config.json}"

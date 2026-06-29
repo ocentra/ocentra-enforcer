@@ -1,0 +1,5 @@
+# Central Clippy thresholds for the Rust Rules gate.
+# Keep this file intentionally small; command-line -D lints in scripts/rust-rules.mjs are the source of hard policy.
+too-many-arguments-threshold = 5
+type-complexity-threshold = 250
+cognitive-complexity-threshold = 20

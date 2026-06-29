@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "ocentra-enforcer": {
+      "command": "node",
+      "args": [
+        "./mcp/rust-rules-mcp.mjs"
+      ]
+    }
+  }
+}

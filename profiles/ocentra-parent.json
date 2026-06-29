@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 2,
+  "profileName": "ocentra-parent",
+  "failFast": false,
+  "enforceWorkspaceFiles": false,
+  "requireCargoDeny": false,
+  "requireCargoAudit": false,
+  "runCargoDoc": false,
+  "cargoOnFileScope": false,
+  "cargoOnDiffScope": false,
+  "cargoTestThreads": null,
+  "allowUnsafeCode": false,
+  "allowBuildRs": true,
+  "allowGitDependencies": false,
+  "allowPathDependencies": true,
+  "publicReexportPolicy": "forbid",
+  "ignoreDirs": [
+    ".git",
+    ".hub",
+    ".turbo",
+    "target",
+    "node_modules",
+    ".next",
+    "dist",
+    "build",
+    "coverage",
+    "output"
+  ],
+  "ignoreFileGlobs": [],
+  "rustRoots": [
+    "apps/parent-desktop/src-tauri",
+    "crates",
+    "tools"
+  ],
+  "crateRootGlobs": [
+    "apps/parent-desktop/src-tauri",
+    "crates/*",
+    "tools/*",
+    "."
+  ],
+  "testFileGlobs": [
+    "**/tests/**",
+    "**/*_test.rs",
+    "**/*_tests.rs",
+    "**/*_test_support.rs",
+    "**/*_test_fixture.rs",
+    "**/*_test_fixtures.rs"
+  ],
+  "rawTypeBoundaryGlobs": [
+    "src/bin/**",
+    "src/main.rs",
+    "src/**/boundary/**",
+    "src/**/boundaries/**",
+    "src/**/adapter/**",
+    "src/**/adapters/**",
+    "src/**/ffi/**",
+    "src/**/serde/**",
+    "src/**/transport/**",
+    "crates/**/src/bin/**",
+    "crates/**/src/main.rs",
+    "crates/**/src/**/boundary/**",
+    "crates/**/src/**/boundaries/**",
+    "crates/**/src/**/adapter/**",
+    "crates/**/src/**/adapters/**",
+    "crates/**/src/**/ffi/**",
+    "crates/**/src/**/serde/**",
+    "crates/**/src/**/transport/**"
+  ],
+  "facadeFileGlobs": [],
+  "rawStringOwnerGlobs": [
+    "crates/agent-protocol/src/**",
+    "crates/ocentra-eventing/src/**",
+    "crates/ocentra-evidence/src/**",
+    "crates/ocentra-network-evidence/src/**",
+    "crates/agent-updater/src/**",
+    "crates/logging-core/src/**",
+    "crates/schema/src/**",
+    "crates/*-core/src/**",
+    "crates/*-adapter/src/**",
+    "crates/*-runtime/src/**"
+  ],
+  "domainPrimitiveOwnerGlobs": [
+    "crates/agent-protocol/src/**",
+    "crates/ocentra-eventing/src/**",
+    "crates/ocentra-evidence/src/**",
+    "crates/ocentra-network-evidence/src/**",
+    "crates/agent-updater/src/**",
+    "crates/logging-core/src/**"
+  ],
+  "enforceRuntimeStringLiterals": true,
+  "runtimeStringOwnerGlobs": [
+    "crates/agent-protocol/src/**",
+    "crates/ocentra-eventing/src/**",
+    "crates/ocentra-evidence/src/**",
+    "crates/ocentra-network-evidence/src/**",
+    "crates/agent-updater/src/**",
+    "crates/logging-core/src/**",
+    "crates/schema/src/**",
+    "crates/*-core/src/**",
+    "crates/*-adapter/src/**",
+    "crates/*-runtime/src/**"
+  ],
+  "runtimeStringLineAllowPatterns": [
+    "env!\\(",
+    "#\\[tokio::main",
+    "#\\[serde",
+    "serde\\(",
+    "cfg\\(",
+    "#\\[path\\s*=",
+    "panic!\\(",
+    "format!\\(",
+    "^\\s*(?:pub\\s+)?const\\s+[A-Z0-9_]+\\s*:\\s*&str\\s*=\\s*\""
+  ],
+  "enforceSerializedPublicDomainPrimitives": true,
+  "serializedDomainOwnerGlobs": [
+    "crates/agent-protocol/src/**",
+    "crates/ocentra-eventing/src/**",
+    "crates/ocentra-evidence/src/**",
+    "crates/ocentra-network-evidence/src/**",
+    "crates/agent-updater/src/**",
+    "crates/logging-core/src/**"
+  ],
+  "blockedProtocolDependencies": {
+    "ocentra-parent-agent-protocol": [
+      "ocentra-parent-agent-core",
+      "ocentra-parent-agent-service",
+      "ocentra-child-runtime",
+      "ocentra-parent-runtime-core",
+      "ocentra-parent-screen-capture-adapter"
+    ]
+  },
+  "runtimeCrates": [
+    "ocentra-parent-agent-core",
+    "ocentra-parent-agent-service",
+    "ocentra-child-runtime",
+    "ocentra-parent-runtime-core",
+    "ocentra-parent-screen-capture-adapter"
+  ],
+  "testOnlyCrates": [
+    "criterion",
+    "mockall",
+    "pretty_assertions",
+    "proptest",
+    "rstest",
+    "wiremock"
+  ],
+  "allowedGitDependencies": []
+}

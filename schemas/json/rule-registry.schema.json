@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocentra.dev/schemas/ocentra-enforcer/rule-registry.schema.json",
+  "title": "Ocentra Enforcer Rule Registry",
+  "type": "object",
+  "required": ["schemaVersion", "productName", "languages", "rules"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "type": "number" },
+    "productName": { "const": "ocentra-enforcer" },
+    "languages": {
+      "type": "array",
+      "items": { "enum": ["rust", "typescript", "python"] },
+      "minItems": 1
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "language", "family", "severity", "appliesTo", "triggers", "validator", "doc"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^RR-[0-9]+\\.[0-9]+$" },
+          "language": { "enum": ["rust", "typescript", "python"] },
+          "family": {
+            "enum": ["source", "domain", "imports-modules", "toolchain-cargo", "dependencies", "async-runtime"]
+          },
+          "severity": { "enum": ["error", "warning", "info"] },
+          "appliesTo": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+          "triggers": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+          "validator": { "type": "string" },
+          "doc": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,7 @@
+interface:
+  display_name: "Rust Rules Hard Gate"
+  short_description: "Run Rust hard gates by exact scope."
+  default_prompt: "Use $rust-rules-hard-gate to validate this Rust change with Ocentra Enforcer."
+
+policy:
+  allow_implicit_invocation: true

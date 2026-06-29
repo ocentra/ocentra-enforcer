@@ -1,0 +1,26 @@
+name: Ocentra Enforcer
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  enforcer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Install Ocentra Enforcer
+        run: npm install --global ocentra-enforcer
+      - name: Route indexed rules
+        run: ocentra-enforcer doctor --root . --workspace
+      - name: Scan Rust policy
+        run: ocentra-enforcer scan --root . --workspace
+      - name: Run Rust cargo hard gate
+        run: ocentra-enforcer cargo --root . --workspace

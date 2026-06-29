@@ -1,0 +1,35 @@
+{
+  "name": "ocentra-enforcer",
+  "version": "0.1.0",
+  "description": "Standalone enforcement system with indexed Rust hard-fail rules, validator CLI, Codex skill, and MCP adapter.",
+  "author": {
+    "name": "Ocentra Parent"
+  },
+  "license": "UNLICENSED",
+  "keywords": [
+    "rust",
+    "validation",
+    "codex",
+    "mcp",
+    "architecture"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Ocentra Enforcer",
+    "shortDescription": "Reusable hard-fail enforcement system",
+    "longDescription": "Run strict indexed Rust policy checks by file, crate, diff, or workspace through a CLI, Codex skill, or MCP server. TypeScript and Python modules are reserved for later releases.",
+    "developerName": "Ocentra Parent",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Read",
+      "Interactive"
+    ],
+    "defaultPrompt": [
+      "Validate this Rust change with Ocentra Enforcer.",
+      "Run Ocentra Enforcer against this crate.",
+      "Explain this Ocentra Enforcer failure."
+    ],
+    "brandColor": "#0F766E"
+  }
+}
