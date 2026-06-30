@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocentra.dev/schemas/ocentra-enforcer/proof-retention-policy.schema.json",
+  "title": "Ocentra Enforcer Proof Retention Policy",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "maxRunsPerProof": { "type": "number" },
+    "maxFailedRuns": { "type": "number" },
+    "maxArtifactBytes": { "type": "number" },
+    "pruneAfterDays": { "type": ["number", "null"] },
+    "pinPrReadyDays": { "type": ["number", "null"] }
+  }
+}

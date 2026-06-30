@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocentra.dev/schemas/ocentra-enforcer/proof-diagnostic.schema.json",
+  "title": "Ocentra Enforcer Proof Diagnostic",
+  "type": "object",
+  "required": ["runId", "proofId", "severity", "ruleId", "message", "file", "line"],
+  "additionalProperties": true,
+  "properties": {
+    "runId": { "type": "string" },
+    "proofId": { "type": "string" },
+    "severity": { "enum": ["error", "warning", "info"] },
+    "ruleId": { "type": "string" },
+    "message": { "type": "string" },
+    "file": { "type": "string" },
+    "line": { "type": "number" }
+  }
+}

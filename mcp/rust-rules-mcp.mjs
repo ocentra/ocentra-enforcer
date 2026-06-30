@@ -7,9 +7,11 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import {
   decodeCheckToolArguments,
+  decodeCoordinationToolArguments,
   decodeDoctorToolArguments,
   decodeExplainToolArguments,
   decodeRouteRequest,
@@ -18,6 +20,31 @@ import {
   decodeRunToolArguments,
   decodeScanToolArguments,
 } from "../schemas/effect/enforcer-schemas.mjs";
+import {
+  coordinationAck,
+  coordinationClaim,
+  coordinationGuard,
+  coordinationHealth,
+  coordinationIndex,
+  coordinationInbox,
+  coordinationInit,
+  coordinationMail,
+  coordinationMessage,
+  coordinationNotify,
+  coordinationPeer,
+  coordinationPresence,
+  coordinationRelease,
+  coordinationRepair,
+  coordinationReport,
+  coordinationCompact,
+  coordinationEnsure,
+  coordinationStreams,
+  coordinationSync,
+  coordinationStatus,
+  coordinationTasks,
+  coordinationWorkers,
+} from "../src/coordination/api.mjs";
+import { coordinationHashCompatibility } from "../src/coordination/vendor/events.js";
 import { routeRules as buildRouteReport } from "../src/routing.mjs";
 import {
   lastFailure,
@@ -29,6 +56,19 @@ import {
   runHarness,
   runSummary,
 } from "../src/harness.mjs";
+import {
+  claimProof,
+  inventoryProofs,
+  proofArtifact,
+  proofDiagnostics,
+  proofExport,
+  proofLastFailure,
+  proofPrune,
+  proofReset,
+  proofStatus,
+  routeProofs,
+  runProof,
+} from "../src/proof.mjs";
 
 const MCP_PROTOCOL_VERSION = "2025-06-18";
 const SERVER_ROOT = path.resolve(
@@ -39,6 +79,30 @@ const RULE_REGISTRY_PATH = path.join(SERVER_ROOT, "rules", "rules.json");
 const PACKAGE_JSON = JSON.parse(
   fs.readFileSync(path.join(SERVER_ROOT, "package.json"), "utf8"),
 );
+const SERVER_STARTED_AT = new Date().toISOString();
+const MCP_FINGERPRINT_FILES = [
+  "package.json",
+  "mcp/rust-rules-mcp.mjs",
+  "schemas/effect/enforcer-schemas.mjs",
+  "scripts/rust-rules.mjs",
+  "src/coordination/api.mjs",
+  "src/coordination/runner.mjs",
+  "src/coordination/vendor/events.js",
+  "src/coordination/vendor/repair.js",
+  "src/coordination/vendor/stream.js",
+  ...extraFingerprintFiles(),
+];
+const STARTUP_FINGERPRINT = buildMcpFingerprint();
+const COORDINATION_WRITE_TOOLS = new Set([
+  "ocentra_enforcer_coordination_init",
+  "ocentra_enforcer_coordination_claim",
+  "ocentra_enforcer_coordination_release",
+  "ocentra_enforcer_coordination_report",
+  "ocentra_enforcer_coordination_message",
+  "ocentra_enforcer_coordination_sync",
+  "ocentra_enforcer_coordination_ensure",
+  "ocentra_enforcer_coordination_compact",
+]);
 
 const SCOPE_SCHEMA = {
   type: "string",
@@ -171,7 +235,192 @@ function runQueryInputSchema() {
   };
 }
 
+function coordinationInputSchema(extra = {}) {
+  return {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      root: {
+        type: "string",
+        description: "Target repository root for future adapter-aware checks.",
+      },
+      stateRoot: {
+        type: "string",
+        description:
+          "Exact coordination hub root for repair/import overrides. Defaults to OCENTRA_LEDGER_HOME/<hub>.",
+      },
+      hub: {
+        type: "string",
+        description: "Generic hub name used when stateRoot is not explicit.",
+      },
+      lane: { type: "string", description: "Lane id." },
+      paths: {
+        type: "array",
+        items: { type: "string" },
+        description: "Exact changed or claimed paths.",
+      },
+      changedPaths: {
+        type: "array",
+        items: { type: "string" },
+        description: "Changed paths for guard/health decisions.",
+      },
+      reason: { type: "string" },
+      summary: { type: "string" },
+      owner: {
+        type: "string",
+        description:
+          "Optional writer id to preserve for coordination repair stale-claims.",
+      },
+      operation: {
+        type: "string",
+        enum: ["inspect", "edit", "commit", "push", "rebase", "merge", "pr_ready"],
+        description:
+          "Operation-aware guard mode. Defaults to commit for guard/health with paths and edit for claim.",
+      },
+      lockKind: {
+        type: "string",
+        enum: ["writeLock", "globalWriteLock", "branchLease", "workReservation"],
+        description:
+          "Claim kind. Normal exact-file writes use writeLock; singleton paths promote to globalWriteLock.",
+      },
+      onConflict: {
+        type: "string",
+        enum: ["fail", "intent"],
+        description:
+          "When claim is blocked, fail immediately or append an editIntent queue record.",
+      },
+      claimGroup: {
+        type: "string",
+        description:
+          "Optional group key so source/generated files or related paths lock together.",
+      },
+      waitMs: {
+        type: "number",
+        description:
+          "Reserved wait budget for future polling; current v1 records intent instead of blocking.",
+      },
+      body: { type: "string" },
+      to: { type: "string" },
+      messageId: { type: "string" },
+      taskId: { type: "string" },
+      state: { type: "string" },
+      sessionId: { type: "string" },
+      action: {
+        type: "string",
+        description:
+          "Coordination action for aggregate tools such as peer or mail.",
+      },
+      peer: { type: "string" },
+      peerUrl: { type: "string" },
+      url: { type: "string" },
+      name: { type: "string" },
+      token: { type: "string" },
+      tokenEnv: { type: "string" },
+      mode: { type: "string", enum: ["pull", "push", "both"] },
+      host: { type: "string" },
+      port: { type: "number" },
+      keepLatest: { type: "number" },
+      projectId: { type: "string" },
+      repoRoot: { type: "string" },
+      worktreeRoot: { type: "string" },
+      cwd: { type: "string" },
+      gitRemote: { type: "string" },
+      branch: { type: "string" },
+      commit: { type: "string" },
+      codexThreadId: { type: "string" },
+      codexSessionId: { type: "string" },
+      stateFile: { type: "string" },
+      peek: { type: "boolean" },
+      dryRun: { type: "boolean" },
+      write: { type: "boolean" },
+      focused: { type: "boolean" },
+      allowPrimaryWithoutClaims: { type: "boolean" },
+      allowMergeRisks: { type: "boolean" },
+      all: { type: "boolean" },
+      limit: { type: "number" },
+      ...extra,
+    },
+  };
+}
+
+function coordinationActionInputSchema(action, description) {
+  const actions = Array.isArray(action) ? action : [action];
+  return coordinationInputSchema({
+    action: {
+      type: "string",
+      enum: actions,
+      description,
+    },
+  });
+}
+
+function proofInputSchema(extra = {}) {
+  return {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      root: COMMON_INPUT_SCHEMA.properties.root,
+      profile: COMMON_INPUT_SCHEMA.properties.profile,
+      scope: SCOPE_SCHEMA,
+      files: COMMON_INPUT_SCHEMA.properties.files,
+      plan: { type: "string" },
+      capability: {
+        type: "string",
+        enum: [
+          "ci",
+          "local",
+          "windows",
+          "linux",
+          "macos",
+          "wsl",
+          "android-emulator",
+          "android-device",
+          "ios-simulator",
+          "ios-device",
+          "browser",
+          "network",
+          "cloud",
+          "manual-required",
+        ],
+      },
+      proofId: { type: "string" },
+      proofIds: { type: "array", items: { type: "string" } },
+      runId: { type: "string" },
+      command: { type: "array", items: { type: "string" } },
+      tags: { type: "array", items: { type: "string" } },
+      artifact: { type: "string" },
+      limit: { type: "number" },
+      diagnosticLimit: { type: "number" },
+      limitBytes: { type: "number" },
+      includeScripts: {
+        type: "boolean",
+        description:
+          "For proof inventory only: include bounded script rows. Defaults to false.",
+      },
+      status: {
+        type: "string",
+        enum: ["passed", "failed", "manual-required", "unavailable", "waived"],
+      },
+      pin: { type: "boolean" },
+      claimId: { type: "string" },
+      prReady: { type: "boolean" },
+      allowDirty: { type: "boolean" },
+      ...extra,
+    },
+  };
+}
+
 const CANONICAL_TOOLS = [
+  {
+    name: "ocentra_enforcer_mcp_status",
+    description:
+      "Report MCP process freshness and whether Codex must reload this Enforcer server before coordination writes.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {},
+    },
+  },
   {
     name: "ocentra_enforcer_route",
     description:
@@ -320,6 +569,69 @@ const CANONICAL_TOOLS = [
     },
   },
   {
+    name: "ocentra_enforcer_proof_route",
+    description:
+      "Return compact indexed proof definitions relevant to files, plan, capability, profile, or one proof id.",
+    inputSchema: proofInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_proof_run",
+    description:
+      "Run or record a proof through the Enforcer proof harness, storing local proof artifacts under .enforce/proofs.",
+    inputSchema: proofInputSchema({
+      proofId: { type: "string" },
+      command: { type: "array", items: { type: "string" } },
+    }),
+  },
+  {
+    name: "ocentra_enforcer_proof_status",
+    description: "Return compact proof run status for the target repository.",
+    inputSchema: proofInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_proof_inventory",
+    description:
+      "Read-only inventory of legacy proof scripts in a target repository, grouped by family/capability.",
+    inputSchema: proofInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_proof_claim",
+    description:
+      "Validate that named proof ids support a PR-ready or completion claim without stale/missing artifacts.",
+    inputSchema: proofInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_proof_last_failure",
+    description: "Return the latest failed/manual-required proof with compact diagnostics.",
+    inputSchema: proofInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_proof_diagnostics",
+    description: "Return compact proof diagnostics for the latest or requested proof run.",
+    inputSchema: proofInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_proof_artifact",
+    description: "Return a bounded proof artifact only when compact diagnostics are insufficient.",
+    inputSchema: proofInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_proof_reset",
+    description: "Delete local proof run state under .enforce/proofs for a target repository.",
+    inputSchema: proofInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_proof_prune",
+    description: "Apply proof retention policy under .enforce/proofs.",
+    inputSchema: proofInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_proof_export",
+    description:
+      "Return a manifest-only proof export suitable for CI artifact upload metadata.",
+    inputSchema: proofInputSchema(),
+  },
+  {
     name: "ocentra_enforcer_run_status",
     description: "Return the latest or requested Enforcer harness run summary.",
     inputSchema: runQueryInputSchema(),
@@ -358,6 +670,134 @@ const CANONICAL_TOOLS = [
     description:
       "Check Ocentra Enforcer wiring for a target root/config/scope without changing files.",
     inputSchema: COMMON_INPUT_SCHEMA,
+  },
+  {
+    name: "ocentra_enforcer_coordination_init",
+    description: "Initialize generic external coordination state for a hub/lane.",
+    inputSchema: coordinationInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_coordination_health",
+    description:
+      "Return compact generic hub/lane/mail/worktree coordination health and write-safety decisions.",
+    inputSchema: coordinationInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_coordination_presence",
+    description:
+      "Return compact PC/project/worktree/lane/thread/claim presence matrix for the coordination hub.",
+    inputSchema: coordinationInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_coordination_index",
+    description:
+      "Rebuild disposable coordination read indexes and JSON views from canonical streams.",
+    inputSchema: coordinationInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_coordination_streams",
+    description:
+      "Return stream manifest with event counts, byte lengths, seq ranges, and tail hashes.",
+    inputSchema: coordinationInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_coordination_sync",
+    description:
+      "Sync coordination streams from a local or HTTP peer using manifest plus suffix transfer.",
+    inputSchema: coordinationInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_coordination_peer",
+    description:
+      "Manage and inspect coordination peers: add, remove, list, health, status, or sync.",
+    inputSchema: coordinationInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_coordination_ensure",
+    description:
+      "Ensure the background coordination peer daemon is running for this state root.",
+    inputSchema: coordinationInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_coordination_compact",
+    description:
+      "Compact hot streams into immutable archive segments and rebuild read indexes.",
+    inputSchema: coordinationInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_coordination_notify",
+    description: "Return wake/notification requests for a coordination lane.",
+    inputSchema: coordinationInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_coordination_mail",
+    description: "Aggregate mail helper for inbox, send, and ack actions.",
+    inputSchema: coordinationInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_coordination_status",
+    description: "Return materialized generic coordination state.",
+    inputSchema: coordinationInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_coordination_inbox",
+    description: "Return unread or all messages for a lane.",
+    inputSchema: coordinationInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_coordination_claim",
+    description:
+      "Claim exact paths for a lane. Use ocentra_enforcer_coordination_release to release paths.",
+    inputSchema: coordinationActionInputSchema(
+      "claim",
+      "Optional dedicated-tool action marker. action=\"release\" is invalid here.",
+    ),
+  },
+  {
+    name: "ocentra_enforcer_coordination_release",
+    description:
+      "Release exact paths for a lane. Use ocentra_enforcer_coordination_claim to claim paths.",
+    inputSchema: coordinationActionInputSchema(
+      "release",
+      "Optional dedicated-tool action marker. action=\"claim\" is invalid here.",
+    ),
+  },
+  {
+    name: "ocentra_enforcer_coordination_repair",
+    description:
+      "Dry-run or apply safe coordination stream compatibility repairs, such as legacy-hash repair for context-bearing events.",
+    inputSchema: coordinationInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_coordination_guard",
+    description: "Check whether a lane may write the provided exact paths.",
+    inputSchema: coordinationInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_coordination_report",
+    description: "Append a generic coordination lifecycle report.",
+    inputSchema: coordinationActionInputSchema(
+      "report",
+      "Optional dedicated-tool action marker.",
+    ),
+  },
+  {
+    name: "ocentra_enforcer_coordination_message",
+    description: "Send generic coordination mail to a lane/address.",
+    inputSchema: coordinationActionInputSchema(
+      ["message", "send"],
+      "Optional dedicated-tool action marker. Use coordination_mail for aggregate mail actions.",
+    ),
+  },
+  {
+    name: "ocentra_enforcer_coordination_workers",
+    description: "Return compact worker status.",
+    inputSchema: coordinationInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_coordination_tasks",
+    description: "Return active task status.",
+    inputSchema: coordinationInputSchema(),
   },
   {
     name: "ocentra_enforcer_explain",
@@ -508,7 +948,7 @@ async function handleMessage(message, framing) {
       sendResult(message.id, { tools: TOOLS }, framing);
       return;
     case "tools/call":
-      sendResult(message.id, callTool(message.params ?? {}), framing);
+      sendResult(message.id, await callTool(message.params ?? {}), framing);
       return;
     case "resources/list":
       sendResult(message.id, { resources: [] }, framing);
@@ -532,10 +972,17 @@ async function handleMessage(message, framing) {
   }
 }
 
-function callTool(params) {
+async function callTool(params) {
   const name = normalizeToolName(params.name);
   const args = params.arguments ?? {};
   try {
+    if (name === "ocentra_enforcer_mcp_status") {
+      return toolJson(mcpStatus());
+    }
+    const freshness = mcpStatus();
+    if (shouldBlockStaleMcpTool(name, args, freshness)) {
+      return toolJson(mcpStaleError(name, freshness));
+    }
     if (name === "ocentra_enforcer_route") {
       return {
         isError: false,
@@ -561,16 +1008,114 @@ function callTool(params) {
     if (name === "ocentra_enforcer_doctor") {
       return runCli("doctor", decodeDoctorToolArguments(args));
     }
+    if (name === "ocentra_enforcer_coordination_health") {
+      return toolJsonAsync(coordinationHealth(decodeCoordinationToolArguments(args)));
+    }
+    if (name === "ocentra_enforcer_coordination_init") {
+      return toolJsonAsync(coordinationInit(decodeCoordinationToolArguments(args)));
+    }
+    if (name === "ocentra_enforcer_coordination_presence") {
+      return toolJsonAsync(coordinationPresence(decodeCoordinationToolArguments(args)));
+    }
+    if (name === "ocentra_enforcer_coordination_index") {
+      return toolJsonAsync(coordinationIndex(decodeCoordinationToolArguments(args)));
+    }
+    if (name === "ocentra_enforcer_coordination_streams") {
+      return toolJsonAsync(coordinationStreams(decodeCoordinationToolArguments(args)));
+    }
+    if (name === "ocentra_enforcer_coordination_sync") {
+      return toolJsonAsync(coordinationSync(decodeCoordinationToolArguments(args)));
+    }
+    if (name === "ocentra_enforcer_coordination_peer") {
+      return toolJsonAsync(coordinationPeer(decodeCoordinationToolArguments(args)));
+    }
+    if (name === "ocentra_enforcer_coordination_ensure") {
+      return toolJsonAsync(coordinationEnsure(decodeCoordinationToolArguments(args)));
+    }
+    if (name === "ocentra_enforcer_coordination_compact") {
+      return toolJsonAsync(coordinationCompact(decodeCoordinationToolArguments(args)));
+    }
+    if (name === "ocentra_enforcer_coordination_notify") {
+      return toolJsonAsync(coordinationNotify(decodeCoordinationToolArguments(args)));
+    }
+    if (name === "ocentra_enforcer_coordination_mail") {
+      return toolJsonAsync(coordinationMail(decodeCoordinationToolArguments(args)));
+    }
+    if (name === "ocentra_enforcer_coordination_status") {
+      return toolJsonAsync(coordinationStatus(decodeCoordinationToolArguments(args)));
+    }
+    if (name === "ocentra_enforcer_coordination_inbox") {
+      return toolJsonAsync(coordinationInbox(decodeCoordinationToolArguments(args)));
+    }
+    if (name === "ocentra_enforcer_coordination_claim") {
+      return toolJsonAsync(coordinationClaim(decodeCoordinationToolArguments(args)));
+    }
+    if (name === "ocentra_enforcer_coordination_release") {
+      return toolJsonAsync(coordinationRelease(decodeCoordinationToolArguments(args)));
+    }
+    if (name === "ocentra_enforcer_coordination_repair") {
+      return toolJsonAsync(coordinationRepair(decodeCoordinationToolArguments(args)));
+    }
+    if (name === "ocentra_enforcer_coordination_guard") {
+      return toolJsonAsync(coordinationGuard(decodeCoordinationToolArguments(args)));
+    }
+    if (name === "ocentra_enforcer_coordination_report") {
+      return toolJsonAsync(coordinationReport(decodeCoordinationToolArguments(args)));
+    }
+    if (name === "ocentra_enforcer_coordination_message") {
+      return toolJsonAsync(coordinationMessage(decodeCoordinationToolArguments(args)));
+    }
+    if (name === "ocentra_enforcer_coordination_workers") {
+      return toolJsonAsync(coordinationWorkers(decodeCoordinationToolArguments(args)));
+    }
+    if (name === "ocentra_enforcer_coordination_tasks") {
+      return toolJsonAsync(coordinationTasks(decodeCoordinationToolArguments(args)));
+    }
     if (name === "ocentra_enforcer_explain") {
       return runCli("explain", decodeExplainToolArguments(args));
     }
     if (name === "ocentra_enforcer_run") {
       return toolJson(runHarness(decodeRunToolArguments(args)));
     }
+    if (name === "ocentra_enforcer_proof_route") {
+      return toolJson(routeProofs(args, SERVER_ROOT));
+    }
+    if (name === "ocentra_enforcer_proof_run") {
+      return toolJson(runProof(args, SERVER_ROOT));
+    }
+    if (name === "ocentra_enforcer_proof_status") {
+      return toolJson(proofStatus(args));
+    }
+    if (name === "ocentra_enforcer_proof_inventory") {
+      return toolJson(inventoryProofs(args));
+    }
+    if (name === "ocentra_enforcer_proof_claim") {
+      return toolJson(claimProof(args, SERVER_ROOT));
+    }
+    if (name === "ocentra_enforcer_proof_last_failure") {
+      return toolJson(proofLastFailure(args));
+    }
+    if (name === "ocentra_enforcer_proof_diagnostics") {
+      return toolJson(proofDiagnostics(args));
+    }
+    if (name === "ocentra_enforcer_proof_artifact") {
+      return toolJson(proofArtifact(args));
+    }
+    if (name === "ocentra_enforcer_proof_reset") {
+      return toolJson(proofReset(args));
+    }
+    if (name === "ocentra_enforcer_proof_prune") {
+      return toolJson(proofPrune(args));
+    }
+    if (name === "ocentra_enforcer_proof_export") {
+      return toolJson(proofExport(args));
+    }
     if (name === "ocentra_enforcer_run_status") {
       const decoded = decodeRunQueryArguments(args);
       const summary = runSummary(decoded);
       const validationSummary = latestValidationSummary(decoded);
+      const artifact =
+        summary && decoded.artifact ? readArtifact(decoded) : undefined;
       return toolJson({
         ok: true,
         summary: summary ?? validationSummary,
@@ -580,6 +1125,7 @@ function callTool(params) {
             ? "validation"
             : "none",
         validationSummary,
+        ...(artifact === undefined ? {} : { artifact }),
       });
     }
     if (name === "ocentra_enforcer_diagnostics") {
@@ -603,11 +1149,183 @@ function callTool(params) {
   }
 }
 
+function toolJsonAsync(promise) {
+  return promise.then(toolJson, (error) =>
+    toolError(error instanceof Error ? error.message : String(error)),
+  );
+}
+
 function toolJson(value) {
   return {
     isError: value?.ok === false,
     content: [{ type: "text", text: JSON.stringify(value, null, 2) }],
   };
+}
+
+function mcpStatus() {
+  const current = buildMcpFingerprint();
+  const stale = STARTUP_FINGERPRINT.digest !== current.digest;
+  const hashCompatibility = coordinationHashCompatibility();
+  return {
+    ok: !stale && hashCompatibility.ok,
+    stale,
+    reloadRequired: stale || !hashCompatibility.ok,
+    writeCompatible: hashCompatibility.ok,
+    hashCompatibility,
+    packRoot: SERVER_ROOT,
+    processId: process.pid,
+    startedAt: SERVER_STARTED_AT,
+    nodeVersion: process.version,
+    runningVersion: PACKAGE_JSON.version,
+    currentVersion: current.packageVersion,
+    startup: STARTUP_FINGERPRINT,
+    current,
+    changedFiles: changedFingerprintFiles(
+      STARTUP_FINGERPRINT.files,
+      current.files,
+    ),
+    nextStep: stale
+      ? "Restart Codex Desktop/MCP or use ocentra_enforcer_run to invoke the updated CLI from the pack root."
+      : hashCompatibility.ok
+        ? "MCP server fingerprint matches the current Enforcer files and coordination hash compatibility is valid."
+        : "Restart Codex Desktop/MCP or use ocentra_enforcer_run; coordination hash compatibility failed.",
+  };
+}
+
+function shouldBlockStaleMcpTool(name, args, freshness) {
+  if (!freshness.stale && freshness.writeCompatible !== false) return false;
+  if (COORDINATION_WRITE_TOOLS.has(name)) return true;
+  if (name === "ocentra_enforcer_coordination_mail") {
+    return ["send", "ack"].includes(String(args.action ?? "").toLowerCase());
+  }
+  if (name === "ocentra_enforcer_coordination_peer") {
+    return ["add", "remove", "sync"].includes(
+      String(args.action ?? "").toLowerCase(),
+    );
+  }
+  if (name === "ocentra_enforcer_coordination_repair") {
+    return args.write === true || args.dryRun === false;
+  }
+  return false;
+}
+
+function mcpStaleError(name, freshness) {
+  const reason = freshness.writeCompatible === false
+    ? "coordination hash compatibility failed"
+    : "MCP server is stale";
+  return {
+    ok: false,
+    error: `${reason}; refusing ${name} because it may write incompatible coordination events.`,
+    mcpFreshness: freshness,
+  };
+}
+
+function buildMcpFingerprint() {
+  const files = MCP_FINGERPRINT_FILES.map(fingerprintFile);
+  const digest = createHash("sha256")
+    .update(
+      JSON.stringify(
+        files.map((file) => ({
+          path: file.path,
+          exists: file.exists,
+          sha256: file.sha256,
+          byteLength: file.byteLength,
+        })),
+      ),
+    )
+    .digest("hex");
+  return {
+    digest,
+    packageVersion: readPackageVersion(),
+    files,
+  };
+}
+
+function fingerprintFile(filePath) {
+  const label = normalizeFingerprintLabel(filePath);
+  const resolved = resolveFingerprintFile(filePath);
+  if (!fs.existsSync(resolved)) {
+    return {
+      path: label,
+      resolvedPath: resolved,
+      exists: false,
+      sha256: null,
+      byteLength: 0,
+      mtimeMs: null,
+    };
+  }
+  const buffer = fs.readFileSync(resolved);
+  const stat = fs.statSync(resolved);
+  return {
+    path: label,
+    resolvedPath: resolved,
+    exists: true,
+    sha256: createHash("sha256").update(buffer).digest("hex"),
+    byteLength: buffer.length,
+    mtimeMs: stat.mtimeMs,
+  };
+}
+
+function changedFingerprintFiles(startupFiles, currentFiles) {
+  const startupByPath = new Map(startupFiles.map((file) => [file.path, file]));
+  const currentByPath = new Map(currentFiles.map((file) => [file.path, file]));
+  const paths = [...new Set([...startupByPath.keys(), ...currentByPath.keys()])].sort();
+  return paths
+    .map((filePath) => {
+      const startup = startupByPath.get(filePath);
+      const current = currentByPath.get(filePath);
+      const changed =
+        startup?.exists !== current?.exists ||
+        startup?.sha256 !== current?.sha256 ||
+        startup?.byteLength !== current?.byteLength;
+      return changed
+        ? {
+            path: filePath,
+            startup: summarizeFingerprintEntry(startup),
+            current: summarizeFingerprintEntry(current),
+          }
+        : null;
+    })
+    .filter(Boolean);
+}
+
+function summarizeFingerprintEntry(entry) {
+  return entry
+    ? {
+        exists: entry.exists,
+        sha256: entry.sha256,
+        byteLength: entry.byteLength,
+      }
+    : null;
+}
+
+function readPackageVersion() {
+  try {
+    return JSON.parse(
+      fs.readFileSync(path.join(SERVER_ROOT, "package.json"), "utf8"),
+    ).version;
+  } catch {
+    return null;
+  }
+}
+
+function extraFingerprintFiles() {
+  return String(process.env.OCENTRA_ENFORCER_MCP_FINGERPRINT_EXTRA ?? "")
+    .split(path.delimiter)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function resolveFingerprintFile(filePath) {
+  return path.isAbsolute(filePath)
+    ? path.resolve(filePath)
+    : path.join(SERVER_ROOT, filePath);
+}
+
+function normalizeFingerprintLabel(filePath) {
+  return path.isAbsolute(filePath)
+    ? path.resolve(filePath).replaceAll("\\", "/")
+    : filePath.replaceAll("\\", "/");
 }
 
 function normalizeToolName(name) {

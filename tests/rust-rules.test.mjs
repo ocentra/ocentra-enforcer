@@ -460,14 +460,46 @@ test('ocentra-enforcer codex install dry-run reports target and global MCP plan 
   assert.equal(report.command, 'codex-install');
   assert.equal(report.dryRun, true);
   assert.equal(report.codexMcp.changed, true);
+  assert.equal(report.codexMcp.skillChanged, true);
+  assert.equal(report.codexMcp.globalAgentsChanged, true);
   assert.match(report.codexMcp.block, /\[mcp_servers\.ocentra-enforcer\]/u);
+  assert.equal(report.codexMcp.ledgerRoot, path.join(ROOT, '.ledger'));
+  assert.match(report.codexMcp.block, /OCENTRA_LEDGER_HOME/u);
+  assert.match(report.codexMcp.globalAgentsBlock, /Ledger root:/u);
   assert.equal(fs.readFileSync(codexConfig, 'utf8'), 'model = "gpt-test"\n');
+  assert.equal(fs.existsSync(path.join(path.dirname(codexConfig), 'AGENTS.md')), false);
   assert.equal(fs.existsSync(path.join(project, '.mcp.json')), false);
+});
+
+test('ocentra-enforcer codex install supports global-only setup without target wiring', () => {
+  const codexRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ocentra-enforcer-codex-global-'));
+  const ledgerRoot = path.join(codexRoot, 'ledger-home');
+  const codexConfig = path.join(codexRoot, 'config.toml');
+  fs.writeFileSync(codexConfig, 'model = "gpt-test"\n', 'utf8');
+
+  const result = spawnSync(
+    process.execPath,
+    [SCRIPT, 'codex', 'install', '--json', '--codex-config', codexConfig, '--ledger-root', ledgerRoot],
+    { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }
+  );
+
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.command, 'codex-install');
+  assert.equal(report.root, null);
+  assert.equal(report.target, null);
+  assert.equal(report.codexMcp.applied, true);
+  assert.match(fs.readFileSync(codexConfig, 'utf8'), /\[mcp_servers\.ocentra-enforcer\]/u);
+  assert.match(fs.readFileSync(codexConfig, 'utf8'), /OCENTRA_LEDGER_HOME/u);
+  assert.equal(fs.existsSync(path.join(ledgerRoot, '.gitignore')), true);
+  assert.equal(fs.existsSync(path.join(codexRoot, 'skills', 'ocentra-enforcer', 'SKILL.md')), true);
+  assert.match(fs.readFileSync(path.join(codexRoot, 'AGENTS.md'), 'utf8'), /Coordination is a Codex\/harness concern/u);
 });
 
 test('ocentra-enforcer codex install writes target wiring and global Codex MCP config idempotently', () => {
   const project = fs.mkdtempSync(path.join(os.tmpdir(), 'ocentra-enforcer-codex-write-'));
   const codexRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ocentra-enforcer-codex-config-'));
+  const ledgerRoot = path.join(codexRoot, 'ledger-home');
   const codexConfig = path.join(codexRoot, 'config.toml');
   fs.writeFileSync(codexConfig, 'model = "gpt-test"\n\n[mcp_servers.existing]\ncommand = "node"\n', 'utf8');
 
@@ -482,6 +514,8 @@ test('ocentra-enforcer codex install writes target wiring and global Codex MCP c
     'strict',
     '--codex-config',
     codexConfig,
+    '--ledger-root',
+    ledgerRoot,
   ];
   const result = spawnSync(process.execPath, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 
@@ -491,13 +525,19 @@ test('ocentra-enforcer codex install writes target wiring and global Codex MCP c
   assert.equal(fs.existsSync(report.codexMcp.backupPath), true);
   assert.equal(fs.existsSync(path.join(project, '.mcp.json')), true);
   assert.equal(fs.existsSync(path.join(project, '.codex', 'skills', 'ocentra-enforcer', 'SKILL.md')), true);
+  assert.equal(fs.existsSync(path.join(codexRoot, 'skills', 'ocentra-enforcer', 'SKILL.md')), true);
   assert.match(fs.readFileSync(codexConfig, 'utf8'), /\[mcp_servers\.ocentra-enforcer\]/u);
   assert.match(fs.readFileSync(codexConfig, 'utf8'), /mcp\/rust-rules-mcp\.mjs/u);
+  assert.match(fs.readFileSync(codexConfig, 'utf8'), /OCENTRA_LEDGER_HOME/u);
+  assert.equal(fs.existsSync(path.join(ledgerRoot, '.gitignore')), true);
+  assert.match(fs.readFileSync(path.join(codexRoot, 'AGENTS.md'), 'utf8'), /<!-- ocentra-enforcer:start -->/u);
 
   const second = spawnSync(process.execPath, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
   assert.equal(second.status, 0, `${second.stdout}\n${second.stderr}`);
   const secondReport = JSON.parse(second.stdout);
   assert.equal(secondReport.codexMcp.changed, false);
+  assert.equal(secondReport.codexMcp.skillChanged, false);
+  assert.equal(secondReport.codexMcp.globalAgentsChanged, false);
 
   const doctor = spawnSync(
     process.execPath,
@@ -509,7 +549,22 @@ test('ocentra-enforcer codex install writes target wiring and global Codex MCP c
   assert.equal(doctorReport.command, 'codex-doctor');
   assert.equal(doctorReport.ok, true);
   assert.equal(doctorReport.checks.find((check) => check.name === 'codex mcp section').ok, true);
+  assert.equal(doctorReport.checks.find((check) => check.name === 'user enforcer skill').ok, true);
+  assert.equal(doctorReport.checks.find((check) => check.name === 'global AGENTS enforcer block').ok, true);
   assert.equal(doctorReport.checks.find((check) => check.name === 'target .mcp.json server path').ok, true);
+
+  const uninstall = spawnSync(
+    process.execPath,
+    [SCRIPT, 'codex', 'uninstall', '--json', '--codex-config', codexConfig],
+    { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }
+  );
+  assert.equal(uninstall.status, 0, `${uninstall.stdout}\n${uninstall.stderr}`);
+  const uninstallReport = JSON.parse(uninstall.stdout);
+  assert.equal(uninstallReport.command, 'codex-uninstall');
+  assert.equal(uninstallReport.applied, true);
+  assert.doesNotMatch(fs.readFileSync(codexConfig, 'utf8'), /\[mcp_servers\.ocentra-enforcer\]/u);
+  assert.equal(fs.existsSync(path.join(codexRoot, 'skills', 'ocentra-enforcer', 'SKILL.md')), false);
+  assert.doesNotMatch(fs.readFileSync(path.join(codexRoot, 'AGENTS.md'), 'utf8'), /<!-- ocentra-enforcer:start -->/u);
 });
 
 test('ocentra-enforcer init includes Husky only when requested', () => {

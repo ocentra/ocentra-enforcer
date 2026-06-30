@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocentra.dev/schemas/ocentra-enforcer/codex-uninstall-request.schema.json",
+  "title": "Ocentra Enforcer Codex Uninstall Request",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "codexConfigPath": {
+      "type": "string"
+    },
+    "serverName": {
+      "type": "string"
+    },
+    "removeSkill": {
+      "type": "boolean"
+    },
+    "removeGlobalAgents": {
+      "type": "boolean"
+    },
+    "dryRun": {
+      "type": "boolean"
+    }
+  }
+}

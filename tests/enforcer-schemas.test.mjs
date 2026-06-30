@@ -7,10 +7,21 @@ import test from "node:test";
 import {
   decodeCodexDoctorRequest,
   decodeCodexInstallRequest,
+  decodeCodexUninstallRequest,
   decodeCheckReport,
   decodeCheckToolArguments,
+  decodeCoordinationHealthReport,
+  decodeCoordinationPresenceReport,
+  decodeCoordinationToolArguments,
   decodeEnforcerConfig,
   decodeInitRequest,
+  decodeProofClaimArguments,
+  decodeProofClaimReport,
+  decodeProofQueryArguments,
+  decodeProofRegistry,
+  decodeProofRouteRequest,
+  decodeProofRunArguments,
+  decodeProofRunReport,
   decodeRouteReport,
   decodeRouteRequest,
   decodeRuleRegistry,
@@ -34,6 +45,17 @@ test("Effect Schema decodes valid registry, config, route, init, and reports", (
   assert.equal(registry.languages.includes("rust"), true);
   assert.equal(registry.languages.includes("typescript"), true);
   assert.equal(registry.languages.includes("python"), true);
+
+  const proofRegistry = decodeProofRegistry(
+    JSON.parse(
+      fs.readFileSync(path.join(PACK_ROOT, "proof", "proofs.json"), "utf8"),
+    ),
+  );
+  assert.equal(proofRegistry.productName, "ocentra-enforcer");
+  assert.equal(
+    proofRegistry.proofs.some((proof) => proof.id === "PROOF-COMMAND-GENERIC"),
+    true,
+  );
 
   const config = decodeEnforcerConfig(
     JSON.parse(
@@ -89,9 +111,23 @@ test("Effect Schema decodes valid registry, config, route, init, and reports", (
     profile: "strict",
     dryRun: true,
     codexConfigPath: path.join(PACK_ROOT, "tmp", "config.toml"),
+    ledgerRoot: path.join(PACK_ROOT, ".ledger"),
     serverName: "ocentra-enforcer",
+    installSkill: true,
+    installGlobalAgents: true,
   });
   assert.equal(codexInstall.serverName, "ocentra-enforcer");
+  assert.equal(codexInstall.installGlobalAgents, true);
+  assert.equal(codexInstall.ledgerRoot, path.join(PACK_ROOT, ".ledger"));
+
+  const codexUninstall = decodeCodexUninstallRequest({
+    dryRun: true,
+    codexConfigPath: path.join(PACK_ROOT, "tmp", "config.toml"),
+    serverName: "ocentra-enforcer",
+    removeSkill: true,
+    removeGlobalAgents: true,
+  });
+  assert.equal(codexUninstall.removeSkill, true);
 
   const codexDoctor = decodeCodexDoctorRequest({
     root: PACK_ROOT,
@@ -154,6 +190,39 @@ test("Effect Schema decodes valid registry, config, route, init, and reports", (
   });
   assert.equal(runArgs.command[0], process.execPath);
 
+  const proofRoute = decodeProofRouteRequest({
+    root: PACK_ROOT,
+    scope: "files",
+    files: ["scripts/test/example-proof.mjs"],
+    capability: "local",
+  });
+  assert.deepEqual(proofRoute.files, ["scripts/test/example-proof.mjs"]);
+
+  const proofRunArgs = decodeProofRunArguments({
+    root: PACK_ROOT,
+    proofId: "PROOF-COMMAND-GENERIC",
+    command: [process.execPath, "--version"],
+    pin: true,
+  });
+  assert.equal(proofRunArgs.pin, true);
+
+  const proofQuery = decodeProofQueryArguments({
+    root: PACK_ROOT,
+    proofId: "PROOF-COMMAND-GENERIC",
+    status: "passed",
+    limit: 5,
+    includeScripts: true,
+  });
+  assert.equal(proofQuery.status, "passed");
+  assert.equal(proofQuery.includeScripts, true);
+
+  const proofClaimArgs = decodeProofClaimArguments({
+    root: PACK_ROOT,
+    proofIds: ["PROOF-COMMAND-GENERIC"],
+    prReady: true,
+  });
+  assert.equal(proofClaimArgs.prReady, true);
+
   const checkArgs = decodeCheckToolArguments({
     root: PACK_ROOT,
     check: "source-shape",
@@ -170,6 +239,68 @@ test("Effect Schema decodes valid registry, config, route, init, and reports", (
   assert.equal(checkArgs.check, "source-shape");
   assert.equal(checkArgs.tracked, true);
   assert.equal(checkArgs.summaryOnly, true);
+
+  const coordinationArgs = decodeCoordinationToolArguments({
+    stateRoot: path.join(PACK_ROOT, "tmp", "ledger"),
+    hub: "generic-hub",
+    lane: "codex-a",
+    paths: ["src/lib.rs"],
+    reason: "schema smoke",
+    owner: "node_schema.codex-a",
+    action: "add",
+    peer: "left",
+    url: "http://127.0.0.1:8787",
+    mode: "pull",
+    projectId: "schema-project",
+    gitRemote: "git@example.com:ocentra/schema-project.git",
+    branch: "feature/schema",
+    commit: "abc1234",
+    operation: "edit",
+    lockKind: "writeLock",
+    onConflict: "intent",
+    claimGroup: "schema-contracts",
+    codexThreadId: "thread-schema",
+    limit: 5,
+  });
+  assert.equal(coordinationArgs.hub, "generic-hub");
+  assert.equal(coordinationArgs.mode, "pull");
+  assert.equal(coordinationArgs.owner, "node_schema.codex-a");
+  assert.equal(coordinationArgs.operation, "edit");
+  assert.equal(coordinationArgs.lockKind, "writeLock");
+  assert.equal(coordinationArgs.onConflict, "intent");
+  assert.equal(coordinationArgs.branch, "feature/schema");
+
+  const coordinationHealth = decodeCoordinationHealthReport({
+    ok: true,
+    root: path.join(PACK_ROOT, "tmp", "ledger"),
+    canInspect: true,
+    canLockPaths: true,
+    canWriteClaimedPaths: true,
+    mustWait: false,
+    mustRepairLedger: false,
+    diagnostics: [],
+    warnings: [],
+    conflicts: [],
+    hardConflicts: [],
+    branchWriteConflicts: [],
+    mergeRisks: [],
+    globalWriteConflicts: [],
+    editIntents: [],
+    staleSessions: [],
+    guard: null,
+    dashboard: {},
+  });
+  assert.equal(coordinationHealth.mustWait, false);
+
+  const coordinationPresence = decodeCoordinationPresenceReport({
+    ok: true,
+    root: path.join(PACK_ROOT, "tmp", "ledger"),
+    generatedAt: "2026-01-01T00:00:00.000Z",
+    totalRows: 1,
+    rows: [{ lane: "codex-a", projectId: "schema-project" }],
+    views: { byLane: { "codex-a": [] } },
+  });
+  assert.equal(coordinationPresence.totalRows, 1);
 
   const checkReport = decodeCheckReport({
     ok: true,
@@ -212,6 +343,80 @@ test("Effect Schema decodes valid registry, config, route, init, and reports", (
     diagnostics: [],
   });
   assert.equal(runReport.summary.status, "passed");
+
+  const proofRunReport = decodeProofRunReport({
+    ok: true,
+    proofRun: {
+      schemaVersion: 1,
+      proofId: "PROOF-COMMAND-GENERIC",
+      title: "Generic command proof with bounded artifacts",
+      family: "command",
+      collector: "command",
+      profile: "strict",
+      root: PACK_ROOT,
+      runId: "proof-run-1",
+      status: "passed",
+      ok: true,
+      exitCode: 0,
+      startedAt: "2026-01-01T00:00:00.000Z",
+      endedAt: "2026-01-01T00:00:01.000Z",
+      command: [process.execPath, "--version"],
+      diagnosticCount: 0,
+      pinned: false,
+      git: { commit: null },
+      scope: { capability: "local" },
+      claimsProved: [],
+      claimsNotProved: [],
+      retention: {
+        maxRunsPerProof: 20,
+        maxFailedRuns: 20,
+        maxArtifactBytes: 52428800,
+        pruneAfterDays: 14,
+        pinPrReadyDays: 30,
+      },
+      artifacts: [
+        {
+          name: "proof-run.json",
+          kind: "proof-run",
+          path: ".enforce/proofs/runs/proof-run-1/proof-run.json",
+          sha256: "abc",
+          byteLength: 3,
+        },
+      ],
+    },
+    diagnostics: [],
+  });
+  assert.equal(proofRunReport.proofRun.status, "passed");
+
+  const proofClaimReport = decodeProofClaimReport({
+    ok: true,
+    root: PACK_ROOT,
+    claim: {
+      schemaVersion: 1,
+      claimId: "claim-1",
+      proofIds: ["PROOF-COMMAND-GENERIC"],
+      checkedAt: "2026-01-01T00:00:00.000Z",
+      violations: [],
+    },
+  });
+  assert.equal(proofClaimReport.ok, true);
+
+  for (const schemaName of [
+    "proof-capability.schema.json",
+    "proof-retention-policy.schema.json",
+    "proof-definition.schema.json",
+    "proof-artifact.schema.json",
+    "proof-diagnostic.schema.json",
+    "proof-run.schema.json",
+    "proof-claim.schema.json",
+    "proof-tool-arguments.schema.json",
+  ]) {
+    assert.equal(
+      fs.existsSync(path.join(PACK_ROOT, "schemas", "json", schemaName)),
+      true,
+      `missing ${schemaName}`,
+    );
+  }
 });
 
 test("Effect Schema rejects invalid external payloads with useful labels", () => {
@@ -228,6 +433,10 @@ test("Effect Schema rejects invalid external payloads with useful labels", () =>
     /codex install request schema validation failed/u,
   );
   assert.throws(
+    () => decodeCodexUninstallRequest({ removeSkill: "yes" }),
+    /codex uninstall request schema validation failed/u,
+  );
+  assert.throws(
     () => decodeCodexDoctorRequest({ serverName: 42 }),
     /codex doctor request schema validation failed/u,
   );
@@ -238,6 +447,30 @@ test("Effect Schema rejects invalid external payloads with useful labels", () =>
   assert.throws(
     () => decodeRunToolArguments({ command: "node --version" }),
     /run tool arguments schema validation failed/u,
+  );
+  assert.throws(
+    () => decodeProofRouteRequest({ capability: "telepathy" }),
+    /proof route request schema validation failed/u,
+  );
+  assert.throws(
+    () => decodeProofRunArguments({ command: "node --version" }),
+    /proof run arguments schema validation failed/u,
+  );
+  assert.throws(
+    () => decodeProofClaimArguments({ proofIds: "PROOF-COMMAND-GENERIC" }),
+    /proof claim arguments schema validation failed/u,
+  );
+  assert.throws(
+    () => decodeCoordinationToolArguments({ paths: "src/lib.rs" }),
+    /coordination tool arguments schema validation failed/u,
+  );
+  assert.throws(
+    () => decodeCoordinationToolArguments({ operation: "write" }),
+    /coordination tool arguments schema validation failed/u,
+  );
+  assert.throws(
+    () => decodeCoordinationToolArguments({ lockKind: "global" }),
+    /coordination tool arguments schema validation failed/u,
   );
   assert.throws(
     () =>
@@ -266,6 +499,10 @@ test("JSON-schema-compatible artifacts are present for non-Effect consumers", ()
       "https://ocentra.dev/schemas/ocentra-enforcer/codex-doctor-request.schema.json",
     ],
     [
+      "schemas/json/codex-uninstall-request.schema.json",
+      "https://ocentra.dev/schemas/ocentra-enforcer/codex-uninstall-request.schema.json",
+    ],
+    [
       "schemas/json/check-tool-arguments.schema.json",
       "https://ocentra.dev/schemas/ocentra-enforcer/check-tool-arguments.schema.json",
     ],
@@ -292,6 +529,14 @@ test("JSON-schema-compatible artifacts are present for non-Effect consumers", ()
     [
       "schemas/json/run-tool-arguments.schema.json",
       "https://ocentra.dev/schemas/ocentra-enforcer/run-tool-arguments.schema.json",
+    ],
+    [
+      "schemas/json/coordination-tool-arguments.schema.json",
+      "https://ocentra.dev/schemas/ocentra-enforcer/coordination-tool-arguments.schema.json",
+    ],
+    [
+      "schemas/json/coordination-health-report.schema.json",
+      "https://ocentra.dev/schemas/ocentra-enforcer/coordination-health-report.schema.json",
     ],
   ];
 

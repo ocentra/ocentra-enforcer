@@ -12,6 +12,7 @@ import {
   ProductName,
   decodeCodexDoctorRequest,
   decodeCodexInstallRequest,
+  decodeCodexUninstallRequest,
   decodeCheckToolArguments,
   decodeEnforcerConfig,
   decodeInitRequest,
@@ -27,8 +28,10 @@ import {
 } from "../src/checks.mjs";
 import {
   applyCodexMcpInstallReport,
+  applyCodexUninstallReport,
   createCodexDoctorReport as buildCodexDoctorReport,
   createCodexMcpInstallReport,
+  createCodexUninstallReport,
 } from "../src/codex-install.mjs";
 import {
   applyRulePolicy,
@@ -48,6 +51,8 @@ import {
   runHarness,
   runSummary,
 } from "../src/harness.mjs";
+import { runCoordinationCli } from "../src/coordination/runner.mjs";
+import { runProofCli } from "../src/proof.mjs";
 
 const RULES = {
   "RR-1.1": {
@@ -429,7 +434,14 @@ Usage:
   ocentra-enforcer explain <RULE_ID>
   ocentra-enforcer run --root <repo> --tool <tool> -- <command...>
   ocentra-enforcer runs <list|summary|diagnostics|last-failure|artifact|prune|reset> [options]
+  ocentra-enforcer proof <route|run|status|inventory|claim|last-failure|diagnostics|artifact|reset|prune|export> [options]
+  ocentra-enforcer coordination <ledger-command> [--hub <hub>] [--state-root <path>] [options]
+  ocentra-enforcer coordination repair <legacy-hash|sequence|all> [--hub <hub>] [--state-root <path>] [--write]
+  ocentra-enforcer coordination repair stale-claims --paths <path[,path]> [--owner <writer>] [--write]
+  ocentra-enforcer ledger <ledger-command> [--hub <hub>] [--state-root <path>] [options]
+  ocentra-enforcer architecture check --language rust --scope <files|diff|all> [options]
   ocentra-enforcer codex install --root <repo> --profile <profile> [--dry-run]
+  ocentra-enforcer codex uninstall [--dry-run]
   ocentra-enforcer codex doctor --root <repo>
 
 Compatibility aliases:
@@ -460,6 +472,16 @@ Common options:
   --json                  Print machine-readable JSON report.
   --help                  Show this help.
 
+Proof options:
+  --proof <id>            Proof definition id.
+  --proofs <ids>          Comma-separated proof ids for claim/status.
+  --plan <id>             Route by plan/workpack id.
+  --capability <name>     Route or run by capability, for example ci, local, android-device, manual-required.
+  --include-scripts       Proof inventory only: include bounded script rows instead of summary-only output.
+  --pin                   Pin a proof run so retention does not prune it.
+  --pr-ready              Validate proof claim as a PR-ready claim.
+  --allow-dirty           Allow dirty worktree claims when explicitly requested.
+
 Init options:
   --adapters <list>       Comma-separated adapters: codex,mcp,precommit,github-actions,husky,lefthook,codeql,dependency-policy,secret-scan,sbom.
   --dry-run               Print exact file plan without writing.
@@ -468,6 +490,7 @@ Init options:
 Codex install options:
   --codex-config <path>   Codex global config path. Defaults to CODEX_HOME/config.toml or ~/.codex/config.toml.
   --server-name <name>    MCP server name. Defaults to ocentra-enforcer.
+  --ledger-root <path>    Per-PC ledger home. Defaults to <enforcer-install>/.ledger.
 `;
 }
 
@@ -475,6 +498,7 @@ function defaultArgs() {
   return {
     command: "scan",
     root: process.cwd(),
+    rootExplicit: false,
     configPath: null,
     scanOnly: false,
     json: false,
@@ -496,7 +520,10 @@ function defaultArgs() {
     tracked: false,
     strictEmptyTestTrees: false,
     codexConfigPath: null,
+    ledgerRoot: null,
     mcpServerName: "ocentra-enforcer",
+    installSkill: true,
+    installGlobalAgents: true,
     runsCommand: null,
     artifact: null,
     limit: null,
@@ -555,6 +582,8 @@ function parseArgs(argv) {
     if (codexCommand === "install") {
       args.command = "codex-install";
       args.adapters = ["codex", "mcp"];
+    } else if (codexCommand === "uninstall") {
+      args.command = "codex-uninstall";
     } else if (codexCommand === "doctor") {
       args.command = "codex-doctor";
     } else {
@@ -567,6 +596,7 @@ function parseArgs(argv) {
     const arg = tokens[i];
     if (arg === "--root") {
       args.root = tokens[++i];
+      args.rootExplicit = true;
     } else if (arg === "--config") {
       args.configPath = tokens[++i];
     } else if (arg === "--profile") {
@@ -593,8 +623,14 @@ function parseArgs(argv) {
       args.strictEmptyTestTrees = true;
     } else if (arg === "--codex-config") {
       args.codexConfigPath = tokens[++i];
+    } else if (arg === "--ledger-root") {
+      args.ledgerRoot = tokens[++i];
     } else if (arg === "--server-name") {
       args.mcpServerName = tokens[++i];
+    } else if (arg === "--no-skill") {
+      args.installSkill = false;
+    } else if (arg === "--no-global-agents") {
+      args.installGlobalAgents = false;
     } else if (arg === "--artifact") {
       args.artifact = tokens[++i];
     } else if (arg === "--limit") {
@@ -803,33 +839,41 @@ function createInitReport(args) {
 
 function createCodexInstallReport(args) {
   const request = decodeCodexInstallRequest({
-    root: path.resolve(args.root ?? process.cwd()),
+    root: args.rootExplicit ? path.resolve(args.root) : undefined,
     profile: args.profile ?? "strict",
     dryRun: args.dryRun,
     force: args.force,
     codexConfigPath: args.codexConfigPath ?? undefined,
+    ledgerRoot: args.ledgerRoot ?? undefined,
     serverName: args.mcpServerName ?? undefined,
+    installSkill: args.installSkill,
+    installGlobalAgents: args.installGlobalAgents,
   });
-  const target = createInitReport({
-    ...args,
-    root: request.root,
-    profile: request.profile ?? "strict",
-    adapters: ["codex", "mcp"],
-    dryRun: request.dryRun,
-    force: request.force,
-  });
+  const target = request.root
+    ? createInitReport({
+        ...args,
+        root: request.root,
+        profile: request.profile ?? "strict",
+        adapters: ["codex", "mcp"],
+        dryRun: request.dryRun,
+        force: request.force,
+      })
+    : null;
   const codexMcp = createCodexMcpInstallReport({
     packRoot: PACK_ROOT,
     codexConfigPath: request.codexConfigPath,
+    ledgerRoot: request.ledgerRoot,
     serverName: request.serverName ?? "ocentra-enforcer",
+    installSkill: request.installSkill ?? true,
+    installGlobalAgents: request.installGlobalAgents ?? true,
     dryRun: Boolean(request.dryRun),
   });
   return {
-    ok: target.ok && codexMcp.ok,
+    ok: (target?.ok ?? true) && codexMcp.ok,
     command: "codex-install",
     productName: ProductName,
-    root: target.root,
-    profile: target.profile,
+    root: target?.root ?? null,
+    profile: request.profile ?? "strict",
     dryRun: Boolean(request.dryRun),
     force: Boolean(request.force),
     target,
@@ -839,10 +883,28 @@ function createCodexInstallReport(args) {
 
 function applyCodexInstallReport(report) {
   if (!report.dryRun) {
-    applyInitReport(report.target);
+    if (report.target) applyInitReport(report.target);
     report.codexMcp = applyCodexMcpInstallReport(report.codexMcp);
   }
   return report;
+}
+
+function createCodexUninstallCliReport(args) {
+  const request = decodeCodexUninstallRequest({
+    dryRun: args.dryRun,
+    codexConfigPath: args.codexConfigPath ?? undefined,
+    serverName: args.mcpServerName ?? undefined,
+    removeSkill: args.installSkill,
+    removeGlobalAgents: args.installGlobalAgents,
+  });
+  return createCodexUninstallReport({
+    packRoot: PACK_ROOT,
+    codexConfigPath: request.codexConfigPath,
+    serverName: request.serverName ?? "ocentra-enforcer",
+    removeSkill: request.removeSkill ?? true,
+    removeGlobalAgents: request.removeGlobalAgents ?? true,
+    dryRun: Boolean(request.dryRun),
+  });
 }
 
 function createCodexDoctorReport(args) {
@@ -1086,13 +1148,21 @@ function printInitReport(report) {
 }
 
 function printCodexInstallReport(report) {
-  console.log(`Ocentra Enforcer Codex install for ${report.root}`);
+  console.log(
+    report.root
+      ? `Ocentra Enforcer Codex install for ${report.root}`
+      : "Ocentra Enforcer Codex global install",
+  );
   console.log(`Profile: ${report.profile}`);
   console.log(`Dry run: ${report.dryRun ? "yes" : "no"}`);
   console.log("");
-  console.log("Target repo wiring:");
-  for (const file of report.target.files) {
-    console.log(`${file.action} ${file.path} (${file.adapter})`);
+  if (report.target) {
+    console.log("Target repo wiring:");
+    for (const file of report.target.files) {
+      console.log(`${file.action} ${file.path} (${file.adapter})`);
+    }
+  } else {
+    console.log("Target repo wiring: skipped (no --root passed)");
   }
   console.log("");
   console.log("Codex global MCP:");
@@ -1105,15 +1175,43 @@ function printCodexInstallReport(report) {
   console.log(
     `server ${report.codexMcp.serverName}: node ${report.codexMcp.serverPath}`,
   );
+  console.log(`ledger root: ${report.codexMcp.ledgerRoot}`);
   if (report.codexMcp.backupPath)
     console.log(`backup ${report.codexMcp.backupPath}`);
   for (const check of report.codexMcp.checks) {
     console.log(`${check.ok ? "PASS" : "FAIL"} ${check.name}: ${check.detail}`);
   }
   console.log("");
+  console.log("Codex user skill:");
+  console.log(
+    `${report.codexMcp.skillChanged ? (report.dryRun ? "would-write" : "write") : "skip-existing"} ${report.codexMcp.skillTarget}`,
+  );
+  console.log("");
+  console.log("Codex global AGENTS.md:");
+  console.log(
+    `${report.codexMcp.globalAgentsChanged ? (report.dryRun ? "would-write" : "write") : "skip-existing"} ${report.codexMcp.globalAgentsPath}`,
+  );
+  console.log("");
   console.log(
     "Restart Codex Desktop or start a new Codex thread after install so the MCP server list refreshes.",
   );
+}
+
+function printCodexUninstallReport(report) {
+  console.log(`Ocentra Enforcer Codex uninstall`);
+  console.log(`Dry run: ${report.dryRun ? "yes" : "no"}`);
+  console.log("");
+  console.log(
+    `${report.changed ? (report.dryRun ? "would-write" : "write") : "skip-missing"} ${report.codexConfigPath}`,
+  );
+  console.log(
+    `${report.skillChanged ? (report.dryRun ? "would-remove" : "remove") : "skip-missing"} ${report.skillTarget}`,
+  );
+  console.log(
+    `${report.globalAgentsChanged ? (report.dryRun ? "would-write" : "write") : "skip-missing"} ${report.globalAgentsPath}`,
+  );
+  if (report.backupPath) console.log(`backup ${report.backupPath}`);
+  if (report.globalAgentsBackupPath) console.log(`backup ${report.globalAgentsBackupPath}`);
 }
 
 function printCodexDoctorReport(report) {
@@ -3184,6 +3282,27 @@ function isMainModule() {
 
 if (isMainModule()) {
   try {
+    const rawCommand = process.argv[2];
+    if (rawCommand === "proof") {
+      const report = runProofCli(process.argv.slice(3), {
+        packRoot: PACK_ROOT,
+        defaultRoot: process.cwd(),
+      });
+      if (report.json) console.log(JSON.stringify(report.result, null, 2));
+      else console.log(report.text);
+      process.exit(report.exitCode);
+    }
+    if (rawCommand === "coordination" || rawCommand === "ledger") {
+      await runCoordinationCli(process.argv.slice(3));
+      process.exit(process.exitCode ?? 0);
+    }
+    if (rawCommand === "architecture") {
+      const report = runArchitectureCli(process.argv.slice(3));
+      if (report.json) console.log(JSON.stringify(report.result, null, 2));
+      else printCheckReport(report.result);
+      process.exit(report.result.ok ? 0 : 1);
+    }
+
     const args = parseArgs(process.argv);
     if (args.help) {
       console.log(usage());
@@ -3202,6 +3321,13 @@ if (isMainModule()) {
       const report = applyCodexInstallReport(createCodexInstallReport(args));
       if (args.json) console.log(JSON.stringify(report, null, 2));
       else printCodexInstallReport(report);
+      process.exit(0);
+    }
+
+    if (args.command === "codex-uninstall") {
+      const report = applyCodexUninstallReport(createCodexUninstallCliReport(args));
+      if (args.json) console.log(JSON.stringify(report, null, 2));
+      else printCodexUninstallReport(report);
       process.exit(0);
     }
 
@@ -3315,4 +3441,68 @@ if (isMainModule()) {
     );
     process.exit(2);
   }
+}
+
+function runArchitectureCli(tokens) {
+  const subcommand = tokens[0];
+  if (subcommand !== "check") {
+    throw new Error("usage: ocentra-enforcer architecture check --language rust --scope <files|diff|all>");
+  }
+  const args = {
+    root: process.cwd(),
+    language: "rust",
+    scopeName: "files",
+    files: [],
+    base: null,
+    head: null,
+    configPath: null,
+    profile: null,
+    json: false,
+  };
+  for (let index = 1; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token === "--root") args.root = tokens[++index];
+    else if (token === "--config") args.configPath = tokens[++index];
+    else if (token === "--profile") args.profile = tokens[++index];
+    else if (token === "--language") args.language = tokens[++index];
+    else if (token === "--scope") args.scopeName = tokens[++index];
+    else if (token === "--base") args.base = tokens[++index];
+    else if (token === "--head") args.head = tokens[++index];
+    else if (token === "--all" || token === "--workspace") args.scopeName = "all";
+    else if (token === "--json") args.json = true;
+    else if (token === "--files") {
+      args.scopeName = "files";
+      while (tokens[index + 1] && !tokens[index + 1].startsWith("-")) {
+        args.files.push(tokens[++index]);
+      }
+    } else if (token.startsWith("-")) {
+      throw new Error(`Unknown architecture argument: ${token}`);
+    } else {
+      args.files.push(token);
+    }
+  }
+  if (args.language !== "rust") {
+    throw new Error("architecture check currently supports --language rust");
+  }
+  let rawScope;
+  if (args.scopeName === "all" || args.scopeName === "workspace") {
+    rawScope = { mode: "all" };
+  } else if (args.scopeName === "diff") {
+    if (!args.base || !args.head) {
+      throw new Error("architecture diff scope requires --base <sha> --head <sha>");
+    }
+    rawScope = { mode: "diff", base: args.base, head: args.head };
+  } else {
+    rawScope = { mode: "files", files: args.files };
+  }
+  return {
+    json: args.json,
+    result: runEnforcerCheck({
+      root: args.root,
+      configPath: args.configPath,
+      profile: args.profile,
+      rawScope,
+      checkName: "reexports",
+    }),
+  };
 }

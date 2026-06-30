@@ -8,8 +8,10 @@
   "bin": {
     "ocentra-enforcer": "./scripts/rust-rules.mjs",
     "ocentra-enforcer-mcp": "./mcp/rust-rules-mcp.mjs",
+    "ocentra-enforcer-coordination": "./scripts/coordination.mjs",
     "rust-rules": "./scripts/rust-rules.mjs",
-    "rust-rules-mcp": "./mcp/rust-rules-mcp.mjs"
+    "rust-rules-mcp": "./mcp/rust-rules-mcp.mjs",
+    "ledger": "./scripts/coordination.mjs"
   },
   "exports": {
     "./eslint-rules": "./eslint-rules/index.js",
@@ -28,6 +30,12 @@
     "enforcer:rules": "node scripts/rust-rules.mjs cargo --workspace",
     "enforcer:rules:scan": "node scripts/rust-rules.mjs scan --workspace",
     "enforcer:harness:smoke": "node scripts/rust-rules.mjs run --root . --tool node -- node --version",
+    "coordination:smoke": "node scripts/rust-rules.mjs coordination root --hub ocentra-enforcer-smoke",
+    "coordination:presence:smoke": "node scripts/rust-rules.mjs coordination presence --hub ocentra-enforcer-smoke",
+    "coordination:manifest:smoke": "node scripts/rust-rules.mjs coordination manifest --hub ocentra-enforcer-smoke",
+    "proof:smoke": "node scripts/rust-rules.mjs proof route --root . --files scripts/rust-rules.mjs --json",
+    "proof:run:smoke": "node scripts/rust-rules.mjs proof run --root . --proof PROOF-COMMAND-GENERIC --run-id proof-command-smoke --json -- node --version",
+    "architecture:smoke": "node scripts/rust-rules.mjs architecture check --language rust --scope files --files tests/fixtures/clean.rs --json",
     "validate:skill": "node scripts/validate-codex-assets.mjs --skill",
     "validate:plugin": "node scripts/validate-codex-assets.mjs --plugin",
     "validate:codex-assets": "node scripts/validate-codex-assets.mjs",

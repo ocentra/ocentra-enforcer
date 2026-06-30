@@ -2,8 +2,8 @@
 
 Standalone enforcement system for humans, CI, Codex skills, and MCP clients.
 Rust, TypeScript/JavaScript, Python, common security/generated-artifact guards,
-and compact harness diagnostics are implemented as the first reusable platform
-slice.
+compact harness diagnostics, generic coordination, and architecture gates are
+implemented as the first reusable platform slice.
 
 Default consumption is package plus Codex plugin/MCP. Git submodules are allowed
 only for projects that need source pinning; they are not the default install
@@ -78,6 +78,98 @@ The agent should normally ask the harness for the last failure or scoped
 diagnostics instead of reading the full terminal dump. Raw logs remain available
 only when the compact result is not enough.
 
+## 4. Coordination Belongs Outside Product Repos
+
+Lane ownership, hub mail, exact-file claims, worker/task status, peer sync, and
+Codex hook write-safety are harness concerns. They should not live inside a
+product repo. Ocentra Parent currently has legacy `tools/ocentra-ledger` and
+`tools/no-reexports` surfaces, but those are migration sources, not the target
+architecture.
+
+See [docs/COORDINATION.md](docs/COORDINATION.md) for the full hub/ledger/mail
+model, storage layout, sync contract, safety decisions, and MCP/CLI workflow.
+
+The generic direction is:
+
+1. Enforcer owns coordination and architecture tooling.
+2. A target repo only keeps configuration and thin command aliases.
+3. Live coordination state stays under the Enforcer install ledger root,
+   normally `<enforcer-install>/.ledger/<hub>`.
+4. Parent is the first consumer fixture, not a hardcoded owner.
+
+Coordination MCP tools return compact machine-readable write-safety decisions:
+`canInspect`, `canLockPaths`, `canWriteClaimedPaths`, `mustWait`, and
+`mustRepairLedger`. Agents should use those instead of reading giant lane/worker
+terminal dumps.
+
+The lock model is deterministic:
+
+- Same project, same worktree, same file is a hard `writeLock`.
+- Different worktree, same branch, same file is a hard `branchWriteConflict`.
+- Different branch, same file is a `mergeRisk` warning for edit and a blocker
+  for `pr_ready` unless waived.
+- Lockfiles, generated contracts/schema outputs, migrations, release files, and
+  workflow config are `globalWriteLock` singleton paths by default.
+- Blocked edit claims can use `onConflict=intent`; release sends mail to the
+  next queued lane, which must re-read before editing.
+
+Coordination also exposes a presence matrix. It answers which PC, project,
+worktree, branch, Codex thread/session, lane, task, inbox, and exact-file claims
+are active. Canonical truth is still append-only NDJSON streams under the
+install ledger root. Generated JSON views and the optional SQLite read index are
+disposable and can be rebuilt from streams after local writes, compaction, or
+LAN/WAN peer sync.
+
+LAN/WAN sync uses stream manifests plus suffix transfer. Peers compare event
+counts and tail hashes, transfer only missing NDJSON lines, and write conflict
+copies instead of overwriting divergent streams. The transport can be direct LAN
+HTTP or a token-protected mesh/tunnel endpoint such as Tailscale, Cloudflare
+Tunnel, WireGuard, or HTTPS.
+
+During migration from legacy Parent wrappers, coordination event hashes use the
+v1 ledger envelope so old readers and Enforcer agree. Enforcer still stores
+extended `context` metadata for presence, but extension metadata is not part of
+the v1 wire hash. If an early Enforcer build wrote context-hashed events into a
+live legacy ledger, run `coordination repair legacy-hash` first as a dry-run,
+then rerun with `--write` after reviewing the backup paths.
+
+If doctor reports `sequence break` or `previous event pointer does not match
+stream tip`, run `coordination repair sequence` as a dry-run, then rerun with
+`--write` after reviewing changed streams and backup paths. If health still
+reports stale ownership conflicts after stream repair, use
+`coordination repair stale-claims --paths <exact-paths>` to inspect the matching
+claims. Add `--owner <writer>` to preserve one active owner, or omit `--owner`
+to clear all active claims for the exact paths. The write form appends a
+`claim.resolve` event; it does not delete historical stream lines.
+
+For subagents, prefer unique child lanes such as `codex-a-parser` or
+`codex-a-ui` instead of multiple sessions trying to own the same `codex-a`
+lease. The coordinator can keep the parent lane, while child lanes use exact
+file claims and `coordination health/guard` for write safety. Same-lane work is
+only safe when one process owns the lease or the environment has moved fully to
+Enforcer claim checks without legacy wrapper lease enforcement.
+
+## 5. Proof Claims Need Evidence, Not Hope
+
+Product proof scripts are another zero-trust surface. A PR-ready or workpack
+claim is not accepted because an agent says it ran something; it must point to a
+fresh proof run with structured output, present artifacts, current commit/scope,
+and explicit platform capability state.
+
+Enforcer now owns the generic proof harness:
+
+- `proof/INDEX.md` routes by files, plan, capability, or proof id.
+- `proof/proofs.json` is the machine-readable proof registry.
+- Proof runs are stored locally under the target repo at `.enforce/proofs`.
+- Raw logs and screenshots stay local or CI-artifact-only by default.
+- `proof claim --pr-ready` rejects missing, stale, manual-required, failed, or
+  artifact-broken claims.
+
+This is the migration path for repos like Ocentra Parent that accumulated many
+bespoke `scripts/test/*proof*.mjs` files. Product repos should expose source,
+generated artifacts, config, and domain expectations. Enforcer should own the
+runner, proof inventory, compact diagnostics, retention, and MCP query surface.
+
 ## Commands
 
 ```bash
@@ -89,15 +181,18 @@ npm run codex:install:dry-run
 npm run codex:doctor
 npm run enforcer:rules:scan
 npm run enforcer:rules
+npm run proof:smoke
+npm run proof:run:smoke
 ```
 
 Direct CLI forms:
 
 ```bash
 node scripts/rust-rules.mjs init --root C:/path/to/repo --profile strict --adapters codex,mcp,precommit,github-actions --dry-run
+node scripts/rust-rules.mjs codex install --dry-run
+node scripts/rust-rules.mjs codex install
+node scripts/rust-rules.mjs codex doctor
 node scripts/rust-rules.mjs codex install --root C:/path/to/repo --profile strict --dry-run
-node scripts/rust-rules.mjs codex install --root C:/path/to/repo --profile strict
-node scripts/rust-rules.mjs codex doctor --root C:/path/to/repo
 node scripts/rust-rules.mjs scan --root C:/path/to/repo --files src/lib.rs
 node scripts/rust-rules.mjs scan --root C:/path/to/repo --crate my-crate
 node scripts/rust-rules.mjs scan --root C:/path/to/repo --workspace
@@ -115,7 +210,38 @@ node scripts/rust-rules.mjs doctor --root C:/path/to/repo --workspace
 node scripts/rust-rules.mjs explain RR-7.3
 node scripts/rust-rules.mjs run --root C:/path/to/repo --tool tsc -- npx tsc --noEmit --pretty false
 node scripts/rust-rules.mjs runs last-failure --root C:/path/to/repo --json
+node scripts/rust-rules.mjs proof route --root C:/path/to/repo --files scripts/test/example-proof.mjs --json
+node scripts/rust-rules.mjs proof inventory --root C:/path/to/repo --json
+node scripts/rust-rules.mjs proof inventory --root C:/path/to/repo --include-scripts --limit 20 --json
+node scripts/rust-rules.mjs proof run --root C:/path/to/repo --proof PROOF-COMMAND-GENERIC --json -- node --version
+node scripts/rust-rules.mjs proof claim --root C:/path/to/repo --proof PROOF-COMMAND-GENERIC --pr-ready --json
+node scripts/rust-rules.mjs proof last-failure --root C:/path/to/repo --json
+node scripts/rust-rules.mjs coordination init my-hub --lane codex-a --hub my-hub
+node scripts/rust-rules.mjs coordination doctor --hub my-hub
+node scripts/rust-rules.mjs coordination presence --hub my-hub
+node scripts/rust-rules.mjs coordination index --hub my-hub
+node scripts/rust-rules.mjs coordination manifest --hub my-hub
+node scripts/rust-rules.mjs coordination peer add office http://office-pc:8787 --mode pull --hub my-hub
+node scripts/rust-rules.mjs coordination sync --peer office --hub my-hub
+node scripts/rust-rules.mjs coordination claim --hub my-hub --lane codex-a --paths src/lib.rs --operation edit --on-conflict intent --reason "exact file claim"
+node scripts/rust-rules.mjs coordination guard --hub my-hub --lane codex-a --paths src/lib.rs --operation commit --json
+node scripts/rust-rules.mjs coordination release --hub my-hub --lane codex-a --paths src/lib.rs --reason "exact file release"
+node scripts/rust-rules.mjs coordination repair legacy-hash --hub my-hub
+node scripts/rust-rules.mjs coordination repair legacy-hash --hub my-hub --write
+node scripts/rust-rules.mjs coordination repair sequence --hub my-hub
+node scripts/rust-rules.mjs coordination repair sequence --hub my-hub --write
+node scripts/rust-rules.mjs coordination repair stale-claims --hub my-hub --paths src/lib.rs
+node scripts/rust-rules.mjs coordination repair stale-claims --hub my-hub --paths src/lib.rs --owner node_abc.codex-a --write
+node scripts/rust-rules.mjs architecture check --language rust --scope files --files src/lib.rs --root C:/path/to/repo
 ```
+
+Use `--state-root <exact-hub-root>` only for legacy-root repair/import or other
+emergency exact-root operations. Normal coordination uses `OCENTRA_LEDGER_HOME`
+from Codex setup plus `--hub <hub>`.
+
+Proof inventory is summary-only by default so agents do not load hundreds of
+legacy proof scripts into context. Use `--include-scripts --limit <n>` only for
+targeted migration batches.
 
 After package install, the canonical entrypoints are:
 
@@ -139,18 +265,25 @@ Use [docs/CODEX_SETUP.md](docs/CODEX_SETUP.md) for MCP and skill wiring, and
 For Ocentra Parent migration status, see
 [docs/OCENTRA_PARENT_PARITY.md](docs/OCENTRA_PARENT_PARITY.md).
 
-Run the Codex installer from the enforcer install path and pass the target repo
-explicitly:
+Run the Codex installer from the enforcer install path. By default it is a
+global Codex setup: MCP config, user skill, and a managed global `AGENTS.md`
+block. Pass `--root` only when you also want target repo wiring generated.
 
 ```bash
+ocentra-enforcer codex install --dry-run
+ocentra-enforcer codex install
+ocentra-enforcer codex install --ledger-root E:/ocentra-enforcer/.ledger
+ocentra-enforcer codex doctor
 ocentra-enforcer codex install --root C:/path/to/repo --profile strict --dry-run
-ocentra-enforcer codex install --root C:/path/to/repo --profile strict
 ocentra-enforcer codex doctor --root C:/path/to/repo
 ```
 
-This writes target repo Codex/MCP wiring and updates Codex Desktop's global
-`config.toml` with an `ocentra-enforcer` MCP server. Existing Codex config is
-backed up before it is changed. The installer writes TOML directly because
+This updates Codex Desktop's global `config.toml` with an `ocentra-enforcer`
+MCP server, installs the user skill, creates global agent instructions if
+missing, and configures `OCENTRA_LEDGER_HOME`. By default the ledger root is
+`<enforcer-install>/.ledger`, so hubs live under `.ledger/<hub>` and move with
+the Enforcer install. Existing Codex config and global `AGENTS.md` are backed up
+before they are changed. The installer writes TOML directly because
 `codex mcp add` behavior can vary by app/CLI version and has been the most
 common setup failure.
 
@@ -189,12 +322,43 @@ ocentra_enforcer_scan
 ocentra_enforcer_check
 ocentra_enforcer_doctor
 ocentra_enforcer_explain
+ocentra_enforcer_mcp_status
 ocentra_enforcer_run
 ocentra_enforcer_run_status
 ocentra_enforcer_diagnostics
 ocentra_enforcer_last_failure
 ocentra_enforcer_artifact
 ocentra_enforcer_reset_runs
+ocentra_enforcer_proof_route
+ocentra_enforcer_proof_run
+ocentra_enforcer_proof_status
+ocentra_enforcer_proof_inventory
+ocentra_enforcer_proof_claim
+ocentra_enforcer_proof_last_failure
+ocentra_enforcer_proof_diagnostics
+ocentra_enforcer_proof_artifact
+ocentra_enforcer_proof_reset
+ocentra_enforcer_proof_prune
+ocentra_enforcer_proof_export
+ocentra_enforcer_coordination_init
+ocentra_enforcer_coordination_health
+ocentra_enforcer_coordination_presence
+ocentra_enforcer_coordination_index
+ocentra_enforcer_coordination_streams
+ocentra_enforcer_coordination_sync
+ocentra_enforcer_coordination_peer
+ocentra_enforcer_coordination_ensure
+ocentra_enforcer_coordination_compact
+ocentra_enforcer_coordination_notify
+ocentra_enforcer_coordination_mail
+ocentra_enforcer_coordination_inbox
+ocentra_enforcer_coordination_claim
+ocentra_enforcer_coordination_release
+ocentra_enforcer_coordination_guard
+ocentra_enforcer_coordination_report
+ocentra_enforcer_coordination_message
+ocentra_enforcer_coordination_workers
+ocentra_enforcer_coordination_tasks
 ```
 
 For broad MCP `scan` and `check` calls, prefer compact output controls before
@@ -215,6 +379,23 @@ validation summary even when no harness command was run.
 
 Legacy `rust_rules_*` MCP tool aliases remain for one Rust-pack compatibility
 release.
+
+Before direct MCP coordination writes, call `ocentra_enforcer_mcp_status`.
+If it reports `stale: true`, restart Codex/MCP or call the updated CLI through
+`ocentra_enforcer_run`. Stale MCP processes fail closed for coordination writes
+because old code can corrupt live append-only ledger streams.
+Also require `writeCompatible: true`; this is a deterministic hash self-test
+that proves extended presence `context` metadata is excluded from the legacy
+wire hash before any direct coordination writer appends to a stream.
+
+`ocentra_enforcer_coordination_guard` and CLI `coordination guard` are focused by
+default when `paths` or `changedPaths` are provided. Findings contain blockers
+for the requested changed paths; unrelated lane conflicts or old stream sequence
+breaks are returned as bounded `globalWarnings` with counts. Use
+`focused: false` or CLI `--all-conflicts` only for broad ledger triage.
+Dedicated coordination write tools are not generic action dispatchers:
+`ocentra_enforcer_coordination_claim` rejects `action: "release"`, and release
+must use `ocentra_enforcer_coordination_release`.
 
 MCP setup is intentionally documented in detail because path mistakes are the
 most common failure. Run `npm run mcp:smoke`, `npm run mcp:smoke:ndjson`, and
@@ -287,6 +468,7 @@ before opening raw artifacts.
 - `adapters/`: templates for Codex/MCP wiring, plain Git hooks, Husky, Lefthook, GitHub Actions, CodeQL, dependency policy, secret scan, and SBOM.
 - `INSTALL.md`: clone/install/validate flow for a fresh machine or fresh Codex.
 - `docs/CODEX_SETUP.md`: Codex MCP registration, manual config fallback, skill setup, and troubleshooting.
+- `docs/COORDINATION.md`: generic hub/ledger/mail/worktree coordination model, storage, sync, presence, and safety gates.
 - `docs/TARGET_REPO_WIRING.md`: how a target repo calls the external enforcer.
 - `docs/BOOTSTRAP_PROMPT.md`: copy-paste prompt for a future Codex to install and wire the enforcer.
 - `docs/INSTALL_REFERENCE_LESSONS.md`: install lessons adopted from the codebase-memory-mcp setup pattern and remaining public-packaging gaps.
@@ -296,8 +478,10 @@ before opening raw artifacts.
 ## Migration Model
 
 Generic guards should move into Ocentra Enforcer as reusable, profile-backed
-checks. Ocentra Parent keeps ledger, hub, dev server, release packaging, and
-product proof scripts in the main repo.
+checks. Generic coordination, hub mail, exact-file claims, worker/task status,
+peer sync, and architecture enforcement belong in Ocentra Enforcer. Ocentra
+Parent should keep product code, product-specific dev server/release packaging,
+and thin consumer wrappers/config only until Enforcer parity is proven.
 
 For current Ocentra Parent migration:
 
@@ -307,3 +491,5 @@ For current Ocentra Parent migration:
 4. Rewire wrappers to call `ocentra-enforcer scan`, `ocentra-enforcer check`, or `ocentra-enforcer run`.
 5. Wire CI and hooks to the pack command.
 6. Remove duplicated repo-local guards only after parity is proven.
+7. Remove legacy repo-local hub/ledger tooling only after Enforcer coordination
+   MCP/CLI/API parity is proven with external ledger-root storage.

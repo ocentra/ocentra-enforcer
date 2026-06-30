@@ -30,6 +30,14 @@ try {
   client.notify('notifications/initialized', {});
 
   const tools = await client.request('tools/list', {});
+  const mcpStatusResult = await client.request('tools/call', {
+    name: 'ocentra_enforcer_mcp_status',
+    arguments: {},
+  });
+  const mcpStatus = JSON.parse(mcpStatusResult.result.content[0].text);
+  if (mcpStatus.stale) {
+    throw new Error(`MCP server is stale; restart Codex/MCP. Changed files: ${mcpStatus.changedFiles.map((file) => file.path).join(', ')}`);
+  }
   const route = await client.request('tools/call', {
     name: 'ocentra_enforcer_route',
     arguments: {
@@ -46,6 +54,7 @@ try {
     'ocentra_enforcer_doctor',
     'ocentra_enforcer_explain',
     'ocentra_enforcer_check',
+    'ocentra_enforcer_mcp_status',
     'ocentra_enforcer_route',
     'ocentra_enforcer_scan',
     'ocentra_enforcer_run',
@@ -55,6 +64,37 @@ try {
     'ocentra_enforcer_artifact',
     'ocentra_enforcer_prune_runs',
     'ocentra_enforcer_reset_runs',
+    'ocentra_enforcer_proof_route',
+    'ocentra_enforcer_proof_run',
+    'ocentra_enforcer_proof_status',
+    'ocentra_enforcer_proof_inventory',
+    'ocentra_enforcer_proof_claim',
+    'ocentra_enforcer_proof_last_failure',
+    'ocentra_enforcer_proof_diagnostics',
+    'ocentra_enforcer_proof_artifact',
+    'ocentra_enforcer_proof_reset',
+    'ocentra_enforcer_proof_prune',
+    'ocentra_enforcer_proof_export',
+    'ocentra_enforcer_coordination_init',
+    'ocentra_enforcer_coordination_health',
+    'ocentra_enforcer_coordination_presence',
+    'ocentra_enforcer_coordination_index',
+    'ocentra_enforcer_coordination_streams',
+    'ocentra_enforcer_coordination_sync',
+    'ocentra_enforcer_coordination_peer',
+    'ocentra_enforcer_coordination_ensure',
+    'ocentra_enforcer_coordination_compact',
+    'ocentra_enforcer_coordination_notify',
+    'ocentra_enforcer_coordination_mail',
+    'ocentra_enforcer_coordination_inbox',
+    'ocentra_enforcer_coordination_claim',
+    'ocentra_enforcer_coordination_release',
+    'ocentra_enforcer_coordination_repair',
+    'ocentra_enforcer_coordination_guard',
+    'ocentra_enforcer_coordination_report',
+    'ocentra_enforcer_coordination_message',
+    'ocentra_enforcer_coordination_workers',
+    'ocentra_enforcer_coordination_tasks',
   ];
   const missingTools = requiredTools.filter((tool) => !toolNames.includes(tool));
   if (missingTools.length > 0) {
@@ -67,6 +107,12 @@ try {
         ok: true,
         serverInfo: initialized.result.serverInfo,
         requiredTools,
+        mcpStatus: {
+          stale: mcpStatus.stale,
+          writeCompatible: mcpStatus.writeCompatible,
+          digest: mcpStatus.current.digest,
+          startedAt: mcpStatus.startedAt,
+        },
         legacyAliasesPresent: ['rust_rules_route', 'rust_rules_scan', 'rust_rules_doctor', 'rust_rules_explain', 'rust_rules_check'].every((tool) =>
           toolNames.includes(tool)
         ),

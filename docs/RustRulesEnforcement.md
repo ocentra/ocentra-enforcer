@@ -83,6 +83,8 @@ Move generic guards into Ocentra Enforcer over time:
 - Rust dependency/domain/string guards;
 - secret/dependency/SBOM gates.
 
-Keep Ocentra-specific ledger, hub, dev server, release packaging, and product
-proof scripts in Ocentra Parent. Main repo wrappers should stay thin until
-old-vs-new parity is proven for file, crate, diff, and workspace scopes.
+Keep product-specific dev server, release packaging, and product proof semantics
+in Ocentra Parent. Move generic ledger, hub, lane, mail, exact-file-claim, and
+architecture enforcement into Ocentra Enforcer behind profile-backed CLI/MCP
+interfaces. Parent wrappers should stay thin until old-vs-new parity is proven
+for file, crate, diff, workspace, and coordination scopes.

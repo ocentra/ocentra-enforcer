@@ -24,3 +24,15 @@ jobs:
         run: ocentra-enforcer scan --root . --workspace
       - name: Run Rust cargo hard gate
         run: ocentra-enforcer cargo --root . --workspace
+      - name: Route proof definitions
+        run: ocentra-enforcer proof route --root . --files package.json Cargo.toml --json
+      - name: Run proof harness smoke
+        run: ocentra-enforcer proof run --root . --proof PROOF-COMMAND-GENERIC --run-id ci-proof-smoke --json -- node --version
+      - name: Upload local proof artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ocentra-enforcer-proof-artifacts
+          path: .enforce/proofs
+          if-no-files-found: ignore
+          retention-days: 7

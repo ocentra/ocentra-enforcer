@@ -133,5 +133,7 @@ For Ocentra Parent specifically:
 5. Point wrappers at `ocentra-enforcer check <name>`, `scan`, or `run` as appropriate.
 6. Remove duplicated generic guard scripts only after parity.
 
-Do not move ledger, hub, dev server, release packaging, or product proof scripts
-out of Ocentra Parent. Those are project-specific.
+Do not keep generic ledger, hub, lane, mail, exact-file-claim, or architecture
+tooling in Ocentra Parent long term. Those are Enforcer coordination concerns.
+Parent should keep only product-specific dev server, release packaging, product
+proof semantics, and thin wrappers/config while parity is being proven.

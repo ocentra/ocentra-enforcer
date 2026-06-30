@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocentra.dev/schemas/ocentra-enforcer/coordination-health-report.schema.json",
+  "title": "Ocentra Enforcer Coordination Health Report",
+  "type": "object",
+  "required": [
+    "ok",
+    "root",
+    "canInspect",
+    "canLockPaths",
+    "canWriteClaimedPaths",
+    "mustWait",
+    "mustRepairLedger"
+  ],
+  "properties": {
+    "ok": { "type": "boolean" },
+    "root": { "type": "string" },
+    "canInspect": { "type": "boolean" },
+    "canLockPaths": { "type": "boolean" },
+    "canWriteClaimedPaths": { "type": "boolean" },
+    "mustWait": { "type": "boolean" },
+    "mustRepairLedger": { "type": "boolean" },
+    "diagnostics": { "type": "array" },
+    "warnings": { "type": "array" },
+    "conflicts": { "type": "array" },
+    "hardConflicts": { "type": "array" },
+    "branchWriteConflicts": { "type": "array" },
+    "mergeRisks": { "type": "array" },
+    "globalWriteConflicts": { "type": "array" },
+    "editIntents": { "type": "array" },
+    "staleSessions": { "type": "array" },
+    "guard": {},
+    "dashboard": {},
+    "presence": {}
+  }
+}

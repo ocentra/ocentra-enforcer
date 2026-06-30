@@ -23,26 +23,47 @@ Target repo:   ~/src/your-project
 
 ## Preferred Setup: Enforcer Installer
 
-Run this from the enforcer install path. It updates target repo wiring and
-Codex Desktop's global MCP config in one idempotent flow.
+Run this from the enforcer install path. It updates Codex Desktop's global MCP
+config, installs the user skill, and creates or updates a managed Enforcer
+block in global `AGENTS.md`. A target repo is optional; pass `--root` only when
+you also want project-local wiring generated.
 
 ```powershell
-node E:/ocentra-enforcer/scripts/rust-rules.mjs codex install --root C:/path/to/target-repo --profile strict --dry-run
-node E:/ocentra-enforcer/scripts/rust-rules.mjs codex install --root C:/path/to/target-repo --profile strict
-node E:/ocentra-enforcer/scripts/rust-rules.mjs codex doctor --root C:/path/to/target-repo
+node E:/ocentra-enforcer/scripts/rust-rules.mjs codex install --dry-run
+node E:/ocentra-enforcer/scripts/rust-rules.mjs codex install
+node E:/ocentra-enforcer/scripts/rust-rules.mjs codex doctor
 ```
+
+The default ledger root is `E:/ocentra-enforcer/.ledger`; hub folders live under
+it, such as `E:/ocentra-enforcer/.ledger/ocentra-parent`. To use a different
+synced folder on a PC, pass `--ledger-root <path>` during install.
 
 macOS/Linux:
 
 ```bash
-node ~/tools/ocentra-enforcer/scripts/rust-rules.mjs codex install --root ~/src/target-repo --profile strict --dry-run
-node ~/tools/ocentra-enforcer/scripts/rust-rules.mjs codex install --root ~/src/target-repo --profile strict
-node ~/tools/ocentra-enforcer/scripts/rust-rules.mjs codex doctor --root ~/src/target-repo
+node ~/tools/ocentra-enforcer/scripts/rust-rules.mjs codex install --dry-run
+node ~/tools/ocentra-enforcer/scripts/rust-rules.mjs codex install
+node ~/tools/ocentra-enforcer/scripts/rust-rules.mjs codex doctor
 ```
 
 The installer writes a backup before changing `~/.codex/config.toml` or
-`%USERPROFILE%\.codex\config.toml`. Start a new Codex thread after installing.
-If the tool does not appear, restart the Codex app.
+`%USERPROFILE%\.codex\config.toml`, and before changing an existing global
+`AGENTS.md`. Start a new Codex thread after installing. If the tool does not
+appear, restart the Codex app.
+
+To generate target repo wiring at the same time:
+
+```powershell
+node E:/ocentra-enforcer/scripts/rust-rules.mjs codex install --root C:/path/to/target-repo --profile strict
+node E:/ocentra-enforcer/scripts/rust-rules.mjs codex doctor --root C:/path/to/target-repo
+```
+
+To remove only the Enforcer-managed global pieces:
+
+```powershell
+node E:/ocentra-enforcer/scripts/rust-rules.mjs codex uninstall --dry-run
+node E:/ocentra-enforcer/scripts/rust-rules.mjs codex uninstall
+```
 
 ## Optional Setup: Codex CLI
 
@@ -70,6 +91,7 @@ Add:
 [mcp_servers.ocentra-enforcer]
 command = "node"
 args = ["E:/ocentra-enforcer/mcp/rust-rules-mcp.mjs"]
+env = { OCENTRA_LEDGER_HOME = "E:/ocentra-enforcer/.ledger" }
 startup_timeout_sec = 20
 enabled = true
 ```
@@ -145,6 +167,36 @@ Expected behavior:
 - `Cargo.toml` routes to Rust toolchain/Cargo, dependency, and common security docs.
 - Unknown files return no detailed docs instead of the whole rulebook.
 
+For coordination/presence, ask:
+
+```text
+Use the ocentra-enforcer MCP server. Call ocentra_enforcer_coordination_presence for hub my-hub and summarize active PCs, worktrees, lanes, Codex threads, exact-file claims, unread inbox counts, and stale/offline rows.
+```
+
+For LAN/WAN sync health, ask:
+
+```text
+Use the ocentra-enforcer MCP server. Call ocentra_enforcer_coordination_peer with action "list", then call ocentra_enforcer_coordination_streams for the same hub. Do not read raw stream files unless the compact manifest is insufficient.
+```
+
+For proof routing and PR-ready claims, ask:
+
+```text
+Use the ocentra-enforcer MCP server. Call ocentra_enforcer_proof_route for root C:/path/to/target-repo with files ["scripts/test/example-proof.mjs"]. Then call ocentra_enforcer_proof_inventory for the same root and summarize proof families and device/manual-required counts.
+```
+
+For a fresh proof run:
+
+```text
+Call ocentra_enforcer_proof_run for root C:/path/to/target-repo, proofId "PROOF-COMMAND-GENERIC", and command ["node", "--version"]. Then call ocentra_enforcer_proof_claim for the same root and proofId before making any PR-ready claim.
+```
+
+Expected behavior:
+
+- Codex sees `ocentra_enforcer_proof_route`, `ocentra_enforcer_proof_run`, and `ocentra_enforcer_proof_claim`.
+- Proof output is stored under the target repo at `.enforce/proofs`.
+- Raw proof artifacts are not read unless `ocentra_enforcer_proof_artifact` is explicitly requested.
+
 ## Validate Named Checks From Codex
 
 Ask Codex:
@@ -181,7 +233,11 @@ Call ocentra_enforcer_run for root C:/path/to/target-repo, tool "tsc", command [
 
 ## Skill Setup
 
-MCP is the important part. The skill is optional but useful for routing behavior.
+The preferred installer above copies the canonical skill to
+`~/.codex/skills/ocentra-enforcer` or
+`%USERPROFILE%\.codex\skills\ocentra-enforcer` and writes global AGENTS
+instructions. Manual copying is only needed if you intentionally use
+`--no-skill`.
 
 The bundled canonical skill currently lives at:
 

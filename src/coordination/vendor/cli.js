@@ -1,0 +1,654 @@
+#!/usr/bin/env node
+import { readdir, stat } from "node:fs/promises";
+import { resolve } from "node:path";
+import { parseClaimPath, parseEventId, parseLaneId, parseMessageAddress, parsePeerName, parsePullRequestUrl, parseSessionId, parseStatusState, parseTaskId, parseTaskState, parseUserText, parseWorkerState, parseWriterId, } from "./domain.js";
+import { ensureDaemon } from "./daemon.js";
+import { inspectLedger } from "./doctor.js";
+import { guardLedger } from "./guard.js";
+import { initIdentity, loadIdentity, resolveLane } from "./identity.js";
+import { getActiveTasks, getFreeWorkers, getWorkers, materialize, materializedToJson } from "./materialize.js";
+import { buildStreamManifest } from "./manifest.js";
+import { notify } from "./notify.js";
+import { streamsDir } from "./paths.js";
+import { addPeer, loadPeerRegistry, removePeer, resolvePeer } from "./peers.js";
+import { buildPresenceMatrix } from "./presence.js";
+import { rebuildCoordinationIndex } from "./read-index.js";
+import { compactLedger } from "./retention.js";
+import { resolveLedgerRoot } from "./root.js";
+import { startPeerServer } from "./server.js";
+import { appendEvent } from "./stream.js";
+import { syncFromHttpPeer } from "./sync/http.js";
+import { syncFromPeer } from "./sync/local.js";
+import { normalizeClaimPaths } from "./claim-policy.js";
+const args = process.argv.slice(2);
+const root = resolveLedgerRoot();
+await main(args);
+async function main(argv) {
+    const [command, ...rest] = argv;
+    switch (command) {
+        case "init":
+            await commandInit(rest);
+            return;
+        case "root":
+            print({ root });
+            return;
+        case "lane":
+            await commandLane(rest);
+            return;
+        case "start":
+            await commandStart(rest);
+            return;
+        case "msg":
+            await commandMessage(rest);
+            return;
+        case "inbox":
+            await commandInbox(rest);
+            return;
+        case "ack":
+            await commandAck(rest);
+            return;
+        case "handoff":
+            await commandHandoff(rest);
+            return;
+        case "note":
+            await commandNote(rest);
+            return;
+        case "claim":
+            await commandClaim(rest);
+            return;
+        case "release":
+            await commandRelease(rest);
+            return;
+        case "resolve":
+            await commandResolve(rest);
+            return;
+        case "status":
+            await commandStatus(rest);
+            return;
+        case "heartbeat":
+            await commandHeartbeat(rest);
+            return;
+        case "session":
+            await commandSession(rest);
+            return;
+        case "task":
+            await commandTask(rest);
+            return;
+        case "worker":
+            await commandWorker(rest);
+            return;
+        case "report":
+            await commandReport(rest);
+            return;
+        case "workers":
+            await commandWorkers(rest);
+            return;
+        case "tasks":
+            await commandTasks(rest);
+            return;
+        case "materialize":
+            print(materializedToJson(await materialize(root)));
+            return;
+        case "presence":
+            await commandPresence(rest);
+            return;
+        case "index":
+            await commandIndex(rest);
+            return;
+        case "notify":
+            await commandNotify(rest);
+            return;
+        case "compact":
+            await commandCompact(rest);
+            return;
+        case "doctor":
+            await commandDoctor();
+            return;
+        case "guard":
+            await commandGuard(rest);
+            return;
+        case "streams":
+            await commandStreams();
+            return;
+        case "manifest":
+            print(await buildStreamManifest(root));
+            return;
+        case "sync":
+            await commandSync(rest);
+            return;
+        case "peer":
+            await commandPeer(rest);
+            return;
+        case "serve":
+            await commandServe(rest);
+            return;
+        case "ensure":
+            await commandEnsure(rest);
+            return;
+        default:
+            throw new Error(`unknown command: ${command ?? "(missing)"}`);
+    }
+}
+async function commandNotify(argv) {
+    const config = await loadIdentity(root);
+    const lane = parseLaneId(optionValue(argv, "--lane") ?? config.defaultLane);
+    const stateFile = optionValue(argv, "--state-file");
+    const result = await notify({
+        lane,
+        root,
+        json: argv.includes("--json"),
+        peek: argv.includes("--peek"),
+        exitCode: argv.includes("--exit-code"),
+        ...(stateFile === undefined ? {} : { stateFile }),
+    });
+    if (argv.includes("--json")) {
+        print(result);
+    }
+    else if (result.wakeRequests.length === 0) {
+        console.log(`ledger-notify: lane=${lane} no wake requests`);
+    }
+    else {
+        for (const request of result.wakeRequests) {
+            console.log(`${request.severity.toUpperCase()} ${request.reason} ${request.sourceLane}: ${request.summary}`);
+        }
+    }
+    if (argv.includes("--exit-code") && result.wakeRequests.length > 0) {
+        process.exit(2);
+    }
+}
+async function commandInit(argv) {
+    const [hub] = argv;
+    if (hub === undefined) {
+        throw new Error("usage: ledger init <hub> --lane <lane>");
+    }
+    const lane = optionValue(argv, "--lane") ?? "primary";
+    print(await initIdentity({ root, hub, lane }));
+}
+async function commandLane(argv) {
+    const [subcommand, lane] = argv;
+    if (subcommand !== "register" || lane === undefined) {
+        throw new Error("usage: ledger lane register <lane>");
+    }
+    const config = await loadIdentity(root);
+    print(await appendEvent(root, config, parseLaneId(lane), { type: "lane.register" }));
+}
+async function commandStart(argv) {
+    const laneRaw = argv[0];
+    const config = await loadIdentity(root);
+    const lane = resolveLane(config, laneRaw);
+    const ttlSeconds = Number(optionValue(argv, "--ttl-seconds") ?? "180");
+    const summary = optionValue(argv, "--summary") ?? "lane started";
+    const registered = await appendEvent(root, config, lane, { type: "lane.register" });
+    const heartbeat = await appendEvent(root, config, lane, {
+        type: "heartbeat",
+        state: parseStatusState("online"),
+        summary: parseUserText(summary),
+        ttlSeconds,
+    });
+    const state = await materialize(root);
+    const inbox = state.lanes.get(lane)?.inbox.filter((item) => item.ackedBy.length === 0) ?? [];
+    print({
+        lane,
+        registeredEventId: registered.id,
+        heartbeatEventId: heartbeat.id,
+        unreadCount: inbox.length,
+        inbox,
+        staleHeartbeatCount: state.dashboard.staleHeartbeatCount,
+    });
+}
+async function commandMessage(argv) {
+    const [to, ...bodyParts] = argv;
+    if (to === undefined || bodyParts.length === 0) {
+        throw new Error("usage: ledger msg <to> <body>");
+    }
+    const config = await loadIdentity(root);
+    print(await appendEvent(root, config, config.defaultLane, {
+        type: "message",
+        to: parseMessageAddress(to),
+        body: parseUserText(bodyParts.join(" ")),
+    }));
+}
+async function commandInbox(argv) {
+    const all = argv.includes("--all");
+    const laneArg = argv.find((arg) => !arg.startsWith("--"));
+    const lane = parseLaneId(laneArg ?? (await loadIdentity(root)).defaultLane);
+    const state = await materialize(root);
+    const inbox = state.lanes.get(lane)?.inbox ?? [];
+    print(all ? inbox : inbox.filter((item) => item.ackedBy.length === 0));
+}
+async function commandAck(argv) {
+    const laneRaw = optionValue(argv, "--lane");
+    const messageId = firstPositional(argv, ["--lane"]);
+    if (messageId === undefined) {
+        throw new Error("usage: ledger ack [--lane <lane>] <messageId>");
+    }
+    const config = await loadIdentity(root);
+    print(await appendEvent(root, config, resolveLane(config, laneRaw), {
+        type: "ack",
+        messageId: parseEventId(messageId),
+    }));
+}
+async function commandHandoff(argv) {
+    const [to, ...bodyParts] = argv;
+    if (to === undefined || bodyParts.length === 0) {
+        throw new Error("usage: ledger handoff <to> <body>");
+    }
+    const config = await loadIdentity(root);
+    print(await appendEvent(root, config, config.defaultLane, {
+        type: "handoff",
+        to: parseMessageAddress(to),
+        body: parseUserText(bodyParts.join(" ")),
+    }));
+}
+async function commandNote(argv) {
+    if (argv.length === 0) {
+        throw new Error("usage: ledger note <body>");
+    }
+    const config = await loadIdentity(root);
+    print(await appendEvent(root, config, config.defaultLane, {
+        type: "note",
+        body: parseUserText(argv.join(" ")),
+    }));
+}
+async function commandClaim(argv) {
+    const [laneRaw, ...rest] = argv;
+    const rawPaths = positionalArgs(rest, ["--reason"]);
+    if (laneRaw === undefined || rawPaths.length === 0) {
+        throw new Error("usage: ledger claim <lane> <path> [more paths...] [--reason <reason>]");
+    }
+    const config = await loadIdentity(root);
+    const paths = await normalizeClaimPaths(process.cwd(), rawPaths);
+    const reason = optionValue(argv, "--reason");
+    print(await appendEvent(root, config, parseLaneId(laneRaw), {
+        type: "claim",
+        paths,
+        ...(reason === undefined ? {} : { reason: parseUserText(reason) }),
+    }));
+}
+async function commandRelease(argv) {
+    const [laneRaw, ...rest] = argv;
+    const paths = positionalArgs(rest, []);
+    if (laneRaw === undefined || paths.length === 0) {
+        throw new Error("usage: ledger release <lane> <path> [more paths...]");
+    }
+    const config = await loadIdentity(root);
+    print(await appendEvent(root, config, parseLaneId(laneRaw), {
+        type: "release",
+        paths: paths.map((path) => parseClaimPath(path)),
+    }));
+}
+async function commandResolve(argv) {
+    const [laneRaw, ...rest] = argv;
+    const paths = positionalArgs(rest, ["--owner"]).map((path) => parseClaimPath(path));
+    if (laneRaw === undefined || paths.length === 0) {
+        throw new Error("usage: ledger resolve <lane> <path> [more paths...] [--owner <writer>]");
+    }
+    const config = await loadIdentity(root);
+    const owner = optionValue(argv, "--owner");
+    print(await appendEvent(root, config, parseLaneId(laneRaw), {
+        type: "claim.resolve",
+        paths,
+        ...(owner === undefined ? {} : { owner: parseWriterId(owner) }),
+    }));
+}
+async function commandStatus(argv) {
+    const [laneRaw, stateRaw, ...summaryParts] = argv;
+    if (laneRaw === undefined || stateRaw === undefined || summaryParts.length === 0) {
+        throw new Error("usage: ledger status <lane> <state> <summary>");
+    }
+    const config = await loadIdentity(root);
+    print(await appendEvent(root, config, resolveLane(config, laneRaw), {
+        type: "status",
+        state: parseStatusState(stateRaw),
+        summary: parseUserText(summaryParts.join(" ")),
+    }));
+}
+async function commandHeartbeat(argv) {
+    const [laneRaw, stateRaw, ...summaryParts] = argv;
+    if (laneRaw === undefined || stateRaw === undefined || summaryParts.length === 0) {
+        throw new Error("usage: ledger heartbeat <lane> <state> <summary> [--ttl-seconds <seconds>]");
+    }
+    const config = await loadIdentity(root);
+    const ttlSeconds = Number(optionValue(argv, "--ttl-seconds") ?? "180");
+    print(await appendEvent(root, config, resolveLane(config, laneRaw), {
+        type: "heartbeat",
+        state: parseStatusState(stateRaw),
+        summary: parseUserText(summaryWithoutOptions(summaryParts)),
+        ttlSeconds,
+    }));
+}
+async function commandSession(argv) {
+    const [subcommand, laneRaw, sessionRaw] = argv;
+    if ((subcommand !== "claim" && subcommand !== "release") || laneRaw === undefined || sessionRaw === undefined) {
+        throw new Error("usage: ledger session <claim|release> <lane> <sessionId> [--ttl-seconds <seconds>] [--summary <summary>]");
+    }
+    const config = await loadIdentity(root);
+    const lane = resolveLane(config, laneRaw);
+    const sessionId = parseSessionId(sessionRaw);
+    const summary = optionValue(argv, "--summary");
+    if (subcommand === "release") {
+        print(await appendEvent(root, config, lane, {
+            type: "session.release",
+            sessionId,
+            ...(summary === undefined ? {} : { summary: parseUserText(summary) }),
+        }));
+        return;
+    }
+    const existing = (await materialize(root)).sessions.get(lane);
+    if (existing !== undefined && existing.sessionId !== sessionId) {
+        print({
+            ok: false,
+            lane,
+            sessionId,
+            activeSession: existing,
+            message: `lane ${lane} is already owned by active session ${existing.sessionId}`,
+        });
+        process.exitCode = 1;
+        return;
+    }
+    const ttlSeconds = Number(optionValue(argv, "--ttl-seconds") ?? "3600");
+    const event = await appendEvent(root, config, lane, {
+        type: "session.claim",
+        sessionId,
+        ttlSeconds,
+        ...(summary === undefined ? {} : { summary: parseUserText(summary) }),
+    });
+    print({
+        ok: true,
+        lane,
+        sessionId,
+        event,
+    });
+}
+async function commandTask(argv) {
+    const [laneRaw, taskIdRaw, stateRaw, ...summaryParts] = argv;
+    if (laneRaw === undefined || taskIdRaw === undefined || stateRaw === undefined || summaryParts.length === 0) {
+        throw new Error("usage: ledger task <lane> <taskId> <state> <summary> [--title <title>] [--pr-url <url>]");
+    }
+    const config = await loadIdentity(root);
+    const title = optionValue(argv, "--title");
+    const prUrl = optionValue(argv, "--pr-url");
+    const state = parseTaskState(stateRaw);
+    print(await appendEvent(root, config, parseLaneId(laneRaw), {
+        type: "task.update",
+        taskId: parseTaskId(taskIdRaw),
+        taskState: state,
+        summary: parseUserText(summaryWithoutOptions(summaryParts)),
+        ...(title === undefined ? {} : { title: parseUserText(title) }),
+        ...(prUrl === undefined ? {} : { prUrl: parsePullRequestUrl(prUrl) }),
+    }));
+}
+async function commandWorker(argv) {
+    const [laneRaw, stateRaw, ...summaryParts] = argv;
+    if (laneRaw === undefined || stateRaw === undefined || summaryParts.length === 0) {
+        throw new Error("usage: ledger worker <lane> <state> <summary> [--task-id <taskId>]");
+    }
+    const config = await loadIdentity(root);
+    const taskIdRaw = optionValue(argv, "--task-id");
+    print(await appendEvent(root, config, parseLaneId(laneRaw), {
+        type: "worker.update",
+        workerState: parseWorkerState(stateRaw),
+        summary: parseUserText(summaryWithoutOptions(summaryParts)),
+        ...(taskIdRaw === undefined ? {} : { taskId: parseTaskId(taskIdRaw) }),
+    }));
+}
+async function commandReport(argv) {
+    const taskIdRaw = optionValue(argv, "--task-id");
+    const laneRaw = optionValue(argv, "--lane");
+    const summaryParts = argv.filter((arg, index) => {
+        const previous = argv[index - 1];
+        return !arg.startsWith("--") && previous !== "--task-id" && previous !== "--lane";
+    });
+    if (summaryParts.length === 0) {
+        throw new Error("usage: ledger report [--lane <lane>] [--task-id <taskId>] <summary>");
+    }
+    const config = await loadIdentity(root);
+    print(await appendEvent(root, config, resolveLane(config, laneRaw), {
+        type: "report",
+        summary: parseUserText(summaryParts.join(" ")),
+        ...(taskIdRaw === undefined ? {} : { taskId: parseTaskId(taskIdRaw) }),
+    }));
+}
+async function commandWorkers(argv) {
+    const state = await materialize(root);
+    print(argv[0] === "free" ? getFreeWorkers(state) : getWorkers(state));
+}
+async function commandPresence(argv) {
+    const limit = Number(optionValue(argv, "--limit") ?? "0");
+    const state = await materialize(root);
+    print(buildPresenceMatrix(root, state, { limit: limit > 0 ? limit : undefined }));
+}
+async function commandIndex(argv) {
+    const limit = Number(optionValue(argv, "--limit") ?? "0");
+    print(await rebuildCoordinationIndex(root, { limit: limit > 0 ? limit : undefined }));
+}
+async function commandTasks(argv) {
+    const state = await materialize(root);
+    print(argv[0] === "active" ? getActiveTasks(state) : [...state.tasks.values()]);
+}
+async function commandDoctor() {
+    const state = await materialize(root);
+    const inspection = await inspectLedger(root);
+    print({
+        ok: inspection.ok && state.warnings.length === 0 && state.ownership.conflicts.length === 0,
+        diagnostics: inspection.diagnostics,
+        warnings: state.warnings,
+        conflicts: state.ownership.conflicts,
+        dashboard: state.dashboard,
+    });
+}
+async function commandGuard(argv) {
+    const config = await loadIdentity(root);
+    const lane = optionValue(argv, "--lane") ?? config.defaultLane;
+    const changed = optionValue(argv, "--changed");
+    const sessionId = optionValue(argv, "--session");
+    const result = await guardLedger(root, {
+        lane,
+        changedPaths: changed === undefined ? [] : splitPathList(changed),
+        allowPrimaryWithoutClaims: argv.includes("--allow-primary-without-claims"),
+        ...(sessionId === undefined ? {} : { sessionId }),
+    });
+    print(result);
+    if (!result.ok) {
+        process.exitCode = 1;
+    }
+}
+async function commandCompact(argv) {
+    const keepLatest = Number(optionValue(argv, "--keep-latest") ?? "250");
+    print(await compactLedger(root, { keepLatest }));
+}
+async function commandStreams() {
+    try {
+        print((await readdir(streamsDir(root))).filter((name) => name.endsWith(".ndjson")).sort());
+    }
+    catch {
+        print([]);
+    }
+}
+async function commandSync(argv) {
+    const peer = optionValue(argv, "--peer");
+    if (peer === undefined) {
+        throw new Error("usage: ledger sync --peer <path|url|alias>");
+    }
+    if (isHttpPeer(peer)) {
+        print(await syncFromHttpPeer(root, peer, optionValue(argv, "--token") ?? process.env.LEDGER_PEER_TOKEN));
+        await rebuildCoordinationIndex(root);
+        return;
+    }
+    if (isLocalPeerPath(peer) || await pathExists(resolve(peer))) {
+        print(await syncFromPeer(root, resolve(peer)));
+        await rebuildCoordinationIndex(root);
+        return;
+    }
+    const resolved = await resolvePeer(root, peer);
+    print(await syncFromHttpPeer(root, resolved.url, optionValue(argv, "--token") ?? resolved.token ?? process.env.LEDGER_PEER_TOKEN));
+    await rebuildCoordinationIndex(root);
+}
+async function commandPeer(argv) {
+    const [subcommand, nameOrUrl, url] = argv;
+    switch (subcommand) {
+        case "add": {
+            if (nameOrUrl === undefined || url === undefined) {
+                throw new Error("usage: ledger peer add <name> <url> [--token-env <envName>]");
+            }
+            const tokenEnv = optionValue(argv, "--token-env");
+            const mode = optionValue(argv, "--mode");
+            print(await addPeer(root, {
+                name: nameOrUrl,
+                url,
+                ...(tokenEnv === undefined ? {} : { tokenEnv }),
+                ...(mode === undefined ? {} : { mode }),
+            }));
+            return;
+        }
+        case "remove": {
+            if (nameOrUrl === undefined) {
+                throw new Error("usage: ledger peer remove <name>");
+            }
+            print(await removePeer(root, nameOrUrl));
+            return;
+        }
+        case "list":
+            print(await loadPeerRegistry(root));
+            return;
+        case "status":
+            print({
+                registry: await loadPeerRegistry(root),
+                manifest: await buildStreamManifest(root),
+            });
+            return;
+        case "sync": {
+            if (nameOrUrl === undefined) {
+                throw new Error("usage: ledger peer sync <name|url|path>");
+            }
+            await commandSync(["--peer", nameOrUrl, ...argv.slice(2)]);
+            return;
+        }
+        case "health": {
+            if (nameOrUrl === undefined) {
+                throw new Error("usage: ledger peer health <name|url>");
+            }
+            const resolved = await resolvePeer(root, nameOrUrl);
+            const response = await fetch(new URL("/health", resolved.url), requestInit(optionValue(argv, "--token") ?? resolved.token ?? process.env.LEDGER_PEER_TOKEN));
+            print({
+                peer: isHttpPeer(nameOrUrl) ? parsePeerName("direct") : parsePeerName(nameOrUrl),
+                url: resolved.url,
+                ok: response.ok,
+                status: response.status,
+                body: response.ok ? await response.json() : await response.text(),
+            });
+            return;
+        }
+        default:
+            throw new Error("usage: ledger peer <add|remove|list|health|status|sync>");
+    }
+}
+async function commandServe(argv) {
+    const port = Number(optionValue(argv, "--port") ?? "8787");
+    const host = optionValue(argv, "--host") ?? "127.0.0.1";
+    const token = optionValue(argv, "--token") ?? process.env.LEDGER_HTTP_TOKEN;
+    const server = await startPeerServer(root, {
+        port,
+        host,
+        ...(token === undefined ? {} : { token }),
+    });
+    print({ url: server.url, commandApi: true, authRequired: token !== undefined });
+    await new Promise(() => undefined);
+}
+async function commandEnsure(argv) {
+    const port = Number(optionValue(argv, "--port") ?? process.env.LEDGER_PORT ?? "8787");
+    const host = optionValue(argv, "--host") ?? process.env.LEDGER_HOST ?? "127.0.0.1";
+    const token = optionValue(argv, "--token") ?? process.env.LEDGER_HTTP_TOKEN;
+    print(await ensureDaemon({
+        root,
+        port,
+        host,
+        ...(token === undefined ? {} : { token }),
+    }));
+}
+function optionValue(argv, option) {
+    const index = argv.indexOf(option);
+    const value = index >= 0 ? argv[index + 1] : undefined;
+    return value === undefined || value.startsWith("--") ? undefined : value;
+}
+function firstPositional(argv, optionsWithValues) {
+    for (let index = 0; index < argv.length; index += 1) {
+        const arg = argv[index];
+        if (arg === undefined) {
+            continue;
+        }
+        if (optionsWithValues.includes(arg)) {
+            index += 1;
+            continue;
+        }
+        if (!arg.startsWith("--")) {
+            return arg;
+        }
+    }
+    return undefined;
+}
+function positionalArgs(argv, optionsWithValues) {
+    const positional = [];
+    for (let index = 0; index < argv.length; index += 1) {
+        const arg = argv[index];
+        if (arg === undefined) {
+            continue;
+        }
+        if (optionsWithValues.includes(arg)) {
+            index += 1;
+            continue;
+        }
+        if (!arg.startsWith("--")) {
+            positional.push(arg);
+        }
+    }
+    return positional;
+}
+function summaryWithoutOptions(parts) {
+    const summary = [];
+    for (let index = 0; index < parts.length; index += 1) {
+        const part = parts[index];
+        if (part === "--title" || part === "--pr-url" || part === "--task-id" || part === "--ttl-seconds") {
+            index += 1;
+            continue;
+        }
+        if (part !== undefined) {
+            summary.push(part);
+        }
+    }
+    return summary.join(" ");
+}
+function splitPathList(value) {
+    return value
+        .split(/[,\n]/u)
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0);
+}
+function isHttpPeer(peer) {
+    return peer.startsWith("http://") || peer.startsWith("https://");
+}
+function isLocalPeerPath(peer) {
+    return peer.includes(":\\")
+        || peer.includes(":/")
+        || peer.startsWith(".")
+        || peer.startsWith("/")
+        || peer.startsWith("\\")
+        || peer.includes("\\");
+}
+async function pathExists(path) {
+    try {
+        await stat(path);
+        return true;
+    }
+    catch {
+        return false;
+    }
+}
+function requestInit(token) {
+    return token === undefined || token.length === 0
+        ? undefined
+        : { headers: { authorization: `Bearer ${token}` } };
+}
+function print(value) {
+    console.log(JSON.stringify(value, null, 2));
+}

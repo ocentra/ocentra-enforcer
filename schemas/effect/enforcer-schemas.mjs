@@ -54,6 +54,54 @@ export const RuleFamilySchema = Schema.Union(
   CommonRuleFamilySchema,
 );
 export const SeveritySchema = Schema.Literal("error", "warning", "info");
+export const ProofCapabilitySchema = Schema.Literal(
+  "ci",
+  "local",
+  "windows",
+  "linux",
+  "macos",
+  "wsl",
+  "android-emulator",
+  "android-device",
+  "ios-simulator",
+  "ios-device",
+  "browser",
+  "network",
+  "cloud",
+  "manual-required",
+);
+export const ProofStatusSchema = Schema.Literal(
+  "passed",
+  "failed",
+  "manual-required",
+  "unavailable",
+  "waived",
+);
+export const ProofCollectorSchema = Schema.Literal(
+  "command",
+  "file-hash",
+  "junit",
+  "sarif",
+  "playwright",
+  "cargo",
+  "python",
+  "android",
+  "xcode",
+  "http",
+  "manual-artifact",
+);
+export const ProofFamilySchema = Schema.Literal(
+  "command",
+  "test-report",
+  "security-report",
+  "contract-parity",
+  "manual-artifact",
+  "device-manual",
+  "event-network",
+  "logging-custody",
+  "release-package",
+  "claim-integrity",
+);
 
 export const PolicyOverrideSchema = Schema.Struct({
   enabled: OptionalBoolean,
@@ -110,6 +158,42 @@ export const RuleRegistrySchema = Schema.Struct({
   productName: Schema.String,
   languages: Schema.Array(LanguageSchema),
   rules: Schema.Array(RuleEntrySchema),
+});
+
+export const ProofRetentionPolicySchema = Schema.Struct({
+  maxRunsPerProof: OptionalNumber,
+  maxFailedRuns: OptionalNumber,
+  maxArtifactBytes: OptionalNumber,
+  pruneAfterDays: OptionalNullableNumber,
+  pinPrReadyDays: OptionalNullableNumber,
+});
+
+export const ProofDefinitionSchema = Schema.Struct({
+  id: Schema.String,
+  title: Schema.String,
+  family: ProofFamilySchema,
+  severity: SeveritySchema,
+  appliesTo: StringArray,
+  triggers: StringArray,
+  languages: Schema.optional(Schema.Array(LanguageSchema)),
+  capabilities: Schema.Array(ProofCapabilitySchema),
+  collector: ProofCollectorSchema,
+  docs: StringArray,
+  commands: Schema.optional(Schema.Array(Schema.Array(Schema.String))),
+  requiredArtifacts: OptionalStringArray,
+  requiredPaths: OptionalStringArray,
+  claimsProved: OptionalStringArray,
+  claimsNotProved: OptionalStringArray,
+  requiredForPrReady: OptionalBoolean,
+  ciSupport: OptionalBoolean,
+  deviceSupport: OptionalBoolean,
+  retention: Schema.optional(ProofRetentionPolicySchema),
+});
+
+export const ProofRegistrySchema = Schema.Struct({
+  schemaVersion: Schema.Number,
+  productName: Schema.String,
+  proofs: Schema.Array(ProofDefinitionSchema),
 });
 
 export const ConfigSchema = Schema.Struct({
@@ -307,7 +391,18 @@ export const CodexInstallRequestSchema = Schema.Struct({
   dryRun: OptionalBoolean,
   force: OptionalBoolean,
   codexConfigPath: OptionalString,
+  ledgerRoot: OptionalString,
   serverName: OptionalString,
+  installSkill: OptionalBoolean,
+  installGlobalAgents: OptionalBoolean,
+});
+
+export const CodexUninstallRequestSchema = Schema.Struct({
+  codexConfigPath: OptionalString,
+  serverName: OptionalString,
+  removeSkill: OptionalBoolean,
+  removeGlobalAgents: OptionalBoolean,
+  dryRun: OptionalBoolean,
 });
 
 export const CodexDoctorRequestSchema = Schema.Struct({
@@ -443,6 +538,139 @@ export const RunQueryArgumentsSchema = Schema.Struct({
   limitBytes: OptionalNumber,
 });
 
+export const ProofRouteRequestSchema = Schema.Struct({
+  root: OptionalString,
+  profile: OptionalString,
+  scope: Schema.optional(ScopeNameSchema),
+  files: OptionalStringArray,
+  plan: OptionalString,
+  capability: Schema.optional(ProofCapabilitySchema),
+  proofId: OptionalString,
+});
+
+export const ProofRunArgumentsSchema = Schema.Struct({
+  root: OptionalString,
+  profile: OptionalString,
+  proofId: OptionalString,
+  files: OptionalStringArray,
+  plan: OptionalString,
+  capability: Schema.optional(ProofCapabilitySchema),
+  runId: OptionalString,
+  command: Schema.optional(Schema.Array(Schema.String)),
+  tags: OptionalStringArray,
+  pin: OptionalBoolean,
+});
+
+export const ProofQueryArgumentsSchema = Schema.Struct({
+  root: OptionalString,
+  profile: OptionalString,
+  proofId: OptionalString,
+  runId: OptionalString,
+  status: Schema.optional(ProofStatusSchema),
+  artifact: OptionalString,
+  limit: OptionalNumber,
+  diagnosticLimit: OptionalNumber,
+  limitBytes: OptionalNumber,
+  includeScripts: OptionalBoolean,
+});
+
+export const ProofClaimArgumentsSchema = Schema.Struct({
+  root: OptionalString,
+  profile: OptionalString,
+  proofId: OptionalString,
+  proofIds: OptionalStringArray,
+  claimId: OptionalString,
+  prReady: OptionalBoolean,
+  allowDirty: OptionalBoolean,
+});
+
+export const CoordinationToolArgumentsSchema = Schema.Struct({
+  root: OptionalString,
+  stateRoot: OptionalString,
+  hub: OptionalString,
+  lane: OptionalString,
+  to: OptionalString,
+  body: OptionalString,
+  messageId: OptionalString,
+  paths: OptionalStringArray,
+  changedPaths: OptionalStringArray,
+  reason: OptionalString,
+  summary: OptionalString,
+  owner: OptionalString,
+  operation: Schema.optional(
+    Schema.Literal("inspect", "edit", "commit", "push", "rebase", "merge", "pr_ready"),
+  ),
+  lockKind: Schema.optional(
+    Schema.Literal("writeLock", "globalWriteLock", "branchLease", "workReservation"),
+  ),
+  onConflict: Schema.optional(Schema.Literal("fail", "intent")),
+  claimGroup: OptionalString,
+  waitMs: OptionalNumber,
+  taskId: OptionalString,
+  state: OptionalString,
+  sessionId: OptionalString,
+  action: OptionalString,
+  peer: OptionalString,
+  peerUrl: OptionalString,
+  url: OptionalString,
+  name: OptionalString,
+  token: OptionalString,
+  tokenEnv: OptionalString,
+  mode: Schema.optional(Schema.Literal("pull", "push", "both")),
+  host: OptionalString,
+  port: OptionalNumber,
+  keepLatest: OptionalNumber,
+  projectId: OptionalString,
+  repoRoot: OptionalString,
+  worktreeRoot: OptionalString,
+  cwd: OptionalString,
+  gitRemote: OptionalString,
+  branch: OptionalString,
+  commit: OptionalString,
+  codexThreadId: OptionalString,
+  codexSessionId: OptionalString,
+  stateFile: OptionalString,
+  peek: OptionalBoolean,
+  dryRun: OptionalBoolean,
+  write: OptionalBoolean,
+  focused: OptionalBoolean,
+  allowPrimaryWithoutClaims: OptionalBoolean,
+  allowMergeRisks: OptionalBoolean,
+  all: OptionalBoolean,
+  limit: OptionalNumber,
+});
+
+export const CoordinationHealthReportSchema = Schema.Struct({
+  ok: Schema.Boolean,
+  root: Schema.String,
+  canInspect: Schema.Boolean,
+  canLockPaths: Schema.Boolean,
+  canWriteClaimedPaths: Schema.Boolean,
+  mustWait: Schema.Boolean,
+  mustRepairLedger: Schema.Boolean,
+  diagnostics: Schema.Array(Schema.Unknown),
+  warnings: Schema.Array(Schema.Unknown),
+  conflicts: Schema.Array(Schema.Unknown),
+  hardConflicts: Schema.optional(Schema.Array(Schema.Unknown)),
+  branchWriteConflicts: Schema.optional(Schema.Array(Schema.Unknown)),
+  mergeRisks: Schema.optional(Schema.Array(Schema.Unknown)),
+  globalWriteConflicts: Schema.optional(Schema.Array(Schema.Unknown)),
+  editIntents: Schema.optional(Schema.Array(Schema.Unknown)),
+  staleSessions: Schema.Array(Schema.Unknown),
+  guard: Schema.optional(Schema.NullOr(Schema.Unknown)),
+  dashboard: Schema.Unknown,
+  presence: Schema.optional(Schema.Unknown),
+});
+
+export const CoordinationPresenceReportSchema = Schema.Struct({
+  ok: Schema.Boolean,
+  root: Schema.String,
+  generatedAt: Schema.String,
+  totalRows: Schema.Number,
+  rows: Schema.Array(Schema.Unknown),
+  views: Schema.Unknown,
+});
+
 export const RunSummarySchema = Schema.Struct({
   runId: Schema.String,
   root: Schema.String,
@@ -471,8 +699,68 @@ export const RunReportSchema = Schema.Struct({
   diagnostics: Schema.Array(DiagnosticSchema),
 });
 
+export const ProofArtifactSchema = Schema.Struct({
+  name: Schema.String,
+  kind: Schema.String,
+  path: Schema.String,
+  sha256: Schema.String,
+  byteLength: Schema.Number,
+});
+
+export const ProofDiagnosticSchema = Schema.Struct({
+  runId: Schema.String,
+  proofId: Schema.String,
+  severity: SeveritySchema,
+  ruleId: Schema.String,
+  message: Schema.String,
+  file: Schema.String,
+  line: Schema.Number,
+});
+
+export const ProofRunSchema = Schema.Struct({
+  schemaVersion: Schema.Number,
+  proofId: Schema.String,
+  title: Schema.String,
+  family: ProofFamilySchema,
+  collector: ProofCollectorSchema,
+  profile: Schema.String,
+  root: Schema.String,
+  runId: Schema.String,
+  status: ProofStatusSchema,
+  ok: Schema.Boolean,
+  exitCode: Schema.Number,
+  startedAt: Schema.String,
+  endedAt: Schema.String,
+  command: Schema.Array(Schema.String),
+  diagnosticCount: Schema.Number,
+  pinned: Schema.Boolean,
+  git: Schema.Unknown,
+  scope: Schema.Unknown,
+  claimsProved: OptionalStringArray,
+  claimsNotProved: OptionalStringArray,
+  retention: ProofRetentionPolicySchema,
+  artifacts: Schema.Array(ProofArtifactSchema),
+  harness: Schema.optional(Schema.Unknown),
+});
+
+export const ProofRunReportSchema = Schema.Struct({
+  ok: Schema.Boolean,
+  proofRun: ProofRunSchema,
+  diagnostics: Schema.Array(Schema.Unknown),
+});
+
+export const ProofClaimReportSchema = Schema.Struct({
+  ok: Schema.Boolean,
+  root: Schema.String,
+  claim: Schema.Unknown,
+});
+
 export function decodeRuleRegistry(value) {
   return decodeWithSchema(RuleRegistrySchema, value, "rule registry");
+}
+
+export function decodeProofRegistry(value) {
+  return decodeWithSchema(ProofRegistrySchema, value, "proof registry");
 }
 
 export function decodeEnforcerConfig(value) {
@@ -527,6 +815,14 @@ export function decodeCodexInstallRequest(value) {
   );
 }
 
+export function decodeCodexUninstallRequest(value) {
+  return decodeWithSchema(
+    CodexUninstallRequestSchema,
+    value,
+    "codex uninstall request",
+  );
+}
+
 export function decodeCodexDoctorRequest(value) {
   return decodeWithSchema(
     CodexDoctorRequestSchema,
@@ -559,8 +855,72 @@ export function decodeRunQueryArguments(value) {
   );
 }
 
+export function decodeProofRouteRequest(value) {
+  return decodeWithSchema(
+    ProofRouteRequestSchema,
+    value,
+    "proof route request",
+  );
+}
+
+export function decodeProofRunArguments(value) {
+  return decodeWithSchema(
+    ProofRunArgumentsSchema,
+    value,
+    "proof run arguments",
+  );
+}
+
+export function decodeProofQueryArguments(value) {
+  return decodeWithSchema(
+    ProofQueryArgumentsSchema,
+    value,
+    "proof query arguments",
+  );
+}
+
+export function decodeProofClaimArguments(value) {
+  return decodeWithSchema(
+    ProofClaimArgumentsSchema,
+    value,
+    "proof claim arguments",
+  );
+}
+
+export function decodeCoordinationToolArguments(value) {
+  return decodeWithSchema(
+    CoordinationToolArgumentsSchema,
+    value,
+    "coordination tool arguments",
+  );
+}
+
+export function decodeCoordinationHealthReport(value) {
+  return decodeWithSchema(
+    CoordinationHealthReportSchema,
+    value,
+    "coordination health report",
+  );
+}
+
+export function decodeCoordinationPresenceReport(value) {
+  return decodeWithSchema(
+    CoordinationPresenceReportSchema,
+    value,
+    "coordination presence report",
+  );
+}
+
 export function decodeRunReport(value) {
   return decodeWithSchema(RunReportSchema, value, "run report");
+}
+
+export function decodeProofRunReport(value) {
+  return decodeWithSchema(ProofRunReportSchema, value, "proof run report");
+}
+
+export function decodeProofClaimReport(value) {
+  return decodeWithSchema(ProofClaimReportSchema, value, "proof claim report");
 }
 
 export function decodeWithSchema(schema, value, label) {

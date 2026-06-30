@@ -39,6 +39,28 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
     "ocentra_enforcer_doctor",
     "ocentra_enforcer_explain",
     "ocentra_enforcer_check",
+    "ocentra_enforcer_mcp_status",
+    "ocentra_enforcer_coordination_claim",
+    "ocentra_enforcer_coordination_compact",
+    "ocentra_enforcer_coordination_ensure",
+    "ocentra_enforcer_coordination_guard",
+    "ocentra_enforcer_coordination_health",
+    "ocentra_enforcer_coordination_index",
+    "ocentra_enforcer_coordination_inbox",
+    "ocentra_enforcer_coordination_init",
+    "ocentra_enforcer_coordination_mail",
+    "ocentra_enforcer_coordination_message",
+    "ocentra_enforcer_coordination_notify",
+    "ocentra_enforcer_coordination_peer",
+    "ocentra_enforcer_coordination_presence",
+    "ocentra_enforcer_coordination_release",
+    "ocentra_enforcer_coordination_repair",
+    "ocentra_enforcer_coordination_report",
+    "ocentra_enforcer_coordination_status",
+    "ocentra_enforcer_coordination_streams",
+    "ocentra_enforcer_coordination_sync",
+    "ocentra_enforcer_coordination_tasks",
+    "ocentra_enforcer_coordination_workers",
     "ocentra_enforcer_route",
     "ocentra_enforcer_scan",
     "ocentra_enforcer_run",
@@ -48,6 +70,17 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
     "ocentra_enforcer_artifact",
     "ocentra_enforcer_prune_runs",
     "ocentra_enforcer_reset_runs",
+    "ocentra_enforcer_proof_artifact",
+    "ocentra_enforcer_proof_claim",
+    "ocentra_enforcer_proof_diagnostics",
+    "ocentra_enforcer_proof_export",
+    "ocentra_enforcer_proof_inventory",
+    "ocentra_enforcer_proof_last_failure",
+    "ocentra_enforcer_proof_prune",
+    "ocentra_enforcer_proof_reset",
+    "ocentra_enforcer_proof_route",
+    "ocentra_enforcer_proof_run",
+    "ocentra_enforcer_proof_status",
     "rust_rules_doctor",
     "rust_rules_explain",
     "rust_rules_check",
@@ -80,6 +113,196 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
     "slice",
   ]);
   assert.equal(checkTool.inputSchema.properties.includeScope.type, "boolean");
+  const claimTool = tools.result.tools.find(
+    (tool) => tool.name === "ocentra_enforcer_coordination_claim",
+  );
+  assert.deepEqual(claimTool.inputSchema.properties.action.enum, ["claim"]);
+  assert.deepEqual(claimTool.inputSchema.properties.operation.enum, [
+    "inspect",
+    "edit",
+    "commit",
+    "push",
+    "rebase",
+    "merge",
+    "pr_ready",
+  ]);
+  assert.deepEqual(claimTool.inputSchema.properties.lockKind.enum, [
+    "writeLock",
+    "globalWriteLock",
+    "branchLease",
+    "workReservation",
+  ]);
+  assert.deepEqual(claimTool.inputSchema.properties.onConflict.enum, [
+    "fail",
+    "intent",
+  ]);
+  assert.equal(claimTool.inputSchema.properties.branch.type, "string");
+  const releaseTool = tools.result.tools.find(
+    (tool) => tool.name === "ocentra_enforcer_coordination_release",
+  );
+  assert.deepEqual(releaseTool.inputSchema.properties.action.enum, ["release"]);
+
+  const mcpStatus = await client.request(19, "tools/call", {
+    name: "ocentra_enforcer_mcp_status",
+    arguments: {},
+  });
+  assert.equal(mcpStatus.result.isError, false);
+  const mcpStatusReport = JSON.parse(mcpStatus.result.content[0].text);
+  assert.equal(mcpStatusReport.ok, true);
+  assert.equal(mcpStatusReport.stale, false);
+  assert.equal(mcpStatusReport.writeCompatible, true);
+  assert.equal(mcpStatusReport.hashCompatibility.ok, true);
+  assert.equal(
+    mcpStatusReport.startup.digest,
+    mcpStatusReport.current.digest,
+  );
+
+  const coordinationRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), "enforcer-mcp-coordination-"),
+  );
+  const coordinationTargetRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), "enforcer-mcp-coordination-target-"),
+  );
+  const coordinationInit = await client.request(20, "tools/call", {
+    name: "ocentra_enforcer_coordination_init",
+    arguments: {
+      stateRoot: coordinationRoot,
+      hub: "mcp-hub",
+      lane: "codex-a",
+    },
+  });
+  assert.equal(coordinationInit.result.isError, false);
+  const coordinationClaim = await client.request(21, "tools/call", {
+    name: "ocentra_enforcer_coordination_claim",
+    arguments: {
+      stateRoot: coordinationRoot,
+      root: coordinationTargetRoot,
+      lane: "codex-a",
+      paths: ["src/lib.rs"],
+      reason: "mcp smoke",
+      projectId: "mcp-project",
+      repoRoot: coordinationTargetRoot,
+      worktreeRoot: coordinationTargetRoot,
+      codexThreadId: "thread-mcp",
+      codexSessionId: "session-mcp",
+    },
+  });
+  assert.equal(coordinationClaim.result.isError, false);
+  const coordinationClaimReport = JSON.parse(coordinationClaim.result.content[0].text);
+  const coordinationHealth = await client.request(22, "tools/call", {
+    name: "ocentra_enforcer_coordination_health",
+    arguments: {
+      stateRoot: coordinationRoot,
+      root: coordinationTargetRoot,
+      lane: "codex-a",
+      paths: ["src/lib.rs"],
+      projectId: "mcp-project",
+      repoRoot: coordinationTargetRoot,
+      worktreeRoot: coordinationTargetRoot,
+    },
+  });
+  assert.equal(coordinationHealth.result.isError, false);
+  const healthReport = JSON.parse(coordinationHealth.result.content[0].text);
+  assert.equal(healthReport.canInspect, true);
+  assert.equal(healthReport.canWriteClaimedPaths, true);
+  assert.equal(healthReport.presence.rows[0].projectId, "mcp-project");
+
+  const coordinationPresence = await client.request(23, "tools/call", {
+    name: "ocentra_enforcer_coordination_presence",
+    arguments: {
+      stateRoot: coordinationRoot,
+    },
+  });
+  assert.equal(coordinationPresence.result.isError, false);
+  const presenceReport = JSON.parse(coordinationPresence.result.content[0].text);
+  assert.equal(presenceReport.rows[0].codexThreadId, "thread-mcp");
+
+  const coordinationIndex = await client.request(24, "tools/call", {
+    name: "ocentra_enforcer_coordination_index",
+    arguments: {
+      stateRoot: coordinationRoot,
+    },
+  });
+  assert.equal(coordinationIndex.result.isError, false);
+  const indexReport = JSON.parse(coordinationIndex.result.content[0].text);
+  assert.equal(indexReport.counts.presenceRows, 1);
+
+  const repairDryRun = await client.request(28, "tools/call", {
+    name: "ocentra_enforcer_coordination_repair",
+    arguments: {
+      stateRoot: coordinationRoot,
+      action: "legacy-hash",
+    },
+  });
+  assert.equal(repairDryRun.result.isError, false);
+  const repairReport = JSON.parse(repairDryRun.result.content[0].text);
+  assert.equal(repairReport.dryRun, true);
+
+  const sequenceRepairDryRun = await client.request(30, "tools/call", {
+    name: "ocentra_enforcer_coordination_repair",
+    arguments: {
+      stateRoot: coordinationRoot,
+      action: "sequence",
+      owner: coordinationClaimReport.event.writer,
+      paths: ["src/lib.rs"],
+    },
+  });
+  assert.equal(sequenceRepairDryRun.result.isError, false);
+  const sequenceRepairReport = JSON.parse(
+    sequenceRepairDryRun.result.content[0].text,
+  );
+  assert.equal(sequenceRepairReport.dryRun, true);
+
+  const invalidClaimAction = await client.request(25, "tools/call", {
+    name: "ocentra_enforcer_coordination_claim",
+    arguments: {
+      stateRoot: coordinationRoot,
+      lane: "codex-a",
+      paths: ["src/lib.rs"],
+      action: "release",
+    },
+  });
+  assert.equal(invalidClaimAction.result.isError, true);
+  assert.match(
+    invalidClaimAction.result.content[0].text,
+    /coordination claim does not support action="release"/u,
+  );
+  const statusAfterInvalidClaim = await client.request(29, "tools/call", {
+    name: "ocentra_enforcer_coordination_status",
+    arguments: {
+      stateRoot: coordinationRoot,
+    },
+  });
+  const activeClaimsAfterInvalidClaim = JSON.parse(
+    statusAfterInvalidClaim.result.content[0].text,
+  ).state.ownership.activeClaims;
+  assert.equal(activeClaimsAfterInvalidClaim.length, 1);
+  assert.equal(activeClaimsAfterInvalidClaim[0].eventId, coordinationClaimReport.event.id);
+
+  const coordinationRelease = await client.request(26, "tools/call", {
+    name: "ocentra_enforcer_coordination_release",
+    arguments: {
+      stateRoot: coordinationRoot,
+      lane: "codex-a",
+      paths: ["src/lib.rs"],
+      reason: "mcp release",
+    },
+  });
+  assert.equal(coordinationRelease.result.isError, false);
+  const releaseReport = JSON.parse(coordinationRelease.result.content[0].text);
+  assert.equal(releaseReport.event.type, "release");
+
+  const coordinationPresenceAfterRelease = await client.request(27, "tools/call", {
+    name: "ocentra_enforcer_coordination_presence",
+    arguments: {
+      stateRoot: coordinationRoot,
+    },
+  });
+  assert.equal(coordinationPresenceAfterRelease.result.isError, false);
+  assert.deepEqual(
+    JSON.parse(coordinationPresenceAfterRelease.result.content[0].text).views.byClaimedPath,
+    {},
+  );
 
   const explain = await client.request(3, "tools/call", {
     name: "ocentra_enforcer_explain",
@@ -403,7 +626,7 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
       command: [
         process.execPath,
         "-e",
-        'console.error("src/app.ts(2,1): error TS1005: ; expected."); process.exit(1);',
+        'console.log("mcp-stdout-sentinel"); console.error("src/app.ts(2,1): error TS1005: ; expected."); process.exit(1);',
       ],
     },
   });
@@ -425,6 +648,152 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
     ),
     true,
   );
+
+  const runStatusArtifact = await client.request(1201, "tools/call", {
+    name: "ocentra_enforcer_run_status",
+    arguments: {
+      root: harnessRoot,
+      artifact: "stdout",
+      limitBytes: 200,
+    },
+  });
+  assert.equal(runStatusArtifact.result.isError, false);
+  const runStatusArtifactReport = JSON.parse(
+    runStatusArtifact.result.content[0].text,
+  );
+  assert.equal(runStatusArtifactReport.summaryType, "harness");
+  assert.equal(runStatusArtifactReport.artifact.artifact, "stdout");
+  assert.match(runStatusArtifactReport.artifact.text, /mcp-stdout-sentinel/u);
+
+  const proofRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), "ocentra-enforcer-mcp-proof-"),
+  );
+  fs.mkdirSync(path.join(proofRoot, "scripts", "test"), { recursive: true });
+  fs.writeFileSync(
+    path.join(proofRoot, "scripts", "test", "tiny-proof.mjs"),
+    "console.log('test-results/tiny-proof/proof.json');\n",
+  );
+  const proofRoute = await client.request(13, "tools/call", {
+    name: "ocentra_enforcer_proof_route",
+    arguments: {
+      root: proofRoot,
+      scope: "files",
+      files: ["scripts/test/tiny-proof.mjs"],
+    },
+  });
+  assert.equal(proofRoute.result.isError, false);
+  const proofRouteReport = JSON.parse(proofRoute.result.content[0].text);
+  assert.equal(
+    proofRouteReport.proofs.some(
+      (proof) => proof.id === "PARENT-PROOF-INVENTORY",
+    ),
+    true,
+  );
+
+  const proofRun = await client.request(14, "tools/call", {
+    name: "ocentra_enforcer_proof_run",
+    arguments: {
+      root: proofRoot,
+      proofId: "PROOF-COMMAND-GENERIC",
+      runId: "mcp-proof-pass",
+      command: [process.execPath, "-e", "console.log('mcp-proof')"],
+    },
+  });
+  assert.equal(proofRun.result.isError, false);
+  const proofRunReport = JSON.parse(proofRun.result.content[0].text);
+  assert.equal(proofRunReport.proofRun.status, "passed");
+
+  const proofStatus = await client.request(15, "tools/call", {
+    name: "ocentra_enforcer_proof_status",
+    arguments: {
+      root: proofRoot,
+      proofId: "PROOF-COMMAND-GENERIC",
+    },
+  });
+  const proofStatusReport = JSON.parse(proofStatus.result.content[0].text);
+  assert.equal(proofStatusReport.runs[0].runId, "mcp-proof-pass");
+
+  const proofClaim = await client.request(16, "tools/call", {
+    name: "ocentra_enforcer_proof_claim",
+    arguments: {
+      root: proofRoot,
+      proofId: "PROOF-COMMAND-GENERIC",
+      prReady: true,
+    },
+  });
+  assert.equal(proofClaim.result.isError, false);
+  assert.equal(JSON.parse(proofClaim.result.content[0].text).ok, true);
+
+  const proofArtifact = await client.request(17, "tools/call", {
+    name: "ocentra_enforcer_proof_artifact",
+    arguments: {
+      root: proofRoot,
+      runId: "mcp-proof-pass",
+      artifact: "summary",
+      limitBytes: 200,
+    },
+  });
+  assert.equal(proofArtifact.result.isError, false);
+  assert.match(
+    JSON.parse(proofArtifact.result.content[0].text).text,
+    /PROOF-COMMAND-GENERIC/u,
+  );
+});
+
+test("MCP status detects stale server code and blocks coordination writes", async (t) => {
+  const launcherRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), "ocentra-enforcer-mcp-stale-"),
+  );
+  const watchedFile = path.join(launcherRoot, "watched.txt");
+  fs.writeFileSync(watchedFile, "before\n");
+  const server = spawn(process.execPath, [SERVER_PATH], {
+    cwd: launcherRoot,
+    stdio: ["pipe", "pipe", "pipe"],
+    env: {
+      ...process.env,
+      OCENTRA_ENFORCER_MCP_FINGERPRINT_EXTRA: watchedFile,
+    },
+  });
+  t.after(() => {
+    server.kill();
+  });
+
+  const client = createMcpClient(server);
+  const initialized = await client.request(1, "initialize", {
+    protocolVersion: "2025-06-18",
+    capabilities: {},
+  });
+  assert.equal(initialized.result.serverInfo.name, "ocentra-enforcer");
+
+  const freshStatus = await client.request(2, "tools/call", {
+    name: "ocentra_enforcer_mcp_status",
+    arguments: {},
+  });
+  assert.equal(freshStatus.result.isError, false);
+  assert.equal(JSON.parse(freshStatus.result.content[0].text).stale, false);
+
+  fs.writeFileSync(watchedFile, "after\n");
+  const staleStatus = await client.request(3, "tools/call", {
+    name: "ocentra_enforcer_mcp_status",
+    arguments: {},
+  });
+  assert.equal(staleStatus.result.isError, true);
+  const staleReport = JSON.parse(staleStatus.result.content[0].text);
+  assert.equal(staleReport.stale, true);
+  assert.equal(staleReport.reloadRequired, true);
+  assert.equal(staleReport.changedFiles.length, 1);
+
+  const staleClaim = await client.request(4, "tools/call", {
+    name: "ocentra_enforcer_coordination_claim",
+    arguments: {
+      stateRoot: fs.mkdtempSync(path.join(os.tmpdir(), "mcp-stale-ledger-")),
+      lane: "codex-a",
+      paths: ["src/lib.rs"],
+      reason: "must fail closed",
+    },
+  });
+  assert.equal(staleClaim.result.isError, true);
+  assert.match(staleClaim.result.content[0].text, /MCP server is stale/u);
 });
 
 test("MCP server supports newline JSON framing and empty Codex probe methods", async (t) => {

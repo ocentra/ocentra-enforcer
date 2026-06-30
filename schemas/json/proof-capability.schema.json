@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocentra.dev/schemas/ocentra-enforcer/proof-capability.schema.json",
+  "title": "Ocentra Enforcer Proof Capability",
+  "enum": [
+    "ci",
+    "local",
+    "windows",
+    "linux",
+    "macos",
+    "wsl",
+    "android-emulator",
+    "android-device",
+    "ios-simulator",
+    "ios-device",
+    "browser",
+    "network",
+    "cloud",
+    "manual-required"
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocentra.dev/schemas/ocentra-enforcer/proof-definition.schema.json",
+  "title": "Ocentra Enforcer Proof Definition",
+  "type": "object",
+  "required": ["id", "title", "family", "severity", "appliesTo", "triggers", "capabilities", "collector", "docs"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string" },
+    "title": { "type": "string" },
+    "family": {
+      "enum": [
+        "command",
+        "test-report",
+        "security-report",
+        "contract-parity",
+        "manual-artifact",
+        "device-manual",
+        "event-network",
+        "logging-custody",
+        "release-package",
+        "claim-integrity"
+      ]
+    },
+    "severity": { "enum": ["error", "warning", "info"] },
+    "appliesTo": { "type": "array", "items": { "type": "string" } },
+    "triggers": { "type": "array", "items": { "type": "string" } },
+    "languages": { "type": "array", "items": { "enum": ["rust", "typescript", "python", "common"] } },
+    "capabilities": { "type": "array", "items": { "$ref": "proof-capability.schema.json" } },
+    "collector": {
+      "enum": ["command", "file-hash", "junit", "sarif", "playwright", "cargo", "python", "android", "xcode", "http", "manual-artifact"]
+    },
+    "docs": { "type": "array", "items": { "type": "string" } },
+    "commands": { "type": "array", "items": { "type": "array", "items": { "type": "string" } } },
+    "requiredArtifacts": { "type": "array", "items": { "type": "string" } },
+    "requiredPaths": { "type": "array", "items": { "type": "string" } },
+    "claimsProved": { "type": "array", "items": { "type": "string" } },
+    "claimsNotProved": { "type": "array", "items": { "type": "string" } },
+    "requiredForPrReady": { "type": "boolean" },
+    "ciSupport": { "type": "boolean" },
+    "deviceSupport": { "type": "boolean" },
+    "retention": { "$ref": "proof-retention-policy.schema.json" }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocentra.dev/schemas/ocentra-enforcer/proof-run.schema.json",
+  "title": "Ocentra Enforcer Proof Run",
+  "type": "object",
+  "required": ["schemaVersion", "proofId", "runId", "status", "root", "startedAt", "endedAt", "artifacts"],
+  "additionalProperties": true,
+  "properties": {
+    "schemaVersion": { "type": "number" },
+    "proofId": { "type": "string" },
+    "runId": { "type": "string" },
+    "status": { "enum": ["passed", "failed", "manual-required", "unavailable", "waived"] },
+    "ok": { "type": "boolean" },
+    "root": { "type": "string" },
+    "profile": { "type": "string" },
+    "startedAt": { "type": "string" },
+    "endedAt": { "type": "string" },
+    "command": { "type": "array", "items": { "type": "string" } },
+    "diagnosticCount": { "type": "number" },
+    "git": { "type": "object", "additionalProperties": true },
+    "artifacts": { "type": "array", "items": { "$ref": "proof-artifact.schema.json" } }
+  }
+}

@@ -20,8 +20,17 @@
     "codexConfigPath": {
       "type": "string"
     },
+    "ledgerRoot": {
+      "type": "string"
+    },
     "serverName": {
       "type": "string"
+    },
+    "installSkill": {
+      "type": "boolean"
+    },
+    "installGlobalAgents": {
+      "type": "boolean"
     }
   }
 }

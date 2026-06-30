@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocentra.dev/schemas/ocentra-enforcer/proof-artifact.schema.json",
+  "title": "Ocentra Enforcer Proof Artifact",
+  "type": "object",
+  "required": ["name", "kind", "path", "sha256", "byteLength"],
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string" },
+    "kind": { "type": "string" },
+    "path": { "type": "string" },
+    "sha256": { "type": "string" },
+    "byteLength": { "type": "number" }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocentra.dev/schemas/ocentra-enforcer/proof-claim.schema.json",
+  "title": "Ocentra Enforcer Proof Claim",
+  "type": "object",
+  "required": ["schemaVersion", "claimId", "proofIds", "checkedAt", "violations"],
+  "additionalProperties": true,
+  "properties": {
+    "schemaVersion": { "type": "number" },
+    "claimId": { "type": "string" },
+    "prReady": { "type": "boolean" },
+    "proofIds": { "type": "array", "items": { "type": "string" } },
+    "checkedAt": { "type": "string" },
+    "currentGit": { "type": "object", "additionalProperties": true },
+    "accepted": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+    "violations": { "type": "array", "items": { "type": "object", "additionalProperties": true } }
+  }
+}

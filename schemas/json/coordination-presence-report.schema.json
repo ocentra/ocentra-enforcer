@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocentra.dev/schemas/ocentra-enforcer/coordination-presence-report.schema.json",
+  "title": "Ocentra Enforcer Coordination Presence Report",
+  "type": "object",
+  "required": ["ok", "root", "generatedAt", "totalRows", "rows", "views"],
+  "properties": {
+    "ok": { "type": "boolean" },
+    "root": { "type": "string" },
+    "generatedAt": { "type": "string" },
+    "totalRows": { "type": "number" },
+    "rows": { "type": "array" },
+    "views": {}
+  }
+}

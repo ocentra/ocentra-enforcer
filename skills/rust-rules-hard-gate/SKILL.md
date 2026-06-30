@@ -115,7 +115,7 @@ Open `ocentra_enforcer_artifact` only when compact diagnostics are insufficient.
 
 Default consumption is package plus Codex plugin/MCP. Git submodules are optional only when a project needs source pinning. The MCP server runs from the enforcer install path; target projects always pass `root` plus either `configPath` or a pack `profile`.
 
-Use `ocentra-enforcer codex install --root <repo> --profile <profile> --dry-run` before writing Codex/MCP wiring. The non-dry-run form updates the target repo and Codex Desktop's global MCP config with backup-before-write. Run `ocentra-enforcer codex doctor --root <repo>` after install to verify the app-level MCP config separately from the MCP server smoke test. Use `ocentra-enforcer init --root <repo> --profile <profile> --adapters precommit,github-actions --dry-run` for hooks and CI. The default pre-commit adapter is a plain Git hook for cross-platform use; Husky is generated only when requested or when the target repo already uses Husky.
+Use `ocentra-enforcer codex install --root <repo> --profile <profile> --dry-run` before writing Codex/MCP wiring. The non-dry-run form updates the target repo and Codex Desktop's global MCP config with backup-before-write, and it configures `OCENTRA_LEDGER_HOME` to the Enforcer install `.ledger` folder by default. Run `ocentra-enforcer codex doctor --root <repo>` after install to verify the app-level MCP config separately from the MCP server smoke test. Use `ocentra-enforcer init --root <repo> --profile <profile> --adapters precommit,github-actions --dry-run` for hooks and CI. The default pre-commit adapter is a plain Git hook for cross-platform use; Husky is generated only when requested or when the target repo already uses Husky.
 
 ## Ocentra Parent Profile
 

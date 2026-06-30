@@ -9,17 +9,21 @@ explicitly profiled.
 
 ## Current Answer
 
-Yes: reusable checks from Ocentra Parent `eslint-rules/` and `scripts/` belong
-in this repo. They should not be copied blindly. Enforcer owns generic
-validation engines, rule docs, MCP tools, hooks, and CI adapters. Ocentra Parent
-keeps product, portal, hub, ledger, release, and proof-specific logic.
+Yes: reusable checks from Ocentra Parent `eslint-rules/`, `scripts/`, and
+generic coordination tooling belong in this repo. They should not be copied
+blindly. Enforcer owns generic validation engines, rule docs, MCP tools, hooks,
+CI adapters, hub mail, exact-file claims, lane/worktree coordination, peer sync,
+and architecture gates. Ocentra Parent keeps product, portal, release, product
+proof semantics, and thin consumer wrappers/config while migration parity is
+being proven.
 
 Target repos should eventually keep only:
 
 - `ocentra-enforcer.config.json`
 - optional ESLint config that imports `ocentra-enforcer/eslint-rules`
 - optional thin npm wrappers while migration is in progress
-- project-specific proof/product scripts that are not reusable
+- project-specific proof/product scripts that are not reusable yet
+- no live hub, ledger, lane, mail, or worktree coordination implementation
 
 ## Migrated Or Covered Now
 
@@ -62,10 +66,11 @@ Target repos should eventually keep only:
 
 ## Keep In Ocentra Parent
 
-These are product or repo-specific unless we later design a configurable
-adapter:
+These remain in Parent only when they are product or repo-specific. Generic
+harness coordination is not product code and should move to Enforcer.
 
-- `scripts/dev/*`, hub, ledger, lane coordination, and local portal/dev server scripts.
+- `scripts/dev/*` and local portal/dev server scripts.
+- temporary hub/ledger/lane wrappers until Enforcer coordination parity is proven.
 - release/package/version scripts tied to Ocentra Parent artifacts.
 - `scripts/check-pre-ai-proof.mjs` and expectation/proof matrix checks.
 - `scripts/check-portal-route-panel-contracts.mjs`.

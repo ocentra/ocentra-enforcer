@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocentra.dev/schemas/ocentra-enforcer/proof-tool-arguments.schema.json",
+  "title": "Ocentra Enforcer Proof Tool Arguments",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "root": { "type": "string" },
+    "profile": { "type": "string" },
+    "scope": { "enum": ["workspace", "files", "crate", "diff"] },
+    "files": { "type": "array", "items": { "type": "string" } },
+    "plan": { "type": "string" },
+    "capability": { "$ref": "proof-capability.schema.json" },
+    "proofId": { "type": "string" },
+    "proofIds": { "type": "array", "items": { "type": "string" } },
+    "runId": { "type": "string" },
+    "command": { "type": "array", "items": { "type": "string" } },
+    "artifact": { "type": "string" },
+    "limit": { "type": "number" },
+    "diagnosticLimit": { "type": "number" },
+    "limitBytes": { "type": "number" },
+    "includeScripts": {
+      "type": "boolean",
+      "description": "For proof inventory only: include bounded script rows. Defaults to false."
+    },
+    "prReady": { "type": "boolean" },
+    "allowDirty": { "type": "boolean" }
+  }
+}
