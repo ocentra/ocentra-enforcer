@@ -1,6 +1,6 @@
-import { Schema } from 'effect';
+import { Schema } from "effect";
 
-export const ProductName = 'ocentra-enforcer';
+export const ProductName = "ocentra-enforcer";
 
 const StringArray = Schema.Array(Schema.String);
 const OptionalStringArray = Schema.optional(StringArray);
@@ -9,38 +9,51 @@ const OptionalString = Schema.optional(Schema.String);
 const OptionalNumber = Schema.optional(Schema.Number);
 const OptionalNullableNumber = Schema.optional(Schema.NullOr(Schema.Number));
 
-export const LanguageSchema = Schema.Literal('rust', 'typescript', 'python', 'common');
-export const RustRuleFamilySchema = Schema.Literal(
-  'source',
-  'domain',
-  'imports-modules',
-  'toolchain-cargo',
-  'dependencies',
-  'async-runtime'
+export const LanguageSchema = Schema.Literal(
+  "rust",
+  "typescript",
+  "python",
+  "common",
 );
-export const TypeScriptRuleFamilySchema = Schema.Literal('source', 'tests', 'toolchain');
-export const PythonRuleFamilySchema = Schema.Literal('source', 'tests', 'toolchain');
+export const RustRuleFamilySchema = Schema.Literal(
+  "source",
+  "domain",
+  "imports-modules",
+  "toolchain-cargo",
+  "dependencies",
+  "async-runtime",
+);
+export const TypeScriptRuleFamilySchema = Schema.Literal(
+  "source",
+  "tests",
+  "toolchain",
+);
+export const PythonRuleFamilySchema = Schema.Literal(
+  "source",
+  "tests",
+  "toolchain",
+);
 export const CommonRuleFamilySchema = Schema.Literal(
-  'source',
-  'security',
-  'generated-artifacts',
-  'harness',
-  'documentation',
-  'tests',
-  'portability',
-  'source-shape',
-  'contracts',
-  'dependencies',
-  'sbom',
-  'agent-rules'
+  "source",
+  "security",
+  "generated-artifacts",
+  "harness",
+  "documentation",
+  "tests",
+  "portability",
+  "source-shape",
+  "contracts",
+  "dependencies",
+  "sbom",
+  "agent-rules",
 );
 export const RuleFamilySchema = Schema.Union(
   RustRuleFamilySchema,
   TypeScriptRuleFamilySchema,
   PythonRuleFamilySchema,
-  CommonRuleFamilySchema
+  CommonRuleFamilySchema,
 );
-export const SeveritySchema = Schema.Literal('error', 'warning', 'info');
+export const SeveritySchema = Schema.Literal("error", "warning", "info");
 
 export const PolicyOverrideSchema = Schema.Struct({
   enabled: OptionalBoolean,
@@ -51,13 +64,34 @@ export const PolicyOverrideSchema = Schema.Struct({
 export const SourceShapePolicySchema = Schema.Struct({
   roots: OptionalStringArray,
   extensions: OptionalStringArray,
-  kind: Schema.optional(Schema.Literal('typescript', 'rust')),
+  kind: Schema.optional(Schema.Literal("typescript", "rust", "python")),
   maxClasses: OptionalNumber,
   maxExports: OptionalNumber,
   maxFunctionLines: OptionalNumber,
   maxFunctions: OptionalNumber,
   maxLines: OptionalNumber,
   maxTypes: OptionalNumber,
+});
+
+export const SourceShapeOverrideSchema = Schema.Struct({
+  path: OptionalString,
+  paths: OptionalStringArray,
+  glob: OptionalString,
+  globs: OptionalStringArray,
+  note: OptionalString,
+  maxClasses: OptionalNumber,
+  maxExports: OptionalNumber,
+  maxFunctionLines: OptionalNumber,
+  maxFunctions: OptionalNumber,
+  maxLines: OptionalNumber,
+  maxTypes: OptionalNumber,
+});
+
+export const ImportBoundaryPolicySchema = Schema.Struct({
+  roots: OptionalStringArray,
+  forbiddenImports: OptionalStringArray,
+  allowedImports: OptionalStringArray,
+  message: OptionalString,
 });
 
 export const RuleEntrySchema = Schema.Struct({
@@ -94,7 +128,9 @@ export const ConfigSchema = Schema.Struct({
   allowBuildRs: OptionalBoolean,
   allowGitDependencies: OptionalBoolean,
   allowPathDependencies: OptionalBoolean,
-  publicReexportPolicy: Schema.optional(Schema.Literal('forbid', 'facade-only', 'allow')),
+  publicReexportPolicy: Schema.optional(
+    Schema.Literal("forbid", "facade-only", "allow"),
+  ),
   ignoreDirs: OptionalStringArray,
   ignoreFileGlobs: OptionalStringArray,
   rustRoots: OptionalStringArray,
@@ -109,30 +145,52 @@ export const ConfigSchema = Schema.Struct({
   runtimeStringLineAllowPatterns: OptionalStringArray,
   enforceSerializedPublicDomainPrimitives: OptionalBoolean,
   serializedDomainOwnerGlobs: OptionalStringArray,
-  blockedProtocolDependencies: Schema.optional(Schema.Record({ key: Schema.String, value: StringArray })),
+  blockedProtocolDependencies: Schema.optional(
+    Schema.Record({ key: Schema.String, value: StringArray }),
+  ),
   runtimeCrates: OptionalStringArray,
   testOnlyCrates: OptionalStringArray,
   allowedGitDependencies: OptionalStringArray,
   allowedExternalLicenses: OptionalStringArray,
   sourceShapePolicies: Schema.optional(Schema.Array(SourceShapePolicySchema)),
+  sourceShapeOverrides: Schema.optional(
+    Schema.Array(SourceShapeOverrideSchema),
+  ),
+  importBoundaryPolicies: Schema.optional(
+    Schema.Array(ImportBoundaryPolicySchema),
+  ),
+  architecturePolicyChecks: OptionalStringArray,
+  singleSourceRequiredMirrorRoots: OptionalStringArray,
+  strictEmptyTestTrees: OptionalBoolean,
+  generatedArtifactsMode: Schema.optional(Schema.Literal("scan", "tracked")),
+  generatedArtifactsTracked: OptionalBoolean,
   agentRuleMaxLines: OptionalNumber,
   languages: OptionalStringArray,
-  rules: Schema.optional(Schema.Record({ key: Schema.String, value: PolicyOverrideSchema })),
-  tools: Schema.optional(Schema.Record({ key: Schema.String, value: PolicyOverrideSchema })),
+  rules: Schema.optional(
+    Schema.Record({ key: Schema.String, value: PolicyOverrideSchema }),
+  ),
+  tools: Schema.optional(
+    Schema.Record({ key: Schema.String, value: PolicyOverrideSchema }),
+  ),
   harness: Schema.optional(
     Schema.Struct({
-      store: Schema.optional(Schema.Literal('ndjson-duckdb', 'ndjson-only')),
+      store: Schema.optional(Schema.Literal("ndjson-duckdb", "ndjson-only")),
       storageDir: OptionalString,
       maxArtifactBytes: OptionalNumber,
       maxRuns: OptionalNullableNumber,
       maxRunsPerTool: OptionalNullableNumber,
       maxFailedRuns: OptionalNullableNumber,
       pruneAfterDays: OptionalNullableNumber,
-    })
+    }),
   ),
 });
 
-export const ScopeNameSchema = Schema.Literal('workspace', 'files', 'crate', 'diff');
+export const ScopeNameSchema = Schema.Literal(
+  "workspace",
+  "files",
+  "crate",
+  "diff",
+);
 
 export const RouteRequestSchema = Schema.Struct({
   root: OptionalString,
@@ -156,6 +214,10 @@ export const ScanToolArgumentsSchema = Schema.Struct({
   base: OptionalString,
   head: OptionalString,
   cargo: OptionalBoolean,
+  diagnosticLimit: OptionalNumber,
+  summaryOnly: OptionalBoolean,
+  groupBy: Schema.optional(Schema.Literal("file", "slice")),
+  includeScope: OptionalBoolean,
 });
 
 export const DoctorToolArgumentsSchema = Schema.Struct({
@@ -174,24 +236,26 @@ export const ExplainToolArgumentsSchema = Schema.Struct({
 });
 
 export const CheckNameSchema = Schema.Literal(
-  'no-zod-source',
-  'no-naked-domain-strings',
-  'no-test-doubles',
-  'weak-assertions',
-  'skipped-focused-tests',
-  'validation-bypass',
-  'placeholder-implementation',
-  'reexports',
-  'cross-platform-script-commands',
-  'generated-artifacts',
-  'secrets',
-  'rust-string-boundaries',
-  'source-shape',
-  'required-tests',
-  'single-source-contracts',
-  'dependency-policy',
-  'sbom',
-  'ai-rule-index'
+  "no-zod-source",
+  "no-naked-domain-strings",
+  "no-test-doubles",
+  "weak-assertions",
+  "skipped-focused-tests",
+  "validation-bypass",
+  "placeholder-implementation",
+  "reexports",
+  "cross-platform-script-commands",
+  "generated-artifacts",
+  "secrets",
+  "rust-string-boundaries",
+  "source-shape",
+  "required-tests",
+  "single-source-contracts",
+  "dependency-policy",
+  "sbom",
+  "ai-rule-index",
+  "import-boundaries",
+  "architecture-policy",
 );
 
 export const CheckToolArgumentsSchema = Schema.Struct({
@@ -207,19 +271,26 @@ export const CheckToolArgumentsSchema = Schema.Struct({
   checkConfigPath: OptionalString,
   output: OptionalString,
   dryRun: OptionalBoolean,
+  staged: OptionalBoolean,
+  tracked: OptionalBoolean,
+  strictEmptyTestTrees: OptionalBoolean,
+  diagnosticLimit: OptionalNumber,
+  summaryOnly: OptionalBoolean,
+  groupBy: Schema.optional(Schema.Literal("file", "slice")),
+  includeScope: OptionalBoolean,
 });
 
 export const AdapterNameSchema = Schema.Literal(
-  'codex',
-  'mcp',
-  'precommit',
-  'github-actions',
-  'husky',
-  'lefthook',
-  'codeql',
-  'dependency-policy',
-  'secret-scan',
-  'sbom'
+  "codex",
+  "mcp",
+  "precommit",
+  "github-actions",
+  "husky",
+  "lefthook",
+  "codeql",
+  "dependency-policy",
+  "secret-scan",
+  "sbom",
 );
 
 export const InitRequestSchema = Schema.Struct({
@@ -253,6 +324,7 @@ export const ViolationSchema = Schema.Struct({
   file: Schema.String,
   line: Schema.Number,
   snippet: Schema.String,
+  doc: Schema.String,
   source: Schema.optional(Schema.NullOr(Schema.String)),
 });
 
@@ -272,7 +344,9 @@ export const ScanReportSchema = Schema.Struct({
   violations: Schema.Array(ViolationSchema),
   warnings: Schema.optional(Schema.Array(ViolationSchema)),
   findings: Schema.optional(Schema.Array(ViolationSchema)),
-  bySeverity: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Number })),
+  bySeverity: Schema.optional(
+    Schema.Record({ key: Schema.String, value: Schema.Number }),
+  ),
   failOn: OptionalStringArray,
   root: Schema.String,
   profileName: Schema.String,
@@ -282,16 +356,27 @@ export const ScanReportSchema = Schema.Struct({
 
 export const CheckReportSchema = Schema.Struct({
   ok: Schema.Boolean,
-  command: Schema.Literal('check'),
+  command: Schema.Literal("check"),
   check: CheckNameSchema,
   root: Schema.String,
   profileName: Schema.String,
   violations: Schema.Array(ViolationSchema),
   warnings: Schema.optional(Schema.Array(ViolationSchema)),
   findings: Schema.optional(Schema.Array(ViolationSchema)),
-  bySeverity: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Number })),
+  bySeverity: Schema.optional(
+    Schema.Record({ key: Schema.String, value: Schema.Number }),
+  ),
   scope: Schema.optional(ScopeReportSchema),
   languages: OptionalStringArray,
+  checks: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        check: Schema.String,
+        ok: Schema.Boolean,
+        violations: Schema.Number,
+      }),
+    ),
+  ),
 });
 
 export const RoutedRuleSchema = Schema.Struct({
@@ -347,7 +432,7 @@ export const RunQueryArgumentsSchema = Schema.Struct({
   limit: OptionalNumber,
   diagnosticLimit: OptionalNumber,
   severity: Schema.optional(SeveritySchema),
-  status: Schema.optional(Schema.Literal('passed', 'failed')),
+  status: Schema.optional(Schema.Literal("passed", "failed")),
   file: OptionalString,
   tool: OptionalString,
   crateName: OptionalString,
@@ -370,7 +455,7 @@ export const RunSummarySchema = Schema.Struct({
   domain: Schema.optional(Schema.NullOr(Schema.String)),
   tags: OptionalStringArray,
   command: Schema.Array(Schema.String),
-  status: Schema.Literal('passed', 'failed'),
+  status: Schema.Literal("passed", "failed"),
   exitCode: Schema.Number,
   startedAt: Schema.String,
   endedAt: Schema.String,
@@ -387,67 +472,95 @@ export const RunReportSchema = Schema.Struct({
 });
 
 export function decodeRuleRegistry(value) {
-  return decodeWithSchema(RuleRegistrySchema, value, 'rule registry');
+  return decodeWithSchema(RuleRegistrySchema, value, "rule registry");
 }
 
 export function decodeEnforcerConfig(value) {
-  return decodeWithSchema(ConfigSchema, value, 'enforcer config');
+  return decodeWithSchema(ConfigSchema, value, "enforcer config");
 }
 
 export function decodeRouteRequest(value) {
-  return decodeWithSchema(RouteRequestSchema, value, 'route request');
+  return decodeWithSchema(RouteRequestSchema, value, "route request");
 }
 
 export function decodeScanToolArguments(value) {
-  return decodeWithSchema(ScanToolArgumentsSchema, value, 'scan tool arguments');
+  return decodeWithSchema(
+    ScanToolArgumentsSchema,
+    value,
+    "scan tool arguments",
+  );
 }
 
 export function decodeDoctorToolArguments(value) {
-  return decodeWithSchema(DoctorToolArgumentsSchema, value, 'doctor tool arguments');
+  return decodeWithSchema(
+    DoctorToolArgumentsSchema,
+    value,
+    "doctor tool arguments",
+  );
 }
 
 export function decodeExplainToolArguments(value) {
-  return decodeWithSchema(ExplainToolArgumentsSchema, value, 'explain tool arguments');
+  return decodeWithSchema(
+    ExplainToolArgumentsSchema,
+    value,
+    "explain tool arguments",
+  );
 }
 
 export function decodeCheckToolArguments(value) {
-  return decodeWithSchema(CheckToolArgumentsSchema, value, 'check tool arguments');
+  return decodeWithSchema(
+    CheckToolArgumentsSchema,
+    value,
+    "check tool arguments",
+  );
 }
 
 export function decodeInitRequest(value) {
-  return decodeWithSchema(InitRequestSchema, value, 'init request');
+  return decodeWithSchema(InitRequestSchema, value, "init request");
 }
 
 export function decodeCodexInstallRequest(value) {
-  return decodeWithSchema(CodexInstallRequestSchema, value, 'codex install request');
+  return decodeWithSchema(
+    CodexInstallRequestSchema,
+    value,
+    "codex install request",
+  );
 }
 
 export function decodeCodexDoctorRequest(value) {
-  return decodeWithSchema(CodexDoctorRequestSchema, value, 'codex doctor request');
+  return decodeWithSchema(
+    CodexDoctorRequestSchema,
+    value,
+    "codex doctor request",
+  );
 }
 
 export function decodeScanReport(value) {
-  return decodeWithSchema(ScanReportSchema, value, 'scan report');
+  return decodeWithSchema(ScanReportSchema, value, "scan report");
 }
 
 export function decodeCheckReport(value) {
-  return decodeWithSchema(CheckReportSchema, value, 'check report');
+  return decodeWithSchema(CheckReportSchema, value, "check report");
 }
 
 export function decodeRouteReport(value) {
-  return decodeWithSchema(RouteReportSchema, value, 'route report');
+  return decodeWithSchema(RouteReportSchema, value, "route report");
 }
 
 export function decodeRunToolArguments(value) {
-  return decodeWithSchema(RunToolArgumentsSchema, value, 'run tool arguments');
+  return decodeWithSchema(RunToolArgumentsSchema, value, "run tool arguments");
 }
 
 export function decodeRunQueryArguments(value) {
-  return decodeWithSchema(RunQueryArgumentsSchema, value, 'run query arguments');
+  return decodeWithSchema(
+    RunQueryArgumentsSchema,
+    value,
+    "run query arguments",
+  );
 }
 
 export function decodeRunReport(value) {
-  return decodeWithSchema(RunReportSchema, value, 'run report');
+  return decodeWithSchema(RunReportSchema, value, "run report");
 }
 
 export function decodeWithSchema(schema, value, label) {

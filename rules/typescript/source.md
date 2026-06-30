@@ -6,6 +6,7 @@
 - `TS-1.2`: Direct Zod usage is forbidden. Use Effect Schema through domain-owned schemas; do not import `zod`, expose `Zod*` types, use `zodResolver`, or keep stale `schema/zod` paths.
 - `TS-1.3`: Naked domain string aliases and manual string brands are forbidden. Use Effect Schema brands and decode helpers instead of `type FooId = string` or `string & { readonly __brand: ... }`.
 - `TS-2.1`: Suppression comments are forbidden. Do not use `eslint-disable`, `@ts-ignore`, `@ts-expect-error`, `@ts-nocheck`, `biome-ignore`, or equivalent bypass comments.
+- `TS-4.1`: Configured import boundaries are hard gates. Do not cross package/layer/module boundaries unless the target repo config explicitly allows that import.
 
 ## ESLint Adapter Rules
 

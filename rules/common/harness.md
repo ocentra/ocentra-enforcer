@@ -9,8 +9,8 @@
 Each target repo stores harness output under:
 
 ```text
-.ocentra-enforcer/runs/<runId>/
-.ocentra-enforcer/db/
+.enforce/runs/<runId>/
+.enforce/db/
 ```
 
 Raw stdout/stderr are retained as artifacts. Agents should first query compact summaries:
@@ -19,4 +19,3 @@ Raw stdout/stderr are retained as artifacts. Agents should first query compact s
 ocentra-enforcer runs last-failure --root <repo> --json
 ocentra-enforcer runs diagnostics --root <repo> --limit 20
 ```
-

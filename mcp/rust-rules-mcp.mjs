@@ -3,11 +3,11 @@
  * Minimal MCP stdio adapter for the Rust Rules hard gate.
  * The rule engine lives in scripts/rust-rules.mjs; this file only exposes it.
  */
-import fs from 'node:fs';
-import path from 'node:path';
-import process from 'node:process';
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import fs from "node:fs";
+import path from "node:path";
+import process from "node:process";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import {
   decodeCheckToolArguments,
   decodeDoctorToolArguments,
@@ -17,232 +17,360 @@ import {
   decodeRunQueryArguments,
   decodeRunToolArguments,
   decodeScanToolArguments,
-} from '../schemas/effect/enforcer-schemas.mjs';
-import { routeRules as buildRouteReport } from '../src/routing.mjs';
-import { lastFailure, listRuns, pruneRuns, readArtifact, resetRuns, runDiagnostics, runHarness, runSummary } from '../src/harness.mjs';
+} from "../schemas/effect/enforcer-schemas.mjs";
+import { routeRules as buildRouteReport } from "../src/routing.mjs";
+import {
+  lastFailure,
+  listRuns,
+  pruneRuns,
+  readArtifact,
+  resetRuns,
+  runDiagnostics,
+  runHarness,
+  runSummary,
+} from "../src/harness.mjs";
 
-const MCP_PROTOCOL_VERSION = '2025-06-18';
-const SERVER_ROOT = path.resolve(path.join(path.dirname(fileURLToPath(import.meta.url)), '..'));
-const CLI_PATH = path.join(SERVER_ROOT, 'scripts', 'rust-rules.mjs');
-const RULE_REGISTRY_PATH = path.join(SERVER_ROOT, 'rules', 'rules.json');
-const PACKAGE_JSON = JSON.parse(fs.readFileSync(path.join(SERVER_ROOT, 'package.json'), 'utf8'));
+const MCP_PROTOCOL_VERSION = "2025-06-18";
+const SERVER_ROOT = path.resolve(
+  path.join(path.dirname(fileURLToPath(import.meta.url)), ".."),
+);
+const CLI_PATH = path.join(SERVER_ROOT, "scripts", "rust-rules.mjs");
+const RULE_REGISTRY_PATH = path.join(SERVER_ROOT, "rules", "rules.json");
+const PACKAGE_JSON = JSON.parse(
+  fs.readFileSync(path.join(SERVER_ROOT, "package.json"), "utf8"),
+);
 
 const SCOPE_SCHEMA = {
-  type: 'string',
-  enum: ['workspace', 'files', 'crate', 'diff'],
-  description: 'Validation scope. Defaults to workspace unless files, crateName, or base/head imply a narrower scope.',
+  type: "string",
+  enum: ["workspace", "files", "crate", "diff"],
+  description:
+    "Validation scope. Defaults to workspace unless files, crateName, or base/head imply a narrower scope.",
 };
 
 const COMMON_INPUT_SCHEMA = {
-  type: 'object',
+  type: "object",
   additionalProperties: false,
   properties: {
     root: {
-      type: 'string',
-      description: 'Target repository root. Defaults to the MCP server working directory.',
+      type: "string",
+      description:
+        "Target repository root. Defaults to the MCP server working directory.",
     },
     configPath: {
-      type: 'string',
-      description: 'Optional Ocentra Enforcer config path. Relative paths resolve against root.',
+      type: "string",
+      description:
+        "Optional Ocentra Enforcer config path. Relative paths resolve against root.",
     },
     profile: {
-      type: 'string',
-      description: 'Optional named pack profile such as strict or ocentra-parent. Ignored when configPath is provided.',
+      type: "string",
+      description:
+        "Optional named pack profile such as strict or ocentra-parent. Ignored when configPath is provided.",
     },
     scope: SCOPE_SCHEMA,
     files: {
-      type: 'array',
-      items: { type: 'string' },
-      description: 'Files or directories for files scope.',
+      type: "array",
+      items: { type: "string" },
+      description: "Files or directories for files scope.",
     },
     crateName: {
-      type: 'string',
-      description: 'Cargo package name for crate scope.',
+      type: "string",
+      description: "Cargo package name for crate scope.",
     },
     languages: {
-      type: 'array',
-      items: { type: 'string', enum: ['rust', 'typescript', 'python', 'common'] },
-      description: 'Optional scan languages. Defaults to the target config/profile.',
+      type: "array",
+      items: {
+        type: "string",
+        enum: ["rust", "typescript", "python", "common"],
+      },
+      description:
+        "Optional scan languages. Defaults to the target config/profile.",
     },
     base: {
-      type: 'string',
-      description: 'Base git ref for diff scope.',
+      type: "string",
+      description: "Base git ref for diff scope.",
     },
     head: {
-      type: 'string',
-      description: 'Head git ref for diff scope.',
+      type: "string",
+      description: "Head git ref for diff scope.",
     },
+  },
+};
+
+const COMPACT_RESULT_SCHEMA = {
+  diagnosticLimit: {
+    type: "number",
+    description: "Maximum findings to include in compact MCP output.",
+  },
+  summaryOnly: {
+    type: "boolean",
+    description:
+      "Return only summary/group counts without individual findings.",
+  },
+  groupBy: {
+    type: "string",
+    enum: ["file", "slice"],
+    description: "Group compact findings by file or top-level repo slice.",
+  },
+  includeScope: {
+    type: "boolean",
+    description: "When false, omit full scope file lists from MCP output.",
   },
 };
 
 function runQueryInputSchema() {
   return {
-    type: 'object',
+    type: "object",
     additionalProperties: false,
     properties: {
       root: COMMON_INPUT_SCHEMA.properties.root,
-      runId: { type: 'string', description: 'Optional run id. Defaults to the latest run.' },
-      limit: { type: 'number', description: 'Maximum run or diagnostic rows to return.' },
-      diagnosticLimit: { type: 'number', description: 'Maximum diagnostics for last-failure.' },
-      severity: { type: 'string', enum: ['error', 'warning', 'info'] },
-      status: { type: 'string', enum: ['passed', 'failed'], description: 'Optional run status filter.' },
-      file: { type: 'string', description: 'Optional file filter for diagnostics.' },
-      tool: { type: 'string', description: 'Optional logical tool filter.' },
-      crateName: { type: 'string', description: 'Optional Cargo crate/package metadata filter.' },
-      packageName: { type: 'string', description: 'Optional JS/Python package metadata filter.' },
-      domain: { type: 'string', description: 'Optional domain metadata filter.' },
-      tag: { type: 'string', description: 'Optional run tag filter.' },
-      artifact: { type: 'string', enum: ['stdout', 'stderr', 'diagnostics', 'events'] },
-      limitBytes: { type: 'number', description: 'Maximum artifact bytes to return.' },
+      runId: {
+        type: "string",
+        description: "Optional run id. Defaults to the latest run.",
+      },
+      limit: {
+        type: "number",
+        description: "Maximum run or diagnostic rows to return.",
+      },
+      diagnosticLimit: {
+        type: "number",
+        description: "Maximum diagnostics for last-failure.",
+      },
+      severity: { type: "string", enum: ["error", "warning", "info"] },
+      status: {
+        type: "string",
+        enum: ["passed", "failed"],
+        description: "Optional run status filter.",
+      },
+      file: {
+        type: "string",
+        description: "Optional file filter for diagnostics.",
+      },
+      tool: { type: "string", description: "Optional logical tool filter." },
+      crateName: {
+        type: "string",
+        description: "Optional Cargo crate/package metadata filter.",
+      },
+      packageName: {
+        type: "string",
+        description: "Optional JS/Python package metadata filter.",
+      },
+      domain: {
+        type: "string",
+        description: "Optional domain metadata filter.",
+      },
+      tag: { type: "string", description: "Optional run tag filter." },
+      artifact: {
+        type: "string",
+        enum: ["stdout", "stderr", "diagnostics", "events"],
+      },
+      limitBytes: {
+        type: "number",
+        description: "Maximum artifact bytes to return.",
+      },
     },
   };
 }
 
 const CANONICAL_TOOLS = [
   {
-    name: 'ocentra_enforcer_route',
-    description: 'Return compact indexed Ocentra Enforcer rule docs relevant to files, crate, scope, profile, or one rule ID.',
+    name: "ocentra_enforcer_route",
+    description:
+      "Return compact indexed Ocentra Enforcer rule docs relevant to files, crate, scope, profile, or one rule ID.",
     inputSchema: {
       ...COMMON_INPUT_SCHEMA,
       properties: {
         ...COMMON_INPUT_SCHEMA.properties,
         ruleId: {
-          type: 'string',
-          description: 'Optional explicit rule ID such as RR-7.3. When provided, routes directly to that rule.',
+          type: "string",
+          description:
+            "Optional explicit rule ID such as RR-7.3. When provided, routes directly to that rule.",
         },
       },
     },
   },
   {
-    name: 'ocentra_enforcer_scan',
-    description: 'Run deterministic Ocentra Enforcer scanner by workspace, files, crate, or diff scope.',
+    name: "ocentra_enforcer_scan",
+    description:
+      "Run deterministic Ocentra Enforcer scanner by workspace, files, crate, or diff scope.",
     inputSchema: {
       ...COMMON_INPUT_SCHEMA,
       properties: {
         ...COMMON_INPUT_SCHEMA.properties,
         cargo: {
-          type: 'boolean',
-          description: 'When true, run cargo gates in addition to scanner checks.',
+          type: "boolean",
+          description:
+            "When true, run cargo gates in addition to scanner checks.",
           default: false,
         },
+        ...COMPACT_RESULT_SCHEMA,
       },
     },
   },
   {
-    name: 'ocentra_enforcer_check',
-    description: 'Run a named Ocentra Enforcer reusable check such as no-zod-source, source-shape, dependency-policy, or sbom.',
+    name: "ocentra_enforcer_check",
+    description:
+      "Run a named Ocentra Enforcer reusable check such as no-zod-source, source-shape, dependency-policy, or sbom.",
     inputSchema: {
       ...COMMON_INPUT_SCHEMA,
-      required: ['check'],
+      required: ["check"],
       properties: {
         ...COMMON_INPUT_SCHEMA.properties,
         check: {
-          type: 'string',
+          type: "string",
           enum: [
-            'no-zod-source',
-            'no-naked-domain-strings',
-            'no-test-doubles',
-            'weak-assertions',
-            'skipped-focused-tests',
-            'validation-bypass',
-            'placeholder-implementation',
-            'reexports',
-            'cross-platform-script-commands',
-            'generated-artifacts',
-            'secrets',
-            'rust-string-boundaries',
-            'source-shape',
-            'required-tests',
-            'single-source-contracts',
-            'dependency-policy',
-            'sbom',
-            'ai-rule-index',
+            "no-zod-source",
+            "no-naked-domain-strings",
+            "no-test-doubles",
+            "weak-assertions",
+            "skipped-focused-tests",
+            "validation-bypass",
+            "placeholder-implementation",
+            "reexports",
+            "cross-platform-script-commands",
+            "generated-artifacts",
+            "secrets",
+            "rust-string-boundaries",
+            "source-shape",
+            "required-tests",
+            "single-source-contracts",
+            "dependency-policy",
+            "sbom",
+            "ai-rule-index",
+            "import-boundaries",
+            "architecture-policy",
           ],
-          description: 'Named reusable check to run.',
+          description: "Named reusable check to run.",
         },
         checkConfigPath: {
-          type: 'string',
-          description: 'Optional check-specific config path, for example a single-source contract config.',
+          type: "string",
+          description:
+            "Optional check-specific config path, for example a single-source contract config.",
         },
         output: {
-          type: 'string',
-          description: 'Optional output directory for checks such as sbom.',
+          type: "string",
+          description: "Optional output directory for checks such as sbom.",
         },
         dryRun: {
-          type: 'boolean',
-          description: 'Validate the check path without writing generated outputs where supported.',
+          type: "boolean",
+          description:
+            "Validate the check path without writing generated outputs where supported.",
         },
+        staged: {
+          type: "boolean",
+          description: "With check secrets: scan staged files only.",
+        },
+        tracked: {
+          type: "boolean",
+          description:
+            "With check generated-artifacts: include tracked generated paths.",
+        },
+        strictEmptyTestTrees: {
+          type: "boolean",
+          description:
+            "With check required-tests: reject tests/proof trees that only contain .gitkeep.",
+        },
+        ...COMPACT_RESULT_SCHEMA,
       },
     },
   },
   {
-    name: 'ocentra_enforcer_run',
-    description: 'Run a command through the Enforcer harness, persist raw logs, emit NDJSON diagnostics, and return a compact summary.',
+    name: "ocentra_enforcer_run",
+    description:
+      "Run a command through the Enforcer harness, persist raw logs, emit NDJSON diagnostics, and return a compact summary.",
     inputSchema: {
-      type: 'object',
+      type: "object",
       additionalProperties: false,
-      required: ['command'],
+      required: ["command"],
       properties: {
         root: COMMON_INPUT_SCHEMA.properties.root,
         profile: COMMON_INPUT_SCHEMA.properties.profile,
-        tool: { type: 'string', description: 'Logical tool name such as cargo-check, eslint, pytest, or tsc.' },
-        language: { type: 'string', enum: ['rust', 'typescript', 'python', 'common'] },
-        cwd: { type: 'string', description: 'Optional working directory relative to root.' },
-        runId: { type: 'string', description: 'Optional caller-provided run id.' },
-        crateName: { type: 'string', description: 'Optional Cargo crate/package metadata.' },
-        packageName: { type: 'string', description: 'Optional JS/Python package metadata.' },
-        domain: { type: 'string', description: 'Optional domain metadata.' },
-        command: { type: 'array', items: { type: 'string' }, description: 'Executable and arguments.' },
-        tags: { type: 'array', items: { type: 'string' } },
+        tool: {
+          type: "string",
+          description:
+            "Logical tool name such as cargo-check, eslint, pytest, or tsc.",
+        },
+        language: {
+          type: "string",
+          enum: ["rust", "typescript", "python", "common"],
+        },
+        cwd: {
+          type: "string",
+          description: "Optional working directory relative to root.",
+        },
+        runId: {
+          type: "string",
+          description: "Optional caller-provided run id.",
+        },
+        crateName: {
+          type: "string",
+          description: "Optional Cargo crate/package metadata.",
+        },
+        packageName: {
+          type: "string",
+          description: "Optional JS/Python package metadata.",
+        },
+        domain: { type: "string", description: "Optional domain metadata." },
+        command: {
+          type: "array",
+          items: { type: "string" },
+          description: "Executable and arguments.",
+        },
+        tags: { type: "array", items: { type: "string" } },
       },
     },
   },
   {
-    name: 'ocentra_enforcer_run_status',
-    description: 'Return the latest or requested Enforcer harness run summary.',
+    name: "ocentra_enforcer_run_status",
+    description: "Return the latest or requested Enforcer harness run summary.",
     inputSchema: runQueryInputSchema(),
   },
   {
-    name: 'ocentra_enforcer_diagnostics',
-    description: 'Return compact diagnostics for the latest or requested harness run.',
+    name: "ocentra_enforcer_diagnostics",
+    description:
+      "Return compact diagnostics for the latest or requested harness run.",
     inputSchema: runQueryInputSchema(),
   },
   {
-    name: 'ocentra_enforcer_last_failure',
-    description: 'Return the latest failed harness run with compact diagnostics.',
+    name: "ocentra_enforcer_last_failure",
+    description:
+      "Return the latest failed harness run with compact diagnostics.",
     inputSchema: runQueryInputSchema(),
   },
   {
-    name: 'ocentra_enforcer_artifact',
-    description: 'Return a bounded raw harness artifact only when compact diagnostics are insufficient.',
+    name: "ocentra_enforcer_artifact",
+    description:
+      "Return a bounded raw harness artifact only when compact diagnostics are insufficient.",
     inputSchema: runQueryInputSchema(),
   },
   {
-    name: 'ocentra_enforcer_prune_runs',
-    description: 'Apply target repo harness retention policy without deleting the whole store.',
+    name: "ocentra_enforcer_prune_runs",
+    description:
+      "Apply target repo harness retention policy without deleting the whole store.",
     inputSchema: runQueryInputSchema(),
   },
   {
-    name: 'ocentra_enforcer_reset_runs',
-    description: 'Delete harness run artifacts for a target root.',
+    name: "ocentra_enforcer_reset_runs",
+    description: "Delete harness run artifacts for a target root.",
     inputSchema: runQueryInputSchema(),
   },
   {
-    name: 'ocentra_enforcer_doctor',
-    description: 'Check Ocentra Enforcer wiring for a target root/config/scope without changing files.',
+    name: "ocentra_enforcer_doctor",
+    description:
+      "Check Ocentra Enforcer wiring for a target root/config/scope without changing files.",
     inputSchema: COMMON_INPUT_SCHEMA,
   },
   {
-    name: 'ocentra_enforcer_explain',
-    description: 'Explain one Ocentra Enforcer rule ID and give the docs anchor/fix hint.',
+    name: "ocentra_enforcer_explain",
+    description:
+      "Explain one Ocentra Enforcer rule ID and give the docs anchor/fix hint.",
     inputSchema: {
-      type: 'object',
+      type: "object",
       additionalProperties: false,
-      required: ['ruleId'],
+      required: ["ruleId"],
       properties: {
         ruleId: {
-          type: 'string',
-          description: 'Rule ID such as RR-7.3.',
+          type: "string",
+          description: "Rule ID such as RR-7.3.",
         },
       },
     },
@@ -253,19 +381,20 @@ const TOOLS = [
   ...CANONICAL_TOOLS,
   ...CANONICAL_TOOLS.map((tool) => ({
     ...tool,
-    name: tool.name.replace('ocentra_enforcer_', 'rust_rules_'),
+    name: tool.name.replace("ocentra_enforcer_", "rust_rules_"),
     description: `Legacy alias for ${tool.name}; kept for one Rust-pack compatibility release.`,
   })),
 ];
 
 let inputBuffer = Buffer.alloc(0);
+const validationHistory = new Map();
 
-process.stdin.on('data', (chunk) => {
+process.stdin.on("data", (chunk) => {
   inputBuffer = Buffer.concat([inputBuffer, chunk]);
   processInputFrames();
 });
 
-process.stdin.on('end', () => {
+process.stdin.on("end", () => {
   process.exit(0);
 });
 
@@ -279,20 +408,29 @@ function processInputFrames() {
 }
 
 function readFrame() {
-  const prefix = inputBuffer.slice(0, Math.min(inputBuffer.length, 64)).toString('utf8').trimStart();
-  if (!prefix.toLowerCase().startsWith('content-length:')) {
-    const lineEnd = inputBuffer.indexOf('\n');
+  const prefix = inputBuffer
+    .slice(0, Math.min(inputBuffer.length, 64))
+    .toString("utf8")
+    .trimStart();
+  if (!prefix.toLowerCase().startsWith("content-length:")) {
+    const lineEnd = inputBuffer.indexOf("\n");
     if (lineEnd === -1) return null;
-    const body = inputBuffer.slice(0, lineEnd).toString('utf8').replace(/\r$/u, '');
+    const body = inputBuffer
+      .slice(0, lineEnd)
+      .toString("utf8")
+      .replace(/\r$/u, "");
     inputBuffer = inputBuffer.slice(lineEnd + 1);
-    return { body, framing: 'ndjson' };
+    return { body, framing: "ndjson" };
   }
 
-  const crlfHeaderEnd = inputBuffer.indexOf('\r\n\r\n');
-  const lfHeaderEnd = inputBuffer.indexOf('\n\n');
+  const crlfHeaderEnd = inputBuffer.indexOf("\r\n\r\n");
+  const lfHeaderEnd = inputBuffer.indexOf("\n\n");
   let headerEnd = -1;
   let separatorLength = 0;
-  if (crlfHeaderEnd !== -1 && (lfHeaderEnd === -1 || crlfHeaderEnd < lfHeaderEnd)) {
+  if (
+    crlfHeaderEnd !== -1 &&
+    (lfHeaderEnd === -1 || crlfHeaderEnd < lfHeaderEnd)
+  ) {
     headerEnd = crlfHeaderEnd;
     separatorLength = 4;
   } else if (lfHeaderEnd !== -1) {
@@ -301,10 +439,10 @@ function readFrame() {
   }
   if (headerEnd === -1) return null;
 
-  const header = inputBuffer.slice(0, headerEnd).toString('utf8');
+  const header = inputBuffer.slice(0, headerEnd).toString("utf8");
   const lengthMatch = /content-length:\s*(\d+)/iu.exec(header);
   if (!lengthMatch) {
-    throw new Error('MCP frame missing Content-Length header.');
+    throw new Error("MCP frame missing Content-Length header.");
   }
 
   const contentLength = Number(lengthMatch[1]);
@@ -312,9 +450,9 @@ function readFrame() {
   const messageEnd = messageStart + contentLength;
   if (inputBuffer.length < messageEnd) return null;
 
-  const body = inputBuffer.slice(messageStart, messageEnd).toString('utf8');
+  const body = inputBuffer.slice(messageStart, messageEnd).toString("utf8");
   inputBuffer = inputBuffer.slice(messageEnd);
-  return { body, framing: 'content-length' };
+  return { body, framing: "content-length" };
 }
 
 function handleRawMessage(raw, framing) {
@@ -330,48 +468,67 @@ function handleRawMessage(raw, framing) {
     .then(() => handleMessage(message, framing))
     .catch((error) => {
       if (message.id !== undefined) {
-        sendError(message.id, -32603, error instanceof Error ? error.message : String(error), framing);
+        sendError(
+          message.id,
+          -32603,
+          error instanceof Error ? error.message : String(error),
+          framing,
+        );
       }
     });
 }
 
 async function handleMessage(message, framing) {
-  if (message.id === undefined && String(message.method ?? '').startsWith('notifications/')) return;
+  if (
+    message.id === undefined &&
+    String(message.method ?? "").startsWith("notifications/")
+  )
+    return;
 
   switch (message.method) {
-    case 'initialize':
-      sendResult(message.id, {
-        protocolVersion: message.params?.protocolVersion ?? MCP_PROTOCOL_VERSION,
-        capabilities: { tools: {} },
-        serverInfo: {
-          name: PACKAGE_JSON.name,
-          version: PACKAGE_JSON.version,
+    case "initialize":
+      sendResult(
+        message.id,
+        {
+          protocolVersion:
+            message.params?.protocolVersion ?? MCP_PROTOCOL_VERSION,
+          capabilities: { tools: {} },
+          serverInfo: {
+            name: PACKAGE_JSON.name,
+            version: PACKAGE_JSON.version,
+          },
         },
-      }, framing);
+        framing,
+      );
       return;
-    case 'ping':
+    case "ping":
       sendResult(message.id, {}, framing);
       return;
-    case 'tools/list':
+    case "tools/list":
       sendResult(message.id, { tools: TOOLS }, framing);
       return;
-    case 'tools/call':
+    case "tools/call":
       sendResult(message.id, callTool(message.params ?? {}), framing);
       return;
-    case 'resources/list':
+    case "resources/list":
       sendResult(message.id, { resources: [] }, framing);
       return;
-    case 'resources/templates/list':
+    case "resources/templates/list":
       sendResult(message.id, { resourceTemplates: [] }, framing);
       return;
-    case 'prompts/list':
+    case "prompts/list":
       sendResult(message.id, { prompts: [] }, framing);
       return;
-    case 'shutdown':
+    case "shutdown":
       sendResult(message.id, null, framing);
       return;
     default:
-      sendError(message.id, -32601, `Unknown method: ${message.method}`, framing);
+      sendError(
+        message.id,
+        -32601,
+        `Unknown method: ${message.method}`,
+        framing,
+      );
   }
 }
 
@@ -379,44 +536,65 @@ function callTool(params) {
   const name = normalizeToolName(params.name);
   const args = params.arguments ?? {};
   try {
-    if (name === 'ocentra_enforcer_route') {
+    if (name === "ocentra_enforcer_route") {
       return {
         isError: false,
-        content: [{ type: 'text', text: JSON.stringify(buildRouteReport(decodeRouteRequest(args), SERVER_ROOT), null, 2) }],
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              buildRouteReport(decodeRouteRequest(args), SERVER_ROOT),
+              null,
+              2,
+            ),
+          },
+        ],
       };
     }
-    if (name === 'ocentra_enforcer_scan') {
+    if (name === "ocentra_enforcer_scan") {
       const decoded = decodeScanToolArguments(args);
-      return runCli(decoded.cargo ? 'cargo' : 'scan', decoded);
+      return runCli(decoded.cargo ? "cargo" : "scan", decoded);
     }
-    if (name === 'ocentra_enforcer_check') {
-      return runCli('check', decodeCheckToolArguments(args));
+    if (name === "ocentra_enforcer_check") {
+      return runCli("check", decodeCheckToolArguments(args));
     }
-    if (name === 'ocentra_enforcer_doctor') {
-      return runCli('doctor', decodeDoctorToolArguments(args));
+    if (name === "ocentra_enforcer_doctor") {
+      return runCli("doctor", decodeDoctorToolArguments(args));
     }
-    if (name === 'ocentra_enforcer_explain') {
-      return runCli('explain', decodeExplainToolArguments(args));
+    if (name === "ocentra_enforcer_explain") {
+      return runCli("explain", decodeExplainToolArguments(args));
     }
-    if (name === 'ocentra_enforcer_run') {
+    if (name === "ocentra_enforcer_run") {
       return toolJson(runHarness(decodeRunToolArguments(args)));
     }
-    if (name === 'ocentra_enforcer_run_status') {
-      return toolJson({ ok: true, summary: runSummary(decodeRunQueryArguments(args)) });
+    if (name === "ocentra_enforcer_run_status") {
+      const decoded = decodeRunQueryArguments(args);
+      const summary = runSummary(decoded);
+      const validationSummary = latestValidationSummary(decoded);
+      return toolJson({
+        ok: true,
+        summary: summary ?? validationSummary,
+        summaryType: summary
+          ? "harness"
+          : validationSummary
+            ? "validation"
+            : "none",
+        validationSummary,
+      });
     }
-    if (name === 'ocentra_enforcer_diagnostics') {
+    if (name === "ocentra_enforcer_diagnostics") {
       return toolJson(runDiagnostics(decodeRunQueryArguments(args)));
     }
-    if (name === 'ocentra_enforcer_last_failure') {
+    if (name === "ocentra_enforcer_last_failure") {
       return toolJson(lastFailure(decodeRunQueryArguments(args)));
     }
-    if (name === 'ocentra_enforcer_artifact') {
+    if (name === "ocentra_enforcer_artifact") {
       return toolJson(readArtifact(decodeRunQueryArguments(args)));
     }
-    if (name === 'ocentra_enforcer_prune_runs') {
+    if (name === "ocentra_enforcer_prune_runs") {
       return toolJson(pruneRuns(decodeRunQueryArguments(args)));
     }
-    if (name === 'ocentra_enforcer_reset_runs') {
+    if (name === "ocentra_enforcer_reset_runs") {
       return toolJson(resetRuns(decodeRunQueryArguments(args)));
     }
     return toolError(`Unknown tool: ${params.name}`);
@@ -428,18 +606,18 @@ function callTool(params) {
 function toolJson(value) {
   return {
     isError: value?.ok === false,
-    content: [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+    content: [{ type: "text", text: JSON.stringify(value, null, 2) }],
   };
 }
 
 function normalizeToolName(name) {
-  return String(name ?? '').replace(/^rust_rules_/u, 'ocentra_enforcer_');
+  return String(name ?? "").replace(/^rust_rules_/u, "ocentra_enforcer_");
 }
 
 function toolError(message) {
   return {
     isError: true,
-    content: [{ type: 'text', text: message }],
+    content: [{ type: "text", text: message }],
   };
 }
 
@@ -458,7 +636,7 @@ function routeRules(args) {
     ok: true,
     productName: registry.productName,
     profileName,
-    index: 'rules/INDEX.md',
+    index: "rules/INDEX.md",
     scope: describeRouteScope(args),
     docs,
     rules: rules.map((rule) => ({
@@ -472,22 +650,33 @@ function routeRules(args) {
 }
 
 function loadRuleRegistry() {
-  return decodeRuleRegistry(JSON.parse(fs.readFileSync(RULE_REGISTRY_PATH, 'utf8')));
+  return decodeRuleRegistry(
+    JSON.parse(fs.readFileSync(RULE_REGISTRY_PATH, "utf8")),
+  );
 }
 
 function resolveProfileName(root, args) {
   if (args.configPath) {
-    const configPath = path.isAbsolute(args.configPath) ? args.configPath : path.join(root, args.configPath);
-    if (!fs.existsSync(configPath)) return 'custom';
-    const parsed = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    return parsed.profileName ?? 'custom';
+    const configPath = path.isAbsolute(args.configPath)
+      ? args.configPath
+      : path.join(root, args.configPath);
+    if (!fs.existsSync(configPath)) return "custom";
+    const parsed = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    return parsed.profileName ?? "custom";
   }
-  return args.profile ?? 'strict';
+  return args.profile ?? "strict";
 }
 
 function routeFamilies(args) {
-  if (args.scope === 'crate' || args.scope === 'workspace') {
-    return new Set(['source', 'domain', 'imports-modules', 'async-runtime', 'toolchain-cargo', 'dependencies']);
+  if (args.scope === "crate" || args.scope === "workspace") {
+    return new Set([
+      "source",
+      "domain",
+      "imports-modules",
+      "async-runtime",
+      "toolchain-cargo",
+      "dependencies",
+    ]);
   }
 
   const files = Array.isArray(args.files) ? args.files : [];
@@ -500,90 +689,294 @@ function routeFamilies(args) {
 
 function routeFamiliesForFile(file) {
   const normalized = file.split(/[\\/]+/u).pop() ?? file;
-  if (file.endsWith('.rs')) return ['source', 'domain', 'imports-modules', 'async-runtime'];
-  if (normalized === 'Cargo.toml') return ['toolchain-cargo', 'dependencies'];
-  if (normalized === 'Cargo.lock' || normalized === 'deny.toml') return ['dependencies'];
-  if (normalized === 'rust-toolchain.toml' || normalized === 'clippy.toml' || normalized === 'rustfmt.toml') {
-    return ['toolchain-cargo'];
+  if (file.endsWith(".rs"))
+    return ["source", "domain", "imports-modules", "async-runtime"];
+  if (normalized === "Cargo.toml") return ["toolchain-cargo", "dependencies"];
+  if (normalized === "Cargo.lock" || normalized === "deny.toml")
+    return ["dependencies"];
+  if (
+    normalized === "rust-toolchain.toml" ||
+    normalized === "clippy.toml" ||
+    normalized === "rustfmt.toml"
+  ) {
+    return ["toolchain-cargo"];
   }
   return [];
 }
 
 function describeRouteScope(args) {
-  if (args.ruleId) return { mode: 'rule', ruleId: args.ruleId.toUpperCase() };
-  if (args.scope === 'crate') return { mode: 'crate', crateName: args.crateName ?? null };
-  if (args.scope === 'diff') return { mode: 'diff', base: args.base ?? null, head: args.head ?? null, files: args.files ?? [] };
-  if (args.scope === 'workspace') return { mode: 'workspace' };
-  return { mode: 'files', files: args.files ?? [] };
+  if (args.ruleId) return { mode: "rule", ruleId: args.ruleId.toUpperCase() };
+  if (args.scope === "crate")
+    return { mode: "crate", crateName: args.crateName ?? null };
+  if (args.scope === "diff")
+    return {
+      mode: "diff",
+      base: args.base ?? null,
+      head: args.head ?? null,
+      files: args.files ?? [],
+    };
+  if (args.scope === "workspace") return { mode: "workspace" };
+  return { mode: "files", files: args.files ?? [] };
 }
 
 function runCli(command, args) {
-  if (command === 'explain') {
-    return runCliProcess([CLI_PATH, 'explain', args.ruleId, '--json'], process.cwd());
+  if (command === "explain") {
+    return runCliProcess(
+      [CLI_PATH, "explain", args.ruleId, "--json"],
+      process.cwd(),
+      command,
+      args,
+    );
   }
 
   const root = path.resolve(args.root ?? process.cwd());
   const cliArgs = [CLI_PATH, command];
-  if (command === 'check') {
+  if (command === "check") {
     cliArgs.push(args.check);
   }
-  cliArgs.push('--root', root, '--json');
+  cliArgs.push("--root", root, "--json");
   const configPath = resolveConfigPath(root, args);
   if (configPath) {
-    cliArgs.push('--config', configPath);
+    cliArgs.push("--config", configPath);
   }
   if (Array.isArray(args.languages) && args.languages.length > 0) {
-    cliArgs.push('--languages', args.languages.join(','));
+    cliArgs.push("--languages", args.languages.join(","));
   }
   if (args.checkConfigPath) {
-    cliArgs.push('--check-config', args.checkConfigPath);
+    cliArgs.push("--check-config", args.checkConfigPath);
   }
   if (args.output) {
-    cliArgs.push('--output', args.output);
+    cliArgs.push("--output", args.output);
   }
   if (args.dryRun) {
-    cliArgs.push('--dry-run');
+    cliArgs.push("--dry-run");
+  }
+  if (args.staged) {
+    cliArgs.push("--staged");
+  }
+  if (args.tracked) {
+    cliArgs.push("--tracked");
+  }
+  if (args.strictEmptyTestTrees) {
+    cliArgs.push("--strict-empty-test-trees");
   }
   cliArgs.push(...scopeArgs(args));
 
-  return runCliProcess(cliArgs, root);
+  return runCliProcess(cliArgs, root, command, args);
 }
 
-function runCliProcess(cliArgs, cwd) {
+function runCliProcess(cliArgs, cwd, command = null, args = {}) {
   const result = spawnSync(process.execPath, cliArgs, {
     cwd,
-    encoding: 'utf8',
+    encoding: "utf8",
     shell: false,
   });
 
-  const stdout = result.stdout?.trim() ?? '';
-  const stderr = result.stderr?.trim() ?? '';
-  const text = stdout || JSON.stringify({ ok: false, status: result.status, stderr }, null, 2);
+  const stdout = result.stdout?.trim() ?? "";
+  const stderr = result.stderr?.trim() ?? "";
+  const parsed = parseJson(stdout);
+  const report =
+    parsed && (command === "scan" || command === "cargo" || command === "check")
+      ? maybeCompactReport(parsed, args)
+      : parsed;
+  if (
+    parsed &&
+    (command === "scan" || command === "cargo" || command === "check")
+  ) {
+    recordValidationReport(command, parsed, args);
+  }
+  const text =
+    report != null
+      ? JSON.stringify(report, null, 2)
+      : stdout ||
+        JSON.stringify({ ok: false, status: result.status, stderr }, null, 2);
   return {
     isError: (result.status ?? 1) !== 0,
     content: [
       {
-        type: 'text',
+        type: "text",
         text,
       },
     ],
   };
 }
 
+function parseJson(text) {
+  if (!text || !text.trim().startsWith("{")) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function maybeCompactReport(report, args) {
+  const wantsCompact =
+    args.summaryOnly === true ||
+    args.diagnosticLimit !== undefined ||
+    args.groupBy !== undefined ||
+    args.includeScope === false;
+  if (!wantsCompact) return report;
+
+  const findings = [...(report.violations ?? []), ...(report.warnings ?? [])];
+  const limit = Math.max(
+    0,
+    Number.isFinite(args.diagnosticLimit)
+      ? Math.trunc(args.diagnosticLimit)
+      : 20,
+  );
+  const diagnostics = args.summaryOnly
+    ? []
+    : findings.slice(0, limit).map(compactFinding);
+  const compact = {
+    ok: report.ok,
+    command: report.command,
+    check: report.check,
+    root: report.root,
+    profileName: report.profileName,
+    languages: report.languages,
+    bySeverity: report.bySeverity ?? countBy(findings, "severity"),
+    counts: {
+      findings: findings.length,
+      violations: report.violations?.length ?? 0,
+      warnings: report.warnings?.length ?? 0,
+      returned: diagnostics.length,
+      truncated: findings.length > diagnostics.length,
+    },
+    ruleIds: uniqueSorted(findings.map((finding) => finding.ruleId)),
+    docs: uniqueSorted(findings.map((finding) => finding.doc).filter(Boolean)),
+    diagnostics,
+  };
+  if (args.groupBy) compact.groups = groupFindings(findings, args.groupBy);
+  if (args.includeScope !== false) compact.scope = compactScope(report.scope);
+  return compact;
+}
+
+function compactFinding(finding) {
+  return {
+    ruleId: finding.ruleId,
+    severity: finding.severity ?? "error",
+    file: finding.file,
+    line: finding.line,
+    detail: finding.detail,
+    doc: finding.doc,
+  };
+}
+
+function compactScope(scope) {
+  if (!scope) return undefined;
+  return {
+    mode: scope.mode,
+    fileCount: Array.isArray(scope.files) ? scope.files.length : undefined,
+    sampleFiles: Array.isArray(scope.files)
+      ? scope.files.slice(0, 20)
+      : undefined,
+    crateName: scope.crateName,
+    base: scope.base,
+    head: scope.head,
+  };
+}
+
+function groupFindings(findings, mode) {
+  const groups = new Map();
+  for (const finding of findings) {
+    const key = mode === "slice" ? sliceKey(finding.file) : finding.file;
+    const group = groups.get(key) ?? {
+      key,
+      count: 0,
+      bySeverity: {},
+      ruleIds: new Set(),
+      docs: new Set(),
+      first: null,
+    };
+    group.count += 1;
+    const severity = finding.severity ?? "error";
+    group.bySeverity[severity] = (group.bySeverity[severity] ?? 0) + 1;
+    group.ruleIds.add(finding.ruleId);
+    if (finding.doc) group.docs.add(finding.doc);
+    group.first ??= compactFinding(finding);
+    groups.set(key, group);
+  }
+  return [...groups.values()]
+    .map((group) => ({
+      ...group,
+      ruleIds: [...group.ruleIds].sort(),
+      docs: [...group.docs].sort(),
+    }))
+    .sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
+}
+
+function sliceKey(file) {
+  const parts = String(file ?? "").split("/");
+  if (["apps", "packages", "crates", "tools"].includes(parts[0]) && parts[1])
+    return `${parts[0]}/${parts[1]}`;
+  return parts[0] || ".";
+}
+
+function recordValidationReport(command, report, args) {
+  const root = path.resolve(args.root ?? report.root ?? process.cwd());
+  const key = root.toLowerCase();
+  const findings = [...(report.violations ?? []), ...(report.warnings ?? [])];
+  const summary = {
+    kind: command === "check" ? "check" : "scan",
+    command: report.command,
+    check: report.check,
+    ok: report.ok,
+    root,
+    profileName: report.profileName,
+    at: new Date().toISOString(),
+    bySeverity: report.bySeverity ?? countBy(findings, "severity"),
+    counts: {
+      findings: findings.length,
+      violations: report.violations?.length ?? 0,
+      warnings: report.warnings?.length ?? 0,
+    },
+    ruleIds: uniqueSorted(findings.map((finding) => finding.ruleId)),
+    docs: uniqueSorted(findings.map((finding) => finding.doc).filter(Boolean)),
+    scope: compactScope(report.scope),
+  };
+  const entries = validationHistory.get(key) ?? [];
+  entries.unshift(summary);
+  validationHistory.set(key, entries.slice(0, 20));
+}
+
+function latestValidationSummary(args = {}) {
+  const root = path.resolve(args.root ?? process.cwd()).toLowerCase();
+  const entries = validationHistory.get(root) ?? [];
+  if (args.tool === "check")
+    return entries.find((entry) => entry.kind === "check") ?? null;
+  if (args.tool === "scan")
+    return entries.find((entry) => entry.kind === "scan") ?? null;
+  return entries[0] ?? null;
+}
+
+function countBy(values, key) {
+  const result = {};
+  for (const value of values) {
+    const group = value?.[key] ?? "unknown";
+    result[group] = (result[group] ?? 0) + 1;
+  }
+  return result;
+}
+
 function resolveConfigPath(root, args) {
   if (args.configPath) {
-    return path.isAbsolute(args.configPath) ? args.configPath : path.join(root, args.configPath);
+    return path.isAbsolute(args.configPath)
+      ? args.configPath
+      : path.join(root, args.configPath);
   }
 
   const profile = args.profile ?? null;
-  if (profile === null || profile === '' || profile === 'strict') return null;
+  if (profile === null || profile === "" || profile === "strict") return null;
   if (!/^[A-Za-z0-9][A-Za-z0-9_.-]*$/u.test(profile)) {
     throw new Error(`Invalid profile name: ${profile}`);
   }
 
-  const profilePath = path.join(SERVER_ROOT, 'profiles', `${profile}.json`);
+  const profilePath = path.join(SERVER_ROOT, "profiles", `${profile}.json`);
   if (!fs.existsSync(profilePath)) {
-    throw new Error(`Unknown Ocentra Enforcer profile "${profile}". Expected ${profilePath}.`);
+    throw new Error(
+      `Unknown Ocentra Enforcer profile "${profile}". Expected ${profilePath}.`,
+    );
   }
   return profilePath;
 }
@@ -596,41 +989,45 @@ function scopeArgs(args) {
   const inferredScope =
     args.scope ??
     (Array.isArray(args.files) && args.files.length > 0
-      ? 'files'
+      ? "files"
       : args.crateName
-        ? 'crate'
+        ? "crate"
         : args.base || args.head
-          ? 'diff'
-          : 'workspace');
+          ? "diff"
+          : "workspace");
 
-  if (inferredScope === 'files') {
-    if (!Array.isArray(args.files) || args.files.length === 0) throw new Error('files scope requires files.');
-    return ['--files', ...args.files];
+  if (inferredScope === "files") {
+    if (!Array.isArray(args.files) || args.files.length === 0)
+      throw new Error("files scope requires files.");
+    return ["--files", ...args.files];
   }
-  if (inferredScope === 'crate') {
-    if (!args.crateName) throw new Error('crate scope requires crateName.');
-    return ['--crate', args.crateName];
+  if (inferredScope === "crate") {
+    if (!args.crateName) throw new Error("crate scope requires crateName.");
+    return ["--crate", args.crateName];
   }
-  if (inferredScope === 'diff') {
-    if (!args.base || !args.head) throw new Error('diff scope requires base and head.');
-    return ['--base', args.base, '--head', args.head];
+  if (inferredScope === "diff") {
+    if (!args.base || !args.head)
+      throw new Error("diff scope requires base and head.");
+    return ["--base", args.base, "--head", args.head];
   }
-  return ['--workspace'];
+  return ["--workspace"];
 }
 
 function sendResult(id, result, framing) {
-  send({ jsonrpc: '2.0', id, result }, framing);
+  send({ jsonrpc: "2.0", id, result }, framing);
 }
 
 function sendError(id, code, message, framing) {
-  send({ jsonrpc: '2.0', id, error: { code, message } }, framing);
+  send({ jsonrpc: "2.0", id, error: { code, message } }, framing);
 }
 
-function send(message, framing = 'content-length') {
+function send(message, framing = "content-length") {
   const body = JSON.stringify(message);
-  if (framing === 'ndjson') {
+  if (framing === "ndjson") {
     process.stdout.write(`${body}\n`);
   } else {
-    process.stdout.write(`Content-Length: ${Buffer.byteLength(body, 'utf8')}\r\n\r\n${body}`);
+    process.stdout.write(
+      `Content-Length: ${Buffer.byteLength(body, "utf8")}\r\n\r\n${body}`,
+    );
   }
 }

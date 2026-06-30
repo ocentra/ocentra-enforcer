@@ -158,7 +158,7 @@ function createClient(child, framing) {
       const timeout = setTimeout(() => {
         waiters.delete(id);
         reject(new Error(`Timed out waiting for MCP response ${id}`));
-      }, 5000);
+      }, 30000);
       waiters.set(id, {
         resolve(message) {
           clearTimeout(timeout);

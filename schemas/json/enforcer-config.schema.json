@@ -33,26 +33,88 @@
     "rawTypeBoundaryGlobs": { "type": "array", "items": { "type": "string" } },
     "facadeFileGlobs": { "type": "array", "items": { "type": "string" } },
     "rawStringOwnerGlobs": { "type": "array", "items": { "type": "string" } },
-    "domainPrimitiveOwnerGlobs": { "type": "array", "items": { "type": "string" } },
+    "domainPrimitiveOwnerGlobs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
     "enforceRuntimeStringLiterals": { "type": "boolean" },
-    "runtimeStringOwnerGlobs": { "type": "array", "items": { "type": "string" } },
-    "runtimeStringLineAllowPatterns": { "type": "array", "items": { "type": "string" } },
+    "runtimeStringOwnerGlobs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "runtimeStringLineAllowPatterns": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
     "enforceSerializedPublicDomainPrimitives": { "type": "boolean" },
-    "serializedDomainOwnerGlobs": { "type": "array", "items": { "type": "string" } },
+    "serializedDomainOwnerGlobs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
     "blockedProtocolDependencies": {
       "type": "object",
       "additionalProperties": { "type": "array", "items": { "type": "string" } }
     },
     "runtimeCrates": { "type": "array", "items": { "type": "string" } },
     "testOnlyCrates": { "type": "array", "items": { "type": "string" } },
-    "allowedGitDependencies": { "type": "array", "items": { "type": "string" } },
-    "allowedExternalLicenses": { "type": "array", "items": { "type": "string" } },
+    "allowedGitDependencies": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "allowedExternalLicenses": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
     "sourceShapePolicies": {
       "type": "array",
       "items": { "$ref": "#/$defs/sourceShapePolicy" }
     },
+    "sourceShapeOverrides": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/sourceShapeOverride" }
+    },
+    "importBoundaryPolicies": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/importBoundaryPolicy" }
+    },
+    "architecturePolicyChecks": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "no-zod-source",
+          "no-naked-domain-strings",
+          "no-test-doubles",
+          "weak-assertions",
+          "skipped-focused-tests",
+          "validation-bypass",
+          "placeholder-implementation",
+          "reexports",
+          "cross-platform-script-commands",
+          "generated-artifacts",
+          "secrets",
+          "rust-string-boundaries",
+          "source-shape",
+          "required-tests",
+          "single-source-contracts",
+          "dependency-policy",
+          "sbom",
+          "ai-rule-index",
+          "import-boundaries"
+        ]
+      }
+    },
+    "singleSourceRequiredMirrorRoots": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "strictEmptyTestTrees": { "type": "boolean" },
+    "generatedArtifactsMode": { "enum": ["scan", "tracked"] },
+    "generatedArtifactsTracked": { "type": "boolean" },
     "agentRuleMaxLines": { "type": "number" },
-    "languages": { "type": "array", "items": { "enum": ["rust", "typescript", "python", "common"] } },
+    "languages": {
+      "type": "array",
+      "items": { "enum": ["rust", "typescript", "python", "common"] }
+    },
     "rules": {
       "type": "object",
       "additionalProperties": {
@@ -95,13 +157,40 @@
       "properties": {
         "roots": { "type": "array", "items": { "type": "string" } },
         "extensions": { "type": "array", "items": { "type": "string" } },
-        "kind": { "enum": ["typescript", "rust"] },
+        "kind": { "enum": ["typescript", "rust", "python"] },
         "maxClasses": { "type": "number" },
         "maxExports": { "type": "number" },
         "maxFunctionLines": { "type": "number" },
         "maxFunctions": { "type": "number" },
         "maxLines": { "type": "number" },
         "maxTypes": { "type": "number" }
+      }
+    },
+    "sourceShapeOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string" },
+        "paths": { "type": "array", "items": { "type": "string" } },
+        "glob": { "type": "string" },
+        "globs": { "type": "array", "items": { "type": "string" } },
+        "note": { "type": "string" },
+        "maxClasses": { "type": "number" },
+        "maxExports": { "type": "number" },
+        "maxFunctionLines": { "type": "number" },
+        "maxFunctions": { "type": "number" },
+        "maxLines": { "type": "number" },
+        "maxTypes": { "type": "number" }
+      }
+    },
+    "importBoundaryPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "roots": { "type": "array", "items": { "type": "string" } },
+        "forbiddenImports": { "type": "array", "items": { "type": "string" } },
+        "allowedImports": { "type": "array", "items": { "type": "string" } },
+        "message": { "type": "string" }
       }
     }
   }

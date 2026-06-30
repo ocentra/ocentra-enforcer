@@ -5,6 +5,8 @@ export const DEFAULT_IGNORE_DIRS = [
   '.git',
   '.hub',
   '.turbo',
+  '.wrangler',
+  '.enforce',
   '.venv',
   '.ruff_cache',
   '.mypy_cache',
@@ -106,4 +108,3 @@ export function lineNumberAt(text, index) {
   }
   return line;
 }
-

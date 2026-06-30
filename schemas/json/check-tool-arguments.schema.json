@@ -28,7 +28,9 @@
         "single-source-contracts",
         "dependency-policy",
         "sbom",
-        "ai-rule-index"
+        "ai-rule-index",
+        "import-boundaries",
+        "architecture-policy"
       ]
     },
     "scope": { "enum": ["workspace", "files", "crate", "diff"] },
@@ -38,6 +40,13 @@
     "head": { "type": "string" },
     "checkConfigPath": { "type": "string" },
     "output": { "type": "string" },
-    "dryRun": { "type": "boolean" }
+    "dryRun": { "type": "boolean" },
+    "staged": { "type": "boolean" },
+    "tracked": { "type": "boolean" },
+    "strictEmptyTestTrees": { "type": "boolean" },
+    "diagnosticLimit": { "type": "number" },
+    "summaryOnly": { "type": "boolean" },
+    "groupBy": { "enum": ["file", "slice"] },
+    "includeScope": { "type": "boolean" }
   }
 }

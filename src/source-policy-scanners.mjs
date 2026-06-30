@@ -85,6 +85,7 @@ export function scanAdditionalTypeScriptFile(root, filePath) {
   const rel = normalizeRel(root, filePath);
   const lines = readLines(filePath);
   const violations = [];
+  const generatedPath = isGeneratedSourcePath(rel);
 
   lines.forEach((line, index) => {
     const lineNo = index + 1;
@@ -94,12 +95,12 @@ export function scanAdditionalTypeScriptFile(root, filePath) {
       }
     }
 
-    if (manualBrandPattern.test(line)) {
+    if (!generatedPath && manualBrandPattern.test(line)) {
       addViolation(violations, root, filePath, lineNo, 'TS-1.3', 'manual string brand', line);
     }
 
     const nakedDomainAlias = line.match(nakedDomainAliasPattern);
-    if (nakedDomainAlias) {
+    if (!generatedPath && nakedDomainAlias) {
       addViolation(violations, root, filePath, lineNo, 'TS-1.3', `naked domain string alias ${nakedDomainAlias[1]}`, line);
     }
   });
@@ -189,6 +190,10 @@ function isForbiddenSensitivePath(rel) {
 
 function isSourceLikeForTestDoubles(rel) {
   return /\.(?:ts|tsx|js|jsx|mjs|cjs|mts|cts|py|rs)$/iu.test(rel);
+}
+
+function isGeneratedSourcePath(rel) {
+  return /(?:^|\/)generated(?:\/|$)/iu.test(rel);
 }
 
 function addViolation(violations, root, filePath, line, ruleId, detail, sourceLine = null) {

@@ -31,6 +31,12 @@ Policy therefore has two layers:
 - Indexed rules explain what to do and keep agent context small.
 - Validators and harness checks decide whether the work is accepted.
 
+Every enforced rule must keep that dual shape. A `TS-*`, `PY-*`, `RR-*`, or
+common `SEC-*`/`TEST-*`/`SRC-*` finding is not just a lint message: it must have
+a `rules/rules.json` registry entry, a routed rule doc, a validator that emits
+the same `ruleId`, and an `explain`/MCP path that tells Codex which rule to read
+next. JSON and MCP reports include a `doc` anchor on findings for that reason.
+
 If docs and validators disagree, the hard gate wins. Fix the code, fix the docs,
 or strengthen the validator; do not add bypass comments or weaken checks to make
 an agent pass.
@@ -190,6 +196,22 @@ ocentra_enforcer_last_failure
 ocentra_enforcer_artifact
 ocentra_enforcer_reset_runs
 ```
+
+For broad MCP `scan` and `check` calls, prefer compact output controls before
+asking Codex to read a full report:
+
+```json
+{
+  "diagnosticLimit": 20,
+  "groupBy": "slice",
+  "includeScope": false
+}
+```
+
+`summaryOnly: true` returns counts, rule IDs, docs, and optional groups without
+individual diagnostics. Direct MCP scan/check calls also update an in-process
+validation summary, so `ocentra_enforcer_run_status` can return the latest
+validation summary even when no harness command was run.
 
 Legacy `rust_rules_*` MCP tool aliases remain for one Rust-pack compatibility
 release.

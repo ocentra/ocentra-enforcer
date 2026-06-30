@@ -183,22 +183,22 @@ Call ocentra_enforcer_run for root C:/path/to/target-repo, tool "tsc", command [
 
 MCP is the important part. The skill is optional but useful for routing behavior.
 
-The bundled skill currently lives at:
+The bundled canonical skill currently lives at:
 
 ```text
-E:\ocentra-enforcer\skills\rust-rules-hard-gate\SKILL.md
+E:\ocentra-enforcer\skills\ocentra-enforcer\SKILL.md
 ```
 
 To install it as a user skill on Windows:
 
 ```powershell
-$skillRoot = "$env:USERPROFILE\.codex\skills\rust-rules-hard-gate"
+$skillRoot = "$env:USERPROFILE\.codex\skills\ocentra-enforcer"
 New-Item -ItemType Directory -Force -Path $skillRoot
-Copy-Item -Recurse -Force E:\ocentra-enforcer\skills\rust-rules-hard-gate\* $skillRoot
+Copy-Item -Recurse -Force E:\ocentra-enforcer\skills\ocentra-enforcer\* $skillRoot
 ```
 
-Then start a new Codex thread. The skill name is `rust-rules-hard-gate` for
-compatibility, but its body tells Codex to use Ocentra Enforcer.
+Then start a new Codex thread. The canonical skill name is `ocentra-enforcer`.
+`rust-rules-hard-gate` remains a temporary compatibility alias for older prompts.
 
 ## Common MCP Failures
 

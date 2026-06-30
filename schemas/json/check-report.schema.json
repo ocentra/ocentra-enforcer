@@ -27,7 +27,9 @@
         "single-source-contracts",
         "dependency-policy",
         "sbom",
-        "ai-rule-index"
+        "ai-rule-index",
+        "import-boundaries",
+        "architecture-policy"
       ]
     },
     "root": { "type": "string" },
@@ -40,13 +42,36 @@
       "additionalProperties": { "type": "number" }
     },
     "scope": { "$ref": "#/$defs/scope" },
-    "languages": { "type": "array", "items": { "enum": ["rust", "typescript", "python", "common"] } }
+    "languages": {
+      "type": "array",
+      "items": { "enum": ["rust", "typescript", "python", "common"] }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "check": { "type": "string" },
+          "ok": { "type": "boolean" },
+          "violations": { "type": "number" }
+        }
+      }
+    }
   },
   "$defs": {
     "violation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["ruleId", "title", "detail", "file", "line", "snippet"],
+      "required": [
+        "ruleId",
+        "title",
+        "detail",
+        "file",
+        "line",
+        "snippet",
+        "doc"
+      ],
       "properties": {
         "ruleId": { "type": "string" },
         "severity": { "enum": ["error", "warning", "info"] },
@@ -55,6 +80,7 @@
         "file": { "type": "string" },
         "line": { "type": "number" },
         "snippet": { "type": "string" },
+        "doc": { "type": "string" },
         "source": { "type": ["string", "null"] }
       }
     },

@@ -19,9 +19,5 @@ jobs:
           components: rustfmt, clippy
       - name: Install Node dependencies
         run: npm ci
-      - name: Test validator and MCP wrapper
-        run: npm test
-      - name: Run Ocentra Enforcer scanner
-        run: npm run rust:rules:scan
-      - name: Run Ocentra Enforcer cargo hard gate
-        run: npm run rust:rules
+      - name: Run local CI parity gate
+        run: npm run ci:local

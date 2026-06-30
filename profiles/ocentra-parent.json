@@ -19,20 +19,19 @@
     ".git",
     ".hub",
     ".turbo",
+    ".wrangler",
+    ".enforce",
     "target",
     "node_modules",
     ".next",
     "dist",
     "build",
     "coverage",
-    "output"
+    "output",
+    "vendor"
   ],
   "ignoreFileGlobs": [],
-  "rustRoots": [
-    "apps/parent-desktop/src-tauri",
-    "crates",
-    "tools"
-  ],
+  "rustRoots": ["apps/parent-desktop/src-tauri", "crates", "tools"],
   "crateRootGlobs": [
     "apps/parent-desktop/src-tauri",
     "crates/*",
