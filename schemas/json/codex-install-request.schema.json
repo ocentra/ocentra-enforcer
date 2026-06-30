@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocentra.dev/schemas/ocentra-enforcer/codex-install-request.schema.json",
+  "title": "Ocentra Enforcer Codex Install Request",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "root": {
+      "type": "string"
+    },
+    "profile": {
+      "type": "string"
+    },
+    "dryRun": {
+      "type": "boolean"
+    },
+    "force": {
+      "type": "boolean"
+    },
+    "codexConfigPath": {
+      "type": "string"
+    },
+    "serverName": {
+      "type": "string"
+    }
+  }
+}

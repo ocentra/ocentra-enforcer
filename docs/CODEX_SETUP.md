@@ -21,26 +21,38 @@ MCP server:    ~/tools/ocentra-enforcer/mcp/rust-rules-mcp.mjs
 Target repo:   ~/src/your-project
 ```
 
-## Preferred Setup: Codex CLI
+## Preferred Setup: Enforcer Installer
 
-Run this once on the machine:
+Run this from the enforcer install path. It updates target repo wiring and
+Codex Desktop's global MCP config in one idempotent flow.
+
+```powershell
+node E:/ocentra-enforcer/scripts/rust-rules.mjs codex install --root C:/path/to/target-repo --profile strict --dry-run
+node E:/ocentra-enforcer/scripts/rust-rules.mjs codex install --root C:/path/to/target-repo --profile strict
+node E:/ocentra-enforcer/scripts/rust-rules.mjs codex doctor --root C:/path/to/target-repo
+```
+
+macOS/Linux:
+
+```bash
+node ~/tools/ocentra-enforcer/scripts/rust-rules.mjs codex install --root ~/src/target-repo --profile strict --dry-run
+node ~/tools/ocentra-enforcer/scripts/rust-rules.mjs codex install --root ~/src/target-repo --profile strict
+node ~/tools/ocentra-enforcer/scripts/rust-rules.mjs codex doctor --root ~/src/target-repo
+```
+
+The installer writes a backup before changing `~/.codex/config.toml` or
+`%USERPROFILE%\.codex\config.toml`. Start a new Codex thread after installing.
+If the tool does not appear, restart the Codex app.
+
+## Optional Setup: Codex CLI
+
+Use this only if you want to manage MCP entries through the Codex CLI directly:
 
 ```powershell
 codex mcp add ocentra-enforcer -- node E:/ocentra-enforcer/mcp/rust-rules-mcp.mjs
 codex mcp get ocentra-enforcer
 codex mcp list
 ```
-
-macOS/Linux:
-
-```bash
-codex mcp add ocentra-enforcer -- node ~/tools/ocentra-enforcer/mcp/rust-rules-mcp.mjs
-codex mcp get ocentra-enforcer
-codex mcp list
-```
-
-Start a new Codex thread after adding the MCP server. If the tool does not
-appear, restart the Codex app.
 
 ## Manual Setup: `config.toml`
 
@@ -104,6 +116,7 @@ From the enforcer repo:
 ```powershell
 npm run mcp:smoke
 node E:/ocentra-enforcer/scripts/mcp-smoke.mjs --root C:/path/to/target-repo --profile strict --file Cargo.toml
+node E:/ocentra-enforcer/scripts/mcp-smoke.mjs --root C:/path/to/target-repo --profile strict --file Cargo.toml --framing ndjson
 ```
 
 Expected output includes:
@@ -191,9 +204,16 @@ compatibility, but its body tells Codex to use Ocentra Enforcer.
 
 `codex mcp list` does not show `ocentra-enforcer`:
 
-- Run `codex mcp add ...` again with an absolute path.
+- Run `node E:/ocentra-enforcer/scripts/rust-rules.mjs codex install --root C:/path/to/target-repo --profile strict`.
+- Run `node E:/ocentra-enforcer/scripts/rust-rules.mjs codex doctor --root C:/path/to/target-repo`.
 - Check `%USERPROFILE%\.codex\config.toml`.
 - Restart Codex.
+
+Server works but Codex still does not expose tools:
+
+- Run both `npm run mcp:smoke` and `npm run mcp:smoke:ndjson` from the Enforcer repo.
+- If smoke passes, the server protocol is healthy and the remaining issue is Codex app config/reload.
+- If only `mcp:smoke:ndjson` fails, report an MCP framing regression.
 
 MCP server starts but tools do not appear:
 

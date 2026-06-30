@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocentra.dev/schemas/ocentra-enforcer/codex-doctor-request.schema.json",
+  "title": "Ocentra Enforcer Codex Doctor Request",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "root": {
+      "type": "string"
+    },
+    "codexConfigPath": {
+      "type": "string"
+    },
+    "serverName": {
+      "type": "string"
+    }
+  }
+}

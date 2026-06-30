@@ -230,6 +230,21 @@ export const InitRequestSchema = Schema.Struct({
   force: OptionalBoolean,
 });
 
+export const CodexInstallRequestSchema = Schema.Struct({
+  root: OptionalString,
+  profile: OptionalString,
+  dryRun: OptionalBoolean,
+  force: OptionalBoolean,
+  codexConfigPath: OptionalString,
+  serverName: OptionalString,
+});
+
+export const CodexDoctorRequestSchema = Schema.Struct({
+  root: OptionalString,
+  codexConfigPath: OptionalString,
+  serverName: OptionalString,
+});
+
 export const ViolationSchema = Schema.Struct({
   ruleId: Schema.String,
   severity: Schema.optional(SeveritySchema),
@@ -401,6 +416,14 @@ export function decodeCheckToolArguments(value) {
 
 export function decodeInitRequest(value) {
   return decodeWithSchema(InitRequestSchema, value, 'init request');
+}
+
+export function decodeCodexInstallRequest(value) {
+  return decodeWithSchema(CodexInstallRequestSchema, value, 'codex install request');
+}
+
+export function decodeCodexDoctorRequest(value) {
+  return decodeWithSchema(CodexDoctorRequestSchema, value, 'codex doctor request');
 }
 
 export function decodeScanReport(value) {

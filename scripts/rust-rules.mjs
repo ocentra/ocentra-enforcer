@@ -10,6 +10,8 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
   ProductName,
+  decodeCodexDoctorRequest,
+  decodeCodexInstallRequest,
   decodeCheckToolArguments,
   decodeEnforcerConfig,
   decodeInitRequest,
@@ -18,6 +20,11 @@ import {
 import { routeRules } from '../src/routing.mjs';
 import { GENERIC_RULES, runGenericScan } from '../src/generic-scanners.mjs';
 import { CHECK_RULES, SCANNER_BACKED_CHECKS, normalizeCheckName, runStandaloneCheck } from '../src/checks.mjs';
+import {
+  applyCodexMcpInstallReport,
+  createCodexDoctorReport as buildCodexDoctorReport,
+  createCodexMcpInstallReport,
+} from '../src/codex-install.mjs';
 import {
   applyRulePolicy,
   normalizeFailOn,
@@ -338,7 +345,8 @@ Usage:
   ocentra-enforcer explain <RULE_ID>
   ocentra-enforcer run --root <repo> --tool <tool> -- <command...>
   ocentra-enforcer runs <list|summary|diagnostics|last-failure|artifact|prune|reset> [options]
-  ocentra-enforcer codex install --root <repo> [--dry-run]
+  ocentra-enforcer codex install --root <repo> --profile <profile> [--dry-run]
+  ocentra-enforcer codex doctor --root <repo>
 
 Compatibility aliases:
   rust-rules scan [options]
@@ -368,6 +376,10 @@ Init options:
   --adapters <list>       Comma-separated adapters: codex,mcp,precommit,github-actions,husky,lefthook,codeql,dependency-policy,secret-scan,sbom.
   --dry-run               Print exact file plan without writing.
   --force                 Allow init to overwrite existing target files.
+
+Codex install options:
+  --codex-config <path>   Codex global config path. Defaults to CODEX_HOME/config.toml or ~/.codex/config.toml.
+  --server-name <name>    MCP server name. Defaults to ocentra-enforcer.
 `;
 }
 
@@ -392,6 +404,8 @@ function defaultArgs() {
     checkName: null,
     checkConfigPath: null,
     output: null,
+    codexConfigPath: null,
+    mcpServerName: 'ocentra-enforcer',
     runsCommand: null,
     artifact: null,
     limit: null,
@@ -428,10 +442,14 @@ function parseArgs(argv) {
   }
   if (args.command === 'codex') {
     const codexCommand = tokens[0] && !tokens[0].startsWith('-') ? tokens.shift() : 'install';
-    if (codexCommand !== 'install') throw new Error(`Unknown codex command: ${codexCommand}`);
-    args.command = 'codex-install';
-    args.adapters = ['codex', 'mcp'];
-    args.dryRun = true;
+    if (codexCommand === 'install') {
+      args.command = 'codex-install';
+      args.adapters = ['codex', 'mcp'];
+    } else if (codexCommand === 'doctor') {
+      args.command = 'codex-doctor';
+    } else {
+      throw new Error(`Unknown codex command: ${codexCommand}`);
+    }
   }
 
   const explicitFiles = [];
@@ -457,6 +475,10 @@ function parseArgs(argv) {
       args.checkConfigPath = tokens[++i];
     } else if (arg === '--output') {
       args.output = tokens[++i];
+    } else if (arg === '--codex-config') {
+      args.codexConfigPath = tokens[++i];
+    } else if (arg === '--server-name') {
+      args.mcpServerName = tokens[++i];
     } else if (arg === '--artifact') {
       args.artifact = tokens[++i];
     } else if (arg === '--limit') {
@@ -623,6 +645,64 @@ function createInitReport(args) {
   };
 }
 
+function createCodexInstallReport(args) {
+  const request = decodeCodexInstallRequest({
+    root: path.resolve(args.root ?? process.cwd()),
+    profile: args.profile ?? 'strict',
+    dryRun: args.dryRun,
+    force: args.force,
+    codexConfigPath: args.codexConfigPath ?? undefined,
+    serverName: args.mcpServerName ?? undefined,
+  });
+  const target = createInitReport({
+    ...args,
+    root: request.root,
+    profile: request.profile ?? 'strict',
+    adapters: ['codex', 'mcp'],
+    dryRun: request.dryRun,
+    force: request.force,
+  });
+  const codexMcp = createCodexMcpInstallReport({
+    packRoot: PACK_ROOT,
+    codexConfigPath: request.codexConfigPath,
+    serverName: request.serverName ?? 'ocentra-enforcer',
+    dryRun: Boolean(request.dryRun),
+  });
+  return {
+    ok: target.ok && codexMcp.ok,
+    command: 'codex-install',
+    productName: ProductName,
+    root: target.root,
+    profile: target.profile,
+    dryRun: Boolean(request.dryRun),
+    force: Boolean(request.force),
+    target,
+    codexMcp,
+  };
+}
+
+function applyCodexInstallReport(report) {
+  if (!report.dryRun) {
+    applyInitReport(report.target);
+    report.codexMcp = applyCodexMcpInstallReport(report.codexMcp);
+  }
+  return report;
+}
+
+function createCodexDoctorReport(args) {
+  const request = decodeCodexDoctorRequest({
+    root: args.root ? path.resolve(args.root) : undefined,
+    codexConfigPath: args.codexConfigPath ?? undefined,
+    serverName: args.mcpServerName ?? undefined,
+  });
+  return buildCodexDoctorReport({
+    packRoot: PACK_ROOT,
+    root: request.root,
+    codexConfigPath: request.codexConfigPath,
+    serverName: request.serverName ?? 'ocentra-enforcer',
+  });
+}
+
 function expandAdapters(root, requestedAdapters) {
   const adapters = new Set(requestedAdapters.length > 0 ? requestedAdapters : DEFAULT_INIT_ADAPTERS);
   if (adapters.has('github-actions')) {
@@ -747,7 +827,7 @@ function mcpConfigTemplate() {
       mcpServers: {
         'ocentra-enforcer': {
           command: 'node',
-          args: [path.join(PACK_ROOT, 'mcp', 'rust-rules-mcp.mjs')],
+          args: [toPosix(path.join(PACK_ROOT, 'mcp', 'rust-rules-mcp.mjs'))],
         },
       },
     },
@@ -787,6 +867,41 @@ function printInitReport(report) {
   for (const file of report.files) {
     console.log(`${file.action} ${file.path} (${file.adapter})`);
   }
+}
+
+function printCodexInstallReport(report) {
+  console.log(`Ocentra Enforcer Codex install for ${report.root}`);
+  console.log(`Profile: ${report.profile}`);
+  console.log(`Dry run: ${report.dryRun ? 'yes' : 'no'}`);
+  console.log('');
+  console.log('Target repo wiring:');
+  for (const file of report.target.files) {
+    console.log(`${file.action} ${file.path} (${file.adapter})`);
+  }
+  console.log('');
+  console.log('Codex global MCP:');
+  const action = report.codexMcp.changed ? (report.dryRun ? 'would-write' : 'write') : 'skip-existing';
+  console.log(`${action} ${report.codexMcp.codexConfigPath}`);
+  console.log(`server ${report.codexMcp.serverName}: node ${report.codexMcp.serverPath}`);
+  if (report.codexMcp.backupPath) console.log(`backup ${report.codexMcp.backupPath}`);
+  for (const check of report.codexMcp.checks) {
+    console.log(`${check.ok ? 'PASS' : 'FAIL'} ${check.name}: ${check.detail}`);
+  }
+  console.log('');
+  console.log('Restart Codex Desktop or start a new Codex thread after install so the MCP server list refreshes.');
+}
+
+function printCodexDoctorReport(report) {
+  console.log(`Ocentra Enforcer Codex doctor: ${report.ok ? 'PASS' : 'FAIL'}`);
+  console.log(`Pack: ${report.packRoot}`);
+  if (report.root) console.log(`Target: ${report.root}`);
+  console.log(`Codex config: ${report.codexConfigPath}`);
+  for (const check of report.checks) {
+    const label = check.ok ? 'PASS' : check.severity === 'warning' ? 'WARN' : 'FAIL';
+    console.log(`${label} ${check.name}: ${check.detail}`);
+  }
+  console.log('');
+  for (const step of report.nextSteps) console.log(`next: ${step}`);
 }
 
 function normalizeRel(root, filePath) {
@@ -2044,11 +2159,17 @@ if (isMainModule()) {
     }
 
     if (args.command === 'codex-install') {
-      const report = createInitReport({ ...args, adapters: args.adapters ?? ['codex', 'mcp'] });
-      if (!report.dryRun) applyInitReport(report);
+      const report = applyCodexInstallReport(createCodexInstallReport(args));
       if (args.json) console.log(JSON.stringify(report, null, 2));
-      else printInitReport(report);
+      else printCodexInstallReport(report);
       process.exit(0);
+    }
+
+    if (args.command === 'codex-doctor') {
+      const report = createCodexDoctorReport(args);
+      if (args.json) console.log(JSON.stringify(report, null, 2));
+      else printCodexDoctorReport(report);
+      process.exit(report.ok ? 0 : 1);
     }
 
     const root = path.resolve(args.root);

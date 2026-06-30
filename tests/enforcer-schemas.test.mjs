@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 import {
+  decodeCodexDoctorRequest,
+  decodeCodexInstallRequest,
   decodeCheckReport,
   decodeCheckToolArguments,
   decodeEnforcerConfig,
@@ -47,6 +49,22 @@ test('Effect Schema decodes valid registry, config, route, init, and reports', (
 
   const init = decodeInitRequest({ root: PACK_ROOT, profile: 'strict', adapters: ['codex', 'mcp', 'precommit'], dryRun: true });
   assert.equal(init.dryRun, true);
+
+  const codexInstall = decodeCodexInstallRequest({
+    root: PACK_ROOT,
+    profile: 'strict',
+    dryRun: true,
+    codexConfigPath: path.join(PACK_ROOT, 'tmp', 'config.toml'),
+    serverName: 'ocentra-enforcer',
+  });
+  assert.equal(codexInstall.serverName, 'ocentra-enforcer');
+
+  const codexDoctor = decodeCodexDoctorRequest({
+    root: PACK_ROOT,
+    codexConfigPath: path.join(PACK_ROOT, 'tmp', 'config.toml'),
+    serverName: 'ocentra-enforcer',
+  });
+  assert.equal(codexDoctor.serverName, 'ocentra-enforcer');
 
   const routeReport = decodeRouteReport({
     ok: true,
@@ -150,6 +168,8 @@ test('Effect Schema decodes valid registry, config, route, init, and reports', (
 test('Effect Schema rejects invalid external payloads with useful labels', () => {
   assert.throws(() => decodeRouteRequest({ files: 'src/lib.rs' }), /route request schema validation failed/u);
   assert.throws(() => decodeInitRequest({ adapters: ['husky', 'unknown'] }), /init request schema validation failed/u);
+  assert.throws(() => decodeCodexInstallRequest({ dryRun: 'yes' }), /codex install request schema validation failed/u);
+  assert.throws(() => decodeCodexDoctorRequest({ serverName: 42 }), /codex doctor request schema validation failed/u);
   assert.throws(() => decodeCheckToolArguments({ check: 'not-real' }), /check tool arguments schema validation failed/u);
   assert.throws(() => decodeRunToolArguments({ command: 'node --version' }), /run tool arguments schema validation failed/u);
   assert.throws(
@@ -167,6 +187,8 @@ test('Effect Schema rejects invalid external payloads with useful labels', () =>
 test('JSON-schema-compatible artifacts are present for non-Effect consumers', () => {
   const schemas = [
     ['schemas/json/enforcer-config.schema.json', 'https://ocentra.dev/schemas/ocentra-enforcer/enforcer-config.schema.json'],
+    ['schemas/json/codex-install-request.schema.json', 'https://ocentra.dev/schemas/ocentra-enforcer/codex-install-request.schema.json'],
+    ['schemas/json/codex-doctor-request.schema.json', 'https://ocentra.dev/schemas/ocentra-enforcer/codex-doctor-request.schema.json'],
     ['schemas/json/check-tool-arguments.schema.json', 'https://ocentra.dev/schemas/ocentra-enforcer/check-tool-arguments.schema.json'],
     ['schemas/json/check-report.schema.json', 'https://ocentra.dev/schemas/ocentra-enforcer/check-report.schema.json'],
     ['schemas/json/route-request.schema.json', 'https://ocentra.dev/schemas/ocentra-enforcer/route-request.schema.json'],

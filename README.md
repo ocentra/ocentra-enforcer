@@ -79,6 +79,8 @@ npm test
 npm run test:rules
 npm run test:mcp
 npm run enforcer:init:dry-run
+npm run codex:install:dry-run
+npm run codex:doctor
 npm run enforcer:rules:scan
 npm run enforcer:rules
 ```
@@ -87,6 +89,9 @@ Direct CLI forms:
 
 ```bash
 node scripts/rust-rules.mjs init --root C:/path/to/repo --profile strict --adapters codex,mcp,precommit,github-actions --dry-run
+node scripts/rust-rules.mjs codex install --root C:/path/to/repo --profile strict --dry-run
+node scripts/rust-rules.mjs codex install --root C:/path/to/repo --profile strict
+node scripts/rust-rules.mjs codex doctor --root C:/path/to/repo
 node scripts/rust-rules.mjs scan --root C:/path/to/repo --files src/lib.rs
 node scripts/rust-rules.mjs scan --root C:/path/to/repo --crate my-crate
 node scripts/rust-rules.mjs scan --root C:/path/to/repo --workspace
@@ -128,7 +133,22 @@ Use [docs/CODEX_SETUP.md](docs/CODEX_SETUP.md) for MCP and skill wiring, and
 For Ocentra Parent migration status, see
 [docs/OCENTRA_PARENT_PARITY.md](docs/OCENTRA_PARENT_PARITY.md).
 
-Run init from the enforcer install path and pass the target repo explicitly:
+Run the Codex installer from the enforcer install path and pass the target repo
+explicitly:
+
+```bash
+ocentra-enforcer codex install --root C:/path/to/repo --profile strict --dry-run
+ocentra-enforcer codex install --root C:/path/to/repo --profile strict
+ocentra-enforcer codex doctor --root C:/path/to/repo
+```
+
+This writes target repo Codex/MCP wiring and updates Codex Desktop's global
+`config.toml` with an `ocentra-enforcer` MCP server. Existing Codex config is
+backed up before it is changed. The installer writes TOML directly because
+`codex mcp add` behavior can vary by app/CLI version and has been the most
+common setup failure.
+
+For hooks and CI adapters, run init separately:
 
 ```bash
 ocentra-enforcer init --root C:/path/to/repo --profile strict --adapters codex,mcp,precommit,github-actions --dry-run
@@ -175,8 +195,9 @@ Legacy `rust_rules_*` MCP tool aliases remain for one Rust-pack compatibility
 release.
 
 MCP setup is intentionally documented in detail because path mistakes are the
-most common failure. Run `npm run mcp:smoke` from this repo to verify the MCP
-server before blaming Codex.
+most common failure. Run `npm run mcp:smoke`, `npm run mcp:smoke:ndjson`, and
+`npm run codex:doctor` from this repo to separate MCP server protocol failures
+from Codex app config failures before blaming the rules engine.
 
 ## Indexed Rules
 
@@ -233,7 +254,9 @@ before opening raw artifacts.
 
 - `scripts/rust-rules.mjs`: CLI compatibility entrypoint, Rust scanner, generic scanner integration, init, route, and harness command handling.
 - `mcp/rust-rules-mcp.mjs`: MCP stdio server with canonical `ocentra_enforcer_*` tools and legacy `rust_rules_*` aliases.
+- `server.json`: MCP server manifest for registries and future package/plugin consumers.
 - `src/`: reusable routing, generic scanner, migrated check, path, and harness modules.
+- `src/codex-install.mjs`: Codex Desktop MCP config installer with idempotent TOML upsert and backup-before-write.
 - `schemas/effect/enforcer-schemas.mjs`: Effect Schema contract source for configs, profiles, registry, route requests, reports, violations, init, runs, diagnostics, and MCP payloads.
 - `schemas/json/*.schema.json`: JSON-schema-compatible contract artifacts.
 - `rules/INDEX.md`: agent-facing routing index.
@@ -244,6 +267,7 @@ before opening raw artifacts.
 - `docs/CODEX_SETUP.md`: Codex MCP registration, manual config fallback, skill setup, and troubleshooting.
 - `docs/TARGET_REPO_WIRING.md`: how a target repo calls the external enforcer.
 - `docs/BOOTSTRAP_PROMPT.md`: copy-paste prompt for a future Codex to install and wire the enforcer.
+- `docs/INSTALL_REFERENCE_LESSONS.md`: install lessons adopted from the codebase-memory-mcp setup pattern and remaining public-packaging gaps.
 - `profiles/ocentra-parent.json`: migrated Ocentra Parent strict Rust profile.
 - `rust-rules.config.json`: legacy strict default profile file, still supported.
 

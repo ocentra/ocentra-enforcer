@@ -19,7 +19,7 @@ server.stderr.on('data', (chunk) => {
   stderr += chunk.toString('utf8');
 });
 
-const client = createClient(server);
+const client = createClient(server, args.framing);
 
 try {
   const initialized = await client.request('initialize', {
@@ -95,23 +95,26 @@ function parseArgs(argv) {
     root: process.cwd(),
     profile: 'strict',
     file: 'Cargo.toml',
+    framing: 'content-length',
   };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--root') parsed.root = argv[++i] ?? parsed.root;
     else if (arg === '--profile') parsed.profile = argv[++i] ?? parsed.profile;
     else if (arg === '--file') parsed.file = argv[++i] ?? parsed.file;
+    else if (arg === '--framing') parsed.framing = argv[++i] ?? parsed.framing;
     else if (arg === '--help' || arg === '-h') {
-      console.log('Usage: node scripts/mcp-smoke.mjs --root <target-repo> --profile <profile> --file <path>');
+      console.log('Usage: node scripts/mcp-smoke.mjs --root <target-repo> --profile <profile> --file <path> [--framing content-length|ndjson]');
       process.exit(0);
     } else {
       throw new Error(`Unknown argument: ${arg}`);
     }
   }
+  if (!['content-length', 'ndjson'].includes(parsed.framing)) throw new Error(`Unknown MCP framing: ${parsed.framing}`);
   return parsed;
 }
 
-function createClient(child) {
+function createClient(child, framing) {
   let nextId = 1;
   let output = Buffer.alloc(0);
   const received = new Map();
@@ -137,11 +140,11 @@ function createClient(child) {
     request(method, params) {
       const id = nextId;
       nextId += 1;
-      child.stdin.write(encodeFrame({ jsonrpc: '2.0', id, method, params }));
+      child.stdin.write(encodeFrame({ jsonrpc: '2.0', id, method, params }, framing));
       return waitFor(id);
     },
     notify(method, params) {
-      child.stdin.write(encodeFrame({ jsonrpc: '2.0', method, params }));
+      child.stdin.write(encodeFrame({ jsonrpc: '2.0', method, params }, framing));
     },
   };
 
@@ -166,6 +169,14 @@ function createClient(child) {
   }
 
   function readFrame() {
+    if (framing === 'ndjson') {
+      const lineEnd = output.indexOf('\n');
+      if (lineEnd === -1) return null;
+      const body = output.slice(0, lineEnd).toString('utf8').replace(/\r$/u, '');
+      output = output.slice(lineEnd + 1);
+      return body;
+    }
+
     const crlfHeaderEnd = output.indexOf('\r\n\r\n');
     const lfHeaderEnd = output.indexOf('\n\n');
     let headerEnd = -1;
@@ -191,7 +202,8 @@ function createClient(child) {
   }
 }
 
-function encodeFrame(message) {
+function encodeFrame(message, framing) {
   const body = JSON.stringify(message);
+  if (framing === 'ndjson') return `${body}\n`;
   return `Content-Length: ${Buffer.byteLength(body, 'utf8')}\r\n\r\n${body}`;
 }

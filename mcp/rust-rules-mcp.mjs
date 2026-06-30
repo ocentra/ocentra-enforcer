@@ -273,11 +273,21 @@ function processInputFrames() {
   while (inputBuffer.length > 0) {
     const frame = readFrame();
     if (frame === null) return;
-    handleRawMessage(frame);
+    if (frame.body.trim().length === 0) continue;
+    handleRawMessage(frame.body, frame.framing);
   }
 }
 
 function readFrame() {
+  const prefix = inputBuffer.slice(0, Math.min(inputBuffer.length, 64)).toString('utf8').trimStart();
+  if (!prefix.toLowerCase().startsWith('content-length:')) {
+    const lineEnd = inputBuffer.indexOf('\n');
+    if (lineEnd === -1) return null;
+    const body = inputBuffer.slice(0, lineEnd).toString('utf8').replace(/\r$/u, '');
+    inputBuffer = inputBuffer.slice(lineEnd + 1);
+    return { body, framing: 'ndjson' };
+  }
+
   const crlfHeaderEnd = inputBuffer.indexOf('\r\n\r\n');
   const lfHeaderEnd = inputBuffer.indexOf('\n\n');
   let headerEnd = -1;
@@ -304,28 +314,28 @@ function readFrame() {
 
   const body = inputBuffer.slice(messageStart, messageEnd).toString('utf8');
   inputBuffer = inputBuffer.slice(messageEnd);
-  return body;
+  return { body, framing: 'content-length' };
 }
 
-function handleRawMessage(raw) {
+function handleRawMessage(raw, framing) {
   let message;
   try {
     message = JSON.parse(raw);
   } catch (error) {
-    sendError(null, -32700, `Parse error: ${error.message}`);
+    sendError(null, -32700, `Parse error: ${error.message}`, framing);
     return;
   }
 
   Promise.resolve()
-    .then(() => handleMessage(message))
+    .then(() => handleMessage(message, framing))
     .catch((error) => {
       if (message.id !== undefined) {
-        sendError(message.id, -32603, error instanceof Error ? error.message : String(error));
+        sendError(message.id, -32603, error instanceof Error ? error.message : String(error), framing);
       }
     });
 }
 
-async function handleMessage(message) {
+async function handleMessage(message, framing) {
   if (message.id === undefined && String(message.method ?? '').startsWith('notifications/')) return;
 
   switch (message.method) {
@@ -337,22 +347,31 @@ async function handleMessage(message) {
           name: PACKAGE_JSON.name,
           version: PACKAGE_JSON.version,
         },
-      });
+      }, framing);
       return;
     case 'ping':
-      sendResult(message.id, {});
+      sendResult(message.id, {}, framing);
       return;
     case 'tools/list':
-      sendResult(message.id, { tools: TOOLS });
+      sendResult(message.id, { tools: TOOLS }, framing);
       return;
     case 'tools/call':
-      sendResult(message.id, callTool(message.params ?? {}));
+      sendResult(message.id, callTool(message.params ?? {}), framing);
+      return;
+    case 'resources/list':
+      sendResult(message.id, { resources: [] }, framing);
+      return;
+    case 'resources/templates/list':
+      sendResult(message.id, { resourceTemplates: [] }, framing);
+      return;
+    case 'prompts/list':
+      sendResult(message.id, { prompts: [] }, framing);
       return;
     case 'shutdown':
-      sendResult(message.id, null);
+      sendResult(message.id, null, framing);
       return;
     default:
-      sendError(message.id, -32601, `Unknown method: ${message.method}`);
+      sendError(message.id, -32601, `Unknown method: ${message.method}`, framing);
   }
 }
 
@@ -599,15 +618,19 @@ function scopeArgs(args) {
   return ['--workspace'];
 }
 
-function sendResult(id, result) {
-  send({ jsonrpc: '2.0', id, result });
+function sendResult(id, result, framing) {
+  send({ jsonrpc: '2.0', id, result }, framing);
 }
 
-function sendError(id, code, message) {
-  send({ jsonrpc: '2.0', id, error: { code, message } });
+function sendError(id, code, message, framing) {
+  send({ jsonrpc: '2.0', id, error: { code, message } }, framing);
 }
 
-function send(message) {
+function send(message, framing = 'content-length') {
   const body = JSON.stringify(message);
-  process.stdout.write(`Content-Length: ${Buffer.byteLength(body, 'utf8')}\r\n\r\n${body}`);
+  if (framing === 'ndjson') {
+    process.stdout.write(`${body}\n`);
+  } else {
+    process.stdout.write(`Content-Length: ${Buffer.byteLength(body, 'utf8')}\r\n\r\n${body}`);
+  }
 }

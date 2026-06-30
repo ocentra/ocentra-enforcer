@@ -237,7 +237,33 @@ test('MCP server lists tools, explains rules, and scans a scoped file', async (t
   assert.equal(lastFailureReport.diagnostics.some((diagnostic) => diagnostic.ruleId === 'TS1005'), true);
 });
 
-function createMcpClient(server) {
+test('MCP server supports newline JSON framing and empty Codex probe methods', async (t) => {
+  const launcherRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ocentra-enforcer-mcp-ndjson-'));
+  const server = spawn(process.execPath, [SERVER_PATH], {
+    cwd: launcherRoot,
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  t.after(() => {
+    server.kill();
+  });
+
+  const client = createMcpClient(server, 'ndjson');
+  const initialized = await client.request(1, 'initialize', {
+    protocolVersion: '2025-06-18',
+    capabilities: {},
+  });
+  assert.equal(initialized.result.serverInfo.name, 'ocentra-enforcer');
+  const resources = await client.request(2, 'resources/list', {});
+  assert.deepEqual(resources.result.resources, []);
+  const resourceTemplates = await client.request(3, 'resources/templates/list', {});
+  assert.deepEqual(resourceTemplates.result.resourceTemplates, []);
+  const prompts = await client.request(4, 'prompts/list', {});
+  assert.deepEqual(prompts.result.prompts, []);
+  const tools = await client.request(5, 'tools/list', {});
+  assert.equal(tools.result.tools.some((tool) => tool.name === 'ocentra_enforcer_route'), true);
+});
+
+function createMcpClient(server, framing = 'content-length') {
   let output = Buffer.alloc(0);
   const received = new Map();
   const waiters = new Map();
@@ -265,11 +291,11 @@ function createMcpClient(server) {
 
   return {
     request(id, method, params) {
-      server.stdin.write(encodeFrame({ jsonrpc: '2.0', id, method, params }));
+      server.stdin.write(encodeFrame({ jsonrpc: '2.0', id, method, params }, framing));
       return waitFor(id);
     },
     notify(method, params) {
-      server.stdin.write(encodeFrame({ jsonrpc: '2.0', method, params }));
+      server.stdin.write(encodeFrame({ jsonrpc: '2.0', method, params }, framing));
     },
   };
 
@@ -294,6 +320,14 @@ function createMcpClient(server) {
   }
 
   function readFrame() {
+    if (framing === 'ndjson') {
+      const lineEnd = output.indexOf('\n');
+      if (lineEnd === -1) return null;
+      const body = output.slice(0, lineEnd).toString('utf8').replace(/\r$/u, '');
+      output = output.slice(lineEnd + 1);
+      return body;
+    }
+
     const headerEnd = output.indexOf('\r\n\r\n');
     if (headerEnd === -1) return null;
     const header = output.slice(0, headerEnd).toString('utf8');
@@ -309,7 +343,8 @@ function createMcpClient(server) {
   }
 }
 
-function encodeFrame(message) {
+function encodeFrame(message, framing) {
   const body = JSON.stringify(message);
+  if (framing === 'ndjson') return `${body}\n`;
   return `Content-Length: ${Buffer.byteLength(body, 'utf8')}\r\n\r\n${body}`;
 }

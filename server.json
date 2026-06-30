@@ -1,0 +1,22 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.ocentra/ocentra-enforcer",
+  "title": "Ocentra Enforcer",
+  "description": "Indexed rules, hard validation gates, and compact diagnostics for AI and human code changes.",
+  "repository": {
+    "url": "https://github.com/ocentra/ocentra-enforcer",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "ocentra-enforcer",
+      "version": "0.1.0",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

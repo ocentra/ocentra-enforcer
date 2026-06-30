@@ -23,27 +23,29 @@ Tasks:
 1. Clone https://github.com/ocentra/ocentra-enforcer to the install location if it does not exist.
 2. Run npm install in the enforcer repo.
 3. Run npm test, npm run rust:rules:scan, npm run rust:rules, and npm run mcp:smoke.
-4. Register the MCP server with Codex:
-   codex mcp add ocentra-enforcer -- node <ENFORCER_PATH>/mcp/rust-rules-mcp.mjs
-5. Verify:
-   codex mcp get ocentra-enforcer
+4. Run Codex install dry-run:
+   node <ENFORCER_PATH>/scripts/rust-rules.mjs codex install --root <TARGET_REPO> --profile <PROFILE> --dry-run
+5. If the plan is correct, run the non-dry-run installer:
+   node <ENFORCER_PATH>/scripts/rust-rules.mjs codex install --root <TARGET_REPO> --profile <PROFILE>
+6. Verify the global MCP registry and target wiring:
+   node <ENFORCER_PATH>/scripts/rust-rules.mjs codex doctor --root <TARGET_REPO>
    codex mcp list
-6. If codex mcp add is unavailable, edit ~/.codex/config.toml or %USERPROFILE%\.codex\config.toml manually with:
-   [mcp_servers.ocentra-enforcer]
-   command = "node"
-   args = ["<ENFORCER_PATH>/mcp/rust-rules-mcp.mjs"]
-   startup_timeout_sec = 20
-   enabled = true
-7. Run:
+   If local CLI config parsing is blocked by unrelated config settings, use:
+   codex -c service_tier='"fast"' mcp list
+7. Restart Codex Desktop or start a new thread so the app reloads MCP servers.
+8. Run:
    node <ENFORCER_PATH>/scripts/mcp-smoke.mjs --root <TARGET_REPO> --profile <PROFILE> --file Cargo.toml
-8. Run target dry-run:
-   node <ENFORCER_PATH>/scripts/rust-rules.mjs init --root <TARGET_REPO> --profile <PROFILE> --adapters codex,mcp,precommit,github-actions --dry-run
-9. Do not write target repo files until the dry-run plan is reviewed.
-10. After approval, run the non-dry-run init or manually add only the requested target wiring.
+   node <ENFORCER_PATH>/scripts/mcp-smoke.mjs --root <TARGET_REPO> --profile <PROFILE> --file Cargo.toml --framing ndjson
+9. For hooks and CI, run target adapter dry-run:
+   node <ENFORCER_PATH>/scripts/rust-rules.mjs init --root <TARGET_REPO> --profile <PROFILE> --adapters precommit,github-actions --dry-run
+10. Do not write hook or CI files until the dry-run plan is reviewed.
 
 Rules:
 - The MCP server runs from the enforcer install path.
 - The target repo is always passed as root.
+- The installer updates Codex config directly and creates a backup before writing.
+- `codex doctor` verifies global config separately from MCP server smoke.
+- `mcp-smoke --framing ndjson` exists because some Codex MCP transports use newline JSON rather than Content-Length frames.
 - Use profile for pack-owned policy.
 - Use configPath for target-owned policy.
 - Do not copy enforcer source into the target repo.
