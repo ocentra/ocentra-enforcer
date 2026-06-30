@@ -948,6 +948,8 @@ test("coordination CLI supports state-root and public claim/release flags", () =
       "portable-hub",
       "--lane",
       "codex-a",
+      "--root",
+      targetRoot,
       "--paths",
       "docs/proof.md",
       "--reason",
