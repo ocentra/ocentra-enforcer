@@ -364,6 +364,33 @@ test('doctor reports usable scope', () => {
   assert.match(result.stdout, /PASS scope files/u);
 });
 
+test('CLI --profile resolves pack-owned profile config', () => {
+  const project = makeProject({
+    'src/lib.rs': 'pub struct UserId;\n',
+  });
+  const result = runGateArgs(project, ['doctor', '--json', '--profile', 'ocentra-parent', '--files', 'src/lib.rs']);
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.profileName, 'ocentra-parent');
+});
+
+test('CLI auto-loads target config when no profile or config is explicit', () => {
+  const project = makeProject({
+    'src/lib.rs': 'pub struct UserId;\n',
+    'ocentra-enforcer.config.json': JSON.stringify({
+      schemaVersion: 2,
+      profileName: 'target-project',
+      enforceWorkspaceFiles: false,
+      requireCargoDeny: false,
+      rustRoots: ['src'],
+    }),
+  });
+  const result = runGateArgs(project, ['doctor', '--json', '--files', 'src/lib.rs']);
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.profileName, 'target-project');
+});
+
 test('ocentra-enforcer init dry-run reports exact adapter file plan without writing', () => {
   const project = fs.mkdtempSync(path.join(os.tmpdir(), 'ocentra-enforcer-init-'));
   const result = spawnSync(
@@ -396,6 +423,7 @@ test('ocentra-enforcer init dry-run reports exact adapter file plan without writ
       '.github/workflows/ocentra-enforcer.yml',
       '.github/workflows/sbom.yml',
       '.github/workflows/secret-scan.yml',
+      '.gitignore',
       '.mcp.json',
       'ocentra-enforcer.config.json',
     ]

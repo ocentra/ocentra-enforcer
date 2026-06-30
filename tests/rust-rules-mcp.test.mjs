@@ -29,19 +29,28 @@ test('MCP server lists tools, explains rules, and scans a scoped file', async (t
   client.notify('notifications/initialized', {});
 
   const tools = await client.request(2, 'tools/list', {});
-  assert.deepEqual(
-    tools.result.tools.map((tool) => tool.name).sort(),
-    [
-      'ocentra_enforcer_doctor',
-      'ocentra_enforcer_explain',
-      'ocentra_enforcer_route',
-      'ocentra_enforcer_scan',
-      'rust_rules_doctor',
-      'rust_rules_explain',
-      'rust_rules_route',
-      'rust_rules_scan',
-    ]
-  );
+  const toolNames = tools.result.tools.map((tool) => tool.name).sort();
+  for (const expectedTool of [
+    'ocentra_enforcer_doctor',
+    'ocentra_enforcer_explain',
+    'ocentra_enforcer_check',
+    'ocentra_enforcer_route',
+    'ocentra_enforcer_scan',
+    'ocentra_enforcer_run',
+    'ocentra_enforcer_run_status',
+    'ocentra_enforcer_diagnostics',
+    'ocentra_enforcer_last_failure',
+    'ocentra_enforcer_artifact',
+    'ocentra_enforcer_prune_runs',
+    'ocentra_enforcer_reset_runs',
+    'rust_rules_doctor',
+    'rust_rules_explain',
+    'rust_rules_check',
+    'rust_rules_route',
+    'rust_rules_scan',
+  ]) {
+    assert.equal(toolNames.includes(expectedTool), true, `missing MCP tool ${expectedTool}`);
+  }
 
   const explain = await client.request(3, 'tools/call', {
     name: 'ocentra_enforcer_explain',
@@ -103,6 +112,9 @@ test('MCP server lists tools, explains rules, and scans a scoped file', async (t
   assert.deepEqual(
     routeReport.docs.sort(),
     [
+      'rules/common/documentation.md#covered-rules',
+      'rules/common/security.md#covered-rules',
+      'rules/common/source.md#covered-rules',
       'rules/rust/async-runtime.md#covered-rules',
       'rules/rust/domain.md#covered-rules',
       'rules/rust/imports-modules.md#covered-rules',
@@ -123,9 +135,22 @@ test('MCP server lists tools, explains rules, and scans a scoped file', async (t
   });
   const cargoRouteReport = JSON.parse(cargoRoute.result.content[0].text);
   assert.deepEqual(cargoRouteReport.docs.sort(), [
+    'rules/common/security.md#covered-rules',
     'rules/rust/dependencies.md#covered-rules',
     'rules/rust/toolchain-cargo.md#covered-rules',
   ]);
+
+  const tsRoute = await client.request(60, 'tools/call', {
+    name: 'ocentra_enforcer_route',
+    arguments: {
+      root: tempRoot,
+      scope: 'files',
+      files: ['src/index.ts', 'tests/example.test.ts'],
+    },
+  });
+  const tsRouteReport = JSON.parse(tsRoute.result.content[0].text);
+  assert.equal(tsRouteReport.docs.includes('rules/typescript/source.md#covered-rules'), true);
+  assert.equal(tsRouteReport.docs.includes('rules/typescript/tests.md#covered-rules'), true);
 
   const explicitRoute = await client.request(7, 'tools/call', {
     name: 'ocentra_enforcer_route',
@@ -162,6 +187,21 @@ test('MCP server lists tools, explains rules, and scans a scoped file', async (t
   assert.equal(doctor.result.isError, false);
   assert.match(doctor.result.content[0].text, /"profileName": "ocentra-parent"/u);
 
+  fs.writeFileSync(path.join(tempRoot, 'src', 'schema.ts'), ['import { z } from "zo', 'd";\nexport const value = z.string();\n'].join(''));
+  const check = await client.request(90, 'tools/call', {
+    name: 'ocentra_enforcer_check',
+    arguments: {
+      root: tempRoot,
+      check: 'no-zod-source',
+      scope: 'files',
+      files: ['src/schema.ts'],
+    },
+  });
+  assert.equal(check.result.isError, true);
+  const checkReport = JSON.parse(check.result.content[0].text);
+  assert.equal(checkReport.check, 'no-zod-source');
+  assert.deepEqual([...new Set(checkReport.violations.map((violation) => violation.ruleId))], ['TS-1.2']);
+
   const invalidRoute = await client.request(10, 'tools/call', {
     name: 'ocentra_enforcer_route',
     arguments: {
@@ -172,6 +212,29 @@ test('MCP server lists tools, explains rules, and scans a scoped file', async (t
   });
   assert.equal(invalidRoute.result.isError, true);
   assert.match(invalidRoute.result.content[0].text, /route request schema validation failed/u);
+
+  const harnessRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ocentra-enforcer-mcp-harness-'));
+  const harnessRun = await client.request(11, 'tools/call', {
+    name: 'ocentra_enforcer_run',
+    arguments: {
+      root: harnessRoot,
+      tool: 'tsc',
+      command: [process.execPath, '-e', 'console.error("src/app.ts(2,1): error TS1005: ; expected."); process.exit(1);'],
+    },
+  });
+  assert.equal(harnessRun.result.isError, true);
+  const harnessReport = JSON.parse(harnessRun.result.content[0].text);
+  assert.equal(harnessReport.summary.status, 'failed');
+
+  const lastFailure = await client.request(12, 'tools/call', {
+    name: 'ocentra_enforcer_last_failure',
+    arguments: {
+      root: harnessRoot,
+    },
+  });
+  const lastFailureReport = JSON.parse(lastFailure.result.content[0].text);
+  assert.equal(lastFailureReport.found, true);
+  assert.equal(lastFailureReport.diagnostics.some((diagnostic) => diagnostic.ruleId === 'TS1005'), true);
 });
 
 function createMcpClient(server) {

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocentra.dev/schemas/ocentra-enforcer/run-report.schema.json",
+  "title": "Ocentra Enforcer Run Report",
+  "type": "object",
+  "required": ["ok", "summary", "diagnostics"],
+  "additionalProperties": false,
+  "properties": {
+    "ok": { "type": "boolean" },
+    "summary": {
+      "type": "object",
+      "required": ["runId", "root", "profile", "tool", "language", "command", "status", "exitCode", "startedAt", "endedAt", "diagnosticCount", "artifacts"],
+      "additionalProperties": true,
+      "properties": {
+        "runId": { "type": "string" },
+        "root": { "type": "string" },
+        "profile": { "type": "string" },
+        "tool": { "type": "string" },
+        "language": { "enum": ["rust", "typescript", "python", "common"] },
+        "cwd": { "type": "string" },
+        "crateName": { "type": ["string", "null"] },
+        "packageName": { "type": ["string", "null"] },
+        "domain": { "type": ["string", "null"] },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "command": { "type": "array", "items": { "type": "string" } },
+        "status": { "enum": ["passed", "failed"] },
+        "exitCode": { "type": "number" },
+        "startedAt": { "type": "string" },
+        "endedAt": { "type": "string" },
+        "diagnosticCount": { "type": "number" },
+        "artifacts": { "type": "object", "additionalProperties": { "type": "string" } },
+        "storage": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": { "$ref": "diagnostic.schema.json" }
+    }
+  }
+}

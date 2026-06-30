@@ -9,12 +9,17 @@ import process from 'node:process';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
+  decodeCheckToolArguments,
   decodeDoctorToolArguments,
   decodeExplainToolArguments,
   decodeRouteRequest,
   decodeRuleRegistry,
+  decodeRunQueryArguments,
+  decodeRunToolArguments,
   decodeScanToolArguments,
 } from '../schemas/effect/enforcer-schemas.mjs';
+import { routeRules as buildRouteReport } from '../src/routing.mjs';
+import { lastFailure, listRuns, pruneRuns, readArtifact, resetRuns, runDiagnostics, runHarness, runSummary } from '../src/harness.mjs';
 
 const MCP_PROTOCOL_VERSION = '2025-06-18';
 const SERVER_ROOT = path.resolve(path.join(path.dirname(fileURLToPath(import.meta.url)), '..'));
@@ -54,6 +59,11 @@ const COMMON_INPUT_SCHEMA = {
       type: 'string',
       description: 'Cargo package name for crate scope.',
     },
+    languages: {
+      type: 'array',
+      items: { type: 'string', enum: ['rust', 'typescript', 'python', 'common'] },
+      description: 'Optional scan languages. Defaults to the target config/profile.',
+    },
     base: {
       type: 'string',
       description: 'Base git ref for diff scope.',
@@ -64,6 +74,29 @@ const COMMON_INPUT_SCHEMA = {
     },
   },
 };
+
+function runQueryInputSchema() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      root: COMMON_INPUT_SCHEMA.properties.root,
+      runId: { type: 'string', description: 'Optional run id. Defaults to the latest run.' },
+      limit: { type: 'number', description: 'Maximum run or diagnostic rows to return.' },
+      diagnosticLimit: { type: 'number', description: 'Maximum diagnostics for last-failure.' },
+      severity: { type: 'string', enum: ['error', 'warning', 'info'] },
+      status: { type: 'string', enum: ['passed', 'failed'], description: 'Optional run status filter.' },
+      file: { type: 'string', description: 'Optional file filter for diagnostics.' },
+      tool: { type: 'string', description: 'Optional logical tool filter.' },
+      crateName: { type: 'string', description: 'Optional Cargo crate/package metadata filter.' },
+      packageName: { type: 'string', description: 'Optional JS/Python package metadata filter.' },
+      domain: { type: 'string', description: 'Optional domain metadata filter.' },
+      tag: { type: 'string', description: 'Optional run tag filter.' },
+      artifact: { type: 'string', enum: ['stdout', 'stderr', 'diagnostics', 'events'] },
+      limitBytes: { type: 'number', description: 'Maximum artifact bytes to return.' },
+    },
+  };
+}
 
 const CANONICAL_TOOLS = [
   {
@@ -82,7 +115,7 @@ const CANONICAL_TOOLS = [
   },
   {
     name: 'ocentra_enforcer_scan',
-    description: 'Run deterministic Rust source/config/dependency scanner by workspace, files, crate, or diff scope.',
+    description: 'Run deterministic Ocentra Enforcer scanner by workspace, files, crate, or diff scope.',
     inputSchema: {
       ...COMMON_INPUT_SCHEMA,
       properties: {
@@ -94,6 +127,105 @@ const CANONICAL_TOOLS = [
         },
       },
     },
+  },
+  {
+    name: 'ocentra_enforcer_check',
+    description: 'Run a named Ocentra Enforcer reusable check such as no-zod-source, source-shape, dependency-policy, or sbom.',
+    inputSchema: {
+      ...COMMON_INPUT_SCHEMA,
+      required: ['check'],
+      properties: {
+        ...COMMON_INPUT_SCHEMA.properties,
+        check: {
+          type: 'string',
+          enum: [
+            'no-zod-source',
+            'no-naked-domain-strings',
+            'no-test-doubles',
+            'weak-assertions',
+            'skipped-focused-tests',
+            'validation-bypass',
+            'placeholder-implementation',
+            'reexports',
+            'cross-platform-script-commands',
+            'generated-artifacts',
+            'secrets',
+            'rust-string-boundaries',
+            'source-shape',
+            'required-tests',
+            'single-source-contracts',
+            'dependency-policy',
+            'sbom',
+            'ai-rule-index',
+          ],
+          description: 'Named reusable check to run.',
+        },
+        checkConfigPath: {
+          type: 'string',
+          description: 'Optional check-specific config path, for example a single-source contract config.',
+        },
+        output: {
+          type: 'string',
+          description: 'Optional output directory for checks such as sbom.',
+        },
+        dryRun: {
+          type: 'boolean',
+          description: 'Validate the check path without writing generated outputs where supported.',
+        },
+      },
+    },
+  },
+  {
+    name: 'ocentra_enforcer_run',
+    description: 'Run a command through the Enforcer harness, persist raw logs, emit NDJSON diagnostics, and return a compact summary.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['command'],
+      properties: {
+        root: COMMON_INPUT_SCHEMA.properties.root,
+        profile: COMMON_INPUT_SCHEMA.properties.profile,
+        tool: { type: 'string', description: 'Logical tool name such as cargo-check, eslint, pytest, or tsc.' },
+        language: { type: 'string', enum: ['rust', 'typescript', 'python', 'common'] },
+        cwd: { type: 'string', description: 'Optional working directory relative to root.' },
+        runId: { type: 'string', description: 'Optional caller-provided run id.' },
+        crateName: { type: 'string', description: 'Optional Cargo crate/package metadata.' },
+        packageName: { type: 'string', description: 'Optional JS/Python package metadata.' },
+        domain: { type: 'string', description: 'Optional domain metadata.' },
+        command: { type: 'array', items: { type: 'string' }, description: 'Executable and arguments.' },
+        tags: { type: 'array', items: { type: 'string' } },
+      },
+    },
+  },
+  {
+    name: 'ocentra_enforcer_run_status',
+    description: 'Return the latest or requested Enforcer harness run summary.',
+    inputSchema: runQueryInputSchema(),
+  },
+  {
+    name: 'ocentra_enforcer_diagnostics',
+    description: 'Return compact diagnostics for the latest or requested harness run.',
+    inputSchema: runQueryInputSchema(),
+  },
+  {
+    name: 'ocentra_enforcer_last_failure',
+    description: 'Return the latest failed harness run with compact diagnostics.',
+    inputSchema: runQueryInputSchema(),
+  },
+  {
+    name: 'ocentra_enforcer_artifact',
+    description: 'Return a bounded raw harness artifact only when compact diagnostics are insufficient.',
+    inputSchema: runQueryInputSchema(),
+  },
+  {
+    name: 'ocentra_enforcer_prune_runs',
+    description: 'Apply target repo harness retention policy without deleting the whole store.',
+    inputSchema: runQueryInputSchema(),
+  },
+  {
+    name: 'ocentra_enforcer_reset_runs',
+    description: 'Delete harness run artifacts for a target root.',
+    inputSchema: runQueryInputSchema(),
   },
   {
     name: 'ocentra_enforcer_doctor',
@@ -231,12 +363,15 @@ function callTool(params) {
     if (name === 'ocentra_enforcer_route') {
       return {
         isError: false,
-        content: [{ type: 'text', text: JSON.stringify(routeRules(decodeRouteRequest(args)), null, 2) }],
+        content: [{ type: 'text', text: JSON.stringify(buildRouteReport(decodeRouteRequest(args), SERVER_ROOT), null, 2) }],
       };
     }
     if (name === 'ocentra_enforcer_scan') {
       const decoded = decodeScanToolArguments(args);
       return runCli(decoded.cargo ? 'cargo' : 'scan', decoded);
+    }
+    if (name === 'ocentra_enforcer_check') {
+      return runCli('check', decodeCheckToolArguments(args));
     }
     if (name === 'ocentra_enforcer_doctor') {
       return runCli('doctor', decodeDoctorToolArguments(args));
@@ -244,10 +379,38 @@ function callTool(params) {
     if (name === 'ocentra_enforcer_explain') {
       return runCli('explain', decodeExplainToolArguments(args));
     }
+    if (name === 'ocentra_enforcer_run') {
+      return toolJson(runHarness(decodeRunToolArguments(args)));
+    }
+    if (name === 'ocentra_enforcer_run_status') {
+      return toolJson({ ok: true, summary: runSummary(decodeRunQueryArguments(args)) });
+    }
+    if (name === 'ocentra_enforcer_diagnostics') {
+      return toolJson(runDiagnostics(decodeRunQueryArguments(args)));
+    }
+    if (name === 'ocentra_enforcer_last_failure') {
+      return toolJson(lastFailure(decodeRunQueryArguments(args)));
+    }
+    if (name === 'ocentra_enforcer_artifact') {
+      return toolJson(readArtifact(decodeRunQueryArguments(args)));
+    }
+    if (name === 'ocentra_enforcer_prune_runs') {
+      return toolJson(pruneRuns(decodeRunQueryArguments(args)));
+    }
+    if (name === 'ocentra_enforcer_reset_runs') {
+      return toolJson(resetRuns(decodeRunQueryArguments(args)));
+    }
     return toolError(`Unknown tool: ${params.name}`);
   } catch (error) {
     return toolError(error instanceof Error ? error.message : String(error));
   }
+}
+
+function toolJson(value) {
+  return {
+    isError: value?.ok === false,
+    content: [{ type: 'text', text: JSON.stringify(value, null, 2) }],
+  };
 }
 
 function normalizeToolName(name) {
@@ -341,10 +504,26 @@ function runCli(command, args) {
   }
 
   const root = path.resolve(args.root ?? process.cwd());
-  const cliArgs = [CLI_PATH, command, '--root', root, '--json'];
+  const cliArgs = [CLI_PATH, command];
+  if (command === 'check') {
+    cliArgs.push(args.check);
+  }
+  cliArgs.push('--root', root, '--json');
   const configPath = resolveConfigPath(root, args);
   if (configPath) {
     cliArgs.push('--config', configPath);
+  }
+  if (Array.isArray(args.languages) && args.languages.length > 0) {
+    cliArgs.push('--languages', args.languages.join(','));
+  }
+  if (args.checkConfigPath) {
+    cliArgs.push('--check-config', args.checkConfigPath);
+  }
+  if (args.output) {
+    cliArgs.push('--output', args.output);
+  }
+  if (args.dryRun) {
+    cliArgs.push('--dry-run');
   }
   cliArgs.push(...scopeArgs(args));
 

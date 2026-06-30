@@ -1,4 +1,4 @@
-name: Ocentra Enforcer Rust Gate
+name: Ocentra Enforcer
 
 on:
   pull_request:
@@ -13,12 +13,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - name: Install Rust dependency policy tools
-        run: |
-          cargo install --locked cargo-deny
+      - name: Install Node dependencies
+        run: npm ci
       - name: Test validator and MCP wrapper
         run: npm test
       - name: Run Ocentra Enforcer scanner

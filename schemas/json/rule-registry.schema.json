@@ -10,7 +10,7 @@
     "productName": { "const": "ocentra-enforcer" },
     "languages": {
       "type": "array",
-      "items": { "enum": ["rust", "typescript", "python"] },
+      "items": { "enum": ["rust", "typescript", "python", "common"] },
       "minItems": 1
     },
     "rules": {
@@ -20,10 +20,10 @@
         "required": ["id", "language", "family", "severity", "appliesTo", "triggers", "validator", "doc"],
         "additionalProperties": false,
         "properties": {
-          "id": { "type": "string", "pattern": "^RR-[0-9]+\\.[0-9]+$" },
-          "language": { "enum": ["rust", "typescript", "python"] },
+          "id": { "type": "string", "pattern": "^(RR|TS|PY|SEC|GEN|HAR|DOC|TEST|PORT|SRC|CONTRACT|DEP|SBOM|AI)-[0-9]+\\.[0-9]+$" },
+          "language": { "enum": ["rust", "typescript", "python", "common"] },
           "family": {
-            "enum": ["source", "domain", "imports-modules", "toolchain-cargo", "dependencies", "async-runtime"]
+            "enum": ["source", "domain", "imports-modules", "toolchain-cargo", "dependencies", "async-runtime", "tests", "toolchain", "security", "generated-artifacts", "harness", "documentation", "portability", "source-shape", "contracts", "sbom", "agent-rules"]
           },
           "severity": { "enum": ["error", "warning", "info"] },
           "appliesTo": { "type": "array", "items": { "type": "string" }, "minItems": 1 },

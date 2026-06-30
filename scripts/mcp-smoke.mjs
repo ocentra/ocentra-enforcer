@@ -45,8 +45,16 @@ try {
   const requiredTools = [
     'ocentra_enforcer_doctor',
     'ocentra_enforcer_explain',
+    'ocentra_enforcer_check',
     'ocentra_enforcer_route',
     'ocentra_enforcer_scan',
+    'ocentra_enforcer_run',
+    'ocentra_enforcer_run_status',
+    'ocentra_enforcer_diagnostics',
+    'ocentra_enforcer_last_failure',
+    'ocentra_enforcer_artifact',
+    'ocentra_enforcer_prune_runs',
+    'ocentra_enforcer_reset_runs',
   ];
   const missingTools = requiredTools.filter((tool) => !toolNames.includes(tool));
   if (missingTools.length > 0) {
@@ -59,7 +67,9 @@ try {
         ok: true,
         serverInfo: initialized.result.serverInfo,
         requiredTools,
-        legacyAliasesPresent: toolNames.filter((tool) => tool.startsWith('rust_rules_')).length === 4,
+        legacyAliasesPresent: ['rust_rules_route', 'rust_rules_scan', 'rust_rules_doctor', 'rust_rules_explain', 'rust_rules_check'].every((tool) =>
+          toolNames.includes(tool)
+        ),
         route: {
           profileName: routeReport.profileName,
           docs: routeReport.docs,

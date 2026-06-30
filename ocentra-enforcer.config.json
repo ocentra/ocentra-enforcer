@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 2,
+  "profileName": "ocentra-enforcer",
+  "failOn": ["error"],
+  "languages": ["rust", "typescript", "common"],
+  "requireCargoDeny": false,
+  "requireCargoAudit": false,
+  "runCargoDoc": false,
+  "ignoreFileGlobs": [
+    "src/generic-scanners.mjs",
+    "tests/enforcer-multilang.test.mjs"
+  ],
+  "rules": {
+    "DOC-1.1": { "enabled": false, "severity": "warning" }
+  },
+  "tools": {},
+  "harness": {
+    "store": "ndjson-duckdb",
+    "storageDir": ".enforce",
+    "maxArtifactBytes": 8000,
+    "maxRuns": 50,
+    "maxRunsPerTool": 20,
+    "maxFailedRuns": 20,
+    "pruneAfterDays": 14
+  }
+}

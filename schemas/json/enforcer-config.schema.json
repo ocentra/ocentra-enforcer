@@ -7,6 +7,11 @@
   "properties": {
     "schemaVersion": { "type": "number" },
     "profileName": { "type": "string" },
+    "failOn": {
+      "type": "array",
+      "items": { "enum": ["error", "warning", "info"] },
+      "default": ["error"]
+    },
     "failFast": { "type": "boolean" },
     "enforceWorkspaceFiles": { "type": "boolean" },
     "requireCargoDeny": { "type": "boolean" },
@@ -40,6 +45,64 @@
     },
     "runtimeCrates": { "type": "array", "items": { "type": "string" } },
     "testOnlyCrates": { "type": "array", "items": { "type": "string" } },
-    "allowedGitDependencies": { "type": "array", "items": { "type": "string" } }
+    "allowedGitDependencies": { "type": "array", "items": { "type": "string" } },
+    "allowedExternalLicenses": { "type": "array", "items": { "type": "string" } },
+    "sourceShapePolicies": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/sourceShapePolicy" }
+    },
+    "agentRuleMaxLines": { "type": "number" },
+    "languages": { "type": "array", "items": { "enum": ["rust", "typescript", "python", "common"] } },
+    "rules": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/policyOverride"
+      }
+    },
+    "tools": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/policyOverride"
+      }
+    },
+    "harness": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "store": { "enum": ["ndjson-duckdb", "ndjson-only"] },
+        "storageDir": { "type": "string", "default": ".enforce" },
+        "maxArtifactBytes": { "type": "number" },
+        "maxRuns": { "type": ["number", "null"] },
+        "maxRunsPerTool": { "type": ["number", "null"] },
+        "maxFailedRuns": { "type": ["number", "null"] },
+        "pruneAfterDays": { "type": ["number", "null"] }
+      }
+    }
+  },
+  "$defs": {
+    "policyOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "severity": { "enum": ["error", "warning", "info"] },
+        "note": { "type": "string" }
+      }
+    },
+    "sourceShapePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "roots": { "type": "array", "items": { "type": "string" } },
+        "extensions": { "type": "array", "items": { "type": "string" } },
+        "kind": { "enum": ["typescript", "rust"] },
+        "maxClasses": { "type": "number" },
+        "maxExports": { "type": "number" },
+        "maxFunctionLines": { "type": "number" },
+        "maxFunctions": { "type": "number" },
+        "maxLines": { "type": "number" },
+        "maxTypes": { "type": "number" }
+      }
+    }
   }
 }

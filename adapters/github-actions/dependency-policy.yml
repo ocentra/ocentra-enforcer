@@ -14,9 +14,11 @@ jobs:
         with:
           node-version: 22
       - uses: dtolnay/rust-toolchain@stable
+      - name: Install Ocentra Enforcer
+        run: npm install --global ocentra-enforcer
       - name: Install dependency policy tools
-        run: |
-          cargo install --locked cargo-deny
-          cargo install --locked cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny,cargo-audit
       - name: Ocentra Enforcer dependency policy
         run: ocentra-enforcer cargo --root . --workspace

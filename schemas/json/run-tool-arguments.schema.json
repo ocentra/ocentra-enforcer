@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocentra.dev/schemas/ocentra-enforcer/run-tool-arguments.schema.json",
+  "title": "Ocentra Enforcer Run Tool Arguments",
+  "type": "object",
+  "required": ["command"],
+  "additionalProperties": false,
+  "properties": {
+    "root": { "type": "string" },
+    "profile": { "type": "string" },
+    "tool": { "type": "string" },
+    "language": { "enum": ["rust", "typescript", "python", "common"] },
+    "cwd": { "type": "string" },
+    "runId": { "type": "string" },
+    "crateName": { "type": "string" },
+    "packageName": { "type": "string" },
+    "domain": { "type": "string" },
+    "command": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "tags": { "type": "array", "items": { "type": "string" } }
+  }
+}

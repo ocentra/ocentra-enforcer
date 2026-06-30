@@ -1,9 +1,9 @@
 ---
 name: rust-rules-hard-gate
-description: Ocentra Enforcer Rust hard-fail workflow for Codex. Use when working on Rust files, Cargo manifests, Rust crates, Rust architecture rules, no-reexport policy, domain primitive policy, dependency policy, or when validating Rust changes by file, crate, diff, or whole workspace.
+description: Ocentra Enforcer hard-fail workflow for Codex. Use when working on Rust, TypeScript, JavaScript, Python, dependency/security policy, generated artifacts, harness diagnostics, no-reexport policy, or when validating changes by file, crate/package, diff, or workspace.
 ---
 
-# Ocentra Enforcer Rust Hard Gate
+# Ocentra Enforcer Hard Gate
 
 ## Overview
 
@@ -16,9 +16,11 @@ Use this skill to run the reusable `ocentra-enforcer` pack instead of recreating
 3. Choose scope from the task, not convenience: use `--files` for exact touched files, `--crate` for one Cargo package, `--base --head` for PR/diff checks, and `--workspace` only for full repo gates.
 4. Prefer MCP `ocentra_enforcer_route` before opening detailed docs. Read only the returned `docs`.
 5. Run `doctor` when wiring a new repo or when a target root/config may be wrong.
-6. Run `scan` first for deterministic source/config policy failures.
-7. Run `cargo` for crate/workspace readiness because it adds fmt, clippy, tests, docs when enabled, and dependency-policy tools.
-8. Treat any violation as a hard failure. Do not add inline lint disables, validator bypass comments, or barrel/re-export shims to silence the gate.
+6. Run `scan` for deterministic source/config policy failures. Pass `--languages` for TypeScript, Python, or common checks.
+7. Run named reusable guard migrations through `check`, for example `no-zod-source`, `reexports`, `validation-bypass`, `weak-assertions`, `skipped-focused-tests`, `placeholder-implementation`, `source-shape`, `required-tests`, `single-source-contracts`, `dependency-policy`, `sbom`, and `ai-rule-index`.
+8. Run command-line tools through `ocentra_enforcer_run` or `ocentra-enforcer run`, then query `last_failure` or `runs last-failure` before opening raw logs.
+9. Run `cargo` for Rust crate/workspace readiness because it adds fmt, clippy, tests, docs when enabled, and dependency-policy tools.
+10. Treat `violations` as hard failures. Surface `warnings`, but do not block completion on advisory findings unless the profile `failOn` includes `warning`. Do not add inline lint disables, validator bypass comments, skipped tests, or barrel/re-export shims to silence the gate.
 
 ## Commands
 
@@ -32,6 +34,18 @@ node scripts/rust-rules.mjs scan --root <repo> --config <config> --base <base> -
 node scripts/rust-rules.mjs cargo --root <repo> --config <config> --workspace
 node scripts/rust-rules.mjs explain RR-7.3
 node scripts/rust-rules.mjs init --root <repo> --profile strict --adapters codex,mcp,precommit,github-actions --dry-run
+node scripts/rust-rules.mjs route --root <repo> --files <file-or-dir>...
+node scripts/rust-rules.mjs scan --root <repo> --languages typescript,python,common --files <file-or-dir>...
+node scripts/rust-rules.mjs check no-zod-source --root <repo> --files <file-or-dir>...
+node scripts/rust-rules.mjs check validation-bypass --root <repo> --files <file-or-dir>...
+node scripts/rust-rules.mjs check weak-assertions --root <repo> --files <file-or-dir>...
+node scripts/rust-rules.mjs check placeholder-implementation --root <repo> --files <file-or-dir>...
+node scripts/rust-rules.mjs check source-shape --root <repo> --workspace
+node scripts/rust-rules.mjs check single-source-contracts --root <repo> --check-config <path>
+node scripts/rust-rules.mjs check sbom --root <repo> --output target/security --dry-run
+node scripts/rust-rules.mjs run --root <repo> --tool tsc -- npx tsc --noEmit --pretty false
+node scripts/rust-rules.mjs runs last-failure --root <repo> --json
+node scripts/rust-rules.mjs runs prune --root <repo> --json
 ```
 
 When the pack is installed or symlinked, `ocentra-enforcer` and `ocentra-enforcer-mcp` are the canonical executable entrypoints. `rust-rules` and `rust-rules-mcp` remain temporary compatibility aliases. For standalone use, pass `--root` explicitly so the pack can validate any project.
@@ -40,14 +54,32 @@ When an MCP server is wired, prefer the MCP tools for Codex-triggered checks:
 
 ```text
 ocentra_enforcer_scan
+ocentra_enforcer_check
 ocentra_enforcer_doctor
 ocentra_enforcer_explain
 ocentra_enforcer_route
+ocentra_enforcer_run
+ocentra_enforcer_last_failure
+ocentra_enforcer_diagnostics
+ocentra_enforcer_artifact
+ocentra_enforcer_prune_runs
 ```
 
 The old `rust_rules_scan`, `rust_rules_doctor`, `rust_rules_explain`, and `rust_rules_route` MCP tool names remain aliases for one Rust-pack compatibility release.
 
 Pass the target repo as `root`. Pass `configPath` for a target repo config, or `profile` for a named pack profile such as `strict` or `ocentra-parent`.
+
+Profiles control severity and enablement. Documentation/comment advisories such
+as `DOC-1.1` default to warning, while bypass, architecture, secret, dependency,
+and skipped-test rules remain hard errors unless a human-owned profile changes
+them.
+
+Harness state lives in the target repo, not the Enforcer install path. By
+default it writes raw logs, NDJSON diagnostics, manifests, and optional DuckDB
+state under `<repo>/.enforce/`; generated init wiring adds `.enforce/` to the
+target `.gitignore`. Use `runs prune` or `ocentra_enforcer_prune_runs` before
+raw logs become noisy. Use `runs reset` only when the target run store should be
+cleared entirely.
 
 Route before reading detailed docs:
 
@@ -64,6 +96,20 @@ Route before reading detailed docs:
 ```
 
 Use the legacy full `docs/RustRules.md` only when the registry is missing a rule, the user asks for broad policy review, or no route can explain a failure.
+
+For tool output, ask MCP for compact diagnostics first:
+
+```json
+{
+  "name": "ocentra_enforcer_last_failure",
+  "arguments": {
+    "root": "<repo>",
+    "limit": 10
+  }
+}
+```
+
+Open `ocentra_enforcer_artifact` only when compact diagnostics are insufficient.
 
 ## Standalone Install Model
 
@@ -82,6 +128,10 @@ For Ocentra Parent, use `profiles/ocentra-parent.json`. It preserves the repo's 
 - Runtime crates cannot pull test-only crates as non-dev dependencies.
 
 Keep this profile in the pack. Consuming repos should only carry a tiny config or script that points to it until the pack is installed as a plugin/MCP server.
+
+## TypeScript And Python Modules
+
+Use `rules/INDEX.md` and MCP route output instead of reading all docs. TypeScript and Python start with hard guards for re-exports, suppressions, skipped tests, generated artifacts, secrets, and harnessed native tool output. Native tools such as `tsc`, ESLint, Ruff, Pyright, mypy, and pytest should be run through the Enforcer harness when possible.
 
 ## Failure Handling
 

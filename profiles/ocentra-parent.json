@@ -1,6 +1,7 @@
 {
   "schemaVersion": 2,
   "profileName": "ocentra-parent",
+  "failOn": ["error"],
   "failFast": false,
   "enforceWorkspaceFiles": false,
   "requireCargoDeny": false,
@@ -144,5 +145,7 @@
     "rstest",
     "wiremock"
   ],
-  "allowedGitDependencies": []
+  "allowedGitDependencies": [],
+  "rules": {},
+  "tools": {}
 }

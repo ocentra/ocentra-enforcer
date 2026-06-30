@@ -1,6 +1,7 @@
 {
   "schemaVersion": 2,
   "profileName": "strict",
+  "failOn": ["error"],
   "failFast": false,
   "enforceWorkspaceFiles": true,
   "requireCargoDeny": true,
@@ -64,5 +65,7 @@
   "blockedProtocolDependencies": {},
   "runtimeCrates": [],
   "testOnlyCrates": ["criterion", "mockall", "pretty_assertions", "proptest", "rstest", "wiremock"],
-  "allowedGitDependencies": []
+  "allowedGitDependencies": [],
+  "rules": {},
+  "tools": {}
 }

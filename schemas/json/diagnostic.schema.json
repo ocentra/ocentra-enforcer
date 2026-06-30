@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocentra.dev/schemas/ocentra-enforcer/diagnostic.schema.json",
+  "title": "Ocentra Enforcer Diagnostic",
+  "type": "object",
+  "required": ["runId", "tool", "language", "severity", "ruleId", "file", "line", "message"],
+  "additionalProperties": true,
+  "properties": {
+    "runId": { "type": "string" },
+    "tool": { "type": "string" },
+    "language": { "enum": ["rust", "typescript", "python", "common"] },
+    "severity": { "enum": ["error", "warning", "info"] },
+    "ruleId": { "type": "string" },
+    "file": { "type": "string" },
+    "line": { "type": "number" },
+    "message": { "type": "string" },
+    "source": { "type": ["string", "null"] },
+    "fingerprint": { "type": "string" }
+  }
+}

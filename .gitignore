@@ -6,3 +6,5 @@ build/
 .turbo/
 .DS_Store
 *.log
+.enforce/
+.ocentra-enforcer/

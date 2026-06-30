@@ -9,7 +9,7 @@ const OptionalString = Schema.optional(Schema.String);
 const OptionalNumber = Schema.optional(Schema.Number);
 const OptionalNullableNumber = Schema.optional(Schema.NullOr(Schema.Number));
 
-export const LanguageSchema = Schema.Literal('rust', 'typescript', 'python');
+export const LanguageSchema = Schema.Literal('rust', 'typescript', 'python', 'common');
 export const RustRuleFamilySchema = Schema.Literal(
   'source',
   'domain',
@@ -18,12 +18,52 @@ export const RustRuleFamilySchema = Schema.Literal(
   'dependencies',
   'async-runtime'
 );
+export const TypeScriptRuleFamilySchema = Schema.Literal('source', 'tests', 'toolchain');
+export const PythonRuleFamilySchema = Schema.Literal('source', 'tests', 'toolchain');
+export const CommonRuleFamilySchema = Schema.Literal(
+  'source',
+  'security',
+  'generated-artifacts',
+  'harness',
+  'documentation',
+  'tests',
+  'portability',
+  'source-shape',
+  'contracts',
+  'dependencies',
+  'sbom',
+  'agent-rules'
+);
+export const RuleFamilySchema = Schema.Union(
+  RustRuleFamilySchema,
+  TypeScriptRuleFamilySchema,
+  PythonRuleFamilySchema,
+  CommonRuleFamilySchema
+);
 export const SeveritySchema = Schema.Literal('error', 'warning', 'info');
+
+export const PolicyOverrideSchema = Schema.Struct({
+  enabled: OptionalBoolean,
+  severity: Schema.optional(SeveritySchema),
+  note: OptionalString,
+});
+
+export const SourceShapePolicySchema = Schema.Struct({
+  roots: OptionalStringArray,
+  extensions: OptionalStringArray,
+  kind: Schema.optional(Schema.Literal('typescript', 'rust')),
+  maxClasses: OptionalNumber,
+  maxExports: OptionalNumber,
+  maxFunctionLines: OptionalNumber,
+  maxFunctions: OptionalNumber,
+  maxLines: OptionalNumber,
+  maxTypes: OptionalNumber,
+});
 
 export const RuleEntrySchema = Schema.Struct({
   id: Schema.String,
   language: LanguageSchema,
-  family: RustRuleFamilySchema,
+  family: RuleFamilySchema,
   severity: SeveritySchema,
   appliesTo: StringArray,
   triggers: StringArray,
@@ -41,6 +81,7 @@ export const RuleRegistrySchema = Schema.Struct({
 export const ConfigSchema = Schema.Struct({
   schemaVersion: OptionalNumber,
   profileName: OptionalString,
+  failOn: OptionalStringArray,
   failFast: OptionalBoolean,
   enforceWorkspaceFiles: OptionalBoolean,
   requireCargoDeny: OptionalBoolean,
@@ -72,6 +113,23 @@ export const ConfigSchema = Schema.Struct({
   runtimeCrates: OptionalStringArray,
   testOnlyCrates: OptionalStringArray,
   allowedGitDependencies: OptionalStringArray,
+  allowedExternalLicenses: OptionalStringArray,
+  sourceShapePolicies: Schema.optional(Schema.Array(SourceShapePolicySchema)),
+  agentRuleMaxLines: OptionalNumber,
+  languages: OptionalStringArray,
+  rules: Schema.optional(Schema.Record({ key: Schema.String, value: PolicyOverrideSchema })),
+  tools: Schema.optional(Schema.Record({ key: Schema.String, value: PolicyOverrideSchema })),
+  harness: Schema.optional(
+    Schema.Struct({
+      store: Schema.optional(Schema.Literal('ndjson-duckdb', 'ndjson-only')),
+      storageDir: OptionalString,
+      maxArtifactBytes: OptionalNumber,
+      maxRuns: OptionalNullableNumber,
+      maxRunsPerTool: OptionalNullableNumber,
+      maxFailedRuns: OptionalNullableNumber,
+      pruneAfterDays: OptionalNullableNumber,
+    })
+  ),
 });
 
 export const ScopeNameSchema = Schema.Literal('workspace', 'files', 'crate', 'diff');
@@ -115,6 +173,42 @@ export const ExplainToolArgumentsSchema = Schema.Struct({
   ruleId: Schema.String,
 });
 
+export const CheckNameSchema = Schema.Literal(
+  'no-zod-source',
+  'no-naked-domain-strings',
+  'no-test-doubles',
+  'weak-assertions',
+  'skipped-focused-tests',
+  'validation-bypass',
+  'placeholder-implementation',
+  'reexports',
+  'cross-platform-script-commands',
+  'generated-artifacts',
+  'secrets',
+  'rust-string-boundaries',
+  'source-shape',
+  'required-tests',
+  'single-source-contracts',
+  'dependency-policy',
+  'sbom',
+  'ai-rule-index'
+);
+
+export const CheckToolArgumentsSchema = Schema.Struct({
+  root: OptionalString,
+  configPath: OptionalString,
+  profile: OptionalString,
+  check: CheckNameSchema,
+  scope: Schema.optional(ScopeNameSchema),
+  files: OptionalStringArray,
+  crateName: OptionalString,
+  base: OptionalString,
+  head: OptionalString,
+  checkConfigPath: OptionalString,
+  output: OptionalString,
+  dryRun: OptionalBoolean,
+});
+
 export const AdapterNameSchema = Schema.Literal(
   'codex',
   'mcp',
@@ -138,6 +232,7 @@ export const InitRequestSchema = Schema.Struct({
 
 export const ViolationSchema = Schema.Struct({
   ruleId: Schema.String,
+  severity: Schema.optional(SeveritySchema),
   title: Schema.String,
   detail: Schema.String,
   file: Schema.String,
@@ -160,16 +255,36 @@ export const ScanReportSchema = Schema.Struct({
   ok: Schema.Boolean,
   command: Schema.String,
   violations: Schema.Array(ViolationSchema),
+  warnings: Schema.optional(Schema.Array(ViolationSchema)),
+  findings: Schema.optional(Schema.Array(ViolationSchema)),
+  bySeverity: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Number })),
+  failOn: OptionalStringArray,
   root: Schema.String,
   profileName: Schema.String,
   scanOnly: Schema.Boolean,
   scope: ScopeReportSchema,
 });
 
+export const CheckReportSchema = Schema.Struct({
+  ok: Schema.Boolean,
+  command: Schema.Literal('check'),
+  check: CheckNameSchema,
+  root: Schema.String,
+  profileName: Schema.String,
+  violations: Schema.Array(ViolationSchema),
+  warnings: Schema.optional(Schema.Array(ViolationSchema)),
+  findings: Schema.optional(Schema.Array(ViolationSchema)),
+  bySeverity: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.Number })),
+  scope: Schema.optional(ScopeReportSchema),
+  languages: OptionalStringArray,
+});
+
 export const RoutedRuleSchema = Schema.Struct({
   id: Schema.String,
-  family: RustRuleFamilySchema,
+  language: LanguageSchema,
+  family: RuleFamilySchema,
   severity: SeveritySchema,
+  enabled: OptionalBoolean,
   doc: Schema.String,
   validator: Schema.String,
 });
@@ -182,6 +297,78 @@ export const RouteReportSchema = Schema.Struct({
   scope: Schema.Unknown,
   docs: StringArray,
   rules: Schema.Array(RoutedRuleSchema),
+});
+
+export const DiagnosticSchema = Schema.Struct({
+  runId: Schema.String,
+  tool: Schema.String,
+  language: LanguageSchema,
+  severity: SeveritySchema,
+  ruleId: Schema.String,
+  file: Schema.String,
+  line: Schema.Number,
+  message: Schema.String,
+  source: Schema.optional(Schema.NullOr(Schema.String)),
+  fingerprint: OptionalString,
+});
+
+export const RunToolArgumentsSchema = Schema.Struct({
+  root: OptionalString,
+  profile: OptionalString,
+  tool: OptionalString,
+  language: Schema.optional(LanguageSchema),
+  cwd: OptionalString,
+  runId: OptionalString,
+  crateName: OptionalString,
+  packageName: OptionalString,
+  domain: OptionalString,
+  command: Schema.Array(Schema.String),
+  tags: OptionalStringArray,
+});
+
+export const RunQueryArgumentsSchema = Schema.Struct({
+  root: OptionalString,
+  runId: OptionalString,
+  limit: OptionalNumber,
+  diagnosticLimit: OptionalNumber,
+  severity: Schema.optional(SeveritySchema),
+  status: Schema.optional(Schema.Literal('passed', 'failed')),
+  file: OptionalString,
+  tool: OptionalString,
+  crateName: OptionalString,
+  packageName: OptionalString,
+  domain: OptionalString,
+  tag: OptionalString,
+  artifact: OptionalString,
+  limitBytes: OptionalNumber,
+});
+
+export const RunSummarySchema = Schema.Struct({
+  runId: Schema.String,
+  root: Schema.String,
+  profile: Schema.String,
+  tool: Schema.String,
+  language: LanguageSchema,
+  cwd: Schema.String,
+  crateName: Schema.optional(Schema.NullOr(Schema.String)),
+  packageName: Schema.optional(Schema.NullOr(Schema.String)),
+  domain: Schema.optional(Schema.NullOr(Schema.String)),
+  tags: OptionalStringArray,
+  command: Schema.Array(Schema.String),
+  status: Schema.Literal('passed', 'failed'),
+  exitCode: Schema.Number,
+  startedAt: Schema.String,
+  endedAt: Schema.String,
+  diagnosticCount: Schema.Number,
+  bySeverity: Schema.Record({ key: Schema.String, value: Schema.Number }),
+  artifacts: Schema.Record({ key: Schema.String, value: Schema.String }),
+  duckdb: Schema.Unknown,
+});
+
+export const RunReportSchema = Schema.Struct({
+  ok: Schema.Boolean,
+  summary: RunSummarySchema,
+  diagnostics: Schema.Array(DiagnosticSchema),
 });
 
 export function decodeRuleRegistry(value) {
@@ -208,6 +395,10 @@ export function decodeExplainToolArguments(value) {
   return decodeWithSchema(ExplainToolArgumentsSchema, value, 'explain tool arguments');
 }
 
+export function decodeCheckToolArguments(value) {
+  return decodeWithSchema(CheckToolArgumentsSchema, value, 'check tool arguments');
+}
+
 export function decodeInitRequest(value) {
   return decodeWithSchema(InitRequestSchema, value, 'init request');
 }
@@ -216,8 +407,24 @@ export function decodeScanReport(value) {
   return decodeWithSchema(ScanReportSchema, value, 'scan report');
 }
 
+export function decodeCheckReport(value) {
+  return decodeWithSchema(CheckReportSchema, value, 'check report');
+}
+
 export function decodeRouteReport(value) {
   return decodeWithSchema(RouteReportSchema, value, 'route report');
+}
+
+export function decodeRunToolArguments(value) {
+  return decodeWithSchema(RunToolArgumentsSchema, value, 'run tool arguments');
+}
+
+export function decodeRunQueryArguments(value) {
+  return decodeWithSchema(RunQueryArgumentsSchema, value, 'run query arguments');
+}
+
+export function decodeRunReport(value) {
+  return decodeWithSchema(RunReportSchema, value, 'run report');
 }
 
 export function decodeWithSchema(schema, value, label) {

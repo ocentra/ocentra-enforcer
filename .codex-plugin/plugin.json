@@ -1,14 +1,17 @@
 {
   "name": "ocentra-enforcer",
   "version": "0.1.0",
-  "description": "Standalone enforcement system with indexed Rust hard-fail rules, validator CLI, Codex skill, and MCP adapter.",
+  "description": "Standalone enforcement system with indexed Rust, TypeScript, Python, common hard-fail rules, harness diagnostics, validator CLI, Codex skill, and MCP adapter.",
   "author": {
     "name": "Ocentra Parent"
   },
   "license": "UNLICENSED",
   "keywords": [
     "rust",
+    "typescript",
+    "python",
     "validation",
+    "diagnostics",
     "codex",
     "mcp",
     "architecture"
@@ -18,7 +21,7 @@
   "interface": {
     "displayName": "Ocentra Enforcer",
     "shortDescription": "Reusable hard-fail enforcement system",
-    "longDescription": "Run strict indexed Rust policy checks by file, crate, diff, or workspace through a CLI, Codex skill, or MCP server. TypeScript and Python modules are reserved for later releases.",
+    "longDescription": "Run strict indexed Rust, TypeScript, Python, security, generated-artifact, and harness diagnostics checks by file, crate/package, diff, or workspace through a CLI, Codex skill, or MCP server.",
     "developerName": "Ocentra Parent",
     "category": "Developer Tools",
     "capabilities": [
@@ -26,8 +29,9 @@
       "Interactive"
     ],
     "defaultPrompt": [
-      "Validate this Rust change with Ocentra Enforcer.",
-      "Run Ocentra Enforcer against this crate.",
+      "Validate this change with Ocentra Enforcer.",
+      "Run Ocentra Enforcer against this file, crate, or package.",
+      "Run this failing check through the Ocentra Enforcer harness and summarize the compact diagnostics.",
       "Explain this Ocentra Enforcer failure."
     ],
     "brandColor": "#0F766E"

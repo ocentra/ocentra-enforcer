@@ -10,10 +10,32 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
   ProductName,
+  decodeCheckToolArguments,
   decodeEnforcerConfig,
   decodeInitRequest,
   decodeRuleRegistry,
 } from '../schemas/effect/enforcer-schemas.mjs';
+import { routeRules } from '../src/routing.mjs';
+import { GENERIC_RULES, runGenericScan } from '../src/generic-scanners.mjs';
+import { CHECK_RULES, SCANNER_BACKED_CHECKS, normalizeCheckName, runStandaloneCheck } from '../src/checks.mjs';
+import {
+  applyRulePolicy,
+  normalizeFailOn,
+  normalizeRuleOverrides,
+  normalizeToolPolicies,
+  policyForTool,
+  splitFindings,
+} from '../src/policy.mjs';
+import {
+  lastFailure,
+  listRuns,
+  pruneRuns,
+  readArtifact,
+  resetRuns,
+  runDiagnostics,
+  runHarness,
+  runSummary,
+} from '../src/harness.mjs';
 
 const RULES = {
   'RR-1.1': {
@@ -213,6 +235,7 @@ const RULES = {
 const DEFAULT_CONFIG = Object.freeze({
   schemaVersion: 2,
   profileName: 'strict',
+  failOn: ['error'],
   failFast: false,
   enforceWorkspaceFiles: true,
   requireCargoDeny: true,
@@ -226,6 +249,18 @@ const DEFAULT_CONFIG = Object.freeze({
   allowGitDependencies: false,
   allowPathDependencies: false,
   publicReexportPolicy: 'forbid',
+  languages: ['rust'],
+  rules: {},
+  tools: {},
+  harness: {
+    store: 'ndjson-duckdb',
+    storageDir: '.enforce',
+    maxArtifactBytes: 8000,
+    maxRuns: 50,
+    maxRunsPerTool: 20,
+    maxFailedRuns: 20,
+    pruneAfterDays: 14,
+  },
   ignoreDirs: ['.git', '.hub', '.turbo', 'target', 'node_modules', '.next', 'dist', 'build', 'coverage', 'output'],
   ignoreFileGlobs: [],
   rustRoots: ['src', 'crates', 'tools'],
@@ -279,16 +314,31 @@ const RULE_REGISTRY_PATH = path.join(PACK_ROOT, 'rules', 'rules.json');
 const DEFAULT_INIT_ADAPTERS = ['codex', 'mcp', 'precommit', 'github-actions'];
 const GITHUB_ACTIONS_ADAPTERS = ['github-actions', 'codeql', 'dependency-policy', 'secret-scan', 'sbom'];
 let cachedRuleDocs = null;
+let cachedRegistryRules = null;
+
+function ruleRegistryRules() {
+  if (cachedRegistryRules === null) {
+    cachedRegistryRules = fs.existsSync(RULE_REGISTRY_PATH)
+      ? decodeRuleRegistry(JSON.parse(fs.readFileSync(RULE_REGISTRY_PATH, 'utf8'))).rules
+      : [];
+  }
+  return cachedRegistryRules;
+}
 
 function usage() {
   return `Ocentra Enforcer Rust hard gate
 
 Usage:
   ocentra-enforcer init --root <repo> --profile <profile> --adapters codex,mcp,precommit,github-actions
+  ocentra-enforcer route [options]
+  ocentra-enforcer check <name> [options]
   ocentra-enforcer scan [options]
   ocentra-enforcer cargo [options]
   ocentra-enforcer doctor [options]
   ocentra-enforcer explain <RULE_ID>
+  ocentra-enforcer run --root <repo> --tool <tool> -- <command...>
+  ocentra-enforcer runs <list|summary|diagnostics|last-failure|artifact|prune|reset> [options]
+  ocentra-enforcer codex install --root <repo> [--dry-run]
 
 Compatibility aliases:
   rust-rules scan [options]
@@ -308,6 +358,9 @@ Common options:
   --config <path>         Optional config path. Defaults to ocentra-enforcer.config.json, then rust-rules.config.json.
   --profile <name>        Named profile for init output.
   --scan-only             With scan/cargo compatibility: skip Cargo commands.
+  --languages <list>      Comma-separated scan languages. Defaults to profile languages or rust.
+  --check-config <path>   Optional check-specific config, for example single-source contracts.
+  --output <path>         Optional output directory for checks such as sbom.
   --json                  Print machine-readable JSON report.
   --help                  Show this help.
 
@@ -327,10 +380,29 @@ function defaultArgs() {
     json: false,
     help: false,
     explainRuleId: null,
-    profile: 'strict',
+    profile: null,
+    languages: null,
     adapters: null,
     dryRun: false,
     force: false,
+    runTool: null,
+    runCommand: [],
+    runId: null,
+    routeRuleId: null,
+    checkName: null,
+    checkConfigPath: null,
+    output: null,
+    runsCommand: null,
+    artifact: null,
+    limit: null,
+    limitBytes: null,
+    severity: null,
+    status: null,
+    file: null,
+    tag: null,
+    crateName: null,
+    packageName: null,
+    domain: null,
     scope: { mode: 'all' },
   };
 }
@@ -338,12 +410,28 @@ function defaultArgs() {
 function parseArgs(argv) {
   const args = defaultArgs();
   const tokens = argv.slice(2);
-  if (tokens[0] && ['init', 'scan', 'cargo', 'doctor', 'explain'].includes(tokens[0])) {
+  if (tokens[0] && ['init', 'route', 'check', 'scan', 'cargo', 'doctor', 'explain', 'run', 'runs', 'codex'].includes(tokens[0])) {
     args.command = tokens.shift();
   }
 
   if (args.command === 'explain') {
     args.explainRuleId = tokens.shift() ?? null;
+  }
+  if (args.command === 'check') {
+    args.checkName = tokens[0] && !tokens[0].startsWith('-') ? normalizeCheckName(tokens.shift()) : null;
+  }
+  if (args.command === 'route' && tokens[0] && !tokens[0].startsWith('-')) {
+    args.routeRuleId = tokens.shift();
+  }
+  if (args.command === 'runs') {
+    args.runsCommand = tokens[0] && !tokens[0].startsWith('-') ? tokens.shift() : 'list';
+  }
+  if (args.command === 'codex') {
+    const codexCommand = tokens[0] && !tokens[0].startsWith('-') ? tokens.shift() : 'install';
+    if (codexCommand !== 'install') throw new Error(`Unknown codex command: ${codexCommand}`);
+    args.command = 'codex-install';
+    args.adapters = ['codex', 'mcp'];
+    args.dryRun = true;
   }
 
   const explicitFiles = [];
@@ -355,8 +443,40 @@ function parseArgs(argv) {
       args.configPath = tokens[++i];
     } else if (arg === '--profile') {
       args.profile = tokens[++i];
+    } else if (arg === '--languages') {
+      args.languages = parseAdapterList(tokens[++i] ?? '');
     } else if (arg === '--adapters') {
       args.adapters = parseAdapterList(tokens[++i] ?? '');
+    } else if (arg === '--tool') {
+      args.runTool = tokens[++i];
+    } else if (arg === '--run-id') {
+      args.runId = tokens[++i];
+    } else if (arg === '--rule-id') {
+      args.routeRuleId = tokens[++i];
+    } else if (arg === '--check-config') {
+      args.checkConfigPath = tokens[++i];
+    } else if (arg === '--output') {
+      args.output = tokens[++i];
+    } else if (arg === '--artifact') {
+      args.artifact = tokens[++i];
+    } else if (arg === '--limit') {
+      args.limit = Number(tokens[++i]);
+    } else if (arg === '--limit-bytes') {
+      args.limitBytes = Number(tokens[++i]);
+    } else if (arg === '--severity') {
+      args.severity = tokens[++i];
+    } else if (arg === '--status') {
+      args.status = tokens[++i];
+    } else if (arg === '--file') {
+      args.file = tokens[++i];
+    } else if (arg === '--tag') {
+      args.tag = tokens[++i];
+    } else if (arg === '--domain') {
+      args.domain = tokens[++i];
+    } else if (arg === '--package-name') {
+      args.packageName = tokens[++i];
+    } else if (arg === '--crate-name') {
+      args.crateName = tokens[++i];
     } else if (arg === '--dry-run') {
       args.dryRun = true;
     } else if (arg === '--force') {
@@ -368,7 +488,9 @@ function parseArgs(argv) {
     } else if (arg === '--workspace' || arg === '--all') {
       args.scope = { mode: 'all' };
     } else if (arg === '--crate' || arg === '-p' || arg === '--package') {
-      args.scope = { mode: 'crate', crateName: tokens[++i] };
+      const crateName = tokens[++i];
+      args.crateName = args.crateName ?? crateName;
+      args.scope = { mode: 'crate', crateName };
     } else if (arg === '--base') {
       const base = tokens[++i] ?? null;
       const current = args.scope.mode === 'diff' ? args.scope : { mode: 'diff', base: null, head: null };
@@ -388,6 +510,9 @@ function parseArgs(argv) {
       }
     } else if (arg === '--help' || arg === '-h') {
       args.help = true;
+    } else if (arg === '--') {
+      args.runCommand = tokens.slice(i + 1);
+      break;
     } else if (arg.startsWith('-')) {
       throw new Error(`Unknown argument: ${arg}`);
     } else {
@@ -405,24 +530,61 @@ function parseArgs(argv) {
   return args;
 }
 
-function loadConfig(root, explicitPath) {
-  const candidate = explicitPath ? path.resolve(explicitPath) : resolveDefaultConfigPath(root);
-  let user = {};
-  if (fs.existsSync(candidate)) {
-    user = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+function loadConfig(root, explicitPath, profile = null) {
+  const profileConfig = profile ? readProfileConfig(profile) : {};
+  const candidate = resolveConfigCandidate(root, explicitPath, profile);
+  let userConfig = {};
+  if (candidate && fs.existsSync(candidate)) {
+    userConfig = JSON.parse(fs.readFileSync(candidate, 'utf8'));
   }
-  return normalizeConfig(decodeEnforcerConfig({ ...DEFAULT_CONFIG, ...user }));
+  return normalizeConfig(decodeEnforcerConfig(mergeConfigLayers(DEFAULT_CONFIG, profileConfig, userConfig)));
+}
+
+function resolveConfigCandidate(root, explicitPath, profile) {
+  if (explicitPath) return path.isAbsolute(explicitPath) ? explicitPath : path.join(root, explicitPath);
+  if (profile) {
+    return null;
+  }
+  const targetConfig = resolveDefaultConfigPath(root);
+  if (targetConfig) return targetConfig;
+  return path.join(PACK_ROOT, 'profiles', 'strict.json');
+}
+
+function readProfileConfig(profile) {
+  if (!/^[A-Za-z0-9][A-Za-z0-9_.-]*$/u.test(profile)) throw new Error(`Invalid profile name: ${profile}`);
+  const profilePath = path.join(PACK_ROOT, 'profiles', `${profile}.json`);
+  if (!fs.existsSync(profilePath)) throw new Error(`Unknown Ocentra Enforcer profile "${profile}". Expected ${profilePath}.`);
+  return JSON.parse(fs.readFileSync(profilePath, 'utf8'));
+}
+
+function mergeConfigLayers(...layers) {
+  const merged = {};
+  for (const layer of layers) {
+    const previousRules = merged.rules;
+    const previousTools = merged.tools;
+    const previousHarness = merged.harness;
+    Object.assign(merged, layer);
+    if (layer.rules) merged.rules = { ...(previousRules ?? {}), ...layer.rules };
+    if (layer.tools) merged.tools = { ...(previousTools ?? {}), ...layer.tools };
+    if (layer.harness) merged.harness = { ...(previousHarness ?? {}), ...layer.harness };
+  }
+  return merged;
 }
 
 function resolveDefaultConfigPath(root) {
   const branded = path.join(root, 'ocentra-enforcer.config.json');
   if (fs.existsSync(branded)) return branded;
-  return path.join(root, 'rust-rules.config.json');
+  const legacy = path.join(root, 'rust-rules.config.json');
+  if (fs.existsSync(legacy)) return legacy;
+  return null;
 }
 
 function normalizeConfig(config) {
   return {
     ...config,
+    failOn: normalizeFailOn(config.failOn),
+    rules: normalizeRuleOverrides(config.rules),
+    tools: normalizeToolPolicies(config.tools),
     runtimeStringLineAllowRegexps: config.runtimeStringLineAllowPatterns.map((pattern) => new RegExp(pattern, 'u')),
     allowedGitDependenciesSet: new Set(config.allowedGitDependencies),
     runtimeCratesSet: new Set(config.runtimeCrates),
@@ -485,7 +647,29 @@ function targetUsesHusky(root) {
 function buildInitWrites(root, profile, adapters, force) {
   const writes = [
     initWrite(root, 'core', 'ocentra-enforcer.config.json', 'generated', force, {
-      content: `${JSON.stringify({ schemaVersion: 2, profileName: profile }, null, 2)}\n`,
+      content: `${JSON.stringify(
+        {
+          schemaVersion: 2,
+          profileName: profile,
+          languages: ['rust', 'typescript', 'python', 'common'],
+          failOn: ['error'],
+          rules: {},
+          tools: {},
+          harness: {
+            storageDir: '.enforce',
+            store: 'ndjson-duckdb',
+            maxRuns: 50,
+            maxRunsPerTool: 20,
+            maxFailedRuns: 20,
+            pruneAfterDays: 14,
+          },
+        },
+        null,
+        2
+      )}\n`,
+    }),
+    initWrite(root, 'core', '.gitignore', 'append-line', force, {
+      content: '.enforce/\n',
     }),
   ];
 
@@ -537,6 +721,17 @@ function buildInitWrites(root, profile, adapters, force) {
 
 function initWrite(root, adapter, targetPath, kind, force, details) {
   const absolutePath = path.join(root, targetPath);
+  if (kind === 'append-line') {
+    const existing = fs.existsSync(absolutePath) ? fs.readFileSync(absolutePath, 'utf8') : '';
+    const line = details.content.trim();
+    return {
+      adapter,
+      path: targetPath,
+      action: existing.split(/\r?\n/u).includes(line) ? 'skip-existing' : 'append-line',
+      kind,
+      ...details,
+    };
+  }
   return {
     adapter,
     path: targetPath,
@@ -566,6 +761,12 @@ function applyInitReport(report) {
     if (file.action === 'skip-existing') continue;
     const targetPath = path.join(report.root, file.path);
     fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+    if (file.kind === 'append-line') {
+      const existing = fs.existsSync(targetPath) ? fs.readFileSync(targetPath, 'utf8') : '';
+      const prefix = existing.length > 0 && !existing.endsWith('\n') ? '\n' : '';
+      fs.writeFileSync(targetPath, `${existing}${prefix}${file.content}`, 'utf8');
+      continue;
+    }
     const content = file.content ?? fs.readFileSync(path.join(PACK_ROOT, file.source), 'utf8');
     fs.writeFileSync(targetPath, content, 'utf8');
     if (file.adapter === 'precommit' || file.adapter === 'husky') {
@@ -995,6 +1196,10 @@ function scanRustFile(root, filePath, config) {
       addViolation(violations, root, filePath, lineNo, 'RR-2.1', 'Lint suppression attribute found.', originalLine);
     }
 
+    if (/\brustfmt::skip\b|\bclippy::(?:allow|expect)\b/u.test(originalLine)) {
+      addViolation(violations, root, filePath, lineNo, 'RR-2.1', 'Rust formatter or Clippy suppression found.', originalLine);
+    }
+
     if (/rust-rules\s*:\s*(?:ignore|allow|skip|disable)/iu.test(originalLine)) {
       addViolation(violations, root, filePath, lineNo, 'RR-2.2', 'Validator suppression comment found.', originalLine);
     }
@@ -1351,14 +1556,41 @@ function cargoPackageArgs(scope) {
   return scope.mode === 'crate' ? ['--package', scope.crateName] : ['--workspace'];
 }
 
+function configuredCargoCommand(root, config, toolId, defaultEnabled, command, args, ruleId, env = {}) {
+  const toolPolicy = policyForTool(toolId, config, { enabled: defaultEnabled, severity: 'error' });
+  if (!toolPolicy.enabled) return [];
+  return runCommand(root, command, args, ruleId, env).map((finding) => ({
+    ...finding,
+    severity: toolPolicy.severity,
+  }));
+}
+
+function strongestEnabledSeverity(policies) {
+  const enabled = policies.filter((policy) => policy.enabled).map((policy) => policy.severity);
+  if (enabled.includes('error')) return 'error';
+  if (enabled.includes('warning')) return 'warning';
+  return 'info';
+}
+
 function runCargoGates(root, config, scope) {
   const violations = [];
   if (!fs.existsSync(path.join(root, 'Cargo.toml'))) return violations;
   if (!shouldRunCargoForScope(scope, config)) return violations;
 
+  const cargoToolPolicies = [
+    policyForTool('cargoFmt', config, { enabled: true, severity: 'error' }),
+    policyForTool('cargoClippy', config, { enabled: true, severity: 'error' }),
+    policyForTool('cargoTest', config, { enabled: true, severity: 'error' }),
+    policyForTool('cargoDoc', config, { enabled: config.runCargoDoc, severity: 'error' }),
+    policyForTool('cargoDeny', config, { enabled: config.requireCargoDeny, severity: 'error' }),
+    policyForTool('cargoAudit', config, { enabled: config.requireCargoAudit, severity: 'error' }),
+  ];
+  if (!cargoToolPolicies.some((policy) => policy.enabled)) return violations;
+
   if (!commandExists('cargo')) {
     violations.push({
       ruleId: 'RR-10.2',
+      severity: strongestEnabledSeverity(cargoToolPolicies),
       title: RULES['RR-10.2'].title,
       detail: 'cargo is not installed or not on PATH.',
       file: '.',
@@ -1370,10 +1602,13 @@ function runCargoGates(root, config, scope) {
   }
 
   const packageArgs = cargoPackageArgs(scope);
-  violations.push(...runCommand(root, 'cargo', ['fmt', '--all', '--', '--check'], 'RR-10.1'));
+  violations.push(...configuredCargoCommand(root, config, 'cargoFmt', true, 'cargo', ['fmt', '--all', '--', '--check'], 'RR-10.1'));
   violations.push(
-    ...runCommand(
+    ...configuredCargoCommand(
       root,
+      config,
+      'cargoClippy',
+      true,
       'cargo',
       [
         'clippy',
@@ -1418,18 +1653,21 @@ function runCargoGates(root, config, scope) {
   if (config.cargoTestThreads !== null) {
     testArgs.push('--', `--test-threads=${config.cargoTestThreads}`);
   }
-  violations.push(...runCommand(root, 'cargo', testArgs, 'RR-10.3'));
+  violations.push(...configuredCargoCommand(root, config, 'cargoTest', true, 'cargo', testArgs, 'RR-10.3'));
 
-  if (config.runCargoDoc) {
-    violations.push(...runCommand(root, 'cargo', ['doc', ...packageArgs, '--all-features', '--no-deps'], 'RR-10.4', {
+  const cargoDocPolicy = policyForTool('cargoDoc', config, { enabled: config.runCargoDoc, severity: 'error' });
+  if (cargoDocPolicy.enabled) {
+    violations.push(...configuredCargoCommand(root, config, 'cargoDoc', config.runCargoDoc, 'cargo', ['doc', ...packageArgs, '--all-features', '--no-deps'], 'RR-10.4', {
       RUSTDOCFLAGS: '-D warnings -D rustdoc::broken_intra_doc_links -D rustdoc::bare_urls -D missing_docs',
     }));
   }
 
-  if (config.requireCargoDeny) {
+  const cargoDenyPolicy = policyForTool('cargoDeny', config, { enabled: config.requireCargoDeny, severity: 'error' });
+  if (cargoDenyPolicy.enabled) {
     if (!commandExists('cargo-deny')) {
       violations.push({
         ruleId: 'RR-11.2',
+        severity: cargoDenyPolicy.severity,
         title: RULES['RR-11.2'].title,
         detail: 'cargo-deny is required but not installed or not on PATH.',
         file: '.',
@@ -1438,14 +1676,16 @@ function runCargoGates(root, config, scope) {
         source: null,
       });
     } else {
-      violations.push(...runCommand(root, 'cargo', ['deny', 'check'], 'RR-11.1'));
+      violations.push(...configuredCargoCommand(root, config, 'cargoDeny', config.requireCargoDeny, 'cargo', ['deny', 'check'], 'RR-11.1'));
     }
   }
 
-  if (config.requireCargoAudit) {
+  const cargoAuditPolicy = policyForTool('cargoAudit', config, { enabled: config.requireCargoAudit, severity: 'error' });
+  if (cargoAuditPolicy.enabled) {
     if (!commandExists('cargo-audit')) {
       violations.push({
         ruleId: 'RR-11.3',
+        severity: cargoAuditPolicy.severity,
         title: RULES['RR-11.3'].title,
         detail: 'cargo-audit is enabled but not installed or not on PATH.',
         file: '.',
@@ -1454,7 +1694,7 @@ function runCargoGates(root, config, scope) {
         source: null,
       });
     } else {
-      violations.push(...runCommand(root, 'cargo', ['audit'], 'RR-11.3'));
+      violations.push(...configuredCargoCommand(root, config, 'cargoAudit', config.requireCargoAudit, 'cargo', ['audit'], 'RR-11.3'));
     }
   }
 
@@ -1462,22 +1702,37 @@ function runCargoGates(root, config, scope) {
 }
 
 function printHumanReport(report) {
-  if (report.violations.length === 0) {
+  const warnings = report.warnings ?? [];
+  if (report.violations.length === 0 && warnings.length === 0) {
     console.log(`Ocentra Enforcer ${report.command} passed for ${report.scope.files.length} file(s).`);
+    return;
+  }
+
+  if (report.violations.length === 0) {
+    console.log(
+      `Ocentra Enforcer ${report.command} passed with ${warnings.length} warning${warnings.length === 1 ? '' : 's'} for ${report.scope.files.length} file(s).`
+    );
+    printFindingList(warnings, 'Warning');
     return;
   }
 
   console.error(`Ocentra Enforcer ${report.command} failed with ${report.violations.length} violation${report.violations.length === 1 ? '' : 's'}.`);
   console.error(`Profile: ${report.profileName}`);
   console.error(`Scope: ${describeScope(report.scope)}`);
+  console.error(`Failing severities: ${(report.failOn ?? ['error']).join(', ')}`);
   console.error('');
-  for (const violation of report.violations) {
-    console.error(`${violation.file}:${violation.line}: ${violation.ruleId} ${violation.title}`);
-    console.error(`  Reason: ${violation.detail}`);
-    console.error(`  Rule: ${ruleDocFor(violation.ruleId)}`);
-    console.error(`  Fix: ${violation.snippet}`);
-    if (violation.source) {
-      for (const line of String(violation.source).split(/\r?\n/u).slice(0, 12)) console.error(`  > ${line}`);
+  printFindingList(report.violations, 'Reason');
+  if (warnings.length > 0) printFindingList(warnings, 'Warning');
+}
+
+function printFindingList(findings, label) {
+  for (const finding of findings) {
+    console.error(`${finding.file}:${finding.line}: ${finding.severity ?? 'error'} ${finding.ruleId} ${finding.title}`);
+    console.error(`  ${label}: ${finding.detail}`);
+    console.error(`  Rule: ${ruleDocFor(finding.ruleId)}`);
+    console.error(`  Fix: ${finding.snippet}`);
+    if (finding.source) {
+      for (const line of String(finding.source).split(/\r?\n/u).slice(0, 12)) console.error(`  > ${line}`);
     }
     console.error('');
   }
@@ -1492,7 +1747,7 @@ function describeScope(scope) {
 
 function explainRule(ruleId) {
   const normalized = ruleId?.toUpperCase();
-  const rule = RULES[normalized];
+  const rule = RULES[normalized] ?? GENERIC_RULES[normalized] ?? CHECK_RULES[normalized];
   if (!rule) throw new Error(`Unknown rule ID: ${ruleId}`);
   return { ruleId: normalized, ...rule, anchor: ruleDocFor(normalized) };
 }
@@ -1538,23 +1793,234 @@ function printDoctor(report) {
   }
 }
 
+function runRunsCommand(args, root, config) {
+  const query = {
+    root,
+    harness: config.harness,
+    runId: args.runId,
+    limit: args.limit ?? undefined,
+    diagnosticLimit: args.limit ?? undefined,
+    severity: args.severity ?? undefined,
+    status: args.status ?? undefined,
+    file: args.file ?? undefined,
+    tool: args.runTool ?? undefined,
+    crateName: args.crateName ?? undefined,
+    packageName: args.packageName ?? undefined,
+    domain: args.domain ?? undefined,
+    tag: args.tag ?? undefined,
+    artifact: args.artifact ?? undefined,
+    limitBytes: args.limitBytes ?? undefined,
+  };
+  switch (args.runsCommand) {
+    case 'list':
+      return { ok: true, runs: listRuns(query) };
+    case 'summary':
+      return { ok: true, summary: runSummary(query) };
+    case 'diagnostics':
+      return runDiagnostics(query);
+    case 'last-failure':
+      return lastFailure(query);
+    case 'artifact':
+      return readArtifact(query);
+    case 'prune':
+      return pruneRuns(query);
+    case 'reset':
+      return resetRuns(query);
+    case 'ingest':
+      return { ok: true, message: 'NDJSON manifests are updated at run completion; DuckDB ingestion is optional in this build.' };
+    default:
+      throw new Error(`Unknown runs command: ${args.runsCommand}`);
+  }
+}
+
+function printRunReport(report) {
+  console.log(`Ocentra Enforcer run ${report.summary.status}: ${report.summary.runId}`);
+  console.log(`Tool: ${report.summary.tool}`);
+  if (report.summary.crateName) console.log(`Crate: ${report.summary.crateName}`);
+  if (report.summary.packageName) console.log(`Package: ${report.summary.packageName}`);
+  if (report.summary.domain) console.log(`Domain: ${report.summary.domain}`);
+  console.log(`Exit: ${report.summary.exitCode}`);
+  console.log(`Diagnostics: ${report.summary.diagnosticCount}`);
+  console.log(`Artifacts: ${Object.values(report.summary.artifacts).join(', ')}`);
+  for (const diagnostic of report.diagnostics.slice(0, 10)) {
+    console.log(`${diagnostic.file}:${diagnostic.line}: ${diagnostic.ruleId} ${diagnostic.message}`);
+  }
+}
+
+function printRunsReport(command, report) {
+  if (command === 'list') {
+    for (const run of report.runs) {
+      const meta = [
+        run.crateName ? `crate=${run.crateName}` : null,
+        run.packageName ? `package=${run.packageName}` : null,
+        run.domain ? `domain=${run.domain}` : null,
+        run.tags?.length ? `tags=${run.tags.join(',')}` : null,
+      ]
+        .filter(Boolean)
+        .join(' ');
+      console.log(`${run.runId} ${run.status} ${run.tool} diagnostics=${run.diagnosticCount}${meta ? ` ${meta}` : ''}`);
+    }
+    return;
+  }
+  if (command === 'artifact') {
+    console.log(report.text ?? report.message ?? '');
+    return;
+  }
+  if (command === 'diagnostics') {
+    for (const diagnostic of report.diagnostics ?? []) {
+      console.log(`${diagnostic.file}:${diagnostic.line}: ${diagnostic.ruleId} ${diagnostic.message}`);
+    }
+    return;
+  }
+  console.log(JSON.stringify(report, null, 2));
+}
+
+function printCheckReport(report) {
+  if (report.violations.length === 0) {
+    console.log(`Ocentra Enforcer check ${report.check} passed.`);
+    return;
+  }
+  console.error(`Ocentra Enforcer check ${report.check} failed with ${report.violations.length} violation${report.violations.length === 1 ? '' : 's'}.`);
+  console.error(`Profile: ${report.profileName}`);
+  console.error('');
+  printFindingList(report.violations, 'Reason');
+}
+
 export function runRustRules(options = {}) {
   const root = path.resolve(options.root ?? process.cwd());
-  const config = normalizeConfig({ ...DEFAULT_CONFIG, ...(options.config ?? loadConfig(root, options.configPath)) });
+  const config = normalizeConfig({ ...DEFAULT_CONFIG, ...(options.config ?? loadConfig(root, options.configPath, options.profile)) });
   const scope = resolveScope(root, config, options.scope ?? { mode: 'all' });
   const command = options.command ?? 'scan';
   const scannerViolations = runScanner(root, config, scope);
   const cargoViolations = options.scanOnly || command === 'scan' ? [] : runCargoGates(root, config, scope);
-  const violations = [...scannerViolations, ...cargoViolations];
+  const findings = applyRulePolicy([...scannerViolations, ...cargoViolations], config, ruleRegistryRules());
+  const { violations, warnings, bySeverity } = splitFindings(findings, config);
   return {
     ok: violations.length === 0,
     command,
     violations,
+    warnings,
+    findings,
+    bySeverity,
+    failOn: config.failOn,
     root,
     profileName: config.profileName,
     scanOnly: Boolean(options.scanOnly || command === 'scan'),
     scope: { ...scope, files: scope.files.map((file) => normalizeRel(root, file)) },
   };
+}
+
+export function runEnforcerScan(options = {}) {
+  const root = path.resolve(options.root ?? process.cwd());
+  const config = normalizeConfig({ ...DEFAULT_CONFIG, ...(options.config ?? loadConfig(root, options.configPath, options.profile)) });
+  const activeLanguages = resolveScanLanguages(options.languages, config);
+  const rawScope = options.rawScope ?? options.scope ?? { mode: 'all' };
+  const rustReport = activeLanguages.includes('rust')
+    ? runRustRules({
+        root,
+        config,
+        scope: rawScope,
+        command: options.command ?? 'scan',
+        scanOnly: options.scanOnly,
+      })
+    : {
+        ok: true,
+        command: options.command ?? 'scan',
+        violations: [],
+        root,
+        profileName: config.profileName,
+        scanOnly: Boolean(options.scanOnly || options.command === 'scan'),
+        scope: { ...rawScope, files: [] },
+      };
+  const genericLanguages = activeLanguages.filter((language) => language !== 'rust');
+  const genericReport =
+    genericLanguages.length === 0
+      ? { files: [], violations: [] }
+      : runGenericScan({ root, scope: rawScope, config, languages: genericLanguages });
+  const genericFindings = applyRulePolicy(genericReport.violations, config, ruleRegistryRules());
+  const findings = [...(rustReport.findings ?? rustReport.violations), ...genericFindings];
+  const { violations, warnings, bySeverity } = splitFindings(findings, config);
+  const scopeFiles = uniqueSorted([...(rustReport.scope.files ?? []), ...genericReport.files]);
+  return {
+    ...rustReport,
+    ok: violations.length === 0,
+    command: options.command ?? rustReport.command,
+    violations,
+    warnings,
+    findings,
+    bySeverity,
+    failOn: config.failOn,
+    languages: activeLanguages,
+    scope: { ...rustReport.scope, files: scopeFiles },
+  };
+}
+
+export function runEnforcerCheck(options = {}) {
+  const root = path.resolve(options.root ?? process.cwd());
+  const config = normalizeConfig({ ...DEFAULT_CONFIG, ...(options.config ?? loadConfig(root, options.configPath, options.profile)) });
+  const rawScope = options.rawScope ?? options.scope ?? { mode: 'all' };
+  const decoded = decodeCheckToolArguments({
+    root,
+    configPath: options.configPath ?? undefined,
+    profile: options.profile ?? undefined,
+    check: normalizeCheckName(options.checkName ?? options.check),
+    scope: rawScope.mode === 'all' ? 'workspace' : rawScope.mode,
+    files: rawScope.files ?? undefined,
+    crateName: rawScope.crateName ?? undefined,
+    base: rawScope.base ?? undefined,
+    head: rawScope.head ?? undefined,
+    checkConfigPath: options.checkConfigPath ?? undefined,
+    output: options.output ?? undefined,
+    dryRun: options.dryRun ?? undefined,
+  });
+  const checkName = decoded.check;
+  const scannerBacked = SCANNER_BACKED_CHECKS[checkName];
+  if (scannerBacked) {
+    const report = runEnforcerScan({
+      root,
+      config,
+      rawScope,
+      command: 'check',
+      scanOnly: true,
+      languages: scannerBacked.languages,
+    });
+    const allowed = new Set(scannerBacked.ruleIds);
+    const findings = (report.findings ?? []).filter((finding) => allowed.has(finding.ruleId));
+    const { violations, warnings, bySeverity } = splitFindings(findings, config);
+    return {
+      ok: violations.length === 0,
+      command: 'check',
+      check: checkName,
+      root,
+      profileName: report.profileName,
+      violations,
+      warnings,
+      findings,
+      bySeverity,
+      scope: report.scope,
+      languages: scannerBacked.languages,
+    };
+  }
+  return runStandaloneCheck({
+    checkName,
+    root,
+    config,
+    args: {
+      checkConfigPath: decoded.checkConfigPath,
+      output: decoded.output,
+      dryRun: decoded.dryRun,
+    },
+  });
+}
+
+function resolveScanLanguages(optionLanguages, config) {
+  const languages = optionLanguages ?? config.languages ?? ['rust'];
+  const allowed = new Set(['rust', 'typescript', 'python', 'common']);
+  const normalized = languages.map((language) => String(language).trim()).filter(Boolean);
+  for (const language of normalized) {
+    if (!allowed.has(language)) throw new Error(`Unknown scan language: ${language}`);
+  }
+  return normalized.length > 0 ? normalized : ['rust'];
 }
 
 function isMainModule() {
@@ -1577,8 +2043,76 @@ if (isMainModule()) {
       process.exit(0);
     }
 
+    if (args.command === 'codex-install') {
+      const report = createInitReport({ ...args, adapters: args.adapters ?? ['codex', 'mcp'] });
+      if (!report.dryRun) applyInitReport(report);
+      if (args.json) console.log(JSON.stringify(report, null, 2));
+      else printInitReport(report);
+      process.exit(0);
+    }
+
     const root = path.resolve(args.root);
-    const config = loadConfig(root, args.configPath);
+    const config = loadConfig(root, args.configPath, args.profile);
+
+    if (args.command === 'route') {
+      const report = routeRules({
+        root,
+        configPath: args.configPath,
+        profile: args.profile ?? config.profileName,
+        scope: args.scope.mode === 'all' ? 'workspace' : args.scope.mode,
+        files: args.scope.files ?? [],
+        crateName: args.scope.crateName,
+        base: args.scope.base,
+        head: args.scope.head,
+        ruleId: args.routeRuleId,
+      });
+      console.log(JSON.stringify(report, null, 2));
+      process.exit(0);
+    }
+
+    if (args.command === 'run') {
+      const report = runHarness({
+        root,
+        profile: args.profile,
+        tool: args.runTool,
+        language: args.languages?.[0],
+        harness: config.harness,
+        command: args.runCommand,
+        runId: args.runId,
+        crateName: args.crateName,
+        packageName: args.packageName,
+        domain: args.domain,
+        tags: args.tag ? [args.tag] : undefined,
+      });
+      if (args.json) console.log(JSON.stringify(report, null, 2));
+      else printRunReport(report);
+      process.exit(report.ok ? 0 : 1);
+    }
+
+    if (args.command === 'runs') {
+      const report = runRunsCommand(args, root, config);
+      if (args.json) console.log(JSON.stringify(report, null, 2));
+      else printRunsReport(args.runsCommand, report);
+      process.exit(report?.ok === false ? 1 : 0);
+    }
+
+    if (args.command === 'check') {
+      const report = runEnforcerCheck({
+        root,
+        config,
+        rawScope: args.scope,
+        checkName: args.checkName,
+        configPath: args.configPath,
+        profile: args.profile,
+        checkConfigPath: args.checkConfigPath,
+        output: args.output,
+        dryRun: args.dryRun,
+      });
+      if (args.json) console.log(JSON.stringify(report, null, 2));
+      else printCheckReport(report);
+      process.exit(report.ok ? 0 : 1);
+    }
+
     const scope = resolveScope(root, config, args.scope);
 
     if (args.command === 'explain') {
@@ -1599,12 +2133,14 @@ if (isMainModule()) {
       process.exit(report.ok ? 0 : 1);
     }
 
-    const report = runRustRules({
+    const report = runEnforcerScan({
       root,
       config,
-      scope,
+      rawScope: args.scope,
       command: args.command,
       scanOnly: args.scanOnly,
+      languages: args.languages,
+      profile: args.profile,
     });
     if (args.json) console.log(JSON.stringify(report, null, 2));
     else printHumanReport(report);

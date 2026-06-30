@@ -129,8 +129,42 @@ Expected behavior:
 
 - Codex sees `ocentra_enforcer_route`.
 - The tool returns compact JSON.
-- `Cargo.toml` routes to Rust toolchain/Cargo and dependency docs.
+- `Cargo.toml` routes to Rust toolchain/Cargo, dependency, and common security docs.
 - Unknown files return no detailed docs instead of the whole rulebook.
+
+## Validate Named Checks From Codex
+
+Ask Codex:
+
+```text
+Use the ocentra-enforcer MCP server. Call ocentra_enforcer_check for root C:/path/to/target-repo, profile strict, check "source-shape", scope workspace. Return only the compact JSON summary.
+```
+
+For migrated Ocentra Parent-style checks, use:
+
+```text
+Call ocentra_enforcer_check for root C:/path/to/target-repo, profile strict, check "no-zod-source", scope files, files ["src/index.ts"].
+```
+
+Expected behavior:
+
+- Codex sees `ocentra_enforcer_check`.
+- The tool runs from the Enforcer install path but targets the passed `root`.
+- The result is a compact `check` report with `violations`, `warnings`, `bySeverity`, and exact rule IDs.
+
+## Validate Harness From Codex
+
+Ask Codex to run a small command through the harness:
+
+```text
+Use the ocentra-enforcer MCP server. Call ocentra_enforcer_run for root C:/path/to/target-repo with tool "node" and command ["node", "--version"]. Then call ocentra_enforcer_run_status for the same root.
+```
+
+For real checks, prefer:
+
+```text
+Call ocentra_enforcer_run for root C:/path/to/target-repo, tool "tsc", command ["npx", "tsc", "--noEmit", "--pretty", "false"]. If it fails, call ocentra_enforcer_last_failure before reading any raw artifact.
+```
 
 ## Skill Setup
 
@@ -172,6 +206,12 @@ MCP tools appear but scans target the wrong repo:
 - Always pass `root` in tool arguments.
 - Do not rely on MCP server current working directory.
 - Use `profile` for pack policy or `configPath` for target repo policy.
+
+Harness command fails but no useful diagnostics appear:
+
+- Call `ocentra_enforcer_last_failure` first.
+- If compact diagnostics are insufficient, call `ocentra_enforcer_artifact` with `artifact: "stderr"` and a small `limitBytes`.
+- Native tool JSON is preferred: Cargo `--message-format=json`, ESLint `--format json`, Ruff `--output-format json`, Pyright `--outputjson`.
 
 Windows path issues:
 

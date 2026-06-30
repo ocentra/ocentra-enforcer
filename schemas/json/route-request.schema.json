@@ -10,6 +10,7 @@
     "profile": { "type": "string" },
     "scope": { "enum": ["workspace", "files", "crate", "diff"] },
     "files": { "type": "array", "items": { "type": "string" } },
+    "languages": { "type": "array", "items": { "enum": ["rust", "typescript", "python", "common"] } },
     "crateName": { "type": "string" },
     "base": { "type": "string" },
     "head": { "type": "string" },

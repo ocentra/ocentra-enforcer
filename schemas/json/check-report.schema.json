@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocentra.dev/schemas/ocentra-enforcer/check-report.schema.json",
+  "title": "Ocentra Enforcer Check Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ok", "command", "check", "root", "profileName", "violations"],
+  "properties": {
+    "ok": { "type": "boolean" },
+    "command": { "const": "check" },
+    "check": {
+      "enum": [
+        "no-zod-source",
+        "no-naked-domain-strings",
+        "no-test-doubles",
+        "weak-assertions",
+        "skipped-focused-tests",
+        "validation-bypass",
+        "placeholder-implementation",
+        "reexports",
+        "cross-platform-script-commands",
+        "generated-artifacts",
+        "secrets",
+        "rust-string-boundaries",
+        "source-shape",
+        "required-tests",
+        "single-source-contracts",
+        "dependency-policy",
+        "sbom",
+        "ai-rule-index"
+      ]
+    },
+    "root": { "type": "string" },
+    "profileName": { "type": "string" },
+    "violations": { "type": "array", "items": { "$ref": "#/$defs/violation" } },
+    "warnings": { "type": "array", "items": { "$ref": "#/$defs/violation" } },
+    "findings": { "type": "array", "items": { "$ref": "#/$defs/violation" } },
+    "bySeverity": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    },
+    "scope": { "$ref": "#/$defs/scope" },
+    "languages": { "type": "array", "items": { "enum": ["rust", "typescript", "python", "common"] } }
+  },
+  "$defs": {
+    "violation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ruleId", "title", "detail", "file", "line", "snippet"],
+      "properties": {
+        "ruleId": { "type": "string" },
+        "severity": { "enum": ["error", "warning", "info"] },
+        "title": { "type": "string" },
+        "detail": { "type": "string" },
+        "file": { "type": "string" },
+        "line": { "type": "number" },
+        "snippet": { "type": "string" },
+        "source": { "type": ["string", "null"] }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "mode": { "type": "string" },
+        "files": { "type": "array", "items": { "type": "string" } },
+        "crateName": { "type": "string" },
+        "crateRoot": { "type": "string" },
+        "manifest": { "type": "string" },
+        "base": { "type": "string" },
+        "head": { "type": "string" }
+      }
+    }
+  }
+}

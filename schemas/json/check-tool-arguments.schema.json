@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocentra.dev/schemas/ocentra-enforcer/check-tool-arguments.schema.json",
+  "title": "Ocentra Enforcer Check Tool Arguments",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["check"],
+  "properties": {
+    "root": { "type": "string" },
+    "configPath": { "type": "string" },
+    "profile": { "type": "string" },
+    "check": {
+      "enum": [
+        "no-zod-source",
+        "no-naked-domain-strings",
+        "no-test-doubles",
+        "weak-assertions",
+        "skipped-focused-tests",
+        "validation-bypass",
+        "placeholder-implementation",
+        "reexports",
+        "cross-platform-script-commands",
+        "generated-artifacts",
+        "secrets",
+        "rust-string-boundaries",
+        "source-shape",
+        "required-tests",
+        "single-source-contracts",
+        "dependency-policy",
+        "sbom",
+        "ai-rule-index"
+      ]
+    },
+    "scope": { "enum": ["workspace", "files", "crate", "diff"] },
+    "files": { "type": "array", "items": { "type": "string" } },
+    "crateName": { "type": "string" },
+    "base": { "type": "string" },
+    "head": { "type": "string" },
+    "checkConfigPath": { "type": "string" },
+    "output": { "type": "string" },
+    "dryRun": { "type": "boolean" }
+  }
+}
