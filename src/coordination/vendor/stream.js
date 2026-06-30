@@ -2,14 +2,14 @@ import { mkdir, open, readdir, readFile, rm } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { buildCoordinationContext } from "./context.js";
 import { nowIso, parseEventType, writerId, } from "./domain.js";
-import { assertCoordinationHashCompatibility, completeEvent, parseHubEvent } from "./events.js";
+import { assertCoordinationHashCompatibility, assertEventHash, completeEvent, parseHubEvent } from "./events.js";
 import { randomEventId } from "./identity.js";
 import { archivedStreamDir, archiveStreamsDir, lockPath, streamPath, streamsDir } from "./paths.js";
 export async function appendEvent(root, config, lane, event) {
     await mkdir(streamsDir(root), { recursive: true });
     return withStreamLock(root, config, lane, async () => {
         const path = streamPath(root, config.nodeId, lane);
-        const events = await readStream(path);
+        const events = await readCanonicalStream(root, basename(path));
         const input = eventInput(config, lane, event);
         assertCoordinationHashCompatibility();
         const completed = completeEvent(input, events.at(-1), randomEventId());
@@ -110,11 +110,19 @@ export async function readStream(path) {
     const events = [];
     for (const item of parsed) {
         if (item.kind === "event") {
+            assertEventHash(item.event);
             events.push(item.event);
         }
         else {
             throw new Error(`${path}:${item.line}: ${item.warning}`);
         }
+    }
+    return events;
+}
+async function readCanonicalStream(root, streamName) {
+    const events = [];
+    for (const segment of await streamSegments(root, streamName)) {
+        events.push(...await readStream(segment.path));
     }
     return events;
 }

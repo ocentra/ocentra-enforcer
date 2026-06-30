@@ -575,13 +575,13 @@ test("coordination repair fixes Enforcer context-hashed streams for legacy reade
   assert.equal(dryRun.dryRun, true);
   assert.equal(dryRun.repairedStreams.length, 1);
   assert.equal(dryRun.repairedEvents, 1);
-  assert.equal(fs.existsSync(dryRun.repairedStreams[0].backupPath ?? ""), false);
+  assert.deepEqual(dryRun.repairedStreams[0].backupPaths, []);
 
   const repaired = await coordinationRepair({ stateRoot, write: true });
   assert.equal(repaired.ok, true);
   assert.equal(repaired.dryRun, false);
   assert.equal(repaired.repairedStreams.length, 1);
-  assert.equal(fs.existsSync(repaired.repairedStreams[0].backupPath), true);
+  assert.equal(fs.existsSync(repaired.repairedStreams[0].backupPaths[0]), true);
   const after = await inspectLedger(stateRoot);
   assert.equal(after.ok, true);
 
@@ -598,6 +598,109 @@ test("coordination repair fixes Enforcer context-hashed streams for legacy reade
   );
   assert.equal(repairedSecond.prevHash, repairedFirst.hash);
   assert.equal(repairedSecond.hash, hashForEvent(removeHash(repairedSecond)));
+});
+
+test("coordination repair fixes compacted context-hashed archive segments", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-archive-repair-"));
+  const init = await coordinationInit({
+    stateRoot,
+    hub: "archive-repair-hub",
+    lane: "codex-a",
+  });
+  const streamPath = path.join(
+    stateRoot,
+    "streams",
+    `${init.nodeId}.codex-a.ndjson`,
+  );
+  fs.mkdirSync(path.dirname(streamPath), { recursive: true });
+  const firstBase = {
+    id: "evt_archivecontext1",
+    schema: 1,
+    hub: "archive-repair-hub",
+    nodeId: init.nodeId,
+    nodeName: init.nodeName,
+    lane: "codex-a",
+    writer: `${init.nodeId}.codex-a`,
+    type: "message",
+    ts: "2026-06-30T00:00:00.000Z",
+    seq: 1,
+    prevEventId: null,
+    prevHash: null,
+    to: "codex-b",
+    body: "stale mcp message",
+    context: {
+      projectId: "archive-repair",
+      codexThreadId: "thread-archive",
+    },
+  };
+  const first = {
+    ...firstBase,
+    hash: hashForEventWithExtensions(firstBase),
+  };
+  const secondBase = {
+    id: "evt_archiveclaim02",
+    schema: 1,
+    hub: "archive-repair-hub",
+    nodeId: init.nodeId,
+    nodeName: init.nodeName,
+    lane: "codex-a",
+    writer: `${init.nodeId}.codex-a`,
+    type: "claim",
+    ts: "2026-06-30T00:00:01.000Z",
+    seq: 2,
+    prevEventId: first.id,
+    prevHash: first.hash,
+    paths: ["src/lib.rs"],
+    reason: "claim after stale mcp message",
+  };
+  const second = {
+    ...secondBase,
+    hash: hashForEvent(secondBase),
+  };
+  fs.writeFileSync(
+    streamPath,
+    `${JSON.stringify(first)}\n${JSON.stringify(second)}\n`,
+    "utf8",
+  );
+
+  const archiveDir = path.join(
+    stateRoot,
+    "archive",
+    "streams",
+    path.basename(streamPath),
+  );
+  fs.mkdirSync(archiveDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(archiveDir, "20260630T000000000Z.ndjson"),
+    `${JSON.stringify(first)}\n`,
+    "utf8",
+  );
+  fs.writeFileSync(streamPath, `${JSON.stringify(second)}\n`, "utf8");
+  await assert.rejects(
+    coordinationRelease({
+      stateRoot,
+      lane: "codex-a",
+      paths: ["src/lib.rs"],
+      reason: "should refuse before repair",
+    }),
+    /hash mismatch/u,
+  );
+
+  const repaired = await coordinationRepair({ stateRoot, write: true });
+  assert.equal(repaired.ok, true);
+  assert.equal(repaired.repairedEvents, 1);
+  assert.equal(repaired.rehashedEvents, 2);
+  const inspection = await inspectLedger(stateRoot);
+  assert.equal(inspection.ok, true);
+
+  const release = await coordinationRelease({
+    stateRoot,
+    lane: "codex-a",
+    paths: ["src/lib.rs"],
+    reason: "release after archive repair",
+  });
+  assert.equal(release.ok, true);
+  assert.equal(release.event.type, "release");
 });
 
 test("coordination repair fixes sequence breaks without Parent wrappers", async () => {
@@ -665,7 +768,7 @@ test("coordination repair fixes sequence breaks without Parent wrappers", async 
   });
   assert.equal(repaired.ok, true);
   assert.equal(repaired.sequenceRepairs, 1);
-  assert.equal(fs.existsSync(repaired.repairedStreams[0].backupPath), true);
+  assert.equal(fs.existsSync(repaired.repairedStreams[0].backupPaths[0]), true);
   const after = await inspectLedger(stateRoot);
   assert.equal(after.ok, true);
 

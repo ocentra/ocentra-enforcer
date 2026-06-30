@@ -1,22 +1,21 @@
-import { copyFile, mkdir, open, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { copyFile, open, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { inspectLedger } from "./doctor.js";
 import { hashForEvent, hashForEventWithExtensions } from "./events.js";
 import { rebuildCoordinationIndex } from "./read-index.js";
-import { streamsDir } from "./paths.js";
+import { listCanonicalStreamNames, streamSegments } from "./stream.js";
 
 export async function repairLegacyHashCompatibility(root, options = {}) {
     const dryRun = options.dryRun !== false;
-    const streams = await streamFiles(root);
+    const streams = await listCanonicalStreamNames(root);
     const repairedStreams = [];
     const skippedStreams = [];
     let repairedEvents = 0;
     let rehashedEvents = 0;
     for (const streamName of streams) {
-        const streamPath = join(streamsDir(root), streamName);
+        const segments = await streamSegments(root, streamName);
         const result = dryRun
-            ? await repairStream(streamPath, { dryRun })
-            : await withStreamFileLock(streamPath, () => repairStream(streamPath, { dryRun }));
+            ? await repairLegacyCanonicalStream(segments, { dryRun })
+            : await withCanonicalStreamLocks(segments, () => repairLegacyCanonicalStream(segments, { dryRun }));
         if (result.errors.length > 0) {
             skippedStreams.push({
                 stream: streamName,
@@ -32,7 +31,7 @@ export async function repairLegacyHashCompatibility(root, options = {}) {
             stream: streamName,
             repairedEvents: result.repairedEvents,
             rehashedEvents: result.rehashedEvents,
-            backupPath: result.backupPath,
+            backupPaths: result.backupPaths,
         });
     }
     const inspection = dryRun ? undefined : await inspectLedger(root);
@@ -55,7 +54,7 @@ export async function repairLegacyHashCompatibility(root, options = {}) {
 
 export async function repairSequenceBreaks(root, options = {}) {
     const dryRun = options.dryRun !== false;
-    const streams = await streamFiles(root);
+    const streams = await listCanonicalStreamNames(root);
     const repairedStreams = [];
     const skippedStreams = [];
     let repairedEvents = 0;
@@ -63,10 +62,10 @@ export async function repairSequenceBreaks(root, options = {}) {
     let pointerRepairs = 0;
     let rehashedEvents = 0;
     for (const streamName of streams) {
-        const streamPath = join(streamsDir(root), streamName);
+        const segments = await streamSegments(root, streamName);
         const result = dryRun
-            ? await repairSequenceStream(streamPath, { dryRun })
-            : await withStreamFileLock(streamPath, () => repairSequenceStream(streamPath, { dryRun }));
+            ? await repairSequenceCanonicalStream(segments, { dryRun })
+            : await withCanonicalStreamLocks(segments, () => repairSequenceCanonicalStream(segments, { dryRun }));
         if (result.errors.length > 0) {
             skippedStreams.push({
                 stream: streamName,
@@ -86,7 +85,7 @@ export async function repairSequenceBreaks(root, options = {}) {
             sequenceRepairs: result.sequenceRepairs,
             pointerRepairs: result.pointerRepairs,
             rehashedEvents: result.rehashedEvents,
-            backupPath: result.backupPath,
+            backupPaths: result.backupPaths,
         });
     }
     const inspection = dryRun ? undefined : await inspectLedger(root);
@@ -109,21 +108,26 @@ export async function repairSequenceBreaks(root, options = {}) {
     };
 }
 
-async function repairStream(streamPath, options) {
-    const original = await readFile(streamPath, "utf8");
-    const lines = original.split(/\r?\n/u).filter((line) => line.length > 0);
-    const events = [];
+async function repairLegacyCanonicalStream(segments, options) {
+    const segmentInputs = [];
     const errors = [];
-    for (const [index, line] of lines.entries()) {
-        try {
-            events.push(JSON.parse(line));
+    for (const segment of segments) {
+        const original = await readFile(segment.path, "utf8");
+        const lines = original.split(/\r?\n/u).filter((line) => line.length > 0);
+        const events = [];
+        for (const [index, line] of lines.entries()) {
+            try {
+                events.push(JSON.parse(line));
+            }
+            catch (error) {
+                errors.push({
+                    stream: segment.path,
+                    line: index + 1,
+                    message: `malformed event: ${error instanceof Error ? error.message : String(error)}`,
+                });
+            }
         }
-        catch (error) {
-            errors.push({
-                line: index + 1,
-                message: `malformed event: ${error instanceof Error ? error.message : String(error)}`,
-            });
-        }
+        segmentInputs.push({ segment, events });
     }
     if (errors.length > 0) {
         return { changed: false, repairedEvents: 0, rehashedEvents: 0, errors };
@@ -132,89 +136,106 @@ async function repairStream(streamPath, options) {
     let repairedEvents = 0;
     let rehashedEvents = 0;
     let previous = null;
-    for (const [index, event] of events.entries()) {
-        const originalHash = event.hash;
-        const originalPrevEventId = event.prevEventId;
-        const originalPrevHash = event.prevHash;
-        const withoutHash = removeHash(event);
-        const wireHash = hashForEvent(withoutHash);
-        const extensionHash = hashForEventWithExtensions(withoutHash);
-        const legacyCompatible = originalHash === wireHash;
-        const extensionCompatible = originalHash === extensionHash;
-        const extensionOnlyHash = hasExtensionMetadata(event) && !legacyCompatible && extensionCompatible;
-        if (!legacyCompatible && !extensionCompatible) {
-            errors.push({
-                line: index + 1,
-                eventId: event.id,
-                message: "event hash is neither legacy-compatible nor known Enforcer extension-compatible",
-            });
-            break;
-        }
-        if (previous === null) {
-            if (event.seq !== 1 || event.prevEventId !== null || event.prevHash !== null) {
+    for (const segmentInput of segmentInputs) {
+        for (const [index, event] of segmentInput.events.entries()) {
+            const originalHash = event.hash;
+            const originalPrevEventId = event.prevEventId;
+            const originalPrevHash = event.prevHash;
+            const withoutHash = removeHash(event);
+            const wireHash = hashForEvent(withoutHash);
+            const extensionHash = hashForEventWithExtensions(withoutHash);
+            const legacyCompatible = originalHash === wireHash;
+            const extensionCompatible = originalHash === extensionHash;
+            const extensionOnlyHash = hasExtensionMetadata(event) && !legacyCompatible && extensionCompatible;
+            if (!legacyCompatible && !extensionCompatible) {
                 errors.push({
+                    stream: segmentInput.segment.path,
                     line: index + 1,
                     eventId: event.id,
-                    message: "first event does not start a stream chain",
+                    message: "event hash is neither legacy-compatible nor known Enforcer extension-compatible",
                 });
                 break;
             }
-        }
-        else if (event.prevEventId !== previous.id || event.prevHash !== previous.hash) {
-            event.prevEventId = previous.id;
-            event.prevHash = previous.hash;
-            changed = true;
-        }
-        const nextHash = hashForEvent(removeHash(event));
-        if (event.hash !== nextHash) {
-            event.hash = nextHash;
-            changed = true;
-            if (extensionOnlyHash) {
-                repairedEvents += 1;
+            if (previous === null) {
+                if (event.seq !== 1 || event.prevEventId !== null || event.prevHash !== null) {
+                    errors.push({
+                        stream: segmentInput.segment.path,
+                        line: index + 1,
+                        eventId: event.id,
+                        message: "first event does not start a stream chain",
+                    });
+                    break;
+                }
             }
-            else {
+            else if (event.prevEventId !== previous.id || event.prevHash !== previous.hash) {
+                event.prevEventId = previous.id;
+                event.prevHash = previous.hash;
+                changed = true;
+            }
+            const nextHash = hashForEvent(removeHash(event));
+            if (event.hash !== nextHash) {
+                event.hash = nextHash;
+                changed = true;
+                if (extensionOnlyHash) {
+                    repairedEvents += 1;
+                }
+                else {
+                    rehashedEvents += 1;
+                }
+            }
+            if (event.prevEventId !== originalPrevEventId || event.prevHash !== originalPrevHash) {
                 rehashedEvents += 1;
             }
+            previous = event;
         }
-        if (event.prevEventId !== originalPrevEventId || event.prevHash !== originalPrevHash) {
-            rehashedEvents += 1;
+        if (errors.length > 0) {
+            break;
         }
-        previous = event;
     }
     if (errors.length > 0 || !changed) {
         return { changed: false, repairedEvents, rehashedEvents, errors };
     }
-    const backupPath = `${streamPath}.legacy-hash-repair.${timestamp()}.bak`;
+    const backupPaths = [];
     if (!options.dryRun) {
-        await copyFile(streamPath, backupPath);
-        const tmpPath = `${streamPath}.legacy-hash-repair.tmp`;
-        await writeFile(tmpPath, `${events.map((event) => JSON.stringify(event)).join("\n")}\n`, "utf8");
-        await rename(tmpPath, streamPath);
+        for (const segmentInput of segmentInputs) {
+            const streamPath = segmentInput.segment.path;
+            const backupPath = `${streamPath}.legacy-hash-repair.${timestamp()}.bak`;
+            backupPaths.push(backupPath);
+            await copyFile(streamPath, backupPath);
+            const tmpPath = `${streamPath}.legacy-hash-repair.tmp`;
+            await writeFile(tmpPath, `${segmentInput.events.map((event) => JSON.stringify(event)).join("\n")}\n`, "utf8");
+            await rename(tmpPath, streamPath);
+        }
     }
     return {
         changed,
         repairedEvents,
         rehashedEvents,
         errors,
-        backupPath: options.dryRun ? null : backupPath,
+        backupPaths: options.dryRun ? [] : backupPaths,
     };
 }
 
-async function repairSequenceStream(streamPath, options) {
-    const original = await readFile(streamPath, "utf8");
-    const lines = original.split(/\r?\n/u).filter((line) => line.length > 0);
-    const events = [];
+async function repairSequenceCanonicalStream(segments, options) {
+    const segmentInputs = [];
     const errors = [];
-    for (const [index, line] of lines.entries()) {
-        try {
-            events.push(JSON.parse(line));
+    for (const segment of segments) {
+        const original = await readFile(segment.path, "utf8");
+        const lines = original.split(/\r?\n/u).filter((line) => line.length > 0);
+        const events = [];
+        for (const [index, line] of lines.entries()) {
+            try {
+                events.push(JSON.parse(line));
+            }
+            catch (error) {
+                errors.push({
+                    stream: segment.path,
+                    line: index + 1,
+                    message: `malformed event: ${error instanceof Error ? error.message : String(error)}`,
+                });
+            }
         }
-        catch (error) {
-            errors.push({
-                line: index + 1,
-                message: `malformed event: ${error instanceof Error ? error.message : String(error)}`,
-            });
-        }
+        segmentInputs.push({ segment, events });
     }
     if (errors.length > 0) {
         return {
@@ -232,45 +253,53 @@ async function repairSequenceStream(streamPath, options) {
     let pointerRepairs = 0;
     let rehashedEvents = 0;
     let previous = null;
-    for (const [index, event] of events.entries()) {
-        let eventChanged = false;
-        const originalHash = event.hash;
-        const withoutHash = removeHash(event);
-        const wireHash = hashForEvent(withoutHash);
-        const extensionHash = hashForEventWithExtensions(withoutHash);
-        if (originalHash !== wireHash && originalHash !== extensionHash) {
-            errors.push({
-                line: index + 1,
-                eventId: event.id,
-                message: "event hash is invalid; run coordination repair legacy-hash first if this is a context-hash stream",
-            });
+    let globalIndex = 0;
+    for (const segmentInput of segmentInputs) {
+        for (const [index, event] of segmentInput.events.entries()) {
+            let eventChanged = false;
+            const originalHash = event.hash;
+            const withoutHash = removeHash(event);
+            const wireHash = hashForEvent(withoutHash);
+            const extensionHash = hashForEventWithExtensions(withoutHash);
+            if (originalHash !== wireHash && originalHash !== extensionHash) {
+                errors.push({
+                    stream: segmentInput.segment.path,
+                    line: index + 1,
+                    eventId: event.id,
+                    message: "event hash is invalid; run coordination repair legacy-hash first if this is a context-hash stream",
+                });
+                break;
+            }
+            const expectedSeq = globalIndex + 1;
+            if (event.seq !== expectedSeq) {
+                event.seq = expectedSeq;
+                sequenceRepairs += 1;
+                eventChanged = true;
+            }
+            const expectedPrevEventId = previous?.id ?? null;
+            const expectedPrevHash = previous?.hash ?? null;
+            if (event.prevEventId !== expectedPrevEventId || event.prevHash !== expectedPrevHash) {
+                event.prevEventId = expectedPrevEventId;
+                event.prevHash = expectedPrevHash;
+                pointerRepairs += 1;
+                eventChanged = true;
+            }
+            const nextHash = hashForEvent(removeHash(event));
+            if (event.hash !== nextHash) {
+                event.hash = nextHash;
+                rehashedEvents += 1;
+                eventChanged = true;
+            }
+            if (eventChanged) {
+                changed = true;
+                repairedEvents += 1;
+            }
+            previous = event;
+            globalIndex += 1;
+        }
+        if (errors.length > 0) {
             break;
         }
-        const expectedSeq = index + 1;
-        if (event.seq !== expectedSeq) {
-            event.seq = expectedSeq;
-            sequenceRepairs += 1;
-            eventChanged = true;
-        }
-        const expectedPrevEventId = previous?.id ?? null;
-        const expectedPrevHash = previous?.hash ?? null;
-        if (event.prevEventId !== expectedPrevEventId || event.prevHash !== expectedPrevHash) {
-            event.prevEventId = expectedPrevEventId;
-            event.prevHash = expectedPrevHash;
-            pointerRepairs += 1;
-            eventChanged = true;
-        }
-        const nextHash = hashForEvent(removeHash(event));
-        if (event.hash !== nextHash) {
-            event.hash = nextHash;
-            rehashedEvents += 1;
-            eventChanged = true;
-        }
-        if (eventChanged) {
-            changed = true;
-            repairedEvents += 1;
-        }
-        previous = event;
     }
     if (errors.length > 0 || !changed) {
         return {
@@ -282,12 +311,17 @@ async function repairSequenceStream(streamPath, options) {
             errors,
         };
     }
-    const backupPath = `${streamPath}.sequence-repair.${timestamp()}.bak`;
+    const backupPaths = [];
     if (!options.dryRun) {
-        await copyFile(streamPath, backupPath);
-        const tmpPath = `${streamPath}.sequence-repair.tmp`;
-        await writeFile(tmpPath, `${events.map((event) => JSON.stringify(event)).join("\n")}\n`, "utf8");
-        await rename(tmpPath, streamPath);
+        for (const segmentInput of segmentInputs) {
+            const streamPath = segmentInput.segment.path;
+            const backupPath = `${streamPath}.sequence-repair.${timestamp()}.bak`;
+            backupPaths.push(backupPath);
+            await copyFile(streamPath, backupPath);
+            const tmpPath = `${streamPath}.sequence-repair.tmp`;
+            await writeFile(tmpPath, `${segmentInput.events.map((event) => JSON.stringify(event)).join("\n")}\n`, "utf8");
+            await rename(tmpPath, streamPath);
+        }
     }
     return {
         changed,
@@ -296,18 +330,30 @@ async function repairSequenceStream(streamPath, options) {
         pointerRepairs,
         rehashedEvents,
         errors,
-        backupPath: options.dryRun ? null : backupPath,
+        backupPaths: options.dryRun ? [] : backupPaths,
     };
 }
 
-async function withStreamFileLock(streamPath, run) {
-    const lockPath = streamPath.replace(/\.ndjson$/u, ".lock");
-    let handle;
+async function withCanonicalStreamLocks(segments, run) {
+    const handles = [];
+    const lockPaths = [];
     try {
-        handle = await open(lockPath, "wx");
-        await handle.writeFile(String(process.pid));
+        for (const segment of segments) {
+            const lockPath = segment.path.replace(/\.ndjson$/u, ".lock");
+            const handle = await open(lockPath, "wx");
+            handles.push(handle);
+            lockPaths.push(lockPath);
+            await handle.writeFile(String(process.pid));
+            await handle.close();
+        }
     }
     catch (error) {
+        for (const handle of handles) {
+            await handle.close().catch(() => {});
+        }
+        for (const lockPath of lockPaths) {
+            await rm(lockPath, { force: true });
+        }
         return {
             changed: false,
             repairedEvents: 0,
@@ -317,31 +363,16 @@ async function withStreamFileLock(streamPath, run) {
             errors: [
                 {
                     line: 0,
-                    message: `stream lock is active at ${lockPath}: ${error instanceof Error ? error.message : String(error)}`,
+                    message: `stream lock is active: ${error instanceof Error ? error.message : String(error)}`,
                 },
             ],
         };
-    }
-    finally {
-        await handle?.close();
     }
     try {
         return await run();
     }
     finally {
-        await rm(lockPath, { force: true });
-    }
-}
-
-async function streamFiles(root) {
-    try {
-        await mkdir(streamsDir(root), { recursive: true });
-        return (await readdir(streamsDir(root)))
-            .filter((name) => name.endsWith(".ndjson") && !name.includes(".conflict."))
-            .sort();
-    }
-    catch {
-        return [];
+        await Promise.all(lockPaths.map((lockPath) => rm(lockPath, { force: true })));
     }
 }
 

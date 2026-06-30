@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
@@ -11,6 +11,7 @@ const PACK_ROOT = path.resolve(
   "..",
 );
 const SERVER_PATH = path.join(PACK_ROOT, "mcp", "rust-rules-mcp.mjs");
+const CLI = path.join(PACK_ROOT, "scripts", "rust-rules.mjs");
 
 test("MCP server lists tools, explains rules, and scans a scoped file", async (t) => {
   const launcherRoot = fs.mkdtempSync(
@@ -163,6 +164,8 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
   const coordinationTargetRoot = fs.mkdtempSync(
     path.join(os.tmpdir(), "enforcer-mcp-coordination-target-"),
   );
+  fs.mkdirSync(path.join(coordinationTargetRoot, "src"), { recursive: true });
+  fs.writeFileSync(path.join(coordinationTargetRoot, "src", "lib.rs"), "", "utf8");
   const coordinationInit = await client.request(20, "tools/call", {
     name: "ocentra_enforcer_coordination_init",
     arguments: {
@@ -176,6 +179,7 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
     name: "ocentra_enforcer_coordination_claim",
     arguments: {
       stateRoot: coordinationRoot,
+      hub: "mcp-hub",
       root: coordinationTargetRoot,
       lane: "codex-a",
       paths: ["src/lib.rs"],
@@ -193,6 +197,7 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
     name: "ocentra_enforcer_coordination_health",
     arguments: {
       stateRoot: coordinationRoot,
+      hub: "mcp-hub",
       root: coordinationTargetRoot,
       lane: "codex-a",
       paths: ["src/lib.rs"],
@@ -206,6 +211,38 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
   assert.equal(healthReport.canInspect, true);
   assert.equal(healthReport.canWriteClaimedPaths, true);
   assert.equal(healthReport.presence.rows[0].projectId, "mcp-project");
+  const cliGuardAfterMcpClaim = spawnSync(
+    process.execPath,
+    [
+      CLI,
+      "coordination",
+      "guard",
+      "--state-root",
+      coordinationRoot,
+      "--hub",
+      "mcp-hub",
+      "--lane",
+      "codex-a",
+      "--root",
+      coordinationTargetRoot,
+      "--paths",
+      "src/lib.rs",
+      "--project-id",
+      "mcp-project",
+      "--repo-root",
+      coordinationTargetRoot,
+      "--worktree-root",
+      coordinationTargetRoot,
+      "--json",
+    ],
+    { cwd: PACK_ROOT, encoding: "utf8" },
+  );
+  assert.equal(
+    cliGuardAfterMcpClaim.status,
+    0,
+    cliGuardAfterMcpClaim.stdout || cliGuardAfterMcpClaim.stderr,
+  );
+  assert.equal(JSON.parse(cliGuardAfterMcpClaim.stdout).result.ok, true);
 
   const coordinationPresence = await client.request(23, "tools/call", {
     name: "ocentra_enforcer_coordination_presence",
