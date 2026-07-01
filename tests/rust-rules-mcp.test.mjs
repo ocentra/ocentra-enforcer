@@ -950,14 +950,16 @@ test("MCP status detects stale server code and blocks coordination writes", asyn
     staleStateRoot,
     "--hub",
     "stale-hub",
+    "--lane",
     "codex-a",
-    "src/lib.rs",
     "--root",
     staleTargetRoot,
     "--codex-thread-id",
     "thread-stale",
     "--reason",
     "must fail closed",
+    "--paths",
+    "src/lib.rs",
     "--json",
   ]);
   assert.deepEqual(
@@ -971,7 +973,43 @@ test("MCP status detects stale server code and blocks coordination writes", asyn
   assert.match(staleClaimReport.fallback.commandLine, /coordination claim/u);
   assert.match(staleClaimReport.nextStep, /ocentra_enforcer_run/u);
 
-  const staleMessage = await client.request(5, "tools/call", {
+  const staleRelease = await client.request(5, "tools/call", {
+    name: "ocentra_enforcer_coordination_release",
+    arguments: {
+      stateRoot: staleStateRoot,
+      hub: "stale-hub",
+      root: staleTargetRoot,
+      lane: "codex-a",
+      paths: ["src/lib.rs"],
+      reason: "must fail closed release",
+      codexThreadId: "thread-stale",
+    },
+  });
+  assert.equal(staleRelease.result.isError, true);
+  const staleReleaseReport = JSON.parse(staleRelease.result.content[0].text);
+  assert.deepEqual(staleReleaseReport.fallback.command, [
+    process.execPath,
+    CLI,
+    "coordination",
+    "release",
+    "--state-root",
+    staleStateRoot,
+    "--hub",
+    "stale-hub",
+    "--lane",
+    "codex-a",
+    "--root",
+    staleTargetRoot,
+    "--codex-thread-id",
+    "thread-stale",
+    "--reason",
+    "must fail closed release",
+    "--paths",
+    "src/lib.rs",
+    "--json",
+  ]);
+
+  const staleMessage = await client.request(6, "tools/call", {
     name: "ocentra_enforcer_coordination_message",
     arguments: {
       stateRoot: staleStateRoot,

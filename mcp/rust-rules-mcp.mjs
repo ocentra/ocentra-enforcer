@@ -1361,9 +1361,8 @@ function coordinationCommandFallbackArgs(command, args) {
   }
   if (command === "claim" || command === "release") {
     return [
-      ...(args.lane ? [String(args.lane)] : []),
-      ...stringArray(args.paths),
-      ...commonCoordinationOptions(args, { includeLane: false, includePaths: false }),
+      ...commonCoordinationOptions(args, { includePaths: false }),
+      ...pathOption("--paths", args.paths),
     ];
   }
   if (command === "closeout") {
