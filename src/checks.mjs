@@ -227,6 +227,10 @@ export const CHECK_RULES = {
     title: "Required checks must include Enforcer",
     snippet: "Branch protection docs must name the Enforcer local/CI gate as required.",
   },
+  "CI-1.21": {
+    title: "Subprocess JSON capture must be CI-safe",
+    snippet: "Use file-backed capture or an explicit large maxBuffer when parsing child-process stdout/stderr as JSON.",
+  },
   "REPO-1.1": {
     title: "CODEOWNERS is required",
     snippet: "Add CODEOWNERS so policy-critical files require accountable review.",
@@ -1968,6 +1972,8 @@ function packageExportTargets(exportsField) {
 
 function collectCiIntegrityFindings(root) {
   const findings = [];
+  findings.push(...collectCiSubprocessCaptureFindings(root));
+
   const workflowRoot = path.join(root, ".github", "workflows");
   const packageText = fs.existsSync(path.join(root, "package.json"))
     ? fs.readFileSync(path.join(root, "package.json"), "utf8")
@@ -2090,6 +2096,53 @@ function collectCiIntegrityFindings(root) {
     }
   }
   return findings;
+}
+
+const CI_SUBPROCESS_CAPTURE_ROOTS = ["tests", "scripts", "src", "mcp"];
+const CI_SUBPROCESS_CAPTURE_EXTENSIONS = [".js", ".mjs", ".cjs", ".ts", ".tsx"];
+
+function collectCiSubprocessCaptureFindings(root) {
+  const findings = [];
+  for (const relRoot of CI_SUBPROCESS_CAPTURE_ROOTS) {
+    const absRoot = path.join(root, relRoot);
+    if (!fs.existsSync(absRoot)) continue;
+    for (const file of collectSourceFiles(absRoot, CI_SUBPROCESS_CAPTURE_EXTENSIONS)) {
+      const rel = normalizeRel(root, file);
+      if (/^tests\/fixtures\/enforcer\//u.test(rel)) continue;
+      const text = fs.readFileSync(file, "utf8");
+      if (!/\bspawnSync\s*\(/u.test(text)) continue;
+      if (!parsesSubprocessPipeJson(text)) continue;
+      if (hasCiSafeSubprocessCapture(text)) continue;
+      const index = text.search(/\bspawnSync\s*\(/u);
+      findings.push(
+        finding(
+          root,
+          file,
+          lineNumberAt(text, index < 0 ? 0 : index),
+          "CI-1.21",
+          `${rel} parses child-process stdout/stderr as JSON without file-backed capture or an explicit large maxBuffer`,
+          null,
+        ),
+      );
+    }
+  }
+  return findings;
+}
+
+function parsesSubprocessPipeJson(text) {
+  return (
+    /\bJSON\.parse\s*\([^)]*\b(?:stdout|stderr)\b/u.test(text) ||
+    /\bJSON\.parse\s*\([^)]*\.\s*(?:stdout|stderr)\b/u.test(text)
+  );
+}
+
+function hasCiSafeSubprocessCapture(text) {
+  return (
+    /\bspawnCli\s*\(/u.test(text) ||
+    /\bmaxBuffer\s*:\s*(?:[1-9]\d{6,}|\d+\s*\*\s*1024\s*\*\s*1024|[A-Z][A-Z0-9_]*_MAX_BUFFER)\b/u.test(text) ||
+    /\bstdio\s*:\s*\[\s*["']ignore["']\s*,\s*fs\.openSync\s*\(/u.test(text) ||
+    /\bfs\.openSync\s*\([^)]*["']w["']\s*\)[\s\S]{0,2400}\bstdio\s*:\s*\[\s*["']ignore["']\s*,\s*\w+Fd\s*,\s*\w+Fd\s*\]/u.test(text)
+  );
 }
 
 const CI_COMMAND_REQUIREMENTS = [

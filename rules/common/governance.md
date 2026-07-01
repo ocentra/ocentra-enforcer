@@ -13,6 +13,7 @@
 - `CI-1.18`: Workflows must not call legacy weaker commands as canonical CI gates.
 - `CI-1.19`: Branch protection policy documentation is required.
 - `CI-1.20`: Required checks documentation must include Enforcer.
+- `CI-1.21`: Tests and harness code that parse child-process stdout/stderr as JSON must use file-backed capture or an explicit large `maxBuffer`.
 - `REPO-1.1`: CODEOWNERS is required.
 - `REPO-1.2`: CODEOWNERS must protect `rules/**`.
 - `REPO-1.3`: CODEOWNERS must protect `scripts/**`, `src/**`, and `mcp/**`.
@@ -41,6 +42,7 @@ ocentra-enforcer verify --root <repo>
 
 - CODEOWNERS, workflows, local hooks, or package metadata let policy-critical changes land unreviewed.
 - CI uses weak install commands, bypass constructs, or non-deterministic dependency metadata.
+- Tests or harnesses parse large child-process JSON through default pipe buffers, causing platform-specific truncation in CI.
 
 ## Passes
 
@@ -54,7 +56,8 @@ ocentra-enforcer verify --root <repo>
 3. Use `npm ci`, not `npm install`.
 4. Remove `continue-on-error` and `|| true` from hard gates.
 5. Pin package manager, lockfiles, Node engine, and dependencies.
-6. When policy-critical files change, run the mutation-risk proof set before accepting the change.
+6. Route large subprocess stdout/stderr into artifact files or use an explicit large `maxBuffer` before `JSON.parse`.
+7. When policy-critical files change, run the mutation-risk proof set before accepting the change.
 
 ## Validator
 

@@ -4323,6 +4323,7 @@ function loadCargoMetadata(root) {
     {
       cwd: root,
       encoding: "utf8",
+      maxBuffer: 32 * 1024 * 1024,
       shell: false,
     },
   );

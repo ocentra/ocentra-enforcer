@@ -8,6 +8,7 @@ import test from "node:test";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SCRIPT = path.join(ROOT, "scripts", "rust-rules.mjs");
+const TEST_CLI_MAX_BUFFER = 32 * 1024 * 1024;
 
 function makeProject() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "ocentra-enforcer-harness-"));
@@ -27,6 +28,7 @@ function run(project, args) {
         ];
   return spawnSync(process.execPath, cliArgs, {
     encoding: "utf8",
+    maxBuffer: TEST_CLI_MAX_BUFFER,
     stdio: ["ignore", "pipe", "pipe"],
   });
 }

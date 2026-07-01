@@ -22,6 +22,7 @@ import {
 
 const PACK_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CLI = path.join(PACK_ROOT, "scripts", "rust-rules.mjs");
+const TEST_CLI_MAX_BUFFER = 32 * 1024 * 1024;
 
 function makeProject() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "ocentra-enforcer-proof-"));
@@ -348,7 +349,7 @@ test("proof CLI exposes route, run, inventory, and claim", () => {
   const route = spawnSync(
     process.execPath,
     [CLI, "proof", "route", "--root", project, "--files", "scripts/test/tiny-proof.mjs", "--json"],
-    { encoding: "utf8" },
+    { encoding: "utf8", maxBuffer: TEST_CLI_MAX_BUFFER },
   );
   assert.equal(route.status, 0, route.stderr);
   assert.equal(

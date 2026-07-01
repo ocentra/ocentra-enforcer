@@ -9,6 +9,7 @@ import test from "node:test";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const FIXTURE_ROOT = path.join(ROOT, "tests", "fixtures", "enforcer");
 const SCRIPT = path.join(ROOT, "scripts", "rust-rules.mjs");
+const TEST_CLI_MAX_BUFFER = 32 * 1024 * 1024;
 
 const REQUIRED_DIRS = [
   "policy",
@@ -180,6 +181,7 @@ function copyFixture(project, sourceRel, targetRel) {
 function assertFixtureRules(project, fixtureRels, args) {
   const result = spawnSync(process.execPath, [SCRIPT, ...args, "--root", project], {
     encoding: "utf8",
+    maxBuffer: TEST_CLI_MAX_BUFFER,
     stdio: ["ignore", "pipe", "pipe"],
   });
   assert.notEqual(result.status, 0, result.stdout || result.stderr);

@@ -502,14 +502,52 @@ jobs:
       - continue-on-error: true
         run: npm test || true
 `,
+    "tests/json-cli.test.mjs": `
+import { spawnSync } from "node:child_process";
+
+const result = spawnSync(process.execPath, ["scripts/emit-json.mjs"], {
+  encoding: "utf8",
+});
+JSON.parse(result.stdout);
+`,
   });
 
   const result = run(project, ["check", "ci-integrity", "--json"]);
   assert.notEqual(result.status, 0, result.stdout || result.stderr);
   const ids = violationIds(JSON.parse(result.stdout));
-  for (const ruleId of ["CI-1.1", "NPM-1.2", "CI-1.3", "CI-1.4", "CI-1.5", "CI-1.6", "CI-1.7", "CI-1.8", "CI-1.9", "CI-1.10", "CI-1.11", "CI-1.12", "CI-1.13", "CI-1.14", "CI-1.15", "CI-1.16", "CI-1.17", "CI-1.18", "CI-1.19", "CI-1.20"]) {
+  for (const ruleId of ["CI-1.1", "NPM-1.2", "CI-1.3", "CI-1.4", "CI-1.5", "CI-1.6", "CI-1.7", "CI-1.8", "CI-1.9", "CI-1.10", "CI-1.11", "CI-1.12", "CI-1.13", "CI-1.14", "CI-1.15", "CI-1.16", "CI-1.17", "CI-1.18", "CI-1.19", "CI-1.20", "CI-1.21"]) {
     assert.equal(ids.has(ruleId), true, `${ruleId} should fail`);
   }
+});
+
+test("ci integrity accepts CI-safe subprocess JSON capture", () => {
+  const project = makeProject({
+    "tests/json-cli.test.mjs": `
+import { spawnSync } from "node:child_process";
+
+const result = spawnSync(process.execPath, ["scripts/emit-json.mjs"], {
+  encoding: "utf8",
+  maxBuffer: 32 * 1024 * 1024,
+});
+JSON.parse(result.stdout);
+`,
+    "tests/file-backed-json-cli.test.mjs": `
+import fs from "node:fs";
+import { spawnSync } from "node:child_process";
+
+const stdoutFd = fs.openSync("stdout.log", "w");
+const stderrFd = fs.openSync("stderr.log", "w");
+const result = spawnSync(process.execPath, ["scripts/emit-json.mjs"], {
+  stdio: ["ignore", stdoutFd, stderrFd],
+});
+const stdout = fs.readFileSync("stdout.log", "utf8");
+JSON.parse(stdout);
+`,
+  });
+
+  const result = run(project, ["check", "ci-integrity", "--json"]);
+  assert.equal(result.status, 0, result.stdout || result.stderr);
+  assert.equal(violationIds(JSON.parse(result.stdout)).has("CI-1.21"), false);
 });
 
 test("repo governance rejects missing ownership and package determinism", () => {

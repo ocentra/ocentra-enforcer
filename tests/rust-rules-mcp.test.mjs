@@ -12,6 +12,7 @@ const PACK_ROOT = path.resolve(
 );
 const SERVER_PATH = path.join(PACK_ROOT, "mcp", "rust-rules-mcp.mjs");
 const CLI = path.join(PACK_ROOT, "scripts", "rust-rules.mjs");
+const TEST_CLI_MAX_BUFFER = 32 * 1024 * 1024;
 
 test("MCP server lists tools, explains rules, and scans a scoped file", async (t) => {
   const launcherRoot = fs.mkdtempSync(
@@ -244,7 +245,7 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
       coordinationTargetRoot,
       "--json",
     ],
-    { cwd: PACK_ROOT, encoding: "utf8" },
+    { cwd: PACK_ROOT, encoding: "utf8", maxBuffer: TEST_CLI_MAX_BUFFER },
   );
   assert.equal(
     cliGuardAfterMcpClaim.status,

@@ -1338,6 +1338,34 @@
       "doc": "rules/common/governance.md#covered-rules"
     },
     {
+      "id": "CI-1.21",
+      "language": "common",
+      "family": "ci",
+      "severity": "error",
+      "title": "Subprocess JSON capture must be CI-safe",
+      "snippet": "Use file-backed capture or an explicit large maxBuffer when parsing child-process stdout/stderr as JSON.",
+      "lockLevel": "immutable",
+      "canDisable": false,
+      "canDowngrade": false,
+      "requiresFailFixture": false,
+      "requiresPassFixture": false,
+      "appliesTo": [
+        "tests/**",
+        "scripts/**",
+        "src/**",
+        "mcp/**"
+      ],
+      "triggers": [
+        "spawnSync",
+        "JSON.parse",
+        "stdout",
+        "stderr",
+        "maxBuffer"
+      ],
+      "validator": "ci-integrity",
+      "doc": "rules/common/governance.md#covered-rules"
+    },
+    {
       "id": "CI-1.3",
       "language": "common",
       "family": "ci",

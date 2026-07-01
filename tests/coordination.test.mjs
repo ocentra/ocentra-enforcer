@@ -39,6 +39,7 @@ const PACK_ROOT = path.resolve(
   "..",
 );
 const CLI = path.join(PACK_ROOT, "scripts", "rust-rules.mjs");
+const TEST_CLI_MAX_BUFFER = 32 * 1024 * 1024;
 
 test("coordination hash compatibility self-test excludes extension context", () => {
   const compatibility = coordinationHashCompatibility();
@@ -464,7 +465,7 @@ test("coordination CLI message alias supports flag and positional shapes", () =>
     stateRoot,
     "--lane",
     "primary",
-  ], { encoding: "utf8" });
+  ], { encoding: "utf8", maxBuffer: TEST_CLI_MAX_BUFFER });
   assert.equal(init.status, 0, init.stderr);
 
   const flagged = spawnSync(process.execPath, [
