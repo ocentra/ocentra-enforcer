@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { spawnCli } from './cli-spawn.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'rust-rules.mjs');
@@ -33,16 +34,14 @@ rust-version = "1.75"
 }
 
 function runGate(project) {
-  return spawnSync(process.execPath, [SCRIPT, 'scan', '--root', project], {
+  return spawnCli(process.execPath, [SCRIPT, 'scan', '--root', project], {
     encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
   });
 }
 
 function runGateArgs(project, args) {
-  return spawnSync(process.execPath, [SCRIPT, ...args, '--root', project], {
+  return spawnCli(process.execPath, [SCRIPT, ...args, '--root', project], {
     encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
   });
 }
 
