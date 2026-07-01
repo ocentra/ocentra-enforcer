@@ -8,6 +8,7 @@ import test from "node:test";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SCRIPT = path.join(ROOT, "scripts", "rust-rules.mjs");
+const TEST_CLI_MAX_BUFFER = 32 * 1024 * 1024;
 
 function makeProject(files) {
   const dir = fs.mkdtempSync(
@@ -24,6 +25,7 @@ function makeProject(files) {
 function run(project, args) {
   return spawnSync(process.execPath, [SCRIPT, ...args, "--root", project], {
     encoding: "utf8",
+    maxBuffer: TEST_CLI_MAX_BUFFER,
     stdio: ["ignore", "pipe", "pipe"],
   });
 }
