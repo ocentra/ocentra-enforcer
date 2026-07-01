@@ -414,6 +414,48 @@ test("no assertion", () => {
   }
 });
 
+test("TypeScript optional-field and let-const rules stay scoped to domain-like paths", () => {
+  const project = makeProject({
+    "src/ui/component.ts": `
+type UiShape = {
+  optional?: string;
+};
+
+export function render() {
+  let value = 1;
+  return value;
+}
+`,
+    "src/domain.ts": `
+type DomainShape = {
+  optional?: string;
+};
+
+export function build() {
+  let value = 1;
+  return value;
+}
+`,
+  });
+  const result = run(project, [
+    "scan",
+    "--json",
+    "--languages",
+    "typescript",
+    "--files",
+    "src/ui/component.ts",
+    "src/domain.ts",
+  ]);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  const uiViolations = report.violations.filter((violation) => violation.file === "src/ui/component.ts");
+  assert.equal(uiViolations.some((violation) => violation.ruleId === "TS-6.28"), false);
+  assert.equal(uiViolations.some((violation) => violation.ruleId === "TS-6.39"), false);
+  const domainViolations = report.violations.filter((violation) => violation.file === "src/domain.ts");
+  assert.equal(domainViolations.some((violation) => violation.ruleId === "TS-6.28"), true);
+  assert.equal(domainViolations.some((violation) => violation.ruleId === "TS-6.39"), true);
+});
+
 test("TypeScript scanner catches index barrels", () => {
   const project = makeProject({
     "src/index.ts": `

@@ -873,6 +873,7 @@ const TOOLS = [
     description: `Legacy alias for ${tool.name}; kept for one Rust-pack compatibility release.`,
   })),
 ];
+const TOOL_SCHEMAS = new Map(TOOLS.map((tool) => [tool.name, tool.inputSchema]));
 
 let inputBuffer = Buffer.alloc(0);
 const validationHistory = new Map();
@@ -1024,6 +1025,7 @@ async function callTool(params) {
   const name = normalizeToolName(params.name);
   const args = params.arguments ?? {};
   try {
+    rejectUnexpectedArguments(name, args);
     if (name === "ocentra_enforcer_mcp_status") {
       return toolJson(mcpStatus());
     }
@@ -1576,6 +1578,18 @@ function normalizeFingerprintLabel(filePath) {
 
 function normalizeToolName(name) {
   return String(name ?? "").replace(/^rust_rules_/u, "ocentra_enforcer_");
+}
+
+function rejectUnexpectedArguments(name, args) {
+  if (!args || typeof args !== "object" || Array.isArray(args)) return;
+  const schema = TOOL_SCHEMAS.get(name);
+  if (!schema || schema.additionalProperties !== false) return;
+  const allowed = new Set(Object.keys(schema.properties ?? {}));
+  const unexpected = Object.keys(args).filter((key) => !allowed.has(key));
+  if (unexpected.length === 0) return;
+  throw new Error(
+    `${name} unexpected argument(s): ${unexpected.sort((left, right) => left.localeCompare(right)).join(", ")}`,
+  );
 }
 
 function toolError(message) {

@@ -97,7 +97,7 @@ paths.
 When the command is not on `PATH`, run from the pack root:
 
 ```bash
-node scripts/rust-rules.mjs <command> --root <repo> ...
+node scripts/ocentra-enforcer.mjs <command> --root <repo> ...
 ```
 
 `rust-rules` and `rust_rules_*` names are temporary compatibility aliases.

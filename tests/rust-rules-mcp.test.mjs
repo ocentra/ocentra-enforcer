@@ -10,7 +10,7 @@ const PACK_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
-const SERVER_PATH = path.join(PACK_ROOT, "mcp", "rust-rules-mcp.mjs");
+const SERVER_PATH = path.join(PACK_ROOT, "mcp", "ocentra-enforcer-mcp.mjs");
 const CLI = path.join(PACK_ROOT, "scripts", "rust-rules.mjs");
 const TEST_CLI_MAX_BUFFER = 32 * 1024 * 1024;
 
@@ -118,6 +118,18 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
     "slice",
   ]);
   assert.equal(checkTool.inputSchema.properties.includeScope.type, "boolean");
+  const invalidCheckArguments = await client.request(18, "tools/call", {
+    name: "ocentra_enforcer_check",
+    arguments: {
+      check: "rule-coverage",
+      unexpected: true,
+    },
+  });
+  assert.equal(invalidCheckArguments.result.isError, true);
+  assert.match(
+    invalidCheckArguments.result.content[0].text,
+    /unexpected argument|unexpected/u,
+  );
   const claimTool = tools.result.tools.find(
     (tool) => tool.name === "ocentra_enforcer_coordination_claim",
   );

@@ -8,13 +8,7 @@ installed enforcer with an explicit `root`.
 From anywhere:
 
 ```powershell
-node E:/ocentra-enforcer/scripts/rust-rules.mjs init --root C:/path/to/target-repo --profile strict --adapters codex,mcp,precommit,github-actions --dry-run
-```
-
-For Ocentra Parent:
-
-```powershell
-node E:/ocentra-enforcer/scripts/rust-rules.mjs init --root E:/OcentraParent --profile ocentra-parent --adapters codex,mcp,precommit,github-actions --dry-run
+ocentra-enforcer init --root C:/path/to/target-repo --profile strict --adapters codex,mcp,precommit,github-actions --dry-run
 ```
 
 Review the file plan before writing anything.
@@ -41,22 +35,16 @@ If you do not want generated files yet, create only a target repo script or doc
 that calls:
 
 ```powershell
-node E:/ocentra-enforcer/scripts/rust-rules.mjs scan --root . --profile strict --files Cargo.toml
-node E:/ocentra-enforcer/scripts/rust-rules.mjs scan --root . --profile strict --languages typescript,python,common --files src tests
-node E:/ocentra-enforcer/scripts/rust-rules.mjs check no-zod-source --root . --profile strict --files src/index.ts
-node E:/ocentra-enforcer/scripts/rust-rules.mjs check validation-bypass --root . --profile strict --files src/index.ts
-node E:/ocentra-enforcer/scripts/rust-rules.mjs check weak-assertions --root . --profile strict --files tests/example.test.ts
-node E:/ocentra-enforcer/scripts/rust-rules.mjs check placeholder-implementation --root . --profile strict --files src/index.ts
-node E:/ocentra-enforcer/scripts/rust-rules.mjs check source-shape --root . --profile strict --workspace
-node E:/ocentra-enforcer/scripts/rust-rules.mjs check required-tests --root . --profile strict --workspace
-node E:/ocentra-enforcer/scripts/rust-rules.mjs run --root . --tool tsc -- npx tsc --noEmit --pretty false
-node E:/ocentra-enforcer/scripts/rust-rules.mjs doctor --root . --profile strict --workspace
-```
-
-For Ocentra Parent:
-
-```powershell
-node E:/ocentra-enforcer/scripts/rust-rules.mjs scan --root . --profile ocentra-parent --files crates/agent-protocol/src/lib.rs
+ocentra-enforcer scan --root . --profile strict --files Cargo.toml
+ocentra-enforcer scan --root . --profile strict --languages typescript,python,common --files src tests
+ocentra-enforcer check no-zod-source --root . --profile strict --files src/index.ts
+ocentra-enforcer check validation-bypass --root . --profile strict --files src/index.ts
+ocentra-enforcer check weak-assertions --root . --profile strict --files tests/example.test.ts
+ocentra-enforcer check placeholder-implementation --root . --profile strict --files src/index.ts
+ocentra-enforcer check source-shape --root . --profile strict --workspace
+ocentra-enforcer check required-tests --root . --profile strict --workspace
+ocentra-enforcer run --root . --tool tsc -- npx tsc --noEmit --pretty false
+ocentra-enforcer doctor --root . --profile strict --workspace
 ```
 
 ## Config vs Profile
@@ -122,18 +110,17 @@ When Codex is working in a target repo:
 7. Query `ocentra_enforcer_last_failure` or `ocentra_enforcer_diagnostics` before opening raw terminal artifacts.
 8. Treat `violations` as hard failures. Report `warnings`, but do not block completion unless the profile `failOn` includes `warning`.
 
-## Ocentra Parent Cleanup Sequence
+## Consumer Migration Sequence
 
-For Ocentra Parent specifically:
-
-1. Keep existing Ocentra Parent guards.
-2. Wire Ocentra Parent to `E:\ocentra-enforcer`.
-3. Prove file-scope, crate-scope, diff-scope, and workspace behavior.
+1. Keep the target repo's existing guards until parity is proven.
+2. Wire the target repo to the external Enforcer install.
+3. Prove file-scope, crate/package-scope, diff-scope, and workspace behavior.
 4. Replace generic guard logic with thin wrappers.
 5. Point wrappers at `ocentra-enforcer check <name>`, `scan`, or `run` as appropriate.
-6. Remove duplicated generic guard scripts only after parity.
+6. Remove duplicated repo-local generic guard scripts only after parity.
 
 Do not keep generic ledger, hub, lane, mail, exact-file-claim, or architecture
-tooling in Ocentra Parent long term. Those are Enforcer coordination concerns.
-Parent should keep only product-specific dev server, release packaging, product
-proof semantics, and thin wrappers/config while parity is being proven.
+tooling in a consumer repo long term. Those are Enforcer coordination concerns.
+Consumer repos should keep only product-specific dev server logic, release
+packaging, proof semantics, and thin wrappers/config while parity is being
+proven.

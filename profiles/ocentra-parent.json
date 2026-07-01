@@ -145,6 +145,20 @@
     "wiremock"
   ],
   "allowedGitDependencies": [],
+  "waivers": [
+    {
+      "ruleId": "CFG-1.6",
+      "waiverId": "WAIVER-OCENTRA-PARENT-BUILD-PATH-1",
+      "owner": "sujan",
+      "issue": "OCEN-286",
+      "reason": "The ocentra-parent consumer profile still permits build.rs and workspace path dependencies during the Rust-first migration slice.",
+      "scope": ["ocentra-enforcer.config.json"],
+      "expires": "2026-09-01",
+      "remediation": "Remove the profile waiver once ocentra-parent no longer needs build.rs or path-dependency exceptions.",
+      "ciAllowed": true,
+      "visible": true
+    }
+  ],
   "rules": {},
   "tools": {}
 }

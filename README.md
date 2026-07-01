@@ -20,27 +20,44 @@ model.
 
 ```mermaid
 flowchart LR
-  Writer["AI or human writes"] --> Route["rules/INDEX.md + ocentra_enforcer_route"]
-  Route --> Validate["scan/check/verify hard gates"]
-  Validate --> Harness["run harness: raw logs + NDJSON + compact diagnostics"]
-  Validate --> Proof["proof registry + proof claim"]
-  Writer --> Coord["coordination: hub, lanes, mail, exact-file locks"]
-  Coord --> Validate
-  Validate --> CI["local hooks + CI parity"]
-  Proof --> CI
-  CI --> Review["human ownership review"]
+  A["Writer"]
+  B["Rule router"]
+  C["Hard gates"]
+  D["Harness diagnostics"]
+  E["Proof registry"]
+  F["Coordination"]
+  G["Local and CI parity"]
+  H["Human review"]
+  A --> B
+  B --> C
+  C --> D
+  C --> E
+  A --> F
+  F --> C
+  C --> G
+  E --> G
+  G --> H
 ```
 
 ```mermaid
 flowchart TD
-  L0["L0 coordination write safety"] --> L1["L1 policy integrity"]
-  L1 --> L2["L2 fast source scanners"]
-  L2 --> L3["L3 native/parser tool ingestion"]
-  L3 --> L4["L4 architecture and boundary checks"]
-  L4 --> L5["L5 proof freshness"]
-  L5 --> L6["L6 security/supply chain"]
-  L6 --> L7["L7 local/CI parity"]
-  L7 --> L8["L8 human judgment"]
+  L0["L0 coordination safety"]
+  L1["L1 policy integrity"]
+  L2["L2 source scanners"]
+  L3["L3 native tool ingest"]
+  L4["L4 architecture"]
+  L5["L5 proof freshness"]
+  L6["L6 supply chain"]
+  L7["L7 local and CI parity"]
+  L8["L8 human judgment"]
+  L0 --> L1
+  L1 --> L2
+  L2 --> L3
+  L3 --> L4
+  L4 --> L5
+  L5 --> L6
+  L6 --> L7
+  L7 --> L8
 ```
 
 ## Main Systems
@@ -256,63 +273,66 @@ npm run proof:smoke
 npm run proof:run:smoke
 ```
 
-Direct CLI forms:
+Canonical CLI forms:
 
 ```bash
-node scripts/rust-rules.mjs init --root C:/path/to/repo --profile strict --adapters codex,mcp,precommit,github-actions --dry-run
-node scripts/rust-rules.mjs codex install --dry-run
-node scripts/rust-rules.mjs codex install
-node scripts/rust-rules.mjs codex doctor
-node scripts/rust-rules.mjs codex install --root C:/path/to/repo --profile strict --dry-run
-node scripts/rust-rules.mjs scan --root C:/path/to/repo --files src/lib.rs
-node scripts/rust-rules.mjs scan --root C:/path/to/repo --crate my-crate
-node scripts/rust-rules.mjs scan --root C:/path/to/repo --workspace
-node scripts/rust-rules.mjs scan --root C:/path/to/repo --base origin/main --head HEAD
-node scripts/rust-rules.mjs scan --root C:/path/to/repo --languages typescript,python,common --files src tests
-node scripts/rust-rules.mjs check no-zod-source --root C:/path/to/repo --files src/index.ts
-node scripts/rust-rules.mjs check validation-bypass --root C:/path/to/repo --files src/index.ts
-node scripts/rust-rules.mjs check weak-assertions --root C:/path/to/repo --files tests/example.test.ts
-node scripts/rust-rules.mjs check placeholder-implementation --root C:/path/to/repo --files src/index.ts
-node scripts/rust-rules.mjs check rule-coverage --root C:/path/to/repo
-node scripts/rust-rules.mjs check policy-integrity --root C:/path/to/repo
-node scripts/rust-rules.mjs check mutation-risk --root C:/path/to/repo
-node scripts/rust-rules.mjs check config-lockdown --root C:/path/to/repo
-node scripts/rust-rules.mjs check waiver-policy --root C:/path/to/repo
-node scripts/rust-rules.mjs verify --root C:/path/to/repo
-node scripts/rust-rules.mjs check source-shape --root C:/path/to/repo --workspace
-node scripts/rust-rules.mjs check single-source-contracts --root C:/path/to/repo --check-config scripts/check-single-source-contracts.json
-node scripts/rust-rules.mjs check sbom --root C:/path/to/repo --output target/security --dry-run
-node scripts/rust-rules.mjs cargo --root C:/path/to/repo --crate my-crate
-node scripts/rust-rules.mjs doctor --root C:/path/to/repo --workspace
-node scripts/rust-rules.mjs explain RR-7.3
-node scripts/rust-rules.mjs run --root C:/path/to/repo --tool tsc -- npx tsc --noEmit --pretty false
-node scripts/rust-rules.mjs runs last-failure --root C:/path/to/repo --json
-node scripts/rust-rules.mjs proof route --root C:/path/to/repo --files scripts/test/example-proof.mjs --json
-node scripts/rust-rules.mjs proof inventory --root C:/path/to/repo --json
-node scripts/rust-rules.mjs proof inventory --root C:/path/to/repo --include-scripts --limit 20 --json
-node scripts/rust-rules.mjs proof import-legacy --root C:/path/to/repo --proof PROOF-LEGACY-ARTIFACT-IMPORT --legacy-paths test-results/foo-proof,output/foo-proof --json
-node scripts/rust-rules.mjs proof parity --root C:/path/to/repo --proof PROOF-LEGACY-ARTIFACT-IMPORT --legacy-paths test-results/foo-proof,output/foo-proof --run-id <import-run-id> --json
-node scripts/rust-rules.mjs proof run --root C:/path/to/repo --proof PROOF-COMMAND-GENERIC --json -- node --version
-node scripts/rust-rules.mjs proof claim --root C:/path/to/repo --proof PROOF-COMMAND-GENERIC --pr-ready --json
-node scripts/rust-rules.mjs proof last-failure --root C:/path/to/repo --json
-node scripts/rust-rules.mjs coordination init my-hub --lane codex-a --hub my-hub
-node scripts/rust-rules.mjs coordination doctor --hub my-hub
-node scripts/rust-rules.mjs coordination presence --hub my-hub
-node scripts/rust-rules.mjs coordination index --hub my-hub
-node scripts/rust-rules.mjs coordination manifest --hub my-hub
-node scripts/rust-rules.mjs coordination peer add office http://office-pc:8787 --mode pull --hub my-hub
-node scripts/rust-rules.mjs coordination sync --peer office --hub my-hub
-node scripts/rust-rules.mjs coordination claim --hub my-hub --lane codex-a --paths src/lib.rs --operation edit --on-conflict intent --reason "exact file claim"
-node scripts/rust-rules.mjs coordination guard --hub my-hub --lane codex-a --paths src/lib.rs --operation commit --json
-node scripts/rust-rules.mjs coordination release --hub my-hub --lane codex-a --paths src/lib.rs --reason "exact file release"
-node scripts/rust-rules.mjs coordination repair legacy-hash --hub my-hub
-node scripts/rust-rules.mjs coordination repair legacy-hash --hub my-hub --write
-node scripts/rust-rules.mjs coordination repair sequence --hub my-hub
-node scripts/rust-rules.mjs coordination repair sequence --hub my-hub --write
-node scripts/rust-rules.mjs coordination repair stale-claims --hub my-hub --paths src/lib.rs
-node scripts/rust-rules.mjs coordination repair stale-claims --hub my-hub --paths src/lib.rs --owner node_abc.codex-a --write
-node scripts/rust-rules.mjs architecture check --language rust --scope files --files src/lib.rs --root C:/path/to/repo
+ocentra-enforcer init --root C:/path/to/repo --profile strict --adapters codex,mcp,precommit,github-actions --dry-run
+ocentra-enforcer codex install --dry-run
+ocentra-enforcer codex install
+ocentra-enforcer codex doctor
+ocentra-enforcer codex install --root C:/path/to/repo --profile strict --dry-run
+ocentra-enforcer scan --root C:/path/to/repo --files src/lib.rs
+ocentra-enforcer scan --root C:/path/to/repo --crate my-crate
+ocentra-enforcer scan --root C:/path/to/repo --workspace
+ocentra-enforcer scan --root C:/path/to/repo --base origin/main --head HEAD
+ocentra-enforcer scan --root C:/path/to/repo --languages typescript,python,common --files src tests
+ocentra-enforcer check no-zod-source --root C:/path/to/repo --files src/index.ts
+ocentra-enforcer check validation-bypass --root C:/path/to/repo --files src/index.ts
+ocentra-enforcer check weak-assertions --root C:/path/to/repo --files tests/example.test.ts
+ocentra-enforcer check placeholder-implementation --root C:/path/to/repo --files src/index.ts
+ocentra-enforcer check rule-coverage --root C:/path/to/repo
+ocentra-enforcer check policy-integrity --root C:/path/to/repo
+ocentra-enforcer check mutation-risk --root C:/path/to/repo
+ocentra-enforcer check config-lockdown --root C:/path/to/repo
+ocentra-enforcer check waiver-policy --root C:/path/to/repo
+ocentra-enforcer verify --root C:/path/to/repo
+ocentra-enforcer check source-shape --root C:/path/to/repo --workspace
+ocentra-enforcer check single-source-contracts --root C:/path/to/repo --check-config scripts/check-single-source-contracts.json
+ocentra-enforcer check sbom --root C:/path/to/repo --output target/security --dry-run
+ocentra-enforcer cargo --root C:/path/to/repo --crate my-crate
+ocentra-enforcer doctor --root C:/path/to/repo --workspace
+ocentra-enforcer explain RR-7.3
+ocentra-enforcer run --root C:/path/to/repo --tool tsc -- npx tsc --noEmit --pretty false
+ocentra-enforcer runs last-failure --root C:/path/to/repo --json
+ocentra-enforcer proof route --root C:/path/to/repo --files scripts/test/example-proof.mjs --json
+ocentra-enforcer proof inventory --root C:/path/to/repo --json
+ocentra-enforcer proof inventory --root C:/path/to/repo --include-scripts --limit 20 --json
+ocentra-enforcer proof import-legacy --root C:/path/to/repo --proof PROOF-LEGACY-ARTIFACT-IMPORT --legacy-paths test-results/foo-proof,output/foo-proof --json
+ocentra-enforcer proof parity --root C:/path/to/repo --proof PROOF-LEGACY-ARTIFACT-IMPORT --legacy-paths test-results/foo-proof,output/foo-proof --run-id <import-run-id> --json
+ocentra-enforcer proof run --root C:/path/to/repo --proof PROOF-COMMAND-GENERIC --json -- node --version
+ocentra-enforcer proof claim --root C:/path/to/repo --proof PROOF-COMMAND-GENERIC --pr-ready --json
+ocentra-enforcer proof last-failure --root C:/path/to/repo --json
+ocentra-enforcer coordination init my-hub --lane codex-a --hub my-hub
+ocentra-enforcer coordination doctor --hub my-hub
+ocentra-enforcer coordination presence --hub my-hub
+ocentra-enforcer coordination index --hub my-hub
+ocentra-enforcer coordination manifest --hub my-hub
+ocentra-enforcer coordination peer add office http://office-pc:8787 --mode pull --hub my-hub
+ocentra-enforcer coordination sync --peer office --hub my-hub
+ocentra-enforcer coordination claim --hub my-hub --lane codex-a --paths src/lib.rs --operation edit --on-conflict intent --reason "exact file claim"
+ocentra-enforcer coordination guard --hub my-hub --lane codex-a --paths src/lib.rs --operation commit --json
+ocentra-enforcer coordination release --hub my-hub --lane codex-a --paths src/lib.rs --reason "exact file release"
+ocentra-enforcer coordination repair legacy-hash --hub my-hub
+ocentra-enforcer coordination repair legacy-hash --hub my-hub --write
+ocentra-enforcer coordination repair sequence --hub my-hub
+ocentra-enforcer coordination repair sequence --hub my-hub --write
+ocentra-enforcer coordination repair stale-claims --hub my-hub --paths src/lib.rs
+ocentra-enforcer coordination repair stale-claims --hub my-hub --paths src/lib.rs --owner node_abc.codex-a --write
+ocentra-enforcer architecture check --language rust --scope files --files src/lib.rs --root C:/path/to/repo
 ```
+
+If the package binary is not on `PATH` yet, run the same commands from the
+install root with `node scripts/ocentra-enforcer.mjs ...`.
 
 Use `--state-root <exact-hub-root>` only for legacy-root repair/import or other
 emergency exact-root operations. Normal coordination uses `OCENTRA_LEDGER_HOME`
@@ -387,7 +407,7 @@ Example global MCP wiring:
   "mcpServers": {
     "ocentra-enforcer": {
       "command": "node",
-      "args": ["C:/path/to/ocentra-enforcer/mcp/rust-rules-mcp.mjs"]
+      "args": ["C:/path/to/ocentra-enforcer/mcp/ocentra-enforcer-mcp.mjs"]
     }
   }
 }
@@ -536,7 +556,7 @@ before opening raw artifacts.
 ## Main Files
 
 - `scripts/rust-rules.mjs`: CLI compatibility entrypoint, Rust scanner, generic scanner integration, init, route, and harness command handling.
-- `mcp/rust-rules-mcp.mjs`: MCP stdio server with canonical `ocentra_enforcer_*` tools and legacy `rust_rules_*` aliases.
+- `mcp/ocentra-enforcer-mcp.mjs`: Canonical MCP stdio entrypoint; it forwards to the compatibility server and exposes canonical `ocentra_enforcer_*` tools plus legacy aliases.
 - `server.json`: MCP server manifest for registries and future package/plugin consumers.
 - `src/`: reusable routing, generic scanner, migrated check, path, and harness modules.
 - `src/codex-install.mjs`: Codex Desktop MCP config installer with idempotent TOML upsert and backup-before-write.

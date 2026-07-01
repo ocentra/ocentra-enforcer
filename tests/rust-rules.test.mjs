@@ -883,7 +883,7 @@ test('ocentra-enforcer codex install writes target wiring and global Codex MCP c
   assert.equal(fs.existsSync(path.join(project, '.codex', 'skills', 'ocentra-enforcer', 'SKILL.md')), true);
   assert.equal(fs.existsSync(path.join(codexRoot, 'skills', 'ocentra-enforcer', 'SKILL.md')), true);
   assert.match(fs.readFileSync(codexConfig, 'utf8'), /\[mcp_servers\.ocentra-enforcer\]/u);
-  assert.match(fs.readFileSync(codexConfig, 'utf8'), /mcp\/rust-rules-mcp\.mjs/u);
+  assert.match(fs.readFileSync(codexConfig, 'utf8'), /mcp\/ocentra-enforcer-mcp\.mjs/u);
   assert.match(fs.readFileSync(codexConfig, 'utf8'), /OCENTRA_LEDGER_HOME/u);
   assert.equal(fs.existsSync(path.join(ledgerRoot, '.gitignore')), true);
   assert.match(fs.readFileSync(path.join(codexRoot, 'AGENTS.md'), 'utf8'), /<!-- ocentra-enforcer:start -->/u);

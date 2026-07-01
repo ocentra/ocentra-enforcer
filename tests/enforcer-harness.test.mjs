@@ -158,6 +158,48 @@ test("harness retention prunes old successful runs but keeps bounded recent meta
   assert.equal(Array.isArray(JSON.parse(prune.stdout).removed), true);
 });
 
+test("harness rejects artifact paths that escape the run root", () => {
+  const project = makeProject();
+  const result = run(project, [
+    "run",
+    "--json",
+    "--tool",
+    "node",
+    "--run-id",
+    "escape-artifact",
+    "--",
+    process.execPath,
+    "-e",
+    "process.stderr.write('kept'); process.exit(1);",
+  ]);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  const summaryPath = path.join(
+    project,
+    ".enforce",
+    "runs",
+    report.summary.runId,
+    "summary.json",
+  );
+  const summary = JSON.parse(fs.readFileSync(summaryPath, "utf8"));
+  summary.artifacts.stderr = "../outside.log";
+  fs.writeFileSync(summaryPath, `${JSON.stringify(summary, null, 2)}\n`, "utf8");
+
+  const artifact = run(project, [
+    "runs",
+    "artifact",
+    "--json",
+    "--run-id",
+    report.summary.runId,
+    "--artifact",
+    "stderr",
+  ]);
+  assert.notEqual(artifact.status, 0, artifact.stdout || artifact.stderr);
+  const artifactReport = JSON.parse(artifact.stdout);
+  assert.equal(artifactReport.ok, false);
+  assert.match(artifactReport.message, /Artifact path escapes harness root/u);
+});
+
 test("harness parses ESLint JSON and Ruff JSON diagnostics", () => {
   const project = makeProject();
   const eslintJson = JSON.stringify([

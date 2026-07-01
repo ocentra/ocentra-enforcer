@@ -27,7 +27,7 @@ export function createCodexMcpInstallReport({
   const resolvedPackRoot = path.resolve(packRoot);
   const resolvedConfigPath = path.resolve(codexConfigPath);
   const resolvedLedgerRoot = path.resolve(ledgerRoot ?? path.join(resolvedPackRoot, '.ledger'));
-  const serverPath = path.join(resolvedPackRoot, 'mcp', 'rust-rules-mcp.mjs');
+  const serverPath = path.join(resolvedPackRoot, 'mcp', 'ocentra-enforcer-mcp.mjs');
   const previousContent = fs.existsSync(resolvedConfigPath) ? fs.readFileSync(resolvedConfigPath, 'utf8') : '';
   const block = codexMcpTomlBlock({ packRoot: resolvedPackRoot, serverName, ledgerRoot: resolvedLedgerRoot });
   const nextContent = upsertTomlTable(previousContent, `mcp_servers.${serverName}`, block);
@@ -199,7 +199,7 @@ export function createCodexDoctorReport({
   const resolvedPackRoot = path.resolve(packRoot);
   const resolvedRoot = root ? path.resolve(root) : null;
   const resolvedConfigPath = path.resolve(codexConfigPath);
-  const serverPath = path.join(resolvedPackRoot, 'mcp', 'rust-rules-mcp.mjs');
+  const serverPath = path.join(resolvedPackRoot, 'mcp', 'ocentra-enforcer-mcp.mjs');
   const configText = fs.existsSync(resolvedConfigPath) ? fs.readFileSync(resolvedConfigPath, 'utf8') : '';
   const sectionHeader = `[mcp_servers.${serverName}]`;
   const section = extractTomlSection(configText, sectionHeader);
@@ -261,7 +261,7 @@ export function createCodexDoctorReport({
 }
 
 export function codexMcpTomlBlock({ packRoot, serverName = DEFAULT_CODEX_MCP_SERVER_NAME, ledgerRoot = null }) {
-  const serverPath = path.join(path.resolve(packRoot), 'mcp', 'rust-rules-mcp.mjs');
+  const serverPath = path.join(path.resolve(packRoot), 'mcp', 'ocentra-enforcer-mcp.mjs');
   const resolvedLedgerRoot = path.resolve(ledgerRoot ?? path.join(path.resolve(packRoot), '.ledger'));
   return [
     `[mcp_servers.${serverName}]`,

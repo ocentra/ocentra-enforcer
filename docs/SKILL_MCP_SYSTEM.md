@@ -7,14 +7,22 @@ the enforcer implementation. It should call the external pack.
 
 ```mermaid
 flowchart TD
-  Pack["Ocentra Enforcer install"] --> CodexConfig["Codex global MCP config"]
-  Pack --> Skill["Codex user skill"]
-  Pack --> Ledger[".ledger hub state"]
-  Target["Any target repo"] --> Config["ocentra-enforcer.config.json"]
-  Target --> Hooks["thin hooks / npm aliases"]
-  CodexConfig --> MCP["ocentra-enforcer MCP server"]
-  MCP --> Target
-  MCP --> Ledger
+  A["Enforcer install"]
+  B["Codex MCP config"]
+  C["User skill"]
+  D["Ledger home"]
+  E["Target repo"]
+  F["Target config"]
+  G["Thin hooks"]
+  H["MCP server"]
+  A --> B
+  A --> C
+  A --> D
+  E --> F
+  E --> G
+  B --> H
+  H --> E
+  H --> D
 ```
 
 ## Commands

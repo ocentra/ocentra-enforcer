@@ -9,11 +9,11 @@ jobs:
   enforcer:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
         with:
           components: rustfmt, clippy
       - name: Install Ocentra Enforcer
@@ -30,7 +30,7 @@ jobs:
         run: ocentra-enforcer proof run --root . --proof PROOF-COMMAND-GENERIC --run-id ci-proof-smoke --json -- node --version
       - name: Upload local proof artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: ocentra-enforcer-proof-artifacts
           path: .enforce/proofs

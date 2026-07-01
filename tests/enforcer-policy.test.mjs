@@ -114,6 +114,23 @@ test("unsafe and dependency escape hatches require waivers", () => {
   assert.equal(ids.has("CFG-1.6"), true);
 });
 
+test("profile-backed waivers satisfy governed dependency escape hatches", () => {
+  const project = makeProject({
+    "ocentra-enforcer.config.json": JSON.stringify({
+      schemaVersion: 2,
+      profileName: "ocentra-parent",
+      failOn: ["error"],
+      languages: ["rust", "common"],
+    }),
+    "src/lib.rs": "pub fn f() {}\n",
+  });
+
+  const result = run(project, ["check", "config-lockdown", "--json"]);
+  assert.equal(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(violationIds(report).has("CFG-1.6"), false);
+});
+
 test("waiver policy rejects expired, broad, AI-owned, and immutable waivers", () => {
   const project = makeProject({ "src/lib.rs": "pub fn f() {}\n" });
   writeConfig(project, {
@@ -700,11 +717,12 @@ test("mutation-risk rejects policy-critical changed files and ignores ordinary d
   assert.equal(JSON.parse(ordinary.stdout).ok, true);
 });
 
-test("verify command runs the canonical local parity gate", () => {
+test("verify local is the canonical default parity gate", () => {
   const result = run(ROOT, ["verify", "--json"]);
   assert.equal(result.status, 0, result.stdout || result.stderr);
   const report = JSON.parse(result.stdout);
   assert.equal(report.ok, true);
+  assert.equal(report.verifyMode, "local");
   const checkNames = new Set(report.checks.map((check) => check.check));
   assert.equal(checkNames.has("verify"), true);
   assert.equal(checkNames.has("rule-coverage"), true);
@@ -712,4 +730,28 @@ test("verify command runs the canonical local parity gate", () => {
   assert.equal(checkNames.has("ci-integrity"), true);
   assert.equal(checkNames.has("repo-governance"), true);
   assert.equal(checkNames.has("package-determinism"), true);
+});
+
+test("verify fast and ci select the expected gate sets", () => {
+  const fast = run(ROOT, ["verify", "fast", "--json"]);
+  assert.equal(fast.status, 0, fast.stdout || fast.stderr);
+  const fastChecks = new Set(JSON.parse(fast.stdout).checks.map((check) => check.check));
+  assert.equal(fastChecks.has("rule-coverage"), true);
+  assert.equal(fastChecks.has("policy-integrity"), true);
+  assert.equal(fastChecks.has("ci-integrity"), false);
+  assert.equal(fastChecks.has("secrets"), false);
+
+  const ci = run(ROOT, ["verify", "ci", "--json"]);
+  assert.equal(ci.status, 0, ci.stdout || ci.stderr);
+  const ciReport = JSON.parse(ci.stdout);
+  assert.equal(ciReport.verifyMode, "ci");
+  const ciChecks = new Set(ciReport.checks.map((check) => check.check));
+  assert.equal(ciChecks.has("rule-coverage"), true);
+  assert.equal(ciChecks.has("policy-integrity"), true);
+  assert.equal(ciChecks.has("ci-integrity"), true);
+  assert.equal(ciChecks.has("repo-governance"), true);
+  assert.equal(ciChecks.has("package-determinism"), true);
+  assert.equal(ciChecks.has("secrets"), true);
+  assert.equal(ciChecks.has("dependency-policy"), true);
+  assert.equal(ciChecks.has("sbom"), true);
 });

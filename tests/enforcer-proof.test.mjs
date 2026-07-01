@@ -338,6 +338,61 @@ test("manual-required and failed proofs are not accepted for claims", () => {
   );
 });
 
+test("PR-ready proof claims reject dirty worktrees unless allowDirty is explicit", () => {
+  const project = makeProject();
+  const git = (args) =>
+    spawnSync("git", args, {
+      cwd: project,
+      encoding: "utf8",
+      shell: false,
+    });
+
+  assert.equal(git(["init"]).status, 0);
+  assert.equal(git(["config", "user.email", "enforcer@example.com"]).status, 0);
+  assert.equal(git(["config", "user.name", "Ocentra Enforcer"]).status, 0);
+  fs.writeFileSync(path.join(project, "README.md"), "# Proof\n", "utf8");
+  assert.equal(git(["add", "README.md"]).status, 0);
+  assert.equal(git(["commit", "-m", "init"]).status, 0);
+
+  const run = runProof(
+    {
+      root: project,
+      proofId: "PROOF-COMMAND-GENERIC",
+      runId: "proof-dirty",
+      command: [process.execPath, "-e", "process.exit(0)"],
+    },
+    PACK_ROOT,
+  );
+  assert.equal(run.ok, true);
+
+  fs.writeFileSync(path.join(project, "README.md"), "# Proof dirty\n", "utf8");
+
+  const blocked = claimProof(
+    {
+      root: project,
+      proofId: "PROOF-COMMAND-GENERIC",
+      prReady: true,
+    },
+    PACK_ROOT,
+  );
+  assert.equal(blocked.ok, false);
+  assert.equal(
+    blocked.claim.violations.some((violation) => violation.code === "dirty-worktree"),
+    true,
+  );
+
+  const allowed = claimProof(
+    {
+      root: project,
+      proofId: "PROOF-COMMAND-GENERIC",
+      prReady: true,
+      allowDirty: true,
+    },
+    PACK_ROOT,
+  );
+  assert.equal(allowed.ok, true);
+});
+
 test("proof CLI exposes route, run, inventory, and claim", () => {
   const project = makeProject();
   fs.mkdirSync(path.join(project, "scripts", "test"), { recursive: true });

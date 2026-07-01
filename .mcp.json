@@ -3,7 +3,7 @@
     "ocentra-enforcer": {
       "command": "node",
       "args": [
-        "./mcp/rust-rules-mcp.mjs"
+        "./mcp/ocentra-enforcer-mcp.mjs"
       ]
     }
   }

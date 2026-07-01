@@ -287,18 +287,18 @@ repair events.
 Common commands:
 
 ```powershell
-node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination root --hub project-alpha
-node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination init project-alpha --hub project-alpha --lane codex-a
-node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination presence --hub project-alpha --json
-node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination inbox --hub project-alpha --lane codex-a --json
-node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination message --hub project-alpha --from codex-a --to codex-b --subject "..." --body "..."
-node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination claim --hub project-alpha --lane codex-a --paths src/lib.rs --operation edit --on-conflict intent --reason "exact file claim"
-node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination guard --hub project-alpha --lane codex-a --paths src/lib.rs --operation commit --json
-node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination release --hub project-alpha --lane codex-a --paths src/lib.rs --reason "done"
-node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination closeout --hub project-alpha --lane codex-a --thread-id <codex-thread-id> --reason "done" --json
-node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination manifest --hub project-alpha --json
-node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination peer list --hub project-alpha --json
-node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination sync --hub project-alpha --peer office --json
+ocentra-enforcer coordination root --hub project-alpha
+ocentra-enforcer coordination init project-alpha --hub project-alpha --lane codex-a
+ocentra-enforcer coordination presence --hub project-alpha --json
+ocentra-enforcer coordination inbox --hub project-alpha --lane codex-a --json
+ocentra-enforcer coordination message --hub project-alpha --from codex-a --to codex-b --subject "..." --body "..."
+ocentra-enforcer coordination claim --hub project-alpha --lane codex-a --paths src/lib.rs --operation edit --on-conflict intent --reason "exact file claim"
+ocentra-enforcer coordination guard --hub project-alpha --lane codex-a --paths src/lib.rs --operation commit --json
+ocentra-enforcer coordination release --hub project-alpha --lane codex-a --paths src/lib.rs --reason "done"
+ocentra-enforcer coordination closeout --hub project-alpha --lane codex-a --thread-id <codex-thread-id> --reason "done" --json
+ocentra-enforcer coordination manifest --hub project-alpha --json
+ocentra-enforcer coordination peer list --hub project-alpha --json
+ocentra-enforcer coordination sync --hub project-alpha --peer office --json
 ```
 
 Use `--state-root <exact-hub-root>` only when operating on a specific legacy or

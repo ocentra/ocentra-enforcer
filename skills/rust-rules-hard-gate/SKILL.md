@@ -24,29 +24,32 @@ Use this skill to run the reusable `ocentra-enforcer` pack instead of recreating
 
 ## Commands
 
-From the pack root:
+Canonical CLI:
 
 ```bash
-node scripts/rust-rules.mjs doctor --root <repo> --config <config> --workspace
-node scripts/rust-rules.mjs scan --root <repo> --config <config> --files <file-or-dir>...
-node scripts/rust-rules.mjs cargo --root <repo> --config <config> --crate <cargo-package-name>
-node scripts/rust-rules.mjs scan --root <repo> --config <config> --base <base> --head <head>
-node scripts/rust-rules.mjs cargo --root <repo> --config <config> --workspace
-node scripts/rust-rules.mjs explain RR-7.3
-node scripts/rust-rules.mjs init --root <repo> --profile strict --adapters codex,mcp,precommit,github-actions --dry-run
-node scripts/rust-rules.mjs route --root <repo> --files <file-or-dir>...
-node scripts/rust-rules.mjs scan --root <repo> --languages typescript,python,common --files <file-or-dir>...
-node scripts/rust-rules.mjs check no-zod-source --root <repo> --files <file-or-dir>...
-node scripts/rust-rules.mjs check validation-bypass --root <repo> --files <file-or-dir>...
-node scripts/rust-rules.mjs check weak-assertions --root <repo> --files <file-or-dir>...
-node scripts/rust-rules.mjs check placeholder-implementation --root <repo> --files <file-or-dir>...
-node scripts/rust-rules.mjs check source-shape --root <repo> --workspace
-node scripts/rust-rules.mjs check single-source-contracts --root <repo> --check-config <path>
-node scripts/rust-rules.mjs check sbom --root <repo> --output target/security --dry-run
-node scripts/rust-rules.mjs run --root <repo> --tool tsc -- npx tsc --noEmit --pretty false
-node scripts/rust-rules.mjs runs last-failure --root <repo> --json
-node scripts/rust-rules.mjs runs prune --root <repo> --json
+ocentra-enforcer doctor --root <repo> --config <config> --workspace
+ocentra-enforcer scan --root <repo> --config <config> --files <file-or-dir>...
+ocentra-enforcer cargo --root <repo> --config <config> --crate <cargo-package-name>
+ocentra-enforcer scan --root <repo> --config <config> --base <base> --head <head>
+ocentra-enforcer cargo --root <repo> --config <config> --workspace
+ocentra-enforcer explain RR-7.3
+ocentra-enforcer init --root <repo> --profile strict --adapters codex,mcp,precommit,github-actions --dry-run
+ocentra-enforcer route --root <repo> --files <file-or-dir>...
+ocentra-enforcer scan --root <repo> --languages typescript,python,common --files <file-or-dir>...
+ocentra-enforcer check no-zod-source --root <repo> --files <file-or-dir>...
+ocentra-enforcer check validation-bypass --root <repo> --files <file-or-dir>...
+ocentra-enforcer check weak-assertions --root <repo> --files <file-or-dir>...
+ocentra-enforcer check placeholder-implementation --root <repo> --files <file-or-dir>...
+ocentra-enforcer check source-shape --root <repo> --workspace
+ocentra-enforcer check single-source-contracts --root <repo> --check-config <path>
+ocentra-enforcer check sbom --root <repo> --output target/security --dry-run
+ocentra-enforcer run --root <repo> --tool tsc -- npx tsc --noEmit --pretty false
+ocentra-enforcer runs last-failure --root <repo> --json
+ocentra-enforcer runs prune --root <repo> --json
 ```
+
+If the binary is not on `PATH` yet, run the same commands from the install root
+with `node scripts/ocentra-enforcer.mjs ...`.
 
 When the pack is installed or symlinked, `ocentra-enforcer` and `ocentra-enforcer-mcp` are the canonical executable entrypoints. `rust-rules` and `rust-rules-mcp` remain temporary compatibility aliases. For standalone use, pass `--root` explicitly so the pack can validate any project.
 

@@ -394,12 +394,20 @@ const forbiddenSensitivePathPatterns = [
   /\.(pem|p12|pfx|key)$/iu,
 ];
 
+function isDomainLikeTypeScriptPath(rel) {
+  return (
+    /(^|\/)src\/(?:domain(?:\/|\.|$)|domains\/|model(?:s)?\/|state(?:\/|\.|$)|value-objects?\/|entities?\/|aggregates?\/)/u.test(rel)
+    || /(^|\/)(?:domain|state|model)\.[jt]sx?$/u.test(rel)
+  );
+}
+
 export function scanAdditionalTypeScriptFile(root, filePath) {
   const rel = normalizeRel(root, filePath);
   const lines = readLines(filePath);
   const violations = [];
   const generatedPath = isGeneratedSourcePath(rel);
   const toolingBoundary = isToolingBoundaryPath(rel);
+  const domainLikePath = isDomainLikeTypeScriptPath(rel);
 
   lines.forEach((line, index) => {
     const lineNo = index + 1;
@@ -524,7 +532,7 @@ export function scanAdditionalTypeScriptFile(root, filePath) {
       addViolation(violations, root, filePath, lineNo, 'TS-6.27', 'undefined domain state found', line);
     }
 
-    if (!generatedPath && !toolingBoundary && optionalFieldPattern.test(maskedLine)) {
+    if (!generatedPath && !toolingBoundary && domainLikePath && optionalFieldPattern.test(maskedLine)) {
       addViolation(violations, root, filePath, lineNo, 'TS-6.28', 'optional domain field found', line);
     }
 
@@ -571,7 +579,7 @@ export function scanAdditionalTypeScriptFile(root, filePath) {
       addViolation(violations, root, filePath, lineNo, 'TS-6.38', 'exported object literal has inferred API type', line);
     }
 
-    if (!generatedPath && !toolingBoundary && !isTestPath(rel) && letInitializerPattern.test(maskedLine)) {
+    if (!generatedPath && !toolingBoundary && domainLikePath && !isTestPath(rel) && letInitializerPattern.test(maskedLine)) {
       addViolation(violations, root, filePath, lineNo, 'TS-6.39', 'let initializer found where const is expected', line);
     }
 

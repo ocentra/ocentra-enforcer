@@ -24,11 +24,11 @@ Tasks:
 2. Run npm install in the enforcer repo.
 3. Run npm test, npm run rust:rules:scan, npm run rust:rules, and npm run mcp:smoke.
 4. Run Codex install dry-run:
-   node <ENFORCER_PATH>/scripts/rust-rules.mjs codex install --root <TARGET_REPO> --profile <PROFILE> --dry-run
+   node <ENFORCER_PATH>/scripts/ocentra-enforcer.mjs codex install --root <TARGET_REPO> --profile <PROFILE> --dry-run
 5. If the plan is correct, run the non-dry-run installer:
-   node <ENFORCER_PATH>/scripts/rust-rules.mjs codex install --root <TARGET_REPO> --profile <PROFILE>
+   node <ENFORCER_PATH>/scripts/ocentra-enforcer.mjs codex install --root <TARGET_REPO> --profile <PROFILE>
 6. Verify the global MCP registry and target wiring:
-   node <ENFORCER_PATH>/scripts/rust-rules.mjs codex doctor --root <TARGET_REPO>
+   node <ENFORCER_PATH>/scripts/ocentra-enforcer.mjs codex doctor --root <TARGET_REPO>
    codex mcp list
    If local CLI config parsing is blocked by unrelated config settings, use:
    codex -c service_tier='"fast"' mcp list
@@ -37,7 +37,7 @@ Tasks:
    node <ENFORCER_PATH>/scripts/mcp-smoke.mjs --root <TARGET_REPO> --profile <PROFILE> --file Cargo.toml
    node <ENFORCER_PATH>/scripts/mcp-smoke.mjs --root <TARGET_REPO> --profile <PROFILE> --file Cargo.toml --framing ndjson
 9. For hooks and CI, run target adapter dry-run:
-   node <ENFORCER_PATH>/scripts/rust-rules.mjs init --root <TARGET_REPO> --profile <PROFILE> --adapters precommit,github-actions --dry-run
+   node <ENFORCER_PATH>/scripts/ocentra-enforcer.mjs init --root <TARGET_REPO> --profile <PROFILE> --adapters precommit,github-actions --dry-run
 10. Do not write hook or CI files until the dry-run plan is reviewed.
 
 Rules:

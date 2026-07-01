@@ -9,15 +9,15 @@ jobs:
   dependency-policy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
       - name: Install Ocentra Enforcer
         run: npm install --global ocentra-enforcer
       - name: Install dependency policy tools
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@16b05812d776ae1dfaabc8277e421fb6d2506419
         with:
           tool: cargo-deny,cargo-audit
       - name: Ocentra Enforcer dependency policy

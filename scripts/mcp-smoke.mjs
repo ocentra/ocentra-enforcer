@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const PACK_ROOT = path.resolve(path.join(path.dirname(SCRIPT_PATH), '..'));
-const SERVER_PATH = path.join(PACK_ROOT, 'mcp', 'rust-rules-mcp.mjs');
+const SERVER_PATH = path.join(PACK_ROOT, 'mcp', 'ocentra-enforcer-mcp.mjs');
 
 const args = parseArgs(process.argv.slice(2));
 const server = spawn(process.execPath, [SERVER_PATH], {

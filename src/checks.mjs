@@ -206,7 +206,7 @@ export const CHECK_RULES = {
   },
   "CI-1.13": {
     title: "CI action versions must be pinned",
-    snippet: "Pin workflow actions by major version at minimum; do not use main, master, or latest.",
+    snippet: "Pin workflow actions by full commit SHA; do not use floating tags, branches, main, master, or latest.",
   },
   "CI-1.14": {
     title: "CI workflows must declare least-privilege permissions",
@@ -2052,7 +2052,7 @@ function collectCiIntegrityFindings(root) {
       const action = line.match(/^\s*-\s+uses\s*:\s*([^\s#]+)\s*$/u);
       if (action && !isPinnedActionReference(action[1])) {
         findings.push(
-          finding(root, file, index + 1, "CI-1.13", `workflow action is not pinned by major or SHA: ${action[1]}`, line),
+          finding(root, file, index + 1, "CI-1.13", `workflow action is not pinned by full commit SHA: ${action[1]}`, line),
         );
       }
       if (/\brust-rules\b/u.test(line) && !/compatibility alias/iu.test(line)) {
@@ -2211,22 +2211,22 @@ const CI_COMMAND_REQUIREMENTS = [
   },
   {
     ruleId: "CI-1.7",
-    pattern: /\benforcer:verify\b|\bpolicy-integrity\b|\benforcer:policy\b/u,
+    pattern: /\benforcer:verify(?::(?:local|ci|fast))?\b|\bverify\s+(?:local|ci|fast)\b|\bpolicy-integrity\b|\benforcer:policy\b/u,
     detail: "CI parity gate does not run schema/policy validation",
   },
   {
     ruleId: "CI-1.8",
-    pattern: /\bsecrets\b|\bsecret scan\b|\bscan-staged-secrets\b/u,
+    pattern: /\bsecrets\b|\bsecret scan\b|\bscan-staged-secrets\b|\bverify\s+ci\b|\benforcer:verify:ci\b/u,
     detail: "CI parity gate does not run a secret scan",
   },
   {
     ruleId: "CI-1.9",
-    pattern: /\bdependency-policy\b/u,
+    pattern: /\bdependency-policy\b|\bverify\s+ci\b|\benforcer:verify:ci\b/u,
     detail: "CI parity gate does not run dependency policy",
   },
   {
     ruleId: "CI-1.10",
-    pattern: /\bsbom\b/u,
+    pattern: /\bsbom\b|\bverify\s+ci\b|\benforcer:verify:ci\b/u,
     detail: "CI parity gate does not run SBOM check",
   },
 ];
@@ -2456,9 +2456,7 @@ function isDeterministicDependencyVersion(value) {
 function isPinnedActionReference(actionRef) {
   const ref = String(actionRef ?? "").split("@").at(1);
   if (!ref) return false;
-  if (/^[a-f0-9]{40}$/iu.test(ref)) return true;
-  if (/^v\d+(?:\.\d+){0,2}$/u.test(ref)) return true;
-  return false;
+  return /^[a-f0-9]{40}$/iu.test(ref);
 }
 
 function isSuspiciousDependencyName(name) {
@@ -2656,10 +2654,39 @@ function collectRuleCoverageFindings(root, _config, args = {}) {
   for (const rule of rules) {
     collectRegistryRuleMetadataFindings(root, packRoot, registryPath, rule, findings);
     collectRegistryDocFindings(root, packRoot, rule, findings);
+    const evidence = fixtureEvidence.get(String(rule.id ?? "").toUpperCase());
+    if (rule.validator === "review") continue;
+    const hasBehavioralEvidence = (evidence?.testReferences.size ?? 0) > 0;
+    const hasFailEvidence = (evidence?.failFixtures.length ?? 0) > 0 || hasBehavioralEvidence;
+    const hasPassEvidence = (evidence?.passFixtures.length ?? 0) > 0 || hasBehavioralEvidence;
+    if (rule.requiresFailFixture && !hasFailEvidence) {
+      findings.push(
+        finding(
+          root,
+          registryPath,
+          1,
+          "ENF-1.4",
+          `${rule.id} requires fail evidence but no .fail fixture or behavioral test reference is present under tests/fixtures/enforcer or tests/**`,
+          null,
+        ),
+      );
+    }
+    if (rule.requiresPassFixture && !hasPassEvidence) {
+      findings.push(
+        finding(
+          root,
+          registryPath,
+          1,
+          "ENF-1.4",
+          `${rule.id} requires pass evidence but no .pass fixture or behavioral test reference is present under tests/fixtures/enforcer or tests/**`,
+          null,
+        ),
+      );
+    }
     if (
-      rule.validator !== "review" &&
       (rule.requiresFailFixture || rule.requiresPassFixture) &&
-      !fixtureEvidence.has(rule.id)
+      evidence &&
+      evidence.testReferences.size === 0
     ) {
       findings.push(
         finding(
@@ -2667,7 +2694,7 @@ function collectRuleCoverageFindings(root, _config, args = {}) {
           registryPath,
           1,
           "ENF-1.4",
-          `${rule.id} requires fixture/test evidence but no test references that rule ID`,
+          `${rule.id} has fixtures but no behavioral test references those fixtures or the rule ID`,
           null,
         ),
       );
@@ -2725,7 +2752,7 @@ const HARNESS_CONTRACT_SPECS = [
   ["HAR-2.7", "src/harness.mjs", [/\bgeneralDiagnostics\b/u, /pyright/u, /ruff|mypy|pytest/u]],
   ["HAR-2.8", "src/harness.mjs", [/\bparsed\.runs\b/u, /\bSARIF result\b/u]],
   ["HAR-2.9", "src/harness.mjs", [/\bexport function lastFailure\b/u, /\brunDiagnostics\b/u]],
-  ["HAR-2.10", "src/harness.mjs", [/\breadArtifact\b/u, /\bisInsideRoot\b/u]],
+  ["HAR-2.10", "tests/enforcer-harness.test.mjs", [/Artifact path escapes harness root/u, /runs",\s*"artifact"/u]],
   ["HAR-2.11", "src/harness.mjs", [/\bpinned\b/u, /entry\.pinned === true/u]],
   ["HAR-2.12", "src/harness.mjs", [/\bok: exitCode === 0/u, /status: exitCode === 0 \? 'passed' : 'failed'/u]],
   ["HAR-2.13", "schemas/json/run-report.schema.json", [/"properties"/u]],
@@ -2739,7 +2766,7 @@ const PROOF_CONTRACT_SPECS = [
   ["PROOF-1.3", "src/proof.mjs", [/manual-required/u, /manual-artifact/u]],
   ["PROOF-1.4", "src/proof.mjs", [/missing|required artifacts|failedArtifacts/u, /\bbyteLength\b/u]],
   ["PROOF-1.5", "src/proof.mjs", [/\bsha256\b/u, /hash-match|importedHashes|legacyHashes/u]],
-  ["PROOF-1.6", "src/proof.mjs", [/\bdirty-worktree\b/u, /\ballowDirty\b/u]],
+  ["PROOF-1.6", "tests/enforcer-proof.test.mjs", [/dirty-worktree/u, /allowDirty/u]],
   ["PROOF-1.7", "src/proof.mjs", [/waived|unavailable|manual-required/u]],
   ["PROOF-1.8", "src/proof.mjs", [/command\.length === 0/u, /\bNo executable command\b/u]],
   ["PROOF-1.9", "src/proof.mjs", [/\bcommand:\s*\[/u, /shell: false/u]],
@@ -2754,7 +2781,7 @@ const PROOF_CONTRACT_SPECS = [
 const MCP_CONTRACT_SPECS = [
   ["MCP-1.1", "mcp/rust-rules-mcp.mjs", [/ocentra_enforcer_scan/u, /ocentra_enforcer_check/u]],
   ["MCP-1.2", "mcp/rust-rules-mcp.mjs", [/decodeScanToolArguments/u, /decodeCheckToolArguments/u, /decodeCoordinationToolArguments/u]],
-  ["MCP-1.3", "mcp/rust-rules-mcp.mjs", [/additionalProperties:\s*false/u]],
+  ["MCP-1.3", "tests/rust-rules-mcp.test.mjs", [/unexpected argument/u, /result\.isError/u]],
   ["MCP-1.4", "mcp/rust-rules-mcp.mjs", [/summaryOnly/u, /includeScope/u]],
   ["MCP-1.5", "mcp/rust-rules-mcp.mjs", [/diagnosticLimit/u, /Math\.trunc\(args\.diagnosticLimit\)/u]],
   ["MCP-1.6", "mcp/rust-rules-mcp.mjs", [/shouldBlockStaleMcpTool/u, /COORDINATION_WRITE_TOOLS/u]],
@@ -3696,16 +3723,50 @@ function markdownAnchor(heading) {
 }
 
 function collectFixtureEvidence(packRoot) {
-  const evidence = new Set();
-  for (const file of collectSourceFiles(path.join(packRoot, "tests"), [".mjs", ".js", ".ts", ".rs", ".py", ".json"])) {
-    const text = fs.readFileSync(file, "utf8");
-    for (const match of text.matchAll(RULE_ID_RE)) evidence.add(match[0]);
+  const evidence = new Map();
+  const fixtureRoot = path.join(packRoot, "tests", "fixtures", "enforcer");
+  for (const file of collectSourceFiles(fixtureRoot, [".mjs", ".js", ".ts", ".tsx", ".rs", ".py", ".json", ".toml", ".txt", ".md", ".yml", ".yaml"])) {
+    const fixtureRel = normalizeRel(packRoot, file);
+    const ruleId = ruleIdFromFixturePath(fixtureRel);
+    if (!ruleId) continue;
+    const entry = ensureFixtureEvidenceEntry(evidence, ruleId);
+    if (/\.fail\./iu.test(fixtureRel)) entry.failFixtures.push(fixtureRel);
+    if (/\.pass\./iu.test(fixtureRel)) entry.passFixtures.push(fixtureRel);
+    entry.fixtureRefs.add(fixtureRel);
+    entry.fixtureRefs.add(path.basename(fixtureRel));
+    entry.fixtureRefs.add(fixtureRel.replace(/^tests\/fixtures\/enforcer\//u, ""));
   }
-  for (const file of collectSourceFiles(path.join(packRoot, "tests", "fixtures"), [".mjs", ".js", ".ts", ".rs", ".py", ".json", ".toml"])) {
+  for (const file of collectSourceFiles(path.join(packRoot, "tests"), [".mjs", ".js", ".ts", ".rs", ".py", ".json"])) {
+    const rel = normalizeRel(packRoot, file);
+    if (rel.startsWith("tests/fixtures/")) continue;
     const text = fs.readFileSync(file, "utf8");
-    for (const match of text.matchAll(RULE_ID_RE)) evidence.add(match[0]);
+    for (const match of text.matchAll(RULE_ID_RE)) {
+      ensureFixtureEvidenceEntry(evidence, match[0].toUpperCase()).testReferences.add(rel);
+    }
+    for (const [ruleId, entry] of evidence.entries()) {
+      if ([...entry.fixtureRefs].some((ref) => text.includes(ref))) {
+        entry.testReferences.add(rel);
+      }
+    }
   }
   return evidence;
+}
+
+function ensureFixtureEvidenceEntry(evidence, ruleId) {
+  if (!evidence.has(ruleId)) {
+    evidence.set(ruleId, {
+      failFixtures: [],
+      passFixtures: [],
+      fixtureRefs: new Set(),
+      testReferences: new Set(),
+    });
+  }
+  return evidence.get(ruleId);
+}
+
+function ruleIdFromFixturePath(rel) {
+  const match = path.basename(rel).match(/^([a-z]+-\d+\.\d+)/iu);
+  return match ? match[1].toUpperCase() : null;
 }
 
 const RULE_ID_RE =

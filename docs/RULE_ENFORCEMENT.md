@@ -7,12 +7,19 @@ routable, registered, validator-backed, and explainable through CLI/MCP output.
 
 ```mermaid
 flowchart LR
-  Files["Touched files / diff / workspace"] --> Index["rules/INDEX.md"]
-  Index --> Registry["rules/rules.json"]
-  Registry --> Docs["small family docs"]
-  Registry --> Validator["scanner/check emits ruleId"]
-  Validator --> Report["JSON/MCP finding with doc + snippet"]
-  Report --> Agent["agent reads exact rule doc and fixes"]
+  A["Touched files"]
+  B["Rule index"]
+  C["Rule registry"]
+  D["Small docs"]
+  E["Validator"]
+  F["JSON or MCP finding"]
+  G["Agent fix"]
+  A --> B
+  B --> C
+  C --> D
+  C --> E
+  E --> F
+  F --> G
 ```
 
 ## Contracts

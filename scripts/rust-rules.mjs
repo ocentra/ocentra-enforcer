@@ -762,13 +762,6 @@ const DEFAULT_CONFIG = Object.freeze({
   rawTypeBoundaryGlobs: [
     "src/bin/**",
     "src/main.rs",
-    "src/**/boundary/**",
-    "src/**/boundaries/**",
-    "src/**/adapter/**",
-    "src/**/adapters/**",
-    "src/**/ffi/**",
-    "src/**/serde/**",
-    "src/**/transport/**",
   ],
   facadeFileGlobs: [
     "src/lib.rs",
@@ -821,6 +814,26 @@ const DEFAULT_ARCHITECTURE_POLICY_CHECKS = Object.freeze([
   "cross-platform-script-commands",
   "generated-artifacts",
 ]);
+const VERIFY_MODE_CHECKS = Object.freeze({
+  fast: ["rule-coverage", "policy-integrity"],
+  local: [
+    "rule-coverage",
+    "policy-integrity",
+    "ci-integrity",
+    "repo-governance",
+    "package-determinism",
+  ],
+  ci: [
+    "rule-coverage",
+    "policy-integrity",
+    "ci-integrity",
+    "repo-governance",
+    "package-determinism",
+    "secrets",
+    "dependency-policy",
+    "sbom",
+  ],
+});
 
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const PACK_ROOT = path.resolve(path.join(path.dirname(SCRIPT_PATH), ".."));
@@ -850,7 +863,7 @@ Usage:
   ocentra-enforcer init --root <repo> --profile <profile> --adapters codex,mcp,precommit,github-actions
   ocentra-enforcer route [options]
   ocentra-enforcer check <name> [options]
-  ocentra-enforcer verify [options]
+  ocentra-enforcer verify [fast|local|ci] [options]
   ocentra-enforcer scan [options]
   ocentra-enforcer cargo [options]
   ocentra-enforcer doctor [options]
@@ -886,6 +899,7 @@ Common options:
   --config <path>         Optional config path. Defaults to ocentra-enforcer.config.json, then rust-rules.config.json.
   --profile <name>        Named profile for init output.
   --scan-only             With scan/cargo compatibility: skip Cargo commands.
+  --verify-mode <mode>    Verify gate preset: fast, local, or ci. Defaults to local.
   --languages <list>      Comma-separated scan languages. Defaults to profile languages or rust,typescript,python,common.
   --check-config <path>   Optional check-specific config, for example single-source contracts.
   --output <path>         Optional output directory for checks such as sbom.
@@ -963,6 +977,7 @@ function defaultArgs() {
     crateName: null,
     packageName: null,
     domain: null,
+    verifyMode: "local",
     scope: { mode: "all" },
   };
 }
@@ -1001,6 +1016,9 @@ function parseArgs(argv) {
   if (args.command === "route" && tokens[0] && !tokens[0].startsWith("-")) {
     args.routeRuleId = tokens.shift();
   }
+  if (args.command === "verify" && tokens[0] && !tokens[0].startsWith("-")) {
+    args.verifyMode = normalizeVerifyMode(tokens.shift());
+  }
   if (args.command === "runs") {
     args.runsCommand =
       tokens[0] && !tokens[0].startsWith("-") ? tokens.shift() : "list";
@@ -1030,6 +1048,8 @@ function parseArgs(argv) {
       args.configPath = tokens[++i];
     } else if (arg === "--profile") {
       args.profile = tokens[++i];
+    } else if (arg === "--verify-mode") {
+      args.verifyMode = normalizeVerifyMode(tokens[++i] ?? "");
     } else if (arg === "--languages") {
       args.languages = parseAdapterList(tokens[++i] ?? "");
     } else if (arg === "--adapters") {
@@ -1235,6 +1255,15 @@ function parseAdapterList(value) {
     .split(",")
     .map((entry) => entry.trim())
     .filter(Boolean);
+}
+
+function normalizeVerifyMode(value) {
+  const mode = String(value ?? "local").trim().toLowerCase();
+  if (mode === "") return "local";
+  if (!Object.hasOwn(VERIFY_MODE_CHECKS, mode)) {
+    throw new Error(`Unknown verify mode: ${value}`);
+  }
+  return mode;
 }
 
 function createInitReport(args) {
@@ -1528,7 +1557,7 @@ function mcpConfigTemplate() {
       mcpServers: {
         "ocentra-enforcer": {
           command: "node",
-          args: [toPosix(path.join(PACK_ROOT, "mcp", "rust-rules-mcp.mjs"))],
+          args: [toPosix(path.join(PACK_ROOT, "mcp", "ocentra-enforcer-mcp.mjs"))],
         },
       },
     },
@@ -2166,6 +2195,13 @@ function isRawTypeBoundary(rel, config) {
   return matchesAnyGlob(rel, config.rawTypeBoundaryGlobs);
 }
 
+function isBoundaryModulePath(rel, config) {
+  return (
+    isRawTypeBoundary(rel, config) ||
+    /(?:^|\/)(?:boundary|boundaries|serde|transport|adapter|adapters)(?:\/|\.|-)/iu.test(rel)
+  );
+}
+
 function isRawStringOwner(rel, config) {
   return matchesAnyGlob(rel, config.rawStringOwnerGlobs);
 }
@@ -2193,7 +2229,7 @@ function scanRustFile(root, filePath, config) {
   const masked = maskRustCode(source);
   const originalLines = source.split(/\r?\n/u);
   const maskedLines = masked.split(/\r?\n/u);
-  const isBoundary = isRawTypeBoundary(rel, config);
+  const isBoundary = isBoundaryModulePath(rel, config);
   const isStringOwner = isRawStringOwner(rel, config);
   const isPrimitiveOwner = isDomainPrimitiveOwner(rel, config);
   const enforceRuntimeStrings =
@@ -5346,6 +5382,7 @@ export function runEnforcerVerify(options = {}) {
     ...(options.config ?? loadConfig(root, options.configPath, options.profile)),
   });
   const rawScope = options.rawScope ?? options.scope ?? { mode: "all" };
+  const verifyMode = normalizeVerifyMode(options.verifyMode ?? "local");
   const scanReport = runEnforcerScan({
     root,
     config,
@@ -5354,13 +5391,7 @@ export function runEnforcerVerify(options = {}) {
     scanOnly: true,
     languages: options.languages,
   });
-  const checkNames = [
-    "rule-coverage",
-    "policy-integrity",
-    "ci-integrity",
-    "repo-governance",
-    "package-determinism",
-  ];
+  const checkNames = VERIFY_MODE_CHECKS[verifyMode];
   const checkReports = checkNames.map((checkName) =>
     runEnforcerCheck({
       root,
@@ -5381,6 +5412,7 @@ export function runEnforcerVerify(options = {}) {
   return decorateRuleDocs({
     ok: reports.every((report) => report.ok) && violations.length === 0,
     command: "verify",
+    verifyMode,
     root,
     profileName: config.profileName ?? "strict",
     violations,
@@ -5594,6 +5626,7 @@ if (isMainModule()) {
         configPath: args.configPath,
         profile: args.profile,
         languages: args.languages,
+        verifyMode: args.verifyMode,
       });
       if (args.json) console.log(JSON.stringify(report, null, 2));
       else printCheckReport(report);

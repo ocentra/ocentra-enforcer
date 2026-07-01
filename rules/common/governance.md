@@ -5,7 +5,7 @@
 - `CI-1.1`: CI must use `npm ci`, not `npm install`, for deterministic installs.
 - `CI-1.11`: Hard gates must not use `continue-on-error: true`.
 - `CI-1.12`: Hard gates must not hide failures with `|| true`.
-- `CI-1.13`: Workflow actions must be pinned by major version or SHA; mutable refs such as `main`, `master`, `latest`, or unpinned refs fail.
+- `CI-1.13`: Workflow actions must be pinned by full commit SHA; mutable refs such as tags, `main`, `master`, `latest`, or other unpinned refs fail.
 - `CI-1.14`: Workflows must declare least-privilege `permissions`.
 - `CI-1.15`: Enforcer CI must run on pull requests and pushes to main.
 - `CI-1.16`: Cross-platform projects must run Linux, Windows, and macOS CI legs.

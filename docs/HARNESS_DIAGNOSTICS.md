@@ -8,11 +8,17 @@ logs.
 
 ```mermaid
 flowchart LR
-  Command["cargo / npm / tsc / pytest / ruff"] --> Harness["ocentra-enforcer run"]
-  Harness --> Raw["raw stdout/stderr artifacts"]
-  Harness --> NDJSON["events.ndjson + diagnostics.ndjson"]
-  Harness --> Summary["summary.json / summary.md"]
-  Summary --> MCP["last_failure / diagnostics / artifact"]
+  A["Native command"]
+  B["Enforcer run"]
+  C["Raw artifacts"]
+  D["NDJSON"]
+  E["Summary"]
+  F["MCP queries"]
+  A --> B
+  B --> C
+  B --> D
+  B --> E
+  E --> F
 ```
 
 ## Storage

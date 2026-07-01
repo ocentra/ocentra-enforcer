@@ -9,7 +9,7 @@ Example Windows install:
 
 ```text
 Enforcer repo: E:\ocentra-enforcer
-MCP server:    E:\ocentra-enforcer\mcp\rust-rules-mcp.mjs
+MCP server:    E:\ocentra-enforcer\mcp\ocentra-enforcer-mcp.mjs
 Target repo:   C:\path\to\your-project
 ```
 
@@ -17,7 +17,7 @@ Example macOS/Linux install:
 
 ```text
 Enforcer repo: ~/tools/ocentra-enforcer
-MCP server:    ~/tools/ocentra-enforcer/mcp/rust-rules-mcp.mjs
+MCP server:    ~/tools/ocentra-enforcer/mcp/ocentra-enforcer-mcp.mjs
 Target repo:   ~/src/your-project
 ```
 
@@ -29,9 +29,9 @@ block in global `AGENTS.md`. A target repo is optional; pass `--root` only when
 you also want project-local wiring generated.
 
 ```powershell
-node E:/ocentra-enforcer/scripts/rust-rules.mjs codex install --dry-run
-node E:/ocentra-enforcer/scripts/rust-rules.mjs codex install
-node E:/ocentra-enforcer/scripts/rust-rules.mjs codex doctor
+node E:/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex install --dry-run
+node E:/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex install
+node E:/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex doctor
 ```
 
 The default ledger root is `E:/ocentra-enforcer/.ledger`; hub folders live under
@@ -41,9 +41,9 @@ synced folder on a PC, pass `--ledger-root <path>` during install.
 macOS/Linux:
 
 ```bash
-node ~/tools/ocentra-enforcer/scripts/rust-rules.mjs codex install --dry-run
-node ~/tools/ocentra-enforcer/scripts/rust-rules.mjs codex install
-node ~/tools/ocentra-enforcer/scripts/rust-rules.mjs codex doctor
+node ~/tools/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex install --dry-run
+node ~/tools/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex install
+node ~/tools/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex doctor
 ```
 
 The installer writes a backup before changing `~/.codex/config.toml` or
@@ -54,15 +54,15 @@ appear, restart the Codex app.
 To generate target repo wiring at the same time:
 
 ```powershell
-node E:/ocentra-enforcer/scripts/rust-rules.mjs codex install --root C:/path/to/target-repo --profile strict
-node E:/ocentra-enforcer/scripts/rust-rules.mjs codex doctor --root C:/path/to/target-repo
+node E:/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex install --root C:/path/to/target-repo --profile strict
+node E:/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex doctor --root C:/path/to/target-repo
 ```
 
 To remove only the Enforcer-managed global pieces:
 
 ```powershell
-node E:/ocentra-enforcer/scripts/rust-rules.mjs codex uninstall --dry-run
-node E:/ocentra-enforcer/scripts/rust-rules.mjs codex uninstall
+node E:/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex uninstall --dry-run
+node E:/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex uninstall
 ```
 
 ## Optional Setup: Codex CLI
@@ -70,7 +70,7 @@ node E:/ocentra-enforcer/scripts/rust-rules.mjs codex uninstall
 Use this only if you want to manage MCP entries through the Codex CLI directly:
 
 ```powershell
-codex mcp add ocentra-enforcer -- node E:/ocentra-enforcer/mcp/rust-rules-mcp.mjs
+codex mcp add ocentra-enforcer -- node E:/ocentra-enforcer/mcp/ocentra-enforcer-mcp.mjs
 codex mcp get ocentra-enforcer
 codex mcp list
 ```
@@ -90,7 +90,7 @@ Add:
 ```toml
 [mcp_servers.ocentra-enforcer]
 command = "node"
-args = ["E:/ocentra-enforcer/mcp/rust-rules-mcp.mjs"]
+args = ["E:/ocentra-enforcer/mcp/ocentra-enforcer-mcp.mjs"]
 env = { OCENTRA_LEDGER_HOME = "E:/ocentra-enforcer/.ledger" }
 startup_timeout_sec = 20
 enabled = true
@@ -105,7 +105,7 @@ macOS/Linux path:
 ```toml
 [mcp_servers.ocentra-enforcer]
 command = "node"
-args = ["/home/YOU/tools/ocentra-enforcer/mcp/rust-rules-mcp.mjs"]
+args = ["/home/YOU/tools/ocentra-enforcer/mcp/ocentra-enforcer-mcp.mjs"]
 startup_timeout_sec = 20
 enabled = true
 ```
@@ -122,7 +122,7 @@ For repo-local MCP config, create or merge this in the target repo:
   "mcpServers": {
     "ocentra-enforcer": {
       "command": "node",
-      "args": ["E:/ocentra-enforcer/mcp/rust-rules-mcp.mjs"]
+      "args": ["E:/ocentra-enforcer/mcp/ocentra-enforcer-mcp.mjs"]
     }
   }
 }
@@ -205,7 +205,7 @@ Ask Codex:
 Use the ocentra-enforcer MCP server. Call ocentra_enforcer_check for root C:/path/to/target-repo, profile strict, check "source-shape", scope workspace. Return only the compact JSON summary.
 ```
 
-For migrated Ocentra Parent-style checks, use:
+For a named pack profile or repo-specific migrated checks, use:
 
 ```text
 Call ocentra_enforcer_check for root C:/path/to/target-repo, profile strict, check "no-zod-source", scope files, files ["src/index.ts"].
@@ -260,8 +260,8 @@ Then start a new Codex thread. The canonical skill name is `ocentra-enforcer`.
 
 `codex mcp list` does not show `ocentra-enforcer`:
 
-- Run `node E:/ocentra-enforcer/scripts/rust-rules.mjs codex install --root C:/path/to/target-repo --profile strict`.
-- Run `node E:/ocentra-enforcer/scripts/rust-rules.mjs codex doctor --root C:/path/to/target-repo`.
+- Run `node E:/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex install --root C:/path/to/target-repo --profile strict`.
+- Run `node E:/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex doctor --root C:/path/to/target-repo`.
 - Check `%USERPROFILE%\.codex\config.toml`.
 - Restart Codex.
 
