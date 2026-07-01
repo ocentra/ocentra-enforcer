@@ -19,3 +19,24 @@ tests, docs, and manifest metadata.
 
 Use file/crate scope while editing. Use workspace cargo gates only for readiness
 or protected-branch validation.
+
+## Fails
+
+- Toolchain files are missing, cargo checks fail, clippy is weakened, or rustdoc warnings are ignored when doc gates are enabled.
+- Agents claim Rust readiness without file/crate/workspace validation at the right scope.
+
+## Passes
+
+- Rust toolchain, cargo fmt/check/clippy/test, and rustdoc gates run at the requested scope.
+- Broad workspace checks are reserved for readiness or protected integration.
+
+## Fix Recipe
+
+1. Pin the Rust toolchain and required components.
+2. Run file or crate scope checks while editing.
+3. Run workspace cargo gates before readiness claims.
+
+## Validator
+
+- scanner: `rust/toolchain-cargo`
+- command: `ocentra-enforcer scan --root <repo> --files Cargo.toml rust-toolchain.toml`

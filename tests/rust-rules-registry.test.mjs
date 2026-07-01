@@ -22,8 +22,8 @@ function scannerRuleIds() {
   const source = fs.readFileSync(SCRIPT_PATH, "utf8");
   return [
     ...new Set(
-      [...source.matchAll(/['"]RR-[0-9]+\.[0-9]+['"]\s*:/gu)].map(
-        (match) => match[0].match(/RR-[0-9]+\.[0-9]+/u)[0],
+      [...source.matchAll(/['"]RR-[0-9]+\.[0-9]+['"]/gu)].map(
+        (match) => match[0].slice(1, -1),
       ),
     ),
   ].sort();
@@ -44,7 +44,7 @@ test("registry has the expected schema shape", () => {
   for (const rule of registry.rules) {
     assert.match(
       rule.id,
-      /^(RR|TS|PY|SEC|GEN|DOC|HAR|TEST|PORT|SRC|CONTRACT|DEP|SBOM|AI)-[0-9]+\.[0-9]+$/u,
+      /^(RR|TS|PY|SEC|GEN|DOC|DOCENF|HAR|TEST|PORT|SRC|CONTRACT|DEP|NPM|CI|REPO|SBOM|AI|ENF|CFG|WAIVER|ARCH|BOUND|MCP|PROOF|SCAN)-[0-9]+\.[0-9]+$/u,
     );
     assert.ok(
       ["rust", "typescript", "python", "common"].includes(rule.language),
@@ -63,11 +63,18 @@ test("registry has the expected schema shape", () => {
         "generated-artifacts",
         "documentation",
         "harness",
+        "mcp",
         "portability",
+        "proof",
+        "registry",
         "source-shape",
         "contracts",
         "sbom",
         "agent-rules",
+        "ci",
+        "repo",
+        "package",
+        "scanner",
       ].includes(rule.family),
     );
     assert.ok(["error", "warning", "info"].includes(rule.severity));
@@ -75,6 +82,20 @@ test("registry has the expected schema shape", () => {
     assert.ok(Array.isArray(rule.triggers) && rule.triggers.length > 0);
     assert.equal(typeof rule.validator, "string");
     assert.equal(typeof rule.doc, "string");
+    assert.equal(typeof rule.title, "string");
+    assert.equal(typeof rule.snippet, "string");
+    assert.ok(
+      [
+        "immutable",
+        "waiver-required",
+        "profile-overridable",
+        "advisory",
+      ].includes(rule.lockLevel),
+    );
+    assert.equal(typeof rule.canDisable, "boolean");
+    assert.equal(typeof rule.canDowngrade, "boolean");
+    assert.equal(typeof rule.requiresFailFixture, "boolean");
+    assert.equal(typeof rule.requiresPassFixture, "boolean");
   }
 });
 
@@ -99,11 +120,18 @@ test("registry exactly covers enforced scanner rules", () => {
 test("registry docs exist and stay inside implemented language docs", () => {
   for (const rule of loadRegistry().rules) {
     assert.match(rule.doc, /^rules\/(?:rust|typescript|python|common)\//u);
-    const docPath = rule.doc.split("#")[0];
+    const [docPath, anchor] = rule.doc.split("#");
     assert.equal(
       fs.existsSync(path.join(PACK_ROOT, docPath)),
       true,
       `${rule.id} doc is missing: ${rule.doc}`,
+    );
+    assert.equal(Boolean(anchor), true, `${rule.id} doc anchor is missing`);
+    const docText = fs.readFileSync(path.join(PACK_ROOT, docPath), "utf8");
+    assert.match(
+      docText,
+      /^#{1,6}\s+Covered Rules$/mu,
+      `${rule.id} doc anchor is missing: ${rule.doc}`,
     );
   }
 });

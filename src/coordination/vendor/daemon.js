@@ -41,6 +41,7 @@ async function waitForHealthy(url, token) {
         if (await isHealthy(url, token)) {
             return;
         }
+        // TIMER-JUSTIFICATION: daemon startup readiness uses bounded polling against the local health endpoint.
         await new Promise((resolve) => setTimeout(resolve, 100));
     }
     throw new Error(`ledger daemon did not become healthy at ${url}`);

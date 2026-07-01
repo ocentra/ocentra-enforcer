@@ -16,6 +16,14 @@ const DEFAULT_HARNESS_CONFIG = Object.freeze({
 });
 
 const LEGACY_STORAGE_DIR = '.ocentra-enforcer';
+const SECRET_REDACTION_PATTERNS = [
+  /\bgh[pousr]_[A-Za-z0-9_]{20,}\b/gu,
+  /\bAKIA[0-9A-Z]{16}\b/gu,
+  /\b(?:sk|pk)_(?:live|test)_[A-Za-z0-9]{20,}\b/gu,
+  /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/gu,
+  /\b(?:secret|token|password|key)\b\s*[:=]\s*["'][A-Za-z0-9+/=_-]{16,}["']/giu,
+  /-----BEGIN (?:RSA |OPENSSH |EC |DSA |)?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |OPENSSH |EC |DSA |)?PRIVATE KEY-----/gu,
+];
 
 export function runHarness(args = {}) {
   const root = path.resolve(args.root ?? process.cwd());
@@ -39,13 +47,13 @@ export function runHarness(args = {}) {
     env: { ...process.env, ...(args.env ?? {}) },
   });
   const endedAt = new Date().toISOString();
-  const stdout = result.stdout ?? '';
-  const stderr = result.stderr ?? '';
+  const stdout = redactSecrets(result.stdout ?? '');
+  const stderr = redactSecrets(result.stderr ?? '');
   fs.writeFileSync(path.join(runDir, 'raw', 'stdout.log'), stdout, 'utf8');
   fs.writeFileSync(path.join(runDir, 'raw', 'stderr.log'), stderr, 'utf8');
 
   const exitCode = result.status ?? (result.error ? 1 : 0);
-  const diagnostics = dedupeDiagnostics([
+  const diagnostics = sortDiagnostics(dedupeDiagnostics([
     ...parseDiagnostics({ root, runId, tool: args.tool ?? command[0], stdout, stderr }),
     ...(exitCode === 0
       ? []
@@ -62,7 +70,7 @@ export function runHarness(args = {}) {
             source: stderr.trim().split(/\r?\n/u).slice(0, 8).join('\n') || stdout.trim().split(/\r?\n/u).slice(0, 8).join('\n') || null,
           },
         ]),
-  ]);
+  ]));
   const summary = {
     runId,
     root,
@@ -75,6 +83,7 @@ export function runHarness(args = {}) {
     domain: args.domain ?? null,
     tags: normalizeTags(args.tags),
     command,
+    pinned: Boolean(args.pin ?? args.pinned),
     status: exitCode === 0 ? 'passed' : 'failed',
     exitCode,
     startedAt,
@@ -150,9 +159,18 @@ export function readArtifact(args = {}) {
   const artifact = args.artifact ?? 'stderr';
   const artifactPath = run.artifacts?.[artifact];
   if (!artifactPath) return { ok: false, text: '', message: `Unknown artifact: ${artifact}` };
-  const absolute = path.join(root, artifactPath);
+  const absolute = path.resolve(root, artifactPath);
+  if (!isInsideRoot(root, absolute)) {
+    return { ok: false, text: '', message: `Artifact path escapes harness root: ${artifactPath}` };
+  }
   const text = fs.existsSync(absolute) ? fs.readFileSync(absolute, 'utf8') : '';
-  return { ok: true, runId: run.runId, artifact, path: artifactPath, text: text.slice(0, args.limitBytes ?? harnessConfig.maxArtifactBytes) };
+  return {
+    ok: true,
+    runId: run.runId,
+    artifact,
+    path: artifactPath,
+    text: redactSecrets(text).slice(0, args.limitBytes ?? harnessConfig.maxArtifactBytes),
+  };
 }
 
 export function resetRuns(args = {}) {
@@ -184,6 +202,7 @@ export function pruneRuns(args = {}) {
     }
   }
 
+  for (const run of sorted.filter((entry) => entry.pinned === true)) keep.add(run.runId);
   for (const run of sorted.filter((entry) => entry.status === 'failed').slice(0, harnessConfig.maxFailedRuns ?? sorted.length)) keep.add(run.runId);
   const byTool = new Map();
   for (const run of sorted) {
@@ -227,8 +246,8 @@ function parseJsonLines(root, runId, tool, text) {
       if (parsed.reason === 'compiler-message' && parsed.message) {
         diagnostics.push(rustMessageToDiagnostic(root, runId, tool, parsed.message));
       }
-    } catch {
-      // Non-JSON log lines are expected in mixed tool output.
+    } catch (error) {
+      diagnostics.push(parserDiagnostic(runId, tool, error, 'malformed JSON line'));
     }
   }
   return diagnostics;
@@ -280,10 +299,37 @@ function parseJsonPayload(root, runId, tool, text) {
         source: null,
       }));
     }
-  } catch {
-    return [];
+    if (Array.isArray(parsed.runs)) {
+      return parsed.runs.flatMap((run) =>
+        (run.results ?? []).map((result) => {
+          const location = result.locations?.[0]?.physicalLocation ?? {};
+          const region = location.region ?? {};
+          const artifactUri = location.artifactLocation?.uri ?? ".";
+          return {
+            runId,
+            tool,
+            language: "common",
+            severity: sarifSeverity(result.level),
+            ruleId: result.ruleId ?? result.rule?.id ?? "sarif",
+            file: normalizeRel(root, path.resolve(root, artifactUri)),
+            line: region.startLine ?? 1,
+            message: result.message?.text ?? result.message?.markdown ?? "SARIF result",
+            source: null,
+          };
+        }),
+      );
+    }
+  } catch (error) {
+    return [parserDiagnostic(runId, tool, error, 'malformed JSON payload')];
   }
   return [];
+}
+
+function sarifSeverity(level) {
+  if (level === "error") return "error";
+  if (level === "warning") return "warning";
+  if (level === "note" || level === "none") return "info";
+  return "warning";
 }
 
 function parseTscText(root, runId, tool, text) {
@@ -352,6 +398,30 @@ function dedupeDiagnostics(diagnostics) {
   });
 }
 
+function sortDiagnostics(diagnostics) {
+  return [...diagnostics].sort(
+    (a, b) =>
+      String(a.file ?? '').localeCompare(String(b.file ?? '')) ||
+      Number(a.line ?? 0) - Number(b.line ?? 0) ||
+      String(a.ruleId ?? '').localeCompare(String(b.ruleId ?? '')) ||
+      String(a.message ?? '').localeCompare(String(b.message ?? '')),
+  );
+}
+
+function parserDiagnostic(runId, tool, error, context) {
+  return {
+    runId,
+    tool,
+    language: inferLanguage(tool),
+    severity: 'warning',
+    ruleId: 'HAR-2.4',
+    file: '.',
+    line: 1,
+    message: `Harness parser ignored ${context}: ${error instanceof Error ? error.message : String(error)}`,
+    source: null,
+  };
+}
+
 function writeNdjson(filePath, rows) {
   fs.writeFileSync(filePath, rows.map((row) => JSON.stringify(row)).join('\n') + (rows.length > 0 ? '\n' : ''), 'utf8');
 }
@@ -375,6 +445,17 @@ function normalizeHarnessConfig(value = {}) {
     maxFailedRuns: nullableNumber(config.maxFailedRuns),
     pruneAfterDays: nullableNumber(config.pruneAfterDays),
   };
+}
+
+function redactSecrets(value) {
+  let text = String(value ?? '');
+  for (const pattern of SECRET_REDACTION_PATTERNS) text = text.replace(pattern, '[REDACTED]');
+  return text;
+}
+
+function isInsideRoot(root, candidate) {
+  const relative = path.relative(path.resolve(root), path.resolve(candidate));
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
 
 function sanitizeStorageDir(value) {

@@ -8,6 +8,7 @@ import test from "node:test";
 
 import {
   coordinationClaim,
+  coordinationCloseout,
   coordinationGuard,
   coordinationHealth,
   coordinationIndex,
@@ -438,14 +439,82 @@ test("coordination message and inbox are generic by hub/state root", async () =>
   await coordinationInit({ stateRoot, hub: "generic-mail", lane: "primary" });
   await coordinationMessage({
     stateRoot,
+    from: "codex-a",
     to: "codex-b",
+    subject: "Assignment",
     body: "Do the generic coordination slice.",
   });
 
   const inbox = await coordinationInbox({ stateRoot, lane: "codex-b" });
   assert.equal(inbox.ok, true);
   assert.equal(inbox.inbox.length, 1);
+  assert.match(inbox.inbox[0].from, /\.codex-a$/u);
+  assert.match(inbox.inbox[0].body, /Assignment/u);
   assert.match(inbox.inbox[0].body, /generic coordination/u);
+});
+
+test("coordination CLI message alias supports flag and positional shapes", () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-mail-cli-"));
+  const init = spawnSync(process.execPath, [
+    CLI,
+    "coordination",
+    "init",
+    "cli-mail",
+    "--state-root",
+    stateRoot,
+    "--lane",
+    "primary",
+  ], { encoding: "utf8" });
+  assert.equal(init.status, 0, init.stderr);
+
+  const flagged = spawnSync(process.execPath, [
+    CLI,
+    "coordination",
+    "message",
+    "--state-root",
+    stateRoot,
+    "--from",
+    "codex-a",
+    "--to",
+    "codex-b",
+    "--subject",
+    "Flagged Subject",
+    "--body",
+    "Flagged body.",
+    "--json",
+  ], { encoding: "utf8" });
+  assert.equal(flagged.status, 0, flagged.stderr);
+  const flaggedEvent = JSON.parse(flagged.stdout).event;
+  assert.equal(flaggedEvent.lane, "codex-a");
+  assert.equal(flaggedEvent.to, "codex-b");
+  assert.equal(flaggedEvent.body, "Flagged Subject\n\nFlagged body.");
+
+  const positional = spawnSync(process.execPath, [
+    CLI,
+    "coordination",
+    "msg",
+    "--state-root",
+    stateRoot,
+    "codex-b",
+    "Positional body.",
+  ], { encoding: "utf8" });
+  assert.equal(positional.status, 0, positional.stderr);
+
+  const inbox = spawnSync(process.execPath, [
+    CLI,
+    "coordination",
+    "inbox",
+    "--state-root",
+    stateRoot,
+    "codex-b",
+  ], { encoding: "utf8" });
+  assert.equal(inbox.status, 0, inbox.stderr);
+  const messages = JSON.parse(inbox.stdout);
+  assert.equal(messages.length, 2);
+  assert.deepEqual(
+    messages.map((message) => message.body),
+    ["Flagged Subject\n\nFlagged body.", "Positional body."],
+  );
 });
 
 test("coordination presence captures PC/project/worktree/thread context and writes read index", async () => {
@@ -877,6 +946,81 @@ test("coordination repair stale-claims reports stream repair prerequisite", asyn
   assert.match(result.nextStep, /coordination repair all/u);
 });
 
+test("coordination closeout releases lane claims and verifies zero active claims", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-closeout-"));
+  const targetRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-closeout-target-"));
+  fs.mkdirSync(path.join(targetRoot, "src"), { recursive: true });
+  fs.writeFileSync(path.join(targetRoot, "src", "lib.rs"), "fn local() {}\n");
+  fs.writeFileSync(path.join(targetRoot, "src", "other.rs"), "fn other() {}\n");
+  await coordinationInit({ stateRoot, hub: "closeout-hub", lane: "codex-a" });
+  await coordinationClaim({
+    stateRoot,
+    root: targetRoot,
+    lane: "codex-a",
+    paths: ["src/lib.rs", "src/other.rs"],
+    reason: "closeout claim",
+    codexThreadId: "thread-closeout",
+  });
+
+  const result = await coordinationCloseout({
+    stateRoot,
+    root: targetRoot,
+    lane: "codex-a",
+    codexThreadId: "thread-closeout",
+    reason: "test closeout",
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.initialClaimCount, 2);
+  assert.equal(result.remainingClaimCount, 0);
+  assert.equal(result.index.counts.activeClaims, 0);
+
+  const presence = await coordinationPresence({ stateRoot });
+  assert.deepEqual(presence.views.byClaimedPath, {});
+});
+
+test("coordination closeout stale repair removes only selected owners", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-closeout-stale-"));
+  const targetRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-closeout-stale-target-"));
+  fs.mkdirSync(path.join(targetRoot, "src"), { recursive: true });
+  fs.writeFileSync(path.join(targetRoot, "src", "lib.rs"), "fn local() {}\n");
+  await coordinationInit({ stateRoot, hub: "closeout-stale-hub", lane: "codex-a" });
+  await coordinationClaim({
+    stateRoot,
+    root: targetRoot,
+    lane: "codex-a",
+    paths: ["src/lib.rs"],
+    reason: "owner a",
+    codexThreadId: "thread-a",
+  });
+  const stale = await coordinationClaim({
+    stateRoot,
+    root: targetRoot,
+    lane: "codex-b",
+    paths: ["src/lib.rs"],
+    reason: "owner b",
+    codexThreadId: "thread-b",
+    operation: "inspect",
+  });
+  assert.equal(stale.ok, true);
+
+  const result = await coordinationCloseout({
+    stateRoot,
+    root: targetRoot,
+    lane: "codex-b",
+    codexThreadId: "thread-b",
+    releaseOwned: false,
+    reason: "stale-only closeout",
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.releaseEvents.length, 0);
+  assert.equal(result.staleRepairClaimCount, 1);
+  assert.equal(result.remainingClaimCount, 0);
+
+  const status = await coordinationStatus({ stateRoot });
+  assert.equal(status.state.ownership.activeClaims.length, 1);
+  assert.equal(status.state.ownership.activeClaims[0].lane, "codex-a");
+});
+
 test("coordination health reports stream repair prerequisite instead of throwing", async () => {
   const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-health-prereq-"));
   const streamsRoot = path.join(stateRoot, "streams");
@@ -1163,6 +1307,55 @@ test("coordination CLI supports state-root and public claim/release flags", () =
   assert.equal(release.status, 0, release.stderr);
   assert.equal(JSON.parse(release.stdout).event.type, "release");
 
+  const claimForCloseout = spawnSync(
+    process.execPath,
+    [
+      CLI,
+      "coordination",
+      "claim",
+      "--state-root",
+      stateRoot,
+      "--hub",
+      "portable-hub",
+      "--lane",
+      "codex-a",
+      "--root",
+      targetRoot,
+      "--paths",
+      "docs/proof.md",
+      "--reason",
+      "cli closeout claim",
+      "--codex-thread-id",
+      "thread-cli-closeout",
+    ],
+    { cwd: targetRoot, encoding: "utf8" },
+  );
+  assert.equal(claimForCloseout.status, 0, claimForCloseout.stderr);
+
+  const closeout = spawnSync(
+    process.execPath,
+    [
+      CLI,
+      "coordination",
+      "closeout",
+      "--state-root",
+      stateRoot,
+      "--hub",
+      "portable-hub",
+      "--lane",
+      "codex-a",
+      "--root",
+      targetRoot,
+      "--thread-id",
+      "thread-cli-closeout",
+      "--reason",
+      "cli closeout",
+    ],
+    { cwd: targetRoot, encoding: "utf8" },
+  );
+  assert.equal(closeout.status, 0, closeout.stderr);
+  assert.equal(JSON.parse(closeout.stdout).remainingClaimCount, 0);
+
   const presence = spawnSync(
     process.execPath,
     [CLI, "coordination", "presence", "--state-root", stateRoot, "--hub", "portable-hub"],
@@ -1223,6 +1416,87 @@ test("coordination CLI supports state-root and public claim/release flags", () =
   );
   assert.equal(staleClaimRepair.status, 0, staleClaimRepair.stderr);
   assert.equal(JSON.parse(staleClaimRepair.stdout).action, "stale-claims");
+});
+
+test("coordination CLI owns hub compatibility aliases without product repo wrappers", () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-compat-cli-"));
+  const targetRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-compat-target-"));
+  fs.writeFileSync(path.join(targetRoot, "README.md"), "compat\n");
+
+  const init = spawnSync(
+    process.execPath,
+    [CLI, "coordination", "init", "compat-hub", "--state-root", stateRoot, "--hub", "compat-hub", "--lane", "codex-a"],
+    { cwd: PACK_ROOT, encoding: "utf8" },
+  );
+  assert.equal(init.status, 0, init.stderr);
+
+  const claim = spawnSync(
+    process.execPath,
+    [
+      CLI,
+      "coordination",
+      "hub:lock",
+      "--state-root",
+      stateRoot,
+      "--hub",
+      "compat-hub",
+      "--lane",
+      "codex-a",
+      "--root",
+      targetRoot,
+      "--paths",
+      "README.md",
+      "--reason",
+      "compat smoke",
+    ],
+    { cwd: PACK_ROOT, encoding: "utf8" },
+  );
+  assert.equal(claim.status, 0, claim.stderr);
+  assert.equal(JSON.parse(claim.stdout).event.type, "claim");
+
+  const guard = spawnSync(
+    process.execPath,
+    [
+      CLI,
+      "coordination",
+      "hub:guard",
+      "--state-root",
+      stateRoot,
+      "--hub",
+      "compat-hub",
+      "--lane",
+      "codex-a",
+      "--root",
+      targetRoot,
+      "--paths",
+      "README.md",
+    ],
+    { cwd: PACK_ROOT, encoding: "utf8" },
+  );
+  assert.equal(guard.status, 0, guard.stderr);
+  assert.equal(JSON.parse(guard.stdout).result.ok, true);
+
+  const release = spawnSync(
+    process.execPath,
+    [
+      CLI,
+      "coordination",
+      "hub:unlock",
+      "--state-root",
+      stateRoot,
+      "--hub",
+      "compat-hub",
+      "--lane",
+      "codex-a",
+      "--root",
+      targetRoot,
+      "--paths",
+      "README.md",
+    ],
+    { cwd: PACK_ROOT, encoding: "utf8" },
+  );
+  assert.equal(release.status, 0, release.stderr);
+  assert.equal(JSON.parse(release.stdout).event.type, "release");
 });
 
 test("architecture CLI flags Rust public re-exports and skips clean files", () => {

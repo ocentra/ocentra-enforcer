@@ -187,6 +187,7 @@ function eventInput(config, lane, command) {
                 ...base,
                 paths: command.paths,
                 ...(command.owner === undefined ? {} : { owner: command.owner }),
+                ...(command.owners === undefined ? {} : { owners: command.owners }),
             };
         case "status":
             return { ...base, state: command.state, summary: command.summary };
@@ -276,5 +277,6 @@ function isAlreadyExists(error) {
     return typeof error === "object" && error !== null && "code" in error && error.code === "EEXIST";
 }
 function sleep(ms) {
+    // TIMER-JUSTIFICATION: stream lock retry backoff is bounded by callers and keeps file locks cross-platform.
     return new Promise((resolve) => setTimeout(resolve, ms));
 }

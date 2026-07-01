@@ -1,0 +1,12 @@
+* @ocentra/maintainers
+
+rules/** @ocentra/maintainers
+src/** @ocentra/maintainers
+scripts/** @ocentra/maintainers
+mcp/** @ocentra/maintainers
+schemas/** @ocentra/maintainers
+profiles/** @ocentra/maintainers
+adapters/** @ocentra/maintainers
+package.json @ocentra/maintainers
+package-lock.json @ocentra/maintainers
+.github/workflows/** @ocentra/maintainers

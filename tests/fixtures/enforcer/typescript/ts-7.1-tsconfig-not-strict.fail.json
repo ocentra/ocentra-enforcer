@@ -1,0 +1,6 @@
+{
+  "compilerOptions": {
+    "strict": false
+  },
+  "ruleId": "TS-7.1"
+}

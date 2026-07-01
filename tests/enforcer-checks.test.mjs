@@ -129,6 +129,63 @@ test('check required-tests catches source workspaces without test scaffolds', ()
   assert.equal(report.violations.some((violation) => violation.ruleId === 'TEST-2.1'), true);
 });
 
+test('check required-tests rejects inline tests in source files', () => {
+  const project = makeProject({
+    'packages/app/package.json': JSON.stringify({ name: '@fixture/app' }),
+    'packages/app/src/index.ts': `
+export const value = 1;
+describe("value", () => {});
+`,
+    'packages/app/tests/index.test.ts': 'test("value", () => expect(1).toBe(1));\n',
+    'packages/python/package.json': JSON.stringify({ name: '@fixture/python' }),
+    'packages/python/src/module.py': `
+def value():
+    return 1
+
+def test_value():
+    assert value() == 1
+`,
+    'packages/python/tests/module.test.ts': 'test("placeholder", () => expect(1).toBe(1));\n',
+    'crates/core/Cargo.toml': '[package]\nname = "core"\nversion = "0.1.0"\nedition = "2021"\n',
+    'crates/core/src/lib.rs': `
+pub fn value() -> u8 {
+    1
+}
+
+#[cfg(test)]
+mod tests {}
+`,
+    'crates/core/tests/value.rs': '#[test]\nfn value_is_stable() { assert_eq!(1, 1); }\n',
+  });
+  const result = run(project, ['check', 'required-tests', '--json']);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  const inlineFindings = report.violations.filter((violation) => violation.ruleId === 'TEST-2.2');
+  assert.equal(inlineFindings.length, 3);
+  assert.equal(inlineFindings.some((violation) => violation.file === 'packages/app/src/index.ts'), true);
+  assert.equal(inlineFindings.some((violation) => violation.file === 'packages/python/src/module.py'), true);
+  assert.equal(inlineFindings.some((violation) => violation.file === 'crates/core/src/lib.rs'), true);
+});
+
+test('check required-tests requires organized Rust tests instead of inline modules', () => {
+  const project = makeProject({
+    'crates/core/Cargo.toml': '[package]\nname = "core"\nversion = "0.1.0"\nedition = "2021"\n',
+    'crates/core/src/lib.rs': `
+pub fn value() -> u8 {
+    1
+}
+
+#[cfg(test)]
+mod tests {}
+`,
+  });
+  const result = run(project, ['check', 'required-tests', '--json']);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.violations.some((violation) => violation.ruleId === 'TEST-2.1'), true);
+  assert.equal(report.violations.some((violation) => violation.ruleId === 'TEST-2.2'), true);
+});
+
 test('check required-tests limits package discovery to touched project roots', () => {
   const project = makeProject({
     'packages/covered/package.json': JSON.stringify({ name: '@fixture/covered' }),

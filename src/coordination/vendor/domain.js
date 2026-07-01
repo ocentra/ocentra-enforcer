@@ -1,4 +1,5 @@
 import { Schema } from "effect";
+// PUBLIC-API-BUDGET-JUSTIFICATION: coordination domain exports branded schemas as the contract layer for CLI, MCP, and API.
 const identityPattern = /^[A-Za-z0-9._-]+$/;
 const writerPattern = /^[A-Za-z0-9._-]+\.[A-Za-z0-9._-]+$/;
 const eventHashPattern = /^sha256:[a-f0-9]{64}$/;

@@ -1,0 +1,3 @@
+name: CI-1.12
+steps:
+  - run: npm test || true

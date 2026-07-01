@@ -1,0 +1,7 @@
+{
+  "id": "ENF-1.2-FAKE",
+  "language": "common",
+  "family": "policy",
+  "severity": "error",
+  "doc": "rules/common/policy.md#missing-anchor"
+}

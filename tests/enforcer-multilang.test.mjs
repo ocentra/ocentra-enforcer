@@ -99,6 +99,152 @@ spawnSync("cmd", ["/c", "npm", "test"]);
   assert.equal(ids.includes("PORT-1.1"), true);
 });
 
+test("common scanner catches expanded secret, generated, and source-shape rules", () => {
+  const project = makeProject({
+    "secrets.txt": `
+github = "${"ghp"}_abcdefghijklmnopqrstuvwxyz123456"
+aws = "${"AKIA"}1234567890ABCDEF"
+stripe = "${"sk"}_${"live"}_1234567890abcdefghijklmnop"
+generic_secret = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+jwt_like = "eyJhbGciOiJIUzI1NiJ9.abcdefghijklmnopqrstuvwxyz.abcdefghijklmnopqrstuvwxyz"
+AZURE_CLIENT_SECRET="abcdefghijklmnopqrstuvwxyz123456"
+SLACK_BOT_TOKEN="${"xoxb"}-1234567890-abcdefghijklmnop"
+API_TOKEN="abcdefghijklmnopqrstuvwxyz123456"
+NPM_TOKEN="${"npm"}_abcdefghijklmnopqrstuvwxyz123456"
+-----BEGIN PRIVATE KEY-----
+`,
+    "google-services.json": '{"type":"service_account","private_key_id":"abc"}',
+    ".env.example": 'API_TOKEN="abcdefghijklmnopqrstuvwxyz123456"\n',
+    ".env.template": 'API_TOKEN="abcdefghijklmnopqrstuvwxyz123456"\n',
+    "id_rsa": "-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n",
+    "tests/snapshot.test.ts": `
+expect(value).toMatchInlineSnapshot("2026-01-01T00:00:00.000Z ${"ghp"}_abcdefghijklmnopqrstuvwxyz123456");
+`,
+    "fixtures/creds.txt": 'token = "abcdefghijklmnopqrstuvwxyz123456"\n',
+    "output/proof.json": '{"ok":true}\n',
+    "src/generated/file.ts": `// @generated
+// @ts-ignore
+export const value = 1;
+`,
+    "src/domain/generated.ts": `// @generated
+export const domainGenerated = 1;
+`,
+    "src/generated/contracts.ts": `// @generated
+// SOURCE_OF_TRUTH: generated output
+export const contractValue = 1;
+`,
+    "src/generated/schema.json": `{"generated": true}
+`,
+    "src/utils.ts": `// hack quick fix for now
+throw new Error("not implemented");
+export const value = 1;
+`,
+    "src/domain/bad.ts": `
+// copied from legacy module
+import { Widget } from "../ui/widget";
+import { readUser } from "../data/repo";
+import { send } from "../infra/client";
+export function duplicateName() {
+  return Widget;
+}
+export function duplicateName() {
+  return readUser(send);
+}
+`,
+    "src/internal/api.ts": `
+export function leakInternal() {
+  return 1;
+}
+`,
+    "scripts/security-scan.mjs": `
+execSync("gitleaks detect");
+execSync("trufflehog filesystem .");
+execSync("ruff check .");
+execSync("pyright .");
+execSync("mypy .");
+execSync("npm install");
+`,
+    "eslint.config.mjs": `
+export default [];
+`,
+    "tests/user-codec.test.ts": `
+test("codec parses valid payload", () => {
+  expect(parseUser({ id: "1" })).toEqual({ id: "1" });
+});
+`,
+  });
+  const result = run(project, [
+    "scan",
+    "--json",
+    "--languages",
+    "typescript,common",
+    "--files",
+    "secrets.txt",
+    "google-services.json",
+    ".env.example",
+    ".env.template",
+    "id_rsa",
+    "tests/snapshot.test.ts",
+    "fixtures/creds.txt",
+    "output",
+    "src",
+    "scripts/security-scan.mjs",
+    "eslint.config.mjs",
+    "tests/user-codec.test.ts",
+  ]);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
+  for (const ruleId of [
+    "SEC-2.1",
+    "SEC-2.2",
+    "SEC-2.3",
+    "SEC-2.4",
+    "SEC-2.5",
+    "SEC-2.6",
+    "SEC-2.7",
+    "SEC-2.8",
+    "SEC-2.9",
+    "SEC-2.10",
+    "SEC-2.11",
+    "SEC-2.12",
+    "SEC-2.13",
+    "SEC-2.14",
+    "SEC-2.16",
+    "SEC-2.17",
+    "SEC-2.18",
+    "SEC-2.19",
+    "SEC-2.20",
+    "GEN-2.1",
+    "GEN-2.2",
+    "GEN-2.3",
+    "GEN-2.4",
+    "GEN-2.5",
+    "GEN-2.6",
+    "GEN-2.7",
+    "GEN-2.8",
+    "GEN-2.9",
+    "GEN-2.10",
+    "SRC-2.8",
+    "SRC-2.9",
+    "SRC-2.10",
+    "SRC-2.11",
+    "SRC-2.12",
+    "SRC-2.13",
+    "SRC-2.14",
+    "SRC-2.15",
+    "TS-7.12",
+    "TS-7.13",
+    "TS-8.10",
+    "PY-5.5",
+    "PY-5.6",
+  ]) {
+    assert.equal(ids.has(ruleId), true, `${ruleId} should fail`);
+  }
+  for (const violation of JSON.parse(result.stdout).violations.filter((finding) => finding.ruleId.startsWith("SEC-"))) {
+    assert.equal(/ghp_|AKIA|sk_live_|eyJ/.test(violation.source ?? ""), false, `${violation.ruleId} source is redacted`);
+  }
+});
+
 test("Python scanner catches lint/type suppressions and skipped tests", () => {
   const project = makeProject({
     "src/app.py": `
@@ -131,6 +277,544 @@ def test_app():
   assert.equal(ids.includes("PY-1.3"), true);
   assert.equal(ids.includes("PY-2.1"), true);
   assert.equal(ids.includes("TEST-1.2"), true);
+});
+
+test("TypeScript scanner catches strict source slop rules", () => {
+  const project = makeProject({
+    "src/domain.ts": `
+import { spawnSync } from "node:child_process";
+export type UserId = string;
+export type UsersById = Record<string, User>;
+export type Users = Map<string, User>;
+export type UserNames = string[];
+export type Patch = Partial<User>;
+export type Payload = Record<string, unknown>;
+declare global {
+  interface Window { bad: string }
+}
+export namespace BadNamespace {
+  export const value = 1;
+}
+export enum BadEnum {
+  One = "one",
+}
+export interface User {
+  name?: string;
+  createdAt: Date;
+}
+class Box {
+  value!: string;
+}
+async function saveUserAsync(): Promise<void> {}
+export function take(raw: unknown) {
+  return raw;
+}
+export function timed(count: number, enabled: boolean, at: Date): Promise<unknown> {
+  setTimeout(() => {}, 1);
+  return Promise.resolve(at);
+}
+export const api = { parse: true };
+export default function parse(raw: string): any {
+  const parsed = JSON.parse(raw) as unknown as User;
+  const url = process.env.API_URL!;
+  const copied = { ...rawDto, ...userAny };
+  const maybe = undefined;
+  let temp = 1;
+  sharedCache.add(temp);
+  import("./late");
+  eval("1 + 1");
+  saveUserAsync();
+  saveUserAsync().catch(() => {});
+  console.log(url);
+  if (!url) throw "missing url";
+  if (maybe) return undefined;
+  if (!raw) return null;
+  return parsed as User;
+}
+`,
+    "tests/domain.test.ts": `
+import { test, expect, vi } from "vitest";
+
+test.skip("skipped", () => {});
+test("weak", () => {
+  expect.any(String);
+  expect(value).toBeTruthy();
+  fetch("/unit");
+  setTimeout(() => {}, 1);
+  vi.mock("x");
+  expect(new Date().toISOString()).toMatchInlineSnapshot("2026-01-01T00:00:00.000Z");
+});
+test("empty", () => {});
+test("no assertion", () => {
+  const x = 1;
+});
+`,
+  });
+  const result = run(project, [
+    "scan",
+    "--json",
+    "--languages",
+    "typescript,common",
+    "--files",
+    "src/domain.ts",
+    "tests/domain.test.ts",
+  ]);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
+  for (const ruleId of [
+    "TS-6.1",
+    "TS-6.2",
+    "TS-6.3",
+    "TS-6.4",
+    "TS-6.5",
+    "TS-6.6",
+    "TS-6.7",
+    "TS-6.8",
+    "TS-6.9",
+    "TS-6.10",
+    "TS-6.11",
+    "TS-6.12",
+    "TS-6.13",
+    "TS-6.15",
+    "TS-6.16",
+    "TS-6.17",
+    "TS-6.18",
+    "TS-6.19",
+    "TS-6.20",
+    "TS-6.21",
+    "TS-6.22",
+    "TS-6.23",
+    "TS-6.24",
+    "TS-6.25",
+    "TS-6.26",
+    "TS-6.27",
+    "TS-6.28",
+    "TS-6.29",
+    "TS-6.30",
+    "TS-6.31",
+    "TS-6.32",
+    "TS-6.33",
+    "TS-6.34",
+    "TS-6.35",
+    "TS-6.36",
+    "TS-6.37",
+    "TS-6.38",
+    "TS-6.39",
+    "TS-6.40",
+    "TS-8.1",
+    "TS-8.2",
+    "TS-8.3",
+    "TS-8.4",
+    "TS-8.5",
+    "TS-8.6",
+    "TS-8.7",
+    "TS-8.8",
+    "TS-8.9",
+  ]) {
+    assert.equal(ids.has(ruleId), true, `${ruleId} should fail`);
+  }
+});
+
+test("TypeScript scanner catches index barrels", () => {
+  const project = makeProject({
+    "src/index.ts": `
+export { UserId } from "./user-id";
+`,
+  });
+  const result = run(project, [
+    "scan",
+    "--json",
+    "--languages",
+    "typescript,common",
+    "--files",
+    "src/index.ts",
+  ]);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
+  assert.equal(ids.has("TS-6.14"), true);
+});
+
+test("TypeScript scanner catches non-strict tsconfig", () => {
+  const project = makeProject({
+    "tsconfig.json": `
+{
+  "compilerOptions": {
+    "strict": false
+  }
+}
+`,
+  });
+  const result = run(project, [
+    "scan",
+    "--json",
+    "--languages",
+    "typescript,common",
+    "--files",
+    "tsconfig.json",
+  ]);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
+  assert.equal(ids.has("TS-7.1"), true);
+  for (const ruleId of ["TS-7.2", "TS-7.3", "TS-7.4", "TS-7.5", "TS-7.6", "TS-7.7", "TS-7.8", "TS-7.9"]) {
+    assert.equal(ids.has(ruleId), true, `${ruleId} should fail`);
+  }
+});
+
+test("TypeScript scanner catches package toolchain policy", () => {
+  const project = makeProject({
+    "package.json": `
+{
+  "dependencies": {
+    "left-pad": "^1.3.0",
+    "zod": "latest"
+  }
+}
+`,
+    "packages/no-lock/package.json": `
+{
+  "dependencies": {
+    "zod": "latest"
+  }
+}
+`,
+    "yarn.lock": "# duplicate package manager lock\n",
+    "pnpm-lock.yaml": "lockfileVersion: '9.0'\n",
+  });
+  const result = run(project, [
+    "scan",
+    "--json",
+    "--languages",
+    "typescript,common",
+    "--files",
+    "package.json",
+    "packages/no-lock/package.json",
+  ]);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
+  for (const ruleId of ["TS-7.10", "TS-7.11", "TS-7.14", "TS-7.15"]) {
+    assert.equal(ids.has(ruleId), true, `${ruleId} should fail`);
+  }
+});
+
+test("Python scanner catches strict source slop rules", () => {
+  const project = makeProject({
+    "src/service.py": `
+from typing import Any, Optional, TypedDict, NamedTuple
+from legacy import *
+from pydantic import BaseModel
+from dataclasses import dataclass
+from datetime import datetime
+from ..bad import value
+import importlib
+import os
+import pickle
+import requests
+import subprocess
+import time
+import yaml
+
+UserId = str
+CACHE = {}
+
+class UserShape(TypedDict):
+    name: Optional[str]
+
+class UserModel(BaseModel):
+    name: str | None
+
+@dataclass
+class Point:
+    x: int
+
+class Pair(NamedTuple):
+    left: str
+    right: str
+
+async def load(user_id: str, payload: dict[str, Any], headers={}):
+    try:
+        print(user_id)
+        assert user_id
+        now = datetime.now()
+        eval("1 + 1")
+        os.system("echo bad")
+        os.getenv("TOKEN")
+        pickle.loads(b"bad")
+        yaml.load("x: 1")
+        importlib.import_module("legacy")
+        subprocess.run("echo bad", shell=True)
+        time.sleep(1)
+        send_async()
+        asyncio.create_task(send_async())
+        return requests.get(user_id).json()
+    except Exception:
+        pass
+
+def load_bare(url: Any) -> dict[str, Any]:
+    try:
+        return {}
+    except:
+        return {}
+`,
+    "src/utils.py": "VALUE = 1\n",
+  });
+  const result = run(project, [
+    "scan",
+    "--json",
+    "--languages",
+    "python,common",
+    "--files",
+    "src/service.py",
+    "src/utils.py",
+  ]);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
+  for (const ruleId of [
+    "PY-4.1",
+    "PY-4.2",
+    "PY-4.3",
+    "PY-4.4",
+    "PY-4.5",
+    "PY-4.6",
+    "PY-4.7",
+    "PY-4.8",
+    "PY-4.9",
+    "PY-4.10",
+    "PY-4.11",
+    "PY-4.12",
+    "PY-4.13",
+    "PY-4.14",
+    "PY-4.15",
+    "PY-4.16",
+    "PY-4.17",
+    "PY-4.18",
+    "PY-4.19",
+    "PY-4.20",
+    "PY-4.21",
+    "PY-4.22",
+    "PY-4.23",
+    "PY-4.24",
+    "PY-4.25",
+    "PY-4.26",
+    "PY-4.27",
+    "PY-4.28",
+    "PY-4.29",
+    "PY-4.30",
+    "PY-4.31",
+    "PY-4.32",
+    "PY-4.33",
+    "PY-4.34",
+    "PY-4.35",
+  ]) {
+    assert.equal(ids.has(ruleId), true, `${ruleId} should fail`);
+  }
+});
+
+test("Python scanner catches weak test assertions", () => {
+  const project = makeProject({
+    "tests/test_user.py": `
+import requests
+import time
+from unittest.mock import Mock
+
+import pytest
+
+@pytest.mark.xfail(reason="not deterministic")
+def test_expected_failure():
+    assert True
+
+def test_user(user):
+    assert user
+
+def test_empty():
+    pass
+
+def test_no_assert(monkeypatch):
+    monkeypatch.setattr("pkg.value", 1)
+    requests.get("https://example.test")
+    time.sleep(1)
+    Mock()
+`,
+    "tests/test_parser.py": `
+def test_parser_valid():
+    assert parse_user("1") == {"id": "1"}
+`,
+    "tests/test_exception.py": `
+def test_error_path():
+    assert validate_user("bad") is None
+`,
+  });
+  const result = run(project, [
+    "scan",
+    "--json",
+    "--languages",
+    "python,common",
+    "--files",
+    "tests/test_user.py",
+    "tests/test_parser.py",
+    "tests/test_exception.py",
+  ]);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
+  assert.equal(ids.has("PY-6.1"), true);
+  assert.equal(ids.has("PY-6.2"), true);
+  assert.equal(ids.has("PY-6.3"), true);
+  assert.equal(ids.has("PY-6.4"), true);
+  assert.equal(ids.has("PY-6.5"), true);
+  assert.equal(ids.has("PY-6.6"), true);
+  assert.equal(ids.has("PY-6.7"), true);
+  assert.equal(ids.has("PY-6.8"), true);
+  assert.equal(ids.has("PY-6.9"), true);
+  assert.equal(ids.has("PY-6.10"), true);
+});
+
+test("common scanner catches boundary and architecture violations", () => {
+  const project = makeProject({
+    "ocentra-enforcer.config.json": JSON.stringify({
+      schemaVersion: 2,
+      profileName: "strict",
+      failOn: ["error"],
+      importBoundaryPolicies: [{ roots: ["src"], forbiddenImports: ["../infra"] }],
+    }),
+    "package.json": JSON.stringify({ name: "architecture-fixture", version: "0.0.0" }),
+    "src/boundary/helpers.ts": `
+type RawUserDto = { role: string };
+type RawOrgDto = { id: string };
+type AccountPayload = { id: string };
+type LoginRequest = { id: string };
+export function leak(rawInput: RawUserDto): RawUserDto {
+  if (rawInput.role === "business-admin") return rawInput;
+  return rawInput;
+}
+export function convert(rawInput: RawUserDto): string {
+  return rawInput.role;
+}
+`,
+    "src/domain/model.ts": `
+import { leak } from "../boundary/helpers";
+import { Widget } from "../ui/widget";
+import { connect } from "../db/client";
+import { get } from "../http/client";
+import { adapter } from "../adapters/user";
+import { initialize } from "../infra/config";
+import { fixture } from "../test-support/user";
+export function domainValue() {
+  return [leak, Widget, connect, get, adapter, initialize, fixture];
+}
+`,
+    "src/generated/contract.ts": `
+// @generated
+// sourceHash: abc
+import { InternalSecret } from "../domain/internal/secret";
+export const generatedContract = InternalSecret;
+`,
+    "src/cli.ts": `
+import { domainValue } from "./domain/model";
+import { connect } from "./infra/db";
+domainValue(connect);
+`,
+    "src/cycle.ts": `
+import { cycle } from "./cycle";
+export function cycle() {
+  return cycle;
+}
+`,
+    "src/public-api.ts": `
+export { unstableThing } from "./internal/unstable";
+export type InternalUser = import("./internal/user").InternalUser;
+export const a1 = 1;
+export const a2 = 2;
+export const a3 = 3;
+export const a4 = 4;
+export const a5 = 5;
+export const a6 = 6;
+export const a7 = 7;
+export const a8 = 8;
+export const a9 = 9;
+export const a10 = 10;
+export const a11 = 11;
+`,
+  });
+  const result = run(project, [
+    "scan",
+    "--json",
+    "--languages",
+    "typescript,common",
+    "--files",
+    "ocentra-enforcer.config.json",
+    "package.json",
+    "src/boundary/helpers.ts",
+    "src/domain/model.ts",
+    "src/generated/contract.ts",
+    "src/cli.ts",
+    "src/cycle.ts",
+    "src/public-api.ts",
+  ]);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
+  for (const ruleId of [
+    "BOUND-1.1",
+    "BOUND-1.2",
+    "BOUND-1.3",
+    "BOUND-1.4",
+    "BOUND-1.5",
+    "BOUND-1.6",
+    "BOUND-1.7",
+    "BOUND-1.8",
+    "BOUND-1.9",
+    "BOUND-1.10",
+    "ARCH-1.1",
+    "ARCH-1.2",
+    "ARCH-1.3",
+    "ARCH-1.4",
+    "ARCH-1.5",
+    "ARCH-1.6",
+    "ARCH-1.7",
+    "ARCH-1.8",
+    "ARCH-1.9",
+    "ARCH-1.10",
+    "ARCH-1.11",
+    "ARCH-1.12",
+    "ARCH-1.13",
+    "ARCH-1.14",
+    "ARCH-1.15",
+  ]) {
+    assert.equal(ids.has(ruleId), true, `${ruleId} should fail`);
+  }
+});
+
+test("Python scanner catches toolchain policy violations", () => {
+  const project = makeProject({
+    "pyproject.toml": `
+[project]
+name = "bad-python"
+version = "0.0.0"
+dependencies = [
+  "local-lib @ file:../local-lib",
+  "remote @ git+https://github.com/example/remote.git",
+]
+`,
+    "requirements.txt": `
+requests
+git+https://github.com/example/bad.git
+-e ../local
+`,
+    "packages/no-pyproject/requirements.txt": "flask\n",
+  });
+  const result = run(project, [
+    "scan",
+    "--json",
+    "--languages",
+    "python,common",
+    "--files",
+    "pyproject.toml",
+    "requirements.txt",
+    "packages/no-pyproject/requirements.txt",
+  ]);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
+  for (const ruleId of ["PY-5.1", "PY-5.2", "PY-5.3", "PY-5.4", "PY-5.7", "PY-5.8", "PY-5.9", "PY-5.10"]) {
+    assert.equal(ids.has(ruleId), true, `${ruleId} should fail`);
+  }
 });
 
 test("no-naked-domain-strings check covers Rust, TypeScript, and Python rule docs", () => {
@@ -197,6 +881,82 @@ test("source-shape default policy covers Python files", () => {
   );
 });
 
+test("source-shape emits explicit SRC-2 rule IDs for every shape budget", () => {
+  const project = makeProject({
+    "ocentra-enforcer.config.json": JSON.stringify({
+      sourceShapePolicies: [
+        {
+          roots: ["src"],
+          extensions: [".ts"],
+          kind: "typescript",
+          maxClasses: 1,
+          maxExports: 1,
+          maxFunctionLines: 4,
+          maxLines: 12,
+          maxNestingDepth: 2,
+          maxBranches: 2,
+        },
+        {
+          roots: ["src"],
+          extensions: [".rs"],
+          kind: "rust",
+          maxFunctionLines: 4,
+          maxFunctions: 20,
+          maxLines: 200,
+          maxTypes: 1,
+        },
+      ],
+    }),
+    "src/shape.ts": `
+export class First {
+  value = 1;
+}
+export class Second {
+  value = 2;
+}
+export const one = 1;
+export const two = 2;
+export function complex(input: number): number {
+  if (input > 0) {
+    if (input > 1) {
+      if (input > 2) {
+        return input;
+      }
+    }
+  }
+  if (input < 0) return 0;
+  return input === 1 ? 1 : 2;
+}
+`,
+    "src/types.rs": `
+pub struct First;
+pub struct Second;
+`,
+  });
+  const result = run(project, [
+    "check",
+    "source-shape",
+    "--json",
+    "--files",
+    "src/shape.ts",
+    "src/types.rs",
+  ]);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  const ids = new Set(report.violations.map((violation) => violation.ruleId));
+  for (const ruleId of [
+    "SRC-2.1",
+    "SRC-2.2",
+    "SRC-2.3",
+    "SRC-2.4",
+    "SRC-2.5",
+    "SRC-2.6",
+    "SRC-2.7",
+  ]) {
+    assert.equal(ids.has(ruleId), true, `${ruleId} should fail`);
+  }
+});
+
 test("explain returns routed docs for TypeScript and Python rules", () => {
   const project = makeProject({ "README.md": "# fixture\n" });
   const ts = run(project, ["explain", "TS-1.3", "--json"]);
@@ -217,7 +977,7 @@ test("explain returns routed docs for TypeScript and Python rules", () => {
 test("documentation advisory warnings do not fail by default", () => {
   const project = makeProject({
     "src/api.ts": `
-export function makeThing() {
+export function makeThing(): number {
   return 1;
 }
 `,
@@ -274,12 +1034,11 @@ export function makeThing() {
   );
 });
 
-test("profile can downgrade a normally hard rule to warning", () => {
+test("profile cannot downgrade an immutable hard rule to warning", () => {
   const project = makeProject({
     "ocentra-enforcer.config.json": JSON.stringify({
       rules: {
         "TS-2.1": { severity: "warning" },
-        "DOC-1.1": { enabled: false },
       },
     }),
     "src/api.ts": `
@@ -295,16 +1054,88 @@ const value = dynamicValue;
     "--files",
     "src",
   ]);
-  assert.equal(result.status, 0, result.stdout || result.stderr);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
   const report = JSON.parse(result.stdout);
-  assert.deepEqual(report.violations, []);
   assert.equal(
-    report.warnings.some(
+    report.violations.some(
       (finding) =>
-        finding.ruleId === "TS-2.1" && finding.severity === "warning",
+        finding.ruleId === "TS-2.1" && finding.severity === "error",
     ),
     true,
   );
+  const policy = run(project, ["check", "config-lockdown", "--json"]);
+  assert.notEqual(policy.status, 0, policy.stdout || policy.stderr);
+  assert.equal(
+    JSON.parse(policy.stdout).violations.some(
+      (finding) =>
+        finding.ruleId === "CFG-1.3" && /TS-2.1/u.test(finding.detail),
+    ),
+    true,
+  );
+});
+
+test("config-lockdown catches unknown keys, boundary notes, profiles, and self-check state", () => {
+  const project = makeProject({
+    "ocentra-enforcer.config.json": JSON.stringify({
+      schemaVersion: 2,
+      profileName: "unknown-profile",
+      failOn: ["error"],
+      rawTypeBoundaryGlobs: ["src/domain/**"],
+      configChangeRequiresSelfCheck: true,
+      policyIntegrityChecked: false,
+      typoPolicyKey: true,
+    }),
+  });
+  const result = run(project, ["check", "config-lockdown", "--json"]);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
+  for (const ruleId of ["CFG-1.7", "CFG-1.9", "CFG-1.11", "CFG-1.12"]) {
+    assert.equal(ids.has(ruleId), true, `${ruleId} should fail`);
+  }
+});
+
+test("config-lockdown requires explicit config identity", () => {
+  const project = makeProject({
+    "ocentra-enforcer.config.json": JSON.stringify({
+      failOn: ["error"],
+    }),
+  });
+  const result = run(project, ["check", "config-lockdown", "--json"]);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
+  assert.equal(ids.has("CFG-1.10"), true);
+});
+
+test("waiver-policy catches hidden, over-budget, and long-lived waivers", () => {
+  const project = makeProject({
+    "ocentra-enforcer.config.json": JSON.stringify({
+      schemaVersion: 2,
+      profileName: "strict",
+      failOn: ["error"],
+      maxActiveWaivers: 0,
+      maxWaiverDays: 1,
+      waivers: [
+        {
+          ruleId: "DOC-1.1",
+          waiverId: "WAIVER-DOC-TEST",
+          owner: "platform-team",
+          issue: "https://example.test/issues/1",
+          reason: "bounded fixture",
+          scope: ["src/api.ts"],
+          expires: "2099-01-01",
+          remediation: "remove fixture waiver",
+          ciAllowed: true,
+          visible: false,
+        },
+      ],
+    }),
+  });
+  const result = run(project, ["check", "waiver-policy", "--json"]);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
+  for (const ruleId of ["WAIVER-1.6", "WAIVER-1.7", "WAIVER-1.8"]) {
+    assert.equal(ids.has(ruleId), true, `${ruleId} should fail`);
+  }
 });
 
 test("route command returns TypeScript, Python, and common docs without loading unknown files", () => {

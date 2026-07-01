@@ -27,7 +27,7 @@ short version: coordination is a Codex/harness concern, not product code.
 - It is not application logging. Harness command diagnostics live under target
   repos at `.enforce/runs`.
 - It is not Git history, and Git is not the ledger sync mechanism.
-- It is not Parent-specific. Ocentra Parent is only the first large consumer.
+- It is not tied to any one product repo. Every repo is a configured consumer.
 
 ## Ownership Model
 
@@ -68,8 +68,8 @@ E:/ocentra-enforcer/.ledger/
 Each hub lives below the ledger home:
 
 ```text
-E:/ocentra-enforcer/.ledger/ocentra-parent/
-E:/ocentra-enforcer/.ledger/my-other-project/
+E:/ocentra-enforcer/.ledger/project-alpha/
+E:/ocentra-enforcer/.ledger/project-beta/
 ```
 
 The installer writes the MCP environment variable:
@@ -275,6 +275,9 @@ Supported repair surfaces:
 - `coordination repair all`: run the compatible repair set.
 - `coordination repair stale-claims`: append `claim.resolve` events for exact
   paths after stream health is trusted.
+- `coordination closeout`: release all claims for a selected lane/thread scope,
+  repair stale selected-owner claims, rebuild the read index, and fail if any
+  matching claim remains.
 
 Always dry-run first. The write form should report backup paths or appended
 repair events.
@@ -284,17 +287,18 @@ repair events.
 Common commands:
 
 ```powershell
-node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination root --hub ocentra-parent
-node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination init ocentra-parent --hub ocentra-parent --lane codex-a
-node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination presence --hub ocentra-parent --json
-node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination inbox --hub ocentra-parent --lane codex-a --json
-node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination message --hub ocentra-parent --from codex-a --to codex-b --subject "..." --body "..."
-node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination claim --hub ocentra-parent --lane codex-a --paths src/lib.rs --operation edit --on-conflict intent --reason "exact file claim"
-node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination guard --hub ocentra-parent --lane codex-a --paths src/lib.rs --operation commit --json
-node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination release --hub ocentra-parent --lane codex-a --paths src/lib.rs --reason "done"
-node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination manifest --hub ocentra-parent --json
-node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination peer list --hub ocentra-parent --json
-node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination sync --hub ocentra-parent --peer office --json
+node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination root --hub project-alpha
+node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination init project-alpha --hub project-alpha --lane codex-a
+node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination presence --hub project-alpha --json
+node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination inbox --hub project-alpha --lane codex-a --json
+node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination message --hub project-alpha --from codex-a --to codex-b --subject "..." --body "..."
+node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination claim --hub project-alpha --lane codex-a --paths src/lib.rs --operation edit --on-conflict intent --reason "exact file claim"
+node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination guard --hub project-alpha --lane codex-a --paths src/lib.rs --operation commit --json
+node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination release --hub project-alpha --lane codex-a --paths src/lib.rs --reason "done"
+node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination closeout --hub project-alpha --lane codex-a --thread-id <codex-thread-id> --reason "done" --json
+node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination manifest --hub project-alpha --json
+node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination peer list --hub project-alpha --json
+node E:/ocentra-enforcer/scripts/rust-rules.mjs coordination sync --hub project-alpha --peer office --json
 ```
 
 Use `--state-root <exact-hub-root>` only when operating on a specific legacy or
@@ -310,6 +314,7 @@ Codex should prefer MCP tools over raw terminal output:
 - `ocentra_enforcer_coordination_mail`;
 - `ocentra_enforcer_coordination_claim`;
 - `ocentra_enforcer_coordination_release`;
+- `ocentra_enforcer_coordination_closeout`;
 - `ocentra_enforcer_coordination_guard`;
 - `ocentra_enforcer_coordination_report`;
 - `ocentra_enforcer_coordination_message`;
@@ -322,6 +327,11 @@ Codex should prefer MCP tools over raw terminal output:
 
 MCP results should stay compact. Raw streams and large worker dumps are fallback
 debug artifacts, not the normal agent workflow.
+
+Before an agent reports `DONE` or `PR_READY`, it should call closeout for its
+lane/thread scope. A successful closeout means no matching active claims remain.
+If closeout fails, the task is not done; inspect `remainingClaims` and resolve
+the exact owner/path state first.
 
 ## Safe Subagent Model
 

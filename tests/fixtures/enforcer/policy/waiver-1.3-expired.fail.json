@@ -1,0 +1,10 @@
+{
+  "ruleId": "WAIVER-1.3",
+  "waiverId": "expired",
+  "owner": "platform",
+  "issue": "TEST-2",
+  "reason": "expired waiver",
+  "scope": ["src/lib.rs"],
+  "expires": "2020-01-01",
+  "remediation": "remove waiver"
+}

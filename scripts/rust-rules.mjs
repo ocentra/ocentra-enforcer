@@ -54,7 +54,62 @@ import {
 import { runCoordinationCli } from "../src/coordination/runner.mjs";
 import { runProofCli } from "../src/proof.mjs";
 
+function ruleMetadataEntries(rows) {
+  return Object.fromEntries(
+    rows.map(([id, title, snippet]) => [id, { title, snippet }]),
+  );
+}
+
 const RULES = {
+  ...ruleMetadataEntries([
+    ["RR-3.29", "FFI exports must not unwind", "Wrap FFI exports in catch_unwind or use an abort-on-panic profile."],
+    ["RR-3.30", "Unsafe crates require Miri proof", "Add MIRI-PROOF evidence for unsafe code or remove unsafe constructs."],
+    ["RR-3.31", "Unsafe crates require cargo-geiger report", "Add GEIGER-PROOF evidence for unsafe code or remove unsafe constructs."],
+    ["RR-6.44", "Newtypes must have validated constructors", "Add try_new or parse constructors for raw-field newtypes."],
+    ["RR-6.50", "Domain value objects must implement Debug intentionally", "Derive or implement Debug for public domain value objects, unless they are secret types."],
+    ["RR-6.52", "Secret types must have redacted formatting", "Implement redacted Debug/Display for secret, token, key, credential, and password types."],
+    ["RR-8.17", "Do not await while holding lock guards", "Drop lock guards before await or use async-aware locking patterns."],
+    ["RR-8.22", "Retry loops require bounded policy", "Use a RetryPolicy or bounded backoff object instead of ad-hoc retry loops."],
+    ["RR-8.24", "select! branches require cancellation-safety notes", "Add CANCEL-SAFE notes explaining cancellation behavior for select! branches."],
+    ["RR-8.26", "CPU work in async paths must be isolated", "Move CPU-heavy work to spawn_blocking or a worker boundary."],
+    ["RR-9.17", "Heavy dependencies need explicit default feature policy", "Set default-features explicitly for heavy runtime crates."],
+    ["RR-9.18", "New dependencies require justification", "Add DEPENDENCY-JUSTIFICATION near new direct dependencies or in policy."],
+    ["RR-9.19", "Duplicate direct dependency versions are forbidden", "Align direct dependency requirements across workspace members."],
+    ["RR-9.20", "Runtime proc-macro dependencies require approval", "Move proc-macro crates to build/dev dependencies or add approval."],
+    ["RR-9.21", "Native dependencies require approval", "Add NATIVE-DEPENDENCY-JUSTIFICATION for native/sys/build-linked crates."],
+    ["RR-9.23", "Yanked crate versions are forbidden", "Configure dependency policy to deny yanked versions."],
+    ["RR-9.24", "Unmaintained crates are forbidden when advisory data exists", "Configure advisory policy to deny or explicitly review unmaintained crates."],
+    ["RR-9.26", "Workspace dependencies must use path/workspace linkage", "Use workspace/path dependencies between workspace members, not registry versions."],
+    ["RR-9.27", "Dev dependencies must not leak into production", "Move test-only crates to dev-dependencies."],
+    ["RR-9.28", "Test-only crates are restricted to dev-dependencies", "Use dev-dependencies for test-only crates such as proptest, rstest, mockall, and criterion."],
+    ["RR-9.29", "Runtime crates cannot depend on test-only crates", "Remove test-only crates from runtime dependencies."],
+    ["RR-12.16", "Validated constructors require invalid-input tests", "Add invalid-input tests for each try_new constructor."],
+    ["RR-12.17", "Parsers require negative and edge-case tests", "Add invalid, empty, oversized, and malformed parser tests."],
+    ["RR-12.18", "DTO conversions require negative tests", "Add negative tests for boundary DTO to domain conversions."],
+    ["RR-12.19", "Bugfixes require regression tests", "Add a REGRESSION-TEST marker for bugfix behavior."],
+    ["RR-12.20", "Domain tests cannot use should_panic casually", "Use Result/assertions instead of #[should_panic] unless testing a panic contract."],
+    ["RR-12.21", "Tests cannot unwrap without justification", "Use exact assertions or add TEST-UNWRAP-JUSTIFICATION for exceptional unwraps."],
+    ["RR-12.24", "Test bodies cannot be empty", "Add assertions or remove placeholder tests."],
+    ["RR-12.25", "Construction-only tests must assert behavior", "Assert validation/output instead of only constructing a value."],
+    ["RR-12.26", "Snapshot tests must redact volatile values", "Redact timestamps, UUIDs, random IDs, and secrets in snapshot tests."],
+    ["RR-12.27", "Normalizers and parsers require property tests", "Add proptest/quickcheck coverage for normalizers and parsers."],
+    ["RR-12.28", "Binary and network parsers require fuzz targets", "Add fuzz target evidence for binary or network parser inputs."],
+    ["RR-12.29", "Concurrency code requires cancellation tests", "Add shutdown/cancellation tests for spawn, channel, select, and async loop code."],
+    ["RR-12.30", "Unsafe modules require Miri proof", "Add MIRI-PROOF evidence for unsafe modules."],
+    ["RR-14.17", "Serialize derives require serialization docs", "Document serialization contract before deriving Serialize on domain types."],
+    ["RR-14.19", "serde(default) requires justification", "Add DEFAULT-JUSTIFICATION for serde(default)."],
+    ["RR-14.20", "DTO structs must live in boundary modules", "Move DTO/request/response/envelope structs under boundary, serde, transport, or adapter modules."],
+    ["RR-14.21", "DTO names must use boundary suffixes", "Name boundary shapes with Dto, Request, Response, Envelope, or configured suffixes."],
+    ["RR-14.22", "Domain modules cannot import DTO modules", "Move DTO imports to boundary/adapters and convert into domain types."],
+    ["RR-14.23", "Boundary DTOs must convert to domain explicitly", "Add TryFrom, From, or a named mapper from DTO shapes into domain types."],
+    ["RR-14.24", "Public serde enums must be tagged", "Use serde(tag = ...) or add SERDE-TAG-JUSTIFICATION."],
+    ["RR-14.25", "External schema shapes require round-trip tests", "Add round-trip tests for externally serialized shapes."],
+    ["RR-14.26", "Strict config inputs must deny unknown fields", "Add #[serde(deny_unknown_fields)] to strict config/input DTOs."],
+    ["RR-14.27", "serde(flatten) requires justification", "Add FLATTEN-JUSTIFICATION for serde(flatten)."],
+    ["RR-14.28", "Domain code cannot use raw base64 strings", "Use branded binary/blob/base64 value objects in domain code."],
+    ["RR-14.29", "serde_json::from_str is boundary-only", "Decode JSON at boundary modules and pass typed domain values inward."],
+    ["RR-14.30", "Do not deserialize directly into domain types", "Deserialize into DTOs, then validate into domain types."],
+  ]),
   "RR-1.1": {
     title: "Rust toolchain must be pinned",
     snippet:
@@ -107,6 +162,81 @@ const RULES = {
     snippet:
       "Use references, NonNull wrappers, or isolated FFI boundary types.",
   },
+  "RR-3.16": {
+    title: "transmute is forbidden",
+    snippet:
+      "Replace transmute with typed conversion, checked parsing, or an isolated reviewed boundary.",
+  },
+  "RR-3.17": {
+    title: "MaybeUninit is forbidden outside unsafe owners",
+    snippet:
+      "Use initialized safe types unless an approved unsafe-owner module carries the invariants.",
+  },
+  "RR-3.18": {
+    title: "ManuallyDrop requires unsafe justification",
+    snippet:
+      "Avoid ManuallyDrop or isolate it behind reviewed unsafe invariants.",
+  },
+  "RR-3.19": {
+    title: "mem::forget is forbidden",
+    snippet:
+      "Use explicit ownership transfer or drop behavior instead of leaking values with mem::forget.",
+  },
+  "RR-3.20": {
+    title: "Box::leak requires justification",
+    snippet:
+      "Avoid permanent leaks or add LEAK-JUSTIFICATION for reviewed singleton state.",
+  },
+  "RR-3.21": {
+    title: "static mut is forbidden",
+    snippet:
+      "Use OnceLock, LazyLock, atomics, or synchronized ownership instead of static mut.",
+  },
+  "RR-3.22": {
+    title: "UnsafeCell is forbidden outside approved primitives",
+    snippet:
+      "Use safe synchronization or isolate UnsafeCell in reviewed concurrency primitives.",
+  },
+  "RR-3.23": {
+    title: "unsafe Send/Sync impls require safety proof",
+    snippet:
+      "Add SAFETY documentation and concurrency tests before unsafe Send or Sync implementations.",
+  },
+  "RR-3.24": {
+    title: "get_unchecked is forbidden",
+    snippet:
+      "Use checked indexing or typed bounds proofs instead of get_unchecked.",
+  },
+  "RR-3.25": {
+    title: "Raw pointer dereference requires safety proof",
+    snippet:
+      "Keep raw pointer dereference inside approved unsafe modules with local SAFETY comments.",
+  },
+  "RR-3.26": {
+    title: "FFI extern blocks must live in FFI owner modules",
+    snippet:
+      "Move extern blocks to ffi/sys modules and wrap them in safe domain APIs.",
+  },
+  "RR-3.27": {
+    title: "FFI structs require repr(C)",
+    snippet:
+      "Annotate FFI-facing structs with #[repr(C)] and keep them in FFI owner modules.",
+  },
+  "RR-3.28": {
+    title: "no_mangle is restricted to FFI owner modules",
+    snippet:
+      "Use #[no_mangle] only in configured FFI export modules.",
+  },
+  "RR-3.32": {
+    title: "Unsafe code is forbidden in tests as an escape hatch",
+    snippet:
+      "Tests must prove safe APIs, not bypass invariants with unsafe code.",
+  },
+  "RR-3.33": {
+    title: "allow(unsafe_code) is forbidden",
+    snippet:
+      "Use an approved unsafe profile instead of suppressing unsafe policy with attributes.",
+  },
   "RR-4.1": {
     title: "No unwrap/expect",
     snippet:
@@ -126,6 +256,83 @@ const RULES = {
     title: "Domain code must not use erased application errors",
     snippet:
       "Use a typed error enum. anyhow::Result and Box<dyn Error> belong only at application boundaries.",
+  },
+  "RR-4.7": {
+    title: "No stringly Result errors",
+    snippet: "Return a typed error enum instead of Result<T, String>.",
+  },
+  "RR-4.8": {
+    title: "No static string Result errors",
+    snippet: "Return a typed error enum instead of Result<T, &'static str>.",
+  },
+  "RR-4.9": {
+    title: "No literal Err values",
+    snippet: "Return a typed error variant instead of Err(\"...\").",
+  },
+  "RR-4.10": {
+    title: "No formatted string errors",
+    snippet:
+      "Put dynamic context into typed error fields instead of Err(format!(...)).",
+  },
+  "RR-4.11": {
+    title: "No map_err to_string error erasure",
+    snippet:
+      "Preserve source errors with #[from], #[source], or typed error variants.",
+  },
+  "RR-4.12": {
+    title: "Boolean success APIs are forbidden",
+    snippet:
+      "Return Result or a modeled status enum instead of bool from fallible domain operations.",
+  },
+  "RR-4.13": {
+    title: "Sentinel error values are forbidden",
+    snippet:
+      "Return Option or Result instead of -1, empty string, or other sentinel failure values.",
+  },
+  "RR-4.14": {
+    title: "Fallible constructors must return Result",
+    snippet:
+      "Use try_new/parse returning Result<Self, Error> for raw constructor inputs.",
+  },
+  "RR-4.15": {
+    title: "main must not swallow fallible errors",
+    snippet:
+      "Return Result from main or handle every fallible call explicitly.",
+  },
+  "RR-4.16": {
+    title: "No ignored fallible results",
+    snippet:
+      "Handle the Result, propagate it with ?, or use a typed helper that documents intentional discard.",
+  },
+  "RR-4.17": {
+    title: "No ok() error swallowing",
+    snippet:
+      "Do not turn Result into Option with .ok(); preserve or map the typed error.",
+  },
+  "RR-4.18": {
+    title: "No unwrap_or_default on fallible domain data",
+    snippet:
+      "Handle failure explicitly instead of defaulting away parse/config/domain errors.",
+  },
+  "RR-4.19": {
+    title: "No unwrap_or hiding parse/config failures",
+    snippet:
+      "Handle parse, env, and config failures explicitly instead of replacing them with fallback values.",
+  },
+  "RR-4.20": {
+    title: "Error enums must implement Debug and Error",
+    snippet:
+      "Derive Debug and thiserror::Error or implement std::error::Error for custom error enums.",
+  },
+  "RR-4.21": {
+    title: "Wrapped source errors require source/from metadata",
+    snippet:
+      "Mark wrapped error sources with #[source] or #[from] so diagnostics keep provenance.",
+  },
+  "RR-4.22": {
+    title: "Do not log and return the same error",
+    snippet:
+      "Log at the boundary or return the error, not both in the same function.",
   },
   "RR-5.1": {
     title: "Clone must be justified",
@@ -177,6 +384,121 @@ const RULES = {
     snippet:
       "Use pub struct UserId(String); not pub struct UserId(pub String); and validate construction.",
   },
+  "RR-6.43": {
+    title: "Public newtype fields are forbidden",
+    snippet:
+      "Keep tuple newtype fields private and expose validated constructors/accessors.",
+  },
+  "RR-6.27": {
+    title: "No AsRef<str> domain parameters",
+    snippet:
+      "Convert raw text at adapters and accept branded domain types in domain APIs.",
+  },
+  "RR-6.28": {
+    title: "No Into<String> domain parameters",
+    snippet:
+      "Decode into a branded type before entering the domain instead of accepting Into<String>.",
+  },
+  "RR-6.29": {
+    title: "No Display-based domain identity parameters",
+    snippet:
+      "Accept branded identity types instead of impl Display for ID-like domain parameters.",
+  },
+  "RR-6.30": {
+    title: "No Cow<str> in domain APIs",
+    snippet:
+      "Normalize raw text at boundaries and pass branded values through domain APIs.",
+  },
+  "RR-6.31": {
+    title: "No Vec<String> domain APIs",
+    snippet:
+      "Use a typed collection of branded values instead of Vec<String>.",
+  },
+  "RR-6.32": {
+    title: "No HashMap<String, _> domain APIs",
+    snippet:
+      "Use a typed key newtype or domain map instead of HashMap<String, _>.",
+  },
+  "RR-6.33": {
+    title: "No BTreeMap<String, _> domain APIs",
+    snippet:
+      "Use a typed key newtype or domain map instead of BTreeMap<String, _>.",
+  },
+  "RR-6.34": {
+    title: "serde_json::Value is forbidden in domain code",
+    snippet:
+      "Decode untyped JSON at the boundary and pass modeled domain values inward.",
+  },
+  "RR-6.35": {
+    title: "Option<String> is forbidden in domain structs",
+    snippet:
+      "Use a domain-specific optional value object instead of optional raw text.",
+  },
+  "RR-6.36": {
+    title: "Option<bool> is forbidden for domain state",
+    snippet:
+      "Use an enum for tri-state or unknown state instead of Option<bool>.",
+  },
+  "RR-6.37": {
+    title: "No boolean state clusters",
+    snippet:
+      "Replace multiple boolean state fields with an enum, typestate, or explicit state value object.",
+  },
+  "RR-6.38": {
+    title: "Raw Duration is forbidden for named domain timing values",
+    snippet:
+      "Use branded timeout, TTL, delay, or deadline value objects instead of raw Duration.",
+  },
+  "RR-6.39": {
+    title: "Raw time types are forbidden in public domain APIs",
+    snippet:
+      "Use branded timestamps or clock-owned value objects instead of SystemTime or Instant.",
+  },
+  "RR-6.40": {
+    title: "Raw URL strings are forbidden",
+    snippet:
+      "Decode URL/URI text into branded URL value objects at boundaries.",
+  },
+  "RR-6.41": {
+    title: "Raw path strings are forbidden",
+    snippet:
+      "Decode file, dir, and path text into branded path value objects at boundaries.",
+  },
+  "RR-6.42": {
+    title: "ID-like raw fields are forbidden",
+    snippet:
+      "Represent id/ref/key fields with branded newtypes instead of raw strings or integers.",
+  },
+  "RR-6.45": {
+    title: "Newtype constructors must not panic",
+    snippet:
+      "Return Result from constructors instead of panicking or unwrapping validation.",
+  },
+  "RR-6.46": {
+    title: "Numeric ID newtypes should use NonZero types",
+    snippet:
+      "Use NonZero numeric wrappers or validated domain IDs instead of raw numeric ID fields.",
+  },
+  "RR-6.47": {
+    title: "No type aliases to domain collections",
+    snippet:
+      "Use collection newtypes instead of type aliases to Vec/HashMap/BTreeMap.",
+  },
+  "RR-6.48": {
+    title: "Naked tuples are forbidden in public signatures",
+    snippet:
+      "Return named structs or domain value objects instead of positional tuples.",
+  },
+  "RR-6.49": {
+    title: "Multi-primitive constructors are forbidden",
+    snippet:
+      "Use a named input value object for constructors with multiple primitive parameters.",
+  },
+  "RR-6.51": {
+    title: "Secret types must not derive Debug or Display",
+    snippet:
+      "Implement redacted formatting for secret, token, key, and credential types.",
+  },
   "RR-6.26": {
     title: "Serialized domain fields must not expose raw identity primitives",
     snippet:
@@ -211,10 +533,65 @@ const RULES = {
     snippet:
       "Do not combine async/.await with std::sync locks, std::thread::sleep, or blocking std::fs/std::net calls.",
   },
+  "RR-8.16": {
+    title: "std sync locks are forbidden in async modules",
+    snippet:
+      "Use async-aware synchronization or isolate blocking state outside async execution paths.",
+  },
   "RR-8.2": {
     title: "C-style index loops are forbidden",
     snippet:
       "Use iterators, enumerate(), chunks(), windows(), or typed ranges.",
+  },
+  "RR-8.18": {
+    title: "tokio::spawn handles must be tracked",
+    snippet:
+      "Store, await, or supervise JoinHandle values instead of fire-and-forget spawning.",
+  },
+  "RR-8.19": {
+    title: "Fire-and-forget spawn requires task justification",
+    snippet:
+      "Store the JoinHandle or add TASK-JUSTIFICATION explaining supervision and shutdown.",
+  },
+  "RR-8.20": {
+    title: "Unbounded channels require justification",
+    snippet:
+      "Use bounded channels or add CHANNEL-JUSTIFICATION explaining the backpressure boundary.",
+  },
+  "RR-8.21": {
+    title: "External async I/O must use timeouts",
+    snippet:
+      "Wrap network and service futures in a timeout policy instead of awaiting indefinitely.",
+  },
+  "RR-8.23": {
+    title: "Async loops require cancellation",
+    snippet:
+      "Add a cancellation branch or shutdown signal to async loop constructs.",
+  },
+  "RR-8.25": {
+    title: "Blocking I/O is forbidden in async modules",
+    snippet:
+      "Use async file/network APIs or spawn_blocking for unavoidable blocking work.",
+  },
+  "RR-8.27": {
+    title: "Libraries must not create global Tokio runtimes",
+    snippet:
+      "Accept a runtime from the application boundary instead of constructing one in a library.",
+  },
+  "RR-8.28": {
+    title: "block_on is forbidden in library/domain code",
+    snippet:
+      "Keep async execution at application boundaries and expose async APIs inward.",
+  },
+  "RR-8.29": {
+    title: "Sleep-based tests are forbidden",
+    snippet:
+      "Use controlled clocks, notifications, or deterministic polling instead of sleeping in tests.",
+  },
+  "RR-8.30": {
+    title: "Arc<Mutex<T>> signatures must be domain-named",
+    snippet:
+      "Wrap shared mutable state in a named domain type instead of exposing raw Arc<Mutex<T>>.",
   },
   "RR-9.1": {
     title: "Dependency versions must be pinned semver requirements",
@@ -238,6 +615,26 @@ const RULES = {
     title: "Direct dependency versions must not drift",
     snippet:
       "Align direct registry dependency requirements across changed manifests.",
+  },
+  "RR-9.16": {
+    title: "Loose dependency version ranges are forbidden",
+    snippet:
+      "Use pinned semver requirements instead of *, >=, or major-only dependency ranges.",
+  },
+  "RR-9.22": {
+    title: "GPL and AGPL licenses are forbidden by default",
+    snippet:
+      "Use an approved license or reviewed dependency policy before introducing copyleft dependencies.",
+  },
+  "RR-9.25": {
+    title: "Cargo.lock must be current after manifest changes",
+    snippet:
+      "Run cargo generate-lockfile or cargo update after changing Cargo.toml.",
+  },
+  "RR-9.30": {
+    title: "build-dependencies require approval",
+    snippet:
+      "Avoid build-time code execution or add a reviewed build dependency waiver.",
   },
   "RR-10.1": {
     title: "cargo fmt must pass",
@@ -272,6 +669,26 @@ const RULES = {
     snippet:
       "Run cargo audit and upgrade vulnerable crates instead of ignoring advisories.",
   },
+  "RR-12.22": {
+    title: "No weak is_ok assertions",
+    snippet:
+      "Assert exact Ok values or error variants instead of only checking is_ok().",
+  },
+  "RR-12.23": {
+    title: "No weak is_some assertions",
+    snippet:
+      "Assert exact Some values instead of only checking is_some().",
+  },
+  "RR-14.16": {
+    title: "Domain structs must not derive Deserialize directly",
+    snippet:
+      "Deserialize into DTOs at the boundary, then validate into domain types.",
+  },
+  "RR-14.18": {
+    title: "Untagged serde enums require justification",
+    snippet:
+      "Avoid #[serde(untagged)] ambiguity or add SERDE-UNTAGGED-JUSTIFICATION at the boundary.",
+  },
   "RR-18.16": {
     title: "Runtime Rust source must not contain inline string literals",
     snippet:
@@ -296,8 +713,9 @@ const DEFAULT_CONFIG = Object.freeze({
   allowGitDependencies: false,
   allowPathDependencies: false,
   publicReexportPolicy: "forbid",
-  languages: ["rust"],
+  languages: ["rust", "typescript", "python", "common"],
   rules: {},
+  waivers: [],
   tools: {},
   harness: {
     store: "ndjson-duckdb",
@@ -310,6 +728,7 @@ const DEFAULT_CONFIG = Object.freeze({
   },
   ignoreDirs: [
     ".git",
+    ".ledger",
     ".hub",
     ".turbo",
     ".wrangler",
@@ -333,6 +752,7 @@ const DEFAULT_CONFIG = Object.freeze({
     "**/*_test_fixture.rs",
     "**/*_test_fixtures.rs",
   ],
+  // boundaryOwnerNote: Enforcer-owned Rust boundary defaults; edits require policy-integrity and self-scan validation.
   rawTypeBoundaryGlobs: [
     "src/bin/**",
     "src/main.rs",
@@ -428,14 +848,16 @@ Usage:
   ocentra-enforcer init --root <repo> --profile <profile> --adapters codex,mcp,precommit,github-actions
   ocentra-enforcer route [options]
   ocentra-enforcer check <name> [options]
+  ocentra-enforcer verify [options]
   ocentra-enforcer scan [options]
   ocentra-enforcer cargo [options]
   ocentra-enforcer doctor [options]
   ocentra-enforcer explain <RULE_ID>
   ocentra-enforcer run --root <repo> --tool <tool> -- <command...>
   ocentra-enforcer runs <list|summary|diagnostics|last-failure|artifact|prune|reset> [options]
-  ocentra-enforcer proof <route|run|status|inventory|claim|last-failure|diagnostics|artifact|reset|prune|export> [options]
+  ocentra-enforcer proof <route|run|status|inventory|migrate-legacy|import-legacy|parity|claim|last-failure|diagnostics|artifact|reset|prune|export> [options]
   ocentra-enforcer coordination <ledger-command> [--hub <hub>] [--state-root <path>] [options]
+  ocentra-enforcer coordination closeout --lane <lane> [--thread-id <thread>] [--all-owned] [--json]
   ocentra-enforcer coordination repair <legacy-hash|sequence|all> [--hub <hub>] [--state-root <path>] [--write]
   ocentra-enforcer coordination repair stale-claims --paths <path[,path]> [--owner <writer>] [--write]
   ocentra-enforcer ledger <ledger-command> [--hub <hub>] [--state-root <path>] [options]
@@ -462,7 +884,7 @@ Common options:
   --config <path>         Optional config path. Defaults to ocentra-enforcer.config.json, then rust-rules.config.json.
   --profile <name>        Named profile for init output.
   --scan-only             With scan/cargo compatibility: skip Cargo commands.
-  --languages <list>      Comma-separated scan languages. Defaults to profile languages or rust.
+  --languages <list>      Comma-separated scan languages. Defaults to profile languages or rust,typescript,python,common.
   --check-config <path>   Optional check-specific config, for example single-source contracts.
   --output <path>         Optional output directory for checks such as sbom.
   --staged                With check secrets: scan staged files.
@@ -478,6 +900,10 @@ Proof options:
   --plan <id>             Route by plan/workpack id.
   --capability <name>     Route or run by capability, for example ci, local, android-device, manual-required.
   --include-scripts       Proof inventory only: include bounded script rows instead of summary-only output.
+  --legacy-paths <paths>  Comma-separated legacy proof artifact files or directories for import-legacy/parity.
+  --script-root <path>    Legacy proof script root for migrate-legacy. Defaults to scripts/test.
+  --write                 With migrate-legacy, write the generated profile proof registry and copied scripts.
+  --include-all-scripts   With migrate-legacy, include non-proof scripts under the script root too.
   --pin                   Pin a proof run so retention does not prune it.
   --pr-ready              Validate proof claim as a PR-ready claim.
   --allow-dirty           Allow dirty worktree claims when explicitly requested.
@@ -548,6 +974,7 @@ function parseArgs(argv) {
       "init",
       "route",
       "check",
+      "verify",
       "scan",
       "cargo",
       "doctor",
@@ -786,8 +1213,11 @@ function resolveDefaultConfigPath(root) {
 function normalizeConfig(config) {
   return {
     ...config,
+    rawFailOn:
+      config.rawFailOn ?? (Array.isArray(config.failOn) ? [...config.failOn] : null),
     failOn: normalizeFailOn(config.failOn),
     rules: normalizeRuleOverrides(config.rules),
+    waivers: Array.isArray(config.waivers) ? config.waivers : [],
     tools: normalizeToolPolicies(config.tools),
     runtimeStringLineAllowRegexps: config.runtimeStringLineAllowPatterns.map(
       (pattern) => new RegExp(pattern, "u"),
@@ -1553,6 +1983,19 @@ function contextHas(lines, index, token, distance = 4) {
     .includes(token);
 }
 
+function firstLineMatching(lines, pattern) {
+  const index = lines.findIndex((line) => pattern.test(line));
+  return index < 0 ? 1 : index + 1;
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+function lineNumberAtIndex(source, index) {
+  return source.slice(0, index).split(/\r?\n/u).length;
+}
+
 function addViolation(
   violations,
   root,
@@ -1584,6 +2027,13 @@ const TYPE_ALIAS_RAW_RE =
 const PUBLIC_SERDE_STRUCT_RE = /^\s*pub\s+struct\s+\w+/u;
 const PUBLIC_FIELD_RE =
   /^\s*pub\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<type>[^,]+),?/u;
+const FIELD_RE =
+  /^\s*(?:pub(?:\([^)]*\))?\s+)?(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<type>[^,]+),?/u;
+const ID_LIKE_NAME_RE = /(?:^|_)(?:id|ids|key|ref|refs)$/iu;
+const URL_LIKE_NAME_RE = /(?:^|_)(?:url|uri|endpoint)$/iu;
+const PATH_LIKE_NAME_RE = /(?:^|_)(?:path|file|dir|directory)$/iu;
+const TIME_LIKE_NAME_RE = /(?:^|_)(?:timeout|ttl|delay|interval|deadline|duration)$/iu;
+const FALLIBLE_FN_NAME_RE = /^(?:save|load|parse|decode|find|get|lookup|create|open|connect|send|remove|delete|update|write)/u;
 
 function collectFunctionSignatures(masked) {
   const signatures = [];
@@ -1624,6 +2074,25 @@ function collectFunctionSignatures(masked) {
     fnRe.lastIndex = Math.max(fnRe.lastIndex, end);
   }
   return signatures;
+}
+
+function functionName(signatureText) {
+  return signatureText.match(/\bfn\s+([A-Za-z_][A-Za-z0-9_]*)\b/u)?.[1] ?? "";
+}
+
+function functionParams(signatureText) {
+  const open = signatureText.indexOf("(");
+  if (open < 0) return "";
+  let depth = 0;
+  for (let i = open; i < signatureText.length; i += 1) {
+    const ch = signatureText[i];
+    if (ch === "(") depth += 1;
+    if (ch === ")") {
+      depth -= 1;
+      if (depth === 0) return signatureText.slice(open + 1, i);
+    }
+  }
+  return "";
 }
 
 function normalizedNameTokens(name) {
@@ -1741,6 +2210,17 @@ function scanRustFile(root, filePath, config) {
         "Lint suppression attribute found.",
         originalLine,
       );
+      if (/\bunsafe_code\b/u.test(line)) {
+        addViolation(
+          violations,
+          root,
+          filePath,
+          lineNo,
+          "RR-3.33",
+          "allow(unsafe_code) suppression found.",
+          originalLine,
+        );
+      }
     }
 
     if (/\brustfmt::skip\b|\bclippy::(?:allow|expect)\b/u.test(originalLine)) {
@@ -1768,6 +2248,17 @@ function scanRustFile(root, filePath, config) {
     }
 
     if (/\bunsafe\b/u.test(line)) {
+      if (isTestFile(rel, config)) {
+        addViolation(
+          violations,
+          root,
+          filePath,
+          lineNo,
+          "RR-3.32",
+          "unsafe code found in test source.",
+          originalLine,
+        );
+      }
       if (!config.allowUnsafeCode) {
         addViolation(
           violations,
@@ -1807,6 +2298,174 @@ function scanRustFile(root, filePath, config) {
       }
     }
 
+    if (/\b(?:core|std)::mem::transmute\b|\btransmute\s*(?:::<[^>]+>)?\s*\(/u.test(line)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-3.16",
+        "transmute found in Rust source.",
+        originalLine,
+      );
+    }
+
+    if (/\bMaybeUninit\b/u.test(line)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-3.17",
+        "MaybeUninit found outside an approved unsafe owner.",
+        originalLine,
+      );
+    }
+
+    if (/\bManuallyDrop\b/u.test(line)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-3.18",
+        "ManuallyDrop found without reviewed unsafe invariants.",
+        originalLine,
+      );
+    }
+
+    if (/\b(?:core|std)::mem::forget\b|\bmem::forget\s*\(/u.test(line)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-3.19",
+        "mem::forget found.",
+        originalLine,
+      );
+    }
+
+    if (/\bBox::leak\s*\(/u.test(line) && !contextHas(originalLines, idx, "LEAK-JUSTIFICATION:", 4)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-3.20",
+        "Box::leak lacks LEAK-JUSTIFICATION.",
+        originalLine,
+      );
+    }
+
+    if (/^\s*(?:pub\s+)?static\s+mut\b/u.test(line)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-3.21",
+        "static mut found in Rust source.",
+        originalLine,
+      );
+    }
+
+    if (/\bUnsafeCell\b/u.test(line)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-3.22",
+        "UnsafeCell found outside an approved primitive.",
+        originalLine,
+      );
+    }
+
+    if (/^\s*unsafe\s+impl\s+(?:Send|Sync)\b/u.test(line) && !contextHas(originalLines, idx, "SAFETY:", 6)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-3.23",
+        "unsafe Send/Sync impl lacks nearby SAFETY proof.",
+        originalLine,
+      );
+    }
+
+    if (/\bget_unchecked(?:_mut)?\s*\(/u.test(line)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-3.24",
+        "get_unchecked found.",
+        originalLine,
+      );
+    }
+
+    if (/\bunsafe\s*\{[^}]*\*[A-Za-z_][A-Za-z0-9_]*/u.test(line) && !contextHas(originalLines, idx, "SAFETY:", 4)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-3.25",
+        "raw pointer dereference lacks nearby SAFETY proof.",
+        originalLine,
+      );
+    }
+
+    if (/^\s*(?:pub\s+)?extern\s+(?:"[^"]+"\s*)?\{/u.test(line) && !/(?:^|\/)(?:ffi|sys)(?:\/|$)/u.test(rel)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-3.26",
+        "extern block found outside ffi/sys module.",
+        originalLine,
+      );
+    }
+
+    if (/(?:^|\/)(?:ffi|sys)(?:\/|$)/u.test(rel) && /^\s*pub\s+struct\s+[A-Z][A-Za-z0-9_]*\b/u.test(line) && !contextHas(originalLines, idx, "repr(C)", 2)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-3.27",
+        "FFI-facing public struct lacks #[repr(C)].",
+        originalLine,
+      );
+    }
+
+    if (/^\s*#\s*\[\s*no_mangle\s*\]/u.test(line) && !/(?:^|\/)(?:ffi|sys)(?:\/|$)/u.test(rel)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-3.28",
+        "#[no_mangle] found outside ffi/sys module.",
+        originalLine,
+      );
+    }
+
+    if ((/^\s*#\s*\[\s*no_mangle\s*\]/u.test(line) || /\bextern\s+"C"\s+fn\b/u.test(line)) && !contextHas(originalLines, idx, "catch_unwind", 12) && !contextHas(originalLines, idx, "PANIC-ABORT", 12)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-3.29",
+        "FFI export lacks catch_unwind or PANIC-ABORT evidence.",
+        originalLine,
+      );
+    }
+
     if (/\.unwrap\s*\(|\.expect\s*\(/u.test(line)) {
       addViolation(
         violations,
@@ -1819,6 +2478,111 @@ function scanRustFile(root, filePath, config) {
       );
     }
 
+    if (!isBoundary && /\bErr\s*\(/u.test(line) && /\bErr\s*\(\s*(?:b?"|b?r#*")/u.test(originalLine)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-4.9",
+        "Literal string error found.",
+        originalLine,
+      );
+    }
+
+    if (!isBoundary && /\bErr\s*\(\s*format\s*!/u.test(line)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-4.10",
+        "Formatted string error found.",
+        originalLine,
+      );
+    }
+
+    if (!isBoundary && /\.map_err[^\n]*\.to_string\s*\(/u.test(line)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-4.11",
+        "map_err erases the source error into String.",
+        originalLine,
+      );
+    }
+
+    if (
+      !isBoundary &&
+      /^\s*let\s+_\s*=\s*[^;]*(?:send|write|flush|read|parse|save|load|remove|create|open|connect|try_[A-Za-z0-9_]*)\s*(?:::<[^>]+>)?\s*\(/u.test(
+        line,
+      )
+    ) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-4.16",
+        "Fallible-looking result is ignored with let _ = ...;",
+        originalLine,
+      );
+    }
+
+    if (!isBoundary && /\.ok\s*\(\s*\)/u.test(line)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-4.17",
+        "Result::ok() swallows the typed error.",
+        originalLine,
+      );
+    }
+
+    if (!isBoundary && /\.unwrap_or_default\s*\(\s*\)/u.test(line)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-4.18",
+        "unwrap_or_default hides a fallible domain/config value.",
+        originalLine,
+      );
+    }
+
+    if (/\b(?:unwrap|expect|panic)\s*(?:!|\()/u.test(line) && contextHas(originalLines, idx, "fn new", 12)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-6.45",
+        "newtype constructor panics or unwraps validation.",
+        originalLine,
+      );
+    }
+
+    if (
+      !isBoundary &&
+      /\.(?:unwrap_or|unwrap_or_else)\s*\(/u.test(line) &&
+      /\b(?:parse|env|config|read|load|decode|deserialize)\b/u.test(line)
+    ) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-4.19",
+        "unwrap_or hides a parse/config/domain failure.",
+        originalLine,
+      );
+    }
+
     if (/\b(?:panic|todo|unimplemented|unreachable)\s*!\s*\(/u.test(line)) {
       addViolation(
         violations,
@@ -1827,6 +2591,18 @@ function scanRustFile(root, filePath, config) {
         lineNo,
         "RR-4.2",
         "panic-like macro found.",
+        originalLine,
+      );
+    }
+
+    if (isTestFile(rel, config) && /\.unwrap\s*\(|\.expect\s*\(/u.test(line) && !contextHas(originalLines, idx, "TEST-UNWRAP-JUSTIFICATION:", 4)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-12.21",
+        "test unwrap/expect lacks TEST-UNWRAP-JUSTIFICATION.",
         originalLine,
       );
     }
@@ -1939,6 +2715,18 @@ function scanRustFile(root, filePath, config) {
       );
     }
 
+    if (/^\s*(?:pub(?:\([^)]*\))?\s+)?type\s+[A-Z][A-Za-z0-9_]*\s*=\s*(?:Vec|HashMap|BTreeMap)\s*</u.test(line)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-6.47",
+        "Domain collection type alias found.",
+        originalLine,
+      );
+    }
+
     if (
       /^\s*pub\s+struct\s+[A-Z][A-Za-z0-9_]*\s*\(\s*pub\s+/u.test(line) &&
       (RAW_STRING_TYPE_RE.test(line) || RAW_PRIMITIVE_TYPE_RE.test(line))
@@ -1948,8 +2736,60 @@ function scanRustFile(root, filePath, config) {
         root,
         filePath,
         lineNo,
+        "RR-6.43",
+        "Public tuple newtype exposes raw inner field.",
+        originalLine,
+      );
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
         "RR-6.6",
         "Public tuple newtype exposes raw inner field.",
+        originalLine,
+      );
+    }
+
+    const tupleNewtypeMatch = line.match(/^\s*pub\s+struct\s+([A-Z][A-Za-z0-9_]*(?:Id|ID|Key|Ref))\s*\(\s*(?:pub\s+)?(?<type>u8|u16|u32|u64|u128|usize)\s*\)\s*;/u);
+    if (tupleNewtypeMatch) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-6.46",
+        "Numeric ID newtype uses a raw integer instead of NonZero or a validated representation.",
+        originalLine,
+      );
+    }
+
+    if (/^\s*#\[derive\([^#\]]*\bDebug\b[^#\]]*\)\]/u.test(line)) {
+      const nextLine =
+        maskedLines
+          .slice(idx + 1, idx + 4)
+          .find((candidate) => candidate.trim() !== "" && !/^\s*#\[/u.test(candidate)) ?? "";
+      if (/(?:Secret|Token|Key|Credential|Password)/u.test(nextLine)) {
+        addViolation(
+          violations,
+          root,
+          filePath,
+          lineNo,
+          "RR-6.51",
+          "Secret-like type derives Debug.",
+          originalLine,
+        );
+      }
+    }
+
+    if (/(?:Secret|Token|Key|Credential|Password)/u.test(line) && /\b(?:struct|enum)\b/u.test(line) && !/\bRedacted\b|REDACTED|redact/u.test(source)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-6.52",
+        "secret-like type lacks redacted formatting evidence.",
         originalLine,
       );
     }
@@ -1981,6 +2821,111 @@ function scanRustFile(root, filePath, config) {
           lineNo,
           "RR-6.4",
           "Private raw field lacks nearby BRAND-INVARIANT documentation.",
+          originalLine,
+        );
+      }
+    }
+
+    const fieldMatch = line.match(FIELD_RE);
+    if (!isBoundary && fieldMatch?.groups) {
+      const fieldName = fieldMatch.groups.name;
+      const fieldType = fieldMatch.groups.type;
+      if (/\bBTreeMap\s*<\s*String\s*,/u.test(fieldType)) {
+        addViolation(
+          violations,
+          root,
+          filePath,
+          lineNo,
+          "RR-6.33",
+          "BTreeMap<String, _> found in domain field.",
+          originalLine,
+        );
+      }
+      if (/\bserde_json::Value\b|\bValue\b/u.test(fieldType) && /serde_json|json|value/u.test(line)) {
+        addViolation(
+          violations,
+          root,
+          filePath,
+          lineNo,
+          "RR-6.34",
+          "serde_json::Value found in domain field.",
+          originalLine,
+        );
+      }
+      if (/\bOption\s*<\s*String\s*>/u.test(fieldType)) {
+        addViolation(
+          violations,
+          root,
+          filePath,
+          lineNo,
+          "RR-6.35",
+          "Option<String> found in domain field.",
+          originalLine,
+        );
+      }
+      if (/\bOption\s*<\s*bool\s*>/u.test(fieldType)) {
+        addViolation(
+          violations,
+          root,
+          filePath,
+          lineNo,
+          "RR-6.36",
+          "Option<bool> found in domain field.",
+          originalLine,
+        );
+      }
+      if (TIME_LIKE_NAME_RE.test(fieldName) && /\bDuration\b/u.test(fieldType)) {
+        addViolation(
+          violations,
+          root,
+          filePath,
+          lineNo,
+          "RR-6.38",
+          "Raw Duration found in named domain timing field.",
+          originalLine,
+        );
+      }
+      if (/\b(?:SystemTime|Instant)\b/u.test(fieldType)) {
+        addViolation(
+          violations,
+          root,
+          filePath,
+          lineNo,
+          "RR-6.39",
+          "Raw time type found in domain field.",
+          originalLine,
+        );
+      }
+      if (URL_LIKE_NAME_RE.test(fieldName) && RAW_STRING_TYPE_RE.test(fieldType)) {
+        addViolation(
+          violations,
+          root,
+          filePath,
+          lineNo,
+          "RR-6.40",
+          "URL-like field uses a raw string type.",
+          originalLine,
+        );
+      }
+      if (PATH_LIKE_NAME_RE.test(fieldName) && RAW_STRING_TYPE_RE.test(fieldType)) {
+        addViolation(
+          violations,
+          root,
+          filePath,
+          lineNo,
+          "RR-6.41",
+          "Path-like field uses a raw string type.",
+          originalLine,
+        );
+      }
+      if (ID_LIKE_NAME_RE.test(fieldName) && (RAW_STRING_TYPE_RE.test(fieldType) || RAW_PRIMITIVE_TYPE_RE.test(fieldType))) {
+        addViolation(
+          violations,
+          root,
+          filePath,
+          lineNo,
+          "RR-6.42",
+          "ID-like field uses a raw string or primitive type.",
           originalLine,
         );
       }
@@ -2083,6 +3028,181 @@ function scanRustFile(root, filePath, config) {
         "Blocking primitive in async module.",
         originalLine,
       );
+      if (/\bstd::sync::(?:Mutex|RwLock)\b/u.test(line)) {
+        addViolation(
+          violations,
+          root,
+          filePath,
+          lineNo,
+          "RR-8.16",
+          "std sync lock found in async module.",
+          originalLine,
+        );
+      }
+      if (/\bstd::fs::|\bstd::net::/u.test(line)) {
+        addViolation(
+          violations,
+          root,
+          filePath,
+          lineNo,
+          "RR-8.25",
+          "Blocking std I/O found in async module.",
+          originalLine,
+        );
+      }
+    }
+
+    if (
+      /\btokio::spawn\s*\(/u.test(line) &&
+      !/[A-Za-z_][A-Za-z0-9_]*\s*=\s*tokio::spawn\s*\(/u.test(line) &&
+      !/\b(?:let|return)\b/u.test(line)
+    ) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-8.18",
+        "tokio::spawn handle is not tracked.",
+        originalLine,
+      );
+      if (!contextHas(originalLines, idx, "TASK-JUSTIFICATION:", 4)) {
+        addViolation(
+          violations,
+          root,
+          filePath,
+          lineNo,
+          "RR-8.19",
+          "fire-and-forget tokio::spawn lacks TASK-JUSTIFICATION.",
+          originalLine,
+        );
+      }
+    }
+
+    if (/\.await\b/u.test(line) && /\b(?:MutexGuard|RwLock.*Guard|\.lock\s*\(\s*\)|\.write\s*\(\s*\)|\.read\s*\(\s*\))/u.test(line)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-8.17",
+        "await appears while a lock guard is held.",
+        originalLine,
+      );
+    }
+
+    if (/\b(?:retry|retries|Retry)\b/u.test(line) && /\b(?:loop|while|for)\b/u.test(line) && !/\bRetryPolicy\b|BACKOFF-JUSTIFICATION|RETRY-JUSTIFICATION/u.test(source)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-8.22",
+        "retry loop lacks bounded retry policy.",
+        originalLine,
+      );
+    }
+
+    if (/\bselect!\s*\{/u.test(line) && !contextHas(originalLines, idx, "CANCEL-SAFE:", 8)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-8.24",
+        "select! lacks nearby CANCEL-SAFE branch documentation.",
+        originalLine,
+      );
+    }
+
+    if ((/\basync\s+fn\b|\.await\b/u.test(masked)) && /\b(?:for|while)\b/u.test(line) && /\b(?:hash|compress|encode|decode|sort|parse|render|compute)\b/iu.test(line) && !/\bspawn_blocking\b|CPU-JUSTIFICATION|worker/u.test(source)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-8.26",
+        "CPU-looking work in async path lacks spawn_blocking/worker boundary.",
+        originalLine,
+      );
+    }
+
+    if (
+      /\b(?:tokio::sync::mpsc::|mpsc::)?unbounded_channel\s*(?:::<[^>]+>)?\s*\(/u.test(line) &&
+      !contextHas(originalLines, idx, "CHANNEL-JUSTIFICATION:", 4)
+    ) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-8.20",
+        "Unbounded channel lacks CHANNEL-JUSTIFICATION.",
+        originalLine,
+      );
+    }
+
+    if (
+      /\.(?:send|get|post|put|patch|delete|request)\s*\([^;\n]*\)\s*\.await\b/u.test(line) &&
+      !/(?:timeout|Timeout|deadline)/u.test(line)
+    ) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-8.21",
+        "external async I/O await lacks timeout policy.",
+        originalLine,
+      );
+    }
+
+    if (/^\s*loop\s*\{/u.test(line) && /\basync\s+fn\b|\.await\b/u.test(masked) && !contextHas(originalLines, idx, "CANCEL", 8)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-8.23",
+        "async loop lacks nearby cancellation marker.",
+        originalLine,
+      );
+    }
+
+    if (/\b(?:tokio::runtime::Runtime::new|tokio::runtime::Builder::new)/u.test(line) && !/(?:^|\/)(?:main|bin)(?:\.rs|\/)/u.test(rel)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-8.27",
+        "library/domain source creates a Tokio runtime.",
+        originalLine,
+      );
+    }
+
+    if (/\bblock_on\s*\(/u.test(line) && !/(?:^|\/)(?:main|bin)(?:\.rs|\/)/u.test(rel)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-8.28",
+        "block_on found in library/domain source.",
+        originalLine,
+      );
+    }
+
+    if (isTestFile(rel, config) && /\b(?:std::thread::sleep|tokio::time::sleep)\s*\(/u.test(line)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-8.29",
+        "sleep found in test source.",
+        originalLine,
+      );
     }
 
     if (/\bfor\s+[A-Za-z_][A-Za-z0-9_]*\s+in\s+0\s*\.\./u.test(line)) {
@@ -2115,6 +3235,109 @@ function scanRustFile(root, filePath, config) {
       );
     }
 
+    if (
+      !isBoundary &&
+      /^\s*#\[derive\([^#\]]*\bDeserialize\b[^#\]]*\)\]/u.test(line)
+    ) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-14.16",
+        "Deserialize derive found in non-boundary Rust domain source.",
+        originalLine,
+      );
+    }
+
+    if (!isBoundary && /^\s*#\[derive\([^#\]]*\bSerialize\b[^#\]]*\)\]/u.test(line) && !contextHas(originalLines, idx, "SERIALIZATION-DOC:", 8)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-14.17",
+        "Serialize derive lacks SERIALIZATION-DOC evidence.",
+        originalLine,
+      );
+    }
+
+    if (/^\s*#\[serde\([^#\]]*\bdefault\b[^#\]]*\)\]/u.test(line) && !contextHas(originalLines, idx, "DEFAULT-JUSTIFICATION:", 4)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-14.19",
+        "serde(default) lacks DEFAULT-JUSTIFICATION.",
+        originalLine,
+      );
+    }
+
+    if (/^\s*#\[serde\([^#\]]*\bflatten\b[^#\]]*\)\]/u.test(line) && !contextHas(originalLines, idx, "FLATTEN-JUSTIFICATION:", 4)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-14.27",
+        "serde(flatten) lacks FLATTEN-JUSTIFICATION.",
+        originalLine,
+      );
+    }
+
+    if (!isBoundary && /\bserde_json::from_str\s*(?:::<[^>]+>)?\s*\(/u.test(line)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-14.29",
+        "serde_json::from_str found outside boundary source.",
+        originalLine,
+      );
+    }
+
+    if (!isBoundary && /\bserde_json::from_str\s*::?\s*<\s*[A-Z][A-Za-z0-9_]*(?:Domain|Id|State|Config|Policy|Record)?\s*>/u.test(line)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-14.30",
+        "JSON deserializes directly into a domain-like type.",
+        originalLine,
+      );
+    }
+
+    if (/\buse\s+[^;]*(?:dto|request|response|envelope|transport|serde)[^;]*;/iu.test(line) && /(?:^|\/)(?:domain|core|model|models)(?:\/|$)/u.test(rel)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-14.22",
+        "domain module imports DTO/transport/serde module.",
+        originalLine,
+      );
+    }
+
+    if (
+      !isBoundary &&
+      /^\s*#\[serde\([^#\]]*\buntagged\b[^#\]]*\)\]/u.test(line) &&
+      !contextHas(originalLines, idx, "SERDE-UNTAGGED-JUSTIFICATION:", 4)
+    ) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-14.18",
+        "serde untagged enum lacks SERDE-UNTAGGED-JUSTIFICATION.",
+        originalLine,
+      );
+    }
+
     if (enforceSerializedDomainFields) {
       if (trackedSerdeStructDepth === 0) {
         if (
@@ -2122,10 +3345,36 @@ function scanRustFile(root, filePath, config) {
             line,
           )
         ) {
-          pendingSerializeDerive = true;
+        pendingSerializeDerive = true;
+          if (!isBoundary && /\bDeserialize\b/u.test(line)) {
+            addViolation(
+              violations,
+              root,
+              filePath,
+              lineNo,
+              "RR-14.16",
+              "Deserialize derive found in non-boundary Rust domain source.",
+              originalLine,
+            );
+          }
           return;
         }
         if (/^\s*#\[serde\(/u.test(line)) {
+          if (
+            !isBoundary &&
+            /\buntagged\b/u.test(line) &&
+            !contextHas(originalLines, idx, "SERDE-UNTAGGED-JUSTIFICATION:", 4)
+          ) {
+            addViolation(
+              violations,
+              root,
+              filePath,
+              lineNo,
+              "RR-14.18",
+              "serde untagged enum lacks SERDE-UNTAGGED-JUSTIFICATION.",
+              originalLine,
+            );
+          }
           pendingSerdeShape = true;
           return;
         }
@@ -2161,11 +3410,130 @@ function scanRustFile(root, filePath, config) {
         trackedSerdeStructDepth += braceDelta(line);
       }
     }
+
+    if (/\bassert!\s*\(.*\.is_ok\s*\(\s*\).*?\)/u.test(line)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-12.22",
+        "Weak is_ok assertion found.",
+        originalLine,
+      );
+    }
+
+    if (/\bassert!\s*\(.*\.is_some\s*\(\s*\).*?\)/u.test(line)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-12.23",
+        "Weak is_some assertion found.",
+        originalLine,
+      );
+    }
   });
+
+  if (!isBoundary) {
+    for (const match of source.matchAll(/\bstruct\s+([A-Z][A-Za-z0-9_]*)[^{;]*\{([\s\S]*?)^\s*\}/gmu)) {
+      const boolFields = [...match[2].matchAll(/^\s*(?:pub(?:\([^)]*\))?\s+)?[A-Za-z_][A-Za-z0-9_]*\s*:\s*bool\s*,?/gmu)];
+      if (boolFields.length >= 2) {
+        addViolation(
+          violations,
+          root,
+          filePath,
+          lineNumberAtIndex(source, match.index),
+          "RR-6.37",
+          `Struct ${match[1]} has ${boolFields.length} boolean state fields.`,
+          originalLines[lineNumberAtIndex(source, match.index) - 1] ?? null,
+        );
+      }
+    }
+
+    for (const match of source.matchAll(/(?<attrs>(?:^\s*#\[[^\]]+\]\s*\r?\n)*)^\s*(?:pub\s+)?enum\s+(?<name>[A-Z][A-Za-z0-9_]*Error)\b[^{]*\{(?<body>[\s\S]*?)^\s*\}/gmu)) {
+      const lineNo = lineNumberAtIndex(source, match.index);
+      const attrs = match.groups?.attrs ?? "";
+      const body = match.groups?.body ?? "";
+      if (!/\bDebug\b/u.test(attrs) || !/\b(?:thiserror::)?Error\b/u.test(attrs)) {
+        addViolation(
+          violations,
+          root,
+          filePath,
+          lineNo,
+          "RR-4.20",
+          `Error enum ${match.groups?.name ?? "Error"} does not derive Debug and Error.`,
+          originalLines[lineNo - 1] ?? null,
+        );
+      }
+      for (const variant of body.matchAll(/^\s*(?<attrs>(?:#\[[^\]]+\]\s*)*)[A-Z][A-Za-z0-9_]*\s*\(\s*(?<type>(?:std::)?[A-Za-z_:]+Error)\s*\)/gmu)) {
+        if (!/\b(?:source|from)\b/u.test(variant.groups?.attrs ?? "")) {
+          addViolation(
+            violations,
+            root,
+            filePath,
+            lineNumberAtIndex(source, (match.index ?? 0) + variant.index),
+            "RR-4.21",
+            "Wrapped source error lacks #[source] or #[from].",
+            variant[0],
+          );
+        }
+      }
+    }
+
+    for (const match of masked.matchAll(/\bfn\s+(?<name>find|get|lookup|parse)[A-Za-z0-9_]*\b[\s\S]*?\{(?<body>[\s\S]*?)^\s*\}/gmu)) {
+      const body = match.groups?.body ?? "";
+      if (/\breturn\s+(?:-1|""|None)\s*;|=>\s*(?:-1|"")\b/u.test(body)) {
+        const lineNo = lineNumberAt(masked, match.index);
+        addViolation(
+          violations,
+          root,
+          filePath,
+          lineNo,
+          "RR-4.13",
+          "Lookup/parse function returns a sentinel failure value.",
+          originalLines[lineNo - 1] ?? null,
+        );
+      }
+    }
+
+    for (const match of masked.matchAll(/\bfn\s+[A-Za-z_][A-Za-z0-9_]*\b[\s\S]*?\{(?<body>[\s\S]*?)^\s*\}/gmu)) {
+      const body = match.groups?.body ?? "";
+      if (/\b(?:error|warn)!\s*\(/u.test(body) && /\bErr\s*\(/u.test(body)) {
+        const lineNo = lineNumberAt(masked, match.index);
+        addViolation(
+          violations,
+          root,
+          filePath,
+          lineNo,
+          "RR-4.22",
+          "Function logs and returns an error.",
+          originalLines[lineNo - 1] ?? null,
+        );
+      }
+    }
+
+    const mainMatch = masked.match(/\bfn\s+main\s*\([^)]*\)\s*(?!->)[\s\S]*?\{(?<body>[\s\S]*?)^\s*\}/mu);
+    if (mainMatch && /\blet\s+_\s*=\s*[A-Za-z_][A-Za-z0-9_]*(?:::[^(\s]+)?\s*\(/u.test(mainMatch.groups?.body ?? "")) {
+      const lineNo = lineNumberAt(masked, mainMatch.index ?? 0);
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-4.15",
+        "main swallows a fallible-looking call with let _ =.",
+        originalLines[lineNo - 1] ?? null,
+      );
+    }
+  }
 
   for (const sig of collectFunctionSignatures(masked)) {
     if (isBoundary) continue;
     const originalSigFirstLine = originalLines[sig.line - 1] ?? sig.text;
+    const sigName = functionName(sig.text);
+    const params = functionParams(sig.text);
     if (RAW_POINTER_RE.test(sig.text)) {
       addViolation(
         violations,
@@ -2174,6 +3542,223 @@ function scanRustFile(root, filePath, config) {
         sig.line,
         "RR-3.4",
         "Raw pointer found in function signature.",
+        originalSigFirstLine,
+      );
+    }
+    if (FALLIBLE_FN_NAME_RE.test(sigName) && /->\s*bool\b/u.test(sig.text)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        sig.line,
+        "RR-4.12",
+        "Fallible-looking API returns bool instead of Result or a status enum.",
+        originalSigFirstLine,
+      );
+    }
+    if (
+      /\bfn\s+new\s*\(/u.test(sig.text) &&
+      /->\s*Self\b/u.test(sig.text) &&
+      (RAW_STRING_TYPE_RE.test(params) || RAW_PRIMITIVE_TYPE_RE.test(params)) &&
+      !/Result\s*<\s*Self\s*,/u.test(sig.text)
+    ) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        sig.line,
+        "RR-4.14",
+        "new(...) accepts raw input but does not return Result<Self, Error>.",
+        originalSigFirstLine,
+      );
+    }
+    if (/\bResult\s*<[^>]*,\s*String\s*>/u.test(sig.text)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        sig.line,
+        "RR-4.7",
+        "Result uses String as the error type.",
+        originalSigFirstLine,
+      );
+    }
+    if (/\bResult\s*<[^>]*,\s*&\s*'static\s+str\s*>/u.test(sig.text)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        sig.line,
+        "RR-4.8",
+        "Result uses &'static str as the error type.",
+        originalSigFirstLine,
+      );
+    }
+    if (/\bAsRef\s*<\s*str\s*>/u.test(sig.text)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        sig.line,
+        "RR-6.27",
+        "AsRef<str> found in domain function signature.",
+        originalSigFirstLine,
+      );
+    }
+    if (/\bInto\s*<\s*String\s*>/u.test(sig.text)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        sig.line,
+        "RR-6.28",
+        "Into<String> found in domain function signature.",
+        originalSigFirstLine,
+      );
+    }
+    if (/\bimpl\s+Display\b/u.test(sig.text) && /\b(?:id|key|ref|name)\s*:/iu.test(sig.text)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        sig.line,
+        "RR-6.29",
+        "ID-like parameter accepts impl Display.",
+        originalSigFirstLine,
+      );
+    }
+    if (/\bCow\s*<[^>]*\bstr\b[^>]*>/u.test(sig.text)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        sig.line,
+        "RR-6.30",
+        "Cow<str> found in domain function signature.",
+        originalSigFirstLine,
+      );
+    }
+    if (/\bVec\s*<\s*String\s*>/u.test(sig.text)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        sig.line,
+        "RR-6.31",
+        "Vec<String> found in domain function signature.",
+        originalSigFirstLine,
+      );
+    }
+    if (/\bHashMap\s*<\s*String\s*,/u.test(sig.text)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        sig.line,
+        "RR-6.32",
+        "HashMap<String, _> found in domain function signature.",
+        originalSigFirstLine,
+      );
+    }
+    if (/\bBTreeMap\s*<\s*String\s*,/u.test(sig.text)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        sig.line,
+        "RR-6.33",
+        "BTreeMap<String, _> found in domain function signature.",
+        originalSigFirstLine,
+      );
+    }
+    if (/\bserde_json::Value\b/u.test(sig.text)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        sig.line,
+        "RR-6.34",
+        "serde_json::Value found in domain function signature.",
+        originalSigFirstLine,
+      );
+    }
+    if (/\b(?:timeout|ttl|delay|interval|deadline|duration)\s*:\s*(?:std::time::)?Duration\b/iu.test(sig.text)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        sig.line,
+        "RR-6.38",
+        "Raw Duration found in named domain timing parameter.",
+        originalSigFirstLine,
+      );
+    }
+    if (/\b(?:SystemTime|Instant)\b/u.test(sig.text)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        sig.line,
+        "RR-6.39",
+        "Raw time type found in public domain signature.",
+        originalSigFirstLine,
+      );
+    }
+    if (/\b(?:url|uri|endpoint)\s*:\s*(?:String|&\s*str|str\b)/iu.test(sig.text)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        sig.line,
+        "RR-6.40",
+        "URL-like parameter uses raw string type.",
+        originalSigFirstLine,
+      );
+    }
+    if (/\b(?:path|file|dir|directory)\s*:\s*(?:String|&\s*str|str\b|PathBuf)/iu.test(sig.text)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        sig.line,
+        "RR-6.41",
+        "Path-like parameter uses raw string/path type.",
+        originalSigFirstLine,
+      );
+    }
+    if (/->\s*\([^)]*,[^)]*\)/u.test(sig.text) || /\([^)]*:\s*\([^)]*,[^)]*\)/u.test(sig.text)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        sig.line,
+        "RR-6.48",
+        "Naked tuple found in public/domain function signature.",
+        originalSigFirstLine,
+      );
+    }
+    if (
+      /\bfn\s+new\s*\(/u.test(sig.text) &&
+      (params.match(/\b(?:String|str|bool|u8|u16|u32|u64|usize|i8|i16|i32|i64|isize)\b/gu) ?? []).length >= 2
+    ) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        sig.line,
+        "RR-6.49",
+        "Constructor accepts multiple primitive/raw parameters.",
+        originalSigFirstLine,
+      );
+    }
+    if (/\bArc\s*<\s*(?:std::sync::)?Mutex\s*</u.test(sig.text)) {
+      addViolation(
+        violations,
+        root,
+        filePath,
+        sig.line,
+        "RR-8.30",
+        "Raw Arc<Mutex<T>> appears in a function signature.",
         originalSigFirstLine,
       );
     }
@@ -2199,6 +3784,159 @@ function scanRustFile(root, filePath, config) {
         originalSigFirstLine,
       );
     }
+  }
+
+  const unsafeLine = originalLines.findIndex((line) => /\bunsafe\b/u.test(line));
+  if (unsafeLine >= 0 && !/\bMIRI-PROOF:/u.test(source)) {
+    addViolation(
+      violations,
+      root,
+      filePath,
+      unsafeLine + 1,
+      "RR-3.30",
+      "unsafe source lacks MIRI-PROOF evidence.",
+      originalLines[unsafeLine],
+    );
+    addViolation(
+      violations,
+      root,
+      filePath,
+      unsafeLine + 1,
+      "RR-12.30",
+      "unsafe module lacks MIRI-PROOF evidence.",
+      originalLines[unsafeLine],
+    );
+  }
+  if (unsafeLine >= 0 && !/\bGEIGER-PROOF:/u.test(source)) {
+    addViolation(
+      violations,
+      root,
+      filePath,
+      unsafeLine + 1,
+      "RR-3.31",
+      "unsafe source lacks GEIGER-PROOF evidence.",
+      originalLines[unsafeLine],
+    );
+  }
+
+  for (const match of source.matchAll(/pub\s+struct\s+(?<name>[A-Z][A-Za-z0-9_]*)\s*\(\s*(?:pub\s+)?(?<inner>String|&\s*str|str|u8|u16|u32|u64|usize|i8|i16|i32|i64|isize|bool)[^)]*\)\s*;/gu)) {
+    const typeName = match.groups?.name ?? "";
+    if (!new RegExp(`impl\\s+${escapeRegExp(typeName)}[\\s\\S]*?\\b(?:try_new|parse)\\s*\\(`, "u").test(source)) {
+      const lineNo = lineNumberAtIndex(source, match.index ?? 0);
+      addViolation(
+        violations,
+        root,
+        filePath,
+        lineNo,
+        "RR-6.44",
+        `newtype ${typeName} lacks try_new or parse constructor.`,
+        originalLines[lineNo - 1] ?? null,
+      );
+    }
+  }
+
+  if (!isBoundary) {
+    for (const match of source.matchAll(/(?<attrs>(?:^\s*#\[[^\]]+\]\s*\r?\n)*)^\s*pub\s+(?:struct|enum)\s+(?<name>[A-Z][A-Za-z0-9_]*)(?:\b|[<{(])/gmu)) {
+      const name = match.groups?.name ?? "";
+      if (/(?:Secret|Token|Key|Credential|Password)/u.test(name)) continue;
+      const attrs = match.groups?.attrs ?? "";
+      if (!/\bDebug\b/u.test(attrs) && !new RegExp(`impl\\s+(?:std::fmt::|fmt::)?Debug\\s+for\\s+${escapeRegExp(name)}\\b`, "u").test(source)) {
+        const lineNo = lineNumberAtIndex(source, match.index ?? 0);
+        addViolation(
+          violations,
+          root,
+          filePath,
+          lineNo,
+          "RR-6.50",
+          `public domain value object ${name} lacks intentional Debug implementation.`,
+          originalLines[lineNo - 1] ?? null,
+        );
+      }
+    }
+  }
+
+  if (!isBoundary && /\b(?:try_new|parse)\s*\(/u.test(masked) && !/\b(?:invalid|reject|malformed|bad input)\b/iu.test(source)) {
+    const lineNo = firstLineMatching(originalLines, /\b(?:try_new|parse)\s*\(/u);
+    addViolation(violations, root, filePath, lineNo, "RR-12.16", "validated constructor/parser lacks invalid-input test evidence.", originalLines[lineNo - 1] ?? null);
+  }
+  if (!isBoundary && /\bparse[A-Za-z0-9_]*\s*\(/u.test(masked) && !/\b(?:invalid|empty|oversized|malformed)\b/iu.test(source)) {
+    const lineNo = firstLineMatching(originalLines, /\bparse[A-Za-z0-9_]*\s*\(/u);
+    addViolation(violations, root, filePath, lineNo, "RR-12.17", "parser lacks invalid/empty/oversized/malformed test evidence.", originalLines[lineNo - 1] ?? null);
+  }
+  if (/\b(?:TryFrom|From)\s*<[^>]*(?:Dto|Request|Response|Envelope)[^>]*>/u.test(source) && !/\b(?:negative|invalid|reject)\b/iu.test(source)) {
+    const lineNo = firstLineMatching(originalLines, /\b(?:TryFrom|From)\s*</u);
+    addViolation(violations, root, filePath, lineNo, "RR-12.18", "DTO conversion lacks negative test evidence.", originalLines[lineNo - 1] ?? null);
+  }
+  if (/\b(?:BUGFIX|FIXES|bugfix|fixes)\b/u.test(source) && !/\bREGRESSION-TEST:/u.test(source)) {
+    const lineNo = firstLineMatching(originalLines, /\b(?:BUGFIX|FIXES|bugfix|fixes)\b/u);
+    addViolation(violations, root, filePath, lineNo, "RR-12.19", "bugfix marker lacks REGRESSION-TEST evidence.", originalLines[lineNo - 1] ?? null);
+  }
+  if (isTestFile(rel, config) && /#\s*\[\s*should_panic/u.test(source) && !/\bPANIC-CONTRACT:/u.test(source)) {
+    const lineNo = firstLineMatching(originalLines, /#\s*\[\s*should_panic/u);
+    addViolation(violations, root, filePath, lineNo, "RR-12.20", "#[should_panic] lacks PANIC-CONTRACT evidence.", originalLines[lineNo - 1] ?? null);
+  }
+  if (isTestFile(rel, config)) {
+    for (const match of source.matchAll(/#\s*\[\s*test\s*\][\s\S]*?fn\s+[A-Za-z_][A-Za-z0-9_]*\s*\([^)]*\)\s*\{\s*\}/gu)) {
+      const lineNo = lineNumberAtIndex(source, match.index ?? 0);
+      addViolation(violations, root, filePath, lineNo, "RR-12.24", "empty test body found.", originalLines[lineNo - 1] ?? null);
+    }
+    for (const match of source.matchAll(/#\s*\[\s*test\s*\][\s\S]*?fn\s+[A-Za-z_][A-Za-z0-9_]*\s*\([^)]*\)\s*\{(?<body>[\s\S]*?)^\s*\}/gmu)) {
+      const body = match.groups?.body ?? "";
+      const lineNo = lineNumberAtIndex(source, match.index ?? 0);
+      if (/\b::(?:new|try_new|parse)\s*\(/u.test(body) && !/\bassert(?:_eq|_ne)?!\s*\(|\bmatches!\s*\(/u.test(body)) {
+        addViolation(violations, root, filePath, lineNo, "RR-12.25", "construction-only test lacks behavioral assertion.", originalLines[lineNo - 1] ?? null);
+      }
+      if (/\b(?:toMatchSnapshot|insta::assert|snapshot)\b/iu.test(body) && /\b(?:\d{4}-\d{2}-\d{2}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}|random|uuid)\b/iu.test(body) && !/\bREDACT|redact/u.test(body)) {
+        addViolation(violations, root, filePath, lineNo, "RR-12.26", "snapshot test includes volatile value without redaction.", originalLines[lineNo - 1] ?? null);
+      }
+    }
+  }
+  if (!isTestFile(rel, config) && /\b(?:normalize|parse)[A-Za-z0-9_]*\s*\(/u.test(masked) && !/\b(?:proptest|quickcheck|PROPERTY-TEST:)/u.test(source)) {
+    const lineNo = firstLineMatching(originalLines, /\b(?:normalize|parse)[A-Za-z0-9_]*\s*\(/u);
+    addViolation(violations, root, filePath, lineNo, "RR-12.27", "normalizer/parser lacks property-test evidence.", originalLines[lineNo - 1] ?? null);
+  }
+  if (/\b(?:binary|packet|frame|network)\b/iu.test(source) && /\bparse[A-Za-z0-9_]*\s*\(/u.test(masked) && !/\b(?:fuzz|cargo fuzz|FUZZ-TARGET:)/iu.test(source)) {
+    const lineNo = firstLineMatching(originalLines, /\bparse[A-Za-z0-9_]*\s*\(/u);
+    addViolation(violations, root, filePath, lineNo, "RR-12.28", "binary/network parser lacks fuzz target evidence.", originalLines[lineNo - 1] ?? null);
+  }
+  if (/\b(?:tokio::spawn|select!|unbounded_channel|mpsc::channel|async\s+fn)\b/u.test(masked) && !/\b(?:shutdown|cancellation|CANCELLATION-TEST:|SHUTDOWN-TEST:)\b/iu.test(source)) {
+    const lineNo = firstLineMatching(originalLines, /\b(?:tokio::spawn|select!|unbounded_channel|mpsc::channel|async\s+fn)\b/u);
+    addViolation(violations, root, filePath, lineNo, "RR-12.29", "concurrency code lacks cancellation/shutdown test evidence.", originalLines[lineNo - 1] ?? null);
+  }
+
+  for (const match of source.matchAll(/^\s*pub\s+struct\s+(?<name>[A-Z][A-Za-z0-9_]*(?:Dto|DTO|Request|Response|Envelope))\b/gmu)) {
+    const name = match.groups?.name ?? "";
+    const lineNo = lineNumberAtIndex(source, match.index ?? 0);
+    if (!isBoundary) {
+      addViolation(violations, root, filePath, lineNo, "RR-14.20", `DTO struct ${name} is outside a boundary/serde/transport module.`, originalLines[lineNo - 1] ?? null);
+    }
+    if (!/\b(?:TryFrom|From)\s*<[^>]*\b/u.test(source) && !/\b(?:map_to_domain|into_domain|to_domain)\b/u.test(source)) {
+      addViolation(violations, root, filePath, lineNo, "RR-14.23", `DTO struct ${name} lacks explicit domain conversion.`, originalLines[lineNo - 1] ?? null);
+    }
+    if (!/\b(?:round[-_ ]?trip|ROUNDTRIP-TEST:)\b/iu.test(source)) {
+      addViolation(violations, root, filePath, lineNo, "RR-14.25", `DTO struct ${name} lacks round-trip test evidence.`, originalLines[lineNo - 1] ?? null);
+    }
+  }
+  for (const match of source.matchAll(/^\s*pub\s+struct\s+(?<name>[A-Z][A-Za-z0-9_]*)\b/gmu)) {
+    const name = match.groups?.name ?? "";
+    const lineNo = lineNumberAtIndex(source, match.index ?? 0);
+    if (isBoundary && /\b(?:Serialize|Deserialize)\b/u.test(source.slice(Math.max(0, match.index - 200), match.index)) && !/(?:Dto|DTO|Request|Response|Envelope)$/u.test(name)) {
+      addViolation(violations, root, filePath, lineNo, "RR-14.21", `boundary serde struct ${name} lacks DTO/request/response suffix.`, originalLines[lineNo - 1] ?? null);
+    }
+    if (/\b(?:Config|Input|Options|Settings)\b/u.test(name) && /\bDeserialize\b/u.test(source.slice(Math.max(0, match.index - 200), match.index)) && !/deny_unknown_fields/u.test(source.slice(Math.max(0, match.index - 260), match.index))) {
+      addViolation(violations, root, filePath, lineNo, "RR-14.26", `strict config/input ${name} lacks deny_unknown_fields.`, originalLines[lineNo - 1] ?? null);
+    }
+  }
+  for (const match of source.matchAll(/(?<attrs>(?:^\s*#\[[^\]]+\]\s*\r?\n)*)^\s*pub\s+enum\s+(?<name>[A-Z][A-Za-z0-9_]*)\b/gmu)) {
+    const attrs = match.groups?.attrs ?? "";
+    if (/\b(?:Serialize|Deserialize)\b/u.test(attrs) && !/\bserde\s*\(\s*tag\s*=/u.test(attrs) && !/SERDE-TAG-JUSTIFICATION:/u.test(attrs)) {
+      const lineNo = lineNumberAtIndex(source, match.index ?? 0);
+      addViolation(violations, root, filePath, lineNo, "RR-14.24", `public serde enum ${match.groups?.name ?? "enum"} lacks tag or justification.`, originalLines[lineNo - 1] ?? null);
+    }
+  }
+  if (!isBoundary && /\b(?:base64|Base64)\b/u.test(source) && RAW_STRING_TYPE_RE.test(source)) {
+    const lineNo = firstLineMatching(originalLines, /\b(?:base64|Base64)\b/u);
+    addViolation(violations, root, filePath, lineNo, "RR-14.28", "domain source uses raw base64 string shape.", originalLines[lineNo - 1] ?? null);
   }
 
   return violations;
@@ -2291,9 +4029,43 @@ function scanCargoManifest(root, manifest, config, violations) {
     );
   }
 
+  if (/(?:^|\n)\s*license\s*=\s*"(?:[^"]*\bA?GPL\b[^"]*)"/iu.test(packageBlock?.[1] ?? "")) {
+    addViolation(
+      violations,
+      root,
+      manifest,
+      1,
+      "RR-9.22",
+      "GPL/AGPL package license found.",
+    );
+  }
+
+  const lockPath = path.join(root, "Cargo.lock");
+  if (fs.existsSync(lockPath)) {
+    const manifestMtime = fs.statSync(manifest).mtimeMs;
+    const lockMtime = fs.statSync(lockPath).mtimeMs;
+    if (manifestMtime > lockMtime + 1000) {
+      addViolation(
+        violations,
+        root,
+        lockPath,
+        1,
+        "RR-9.25",
+        "Cargo.toml is newer than Cargo.lock.",
+      );
+    }
+  }
+
   const lines = cargoText.split(/\r?\n/u);
+  let currentSection = "";
+  const dependencyNamesBySection = new Map();
+  const dependencyRequirementsByName = new Map();
+  const currentPackageName = packageNameFromManifest(manifest);
+  const workspacePackageNames = workspacePackageNamesFromManifests(root, config);
   lines.forEach((line, idx) => {
     const lineNo = idx + 1;
+    const sectionMatch = line.match(/^\s*\[([^\]]+)\]\s*$/u);
+    if (sectionMatch) currentSection = sectionMatch[1];
     if (/version\s*=\s*"\*"|=\s*"\*"/u.test(line)) {
       addViolation(
         violations,
@@ -2302,6 +4074,129 @@ function scanCargoManifest(root, manifest, config, violations) {
         lineNo,
         "RR-9.1",
         "Wildcard dependency versions are forbidden.",
+        line,
+      );
+    }
+    const inDependencySection =
+      /^(?:dependencies|dev-dependencies|build-dependencies|target\..+\.dependencies)(?:\.|$)/u.test(
+        currentSection,
+      );
+    const inProductionDependencySection =
+      /^(?:dependencies|target\..+\.dependencies)(?:\.|$)/u.test(
+        currentSection,
+      );
+    const dependencyName = dependencyNameFromManifestLine(line);
+    if (inDependencySection && dependencyName) {
+      if (!dependencyNamesBySection.has(currentSection)) dependencyNamesBySection.set(currentSection, new Set());
+      dependencyNamesBySection.get(currentSection).add(dependencyName);
+      const dependencyRequirement = dependencyRequirementFromManifestLine(line);
+      if (inProductionDependencySection && dependencyRequirement) {
+        if (!dependencyRequirementsByName.has(dependencyName)) dependencyRequirementsByName.set(dependencyName, new Set());
+        dependencyRequirementsByName.get(dependencyName).add(dependencyRequirement);
+      }
+      if (
+        inProductionDependencySection &&
+        workspacePackageNames.has(dependencyName) &&
+        dependencyName !== currentPackageName &&
+        !/\b(?:path|workspace)\s*=/u.test(line)
+      ) {
+        addViolation(
+          violations,
+          root,
+          manifest,
+          lineNo,
+          "RR-9.26",
+          `${dependencyName} is a workspace member but is not linked by path/workspace dependency syntax.`,
+          line,
+        );
+      }
+      if (!contextHas(lines, idx, "DEPENDENCY-JUSTIFICATION:", 4)) {
+        addViolation(
+          violations,
+          root,
+          manifest,
+          lineNo,
+          "RR-9.18",
+          `${dependencyName} lacks DEPENDENCY-JUSTIFICATION.`,
+          line,
+        );
+      }
+      if (/^(?:dependencies|target\..+\.dependencies)(?:\.|$)/u.test(currentSection) && config.testOnlyCratesSet.has(dependencyName)) {
+        addViolation(
+          violations,
+          root,
+          manifest,
+          lineNo,
+          "RR-9.27",
+          `${dependencyName} is test-only but appears in production dependencies.`,
+          line,
+        );
+        addViolation(
+          violations,
+          root,
+          manifest,
+          lineNo,
+          "RR-9.28",
+          `${dependencyName} must be in dev-dependencies only.`,
+          line,
+        );
+        addViolation(
+          violations,
+          root,
+          manifest,
+          lineNo,
+          "RR-9.29",
+          `${dependencyName} must not be a production dependency in a runtime crate.`,
+          line,
+        );
+      }
+      if (/^(?:dependencies|target\..+\.dependencies)(?:\.|$)/u.test(currentSection) && /\b(?:syn|quote|proc-macro2|darling|proc-macro-error)\b/u.test(dependencyName) && !contextHas(lines, idx, "PROC-MACRO-DEPENDENCY-JUSTIFICATION:", 4)) {
+        addViolation(
+          violations,
+          root,
+          manifest,
+          lineNo,
+          "RR-9.20",
+          `${dependencyName} is a proc-macro ecosystem dependency in runtime dependencies without approval.`,
+          line,
+        );
+      }
+      if (/\b(?:openssl|openssl-sys|libsqlite3-sys|ring|rusqlite|bindgen|cc|cmake|pkg-config)\b/u.test(dependencyName) && !contextHas(lines, idx, "NATIVE-DEPENDENCY-JUSTIFICATION:", 4)) {
+        addViolation(
+          violations,
+          root,
+          manifest,
+          lineNo,
+          "RR-9.21",
+          `${dependencyName} is native/build-linked and lacks NATIVE-DEPENDENCY-JUSTIFICATION.`,
+          line,
+        );
+      }
+      if (/\b(?:tokio|reqwest|sqlx|diesel|aws-sdk|openssl|rusqlite)\b/u.test(dependencyName) && /\{[^}]*version\s*=/u.test(line) && !/\bdefault-features\s*=\s*false\b/u.test(line)) {
+        addViolation(
+          violations,
+          root,
+          manifest,
+          lineNo,
+          "RR-9.17",
+          `${dependencyName} must set default-features explicitly to false or document the default feature policy.`,
+          line,
+        );
+      }
+    }
+    if (
+      inDependencySection &&
+      /=\s*"(?:>=|>|<=|<)[^"]*"|=\s*"\d+"|version\s*=\s*"(?:>=|>|<=|<)[^"]*"|version\s*=\s*"\d+"/u.test(
+        line,
+      )
+    ) {
+      addViolation(
+        violations,
+        root,
+        manifest,
+        lineNo,
+        "RR-9.16",
+        "Loose dependency version range found.",
         line,
       );
     }
@@ -2327,7 +4222,64 @@ function scanCargoManifest(root, manifest, config, violations) {
         line,
       );
     }
+    if (/^build-dependencies(?:\.|$)/u.test(currentSection)) {
+      const isDependencyLine = /^\s*[\w.-]+\s*=/u.test(line);
+      if (isDependencyLine && !contextHas(lines, idx, "BUILD-DEPENDENCY-JUSTIFICATION:", 4)) {
+        addViolation(
+          violations,
+          root,
+          manifest,
+          lineNo,
+          "RR-9.30",
+          "build-dependency lacks BUILD-DEPENDENCY-JUSTIFICATION.",
+          line,
+        );
+      }
+    }
   });
+
+  const prodDeps = new Set([
+    ...(dependencyNamesBySection.get("dependencies") ?? []),
+    ...[...dependencyNamesBySection.entries()]
+      .filter(([section]) => /^target\..+\.dependencies/u.test(section))
+      .flatMap(([, names]) => [...names]),
+  ]);
+  const devDeps = dependencyNamesBySection.get("dev-dependencies") ?? new Set();
+  for (const name of devDeps) {
+    if (prodDeps.has(name)) {
+      addViolation(
+        violations,
+        root,
+        manifest,
+        1,
+        "RR-9.27",
+        `${name} appears in both production and dev dependencies.`,
+      );
+    }
+  }
+  for (const [dependencyName, requirements] of dependencyRequirementsByName) {
+    if (requirements.size > 1) {
+      addViolation(
+        violations,
+        root,
+        manifest,
+        1,
+        "RR-9.19",
+        `Direct dependency ${dependencyName} uses multiple requirements: ${[...requirements].join(", ")}.`,
+      );
+    }
+  }
+
+  const denyPath = path.join(root, "deny.toml");
+  if (fs.existsSync(denyPath)) {
+    const denyText = fs.readFileSync(denyPath, "utf8");
+    if (!/\byanked\s*=\s*"deny"/u.test(denyText)) {
+      addViolation(violations, root, denyPath, 1, "RR-9.23", 'deny.toml must deny yanked crate versions.');
+    }
+    if (!/\bunmaintained\s*=\s*"deny"/u.test(denyText)) {
+      addViolation(violations, root, denyPath, 1, "RR-9.24", 'deny.toml must deny unmaintained crates when advisory data is available.');
+    }
+  }
 
   const buildRs = path.join(path.dirname(manifest), "build.rs");
   if (!config.allowBuildRs && fs.existsSync(buildRs)) {
@@ -2340,6 +4292,28 @@ function scanCargoManifest(root, manifest, config, violations) {
       "build.rs is forbidden by default because it can hide non-deterministic build behavior.",
     );
   }
+}
+
+function dependencyNameFromManifestLine(line) {
+  const match = line.match(/^\s*([A-Za-z0-9_.-]+)\s*=/u);
+  return match?.[1] ?? null;
+}
+
+function dependencyRequirementFromManifestLine(line) {
+  return (
+    line.match(/=\s*"([^"]+)"/u)?.[1] ??
+    line.match(/\bversion\s*=\s*"([^"]+)"/u)?.[1] ??
+    null
+  );
+}
+
+function workspacePackageNamesFromManifests(root, config) {
+  const names = new Set();
+  for (const manifest of findCargoManifests(root, config)) {
+    const name = packageNameFromManifest(manifest);
+    if (name) names.add(name);
+  }
+  return names;
 }
 
 function loadCargoMetadata(root) {
@@ -2377,6 +4351,7 @@ function scanCargoMetadata(root, config, scope) {
             scopedManifests.has(toPosix(packageInfo.manifest_path))
         : () => true;
   const packages = (metadata.packages ?? []).filter(packageFilter);
+  const workspacePackageNames = new Set((metadata.packages ?? []).map((packageInfo) => packageInfo.name));
 
   for (const packageInfo of packages) {
     const blockedForPackage = new Set(
@@ -2444,8 +4419,18 @@ function scanCargoMetadata(root, config, scope) {
           root,
           packageInfo.manifest_path,
           1,
-          "RR-9.4",
+          "RR-9.29",
           "Runtime crate depends on test-only crate outside dev-dependencies.",
+        );
+      }
+      if (workspacePackageNames.has(dependency.name) && dependency.path === null && dependency.source !== null) {
+        addViolation(
+          violations,
+          root,
+          packageInfo.manifest_path,
+          1,
+          "RR-9.26",
+          `Workspace member ${packageInfo.name} depends on ${dependency.name} by registry version instead of path/workspace linkage.`,
         );
       }
     }
@@ -2474,6 +4459,14 @@ function scanCargoMetadata(root, config, scope) {
         1,
         "RR-9.5",
         `Direct registry dependency ${dependencyName} uses multiple requirements: ${[...reqs].join(", ")}.`,
+      );
+      addViolation(
+        violations,
+        root,
+        ".",
+        1,
+        "RR-9.19",
+        `Direct registry dependency ${dependencyName} uses duplicate requirements: ${[...reqs].join(", ")}.`,
       );
     }
   }
@@ -2848,14 +4841,91 @@ function ruleDocFor(ruleId) {
 }
 
 function decorateRuleDocs(report) {
+  const completenessFailures = collectReportCompletenessFailures(report);
   for (const key of ["violations", "warnings", "findings"]) {
     if (!Array.isArray(report[key])) continue;
-    report[key] = report[key].map((finding) => ({
-      ...finding,
-      doc: finding.doc ?? ruleDocFor(finding.ruleId),
-    }));
+    report[key] = sortFindings(
+      report[key].map((finding) => normalizeReportFinding(finding)),
+    );
   }
+  enforceReportCompleteness(report, completenessFailures);
   return report;
+}
+
+function normalizeReportFinding(finding) {
+  const normalized = {
+    ruleId: finding.ruleId ?? "ENF-1.8",
+    severity: finding.severity ?? "error",
+    title: finding.title ?? RULES[finding.ruleId]?.title ?? "Incomplete report finding",
+    detail: finding.detail ?? "",
+    file: finding.file ?? "",
+    line: Number.isInteger(finding.line) ? finding.line : 1,
+    snippet:
+      finding.snippet ??
+      RULES[finding.ruleId]?.snippet ??
+      "Emit complete, deterministic findings.",
+    source: finding.source ?? null,
+    doc: finding.doc ?? ruleDocFor(finding.ruleId),
+  };
+  for (const [key, value] of Object.entries(finding)) {
+    if (!(key in normalized)) normalized[key] = value;
+  }
+  return normalized;
+}
+
+function sortFindings(findings) {
+  return [...findings].sort(compareFindings);
+}
+
+function compareFindings(a, b) {
+  return (
+    String(a.file ?? "").localeCompare(String(b.file ?? "")) ||
+    Number(a.line ?? 0) - Number(b.line ?? 0) ||
+    String(a.ruleId ?? "").localeCompare(String(b.ruleId ?? "")) ||
+    String(a.detail ?? "").localeCompare(String(b.detail ?? ""))
+  );
+}
+
+function collectReportCompletenessFailures(report) {
+  const required = [
+    "ruleId",
+    "severity",
+    "title",
+    "detail",
+    "file",
+    "line",
+    "snippet",
+    "source",
+  ];
+  const bad = [];
+  for (const key of ["violations", "warnings", "findings"]) {
+    if (!Array.isArray(report[key])) continue;
+    report[key].forEach((finding, index) => {
+      const missing = required.filter((field) => !(field in finding));
+      if (missing.length > 0) bad.push(`${key}[${index}] missing ${missing.join(",")}`);
+    });
+  }
+  return bad;
+}
+
+function enforceReportCompleteness(report, bad) {
+  if (bad.length === 0) return;
+  const reportFinding = normalizeReportFinding({
+    ruleId: "ENF-1.8",
+    severity: "error",
+    title: "Validation reports must be complete",
+    detail: bad.slice(0, 5).join("; "),
+    file: report.root ?? process.cwd(),
+    line: 1,
+    snippet: "Emit ruleId, severity, title, detail, file, line, snippet, source, and doc.",
+  });
+  report.findings = sortFindings([...(report.findings ?? []), reportFinding]);
+  report.violations = sortFindings([...(report.violations ?? []), reportFinding]);
+  report.ok = false;
+  report.bySeverity = {
+    ...(report.bySeverity ?? {}),
+    error: Number(report.bySeverity?.error ?? 0) + 1,
+  };
 }
 
 function doctor(root, config, scope) {
@@ -3206,6 +5276,61 @@ export function runEnforcerCheck(options = {}) {
   );
 }
 
+export function runEnforcerVerify(options = {}) {
+  const root = path.resolve(options.root ?? process.cwd());
+  const config = normalizeConfig({
+    ...DEFAULT_CONFIG,
+    ...(options.config ?? loadConfig(root, options.configPath, options.profile)),
+  });
+  const rawScope = options.rawScope ?? options.scope ?? { mode: "all" };
+  const scanReport = runEnforcerScan({
+    root,
+    config,
+    rawScope,
+    command: "verify",
+    scanOnly: true,
+    languages: options.languages,
+  });
+  const checkNames = [
+    "rule-coverage",
+    "policy-integrity",
+    "ci-integrity",
+    "repo-governance",
+    "package-determinism",
+  ];
+  const checkReports = checkNames.map((checkName) =>
+    runEnforcerCheck({
+      root,
+      config,
+      rawScope,
+      checkName,
+      configPath: options.configPath,
+      profile: options.profile,
+    }),
+  );
+  const reports = [scanReport, ...checkReports];
+  const findings = reports.flatMap((report) => report.findings ?? []);
+  const { violations, warnings, bySeverity } = splitFindings(findings, config);
+  return decorateRuleDocs({
+    ok: reports.every((report) => report.ok) && violations.length === 0,
+    command: "verify",
+    root,
+    profileName: config.profileName ?? "strict",
+    violations,
+    warnings,
+    findings,
+    bySeverity,
+    scope: scanReport.scope,
+    checks: reports.map((report) => ({
+      command: report.command,
+      check: report.check ?? report.command,
+      ok: report.ok,
+      violations: (report.violations ?? []).length,
+      warnings: (report.warnings ?? []).length,
+    })),
+  });
+}
+
 function runArchitecturePolicyCheck({
   root,
   config,
@@ -3264,7 +5389,12 @@ function runArchitecturePolicyCheck({
 }
 
 function resolveScanLanguages(optionLanguages, config) {
-  const languages = optionLanguages ?? config.languages ?? ["rust"];
+  const languages = optionLanguages ?? config.languages ?? [
+    "rust",
+    "typescript",
+    "python",
+    "common",
+  ];
   const allowed = new Set(["rust", "typescript", "python", "common"]);
   const normalized = languages
     .map((language) => String(language).trim())
@@ -3273,7 +5403,9 @@ function resolveScanLanguages(optionLanguages, config) {
     if (!allowed.has(language))
       throw new Error(`Unknown scan language: ${language}`);
   }
-  return normalized.length > 0 ? normalized : ["rust"];
+  return normalized.length > 0
+    ? normalized
+    : ["rust", "typescript", "python", "common"];
 }
 
 function isMainModule() {
@@ -3381,6 +5513,20 @@ if (isMainModule()) {
       if (args.json) console.log(JSON.stringify(report, null, 2));
       else printRunsReport(args.runsCommand, report);
       process.exit(report?.ok === false ? 1 : 0);
+    }
+
+    if (args.command === "verify") {
+      const report = runEnforcerVerify({
+        root,
+        config,
+        rawScope: args.scope,
+        configPath: args.configPath,
+        profile: args.profile,
+        languages: args.languages,
+      });
+      if (args.json) console.log(JSON.stringify(report, null, 2));
+      else printCheckReport(report);
+      process.exit(report.ok ? 0 : 1);
     }
 
     if (args.command === "check") {

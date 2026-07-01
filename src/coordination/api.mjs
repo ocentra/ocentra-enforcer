@@ -205,10 +205,11 @@ export async function coordinationMessage(args = {}) {
   rejectUnexpectedAction(args, ["message", "send"], "coordination message");
   const root = coordinationRoot(args);
   const config = await loadIdentity(root);
-  const event = await appendEvent(root, config, config.defaultLane, {
+  const lane = resolveLane(config, args.from);
+  const event = await appendEvent(root, config, lane, {
     type: "message",
     to: parseMessageAddress(required(args.to ?? args.lane, "to")),
-    body: parseUserText(required(args.body, "body")),
+    body: parseUserText(messageBody(args)),
     context: contextFor(args),
   });
   return { ok: true, root, event };
@@ -319,6 +320,81 @@ export async function coordinationRelease(args = {}) {
     );
   }
   return { ok: true, root, event, notificationEvents };
+}
+
+export async function coordinationCloseout(args = {}) {
+  rejectUnexpectedAction(args, "closeout", "coordination closeout");
+  const root = coordinationRoot(args);
+  const config = await loadIdentity(root);
+  const lane = parseLaneId(args.lane ?? config.defaultLane);
+  const limit = Number.isFinite(args.limit) ? args.limit : 25;
+  const releaseOwned = args.releaseOwned !== false;
+  const repairStale = args.repairStale !== false;
+  const filters = closeoutFilters(args, config, lane);
+  let state = await materialize(root);
+  const initialClaims = matchingCloseoutClaims(state.ownership.activeClaims, filters);
+  const releaseEvents = [];
+  if (releaseOwned && initialClaims.length > 0) {
+    for (const [claimLane, claims] of claimsByLane(initialClaims)) {
+      const paths = unique(claims.flatMap((claim) => claim.paths ?? []));
+      if (paths.length === 0) continue;
+      releaseEvents.push(
+        await appendEvent(root, config, parseLaneId(claimLane), {
+          type: "release",
+          paths,
+          reason: parseUserText(args.reason ?? "coordination closeout release"),
+          context: contextFor({
+            ...args,
+            closeoutAction: "release",
+            closeoutLane: lane,
+            closeoutClaimCount: claims.length,
+          }),
+        }),
+      );
+    }
+    state = await materialize(root);
+  }
+  const afterReleaseClaims = matchingCloseoutClaims(state.ownership.activeClaims, filters);
+  let staleRepairEvent = null;
+  if (repairStale && afterReleaseClaims.length > 0) {
+    const paths = unique(afterReleaseClaims.flatMap((claim) => claim.paths ?? []));
+    const owners = unique(afterReleaseClaims.map((claim) => claim.writer));
+    staleRepairEvent = await appendEvent(root, config, lane, {
+      type: "claim.resolve",
+      paths,
+      owners,
+      reason: parseUserText(args.reason ?? "coordination closeout stale claim repair"),
+      context: contextFor({
+        ...args,
+        closeoutAction: "stale-claim-repair",
+        closeoutLane: lane,
+        closeoutClaimCount: afterReleaseClaims.length,
+      }),
+    });
+    state = await materialize(root);
+  }
+  const remainingClaims = matchingCloseoutClaims(state.ownership.activeClaims, filters);
+  const index = await rebuildCoordinationIndex(root, { limit });
+  return {
+    ok: remainingClaims.length === 0,
+    root,
+    lane,
+    filters: publicCloseoutFilters(filters),
+    releaseOwned,
+    repairStale,
+    initialClaimCount: initialClaims.length,
+    releasedClaimCount: releaseEvents.reduce((count, event) => count + (event.paths?.length ?? 0), 0),
+    staleRepairClaimCount: afterReleaseClaims.length,
+    remainingClaimCount: remainingClaims.length,
+    releaseEvents,
+    staleRepairEvent,
+    remainingClaims: remainingClaims.slice(0, limit),
+    index,
+    nextStep:
+      remainingClaims.length === 0
+        ? "Closeout complete: no active claims remain for the selected lane/thread scope."
+        : "Closeout incomplete: inspect remainingClaims and resolve active owners before reporting DONE.",
+  };
 }
 
 export async function coordinationGuard(args = {}) {
@@ -705,6 +781,60 @@ function filterClaimsByPaths(claims, paths) {
   );
 }
 
+function closeoutFilters(args, config, lane) {
+  const rootFilter = args.root ?? args.worktreeRoot ?? args.repoRoot;
+  return {
+    lane,
+    writer: args.owner ?? args.writer,
+    nodeId: args.allowOtherNode === true ? null : config.nodeId,
+    codexThreadId: args.codexThreadId ?? args.threadId,
+    codexSessionId: args.codexSessionId ?? args.sessionId,
+    projectId: args.projectId,
+    worktreeRoot: rootFilter === undefined ? undefined : path.resolve(rootFilter),
+    includeAllLanes: args.allOwned === true || args.allLanes === true,
+  };
+}
+
+function matchingCloseoutClaims(claims, filters) {
+  return claims.filter((claim) => {
+    const context = claim.context ?? {};
+    if (!filters.includeAllLanes && claim.lane !== filters.lane) return false;
+    if (filters.writer !== undefined && claim.writer !== filters.writer) return false;
+    if (filters.nodeId !== null && !claim.writer.startsWith(`${filters.nodeId}.`)) return false;
+    if (filters.codexThreadId !== undefined && context.codexThreadId !== filters.codexThreadId) return false;
+    if (filters.codexSessionId !== undefined && context.codexSessionId !== filters.codexSessionId) return false;
+    if (filters.projectId !== undefined && context.projectId !== filters.projectId) return false;
+    if (
+      filters.worktreeRoot !== undefined &&
+      path.resolve(context.worktreeRoot ?? context.repoRoot ?? "") !== filters.worktreeRoot
+    ) {
+      return false;
+    }
+    return true;
+  });
+}
+
+function claimsByLane(claims) {
+  const grouped = new Map();
+  for (const claim of claims) {
+    grouped.set(claim.lane, [...(grouped.get(claim.lane) ?? []), claim]);
+  }
+  return grouped.entries();
+}
+
+function publicCloseoutFilters(filters) {
+  return {
+    lane: filters.lane,
+    includeAllLanes: filters.includeAllLanes,
+    ...(filters.writer === undefined ? {} : { writer: filters.writer }),
+    ...(filters.nodeId === null ? { allowOtherNode: true } : { nodeId: filters.nodeId }),
+    ...(filters.codexThreadId === undefined ? {} : { codexThreadId: filters.codexThreadId }),
+    ...(filters.codexSessionId === undefined ? {} : { codexSessionId: filters.codexSessionId }),
+    ...(filters.projectId === undefined ? {} : { projectId: filters.projectId }),
+    ...(filters.worktreeRoot === undefined ? {} : { worktreeRoot: filters.worktreeRoot }),
+  };
+}
+
 function buildClaimRepairCommands(root, args, conflicts, paths) {
   const selectedPaths = paths.length > 0
     ? paths
@@ -865,6 +995,12 @@ function required(value, name) {
     throw new Error(`coordination ${name} is required`);
   }
   return value;
+}
+
+function messageBody(args) {
+  const body = required(args.body ?? args.message ?? args.summary, "body");
+  const subject = args.subject === undefined ? "" : String(args.subject).trim();
+  return subject ? `${subject}\n\n${body}` : body;
 }
 
 function rejectUnexpectedAction(args, expected, commandName) {

@@ -185,16 +185,23 @@ export async function materialize(root) {
             }
         }
         if (event.type === "claim.resolve" && event.paths !== undefined) {
+            const owners = Array.isArray(event.owners) ? new Set(event.owners) : null;
             for (const path of event.paths) {
                 for (const [key, claim] of activeClaims) {
                     const overlaps = overlappingPaths(claim.paths, [path]).length > 0;
-                    if (overlaps && claim.writer !== event.owner) {
+                    const shouldResolve = owners === null
+                        ? claim.writer !== event.owner
+                        : owners.has(claim.writer);
+                    if (overlaps && shouldResolve) {
                         activeClaims.delete(key);
                     }
                 }
                 for (const [key, intent] of editIntents) {
                     const overlaps = overlappingPaths(intent.paths, [path]).length > 0;
-                    if (overlaps && intent.writer !== event.owner) {
+                    const shouldResolve = owners === null
+                        ? intent.writer !== event.owner
+                        : owners.has(intent.writer);
+                    if (overlaps && shouldResolve) {
                         editIntents.delete(key);
                     }
                 }

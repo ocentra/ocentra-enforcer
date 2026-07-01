@@ -1,5 +1,12 @@
 # Ocentra Enforcer
 
+> **Do not rely on AI or human discipline. Make bad code mechanically impossible to land.**
+>
+> Human review should become ownership and judgment, not the first line of
+> quality control. AI should be allowed to write, but the harness must act like
+> a production compiler for architecture, code quality, type discipline,
+> dependency policy, test integrity, proof freshness, and repository hygiene.
+
 Standalone enforcement system for humans, CI, Codex skills, and MCP clients.
 Rust, TypeScript/JavaScript, Python, common security/generated-artifact guards,
 compact harness diagnostics, generic coordination, and architecture gates are
@@ -9,12 +16,58 @@ Default consumption is package plus Codex plugin/MCP. Git submodules are allowed
 only for projects that need source pinning; they are not the default install
 model.
 
+## System Map
+
+```mermaid
+flowchart LR
+  Writer["AI or human writes"] --> Route["rules/INDEX.md + ocentra_enforcer_route"]
+  Route --> Validate["scan/check/verify hard gates"]
+  Validate --> Harness["run harness: raw logs + NDJSON + compact diagnostics"]
+  Validate --> Proof["proof registry + proof claim"]
+  Writer --> Coord["coordination: hub, lanes, mail, exact-file locks"]
+  Coord --> Validate
+  Validate --> CI["local hooks + CI parity"]
+  Proof --> CI
+  CI --> Review["human ownership review"]
+```
+
+```mermaid
+flowchart TD
+  L0["L0 coordination write safety"] --> L1["L1 policy integrity"]
+  L1 --> L2["L2 fast source scanners"]
+  L2 --> L3["L3 native/parser tool ingestion"]
+  L3 --> L4["L4 architecture and boundary checks"]
+  L4 --> L5["L5 proof freshness"]
+  L5 --> L6["L6 security/supply chain"]
+  L6 --> L7["L7 local/CI parity"]
+  L7 --> L8["L8 human judgment"]
+```
+
+## Main Systems
+
+| System | What It Does | Main Entry Points | Details |
+| --- | --- | --- | --- |
+| Indexed rules | Routes agents to only the rule docs needed for touched files, scope, profile, or explicit rule ID. | `rules/INDEX.md`, `rules/rules.json`, `ocentra_enforcer_route` | [docs/RULE_ENFORCEMENT.md](docs/RULE_ENFORCEMENT.md) |
+| Hard validators | Rejects source slop, architecture drift, policy bypasses, weak tests, dependency issues, generated artifacts, and secrets. | `ocentra-enforcer scan`, `ocentra-enforcer check`, `ocentra-enforcer verify` | [docs/ENFORCED_CHECKS.md](docs/ENFORCED_CHECKS.md) |
+| Harness diagnostics | Runs native commands while preserving raw logs and returning compact structured diagnostics. | `ocentra-enforcer run`, `runs last-failure`, MCP diagnostics tools | [docs/HARNESS_DIAGNOSTICS.md](docs/HARNESS_DIAGNOSTICS.md) |
+| Hub/lane coordination | Keeps Codex/human workers from racing on exact files and coordinates lanes, mail, claims, presence, sync, and repair. | `coordination claim/guard/release/health/presence/sync` | [docs/COORDINATION.md](docs/COORDINATION.md) |
+| Skill and MCP system | Installs Codex skill/MCP wiring so any target repo can call the external pack without copying scripts. | `codex install`, `ocentra_enforcer_*` tools | [docs/SKILL_MCP_SYSTEM.md](docs/SKILL_MCP_SYSTEM.md) |
+| Proof harness | Converts ad-hoc proof scripts into routed proof definitions, runs, artifacts, freshness checks, and PR-ready claims. | `proof route/run/import-legacy/parity/claim` | [docs/PROOF_SYSTEM_DESIGN.md](docs/PROOF_SYSTEM_DESIGN.md) |
+| Governance | Protects the enforcer from being weakened by config, waivers, CI drift, unregistered rules, or repo ownership gaps. | `check policy-integrity`, `rule-coverage`, `mutation-risk`, `ci-integrity` | [rules/common/governance.md](rules/common/governance.md), [rules/common/registry.md](rules/common/registry.md), [rules/common/policy.md](rules/common/policy.md) |
+
 ## 1. Hard Gates Over Trust
 
 Rules, AGENTS files, and skill docs are guidance, not enforcement. They help a
 strong model choose the right path and they save tokens with indexed routing, but
 models can miss rules when context is full, a smaller model is used, or the task
 pressure is high. Humans can miss or bypass the same rules.
+
+The harness is the reviewer of first resort. AI and humans may write code; the
+harness decides whether the code is structurally acceptable. Human review begins
+after mechanical policy, compiler/type/lint gates, architecture gates,
+tests/proofs, dependency/security gates, and local/CI parity pass. Humans review
+meaning, product judgment, intent, tradeoffs, and ownership; they should not be
+the first line of defense for failures the harness can reject deterministically.
 
 Ocentra Enforcer is built on zero trust for AI and humans. The point is not to
 hope the writer remembers every rule; the harness, hooks, MCP tools, and CI gates
@@ -40,6 +93,23 @@ next. JSON and MCP reports include a `doc` anchor on findings for that reason.
 If docs and validators disagree, the hard gate wins. Fix the code, fix the docs,
 or strengthen the validator; do not add bypass comments or weaken checks to make
 an agent pass.
+
+## Enforced Checks Preview
+
+The full catalog is [docs/ENFORCED_CHECKS.md](docs/ENFORCED_CHECKS.md). Current
+hard gates include:
+
+| Language / Area | Examples |
+| --- | --- |
+| Rust | No unsafe without policy, no `transmute` or `static mut`, no unchecked panics, no stringly errors, no swallowed results, no raw domain strings/primitives/generic string escape hatches, no boolean state clusters, no wildcard imports, no public re-exports, no unjustified clones/casts/indexing, async spawn/channel gates, serde DTO/domain gates, dependency/toolchain gates, and organized tests under `tests/`. |
+| TypeScript/JavaScript | No barrel exports or re-exports, no Zod source when Effect Schema owns contracts, no `any`, no unsafe casts/non-null assertions, no default exports, no raw process/env or JSON parsing outside configured boundaries, no console debugging, no naked domain string aliases, no suppression comments, no weak/skipped/focused tests, source-shape limits, import-boundary checks, and no inline tests inside `src/`. |
+| Python | No broad `noqa` or `type: ignore`, no `Any` or untyped defs, no mutable defaults, no broad/bare exceptions, no print debugging, no `subprocess shell=True`, no wildcard imports, no `requests` calls without timeout, no raw domain string aliases where schema brands are required, no skipped/focused tests, Ruff/Pyright/mypy/pytest ingestion, and no inline tests inside production source. |
+| Common | Policy lockdown, waiver governance, rule-coverage enforcement, CI integrity, CODEOWNERS/repo governance, secret scanning, generated-artifact gates, test-double bans, required test scaffolds, organized test roots, single-source contract checks, portability checks, dependency/package determinism, SBOM, and agent-rule index hygiene. |
+
+Documentation/comment checks are warnings by default. Projects can promote
+those to hard failures through profile config, but the default hard-fail set is
+focused on safety, architecture, test integrity, dependency/security, and
+validation bypasses.
 
 ## 2. Indexed Decision Trees Save Context
 
@@ -82,20 +152,21 @@ only when the compact result is not enough.
 
 Lane ownership, hub mail, exact-file claims, worker/task status, peer sync, and
 Codex hook write-safety are harness concerns. They should not live inside a
-product repo. Ocentra Parent currently has legacy `tools/ocentra-ledger` and
-`tools/no-reexports` surfaces, but those are migration sources, not the target
+product repo. Existing projects may have legacy local coordination or
+architecture tools, but those are migration sources, not the target
 architecture.
 
 See [docs/COORDINATION.md](docs/COORDINATION.md) for the full hub/ledger/mail
 model, storage layout, sync contract, safety decisions, and MCP/CLI workflow.
 
-The generic direction is:
+The generic direction for any target project is:
 
 1. Enforcer owns coordination and architecture tooling.
 2. A target repo only keeps configuration and thin command aliases.
 3. Live coordination state stays under the Enforcer install ledger root,
    normally `<enforcer-install>/.ledger/<hub>`.
-4. Parent is the first consumer fixture, not a hardcoded owner.
+4. Each target project chooses its hub name, profile, adapters, and local
+   wrappers without forking the Enforcer implementation.
 
 Coordination MCP tools return compact machine-readable write-safety decisions:
 `canInspect`, `canLockPaths`, `canWriteClaimedPaths`, `mustWait`, and
@@ -126,8 +197,8 @@ copies instead of overwriting divergent streams. The transport can be direct LAN
 HTTP or a token-protected mesh/tunnel endpoint such as Tailscale, Cloudflare
 Tunnel, WireGuard, or HTTPS.
 
-During migration from legacy Parent wrappers, coordination event hashes use the
-v1 ledger envelope so old readers and Enforcer agree. Enforcer still stores
+During migration from legacy wrappers, coordination event hashes use the v1
+ledger envelope so old readers and Enforcer agree. Enforcer still stores
 extended `context` metadata for presence, but extension metadata is not part of
 the v1 wire hash. If an early Enforcer build wrote context-hashed events into a
 live legacy ledger, run `coordination repair legacy-hash` first as a dry-run,
@@ -165,10 +236,10 @@ Enforcer now owns the generic proof harness:
 - `proof claim --pr-ready` rejects missing, stale, manual-required, failed, or
   artifact-broken claims.
 
-This is the migration path for repos like Ocentra Parent that accumulated many
-bespoke `scripts/test/*proof*.mjs` files. Product repos should expose source,
-generated artifacts, config, and domain expectations. Enforcer should own the
-runner, proof inventory, compact diagnostics, retention, and MCP query surface.
+This is the migration path for any repo that accumulated many bespoke proof
+scripts. Product repos should expose source, generated artifacts, config, and
+domain expectations. Enforcer should own the runner, proof inventory, compact
+diagnostics, retention, and MCP query surface.
 
 ## Commands
 
@@ -202,6 +273,12 @@ node scripts/rust-rules.mjs check no-zod-source --root C:/path/to/repo --files s
 node scripts/rust-rules.mjs check validation-bypass --root C:/path/to/repo --files src/index.ts
 node scripts/rust-rules.mjs check weak-assertions --root C:/path/to/repo --files tests/example.test.ts
 node scripts/rust-rules.mjs check placeholder-implementation --root C:/path/to/repo --files src/index.ts
+node scripts/rust-rules.mjs check rule-coverage --root C:/path/to/repo
+node scripts/rust-rules.mjs check policy-integrity --root C:/path/to/repo
+node scripts/rust-rules.mjs check mutation-risk --root C:/path/to/repo
+node scripts/rust-rules.mjs check config-lockdown --root C:/path/to/repo
+node scripts/rust-rules.mjs check waiver-policy --root C:/path/to/repo
+node scripts/rust-rules.mjs verify --root C:/path/to/repo
 node scripts/rust-rules.mjs check source-shape --root C:/path/to/repo --workspace
 node scripts/rust-rules.mjs check single-source-contracts --root C:/path/to/repo --check-config scripts/check-single-source-contracts.json
 node scripts/rust-rules.mjs check sbom --root C:/path/to/repo --output target/security --dry-run
@@ -213,6 +290,8 @@ node scripts/rust-rules.mjs runs last-failure --root C:/path/to/repo --json
 node scripts/rust-rules.mjs proof route --root C:/path/to/repo --files scripts/test/example-proof.mjs --json
 node scripts/rust-rules.mjs proof inventory --root C:/path/to/repo --json
 node scripts/rust-rules.mjs proof inventory --root C:/path/to/repo --include-scripts --limit 20 --json
+node scripts/rust-rules.mjs proof import-legacy --root C:/path/to/repo --proof PROOF-LEGACY-ARTIFACT-IMPORT --legacy-paths test-results/foo-proof,output/foo-proof --json
+node scripts/rust-rules.mjs proof parity --root C:/path/to/repo --proof PROOF-LEGACY-ARTIFACT-IMPORT --legacy-paths test-results/foo-proof,output/foo-proof --run-id <import-run-id> --json
 node scripts/rust-rules.mjs proof run --root C:/path/to/repo --proof PROOF-COMMAND-GENERIC --json -- node --version
 node scripts/rust-rules.mjs proof claim --root C:/path/to/repo --proof PROOF-COMMAND-GENERIC --pr-ready --json
 node scripts/rust-rules.mjs proof last-failure --root C:/path/to/repo --json
@@ -262,8 +341,8 @@ rust-rules-mcp
 Start with [INSTALL.md](INSTALL.md) for a fresh machine or fresh Codex setup.
 Use [docs/CODEX_SETUP.md](docs/CODEX_SETUP.md) for MCP and skill wiring, and
 [docs/TARGET_REPO_WIRING.md](docs/TARGET_REPO_WIRING.md) for target repo setup.
-For Ocentra Parent migration status, see
-[docs/OCENTRA_PARENT_PARITY.md](docs/OCENTRA_PARENT_PARITY.md).
+Project-specific parity notes should live in docs or config files for that
+target project, not in the generic install path.
 
 Run the Codex installer from the enforcer install path. By default it is a
 global Codex setup: MCP config, user skill, and a managed global `AGENTS.md`
@@ -299,7 +378,7 @@ requested or when the target repo already uses Husky. Lefthook is opt-in.
 
 MCP runs from the enforcer install path. Target projects always pass `root` plus
 either `configPath` for project-specific policy or `profile` for a named pack
-policy such as `strict` or `ocentra-parent`.
+policy such as `strict`.
 
 Example global MCP wiring:
 
@@ -384,9 +463,10 @@ Before direct MCP coordination writes, call `ocentra_enforcer_mcp_status`.
 If it reports `stale: true`, restart Codex/MCP or call the updated CLI through
 `ocentra_enforcer_run`. Stale MCP processes fail closed for coordination writes
 because old code can corrupt live append-only ledger streams.
-Also require `writeCompatible: true`; this is a deterministic hash self-test
-that proves extended presence `context` metadata is excluded from the legacy
-wire hash before any direct coordination writer appends to a stream.
+Require `directWritesAllowed: true` or `writeCompatible: true` before using
+direct coordination write tools. `hashCompatible: true` is the deterministic
+hash self-test; it does not override a stale MCP process. If direct writes are
+refused, the stale response includes an `ocentra_enforcer_run` fallback command.
 
 `ocentra_enforcer_coordination_guard` and CLI `coordination guard` are focused by
 default when `paths` or `changedPaths` are provided. Findings contain blockers
@@ -467,29 +547,30 @@ before opening raw artifacts.
 - `rules/rust/*.md`, `rules/typescript/*.md`, `rules/python/*.md`, `rules/common/*.md`: small rule-family docs for selective loading.
 - `adapters/`: templates for Codex/MCP wiring, plain Git hooks, Husky, Lefthook, GitHub Actions, CodeQL, dependency policy, secret scan, and SBOM.
 - `INSTALL.md`: clone/install/validate flow for a fresh machine or fresh Codex.
+- `docs/ENFORCED_CHECKS.md`: high-level catalog of Rust, TypeScript, Python, and common checks.
 - `docs/CODEX_SETUP.md`: Codex MCP registration, manual config fallback, skill setup, and troubleshooting.
 - `docs/COORDINATION.md`: generic hub/ledger/mail/worktree coordination model, storage, sync, presence, and safety gates.
 - `docs/TARGET_REPO_WIRING.md`: how a target repo calls the external enforcer.
 - `docs/BOOTSTRAP_PROMPT.md`: copy-paste prompt for a future Codex to install and wire the enforcer.
 - `docs/INSTALL_REFERENCE_LESSONS.md`: install lessons adopted from the codebase-memory-mcp setup pattern and remaining public-packaging gaps.
-- `profiles/ocentra-parent.json`: migrated Ocentra Parent strict Rust profile.
+- `profiles/*.json`: reusable named policy profiles for target projects.
 - `rust-rules.config.json`: legacy strict default profile file, still supported.
 
 ## Migration Model
 
-Generic guards should move into Ocentra Enforcer as reusable, profile-backed
-checks. Generic coordination, hub mail, exact-file claims, worker/task status,
-peer sync, and architecture enforcement belong in Ocentra Enforcer. Ocentra
-Parent should keep product code, product-specific dev server/release packaging,
-and thin consumer wrappers/config only until Enforcer parity is proven.
+For any new or existing project, the target model is:
 
-For current Ocentra Parent migration:
-
-1. Add generic guard parity in Ocentra Enforcer.
-2. Keep old repo guards as thin wrappers.
-3. Prove file, crate, workspace, and diff scopes match or exceed old behavior.
-4. Rewire wrappers to call `ocentra-enforcer scan`, `ocentra-enforcer check`, or `ocentra-enforcer run`.
-5. Wire CI and hooks to the pack command.
-6. Remove duplicated repo-local guards only after parity is proven.
-7. Remove legacy repo-local hub/ledger tooling only after Enforcer coordination
-   MCP/CLI/API parity is proven with external ledger-root storage.
+1. Install or clone Ocentra Enforcer once on the machine.
+2. Run `ocentra-enforcer codex install` so Codex knows the MCP server, skill,
+   and ledger root.
+3. Run `ocentra-enforcer init --root <repo> --adapters ...` to generate target
+   repo wrappers, hooks, CI, and config.
+4. Keep product code in the product repo; keep reusable guards, coordination,
+   proof collection, compact diagnostics, and architecture checks in Enforcer.
+5. When migrating an existing project, keep local scripts as thin wrappers until
+   Enforcer proves equivalent or stricter behavior for file, package/crate,
+   diff, workspace, hook, and CI scopes.
+6. Rewire wrappers to call `ocentra-enforcer scan`, `ocentra-enforcer check`,
+   `ocentra-enforcer run`, or `ocentra-enforcer proof run`.
+7. Delete duplicated repo-local guards only after machine-readable parity is
+   proven and CI can run the Enforcer-backed replacement.

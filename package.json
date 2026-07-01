@@ -2,8 +2,27 @@
   "name": "ocentra-enforcer",
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "npm@11.7.0",
+  "files": [
+    "adapters",
+    "docs",
+    "eslint-rules",
+    "mcp",
+    "profiles",
+    "proof",
+    "rules",
+    "schemas",
+    "scripts",
+    "skills",
+    "src",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md",
+    "CONTRIBUTING.md",
+    "CHANGELOG.md"
+  ],
   "engines": {
-    "node": ">=20"
+    "node": ">=20 <23"
   },
   "bin": {
     "ocentra-enforcer": "./scripts/rust-rules.mjs",
@@ -29,6 +48,12 @@
     "enforcer:init:dry-run": "node scripts/rust-rules.mjs init --dry-run --root . --profile strict --adapters codex,mcp,precommit,github-actions",
     "enforcer:rules": "node scripts/rust-rules.mjs cargo --workspace",
     "enforcer:rules:scan": "node scripts/rust-rules.mjs scan --workspace",
+    "enforcer:coverage": "node scripts/rust-rules.mjs check rule-coverage --root .",
+    "enforcer:policy": "node scripts/rust-rules.mjs check policy-integrity --root .",
+    "enforcer:mutation-risk": "node scripts/rust-rules.mjs check mutation-risk --root .",
+    "enforcer:verify": "node scripts/rust-rules.mjs verify --root .",
+    "enforcer:self": "node scripts/rust-rules.mjs scan --root . --languages rust,typescript,python,common --workspace",
+    "enforcer:all": "npm test && npm run enforcer:self && npm run enforcer:coverage && npm run enforcer:policy",
     "enforcer:harness:smoke": "node scripts/rust-rules.mjs run --root . --tool node -- node --version",
     "coordination:smoke": "node scripts/rust-rules.mjs coordination root --hub ocentra-enforcer-smoke",
     "coordination:presence:smoke": "node scripts/rust-rules.mjs coordination presence --hub ocentra-enforcer-smoke",
@@ -46,11 +71,13 @@
     "rust:rules:crate": "node scripts/rust-rules.mjs cargo --crate",
     "test": "node --test tests/*.test.mjs",
     "test:multilang": "node --test tests/enforcer-multilang.test.mjs",
+    "test:policy": "node --test tests/enforcer-policy.test.mjs",
+    "test:fixtures": "node --test tests/enforcer-fixtures.test.mjs",
     "test:harness": "node --test tests/enforcer-harness.test.mjs",
     "test:mcp": "node --test tests/rust-rules-mcp.test.mjs",
     "test:rules": "node --test tests/rust-rules.test.mjs"
   },
   "dependencies": {
-    "effect": "^3.21.4"
+    "effect": "3.21.4"
   }
 }

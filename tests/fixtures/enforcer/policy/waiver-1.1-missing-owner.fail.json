@@ -1,0 +1,9 @@
+{
+  "ruleId": "WAIVER-1.1",
+  "waiverId": "missing-owner",
+  "issue": "TEST-1",
+  "reason": "missing owner",
+  "scope": ["src/lib.rs"],
+  "expires": "2026-07-31",
+  "remediation": "remove waiver"
+}

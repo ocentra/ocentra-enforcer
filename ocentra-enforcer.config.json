@@ -2,17 +2,21 @@
   "schemaVersion": 2,
   "profileName": "ocentra-enforcer",
   "failOn": ["error"],
-  "languages": ["rust", "typescript", "common"],
+  "languages": ["rust", "typescript", "python", "common"],
   "requireCargoDeny": false,
   "requireCargoAudit": false,
   "runCargoDoc": false,
   "ignoreFileGlobs": [
     "src/generic-scanners.mjs",
-    "tests/enforcer-multilang.test.mjs"
+    "src/source-policy-scanners.mjs",
+    "tests/enforcer-policy.test.mjs",
+    "tests/rust-rules.test.mjs",
+    "tests/enforcer-multilang.test.mjs",
+    "tests/fixtures/enforcer/**",
+    "profiles/*/legacy-scripts/**"
   ],
-  "rules": {
-    "DOC-1.1": { "enabled": false, "severity": "warning" }
-  },
+  "rules": {},
+  "waivers": [],
   "tools": {},
   "harness": {
     "store": "ndjson-duckdb",

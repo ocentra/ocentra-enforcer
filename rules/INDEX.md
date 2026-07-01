@@ -4,6 +4,14 @@ Read this file before opening detailed rule docs. This index is the routing laye
 for the future `ocentra-enforcer` repo: load only the docs needed for the target
 language, files, and task.
 
+## Doctrine
+
+The harness is the reviewer of first resort. AI and humans may write code; the
+harness decides whether the code is structurally acceptable. Human review starts
+after mechanical policy, compiler/type/lint gates, architecture checks,
+tests/proofs, dependency/security gates, and local/CI parity pass. Do not ask a
+human reviewer to catch failures this router and its validators can reject.
+
 ## Decision Tree
 
 1. Identify the target root and scope.
@@ -22,13 +30,14 @@ language, files, and task.
    - `*.test.*`, `*.spec.*`, `tests/**`, `__tests__/**`: also read the TypeScript test docs and common test-double docs.
    - `package.json`: read TypeScript source/toolchain docs plus common security docs.
    - `tsconfig*.json`, `eslint.config.*`, `vitest.config.*`, `jest.config.*`, `playwright.config.*`: read TypeScript toolchain docs.
+   - `rules/**`, `schemas/**`, `src/**`, `scripts/**`, `mcp/**`, `ocentra-enforcer.config.json`, `rust-rules.config.json`: read common harness/policy and registry-integrity docs when the task changes Enforcer itself.
    - `*.py`: read Python source docs plus common source/security/generated-artifact/documentation advisory docs.
    - `test_*.py`, `*_test.py`, `tests/**`: also read Python test docs and common test-double docs.
    - `pyproject.toml`, `requirements*.txt`, `uv.lock`, `poetry.lock`, `pytest.ini`, `mypy.ini`, `ruff.toml`: read Python toolchain docs.
    - Unknown files: do not load detailed rules unless a failing rule ID exists.
 
 3. Route by explicit failure.
-   - If a validator returns `RR-*`, `TS-*`, `PY-*`, `SEC-*`, `GEN-*`, `TEST-*`, `PORT-*`, `SRC-*`, `CONTRACT-*`, `DEP-*`, `SBOM-*`, `AI-*`, `DOC-*`, or `HAR-*`,
+   - If a validator returns `RR-*`, `TS-*`, `PY-*`, `SEC-*`, `GEN-*`, `TEST-*`, `PORT-*`, `SRC-*`, `CONTRACT-*`, `DEP-*`, `SBOM-*`, `AI-*`, `DOC-*`, `HAR-*`, `ENF-*`, `CFG-*`, or `WAIVER-*`,
      open only the doc listed for that rule in `rules/rules.json`.
    - Use the old full `docs/RustRules.md` only as a legacy fallback for broad
      policy review or missing registry entries.

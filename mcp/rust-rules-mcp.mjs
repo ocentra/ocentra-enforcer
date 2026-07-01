@@ -23,6 +23,7 @@ import {
 import {
   coordinationAck,
   coordinationClaim,
+  coordinationCloseout,
   coordinationGuard,
   coordinationHealth,
   coordinationIndex,
@@ -58,11 +59,13 @@ import {
 } from "../src/harness.mjs";
 import {
   claimProof,
+  importLegacyProof,
   inventoryProofs,
   proofArtifact,
   proofDiagnostics,
   proofExport,
   proofLastFailure,
+  proofParity,
   proofPrune,
   proofReset,
   proofStatus,
@@ -96,6 +99,7 @@ const STARTUP_FINGERPRINT = buildMcpFingerprint();
 const COORDINATION_WRITE_TOOLS = new Set([
   "ocentra_enforcer_coordination_init",
   "ocentra_enforcer_coordination_claim",
+  "ocentra_enforcer_coordination_closeout",
   "ocentra_enforcer_coordination_release",
   "ocentra_enforcer_coordination_report",
   "ocentra_enforcer_coordination_message",
@@ -299,8 +303,19 @@ function coordinationInputSchema(extra = {}) {
         description:
           "Reserved wait budget for future polling; current v1 records intent instead of blocking.",
       },
+      from: {
+        type: "string",
+        description:
+          "Optional sender lane for coordination messages. Defaults to the hub identity default lane.",
+      },
+      to: { type: "string", description: "Message recipient lane/address." },
+      subject: {
+        type: "string",
+        description:
+          "Optional message subject. The wire event stores subject as a body prefix for compatibility.",
+      },
       body: { type: "string" },
-      to: { type: "string" },
+      message: { type: "string", description: "Alias for body." },
       messageId: { type: "string" },
       taskId: { type: "string" },
       state: { type: "string" },
@@ -337,6 +352,11 @@ function coordinationInputSchema(extra = {}) {
       allowPrimaryWithoutClaims: { type: "boolean" },
       allowMergeRisks: { type: "boolean" },
       all: { type: "boolean" },
+      allOwned: { type: "boolean" },
+      allLanes: { type: "boolean" },
+      allowOtherNode: { type: "boolean" },
+      releaseOwned: { type: "boolean" },
+      repairStale: { type: "boolean" },
       limit: { type: "number" },
       ...extra,
     },
@@ -389,6 +409,12 @@ function proofInputSchema(extra = {}) {
       command: { type: "array", items: { type: "string" } },
       tags: { type: "array", items: { type: "string" } },
       artifact: { type: "string" },
+      legacyPaths: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "Legacy proof artifact files or directories to import or compare. Defaults to test-results, output, and docs/proof.",
+      },
       limit: { type: "number" },
       diagnosticLimit: { type: "number" },
       limitBytes: { type: "number" },
@@ -405,6 +431,7 @@ function proofInputSchema(extra = {}) {
       claimId: { type: "string" },
       prReady: { type: "boolean" },
       allowDirty: { type: "boolean" },
+      dryRun: { type: "boolean" },
       ...extra,
     },
   };
@@ -595,6 +622,18 @@ const CANONICAL_TOOLS = [
     inputSchema: proofInputSchema(),
   },
   {
+    name: "ocentra_enforcer_proof_import_legacy",
+    description:
+      "Read legacy proof artifacts and write canonical Enforcer proof runs under .enforce/proofs.",
+    inputSchema: proofInputSchema(),
+  },
+  {
+    name: "ocentra_enforcer_proof_parity",
+    description:
+      "Compare legacy proof artifacts with an imported Enforcer proof run and report deletion readiness.",
+    inputSchema: proofInputSchema(),
+  },
+  {
     name: "ocentra_enforcer_proof_claim",
     description:
       "Validate that named proof ids support a PR-ready or completion claim without stale/missing artifacts.",
@@ -760,6 +799,15 @@ const CANONICAL_TOOLS = [
     inputSchema: coordinationActionInputSchema(
       "release",
       "Optional dedicated-tool action marker. action=\"claim\" is invalid here.",
+    ),
+  },
+  {
+    name: "ocentra_enforcer_coordination_closeout",
+    description:
+      "Release and stale-repair all claims for the selected lane/thread scope, rebuild indexes, and fail if any claims remain.",
+    inputSchema: coordinationActionInputSchema(
+      "closeout",
+      "Optional dedicated-tool action marker.",
     ),
   },
   {
@@ -981,7 +1029,7 @@ async function callTool(params) {
     }
     const freshness = mcpStatus();
     if (shouldBlockStaleMcpTool(name, args, freshness)) {
-      return toolJson(mcpStaleError(name, freshness));
+      return toolJson(mcpStaleError(name, freshness, args));
     }
     if (name === "ocentra_enforcer_route") {
       return {
@@ -1053,6 +1101,9 @@ async function callTool(params) {
     if (name === "ocentra_enforcer_coordination_release") {
       return toolJsonAsync(coordinationRelease(decodeCoordinationToolArguments(args)));
     }
+    if (name === "ocentra_enforcer_coordination_closeout") {
+      return toolJsonAsync(coordinationCloseout(decodeCoordinationToolArguments(args)));
+    }
     if (name === "ocentra_enforcer_coordination_repair") {
       return toolJsonAsync(coordinationRepair(decodeCoordinationToolArguments(args)));
     }
@@ -1088,6 +1139,12 @@ async function callTool(params) {
     }
     if (name === "ocentra_enforcer_proof_inventory") {
       return toolJson(inventoryProofs(args));
+    }
+    if (name === "ocentra_enforcer_proof_import_legacy") {
+      return toolJson(importLegacyProof(args, SERVER_ROOT));
+    }
+    if (name === "ocentra_enforcer_proof_parity") {
+      return toolJson(proofParity(args));
     }
     if (name === "ocentra_enforcer_proof_claim") {
       return toolJson(claimProof(args, SERVER_ROOT));
@@ -1166,11 +1223,15 @@ function mcpStatus() {
   const current = buildMcpFingerprint();
   const stale = STARTUP_FINGERPRINT.digest !== current.digest;
   const hashCompatibility = coordinationHashCompatibility();
+  const hashCompatible = hashCompatibility.ok;
+  const directWritesAllowed = !stale && hashCompatible;
   return {
-    ok: !stale && hashCompatibility.ok,
+    ok: directWritesAllowed,
     stale,
-    reloadRequired: stale || !hashCompatibility.ok,
-    writeCompatible: hashCompatibility.ok,
+    reloadRequired: !directWritesAllowed,
+    writeCompatible: directWritesAllowed,
+    directWritesAllowed,
+    hashCompatible,
     hashCompatibility,
     packRoot: SERVER_ROOT,
     processId: process.pid,
@@ -1186,14 +1247,14 @@ function mcpStatus() {
     ),
     nextStep: stale
       ? "Restart Codex Desktop/MCP or use ocentra_enforcer_run to invoke the updated CLI from the pack root."
-      : hashCompatibility.ok
+      : hashCompatible
         ? "MCP server fingerprint matches the current Enforcer files and coordination hash compatibility is valid."
         : "Restart Codex Desktop/MCP or use ocentra_enforcer_run; coordination hash compatibility failed.",
   };
 }
 
 function shouldBlockStaleMcpTool(name, args, freshness) {
-  if (!freshness.stale && freshness.writeCompatible !== false) return false;
+  if (freshness.directWritesAllowed === true) return false;
   if (COORDINATION_WRITE_TOOLS.has(name)) return true;
   if (name === "ocentra_enforcer_coordination_mail") {
     return ["send", "ack"].includes(String(args.action ?? "").toLowerCase());
@@ -1209,15 +1270,200 @@ function shouldBlockStaleMcpTool(name, args, freshness) {
   return false;
 }
 
-function mcpStaleError(name, freshness) {
-  const reason = freshness.writeCompatible === false
+function mcpStaleError(name, freshness, args = {}) {
+  const reason = freshness.hashCompatible === false
     ? "coordination hash compatibility failed"
     : "MCP server is stale";
+  const fallback = buildStaleFallback(name, args);
   return {
     ok: false,
     error: `${reason}; refusing ${name} because it may write incompatible coordination events.`,
+    operation: name,
+    directWritesAllowed: false,
+    writeCapable: false,
+    fallbackAvailable: fallback !== null,
+    reloadRequired: true,
+    fallback,
+    nextStep: fallback
+      ? `Restart Codex Desktop/MCP, or call ${fallback.recommendedTool} with fallback.enforcerRunArguments.`
+      : "Restart Codex Desktop/MCP, or use ocentra_enforcer_run to invoke the updated CLI from the pack root.",
     mcpFreshness: freshness,
   };
+}
+
+function buildStaleFallback(name, args = {}) {
+  const cliArgs = coordinationFallbackArgs(name, args);
+  if (cliArgs.length === 0) return null;
+  const command = [process.execPath, CLI_PATH, ...cliArgs];
+  return {
+    recommendedTool: "ocentra_enforcer_run",
+    cwd: SERVER_ROOT,
+    command,
+    commandLine: command.map(quoteCommandArg).join(" "),
+    enforcerRunArguments: {
+      root: SERVER_ROOT,
+      tool: "ocentra-enforcer-coordination-fallback",
+      command,
+    },
+  };
+}
+
+function coordinationFallbackArgs(name, args) {
+  const command = coordinationFallbackCommand(name, args);
+  if (command === null) return [];
+  return [
+    "coordination",
+    command,
+    ...coordinationGlobalFallbackArgs(args),
+    ...coordinationCommandFallbackArgs(command, args),
+    "--json",
+  ];
+}
+
+function coordinationFallbackCommand(name, args) {
+  if (name === "ocentra_enforcer_coordination_init") return "init";
+  if (name === "ocentra_enforcer_coordination_claim") return "claim";
+  if (name === "ocentra_enforcer_coordination_release") return "release";
+  if (name === "ocentra_enforcer_coordination_closeout") return "closeout";
+  if (name === "ocentra_enforcer_coordination_report") return "report";
+  if (name === "ocentra_enforcer_coordination_message") return "message";
+  if (name === "ocentra_enforcer_coordination_sync") return "sync";
+  if (name === "ocentra_enforcer_coordination_ensure") return "ensure";
+  if (name === "ocentra_enforcer_coordination_compact") return "compact";
+  if (name === "ocentra_enforcer_coordination_repair") return "repair";
+  if (name === "ocentra_enforcer_coordination_mail") {
+    const action = String(args.action ?? "").toLowerCase();
+    if (action === "send") return "message";
+    if (action === "ack") return "ack";
+  }
+  if (name === "ocentra_enforcer_coordination_peer") {
+    const action = String(args.action ?? "").toLowerCase();
+    if (["add", "remove", "sync"].includes(action)) return "peer";
+  }
+  return null;
+}
+
+function coordinationGlobalFallbackArgs(args) {
+  const result = [];
+  pushOption(result, "--state-root", args.stateRoot);
+  pushOption(result, "--hub", args.hub);
+  return result;
+}
+
+function coordinationCommandFallbackArgs(command, args) {
+  if (command === "init") {
+    return [
+      ...(args.hub ? [String(args.hub)] : []),
+      ...commonCoordinationOptions(args, { includePaths: false }),
+    ];
+  }
+  if (command === "claim" || command === "release") {
+    return [
+      ...(args.lane ? [String(args.lane)] : []),
+      ...stringArray(args.paths),
+      ...commonCoordinationOptions(args, { includeLane: false, includePaths: false }),
+    ];
+  }
+  if (command === "closeout") {
+    const closeoutArgs = commonCoordinationOptions(args, { includePaths: false });
+    pushOption(closeoutArgs, "--owner", args.owner);
+    if (args.allOwned === true) closeoutArgs.push("--all-owned");
+    if (args.allLanes === true) closeoutArgs.push("--all-lanes");
+    if (args.allowOtherNode === true) closeoutArgs.push("--allow-other-node");
+    if (args.releaseOwned === false) closeoutArgs.push("--no-release");
+    if (args.repairStale === false) closeoutArgs.push("--no-repair-stale");
+    return closeoutArgs;
+  }
+  if (command === "guard") {
+    return [
+      ...commonCoordinationOptions(args, { includePaths: false }),
+      ...pathOption("--paths", args.paths ?? args.changedPaths),
+    ];
+  }
+  if (command === "repair") {
+    const repairArgs = [String(args.action ?? "legacy-hash")];
+    repairArgs.push(...commonCoordinationOptions(args));
+    pushOption(repairArgs, "--owner", args.owner);
+    if (args.write === true) repairArgs.push("--write");
+    if (args.dryRun === true) repairArgs.push("--dry-run");
+    return repairArgs;
+  }
+  if (command === "message" || command === "msg") {
+    const to = args.to ?? args.lane;
+    const body = args.body ?? args.message ?? args.summary ?? args.subject;
+    const messageArgs = commonCoordinationOptions(args, {
+      includeLane: false,
+      includePaths: false,
+    });
+    pushOption(messageArgs, "--from", args.from);
+    pushOption(messageArgs, "--to", to);
+    pushOption(messageArgs, "--subject", args.subject);
+    pushOption(messageArgs, "--body", body);
+    return messageArgs;
+  }
+  if (command === "ack") {
+    return [
+      ...commonCoordinationOptions(args, { includePaths: false }),
+      ...(args.messageId ? [String(args.messageId)] : []),
+      ...(args.id ? [String(args.id)] : []),
+    ];
+  }
+  return commonCoordinationOptions(args);
+}
+
+function commonCoordinationOptions(args, options = {}) {
+  const result = [];
+  if (options.includeLane !== false) pushOption(result, "--lane", args.lane);
+  pushOption(result, "--root", args.root);
+  pushOption(result, "--repo-root", args.repoRoot);
+  pushOption(result, "--worktree-root", args.worktreeRoot);
+  pushOption(result, "--cwd", args.cwd);
+  pushOption(result, "--project-id", args.projectId);
+  pushOption(result, "--git-remote", args.gitRemote);
+  pushOption(result, "--branch", args.branch);
+  pushOption(result, "--commit", args.commit);
+  pushOption(result, "--codex-thread-id", args.codexThreadId);
+  pushOption(result, "--codex-session-id", args.codexSessionId);
+  pushOption(result, "--session-id", args.sessionId);
+  pushOption(result, "--operation", args.operation);
+  pushOption(result, "--lock-kind", args.lockKind);
+  pushOption(result, "--on-conflict", args.onConflict);
+  pushOption(result, "--claim-group", args.claimGroup);
+  pushOption(result, "--wait-ms", args.waitMs);
+  pushOption(result, "--limit", args.limit);
+  if (options.includePaths !== false) result.push(...pathOption("--paths", args.paths ?? args.changedPaths));
+  result.push(...reasonOption(args));
+  return result;
+}
+
+function reasonOption(args) {
+  return args.reason ? ["--reason", String(args.reason)] : [];
+}
+
+function pathOption(name, value) {
+  const paths = stringArray(value);
+  return paths.length > 0 ? [name, paths.join(",")] : [];
+}
+
+function pushOption(result, name, value) {
+  if (value !== undefined && value !== null && value !== "") {
+    result.push(name, String(value));
+  }
+}
+
+function stringArray(value) {
+  if (Array.isArray(value)) return value.map(String).filter(Boolean);
+  if (value === undefined || value === null || value === "") return [];
+  return String(value)
+    .split(/[,\n]/u)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function quoteCommandArg(value) {
+  const text = String(value);
+  if (/^[A-Za-z0-9_./:=+-]+$/u.test(text)) return text;
+  return `"${text.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
 }
 
 function buildMcpFingerprint() {
@@ -1333,9 +1579,14 @@ function normalizeToolName(name) {
 }
 
 function toolError(message) {
+  const body = {
+    ok: false,
+    error: String(message),
+    message: String(message),
+  };
   return {
     isError: true,
-    content: [{ type: "text", text: message }],
+    content: [{ type: "text", text: JSON.stringify(body, null, 2) }],
   };
 }
 

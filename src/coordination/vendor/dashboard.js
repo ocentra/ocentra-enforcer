@@ -348,6 +348,7 @@ export function dashboardHtml() {
     });
     document.getElementById('refresh').addEventListener('click', refresh);
     refresh();
+    // TIMER-JUSTIFICATION: dashboard refresh is a visible polling interval, not hidden test or domain timing.
     setInterval(refresh, 10000);
 
     async function api(path, options) {

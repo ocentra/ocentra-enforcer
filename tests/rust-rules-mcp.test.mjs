@@ -42,6 +42,7 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
     "ocentra_enforcer_check",
     "ocentra_enforcer_mcp_status",
     "ocentra_enforcer_coordination_claim",
+    "ocentra_enforcer_coordination_closeout",
     "ocentra_enforcer_coordination_compact",
     "ocentra_enforcer_coordination_ensure",
     "ocentra_enforcer_coordination_guard",
@@ -75,8 +76,10 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
     "ocentra_enforcer_proof_claim",
     "ocentra_enforcer_proof_diagnostics",
     "ocentra_enforcer_proof_export",
+    "ocentra_enforcer_proof_import_legacy",
     "ocentra_enforcer_proof_inventory",
     "ocentra_enforcer_proof_last_failure",
+    "ocentra_enforcer_proof_parity",
     "ocentra_enforcer_proof_prune",
     "ocentra_enforcer_proof_reset",
     "ocentra_enforcer_proof_route",
@@ -142,6 +145,12 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
     (tool) => tool.name === "ocentra_enforcer_coordination_release",
   );
   assert.deepEqual(releaseTool.inputSchema.properties.action.enum, ["release"]);
+  const closeoutTool = tools.result.tools.find(
+    (tool) => tool.name === "ocentra_enforcer_coordination_closeout",
+  );
+  assert.deepEqual(closeoutTool.inputSchema.properties.action.enum, ["closeout"]);
+  assert.equal(closeoutTool.inputSchema.properties.releaseOwned.type, "boolean");
+  assert.equal(closeoutTool.inputSchema.properties.repairStale.type, "boolean");
 
   const mcpStatus = await client.request(19, "tools/call", {
     name: "ocentra_enforcer_mcp_status",
@@ -300,9 +309,10 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
     },
   });
   assert.equal(invalidClaimAction.result.isError, true);
-  assert.match(
-    invalidClaimAction.result.content[0].text,
-    /coordination claim does not support action="release"/u,
+  const invalidClaimError = JSON.parse(invalidClaimAction.result.content[0].text);
+  assert.equal(
+    invalidClaimError.error,
+    'coordination claim does not support action="release"; use the matching MCP tool instead.',
   );
   const statusAfterInvalidClaim = await client.request(29, "tools/call", {
     name: "ocentra_enforcer_coordination_status",
@@ -339,6 +349,36 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
   assert.deepEqual(
     JSON.parse(coordinationPresenceAfterRelease.result.content[0].text).views.byClaimedPath,
     {},
+  );
+
+  const closeoutClaim = await client.request(31, "tools/call", {
+    name: "ocentra_enforcer_coordination_claim",
+    arguments: {
+      stateRoot: coordinationRoot,
+      hub: "mcp-hub",
+      root: coordinationTargetRoot,
+      lane: "codex-a",
+      paths: ["src/lib.rs"],
+      reason: "mcp closeout claim",
+      codexThreadId: "thread-mcp-closeout",
+    },
+  });
+  assert.equal(closeoutClaim.result.isError, false);
+  const closeout = await client.request(32, "tools/call", {
+    name: "ocentra_enforcer_coordination_closeout",
+    arguments: {
+      stateRoot: coordinationRoot,
+      hub: "mcp-hub",
+      root: coordinationTargetRoot,
+      lane: "codex-a",
+      codexThreadId: "thread-mcp-closeout",
+      reason: "mcp closeout",
+    },
+  });
+  assert.equal(closeout.result.isError, false);
+  assert.equal(
+    JSON.parse(closeout.result.content[0].text).remainingClaimCount,
+    0,
   );
 
   const explain = await client.request(3, "tools/call", {
@@ -710,6 +750,21 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
     path.join(proofRoot, "scripts", "test", "tiny-proof.mjs"),
     "console.log('test-results/tiny-proof/proof.json');\n",
   );
+  fs.mkdirSync(path.join(proofRoot, "test-results", "tiny-proof"), {
+    recursive: true,
+  });
+  fs.writeFileSync(
+    path.join(proofRoot, "test-results", "tiny-proof", "proof.json"),
+    JSON.stringify(
+      {
+        ok: true,
+        claimsProved: ["mcp legacy proof artifact is preserved"],
+        claimsNotProved: ["legacy script deletion without parity report"],
+      },
+      null,
+      2,
+    ),
+  );
   const proofRoute = await client.request(13, "tools/call", {
     name: "ocentra_enforcer_proof_route",
     arguments: {
@@ -722,7 +777,7 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
   const proofRouteReport = JSON.parse(proofRoute.result.content[0].text);
   assert.equal(
     proofRouteReport.proofs.some(
-      (proof) => proof.id === "PARENT-PROOF-INVENTORY",
+      (proof) => proof.id === "PROOF-LEGACY-SCRIPT-INVENTORY",
     ),
     true,
   );
@@ -775,6 +830,33 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
     JSON.parse(proofArtifact.result.content[0].text).text,
     /PROOF-COMMAND-GENERIC/u,
   );
+
+  const proofImport = await client.request(18, "tools/call", {
+    name: "ocentra_enforcer_proof_import_legacy",
+    arguments: {
+      root: proofRoot,
+      proofId: "PROOF-LEGACY-ARTIFACT-IMPORT",
+      legacyPaths: ["test-results/tiny-proof"],
+      runId: "mcp-legacy-import",
+    },
+  });
+  assert.equal(proofImport.result.isError, false);
+  const proofImportReport = JSON.parse(proofImport.result.content[0].text);
+  assert.equal(proofImportReport.proofRun.legacy.artifactCount, 1);
+
+  const proofParity = await client.request(19, "tools/call", {
+    name: "ocentra_enforcer_proof_parity",
+    arguments: {
+      root: proofRoot,
+      proofId: "PROOF-LEGACY-ARTIFACT-IMPORT",
+      legacyPaths: ["test-results/tiny-proof"],
+      runId: "mcp-legacy-import",
+    },
+  });
+  assert.equal(proofParity.result.isError, false);
+  const proofParityReport = JSON.parse(proofParity.result.content[0].text);
+  assert.equal(proofParityReport.coverage, "equivalent");
+  assert.equal(proofParityReport.deletionReady, true);
 });
 
 test("MCP status detects stale server code and blocks coordination writes", async (t) => {
@@ -818,19 +900,96 @@ test("MCP status detects stale server code and blocks coordination writes", asyn
   const staleReport = JSON.parse(staleStatus.result.content[0].text);
   assert.equal(staleReport.stale, true);
   assert.equal(staleReport.reloadRequired, true);
+  assert.equal(staleReport.writeCompatible, false);
+  assert.equal(staleReport.directWritesAllowed, false);
+  assert.equal(staleReport.hashCompatible, true);
   assert.equal(staleReport.changedFiles.length, 1);
 
+  const staleStateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-stale-ledger-"));
+  const staleTargetRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-stale-target-"));
   const staleClaim = await client.request(4, "tools/call", {
     name: "ocentra_enforcer_coordination_claim",
     arguments: {
-      stateRoot: fs.mkdtempSync(path.join(os.tmpdir(), "mcp-stale-ledger-")),
+      stateRoot: staleStateRoot,
+      hub: "stale-hub",
+      root: staleTargetRoot,
       lane: "codex-a",
       paths: ["src/lib.rs"],
       reason: "must fail closed",
+      codexThreadId: "thread-stale",
     },
   });
   assert.equal(staleClaim.result.isError, true);
   assert.match(staleClaim.result.content[0].text, /MCP server is stale/u);
+  const staleClaimReport = JSON.parse(staleClaim.result.content[0].text);
+  assert.equal(staleClaimReport.reloadRequired, true);
+  assert.equal(staleClaimReport.writeCapable, false);
+  assert.equal(staleClaimReport.directWritesAllowed, false);
+  assert.equal(staleClaimReport.fallbackAvailable, true);
+  assert.equal(staleClaimReport.fallback.recommendedTool, "ocentra_enforcer_run");
+  assert.equal(staleClaimReport.fallback.cwd, PACK_ROOT);
+  assert.deepEqual(staleClaimReport.fallback.command, [
+    process.execPath,
+    CLI,
+    "coordination",
+    "claim",
+    "--state-root",
+    staleStateRoot,
+    "--hub",
+    "stale-hub",
+    "codex-a",
+    "src/lib.rs",
+    "--root",
+    staleTargetRoot,
+    "--codex-thread-id",
+    "thread-stale",
+    "--reason",
+    "must fail closed",
+    "--json",
+  ]);
+  assert.deepEqual(
+    staleClaimReport.fallback.enforcerRunArguments.command,
+    staleClaimReport.fallback.command,
+  );
+  assert.equal(
+    staleClaimReport.fallback.enforcerRunArguments.tool,
+    "ocentra-enforcer-coordination-fallback",
+  );
+  assert.match(staleClaimReport.fallback.commandLine, /coordination claim/u);
+  assert.match(staleClaimReport.nextStep, /ocentra_enforcer_run/u);
+
+  const staleMessage = await client.request(5, "tools/call", {
+    name: "ocentra_enforcer_coordination_message",
+    arguments: {
+      stateRoot: staleStateRoot,
+      hub: "stale-hub",
+      from: "codex-a",
+      to: "codex-b",
+      subject: "Fallback subject",
+      body: "Fallback body.",
+    },
+  });
+  assert.equal(staleMessage.result.isError, true);
+  const staleMessageReport = JSON.parse(staleMessage.result.content[0].text);
+  assert.deepEqual(staleMessageReport.fallback.command, [
+    process.execPath,
+    CLI,
+    "coordination",
+    "message",
+    "--state-root",
+    staleStateRoot,
+    "--hub",
+    "stale-hub",
+    "--from",
+    "codex-a",
+    "--to",
+    "codex-b",
+    "--subject",
+    "Fallback subject",
+    "--body",
+    "Fallback body.",
+    "--json",
+  ]);
 });
 
 test("MCP server supports newline JSON framing and empty Codex probe methods", async (t) => {
@@ -915,6 +1074,7 @@ function createMcpClient(server, framing = "content-length") {
       return Promise.resolve(message);
     }
     return new Promise((resolve, reject) => {
+      // TIMER-JUSTIFICATION: MCP protocol tests need a bounded child-process response timeout.
       const timeout = setTimeout(() => {
         waiters.delete(id);
         reject(

@@ -1,4 +1,5 @@
 const OPERATION_VALUES = new Set([
+  // PUBLIC-API-BUDGET-JUSTIFICATION: lock policy exports operation helpers used by coordination health, claim, guard, and tests.
   "inspect",
   "edit",
   "commit",

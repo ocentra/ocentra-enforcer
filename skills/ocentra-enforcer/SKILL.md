@@ -7,6 +7,11 @@ description: Reusable Ocentra Enforcer workflow for Codex. Use when validating R
 
 Use this skill to run the standalone `ocentra-enforcer` pack instead of recreating project-local guard logic. The model is not trusted to remember rules; the harness must fail hard on violations.
 
+The harness is the reviewer of first resort. AI and humans may write code; the
+harness decides whether code is structurally acceptable. Human review starts only
+after policy, compiler/type/lint, architecture, proof/test, dependency/security,
+and local/CI parity gates pass.
+
 ## Workflow
 
 1. Locate the pack root. It is a project-independent clone, package, plugin, or tool directory. Do not assume it is inside the target repo.
@@ -19,8 +24,9 @@ Use this skill to run the standalone `ocentra-enforcer` pack instead of recreati
 8. Run compiler, lint, test, or cargo commands through `ocentra_enforcer_run` or `ocentra-enforcer run`; query `last_failure` or `runs last-failure` before raw logs.
 9. For proof or PR-ready claims, read `proof/INDEX.md`, route with `ocentra_enforcer_proof_route`, run or inspect proof with proof MCP/CLI tools, then validate claims with `ocentra_enforcer_proof_claim`.
 10. Use coordination tools for lane/mail/exact-file claims when a Codex workflow requires them. Coordination is Enforcer/Codex harness infrastructure, not product repo logic.
-11. Treat `violations` as hard failures. Surface `warnings`, but do not block on advisory warnings unless the profile `failOn` includes `warning`.
-12. Never add inline lint disables, validator bypass comments, skipped tests, or barrel/re-export shims to silence the gate.
+11. Before reporting `DONE` or `PR_READY`, run coordination closeout for the lane/thread scope. The task is not complete while matching active claims remain.
+12. Treat `violations` as hard failures. Surface `warnings`, but do not block on advisory warnings unless the profile `failOn` includes `warning`.
+13. Never add inline lint disables, validator bypass comments, skipped tests, or barrel/re-export shims to silence the gate.
 
 ## Rule And Validator Parity
 
@@ -43,6 +49,8 @@ ocentra-enforcer cargo --root <repo> --profile strict --crate <cargo-package-nam
 ocentra-enforcer check architecture-policy --root <repo> --profile strict --files <file-or-dir>...
 ocentra-enforcer check generated-artifacts --root <repo> --tracked --workspace
 ocentra-enforcer check secrets --root <repo> --staged
+ocentra-enforcer check mutation-risk --root <repo> --base origin/main --head HEAD
+ocentra-enforcer verify --root <repo> --profile strict --json
 ocentra-enforcer run --root <repo> --tool tsc -- npx tsc --noEmit --pretty false
 ocentra-enforcer runs last-failure --root <repo> --json
 ocentra-enforcer runs prune --root <repo> --json
@@ -57,6 +65,7 @@ ocentra-enforcer coordination presence --hub <hub> --json
 ocentra-enforcer coordination claim --hub <hub> --lane <lane> --paths <file> --operation edit --on-conflict intent --reason <reason>
 ocentra-enforcer coordination guard --hub <hub> --lane <lane> --paths <file> --operation commit --json
 ocentra-enforcer coordination release --hub <hub> --lane <lane> --paths <file> --reason <reason>
+ocentra-enforcer coordination closeout --hub <hub> --lane <lane> --thread-id <codex-thread-id> --reason done --json
 ocentra-enforcer coordination repair legacy-hash --hub <hub>
 ocentra-enforcer coordination repair legacy-hash --hub <hub> --write
 ocentra-enforcer coordination repair sequence --hub <hub>

@@ -40,6 +40,10 @@ outputs.
   inventory, claim, last failure, diagnostics, artifact, reset, prune, and
   export.
 
+The detailed model is in `docs/PROOF_SYSTEM_DESIGN.md`. The short version:
+proof is an evidence-backed claim for a commit, scope, profile, and capability.
+It is not a raw terminal dump, and it is not a permanent source artifact.
+
 Proof storage is local target-repo runtime state:
 
 ```text
@@ -51,6 +55,20 @@ short-lived workflow artifacts when needed.
 
 Inventory is summary-only by default. Use `--include-scripts --limit <n>` only
 when migrating a bounded batch of legacy scripts.
+
+The inventory now emits a migration matrix with:
+
+- `byPlanBucket`: plan or product bucket inferred from legacy script names and
+  references.
+- `byProofType`: command, test report, contract parity, device execution,
+  proof composition, release readiness, and related claim shapes.
+- `byMigrationTemplate`: the generic proof template that should replace the
+  one-off script.
+- `claimSignals`: whether scripts have explicit claims, explicit non-claims,
+  expectation rows, prior-proof dependencies, artifact output, and capability
+  gating.
+- `migrationMatrix`: bounded rows that connect plan bucket, proof family,
+  generic template, representative scripts, and deletion gate.
 
 ## Parent-Specific Interpretation
 
@@ -64,6 +82,11 @@ Deletion rule:
 1. Run `ocentra-enforcer proof inventory --root <Parent> --json` for compact
    counts, then `--include-scripts --limit <n>` for one migration batch.
 2. Add or map Enforcer proof definitions for the script family being migrated.
-3. Run old-vs-new parity through `PARENT-PROOF-PARITY`.
+3. Run old-vs-new parity through `PROOF-LEGACY-PARITY`.
 4. Rewire Parent npm scripts to thin Enforcer calls.
 5. Delete the old proof scripts only after the parity report is green.
+
+Deleting proof output under `.enforce/proofs` is safe. It only means proof must
+be recollected. Deleting legacy proof scripts is different: do that only after a
+machine-readable parity report proves the Enforcer proof is equivalent or
+stricter and CI can recollect it.

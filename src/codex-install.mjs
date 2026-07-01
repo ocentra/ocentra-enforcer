@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
+// PUBLIC-API-BUDGET-JUSTIFICATION: Codex install exposes a stable adapter surface consumed by CLI, MCP, and tests.
 export const DEFAULT_CODEX_MCP_SERVER_NAME = 'ocentra-enforcer';
 export const DEFAULT_CODEX_SKILL_NAME = 'ocentra-enforcer';
 const GLOBAL_AGENTS_START = '<!-- ocentra-enforcer:start -->';

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { decodeEnforcerConfig, decodeRuleRegistry } from '../schemas/effect/enforcer-schemas.mjs';
-import { buildRegistrySeverityMap, normalizeFailOn, normalizeRuleOverrides, normalizeToolPolicies, policyForRule } from './policy.mjs';
+import { buildRegistryPolicyMap, buildRegistrySeverityMap, normalizeFailOn, normalizeRuleOverrides, normalizeToolPolicies, policyForRule } from './policy.mjs';
 
 const DEFAULT_PACK_ROOT = path.resolve(path.join(path.dirname(fileURLToPath(import.meta.url)), '..'));
 
@@ -15,15 +15,16 @@ export function routeRules(args = {}, packRoot = DEFAULT_PACK_ROOT) {
   const registry = loadRuleRegistry(packRoot);
   const config = loadRouteConfig(root, args, packRoot);
   const registrySeverityMap = buildRegistrySeverityMap(registry.rules);
+  const registryPolicyMap = buildRegistryPolicyMap(registry.rules);
   const profileName = config.profileName ?? resolveProfileName(root, args, packRoot);
   const explicitRuleId = args.ruleId?.toUpperCase() ?? null;
   const familyKeys = explicitRuleId ? [] : routeFamilyKeys(args);
   const routedRules = registry.rules.map((rule) => {
-    const policy = policyForRule(rule.id, config, registrySeverityMap);
+    const lockedPolicy = policyForRule(rule.id, config, registrySeverityMap, registryPolicyMap);
     return {
       ...rule,
-      enabled: policy.enabled,
-      severity: policy.severity ?? rule.severity,
+      enabled: lockedPolicy.enabled,
+      severity: lockedPolicy.severity ?? rule.severity,
     };
   });
   const rules = explicitRuleId
@@ -94,6 +95,7 @@ export function routeFamilyKeysForFile(file) {
     if (isTestPath) families.push('typescript:tests');
     if (isTestPath) families.push('common:tests');
     if (rel.startsWith('scripts/')) families.push('common:portability');
+    if (rel.startsWith('src/') || rel.startsWith('scripts/') || rel.startsWith('mcp/')) families.push('common:harness');
     return families;
   }
   if (
@@ -105,6 +107,16 @@ export function routeFamilyKeysForFile(file) {
     const families = ['typescript:toolchain', 'common:security'];
     if (lower === 'package.json') families.push('typescript:source');
     return families;
+  }
+  if (
+    ['ocentra-enforcer.config.json', 'rust-rules.config.json', 'rules.json'].includes(lower) ||
+    rel.startsWith('rules/') ||
+    rel.startsWith('schemas/') ||
+    rel.startsWith('src/') ||
+    rel.startsWith('scripts/') ||
+    rel.startsWith('mcp/')
+  ) {
+    return ['common:harness', 'common:documentation', 'common:security'];
   }
 
   if (lower.endsWith('.py')) {

@@ -1,0 +1,11 @@
+{
+  "ruleId": "WAIVER-1.4",
+  "waiverId": "immutable",
+  "owner": "platform",
+  "issue": "TEST-3",
+  "reason": "immutable waiver",
+  "scope": ["src/lib.rs"],
+  "expires": "2026-07-31",
+  "remediation": "remove waiver",
+  "waivedRuleId": "RR-4.1"
+}

@@ -38,6 +38,10 @@ export const CommonRuleFamilySchema = Schema.Literal(
   "security",
   "generated-artifacts",
   "harness",
+  "mcp",
+  "proof",
+  "registry",
+  "scanner",
   "documentation",
   "tests",
   "portability",
@@ -46,6 +50,9 @@ export const CommonRuleFamilySchema = Schema.Literal(
   "dependencies",
   "sbom",
   "agent-rules",
+  "ci",
+  "repo",
+  "package",
 );
 export const RuleFamilySchema = Schema.Union(
   RustRuleFamilySchema,
@@ -54,6 +61,12 @@ export const RuleFamilySchema = Schema.Union(
   CommonRuleFamilySchema,
 );
 export const SeveritySchema = Schema.Literal("error", "warning", "info");
+export const RuleLockLevelSchema = Schema.Literal(
+  "immutable",
+  "waiver-required",
+  "profile-overridable",
+  "advisory",
+);
 export const ProofCapabilitySchema = Schema.Literal(
   "ci",
   "local",
@@ -107,6 +120,29 @@ export const PolicyOverrideSchema = Schema.Struct({
   enabled: OptionalBoolean,
   severity: Schema.optional(SeveritySchema),
   note: OptionalString,
+  waiverId: OptionalString,
+  owner: OptionalString,
+  issue: OptionalString,
+  reason: OptionalString,
+  scope: OptionalStringArray,
+  expires: OptionalString,
+  remediation: OptionalString,
+  ciAllowed: OptionalBoolean,
+  localAllowed: OptionalBoolean,
+});
+
+export const WaiverSchema = Schema.Struct({
+  ruleId: Schema.String,
+  waiverId: Schema.String,
+  owner: Schema.String,
+  issue: Schema.String,
+  reason: Schema.String,
+  scope: StringArray,
+  expires: Schema.String,
+  remediation: Schema.String,
+  ciAllowed: Schema.Boolean,
+  localAllowed: OptionalBoolean,
+  visible: OptionalBoolean,
 });
 
 export const SourceShapePolicySchema = Schema.Struct({
@@ -118,6 +154,8 @@ export const SourceShapePolicySchema = Schema.Struct({
   maxFunctionLines: OptionalNumber,
   maxFunctions: OptionalNumber,
   maxLines: OptionalNumber,
+  maxNestingDepth: OptionalNumber,
+  maxBranches: OptionalNumber,
   maxTypes: OptionalNumber,
 });
 
@@ -132,6 +170,8 @@ export const SourceShapeOverrideSchema = Schema.Struct({
   maxFunctionLines: OptionalNumber,
   maxFunctions: OptionalNumber,
   maxLines: OptionalNumber,
+  maxNestingDepth: OptionalNumber,
+  maxBranches: OptionalNumber,
   maxTypes: OptionalNumber,
 });
 
@@ -147,6 +187,14 @@ export const RuleEntrySchema = Schema.Struct({
   language: LanguageSchema,
   family: RuleFamilySchema,
   severity: SeveritySchema,
+  title: Schema.String,
+  snippet: Schema.String,
+  lockLevel: RuleLockLevelSchema,
+  canDisable: Schema.Boolean,
+  canDowngrade: Schema.Boolean,
+  requiresFailFixture: Schema.Boolean,
+  requiresPassFixture: Schema.Boolean,
+  waivable: OptionalBoolean,
   appliesTo: StringArray,
   triggers: StringArray,
   validator: Schema.String,
@@ -221,6 +269,7 @@ export const ConfigSchema = Schema.Struct({
   crateRootGlobs: OptionalStringArray,
   testFileGlobs: OptionalStringArray,
   rawTypeBoundaryGlobs: OptionalStringArray,
+  boundaryOwnerNote: OptionalString,
   facadeFileGlobs: OptionalStringArray,
   rawStringOwnerGlobs: OptionalStringArray,
   domainPrimitiveOwnerGlobs: OptionalStringArray,
@@ -249,10 +298,15 @@ export const ConfigSchema = Schema.Struct({
   generatedArtifactsMode: Schema.optional(Schema.Literal("scan", "tracked")),
   generatedArtifactsTracked: OptionalBoolean,
   agentRuleMaxLines: OptionalNumber,
+  maxActiveWaivers: OptionalNumber,
+  maxWaiverDays: OptionalNumber,
+  configChangeRequiresSelfCheck: OptionalBoolean,
+  policyIntegrityChecked: OptionalBoolean,
   languages: OptionalStringArray,
   rules: Schema.optional(
     Schema.Record({ key: Schema.String, value: PolicyOverrideSchema }),
   ),
+  waivers: Schema.optional(Schema.Array(WaiverSchema)),
   tools: Schema.optional(
     Schema.Record({ key: Schema.String, value: PolicyOverrideSchema }),
   ),
@@ -340,6 +394,16 @@ export const CheckNameSchema = Schema.Literal(
   "ai-rule-index",
   "import-boundaries",
   "architecture-policy",
+  "rule-coverage",
+  "policy-integrity",
+  "config-lockdown",
+  "waiver-policy",
+  "docs-completeness",
+  "ci-integrity",
+  "repo-governance",
+  "scanner-fixtures",
+  "package-determinism",
+  "mutation-risk",
 );
 
 export const CheckToolArgumentsSchema = Schema.Struct({
@@ -568,10 +632,15 @@ export const ProofQueryArgumentsSchema = Schema.Struct({
   runId: OptionalString,
   status: Schema.optional(ProofStatusSchema),
   artifact: OptionalString,
+  legacyPaths: OptionalStringArray,
+  dryRun: OptionalBoolean,
   limit: OptionalNumber,
   diagnosticLimit: OptionalNumber,
   limitBytes: OptionalNumber,
   includeScripts: OptionalBoolean,
+  includeAllScripts: OptionalBoolean,
+  scriptRoot: OptionalString,
+  write: OptionalBoolean,
 });
 
 export const ProofClaimArgumentsSchema = Schema.Struct({
@@ -589,8 +658,11 @@ export const CoordinationToolArgumentsSchema = Schema.Struct({
   stateRoot: OptionalString,
   hub: OptionalString,
   lane: OptionalString,
+  from: OptionalString,
   to: OptionalString,
+  subject: OptionalString,
   body: OptionalString,
+  message: OptionalString,
   messageId: OptionalString,
   paths: OptionalStringArray,
   changedPaths: OptionalStringArray,
@@ -637,6 +709,11 @@ export const CoordinationToolArgumentsSchema = Schema.Struct({
   allowPrimaryWithoutClaims: OptionalBoolean,
   allowMergeRisks: OptionalBoolean,
   all: OptionalBoolean,
+  allOwned: OptionalBoolean,
+  allLanes: OptionalBoolean,
+  allowOtherNode: OptionalBoolean,
+  releaseOwned: OptionalBoolean,
+  repairStale: OptionalBoolean,
   limit: OptionalNumber,
 });
 

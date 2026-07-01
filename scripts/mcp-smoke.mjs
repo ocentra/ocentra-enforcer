@@ -68,6 +68,8 @@ try {
     'ocentra_enforcer_proof_run',
     'ocentra_enforcer_proof_status',
     'ocentra_enforcer_proof_inventory',
+    'ocentra_enforcer_proof_import_legacy',
+    'ocentra_enforcer_proof_parity',
     'ocentra_enforcer_proof_claim',
     'ocentra_enforcer_proof_last_failure',
     'ocentra_enforcer_proof_diagnostics',
@@ -89,6 +91,7 @@ try {
     'ocentra_enforcer_coordination_inbox',
     'ocentra_enforcer_coordination_claim',
     'ocentra_enforcer_coordination_release',
+    'ocentra_enforcer_coordination_closeout',
     'ocentra_enforcer_coordination_repair',
     'ocentra_enforcer_coordination_guard',
     'ocentra_enforcer_coordination_report',
@@ -201,6 +204,7 @@ function createClient(child, framing) {
       return Promise.resolve(message);
     }
     return new Promise((resolve, reject) => {
+      // TIMER-JUSTIFICATION: MCP smoke uses a bounded protocol response timeout to fail hung child servers deterministically.
       const timeout = setTimeout(() => {
         waiters.delete(id);
         reject(new Error(`Timed out waiting for MCP response ${id}`));

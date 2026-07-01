@@ -1,0 +1,8 @@
+{
+  "ruleId": "CFG-1.2",
+  "ruleOverrides": {
+    "RR-4.1": {
+      "enabled": false
+    }
+  }
+}

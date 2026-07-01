@@ -75,7 +75,7 @@ test("source-shape path and glob overrides relax only matching files", () => {
   assert.notEqual(result.status, 0, result.stdout || result.stderr);
   const parsed = report(result);
   assert.deepEqual(
-    parsed.violations.map((violation) => violation.file),
+    [...new Set(parsed.violations.map((violation) => violation.file))],
     ["src/denied.ts"],
   );
   assert.match(parsed.violations[0].detail, /exports/u);
@@ -324,16 +324,15 @@ test("warning failOn can promote advisories without changing rule severity", () 
     ),
     true,
   );
-  assert.deepEqual(parsed.failOn, ["warning"]);
+  assert.deepEqual(parsed.failOn, ["error", "warning"]);
 });
 
-test("disabled rules suppress otherwise failing findings", () => {
+test("immutable disabled rules are still reported and config-lockdown flags the bypass", () => {
   const project = makeProject({
     "ocentra-enforcer.config.json": JSON.stringify({
       profileName: "disabled-rule",
       rules: {
         "TS-2.1": { enabled: false },
-        "DOC-1.1": { enabled: false },
       },
     }),
     "src/api.ts": [
@@ -351,10 +350,22 @@ test("disabled rules suppress otherwise failing findings", () => {
     "src/api.ts",
   ]);
 
-  assert.equal(result.status, 0, result.stdout || result.stderr);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
   const parsed = report(result);
-  assert.deepEqual(parsed.violations, []);
-  assert.deepEqual(parsed.warnings, []);
+  assert.equal(
+    parsed.violations.some((violation) => violation.ruleId === "TS-2.1"),
+    true,
+  );
+
+  const policy = run(project, ["check", "config-lockdown", "--json"]);
+  assert.notEqual(policy.status, 0, policy.stdout || policy.stderr);
+  assert.equal(
+    report(policy).violations.some(
+      (violation) =>
+        violation.ruleId === "CFG-1.2" && /TS-2.1/u.test(violation.detail),
+    ),
+    true,
+  );
 });
 
 test("route supports explicit non-Rust rule IDs and config files without loading unknown docs", () => {

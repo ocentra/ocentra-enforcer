@@ -1,0 +1,8 @@
+{
+  "ruleId": "CFG-1.3",
+  "ruleOverrides": {
+    "RR-6.1": {
+      "severity": "warning"
+    }
+  }
+}
