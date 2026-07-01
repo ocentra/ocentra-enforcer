@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * Ocentra Enforcer Rust hard gate.
+ * Ocentra Enforcer hard gate.
  * Cross-platform Node.js validator with Effect Schema validated external inputs.
  */
 import fs from "node:fs";
@@ -34,6 +34,7 @@ import {
   createCodexUninstallReport,
 } from "../src/codex-install.mjs";
 import {
+  applyWaivers,
   applyRulePolicy,
   normalizeFailOn,
   normalizeRuleOverrides,
@@ -41,6 +42,11 @@ import {
   policyForTool,
   splitFindings,
 } from "../src/policy.mjs";
+import {
+  enrichFindingMetadata,
+  enrichFindingsMetadata,
+  registryRules as loadRegistryRules,
+} from "../src/rule-registry.mjs";
 import {
   lastFailure,
   listRuns,
@@ -832,17 +838,13 @@ let cachedRegistryRules = null;
 
 function ruleRegistryRules() {
   if (cachedRegistryRules === null) {
-    cachedRegistryRules = fs.existsSync(RULE_REGISTRY_PATH)
-      ? decodeRuleRegistry(
-          JSON.parse(fs.readFileSync(RULE_REGISTRY_PATH, "utf8")),
-        ).rules
-      : [];
+    cachedRegistryRules = loadRegistryRules(PACK_ROOT);
   }
   return cachedRegistryRules;
 }
 
 function usage() {
-  return `Ocentra Enforcer Rust hard gate
+  return `Ocentra Enforcer hard gate
 
 Usage:
   ocentra-enforcer init --root <repo> --profile <profile> --adapters codex,mcp,precommit,github-actions
@@ -2005,15 +2007,50 @@ function addViolation(
   detail,
   sourceLine = null,
 ) {
-  const rule = RULES[ruleId] ?? { title: "Unknown rule", snippet: "" };
   violations.push({
-    ruleId,
-    title: rule.title,
-    detail,
-    file: filePath === "." ? "." : normalizeRel(root, filePath),
-    line,
-    snippet: rule.snippet,
-    source: sourceLine?.trim() ?? null,
+    ...enrichFindingMetadata({
+      ruleId,
+      detail,
+      file: filePath === "." ? "." : normalizeRel(root, filePath),
+      line,
+      source: sourceLine?.trim() ?? null,
+    }, PACK_ROOT, RULES),
+  });
+}
+
+function applyPolicyAndWaivers(findings, config) {
+  const enriched = enrichFindingsMetadata(findings, PACK_ROOT, {
+    ...RULES,
+    ...CHECK_RULES,
+    ...GENERIC_RULES,
+  });
+  const policyFindings = applyRulePolicy(enriched, config, ruleRegistryRules());
+  const { active, waived } = applyWaivers(
+    policyFindings,
+    config,
+    ruleRegistryRules(),
+    { ci: process.env.CI === "true" },
+  );
+  const { violations, warnings, bySeverity } = splitFindings(active, config);
+  return {
+    violations,
+    warnings,
+    waived,
+    findings: [...active, ...waived],
+    bySeverity,
+  };
+}
+
+function policyPreflightFindings(root, config, options = {}) {
+  if (options.skipPolicyPreflight === true) return [];
+  return ["config-lockdown", "waiver-policy"].flatMap((checkName) => {
+    const report = runStandaloneCheck({
+      checkName,
+      root,
+      config,
+      args: { scope: { mode: "all" } },
+    });
+    return [...(report.violations ?? []), ...(report.warnings ?? [])];
   });
 }
 
@@ -4843,7 +4880,7 @@ function ruleDocFor(ruleId) {
 
 function decorateRuleDocs(report) {
   const completenessFailures = collectReportCompletenessFailures(report);
-  for (const key of ["violations", "warnings", "findings"]) {
+  for (const key of ["violations", "warnings", "waived", "findings"]) {
     if (!Array.isArray(report[key])) continue;
     report[key] = sortFindings(
       report[key].map((finding) => normalizeReportFinding(finding)),
@@ -5076,12 +5113,13 @@ function printRunsReport(command, report) {
 }
 
 function printCheckReport(report) {
+  const label = report.check ?? report.command ?? "check";
   if (report.violations.length === 0) {
-    console.log(`Ocentra Enforcer check ${report.check} passed.`);
+    console.log(`Ocentra Enforcer ${label} passed.`);
     return;
   }
   console.error(
-    `Ocentra Enforcer check ${report.check} failed with ${report.violations.length} violation${report.violations.length === 1 ? "" : "s"}.`,
+    `Ocentra Enforcer ${label} failed with ${report.violations.length} violation${report.violations.length === 1 ? "" : "s"}.`,
   );
   console.error(`Profile: ${report.profileName}`);
   console.error("");
@@ -5102,17 +5140,26 @@ export function runRustRules(options = {}) {
     options.scanOnly || command === "scan"
       ? []
       : runCargoGates(root, config, scope);
-  const findings = applyRulePolicy(
-    [...scannerViolations, ...cargoViolations],
+  const {
+    violations,
+    warnings,
+    waived,
+    findings,
+    bySeverity,
+  } = applyPolicyAndWaivers(
+    [
+      ...policyPreflightFindings(root, config, options),
+      ...scannerViolations,
+      ...cargoViolations,
+    ],
     config,
-    ruleRegistryRules(),
   );
-  const { violations, warnings, bySeverity } = splitFindings(findings, config);
   return decorateRuleDocs({
     ok: violations.length === 0,
     command,
     violations,
     warnings,
+    waived,
     findings,
     bySeverity,
     failOn: config.failOn,
@@ -5164,15 +5211,22 @@ export function runEnforcerScan(options = {}) {
           config,
           languages: genericLanguages,
         });
-  const genericFindings = applyRulePolicy(
-    genericReport.violations,
+  const genericPolicy = applyPolicyAndWaivers(
+    [
+      ...(activeLanguages.includes("rust")
+        ? []
+        : policyPreflightFindings(root, config, options)),
+      ...genericReport.violations,
+    ],
     config,
-    ruleRegistryRules(),
   );
   const findings = [
-    ...(rustReport.findings ?? rustReport.violations),
-    ...genericFindings,
+    ...(rustReport.violations ?? []),
+    ...(rustReport.warnings ?? []),
+    ...genericPolicy.violations,
+    ...genericPolicy.warnings,
   ];
+  const waived = [...(rustReport.waived ?? []), ...genericPolicy.waived];
   const { violations, warnings, bySeverity } = splitFindings(findings, config);
   const scopeFiles = uniqueSorted([
     ...(rustReport.scope.files ?? []),
@@ -5184,7 +5238,8 @@ export function runEnforcerScan(options = {}) {
     command: options.command ?? rustReport.command,
     violations,
     warnings,
-    findings,
+    waived,
+    findings: [...findings, ...waived],
     bySeverity,
     failOn: config.failOn,
     languages: activeLanguages,
@@ -5238,7 +5293,13 @@ export function runEnforcerCheck(options = {}) {
       languages: scannerBacked.languages,
     });
     const allowed = new Set(scannerBacked.ruleIds);
-    const findings = (report.findings ?? []).filter((finding) =>
+    const findings = [
+      ...(report.violations ?? []),
+      ...(report.warnings ?? []),
+    ].filter((finding) =>
+      allowed.has(finding.ruleId),
+    );
+    const waived = (report.waived ?? []).filter((finding) =>
       allowed.has(finding.ruleId),
     );
     const { violations, warnings, bySeverity } = splitFindings(
@@ -5253,7 +5314,8 @@ export function runEnforcerCheck(options = {}) {
       profileName: report.profileName,
       violations,
       warnings,
-      findings,
+      waived,
+      findings: [...findings, ...waived],
       bySeverity,
       scope: report.scope,
       languages: scannerBacked.languages,
@@ -5310,7 +5372,11 @@ export function runEnforcerVerify(options = {}) {
     }),
   );
   const reports = [scanReport, ...checkReports];
-  const findings = reports.flatMap((report) => report.findings ?? []);
+  const findings = reports.flatMap((report) => [
+    ...(report.violations ?? []),
+    ...(report.warnings ?? []),
+  ]);
+  const waived = reports.flatMap((report) => report.waived ?? []);
   const { violations, warnings, bySeverity } = splitFindings(findings, config);
   return decorateRuleDocs({
     ok: reports.every((report) => report.ok) && violations.length === 0,
@@ -5319,7 +5385,8 @@ export function runEnforcerVerify(options = {}) {
     profileName: config.profileName ?? "strict",
     violations,
     warnings,
-    findings,
+    waived,
+    findings: [...findings, ...waived],
     bySeverity,
     scope: scanReport.scope,
     checks: reports.map((report) => ({
@@ -5360,9 +5427,11 @@ function runArchitecturePolicyCheck({
       }),
     );
   }
-  const findings = reports.flatMap(
-    (report) => report.findings ?? report.violations ?? [],
-  );
+  const findings = reports.flatMap((report) => [
+    ...(report.violations ?? []),
+    ...(report.warnings ?? []),
+  ]);
+  const waived = reports.flatMap((report) => report.waived ?? []);
   const { violations, warnings, bySeverity } = splitFindings(findings, config);
   return decorateRuleDocs({
     ok: violations.length === 0,
@@ -5372,7 +5441,8 @@ function runArchitecturePolicyCheck({
     profileName: config.profileName ?? "strict",
     violations,
     warnings,
-    findings,
+    waived,
+    findings: [...findings, ...waived],
     bySeverity,
     scope: reports.find((report) => report.scope)?.scope ?? {
       mode: rawScope.mode === "all" ? "workspace" : rawScope.mode,

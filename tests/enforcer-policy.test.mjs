@@ -146,10 +146,21 @@ test("waiver policy rejects expired, broad, AI-owned, and immutable waivers", ()
 test("advisory documentation rule remains overridable", () => {
   const project = makeProject({
     "ocentra-enforcer.config.json": JSON.stringify({
+      schemaVersion: 1,
+      profileName: "strict",
       failOn: ["error"],
       languages: ["typescript", "common"],
       rules: {
-        "DOC-1.1": { enabled: false },
+        "DOC-1.1": {
+          enabled: false,
+          waiverId: "WAIVER-DOC-DISABLE-1",
+          owner: "sujan",
+          issue: "OCEN-124",
+          reason: "temporary advisory documentation rollout",
+          scope: ["src/api.ts"],
+          expires: "2026-07-15",
+          remediation: "Document this API when the public surface stabilizes.",
+        },
       },
     }),
     "src/api.ts": "export function makeThing(): number { return 1; }\n",
@@ -169,6 +180,53 @@ test("advisory documentation rule remains overridable", () => {
   assert.equal(
     report.findings.some((finding) => finding.ruleId === "DOC-1.1"),
     false,
+  );
+});
+
+test("valid waivers are visible and suppress only waivable findings", () => {
+  const project = makeProject({
+    "ocentra-enforcer.config.json": JSON.stringify({
+      schemaVersion: 1,
+      profileName: "strict",
+      failOn: ["error", "warning"],
+      languages: ["typescript", "common"],
+      waivers: [
+        {
+          ruleId: "DOC-1.1",
+          waiverId: "WAIVER-DOC-1",
+          owner: "sujan",
+          issue: "OCEN-123",
+          reason: "temporary documentation rollout for this exact API file",
+          scope: ["src/api.ts"],
+          expires: "2026-07-15",
+          remediation: "Add concise API docs when the public surface stabilizes.",
+          ciAllowed: true,
+          visible: true,
+        },
+      ],
+    }),
+    "src/api.ts": "export function makeThing(): number { return 1; }\n",
+  });
+
+  const scan = run(project, [
+    "scan",
+    "--json",
+    "--languages",
+    "typescript,common",
+    "--files",
+    "src/api.ts",
+  ]);
+  assert.equal(scan.status, 0, scan.stdout || scan.stderr);
+  const report = JSON.parse(scan.stdout);
+  assert.equal(report.violations.length, 0);
+  const waived = report.waived.find((finding) => finding.ruleId === "DOC-1.1");
+  assert.equal(waived?.status, "waived");
+  assert.equal(waived?.waiverId, "WAIVER-DOC-1");
+  assert.equal(
+    report.findings.some(
+      (finding) => finding.ruleId === "DOC-1.1" && finding.status === "waived",
+    ),
+    true,
   );
 });
 
@@ -244,6 +302,26 @@ test("rule coverage rejects missing rule ID lock file", () => {
   const result = run(pack, ["check", "rule-coverage", "--json"]);
   assert.notEqual(result.status, 0, result.stdout || result.stderr);
   assert.equal(violationIds(JSON.parse(result.stdout)).has("ENF-1.5"), true);
+});
+
+test("rule coverage rejects registry rule IDs missing from the lock file", () => {
+  const pack = makePack(
+    {},
+    {
+      "rules/rule-id-lock.json": JSON.stringify({
+        schemaVersion: 1,
+        ruleIds: ["AI-1.1"],
+      }),
+    },
+  );
+  const result = run(pack, ["check", "rule-coverage", "--json"]);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(violationIds(report).has("ENF-1.5"), true);
+  assert.match(
+    report.violations.map((violation) => violation.detail).join("\n"),
+    /registry rule ID TEST-9\.9 is missing from rules\/rule-id-lock\.json/u,
+  );
 });
 
 test("rule coverage rejects registry metadata drift from validator metadata", () => {
@@ -518,6 +596,23 @@ JSON.parse(result.stdout);
   for (const ruleId of ["CI-1.1", "NPM-1.2", "CI-1.3", "CI-1.4", "CI-1.5", "CI-1.6", "CI-1.7", "CI-1.8", "CI-1.9", "CI-1.10", "CI-1.11", "CI-1.12", "CI-1.13", "CI-1.14", "CI-1.15", "CI-1.16", "CI-1.17", "CI-1.18", "CI-1.19", "CI-1.20", "CI-1.21"]) {
     assert.equal(ids.has(ruleId), true, `${ruleId} should fail`);
   }
+});
+
+test("ci integrity rejects implicit shell execution in harness helpers", () => {
+  const pack = makePack(
+    {},
+    {
+      "rules/rule-id-lock.json": JSON.stringify({
+        schemaVersion: 1,
+        ruleIds: ["TEST-9.9"],
+      }),
+      "src/checks.mjs":
+        'import { spawnSync } from "node:child_process";\nspawnSync("npm", ["test"], { shell: process.platform === "win32" });\n',
+    },
+  );
+  const result = run(pack, ["check", "ci-integrity", "--json"]);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  assert.equal(violationIds(JSON.parse(result.stdout)).has("HAR-2.15"), true);
 });
 
 test("ci integrity accepts CI-safe subprocess JSON capture", () => {

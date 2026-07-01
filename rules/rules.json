@@ -1610,6 +1610,7 @@
       "lockLevel": "advisory",
       "canDisable": true,
       "canDowngrade": true,
+      "waivable": true,
       "requiresFailFixture": false,
       "requiresPassFixture": false,
       "appliesTo": [

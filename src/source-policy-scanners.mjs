@@ -890,7 +890,7 @@ function isGeneratedSourcePath(rel) {
 
 function isToolingBoundaryPath(rel) {
   return /^(?:scripts|mcp|eslint-rules|adapters|tests|schemas)\//u.test(rel) ||
-    /^src\/(?:checks|codex-install|harness|path-utils|policy|proof|routing|source-policy-scanners)\.mjs$/u.test(rel) ||
+    /^src\/(?:checks|codex-install|harness|path-utils|policy|proof|routing|rule-registry|source-policy-scanners)\.mjs$/u.test(rel) ||
     /^src\/coordination\//u.test(rel);
 }
 

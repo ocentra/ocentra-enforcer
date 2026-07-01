@@ -223,7 +223,11 @@ pub use domain::UserRecord;
 
 test('facade-only profile allows public re-export in configured facade file', () => {
   const project = makeProject({
-    'rust-rules.config.json': JSON.stringify({ publicReexportPolicy: 'facade-only' }),
+    'rust-rules.config.json': JSON.stringify({
+      schemaVersion: 2,
+      profileName: 'strict',
+      publicReexportPolicy: 'facade-only',
+    }),
     'src/lib.rs': `
 mod domain { pub struct UserRecord; }
 pub use domain::UserRecord;

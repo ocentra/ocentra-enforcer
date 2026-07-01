@@ -147,6 +147,99 @@ export function applyRulePolicy(findings, config, registryRules = []) {
   return policyFindings;
 }
 
+export function applyWaivers(findings, config, registryRules = [], options = {}) {
+  const registryPolicyMap = buildRegistryPolicyMap(registryRules);
+  const waivers = Array.isArray(config.waivers) ? config.waivers : [];
+  const active = [];
+  const waived = [];
+  for (const finding of findings) {
+    const waiver = waivers.find((candidate) =>
+      waiverAppliesToFinding(candidate, finding, registryPolicyMap, options),
+    );
+    if (!waiver) {
+      active.push(finding);
+      continue;
+    }
+    waived.push({
+      ...finding,
+      status: "waived",
+      waiverId: waiver.waiverId,
+      waiverOwner: waiver.owner,
+      waiverIssue: waiver.issue,
+      waiverExpires: waiver.expires,
+      waiverReason: waiver.reason,
+    });
+  }
+  return { active, waived };
+}
+
+function waiverAppliesToFinding(waiver, finding, registryPolicyMap, options) {
+  if (!waiver || typeof waiver !== "object") return false;
+  const ruleId = String(waiver.ruleId ?? "").toUpperCase();
+  if (ruleId !== String(finding.ruleId ?? "").toUpperCase()) return false;
+  if (!waiver.waiverId || !waiver.owner || !waiver.issue || !waiver.reason) {
+    return false;
+  }
+  if (waiver.visible === false) return false;
+  if (/\b(?:ai|agent|codex|llm)\b/iu.test(String(waiver.owner))) return false;
+  if (isWaiverExpired(waiver.expires, options.now)) return false;
+  if (options.ci === true && waiver.ciAllowed !== true) return false;
+  const capabilities = rulePolicyCapabilities(registryPolicyMap.get(ruleId) ?? {});
+  if (!capabilities.waivable) return false;
+  const scopes = Array.isArray(waiver.scope) ? waiver.scope : [];
+  return scopes.some((scope) => waiverScopeMatches(scope, finding.file ?? ""));
+}
+
+function isWaiverExpired(expires, now = new Date()) {
+  if (!expires) return true;
+  const parsed = new Date(`${expires}T23:59:59.999Z`);
+  if (Number.isNaN(parsed.getTime())) return true;
+  return parsed.getTime() < now.getTime();
+}
+
+function waiverScopeMatches(scope, file) {
+  const normalizedScope = normalizePathForPolicy(scope);
+  const normalizedFile = normalizePathForPolicy(file);
+  if (!normalizedScope || isBroadWaiverScope(normalizedScope)) return false;
+  if (normalizedScope === normalizedFile) return true;
+  if (normalizedScope.endsWith("/**")) {
+    const prefix = normalizedScope.slice(0, -3);
+    return normalizedFile === prefix || normalizedFile.startsWith(`${prefix}/`);
+  }
+  const pattern = new RegExp(`^${globToRegex(normalizedScope)}$`, "u");
+  return pattern.test(normalizedFile);
+}
+
+function normalizePathForPolicy(value) {
+  return String(value ?? "").replaceAll("\\", "/").replace(/^\.\/+/u, "").trim();
+}
+
+function isBroadWaiverScope(scope) {
+  return new Set(["", ".", "/", "**", "**/*", "src/**", "crates/**", "packages/**", "apps/**"]).has(scope);
+}
+
+function escapeRegex(value) {
+  return String(value).replace(/[|\\{}()[\]^$+?.]/gu, "\\$&");
+}
+
+function globToRegex(value) {
+  let output = "";
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if (char === "*") {
+      if (value[index + 1] === "*") {
+        output += ".*";
+        index += 1;
+      } else {
+        output += "[^/]*";
+      }
+      continue;
+    }
+    output += escapeRegex(char);
+  }
+  return output;
+}
+
 export function splitFindings(findings, config) {
   const failOn = new Set(normalizeFailOn(config.failOn));
   const violations = [];

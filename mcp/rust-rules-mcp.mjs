@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /*
- * Minimal MCP stdio adapter for the Rust Rules hard gate.
- * The rule engine lives in scripts/rust-rules.mjs; this file only exposes it.
+ * MCP stdio adapter for Ocentra Enforcer.
+ * rust-rules-mcp remains a compatibility filename for one release.
  */
 import fs from "node:fs";
 import path from "node:path";

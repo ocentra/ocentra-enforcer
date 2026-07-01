@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import process from "node:process";
 import { fileURLToPath } from "node:url";
 import {
   collectFiles,
@@ -12,6 +13,8 @@ import {
 } from "./path-utils.mjs";
 import { GENERIC_RULES, runGenericScan } from "./generic-scanners.mjs";
 import {
+  applyRulePolicy,
+  applyWaivers,
   buildRegistryPolicyMap,
   buildRegistrySeverityMap,
   isSeverityDowngrade,
@@ -19,7 +22,13 @@ import {
   normalizeFailOn,
   policyForRule,
   rulePolicyCapabilities,
+  splitFindings,
 } from "./policy.mjs";
+import {
+  enrichFindingMetadata,
+  enrichFindingsMetadata,
+  registryRules,
+} from "./rule-registry.mjs";
 
 const PACK_ROOT = path.resolve(path.join(path.dirname(fileURLToPath(import.meta.url)), ".."));
 
@@ -1973,6 +1982,7 @@ function packageExportTargets(exportsField) {
 function collectCiIntegrityFindings(root) {
   const findings = [];
   findings.push(...collectCiSubprocessCaptureFindings(root));
+  findings.push(...collectNoImplicitShellFindings(root));
 
   const workflowRoot = path.join(root, ".github", "workflows");
   const packageText = fs.existsSync(path.join(root, "package.json"))
@@ -2100,6 +2110,34 @@ function collectCiIntegrityFindings(root) {
 
 const CI_SUBPROCESS_CAPTURE_ROOTS = ["tests", "scripts", "src", "mcp"];
 const CI_SUBPROCESS_CAPTURE_EXTENSIONS = [".js", ".mjs", ".cjs", ".ts", ".tsx"];
+
+function collectNoImplicitShellFindings(root) {
+  const findings = [];
+  for (const relRoot of ["scripts", "src", "mcp"]) {
+    const absRoot = path.join(root, relRoot);
+    if (!fs.existsSync(absRoot)) continue;
+    for (const file of collectSourceFiles(absRoot, CI_SUBPROCESS_CAPTURE_EXTENSIONS)) {
+      const rel = normalizeRel(root, file);
+      const lines = fs.readFileSync(file, "utf8").split(/\r?\n/u);
+      lines.forEach((line, index) => {
+        if (!/\bshell\s*:\s*(?:true|process\.platform\s*===\s*["']win32["'])/u.test(line)) {
+          return;
+        }
+        findings.push(
+          finding(
+            root,
+            file,
+            index + 1,
+            "HAR-2.15",
+            `${rel} enables shell execution for a harness command`,
+            line,
+          ),
+        );
+      });
+    }
+  }
+  return findings;
+}
 
 function collectCiSubprocessCaptureFindings(root) {
   const findings = [];
@@ -2897,7 +2935,11 @@ function collectRuleIdLockFindings(root, packRoot, registryPath, registryIds, fi
     );
     return;
   }
-  const lockedIds = Array.isArray(lock.ruleIds) ? lock.ruleIds.map(String) : [];
+  const lockedIds = Array.isArray(lock.rules)
+    ? lock.rules.map((entry) => String(entry?.id ?? "")).filter(Boolean)
+    : Array.isArray(lock.ruleIds)
+      ? lock.ruleIds.map(String)
+      : [];
   if (lockedIds.length === 0) {
     findings.push(
       finding(root, lockPath, 1, "ENF-1.5", "rule ID lock file has no ruleIds array", null),
@@ -2914,6 +2956,14 @@ function collectRuleIdLockFindings(root, packRoot, registryPath, registryIds, fi
     if (!registryIds.has(id)) {
       findings.push(
         finding(root, lockPath, 1, "ENF-1.5", `locked rule ID ${id} is missing from rules/rules.json`, null),
+      );
+    }
+  }
+  const lockedSet = new Set(lockedIds);
+  for (const id of [...registryIds].sort((a, b) => a.localeCompare(b))) {
+    if (!lockedSet.has(id)) {
+      findings.push(
+        finding(root, lockPath, 1, "ENF-1.5", `registry rule ID ${id} is missing from rules/rule-id-lock.json`, null),
       );
     }
   }
@@ -3774,17 +3824,28 @@ function isBroadWaiverScope(scope) {
 }
 
 function buildReport({ root, config, checkName, findings, scope = null }) {
+  const fallback = { ...CHECK_RULES, ...GENERIC_RULES };
+  const enriched = enrichFindingsMetadata(findings, PACK_ROOT, fallback);
+  const policyFindings = applyRulePolicy(enriched, config, registryRules(PACK_ROOT));
+  const { active, waived } = applyWaivers(
+    policyFindings,
+    config,
+    registryRules(PACK_ROOT),
+    { ci: process.env.CI === "true" },
+  );
+  const { violations, warnings, bySeverity } = splitFindings(active, config);
   return {
-    ok: findings.length === 0,
+    ok: violations.length === 0,
     command: "check",
     check: checkName,
     root,
     profileName: config.profileName ?? "strict",
-    violations: findings,
-    warnings: [],
-    findings,
-    bySeverity: findings.length === 0 ? {} : { error: findings.length },
-    scope: scope ? reportScope(root, scope, findings) : undefined,
+    violations,
+    warnings,
+    waived,
+    findings: [...active, ...waived],
+    bySeverity,
+    scope: scope ? reportScope(root, scope, active) : undefined,
   };
 }
 
@@ -4305,12 +4366,32 @@ function resolveContractConfigPath(root, explicitConfigPath) {
 }
 
 function spawnInRoot(root, command, args) {
-  return spawnSync(command, args, {
+  const resolved = resolveCommand(command);
+  return spawnSync(resolved.command, [...resolved.args, ...args], {
     cwd: root,
     encoding: "utf8",
-    shell: process.platform === "win32",
+    shell: false,
     maxBuffer: 64 * 1024 * 1024,
   });
+}
+
+function resolveCommand(command) {
+  if (process.platform !== "win32") return { command, args: [] };
+  const nodeDir = path.dirname(process.execPath);
+  const npmCli = path.join(nodeDir, "node_modules", "npm", "bin", "npm-cli.js");
+  const npxCli = path.join(nodeDir, "node_modules", "npm", "bin", "npx-cli.js");
+  if (command === "npm" && fs.existsSync(npmCli)) {
+    return { command: process.execPath, args: [npmCli] };
+  }
+  if (command === "npx" && fs.existsSync(npxCli)) {
+    return { command: process.execPath, args: [npxCli] };
+  }
+  const aliases = new Map([
+    ["cargo", "cargo.exe"],
+    ["git", "git.exe"],
+    ["node", "node.exe"],
+  ]);
+  return { command: aliases.get(command) ?? command, args: [] };
 }
 
 function compactProcessOutput(result) {
@@ -4330,29 +4411,21 @@ function isIgnored(file, config) {
 }
 
 function finding(root, file, line, ruleId, detail, source) {
-  const rule = CHECK_RULES[ruleId];
-  return {
+  return enrichFindingMetadata({
     ruleId,
-    severity: "error",
-    title: rule.title,
     detail,
     file: normalizeRel(root, file),
     line,
-    snippet: rule.snippet,
     source: source == null ? null : String(source).trim(),
-  };
+  }, PACK_ROOT, CHECK_RULES);
 }
 
 function genericFinding(root, file, line, ruleId, detail, source) {
-  const rule = GENERIC_RULES[ruleId] ?? CHECK_RULES[ruleId];
-  return {
+  return enrichFindingMetadata({
     ruleId,
-    severity: "error",
-    title: rule.title,
     detail,
     file: normalizeRel(root, file),
     line,
-    snippet: rule.snippet,
     source: source == null ? null : String(source).trim(),
-  };
+  }, PACK_ROOT, { ...GENERIC_RULES, ...CHECK_RULES });
 }
