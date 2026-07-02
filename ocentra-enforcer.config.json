@@ -7,13 +7,27 @@
   "requireCargoAudit": false,
   "runCargoDoc": false,
   "ignoreFileGlobs": [
-    "src/generic-scanners.mjs",
-    "src/source-policy-scanners.mjs",
+    "db/**",
+    "views/**",
+    "Tools/**",
+    "tools/**",
     "tests/enforcer-policy.test.mjs",
     "tests/rust-rules.test.mjs",
     "tests/enforcer-multilang.test.mjs",
     "tests/fixtures/enforcer/**",
     "profiles/*/legacy-scripts/**"
+  ],
+  "sourceShapePolicies": [
+    {
+      "roots": ["src", "scripts", "mcp"],
+      "extensions": [".ts", ".tsx", ".js", ".mjs", ".cjs"],
+      "kind": "typescript",
+      "maxClasses": 1,
+      "maxExports": 35,
+      "maxFunctions": 30,
+      "maxFunctionLines": 80,
+      "maxLines": 1000
+    }
   ],
   "rules": {},
   "waivers": [],

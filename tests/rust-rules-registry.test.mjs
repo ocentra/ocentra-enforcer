@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { decodeRuleRegistry } from "../schemas/effect/enforcer-schemas.mjs";
-import { CHECK_RULES } from "../src/checks.mjs";
+import { CHECK_RULES } from "../src/check-metadata.mjs";
 import { GENERIC_RULES } from "../src/generic-scanners.mjs";
 
 const PACK_ROOT = path.resolve(
@@ -13,13 +13,45 @@ const PACK_ROOT = path.resolve(
 );
 const REGISTRY_PATH = path.join(PACK_ROOT, "rules", "rules.json");
 const SCRIPT_PATH = path.join(PACK_ROOT, "scripts", "rust-rules.mjs");
+const SCAN_CORE_PATH = path.join(
+  PACK_ROOT,
+  "scripts",
+  "rust-rules-scan-core.mjs",
+);
+const PATH_CORE_PATH = path.join(
+  PACK_ROOT,
+  "scripts",
+  "rust-rules-path-core.mjs",
+);
+const SCAN_ENGINE_PATH = path.join(
+  PACK_ROOT,
+  "scripts",
+  "rust-rules-scan-engine.mjs",
+);
+const SOURCE_SCAN_PATH = path.join(
+  PACK_ROOT,
+  "scripts",
+  "rust-rules-source-scan.mjs",
+);
+const CARGO_SCAN_PATH = path.join(
+  PACK_ROOT,
+  "scripts",
+  "rust-rules-cargo-scan.mjs",
+);
 
 function loadRegistry() {
   return decodeRuleRegistry(JSON.parse(fs.readFileSync(REGISTRY_PATH, "utf8")));
 }
 
 function scannerRuleIds() {
-  const source = fs.readFileSync(SCRIPT_PATH, "utf8");
+  const source = [
+    fs.readFileSync(SCRIPT_PATH, "utf8"),
+    fs.readFileSync(SCAN_CORE_PATH, "utf8"),
+    fs.readFileSync(PATH_CORE_PATH, "utf8"),
+    fs.readFileSync(SCAN_ENGINE_PATH, "utf8"),
+    fs.readFileSync(SOURCE_SCAN_PATH, "utf8"),
+    fs.readFileSync(CARGO_SCAN_PATH, "utf8"),
+  ].join("\n");
   return [
     ...new Set(
       [...source.matchAll(/['"]RR-[0-9]+\.[0-9]+['"]/gu)].map(

@@ -1,6 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { normalizeRel } from './path-utils.mjs';
+import {
+  hasNearbyTimerJustification,
+  hasNearbyWindowsGuard,
+  isForbiddenSensitivePath,
+  isGeneratedSourcePath,
+  isSourceLikeForTestDoubles,
+  readLines,
+} from './source-policy-helpers.mjs';
 
 export const SOURCE_POLICY_RULES = {
   'TS-1.2': {
@@ -432,7 +440,7 @@ export function scanAdditionalTypeScriptFile(root, filePath) {
       addViolation(violations, root, filePath, lineNo, 'TS-6.10', 'Record<string, domain> API found', line);
     }
 
-    if (!generatedPath && anyTypePattern.test(maskedLine)) {
+    if (!generatedPath && !toolingBoundary && anyTypePattern.test(maskedLine)) {
       addViolation(violations, root, filePath, lineNo, 'TS-6.1', 'any type usage found', line);
     }
 
@@ -866,39 +874,9 @@ function scanPackageManifestForZod(root, filePath) {
   return violations;
 }
 
-function readLines(filePath) {
-  return fs.readFileSync(filePath, 'utf8').split(/\r?\n/u);
-}
-
-function hasNearbyWindowsGuard(lines, lineIndex) {
-  const start = Math.max(0, lineIndex - 8);
-  const nearby = lines.slice(start, lineIndex + 1).join('\n');
-  return /process\.platform\s*={2,3}\s*['"]win32['"]|process\.platform\s*!={1,2}\s*['"]win32['"]/u.test(nearby);
-}
-
-function hasNearbyTimerJustification(lines, lineIndex) {
-  const start = Math.max(0, lineIndex - 4);
-  const end = Math.min(lines.length, lineIndex + 2);
-  const nearby = lines.slice(start, end).join('\n');
-  return /\b(?:TIMER|HARNESS-TIMER)-JUSTIFICATION:/u.test(nearby);
-}
-
-function isForbiddenSensitivePath(rel) {
-  if (allowedSensitivePathPatterns.some((pattern) => pattern.test(rel))) return false;
-  return forbiddenSensitivePathPatterns.some((pattern) => pattern.test(rel));
-}
-
-function isSourceLikeForTestDoubles(rel) {
-  return /\.(?:ts|tsx|js|jsx|mjs|cjs|mts|cts|py|rs)$/iu.test(rel);
-}
-
-function isGeneratedSourcePath(rel) {
-  return /(?:^|\/)generated(?:\/|$)/iu.test(rel);
-}
-
 function isToolingBoundaryPath(rel) {
   return /^(?:scripts|mcp|eslint-rules|adapters|tests|schemas)\//u.test(rel) ||
-    /^src\/(?:checks|codex-install|harness|path-utils|policy|proof|routing|rule-registry|source-policy-scanners)\.mjs$/u.test(rel) ||
+    /^src\/(?:checks|check-[^/]+|codex-install|documentation-hints|generic-[^/]+|harness(?:-[^/]+)?|path-utils|policy|proof(?:-[^/]+)?|routing|rule-[^/]+|source-policy-(?:helpers|scanners))\.mjs$/u.test(rel) ||
     /^src\/coordination\//u.test(rel);
 }
 

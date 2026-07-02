@@ -364,6 +364,22 @@ test('check architecture-policy aggregates configured reusable checks', () => {
   assert.equal(report.violations.some((violation) => violation.ruleId === 'TS-1.2'), true);
 });
 
+test('architecture check now routes to full architecture-policy instead of reexports only', () => {
+  const project = makeProject({
+    'ocentra-enforcer.config.json': JSON.stringify({
+      profileName: 'architecture-policy-test',
+      architecturePolicyChecks: ['no-zod-source'],
+    }),
+    'src/schema.ts': ['import { z } from "zo', 'd";\nexport const value = z.string();\n'].join(''),
+  });
+  const result = run(project, ['architecture', 'check', '--json', '--language', 'rust', '--files', 'src/schema.ts']);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.check, 'architecture-policy');
+  assert.deepEqual(report.checks, [{ check: 'no-zod-source', ok: false, violations: 1 }]);
+  assert.equal(report.violations.some((violation) => violation.ruleId === 'TS-1.2'), true);
+});
+
 test('check weak-assertions catches low-value assertions', () => {
   const project = makeProject({
     'tests/example.test.ts': `

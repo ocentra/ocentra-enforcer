@@ -9,3 +9,6 @@ build/
 .enforce/
 .ocentra-enforcer/
 .ledger/
+db/
+views/
+Tools/
