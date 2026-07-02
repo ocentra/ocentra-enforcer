@@ -121,7 +121,7 @@ function isInlineTestSourceCandidate(file) {
 function inlineTestPatternForFile(file) {
   if (file.endsWith(".rs")) return /^\s*#\s*\[\s*cfg\s*\(\s*test\s*\)\s*\]/u;
   if (file.endsWith(".py")) return /^\s*def\s+test_[A-Za-z0-9_]+\s*\(/u;
-  return /\b(?:describe|it|test)\s*\(/u;
+  return /^\s*(?:describe|it|test)(?:\s*\.\s*(?:skip|only|todo|concurrent))?\s*\(/u;
 }
 
 function collectStrictEmptyTestTreeFindings(root, projectDir, strictMode, findings) {

@@ -169,6 +169,30 @@ mod tests {}
   assert.equal(inlineFindings.some((violation) => violation.file === 'crates/core/src/lib.rs'), true);
 });
 
+test('check required-tests does not treat regex or property .test calls as inline tests', () => {
+  const project = makeProject({
+    'packages/app/package.json': JSON.stringify({ name: '@fixture/app' }),
+    'packages/app/src/index.ts': `
+export function normalizeColor(value: string, fallback: string) {
+  return /^#[0-9a-f]{6}$/iu.test(value) ? value : fallback;
+}
+
+export function isAllowedCharacter(
+  character: string,
+  options: { separatorAllowed: boolean },
+) {
+  return /[A-Za-z0-9_-]/u.test(character) || options.separatorAllowed;
+}
+`,
+    'packages/app/tests/index.test.ts': 'test("value", () => expect(1).toBe(1));\n',
+  });
+  const result = run(project, ['check', 'required-tests', '--json', '--files', 'packages/app/src/index.ts']);
+  assert.equal(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.ok, true);
+  assert.deepEqual(report.violations, []);
+});
+
 test('check required-tests requires organized Rust tests instead of inline modules', () => {
   const project = makeProject({
     'crates/core/Cargo.toml': '[package]\nname = "core"\nversion = "0.1.0"\nedition = "2021"\n',
@@ -362,6 +386,36 @@ test('check architecture-policy aggregates configured reusable checks', () => {
   assert.equal(report.check, 'architecture-policy');
   assert.deepEqual(report.checks, [{ check: 'no-zod-source', ok: false, violations: 1 }]);
   assert.equal(report.violations.some((violation) => violation.ruleId === 'TS-1.2'), true);
+});
+
+test('check architecture-policy keeps file scope when --files is passed as one comma-separated argument', () => {
+  const project = makeProject({
+    'ocentra-enforcer.config.json': JSON.stringify({
+      profileName: 'architecture-scope-test',
+      architecturePolicyChecks: ['required-tests'],
+      strictEmptyTestTrees: true,
+    }),
+    'packages/covered/package.json': JSON.stringify({ name: '@fixture/covered' }),
+    'packages/covered/src/index.ts': 'export const value = 1;\n',
+    'packages/covered/tests/index.test.ts': 'test("value", () => expect(1).toBe(1));\n',
+    'packages/missing/package.json': JSON.stringify({ name: '@fixture/missing' }),
+    'packages/missing/src/index.ts': 'export const leak = 1;\n',
+  });
+  const result = run(project, [
+    'check',
+    'architecture-policy',
+    '--json',
+    '--files',
+    'packages/covered/src/index.ts,packages/covered/tests/index.test.ts',
+  ]);
+  assert.equal(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.ok, true);
+  assert.deepEqual(report.scope.files, [
+    'packages/covered/src/index.ts',
+    'packages/covered/tests/index.test.ts',
+  ]);
+  assert.deepEqual(report.violations, []);
 });
 
 test('architecture check now routes to full architecture-policy instead of reexports only', () => {

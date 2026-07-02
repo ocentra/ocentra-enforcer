@@ -434,7 +434,7 @@ function parseArgs(argv) {
           i = fileIndex - 1;
           break;
         }
-        explicitFiles.push(tokens[fileIndex]);
+        explicitFiles.push(...parseFileList(tokens[fileIndex]));
         i = fileIndex;
       }
     } else if (arg === "--help" || arg === "-h") {
@@ -445,7 +445,7 @@ function parseArgs(argv) {
     } else if (arg.startsWith("-")) {
       throw new Error(`Unknown argument: ${arg}`);
     } else {
-      explicitFiles.push(arg);
+      explicitFiles.push(...parseFileList(arg));
     }
   }
 
@@ -553,6 +553,13 @@ function normalizeConfig(config) {
 function parseAdapterList(value) {
   return value
     .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function parseFileList(value) {
+  return String(value ?? "")
+    .split(/[,\r\n]/u)
     .map((entry) => entry.trim())
     .filter(Boolean);
 }
