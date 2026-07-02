@@ -1,15 +1,26 @@
 import path from "node:path";
 import { parserDiagnostic } from "./harness-parsers-json-lines.mjs";
+import {
+  banditDiagnostics,
+  eslintDiagnostics,
+  pyrightDiagnostics,
+  sarifDiagnostics,
+} from "./harness-parsers-json-diagnostics.mjs";
+
+const PAYLOAD_HANDLERS = [
+  [isEslintPayload, eslintDiagnostics],
+  [isBanditPayload, banditDiagnostics],
+  [isPyrightPayload, pyrightPayloadDiagnostics],
+  [isSarifPayload, sarifPayloadDiagnostics],
+];
 
 export function parseJsonPayload(root, runId, tool, text) {
   const trimmed = String(text ?? "").trim();
-  if (!trimmed.startsWith("[") && !trimmed.startsWith("{")) return [];
-  try {
-    const parsed = JSON.parse(trimmed);
-    return diagnosticsForPayload(root, runId, tool, parsed);
-  } catch (error) {
-    return [parserDiagnostic(runId, tool, error, "malformed JSON payload")];
-  }
+  if (!looksLikeJson(trimmed)) return [];
+  const parsed = parsePayload(runId, tool, trimmed);
+  return parsed.ok
+    ? diagnosticsForPayload(root, runId, tool, parsed.value)
+    : [parsed.diagnostic];
 }
 
 export function sarifSeverity(level) {
@@ -20,11 +31,25 @@ export function sarifSeverity(level) {
 }
 
 function diagnosticsForPayload(root, runId, tool, parsed) {
-  if (isEslintPayload(parsed)) return eslintDiagnostics(root, runId, tool, parsed);
-  if (isBanditPayload(parsed)) return banditDiagnostics(root, runId, tool, parsed);
-  if (isPyrightPayload(parsed)) return pyrightDiagnostics(root, runId, tool, parsed.generalDiagnostics);
-  if (isSarifPayload(parsed)) return sarifDiagnostics(root, runId, tool, parsed.runs);
+  for (const [predicate, handler] of PAYLOAD_HANDLERS) {
+    if (predicate(parsed)) return handler(root, runId, tool, parsed);
+  }
   return [];
+}
+
+function looksLikeJson(trimmed) {
+  return trimmed.startsWith("[") || trimmed.startsWith("{");
+}
+
+function parsePayload(runId, tool, trimmed) {
+  try {
+    return { ok: true, value: JSON.parse(trimmed) };
+  } catch (error) {
+    return {
+      ok: false,
+      diagnostic: parserDiagnostic(runId, tool, error, "malformed JSON payload"),
+    };
+  }
 }
 
 function isEslintPayload(parsed) {
@@ -43,69 +68,12 @@ function isSarifPayload(parsed) {
   return Array.isArray(parsed?.runs);
 }
 
-function eslintDiagnostics(root, runId, tool, entries) {
-  return entries.flatMap((entry) =>
-    entry.messages.map((message) => ({
-      runId,
-      tool,
-      language: "typescript",
-      severity: message.severity === 2 ? "error" : "warning",
-      ruleId: message.ruleId ?? "eslint",
-      file: normalizeRel(root, entry.filePath),
-      line: message.line ?? 1,
-      message: message.message,
-      source: null,
-    })),
-  );
+function pyrightPayloadDiagnostics(root, runId, tool, parsed) {
+  return pyrightDiagnostics(root, runId, tool, parsed.generalDiagnostics);
 }
 
-function banditDiagnostics(root, runId, tool, entries) {
-  return entries.map((entry) => ({
-    runId,
-    tool,
-    language: "python",
-    severity: "error",
-    ruleId: entry.code,
-    file: normalizeRel(root, entry.filename),
-    line: entry.location?.row ?? 1,
-    message: entry.message,
-    source: null,
-  }));
-}
-
-function pyrightDiagnostics(root, runId, tool, entries) {
-  return entries.map((entry) => ({
-    runId,
-    tool,
-    language: "python",
-    severity: entry.severity ?? "error",
-    ruleId: "pyright",
-    file: entry.file ? normalizeRel(root, entry.file) : ".",
-    line: entry.range?.start?.line === undefined ? 1 : entry.range.start.line + 1,
-    message: entry.message,
-    source: null,
-  }));
-}
-
-function sarifDiagnostics(root, runId, tool, runs) {
-  return runs.flatMap((run) => (run.results ?? []).map((result) => sarifResult(root, runId, tool, result)));
-}
-
-function sarifResult(root, runId, tool, result) {
-  const location = result.locations?.[0]?.physicalLocation ?? {};
-  const region = location.region ?? {};
-  const artifactUri = location.artifactLocation?.uri ?? ".";
-  return {
-    runId,
-    tool,
-    language: "common",
-    severity: sarifSeverity(result.level),
-    ruleId: result.ruleId ?? result.rule?.id ?? "sarif",
-    file: normalizeRel(root, path.resolve(root, artifactUri)),
-    line: region.startLine ?? 1,
-    message: result.message?.text ?? result.message?.markdown ?? "SARIF result",
-    source: null,
-  };
+function sarifPayloadDiagnostics(root, runId, tool, parsed) {
+  return sarifDiagnostics(root, runId, tool, parsed.runs, sarifSeverity);
 }
 
 function normalizeRel(root, value) {

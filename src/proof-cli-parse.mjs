@@ -5,6 +5,38 @@ function splitList(value) {
     .filter(Boolean);
 }
 
+const VALUE_FLAG_HANDLERS = new Map([
+  ["--root", (parsed, value) => { parsed.root = value ?? parsed.root; }],
+  ["--profile", (parsed, value) => { parsed.profile = value ?? parsed.profile; }],
+  ["--proof", (parsed, value) => { parsed.proofId = value ?? null; }],
+  ["--proof-id", (parsed, value) => { parsed.proofId = value ?? null; }],
+  ["--proofs", (parsed, value) => { parsed.proofIds = splitList(value ?? ""); }],
+  ["--plan", (parsed, value) => { parsed.plan = value ?? null; }],
+  ["--capability", (parsed, value) => { parsed.capability = value ?? null; }],
+  ["--run-id", (parsed, value) => { parsed.runId = value ?? null; }],
+  ["--artifact", (parsed, value) => { parsed.artifact = value ?? null; }],
+  ["--limit", (parsed, value) => { parsed.limit = Number(value); }],
+  ["--limit-bytes", (parsed, value) => { parsed.limitBytes = Number(value); }],
+  ["--diagnostic-limit", (parsed, value) => { parsed.diagnosticLimit = Number(value); }],
+  ["--legacy-path", (parsed, value) => { parsed.legacyPaths = splitList(value ?? ""); }],
+  ["--legacy-paths", (parsed, value) => { parsed.legacyPaths = splitList(value ?? ""); }],
+  ["--status", (parsed, value) => { parsed.status = value ?? null; }],
+  ["--tag", (parsed, value) => { parsed.tags.push(value ?? ""); }],
+  ["--claim-id", (parsed, value) => { parsed.claimId = value ?? null; }],
+  ["--script-root", (parsed, value) => { parsed.scriptRoot = value ?? null; }],
+]);
+
+const BOOLEAN_FLAG_HANDLERS = new Map([
+  ["--include-scripts", (parsed) => { parsed.includeScripts = true; }],
+  ["--json", (parsed) => { parsed.json = true; }],
+  ["--dry-run", (parsed) => { parsed.dryRun = true; }],
+  ["--write", (parsed) => { parsed.write = true; }],
+  ["--include-all-scripts", (parsed) => { parsed.includeAllScripts = true; }],
+  ["--pin", (parsed) => { parsed.pin = true; }],
+  ["--pr-ready", (parsed) => { parsed.prReady = true; }],
+  ["--allow-dirty", (parsed) => { parsed.allowDirty = true; }],
+]);
+
 export function parseProofCli(tokens, defaultRoot) {
   const cliCommand = tokens[0] && !tokens[0].startsWith("-") ? tokens.shift() : "route";
   const parsed = defaultProofCliState(cliCommand, defaultRoot);
@@ -18,10 +50,10 @@ export function parseProofCli(tokens, defaultRoot) {
       index = consumeFiles(tokens, index, parsed.files);
       continue;
     }
-    if (!applyScalarFlag(parsed, token, tokens, index) && token.startsWith("-")) {
+    if (!applyFlag(parsed, token, tokens, index) && token.startsWith("-")) {
       throw new Error(`Unknown proof argument: ${token}`);
     }
-    if (isValueFlag(token)) index += 1;
+    if (VALUE_FLAG_HANDLERS.has(token)) index += 1;
   }
   return finalizeProofCli(parsed);
 }
@@ -67,57 +99,19 @@ function consumeFiles(tokens, index, files) {
   return index;
 }
 
-function applyScalarFlag(parsed, token, tokens, index) {
+function applyFlag(parsed, token, tokens, index) {
   const value = tokens[index + 1];
-  if (token === "--root") parsed.root = value ?? parsed.root;
-  else if (token === "--profile") parsed.profile = value ?? parsed.profile;
-  else if (token === "--proof" || token === "--proof-id") parsed.proofId = value ?? null;
-  else if (token === "--proofs") parsed.proofIds = splitList(value ?? "");
-  else if (token === "--plan") parsed.plan = value ?? null;
-  else if (token === "--capability") parsed.capability = value ?? null;
-  else if (token === "--run-id") parsed.runId = value ?? null;
-  else if (token === "--artifact") parsed.artifact = value ?? null;
-  else if (token === "--limit") parsed.limit = Number(value);
-  else if (token === "--limit-bytes") parsed.limitBytes = Number(value);
-  else if (token === "--diagnostic-limit") parsed.diagnosticLimit = Number(value);
-  else if (token === "--legacy-path" || token === "--legacy-paths") parsed.legacyPaths = splitList(value ?? "");
-  else if (token === "--status") parsed.status = value ?? null;
-  else if (token === "--tag") parsed.tags.push(value ?? "");
-  else if (token === "--claim-id") parsed.claimId = value ?? null;
-  else if (token === "--script-root") parsed.scriptRoot = value ?? null;
-  else if (token === "--include-scripts") parsed.includeScripts = true;
-  else if (token === "--json") parsed.json = true;
-  else if (token === "--dry-run") parsed.dryRun = true;
-  else if (token === "--write") parsed.write = true;
-  else if (token === "--include-all-scripts") parsed.includeAllScripts = true;
-  else if (token === "--pin") parsed.pin = true;
-  else if (token === "--pr-ready") parsed.prReady = true;
-  else if (token === "--allow-dirty") parsed.allowDirty = true;
-  else return false;
-  return true;
-}
-
-function isValueFlag(token) {
-  return [
-    "--root",
-    "--profile",
-    "--proof",
-    "--proof-id",
-    "--proofs",
-    "--plan",
-    "--capability",
-    "--run-id",
-    "--artifact",
-    "--limit",
-    "--limit-bytes",
-    "--diagnostic-limit",
-    "--legacy-path",
-    "--legacy-paths",
-    "--status",
-    "--tag",
-    "--claim-id",
-    "--script-root",
-  ].includes(token);
+  const valueHandler = VALUE_FLAG_HANDLERS.get(token);
+  if (valueHandler) {
+    valueHandler(parsed, value);
+    return true;
+  }
+  const booleanHandler = BOOLEAN_FLAG_HANDLERS.get(token);
+  if (booleanHandler) {
+    booleanHandler(parsed);
+    return true;
+  }
+  return false;
 }
 
 function finalizeProofCli(parsed) {
