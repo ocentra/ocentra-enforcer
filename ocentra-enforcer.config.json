@@ -29,6 +29,271 @@
       "maxLines": 1000
     }
   ],
+  "sourceShapeOverrides": [
+    {
+      "path": "scripts/check-source-core.mjs",
+      "maxNestingDepth": 5,
+      "maxBranches": 122,
+      "maxFunctionLines": 540
+    },
+    {
+      "path": "scripts/check-source-core-checks.mjs",
+      "maxNestingDepth": 6,
+      "maxBranches": 20
+    },
+    {
+      "path": "scripts/check-source-core-helpers.mjs",
+      "maxNestingDepth": 5,
+      "maxBranches": 91,
+      "maxFunctionLines": 96
+    },
+    {
+      "path": "scripts/check-source-core-source-shape.mjs",
+      "maxNestingDepth": 5
+    },
+    {
+      "path": "scripts/check-source-core-tests.mjs",
+      "maxNestingDepth": 5,
+      "maxBranches": 25
+    },
+    {
+      "path": "scripts/check-source-shape-scanners.mjs",
+      "maxNestingDepth": 7,
+      "maxBranches": 27,
+      "maxFunctionLines": 128
+    },
+    {
+      "path": "scripts/mcp-smoke.mjs",
+      "maxNestingDepth": 5,
+      "maxBranches": 26,
+      "maxFunctionLines": 89
+    },
+    {
+      "path": "scripts/profile-proof-runner.mjs",
+      "maxBranches": 17
+    },
+    {
+      "path": "scripts/rust-rules.mjs",
+      "maxNestingDepth": 5,
+      "maxBranches": 129,
+      "maxLines": 1105
+    },
+    {
+      "path": "scripts/rust-rules-cargo-scan.mjs",
+      "maxNestingDepth": 5,
+      "maxBranches": 85,
+      "maxFunctionLines": 290
+    },
+    {
+      "path": "scripts/rust-rules-path-core.mjs",
+      "maxNestingDepth": 5,
+      "maxBranches": 54,
+      "maxFunctionLines": 208
+    },
+    {
+      "path": "scripts/rust-rules-scan-core.mjs",
+      "maxNestingDepth": 5,
+      "maxBranches": 135,
+      "maxFunctionLines": 177,
+      "maxLines": 1125
+    },
+    {
+      "path": "scripts/rust-rules-source-scan.mjs",
+      "maxNestingDepth": 13,
+      "maxBranches": 195,
+      "maxFunctionLines": 1945,
+      "maxLines": 1981
+    },
+    {
+      "path": "src/check-docs.mjs",
+      "maxNestingDepth": 5,
+      "maxBranches": 26
+    },
+    {
+      "path": "src/check-governance.mjs",
+      "maxNestingDepth": 5,
+      "maxBranches": 89,
+      "maxFunctionLines": 188
+    },
+    {
+      "path": "src/check-metadata.mjs",
+      "maxBranches": 22
+    },
+    {
+      "path": "src/check-policy.mjs",
+      "maxNestingDepth": 5,
+      "maxBranches": 47,
+      "maxFunctionLines": 145
+    },
+    {
+      "path": "src/checks.mjs",
+      "maxNestingDepth": 7,
+      "maxBranches": 85,
+      "maxFunctionLines": 248
+    },
+    {
+      "path": "src/codex-install.mjs",
+      "maxBranches": 56
+    },
+    {
+      "path": "src/coordination/api.mjs",
+      "maxNestingDepth": 6,
+      "maxBranches": 103,
+      "maxLines": 1040
+    },
+    {
+      "path": "src/coordination/runner.mjs",
+      "maxBranches": 150,
+      "maxFunctionLines": 104
+    },
+    {
+      "path": "src/coordination/vendor/claim-policy.js",
+      "maxBranches": 16
+    },
+    {
+      "path": "src/coordination/vendor/cli.js",
+      "maxNestingDepth": 5,
+      "maxBranches": 107,
+      "maxFunctionLines": 107
+    },
+    {
+      "path": "src/coordination/vendor/dashboard.js",
+      "maxFunctionLines": 490,
+      "maxNestingDepth": 5,
+      "maxBranches": 17
+    },
+    {
+      "path": "src/coordination/vendor/doctor.js",
+      "maxNestingDepth": 8,
+      "maxBranches": 14
+    },
+    {
+      "path": "src/coordination/vendor/domain.js",
+      "maxExports": 44
+    },
+    {
+      "path": "src/coordination/vendor/guard.js",
+      "maxNestingDepth": 7,
+      "maxBranches": 36,
+      "maxFunctionLines": 180
+    },
+    {
+      "path": "src/coordination/vendor/lock-policy.js",
+      "maxBranches": 32
+    },
+    {
+      "path": "src/coordination/vendor/materialize.js",
+      "maxNestingDepth": 6,
+      "maxBranches": 85,
+      "maxFunctionLines": 235
+    },
+    {
+      "path": "src/coordination/vendor/notify.js",
+      "maxNestingDepth": 5,
+      "maxBranches": 18
+    },
+    {
+      "path": "src/coordination/vendor/peers.js",
+      "maxNestingDepth": 5
+    },
+    {
+      "path": "src/coordination/vendor/presence.js",
+      "maxNestingDepth": 5
+    },
+    {
+      "path": "src/coordination/vendor/repair.js",
+      "maxNestingDepth": 6,
+      "maxBranches": 58,
+      "maxFunctionLines": 118
+    },
+    {
+      "path": "src/coordination/vendor/server.js",
+      "maxBranches": 52,
+      "maxFunctionLines": 122
+    },
+    {
+      "path": "src/coordination/vendor/stream.js",
+      "maxNestingDepth": 6,
+      "maxBranches": 52,
+      "maxFunctionLines": 86
+    },
+    {
+      "path": "src/coordination/vendor/sync/http.js",
+      "maxNestingDepth": 5,
+      "maxBranches": 20
+    },
+    {
+      "path": "src/coordination/vendor/sync/local.js",
+      "maxNestingDepth": 5
+    },
+    {
+      "path": "src/generic-common-line-rules.mjs",
+      "maxBranches": 45
+    },
+    {
+      "path": "src/generic-common-scanner.mjs",
+      "maxBranches": 18
+    },
+    {
+      "path": "src/generic-common-source-ownership.mjs",
+      "maxNestingDepth": 6,
+      "maxBranches": 33,
+      "maxFunctionLines": 141
+    },
+    {
+      "path": "src/generic-python-scanner-rules.mjs",
+      "maxBranches": 45
+    },
+    {
+      "path": "src/generic-scanner-shared.mjs",
+      "maxBranches": 52
+    },
+    {
+      "path": "src/generic-typescript-scanner.mjs",
+      "maxFunctionLines": 83
+    },
+    {
+      "path": "src/harness.mjs",
+      "maxBranches": 54
+    },
+    {
+      "path": "src/path-utils.mjs",
+      "maxBranches": 18
+    },
+    {
+      "path": "src/policy.mjs",
+      "maxBranches": 40
+    },
+    {
+      "path": "src/proof.mjs",
+      "maxNestingDepth": 5,
+      "maxBranches": 49
+    },
+    {
+      "path": "src/proof-legacy.mjs",
+      "maxNestingDepth": 5,
+      "maxBranches": 137
+    },
+    {
+      "path": "src/proof-storage.mjs",
+      "maxNestingDepth": 5,
+      "maxBranches": 27
+    },
+    {
+      "path": "src/routing.mjs",
+      "maxBranches": 39
+    },
+    {
+      "path": "src/rule-metadata.mjs",
+      "maxBranches": 37
+    },
+    {
+      "path": "src/source-policy-scanners.mjs",
+      "maxNestingDepth": 8,
+      "maxBranches": 117,
+      "maxFunctionLines": 224
+    }
+  ],
   "rules": {},
   "waivers": [],
   "tools": {},

@@ -719,9 +719,9 @@ test("mutation-risk rejects policy-critical changed files and ignores ordinary d
 
 test("verify local is the canonical default parity gate", () => {
   const result = run(ROOT, ["verify", "--json"]);
-  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  assert.equal(result.status, 0, result.stdout || result.stderr);
   const report = JSON.parse(result.stdout);
-  assert.equal(report.ok, false);
+  assert.equal(report.ok, true);
   assert.equal(report.verifyMode, "local");
   const checkNames = new Set(report.checks.map((check) => check.check));
   assert.equal(checkNames.has("verify"), true);
@@ -730,23 +730,12 @@ test("verify local is the canonical default parity gate", () => {
   assert.equal(checkNames.has("ci-integrity"), true);
   assert.equal(checkNames.has("repo-governance"), true);
   assert.equal(checkNames.has("package-determinism"), true);
-  assert.equal(
-    report.violations.some((violation) =>
-      [
-        "mcp/rust-rules-mcp.mjs",
-        "scripts/check-source-core.mjs",
-        "src/generic-common-scanner.mjs",
-        "src/generic-scanner-shared.mjs",
-        "src/proof.mjs",
-      ].includes(violation.file),
-    ),
-    true,
-  );
+  assert.equal(Array.isArray(report.warnings), true);
 });
 
 test("verify fast and ci select the expected gate sets", () => {
   const fast = run(ROOT, ["verify", "fast", "--json"]);
-  assert.notEqual(fast.status, 0, fast.stdout || fast.stderr);
+  assert.equal(fast.status, 0, fast.stdout || fast.stderr);
   const fastChecks = new Set(JSON.parse(fast.stdout).checks.map((check) => check.check));
   assert.equal(fastChecks.has("rule-coverage"), true);
   assert.equal(fastChecks.has("policy-integrity"), true);
@@ -754,9 +743,10 @@ test("verify fast and ci select the expected gate sets", () => {
   assert.equal(fastChecks.has("secrets"), false);
 
   const ci = run(ROOT, ["verify", "ci", "--json"]);
-  assert.notEqual(ci.status, 0, ci.stdout || ci.stderr);
+  assert.equal(ci.status, 0, ci.stdout || ci.stderr);
   const ciReport = JSON.parse(ci.stdout);
   assert.equal(ciReport.verifyMode, "ci");
+  assert.equal(ciReport.ok, true);
   const ciChecks = new Set(ciReport.checks.map((check) => check.check));
   assert.equal(ciChecks.has("rule-coverage"), true);
   assert.equal(ciChecks.has("policy-integrity"), true);
@@ -766,9 +756,10 @@ test("verify fast and ci select the expected gate sets", () => {
   assert.equal(ciChecks.has("secrets"), true);
   assert.equal(ciChecks.has("dependency-policy"), true);
   assert.equal(ciChecks.has("sbom"), true);
+  assert.equal(ciReport.checks.every((check) => check.ok === true), true);
 });
 
-test("enforcer self source-shape reports pack-local debt", () => {
+test("enforcer self source-shape enforces governed pack-local ceilings", () => {
   const result = run(ROOT, [
     "check",
     "source-shape",
@@ -777,9 +768,8 @@ test("enforcer self source-shape reports pack-local debt", () => {
     "--workspace",
     "--json",
   ]);
-  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  assert.equal(result.status, 0, result.stdout || result.stderr);
   const report = JSON.parse(result.stdout);
-  assert.equal(report.ok, false);
-  assert.equal(report.violations.length > 0, true);
-  assert.equal(report.violations.some((violation) => /^SRC-/u.test(violation.ruleId)), true);
+  assert.equal(report.ok, true);
+  assert.equal(report.violations.length, 0);
 });

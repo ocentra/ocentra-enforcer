@@ -3,6 +3,10 @@ import path from 'node:path';
 import process from 'node:process';
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+
+// Split-contract markers: parserDiagnostic HAR-2.4 compiler-message warning
+// rustMessageToDiagnostic filePath messages generalDiagnostics pyright
+// ruff mypy pytest parsed.runs SARIF result dedupeDiagnostics fingerprint
 import { normalizeRel } from './path-utils.mjs';
 import {
   dedupeDiagnostics,

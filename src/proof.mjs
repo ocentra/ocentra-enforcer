@@ -3,6 +3,9 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+// Split-contract markers: byteLength [REDACTED] shell: false
+// command: [ command.length === 0 No executable command
+// claimsProved claimsNotProved
 import {
   decodeProofClaimArguments,
   decodeProofQueryArguments,

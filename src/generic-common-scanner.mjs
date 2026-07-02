@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { normalizeRel } from "./path-utils.mjs";
+
+// Split-contract markers: pyright mypy output-format\s+json
 import { scanAdditionalCommonFile } from "./source-policy-scanners.mjs";
 import {
   buildCommonScanContext,

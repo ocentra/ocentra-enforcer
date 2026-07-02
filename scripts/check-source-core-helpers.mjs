@@ -683,12 +683,25 @@ function resolveContractConfigPath(root, explicitConfigPath) {
 }
 
 function spawnInRoot(root, command, args) {
-  const resolved = resolveCommand(command);
-  return spawnSync(resolved, args, { cwd: root, encoding: "utf8", shell: false });
+  const invocation = resolveCommand(command, args);
+  return spawnSync(invocation.command, invocation.args, {
+    cwd: root,
+    encoding: "utf8",
+    shell: false,
+  });
 }
 
-function resolveCommand(command) {
-  return command;
+function resolveCommand(command, args) {
+  if (
+    process.platform === "win32" &&
+    (command === "npm" || command === "npx" || command === "pnpm")
+  ) {
+    return {
+      command: process.env.ComSpec || "cmd.exe",
+      args: ["/d", "/s", "/c", command, ...args],
+    };
+  }
+  return { command, args };
 }
 
 function compactProcessOutput(result) {
