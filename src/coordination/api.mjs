@@ -289,8 +289,26 @@ export async function coordinationRelease(args = {}) {
   const root = coordinationRoot(args);
   const config = await loadIdentity(root);
   const lane = parseLaneId(args.lane ?? config.defaultLane);
-  const paths = pathList(args.paths).map((entry) => parseClaimPath(entry));
-  if (paths.length === 0) throw new Error("coordination release requires paths");
+  let paths = pathList(args.paths).map((entry) => parseClaimPath(entry));
+  let matchedClaimCount = 0;
+  if (paths.length === 0) {
+    const state = await materialize(root);
+    const filters = closeoutFilters(args, config, lane);
+    const claims = matchingCloseoutClaims(state.ownership.activeClaims, filters);
+    matchedClaimCount = claims.length;
+    paths = unique(claims.flatMap((claim) => claim.paths ?? []));
+    if (paths.length === 0) {
+      return {
+        ok: true,
+        root,
+        lane,
+        matchedClaimCount,
+        releasedPaths: [],
+        notificationEvents: [],
+        nextStep: "No active claims matched the selected lane/thread/worktree release scope.",
+      };
+    }
+  }
   const event = await appendEvent(root, config, lane, {
     type: "release",
     paths,
@@ -319,7 +337,15 @@ export async function coordinationRelease(args = {}) {
       }),
     );
   }
-  return { ok: true, root, event, notificationEvents };
+  return {
+    ok: true,
+    root,
+    lane,
+    matchedClaimCount,
+    releasedPaths: paths,
+    event,
+    notificationEvents,
+  };
 }
 
 export async function coordinationCloseout(args = {}) {
@@ -782,7 +808,7 @@ function filterClaimsByPaths(claims, paths) {
 }
 
 function closeoutFilters(args, config, lane) {
-  const rootFilter = args.root ?? args.worktreeRoot ?? args.repoRoot;
+  const rootFilter = args.root ?? args.worktreeRoot ?? args.repoRoot ?? args.cwd;
   return {
     lane,
     writer: args.owner ?? args.writer,

@@ -1009,6 +1009,42 @@ test("MCP status detects stale server code and blocks coordination writes", asyn
     "--json",
   ]);
 
+  const staleReleaseOwned = await client.request(51, "tools/call", {
+    name: "ocentra_enforcer_coordination_release",
+    arguments: {
+      stateRoot: staleStateRoot,
+      hub: "stale-hub",
+      lane: "codex-a",
+      cwd: staleTargetRoot,
+      operation: "edit",
+      reason: "release stale owned",
+      codexThreadId: "thread-stale",
+    },
+  });
+  assert.equal(staleReleaseOwned.result.isError, true);
+  const staleReleaseOwnedReport = JSON.parse(staleReleaseOwned.result.content[0].text);
+  assert.deepEqual(staleReleaseOwnedReport.fallback.command, [
+    process.execPath,
+    CLI,
+    "coordination",
+    "release",
+    "--state-root",
+    staleStateRoot,
+    "--hub",
+    "stale-hub",
+    "--lane",
+    "codex-a",
+    "--cwd",
+    staleTargetRoot,
+    "--codex-thread-id",
+    "thread-stale",
+    "--operation",
+    "edit",
+    "--reason",
+    "release stale owned",
+    "--json",
+  ]);
+
   const staleMessage = await client.request(6, "tools/call", {
     name: "ocentra_enforcer_coordination_message",
     arguments: {

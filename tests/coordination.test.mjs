@@ -1022,6 +1022,40 @@ test("coordination closeout stale repair removes only selected owners", async ()
   assert.equal(status.state.ownership.activeClaims[0].lane, "codex-a");
 });
 
+test("coordination release without explicit paths releases lane-owned claims in scope", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-release-owned-"));
+  const targetRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-release-owned-target-"));
+  fs.mkdirSync(path.join(targetRoot, "src"), { recursive: true });
+  fs.writeFileSync(path.join(targetRoot, "src", "lib.rs"), "fn local() {}\n");
+  fs.writeFileSync(path.join(targetRoot, "src", "other.rs"), "fn other() {}\n");
+  await coordinationInit({ stateRoot, hub: "release-owned-hub", lane: "codex-a" });
+  await coordinationClaim({
+    stateRoot,
+    root: targetRoot,
+    lane: "codex-a",
+    paths: ["src/lib.rs", "src/other.rs"],
+    reason: "release owned claim",
+    codexThreadId: "thread-release-owned",
+  });
+
+  const result = await coordinationRelease({
+    stateRoot,
+    cwd: targetRoot,
+    lane: "codex-a",
+    codexThreadId: "thread-release-owned",
+    reason: "release all owned",
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.matchedClaimCount, 2);
+  assert.deepEqual(
+    [...result.releasedPaths].sort(),
+    ["src/lib.rs", "src/other.rs"],
+  );
+
+  const presence = await coordinationPresence({ stateRoot });
+  assert.deepEqual(presence.views.byClaimedPath, {});
+});
+
 test("coordination health reports stream repair prerequisite instead of throwing", async () => {
   const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-health-prereq-"));
   const streamsRoot = path.join(stateRoot, "streams");
@@ -1307,6 +1341,56 @@ test("coordination CLI supports state-root and public claim/release flags", () =
   );
   assert.equal(release.status, 0, release.stderr);
   assert.equal(JSON.parse(release.stdout).event.type, "release");
+
+  const claimForOwnedRelease = spawnSync(
+    process.execPath,
+    [
+      CLI,
+      "coordination",
+      "claim",
+      "--state-root",
+      stateRoot,
+      "--hub",
+      "portable-hub",
+      "--lane",
+      "codex-a",
+      "--root",
+      targetRoot,
+      "--paths",
+      "docs/proof.md",
+      "--reason",
+      "cli release owned claim",
+      "--codex-thread-id",
+      "thread-cli-release-owned",
+    ],
+    { cwd: targetRoot, encoding: "utf8" },
+  );
+  assert.equal(claimForOwnedRelease.status, 0, claimForOwnedRelease.stderr);
+
+  const releaseOwned = spawnSync(
+    process.execPath,
+    [
+      CLI,
+      "coordination",
+      "release",
+      "codex-a",
+      "--state-root",
+      stateRoot,
+      "--hub",
+      "portable-hub",
+      "--cwd",
+      targetRoot,
+      "--codex-thread-id",
+      "thread-cli-release-owned",
+      "--reason",
+      "cli release owned",
+    ],
+    { cwd: targetRoot, encoding: "utf8" },
+  );
+  assert.equal(releaseOwned.status, 0, releaseOwned.stderr);
+  const releaseOwnedReport = JSON.parse(releaseOwned.stdout);
+  assert.equal(releaseOwnedReport.event.type, "release");
+  assert.equal(releaseOwnedReport.matchedClaimCount, 1);
 
   const claimForCloseout = spawnSync(
     process.execPath,
