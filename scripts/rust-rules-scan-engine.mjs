@@ -2,6 +2,8 @@
 /*
  * Ocentra Enforcer Rust scan engine.
  */
+import { scanRustFile } from "./rust-rules-source-scan.mjs";
+
 export {
   collectFunctionSignatures,
   functionName,
@@ -9,6 +11,9 @@ export {
   normalizedNameTokens,
   isSuspiciousSerializedFieldName,
   braceDelta,
+  hasStringLiteral,
+} from "./rust-rules-source-helpers.mjs";
+export {
   isTestFile,
   isRawTypeBoundary,
   isBoundaryModulePath,
@@ -16,9 +21,8 @@ export {
   isDomainPrimitiveOwner,
   isRuntimeStringOwner,
   isSerializedDomainOwner,
-  hasStringLiteral,
-  scanRustFile,
-} from "./rust-rules-source-scan.mjs";
+} from "./rust-rules-source-classification.mjs";
+export { scanRustFile };
 export {
   scanWorkspaceFiles,
   manifestPathsForScope,

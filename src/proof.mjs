@@ -6,13 +6,7 @@ import { fileURLToPath } from "node:url";
 // Split-contract markers: byteLength [REDACTED] shell: false
 // command: [ command.length === 0 No executable command
 // claimsProved claimsNotProved
-import {
-  decodeProofClaimArguments,
-  decodeProofQueryArguments,
-  decodeProofRegistry,
-  decodeProofRouteRequest,
-  decodeProofRunArguments,
-} from "../schemas/effect/enforcer-schemas.mjs";
+import { DecodeSchemas } from "../schemas/effect/enforcer-schemas.mjs";
 import { formatProofReport, parseProofCli, stripNullish } from "./proof-cli.mjs";
 import {
   buildMigrationMatrix,
@@ -61,6 +55,14 @@ import {
 } from "./proof-storage.mjs";
 import { runHarness } from "./harness.mjs";
 import { normalizeRel, repoAbsolute, uniqueSorted } from "./path-utils.mjs";
+
+const {
+  decodeProofClaimArguments,
+  decodeProofQueryArguments,
+  decodeProofRegistry,
+  decodeProofRouteRequest,
+  decodeProofRunArguments,
+} = DecodeSchemas;
 
 const DEFAULT_PACK_ROOT = path.resolve(
   path.join(path.dirname(fileURLToPath(import.meta.url)), ".."),

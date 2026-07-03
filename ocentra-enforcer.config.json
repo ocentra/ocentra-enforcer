@@ -75,12 +75,6 @@
       "maxBranches": 17
     },
     {
-      "path": "scripts/rust-rules.mjs",
-      "maxNestingDepth": 5,
-      "maxBranches": 129,
-      "maxLines": 1105
-    },
-    {
       "path": "scripts/rust-rules-cargo-scan.mjs",
       "maxNestingDepth": 5,
       "maxBranches": 85,
@@ -103,8 +97,8 @@
       "path": "scripts/rust-rules-source-scan.mjs",
       "maxNestingDepth": 13,
       "maxBranches": 195,
-      "maxFunctionLines": 1945,
-      "maxLines": 1981
+      "maxFunctionLines": 1600,
+      "maxLines": 1600
     },
     {
       "path": "src/check-docs.mjs",

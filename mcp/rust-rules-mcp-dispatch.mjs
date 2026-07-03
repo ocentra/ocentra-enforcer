@@ -1,14 +1,5 @@
 import process from "node:process";
-import {
-  decodeCheckToolArguments,
-  decodeCoordinationToolArguments,
-  decodeDoctorToolArguments,
-  decodeExplainToolArguments,
-  decodeRouteRequest,
-  decodeRunQueryArguments,
-  decodeRunToolArguments,
-  decodeScanToolArguments,
-} from "../schemas/effect/enforcer-schemas.mjs";
+import { DecodeSchemas } from "../schemas/effect/enforcer-schemas.mjs";
 import {
   MCP_FINGERPRINT_FILES,
   PACKAGE_JSON,
@@ -75,6 +66,17 @@ import {
   latestValidationSummary,
   runCli,
 } from "./rust-rules-mcp-runner.mjs";
+
+const {
+  decodeCheckToolArguments,
+  decodeCoordinationToolArguments,
+  decodeDoctorToolArguments,
+  decodeExplainToolArguments,
+  decodeRouteRequest,
+  decodeRunQueryArguments,
+  decodeRunToolArguments,
+  decodeScanToolArguments,
+} = DecodeSchemas;
 
 const STARTUP_FINGERPRINT = buildMcpFingerprint(MCP_FINGERPRINT_FILES);
 const TOOL_HANDLERS = new Map([

@@ -4,7 +4,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import {
+import { DecodeSchemas, decodeEnforcerConfig, decodeRuleRegistry } from "../schemas/effect/enforcer-schemas.mjs";
+
+const PACK_ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
+
+const {
   decodeCodexDoctorRequest,
   decodeCodexInstallRequest,
   decodeCodexUninstallRequest,
@@ -13,7 +20,6 @@ import {
   decodeCoordinationHealthReport,
   decodeCoordinationPresenceReport,
   decodeCoordinationToolArguments,
-  decodeEnforcerConfig,
   decodeInitRequest,
   decodeProofClaimArguments,
   decodeProofClaimReport,
@@ -24,16 +30,10 @@ import {
   decodeProofRunReport,
   decodeRouteReport,
   decodeRouteRequest,
-  decodeRuleRegistry,
   decodeRunReport,
   decodeRunToolArguments,
   decodeScanReport,
-} from "../schemas/effect/enforcer-schemas.mjs";
-
-const PACK_ROOT = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-);
+} = DecodeSchemas;
 
 test("Effect Schema decodes valid registry, config, route, init, and reports", () => {
   const registry = decodeRuleRegistry(

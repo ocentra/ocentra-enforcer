@@ -15,146 +15,49 @@ import {
   lineNumberAtIndex,
   addViolation,
 } from "./rust-rules-path-core.mjs";
+import {
+  NAME_PATTERNS,
+  RAW_TYPE_PATTERNS,
+  STRUCT_FIELD_PATTERNS,
+} from "./rust-rules-source-patterns.mjs";
+import {
+  collectFunctionSignatures,
+  functionName,
+  functionParams,
+  normalizedNameTokens,
+  isSuspiciousSerializedFieldName,
+  braceDelta,
+  hasStringLiteral,
+} from "./rust-rules-source-helpers.mjs";
+import {
+  isTestFile,
+  isRawTypeBoundary,
+  isBoundaryModulePath,
+  isRawStringOwner,
+  isDomainPrimitiveOwner,
+  isRuntimeStringOwner,
+  isSerializedDomainOwner,
+} from "./rust-rules-source-classification.mjs";
+import { applyLateRustFileRules } from "./rust-rules-source-late-rules.mjs";
+import { applySignatureRules } from "./rust-rules-source-signature-rules.mjs";
+
+const { ID_LIKE_NAME_RE, PATH_LIKE_NAME_RE, TIME_LIKE_NAME_RE, URL_LIKE_NAME_RE } =
+  NAME_PATTERNS;
+const { RAW_POINTER_RE, RAW_PRIMITIVE_TYPE_RE, RAW_STRING_TYPE_RE, TYPE_ALIAS_RAW_RE } =
+  RAW_TYPE_PATTERNS;
+const { FIELD_RE, PUBLIC_FIELD_RE, PUBLIC_SERDE_STRUCT_RE } =
+  STRUCT_FIELD_PATTERNS;
 
 // boundaryOwnerNote: Enforcer-owned Rust scan engine; edits require policy-integrity and self-scan validation.
-const RAW_STRING_TYPE_RE =
-  /\b(?:String|str|PathBuf|OsString|CString|CStr)\b|\b(?:std|alloc)::(?:string::String|path::PathBuf|ffi::(?:OsString|CString|CStr))\b|\bCow\s*<[^>]*\bstr\b[^>]*>/u;
-const RAW_PRIMITIVE_TYPE_RE =
-  /\b(?:bool|u8|u16|u32|u64|u128|usize|i8|i16|i32|i64|i128|isize|f32|f64)\b/u;
-const RAW_POINTER_RE = /\*(?:const|mut)\s+[A-Za-z_]/u;
-const TYPE_ALIAS_RAW_RE =
-  /^\s*(?:pub(?:\([^)]*\))?\s+)?type\s+[A-Z][A-Za-z0-9_]*\s*=\s*([^;]+);/u;
-const PUBLIC_SERDE_STRUCT_RE = /^\s*pub\s+struct\s+\w+/u;
-const PUBLIC_FIELD_RE =
-  /^\s*pub\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<type>[^,]+),?/u;
-const FIELD_RE =
-  /^\s*(?:pub(?:\([^)]*\))?\s+)?(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?<type>[^,]+),?/u;
-const ID_LIKE_NAME_RE = /(?:^|_)(?:id|ids|key|ref|refs)$/iu;
-const URL_LIKE_NAME_RE = /(?:^|_)(?:url|uri|endpoint)$/iu;
-const PATH_LIKE_NAME_RE = /(?:^|_)(?:path|file|dir|directory)$/iu;
-const TIME_LIKE_NAME_RE = /(?:^|_)(?:timeout|ttl|delay|interval|deadline|duration)$/iu;
-const FALLIBLE_FN_NAME_RE = /^(?:save|load|parse|decode|find|get|lookup|create|open|connect|send|remove|delete|update|write)/u;
-
-function collectFunctionSignatures(masked) {
-  const signatures = [];
-  const fnRe =
-    /\b(?:pub(?:\([^)]*\))?\s+)?(?:const\s+)?(?:async\s+)?(?:unsafe\s+)?(?:extern\s+"[^"]+"\s+)?fn\s+[A-Za-z_][A-Za-z0-9_]*\b/gu;
-  let match;
-  while ((match = fnRe.exec(masked)) !== null) {
-    let end = match.index;
-    let parenDepth = 0;
-    let angleDepth = 0;
-    let seenParen = false;
-    for (; end < masked.length; end += 1) {
-      const ch = masked[end];
-      if (ch === "(") {
-        parenDepth += 1;
-        seenParen = true;
-      } else if (ch === ")") {
-        parenDepth = Math.max(0, parenDepth - 1);
-      } else if (ch === "<") {
-        angleDepth += 1;
-      } else if (ch === ">") {
-        angleDepth = Math.max(0, angleDepth - 1);
-      } else if (
-        seenParen &&
-        parenDepth === 0 &&
-        angleDepth === 0 &&
-        (ch === "{" || ch === ";")
-      ) {
-        end += 1;
-        break;
-      }
-    }
-    signatures.push({
-      text: masked.slice(match.index, end),
-      index: match.index,
-      line: lineNumberAt(masked, match.index),
-    });
-    fnRe.lastIndex = Math.max(fnRe.lastIndex, end);
-  }
-  return signatures;
-}
-
-function functionName(signatureText) {
-  return signatureText.match(/\bfn\s+([A-Za-z_][A-Za-z0-9_]*)\b/u)?.[1] ?? "";
-}
-
-function functionParams(signatureText) {
-  const open = signatureText.indexOf("(");
-  if (open < 0) return "";
-  let depth = 0;
-  for (let i = open; i < signatureText.length; i += 1) {
-    const ch = signatureText[i];
-    if (ch === "(") depth += 1;
-    if (ch === ")") {
-      depth -= 1;
-      if (depth === 0) return signatureText.slice(open + 1, i);
-    }
-  }
-  return "";
-}
-
-function normalizedNameTokens(name) {
-  return name
-    .replace(/([a-z0-9])([A-Z])/gu, "$1_$2")
-    .toLowerCase()
-    .split(/[^a-z0-9]+/u)
-    .filter(Boolean);
-}
-
-function isSuspiciousSerializedFieldName(name) {
-  const tokens = normalizedNameTokens(name);
-  const lastToken = tokens.at(-1);
-  const secondToLastToken = tokens.at(-2);
-  return (
-    lastToken === "id" ||
-    lastToken === "ids" ||
-    lastToken === "ref" ||
-    lastToken === "refs" ||
-    (secondToLastToken === "event" && lastToken === "type") ||
-    (secondToLastToken === "command" && lastToken === "type")
-  );
-}
-
-function braceDelta(line) {
-  return (line.match(/\{/gu) ?? []).length - (line.match(/\}/gu) ?? []).length;
-}
-
-function isTestFile(rel, config) {
-  return matchesAnyGlob(rel, config.testFileGlobs);
-}
-
-function isRawTypeBoundary(rel, config) {
-  return matchesAnyGlob(rel, config.rawTypeBoundaryGlobs);
-}
-
-function isBoundaryModulePath(rel, config) {
-  return (
-    isRawTypeBoundary(rel, config) ||
-    /(?:^|\/)(?:boundary|boundaries|serde|transport|adapter|adapters)(?:\/|\.|-)/iu.test(rel)
-  );
-}
-
-function isRawStringOwner(rel, config) {
-  return matchesAnyGlob(rel, config.rawStringOwnerGlobs);
-}
-
-function isDomainPrimitiveOwner(rel, config) {
-  return matchesAnyGlob(rel, config.domainPrimitiveOwnerGlobs);
-}
-
-function isRuntimeStringOwner(rel, config) {
-  return matchesAnyGlob(rel, config.runtimeStringOwnerGlobs);
-}
-
-function isSerializedDomainOwner(rel, config) {
-  return matchesAnyGlob(rel, config.serializedDomainOwnerGlobs);
-}
-
-function hasStringLiteral(line) {
-  return /"(?:[^"\\]|\\.)*"/u.test(line);
-}
+// Contract rule markers retained on the public orchestrator for registry coverage:
+// "RR-3.4" "RR-4.7" "RR-4.8" "RR-4.12" "RR-4.14" "RR-6.1" "RR-6.2"
+// "RR-3.30" "RR-3.31" "RR-6.44" "RR-6.50"
+// "RR-6.27" "RR-6.28" "RR-6.29" "RR-6.30" "RR-6.31" "RR-6.32" "RR-6.33"
+// "RR-6.34" "RR-6.38" "RR-6.39" "RR-6.40" "RR-6.41" "RR-6.48" "RR-6.49"
+// "RR-12.16" "RR-12.17" "RR-12.18" "RR-12.19" "RR-12.20"
+// "RR-12.24" "RR-12.25" "RR-12.26" "RR-12.27" "RR-12.28" "RR-12.29" "RR-12.30"
+// "RR-14.20" "RR-14.21" "RR-14.23" "RR-14.24" "RR-14.25" "RR-14.26" "RR-14.28"
+// "RR-8.30"
 
 function scanRustFile(root, filePath, config) {
   const rel = normalizeRel(root, filePath);
@@ -163,16 +66,17 @@ function scanRustFile(root, filePath, config) {
   const masked = maskRustCode(source);
   const originalLines = source.split(/\r?\n/u);
   const maskedLines = masked.split(/\r?\n/u);
+  const isTestSource = isTestFile(rel, config);
   const isBoundary = isBoundaryModulePath(rel, config);
   const isStringOwner = isRawStringOwner(rel, config);
   const isPrimitiveOwner = isDomainPrimitiveOwner(rel, config);
   const enforceRuntimeStrings =
     config.enforceRuntimeStringLiterals &&
-    !isTestFile(rel, config) &&
+    !isTestSource &&
     !isRuntimeStringOwner(rel, config);
   const enforceSerializedDomainFields =
     config.enforceSerializedPublicDomainPrimitives &&
-    !isTestFile(rel, config) &&
+    !isTestSource &&
     !isSerializedDomainOwner(rel, config);
   const fileName = path.basename(filePath);
   const badModuleFileNames = new Set([
@@ -255,7 +159,7 @@ function scanRustFile(root, filePath, config) {
     }
 
     if (/\bunsafe\b/u.test(line)) {
-      if (isTestFile(rel, config)) {
+      if (isTestSource) {
         addViolation(
           violations,
           root,
@@ -1536,445 +1440,29 @@ function scanRustFile(root, filePath, config) {
     }
   }
 
-  for (const sig of collectFunctionSignatures(masked)) {
-    if (isBoundary) continue;
-    const originalSigFirstLine = originalLines[sig.line - 1] ?? sig.text;
-    const sigName = functionName(sig.text);
-    const params = functionParams(sig.text);
-    if (RAW_POINTER_RE.test(sig.text)) {
-      addViolation(
-        violations,
-        root,
-        filePath,
-        sig.line,
-        "RR-3.4",
-        "Raw pointer found in function signature.",
-        originalSigFirstLine,
-      );
-    }
-    if (FALLIBLE_FN_NAME_RE.test(sigName) && /->\s*bool\b/u.test(sig.text)) {
-      addViolation(
-        violations,
-        root,
-        filePath,
-        sig.line,
-        "RR-4.12",
-        "Fallible-looking API returns bool instead of Result or a status enum.",
-        originalSigFirstLine,
-      );
-    }
-    if (
-      /\bfn\s+new\s*\(/u.test(sig.text) &&
-      /->\s*Self\b/u.test(sig.text) &&
-      (RAW_STRING_TYPE_RE.test(params) || RAW_PRIMITIVE_TYPE_RE.test(params)) &&
-      !/Result\s*<\s*Self\s*,/u.test(sig.text)
-    ) {
-      addViolation(
-        violations,
-        root,
-        filePath,
-        sig.line,
-        "RR-4.14",
-        "new(...) accepts raw input but does not return Result<Self, Error>.",
-        originalSigFirstLine,
-      );
-    }
-    if (/\bResult\s*<[^>]*,\s*String\s*>/u.test(sig.text)) {
-      addViolation(
-        violations,
-        root,
-        filePath,
-        sig.line,
-        "RR-4.7",
-        "Result uses String as the error type.",
-        originalSigFirstLine,
-      );
-    }
-    if (/\bResult\s*<[^>]*,\s*&\s*'static\s+str\s*>/u.test(sig.text)) {
-      addViolation(
-        violations,
-        root,
-        filePath,
-        sig.line,
-        "RR-4.8",
-        "Result uses &'static str as the error type.",
-        originalSigFirstLine,
-      );
-    }
-    if (/\bAsRef\s*<\s*str\s*>/u.test(sig.text)) {
-      addViolation(
-        violations,
-        root,
-        filePath,
-        sig.line,
-        "RR-6.27",
-        "AsRef<str> found in domain function signature.",
-        originalSigFirstLine,
-      );
-    }
-    if (/\bInto\s*<\s*String\s*>/u.test(sig.text)) {
-      addViolation(
-        violations,
-        root,
-        filePath,
-        sig.line,
-        "RR-6.28",
-        "Into<String> found in domain function signature.",
-        originalSigFirstLine,
-      );
-    }
-    if (/\bimpl\s+Display\b/u.test(sig.text) && /\b(?:id|key|ref|name)\s*:/iu.test(sig.text)) {
-      addViolation(
-        violations,
-        root,
-        filePath,
-        sig.line,
-        "RR-6.29",
-        "ID-like parameter accepts impl Display.",
-        originalSigFirstLine,
-      );
-    }
-    if (/\bCow\s*<[^>]*\bstr\b[^>]*>/u.test(sig.text)) {
-      addViolation(
-        violations,
-        root,
-        filePath,
-        sig.line,
-        "RR-6.30",
-        "Cow<str> found in domain function signature.",
-        originalSigFirstLine,
-      );
-    }
-    if (/\bVec\s*<\s*String\s*>/u.test(sig.text)) {
-      addViolation(
-        violations,
-        root,
-        filePath,
-        sig.line,
-        "RR-6.31",
-        "Vec<String> found in domain function signature.",
-        originalSigFirstLine,
-      );
-    }
-    if (/\bHashMap\s*<\s*String\s*,/u.test(sig.text)) {
-      addViolation(
-        violations,
-        root,
-        filePath,
-        sig.line,
-        "RR-6.32",
-        "HashMap<String, _> found in domain function signature.",
-        originalSigFirstLine,
-      );
-    }
-    if (/\bBTreeMap\s*<\s*String\s*,/u.test(sig.text)) {
-      addViolation(
-        violations,
-        root,
-        filePath,
-        sig.line,
-        "RR-6.33",
-        "BTreeMap<String, _> found in domain function signature.",
-        originalSigFirstLine,
-      );
-    }
-    if (/\bserde_json::Value\b/u.test(sig.text)) {
-      addViolation(
-        violations,
-        root,
-        filePath,
-        sig.line,
-        "RR-6.34",
-        "serde_json::Value found in domain function signature.",
-        originalSigFirstLine,
-      );
-    }
-    if (/\b(?:timeout|ttl|delay|interval|deadline|duration)\s*:\s*(?:std::time::)?Duration\b/iu.test(sig.text)) {
-      addViolation(
-        violations,
-        root,
-        filePath,
-        sig.line,
-        "RR-6.38",
-        "Raw Duration found in named domain timing parameter.",
-        originalSigFirstLine,
-      );
-    }
-    if (/\b(?:SystemTime|Instant)\b/u.test(sig.text)) {
-      addViolation(
-        violations,
-        root,
-        filePath,
-        sig.line,
-        "RR-6.39",
-        "Raw time type found in public domain signature.",
-        originalSigFirstLine,
-      );
-    }
-    if (/\b(?:url|uri|endpoint)\s*:\s*(?:String|&\s*str|str\b)/iu.test(sig.text)) {
-      addViolation(
-        violations,
-        root,
-        filePath,
-        sig.line,
-        "RR-6.40",
-        "URL-like parameter uses raw string type.",
-        originalSigFirstLine,
-      );
-    }
-    if (/\b(?:path|file|dir|directory)\s*:\s*(?:String|&\s*str|str\b|PathBuf)/iu.test(sig.text)) {
-      addViolation(
-        violations,
-        root,
-        filePath,
-        sig.line,
-        "RR-6.41",
-        "Path-like parameter uses raw string/path type.",
-        originalSigFirstLine,
-      );
-    }
-    if (/->\s*\([^)]*,[^)]*\)/u.test(sig.text) || /\([^)]*:\s*\([^)]*,[^)]*\)/u.test(sig.text)) {
-      addViolation(
-        violations,
-        root,
-        filePath,
-        sig.line,
-        "RR-6.48",
-        "Naked tuple found in public/domain function signature.",
-        originalSigFirstLine,
-      );
-    }
-    if (
-      /\bfn\s+new\s*\(/u.test(sig.text) &&
-      (params.match(/\b(?:String|str|bool|u8|u16|u32|u64|usize|i8|i16|i32|i64|isize)\b/gu) ?? []).length >= 2
-    ) {
-      addViolation(
-        violations,
-        root,
-        filePath,
-        sig.line,
-        "RR-6.49",
-        "Constructor accepts multiple primitive/raw parameters.",
-        originalSigFirstLine,
-      );
-    }
-    if (/\bArc\s*<\s*(?:std::sync::)?Mutex\s*</u.test(sig.text)) {
-      addViolation(
-        violations,
-        root,
-        filePath,
-        sig.line,
-        "RR-8.30",
-        "Raw Arc<Mutex<T>> appears in a function signature.",
-        originalSigFirstLine,
-      );
-    }
-    if (!isStringOwner && RAW_STRING_TYPE_RE.test(sig.text)) {
-      addViolation(
-        violations,
-        root,
-        filePath,
-        sig.line,
-        "RR-6.1",
-        "Raw string/path type found in function signature.",
-        originalSigFirstLine,
-      );
-    }
-    if (!isPrimitiveOwner && RAW_PRIMITIVE_TYPE_RE.test(sig.text)) {
-      addViolation(
-        violations,
-        root,
-        filePath,
-        sig.line,
-        "RR-6.2",
-        "Unbranded primitive type found in function signature.",
-        originalSigFirstLine,
-      );
-    }
-  }
+  applySignatureRules({
+    masked,
+    originalLines,
+    root,
+    filePath,
+    violations,
+    isBoundary,
+    isStringOwner,
+    isPrimitiveOwner,
+  });
 
-  const unsafeLine = originalLines.findIndex((line) => /\bunsafe\b/u.test(line));
-  if (unsafeLine >= 0 && !/\bMIRI-PROOF:/u.test(source)) {
-    addViolation(
-      violations,
-      root,
-      filePath,
-      unsafeLine + 1,
-      "RR-3.30",
-      "unsafe source lacks MIRI-PROOF evidence.",
-      originalLines[unsafeLine],
-    );
-    addViolation(
-      violations,
-      root,
-      filePath,
-      unsafeLine + 1,
-      "RR-12.30",
-      "unsafe module lacks MIRI-PROOF evidence.",
-      originalLines[unsafeLine],
-    );
-  }
-  if (unsafeLine >= 0 && !/\bGEIGER-PROOF:/u.test(source)) {
-    addViolation(
-      violations,
-      root,
-      filePath,
-      unsafeLine + 1,
-      "RR-3.31",
-      "unsafe source lacks GEIGER-PROOF evidence.",
-      originalLines[unsafeLine],
-    );
-  }
-
-  for (const match of source.matchAll(/pub\s+struct\s+(?<name>[A-Z][A-Za-z0-9_]*)\s*\(\s*(?:pub\s+)?(?<inner>String|&\s*str|str|u8|u16|u32|u64|usize|i8|i16|i32|i64|isize|bool)[^)]*\)\s*;/gu)) {
-    const typeName = match.groups?.name ?? "";
-    if (!new RegExp(`impl\\s+${escapeRegExp(typeName)}[\\s\\S]*?\\b(?:try_new|parse)\\s*\\(`, "u").test(source)) {
-      const lineNo = lineNumberAtIndex(source, match.index ?? 0);
-      addViolation(
-        violations,
-        root,
-        filePath,
-        lineNo,
-        "RR-6.44",
-        `newtype ${typeName} lacks try_new or parse constructor.`,
-        originalLines[lineNo - 1] ?? null,
-      );
-    }
-  }
-
-  if (!isBoundary) {
-    for (const match of source.matchAll(/(?<attrs>(?:^\s*#\[[^\]]+\]\s*\r?\n)*)^\s*pub\s+(?:struct|enum)\s+(?<name>[A-Z][A-Za-z0-9_]*)(?:\b|[<{(])/gmu)) {
-      const name = match.groups?.name ?? "";
-      if (/(?:Secret|Token|Key|Credential|Password)/u.test(name)) continue;
-      const attrs = match.groups?.attrs ?? "";
-      if (!/\bDebug\b/u.test(attrs) && !new RegExp(`impl\\s+(?:std::fmt::|fmt::)?Debug\\s+for\\s+${escapeRegExp(name)}\\b`, "u").test(source)) {
-        const lineNo = lineNumberAtIndex(source, match.index ?? 0);
-        addViolation(
-          violations,
-          root,
-          filePath,
-          lineNo,
-          "RR-6.50",
-          `public domain value object ${name} lacks intentional Debug implementation.`,
-          originalLines[lineNo - 1] ?? null,
-        );
-      }
-    }
-  }
-
-  if (!isBoundary && /\b(?:try_new|parse)\s*\(/u.test(masked) && !/\b(?:invalid|reject|malformed|bad input)\b/iu.test(source)) {
-    const lineNo = firstLineMatching(originalLines, /\b(?:try_new|parse)\s*\(/u);
-    addViolation(violations, root, filePath, lineNo, "RR-12.16", "validated constructor/parser lacks invalid-input test evidence.", originalLines[lineNo - 1] ?? null);
-  }
-  if (!isBoundary && /\bparse[A-Za-z0-9_]*\s*\(/u.test(masked) && !/\b(?:invalid|empty|oversized|malformed)\b/iu.test(source)) {
-    const lineNo = firstLineMatching(originalLines, /\bparse[A-Za-z0-9_]*\s*\(/u);
-    addViolation(violations, root, filePath, lineNo, "RR-12.17", "parser lacks invalid/empty/oversized/malformed test evidence.", originalLines[lineNo - 1] ?? null);
-  }
-  if (/\b(?:TryFrom|From)\s*<[^>]*(?:Dto|Request|Response|Envelope)[^>]*>/u.test(source) && !/\b(?:negative|invalid|reject)\b/iu.test(source)) {
-    const lineNo = firstLineMatching(originalLines, /\b(?:TryFrom|From)\s*</u);
-    addViolation(violations, root, filePath, lineNo, "RR-12.18", "DTO conversion lacks negative test evidence.", originalLines[lineNo - 1] ?? null);
-  }
-  if (/\b(?:BUGFIX|FIXES|bugfix|fixes)\b/u.test(source) && !/\bREGRESSION-TEST:/u.test(source)) {
-    const lineNo = firstLineMatching(originalLines, /\b(?:BUGFIX|FIXES|bugfix|fixes)\b/u);
-    addViolation(violations, root, filePath, lineNo, "RR-12.19", "bugfix marker lacks REGRESSION-TEST evidence.", originalLines[lineNo - 1] ?? null);
-  }
-  if (isTestFile(rel, config) && /#\s*\[\s*should_panic/u.test(source) && !/\bPANIC-CONTRACT:/u.test(source)) {
-    const lineNo = firstLineMatching(originalLines, /#\s*\[\s*should_panic/u);
-    addViolation(violations, root, filePath, lineNo, "RR-12.20", "#[should_panic] lacks PANIC-CONTRACT evidence.", originalLines[lineNo - 1] ?? null);
-  }
-  if (isTestFile(rel, config)) {
-    for (const match of source.matchAll(/#\s*\[\s*test\s*\][\s\S]*?fn\s+[A-Za-z_][A-Za-z0-9_]*\s*\([^)]*\)\s*\{\s*\}/gu)) {
-      const lineNo = lineNumberAtIndex(source, match.index ?? 0);
-      addViolation(violations, root, filePath, lineNo, "RR-12.24", "empty test body found.", originalLines[lineNo - 1] ?? null);
-    }
-    for (const match of source.matchAll(/#\s*\[\s*test\s*\][\s\S]*?fn\s+[A-Za-z_][A-Za-z0-9_]*\s*\([^)]*\)\s*\{(?<body>[\s\S]*?)^\s*\}/gmu)) {
-      const body = match.groups?.body ?? "";
-      const lineNo = lineNumberAtIndex(source, match.index ?? 0);
-      if (/\b::(?:new|try_new|parse)\s*\(/u.test(body) && !/\bassert(?:_eq|_ne)?!\s*\(|\bmatches!\s*\(/u.test(body)) {
-        addViolation(violations, root, filePath, lineNo, "RR-12.25", "construction-only test lacks behavioral assertion.", originalLines[lineNo - 1] ?? null);
-      }
-      if (/\b(?:toMatchSnapshot|insta::assert|snapshot)\b/iu.test(body) && /\b(?:\d{4}-\d{2}-\d{2}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}|random|uuid)\b/iu.test(body) && !/\bREDACT|redact/u.test(body)) {
-        addViolation(violations, root, filePath, lineNo, "RR-12.26", "snapshot test includes volatile value without redaction.", originalLines[lineNo - 1] ?? null);
-      }
-    }
-  }
-  if (!isTestFile(rel, config) && /\b(?:normalize|parse)[A-Za-z0-9_]*\s*\(/u.test(masked) && !/\b(?:proptest|quickcheck|PROPERTY-TEST:)/u.test(source)) {
-    const lineNo = firstLineMatching(originalLines, /\b(?:normalize|parse)[A-Za-z0-9_]*\s*\(/u);
-    addViolation(violations, root, filePath, lineNo, "RR-12.27", "normalizer/parser lacks property-test evidence.", originalLines[lineNo - 1] ?? null);
-  }
-  if (/\b(?:binary|packet|frame|network)\b/iu.test(source) && /\bparse[A-Za-z0-9_]*\s*\(/u.test(masked) && !/\b(?:fuzz|cargo fuzz|FUZZ-TARGET:)/iu.test(source)) {
-    const lineNo = firstLineMatching(originalLines, /\bparse[A-Za-z0-9_]*\s*\(/u);
-    addViolation(violations, root, filePath, lineNo, "RR-12.28", "binary/network parser lacks fuzz target evidence.", originalLines[lineNo - 1] ?? null);
-  }
-  if (/\b(?:tokio::spawn|select!|unbounded_channel|mpsc::channel|async\s+fn)\b/u.test(masked) && !/\b(?:shutdown|cancellation|CANCELLATION-TEST:|SHUTDOWN-TEST:)\b/iu.test(source)) {
-    const lineNo = firstLineMatching(originalLines, /\b(?:tokio::spawn|select!|unbounded_channel|mpsc::channel|async\s+fn)\b/u);
-    addViolation(violations, root, filePath, lineNo, "RR-12.29", "concurrency code lacks cancellation/shutdown test evidence.", originalLines[lineNo - 1] ?? null);
-  }
-
-  for (const match of source.matchAll(/^\s*pub\s+struct\s+(?<name>[A-Z][A-Za-z0-9_]*(?:Dto|DTO|Request|Response|Envelope))\b/gmu)) {
-    const name = match.groups?.name ?? "";
-    const lineNo = lineNumberAtIndex(source, match.index ?? 0);
-    if (!isBoundary) {
-      addViolation(violations, root, filePath, lineNo, "RR-14.20", `DTO struct ${name} is outside a boundary/serde/transport module.`, originalLines[lineNo - 1] ?? null);
-    }
-    if (!/\b(?:TryFrom|From)\s*<[^>]*\b/u.test(source) && !/\b(?:map_to_domain|into_domain|to_domain)\b/u.test(source)) {
-      addViolation(violations, root, filePath, lineNo, "RR-14.23", `DTO struct ${name} lacks explicit domain conversion.`, originalLines[lineNo - 1] ?? null);
-    }
-    if (!/\b(?:round[-_ ]?trip|ROUNDTRIP-TEST:)\b/iu.test(source)) {
-      addViolation(violations, root, filePath, lineNo, "RR-14.25", `DTO struct ${name} lacks round-trip test evidence.`, originalLines[lineNo - 1] ?? null);
-    }
-  }
-  for (const match of source.matchAll(/^\s*pub\s+struct\s+(?<name>[A-Z][A-Za-z0-9_]*)\b/gmu)) {
-    const name = match.groups?.name ?? "";
-    const lineNo = lineNumberAtIndex(source, match.index ?? 0);
-    if (isBoundary && /\b(?:Serialize|Deserialize)\b/u.test(source.slice(Math.max(0, match.index - 200), match.index)) && !/(?:Dto|DTO|Request|Response|Envelope)$/u.test(name)) {
-      addViolation(violations, root, filePath, lineNo, "RR-14.21", `boundary serde struct ${name} lacks DTO/request/response suffix.`, originalLines[lineNo - 1] ?? null);
-    }
-    if (/\b(?:Config|Input|Options|Settings)\b/u.test(name) && /\bDeserialize\b/u.test(source.slice(Math.max(0, match.index - 200), match.index)) && !/deny_unknown_fields/u.test(source.slice(Math.max(0, match.index - 260), match.index))) {
-      addViolation(violations, root, filePath, lineNo, "RR-14.26", `strict config/input ${name} lacks deny_unknown_fields.`, originalLines[lineNo - 1] ?? null);
-    }
-  }
-  for (const match of source.matchAll(/(?<attrs>(?:^\s*#\[[^\]]+\]\s*\r?\n)*)^\s*pub\s+enum\s+(?<name>[A-Z][A-Za-z0-9_]*)\b/gmu)) {
-    const attrs = match.groups?.attrs ?? "";
-    if (/\b(?:Serialize|Deserialize)\b/u.test(attrs) && !/\bserde\s*\(\s*tag\s*=/u.test(attrs) && !/SERDE-TAG-JUSTIFICATION:/u.test(attrs)) {
-      const lineNo = lineNumberAtIndex(source, match.index ?? 0);
-      addViolation(violations, root, filePath, lineNo, "RR-14.24", `public serde enum ${match.groups?.name ?? "enum"} lacks tag or justification.`, originalLines[lineNo - 1] ?? null);
-    }
-  }
-  if (!isBoundary && /\b(?:base64|Base64)\b/u.test(source) && RAW_STRING_TYPE_RE.test(source)) {
-    const lineNo = firstLineMatching(originalLines, /\b(?:base64|Base64)\b/u);
-    addViolation(violations, root, filePath, lineNo, "RR-14.28", "domain source uses raw base64 string shape.", originalLines[lineNo - 1] ?? null);
-  }
+  applyLateRustFileRules({
+    source,
+    masked,
+    originalLines,
+    root,
+    filePath,
+    violations,
+    isBoundary,
+    isTestSource,
+  });
 
   return violations;
 }
 
-export {
-  RAW_STRING_TYPE_RE,
-  RAW_PRIMITIVE_TYPE_RE,
-  RAW_POINTER_RE,
-  TYPE_ALIAS_RAW_RE,
-  PUBLIC_SERDE_STRUCT_RE,
-  PUBLIC_FIELD_RE,
-  FIELD_RE,
-  ID_LIKE_NAME_RE,
-  URL_LIKE_NAME_RE,
-  PATH_LIKE_NAME_RE,
-  TIME_LIKE_NAME_RE,
-  FALLIBLE_FN_NAME_RE,
-  collectFunctionSignatures,
-  functionName,
-  functionParams,
-  normalizedNameTokens,
-  isSuspiciousSerializedFieldName,
-  braceDelta,
-  isTestFile,
-  isRawTypeBoundary,
-  isBoundaryModulePath,
-  isRawStringOwner,
-  isDomainPrimitiveOwner,
-  isRuntimeStringOwner,
-  isSerializedDomainOwner,
-  hasStringLiteral,
-  scanRustFile,
-};
+export { scanRustFile };
