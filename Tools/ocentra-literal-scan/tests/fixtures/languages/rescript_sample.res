@@ -1,0 +1,1 @@
+let event = "rescript.created"

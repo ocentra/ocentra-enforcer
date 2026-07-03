@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "minScore": 40,
+  "includeLow": false,
+  "failAbove": null,
+  "hardCategories": ["secret-like"],
+  "ignore": {
+    "respectGitignore": true,
+    "dirs": [
+      ".git",
+      "target",
+      "node_modules",
+      "dist",
+      "build",
+      "coverage",
+      ".enforce",
+      ".ledger",
+      "output",
+      "test-results",
+      "playwright-report",
+      ".cache",
+      "tmp",
+      "temp",
+      "logs",
+      ".next",
+      ".turbo",
+      "__pycache__",
+      ".pytest_cache",
+      ".mypy_cache",
+      ".ruff_cache",
+      ".venv"
+    ],
+    "files": ["*.log", "*.tmp", "*.bak", "*.min.js", "*.map"],
+    "unignore": []
+  },
+  "fileRoles": {
+    "domain": ["src/domain/**", "src/core/**", "crates/*/src/domain/**"],
+    "boundary": ["src/**/boundary/**", "src/**/adapter/**", "src/**/transport/**", "src/**/serde/**", "src/**/ffi/**"],
+    "config": ["src/**/config/**", "src/**/settings/**"],
+    "test": ["tests/**", "**/*.test.ts", "**/*_test.rs", "**/test_*.py"],
+    "generated": ["generated/**", "**/__generated__/**"],
+    "tooling": ["scripts/**", "tools/**"]
+  }
+}

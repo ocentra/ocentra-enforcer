@@ -1,0 +1,1 @@
+(def event "device.connected")

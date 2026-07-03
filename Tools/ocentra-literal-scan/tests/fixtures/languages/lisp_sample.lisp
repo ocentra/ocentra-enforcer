@@ -1,0 +1,1 @@
+(defparameter *event* "device.connected")

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ocentra Literal Risk Report",
+  "type": "object",
+  "required": ["ok", "summary", "ignored", "hardFindings", "literalRisks"],
+  "properties": {
+    "ok": { "type": "boolean" },
+    "summary": {
+      "type": "object",
+      "required": ["filesDiscovered", "filesScanned", "filesIgnored", "literalsFound", "literalRisks", "hardFindings", "durationMs"],
+      "properties": {
+        "filesDiscovered": { "type": "integer", "minimum": 0 },
+        "filesScanned": { "type": "integer", "minimum": 0 },
+        "filesIgnored": { "type": "integer", "minimum": 0 },
+        "literalsFound": { "type": "integer", "minimum": 0 },
+        "literalRisks": { "type": "integer", "minimum": 0 },
+        "hardFindings": { "type": "integer", "minimum": 0 },
+        "durationMs": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "hardFindings": { "type": "array", "items": { "$ref": "#/$defs/finding" } },
+    "literalRisks": { "type": "array", "items": { "$ref": "#/$defs/finding" } }
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "required": ["ruleId", "severity", "file", "line", "column", "language", "fileRole", "literalKind", "literalPreview", "literalHash", "category", "score", "confidence", "blocking", "reason", "suggestion", "context"],
+      "properties": {
+        "ruleId": { "type": "string" },
+        "severity": { "enum": ["error", "warning", "info"] },
+        "file": { "type": "string" },
+        "line": { "type": "integer", "minimum": 1 },
+        "column": { "type": "integer", "minimum": 1 },
+        "language": { "type": "string" },
+        "fileRole": { "type": "string" },
+        "literalKind": { "type": "string" },
+        "literalPreview": { "type": "string" },
+        "literalHash": { "type": "string" },
+        "category": { "type": "string" },
+        "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "confidence": { "enum": ["low", "medium", "high"] },
+        "blocking": { "type": "boolean" },
+        "reason": { "type": "string" },
+        "suggestion": { "type": "string" },
+        "context": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,1 @@
+auto event = "cpp.created";
