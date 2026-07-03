@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import { normalizeRel } from "./path-utils.mjs";
+import { buildLiteralRiskScanCommand } from "./literal-risk-command.mjs";
 import { buildLiteralRiskOptions } from "./literal-risk-options.mjs";
 import { mapLiteralRiskFindings as mapLiteralRiskFindingsImpl } from "./literal-risk-findings.mjs";
 
@@ -17,22 +18,65 @@ const BINARY_NAME =
     ? "ocentra-literal-scan.exe"
     : "ocentra-literal-scan";
 
-function resolveScannerInvocation() {
-  const builtBinary = [
+function builtBinaryCandidates() {
+  return [
     path.join(LITERAL_SCAN_TARGET, "debug", BINARY_NAME),
     path.join(LITERAL_SCAN_TARGET, "release", BINARY_NAME),
-  ].find((candidate) => fs.existsSync(candidate));
-  if (builtBinary) {
-    return { command: builtBinary, args: [] };
-  }
+  ];
+}
+
+function resolveBuiltBinary() {
+  return builtBinaryCandidates().find((candidate) => fs.existsSync(candidate));
+}
+
+function ensureBuiltBinary() {
+  const existingBinary = resolveBuiltBinary();
+  if (existingBinary) return existingBinary;
   if (!fs.existsSync(LITERAL_SCAN_MANIFEST)) {
     throw new Error(
       `Literal-risk scanner crate is missing: ${LITERAL_SCAN_MANIFEST}`,
     );
   }
+  const build = spawnSync(
+    "cargo",
+    [
+      "build",
+      "--quiet",
+      "--manifest-path",
+      LITERAL_SCAN_MANIFEST,
+      "--bin",
+      "ocentra-literal-scan",
+    ],
+    {
+      cwd: LITERAL_SCAN_ROOT,
+      encoding: "utf8",
+      shell: false,
+      maxBuffer: 64 * 1024 * 1024,
+    },
+  );
+  if (build.error) {
+    throw new Error(
+      `literal-risk scanner build failed to start: ${build.error.message}`,
+    );
+  }
+  if (build.status !== 0) {
+    throw new Error(
+      `literal-risk scanner build failed with exit ${build.status ?? "unknown"}.\n${build.stdout ?? ""}\n${build.stderr ?? ""}`.trim(),
+    );
+  }
+  const builtBinary = resolveBuiltBinary();
+  if (!builtBinary) {
+    throw new Error(
+      `literal-risk scanner build completed but produced no binary under ${LITERAL_SCAN_TARGET}`,
+    );
+  }
+  return builtBinary;
+}
+
+function resolveScannerInvocation() {
   return {
-    command: "cargo",
-    args: ["run", "--manifest-path", LITERAL_SCAN_MANIFEST, "--"],
+    command: ensureBuiltBinary(),
+    args: [],
   };
 }
 
@@ -48,38 +92,31 @@ export function runLiteralRiskScan({
   const explicitFiles = files
     .map((file) => normalizeRel(rootPath, file))
     .filter(Boolean);
-  const command = [
-    ...invocation.args,
-    "scan",
-    "--root",
+  const command = buildLiteralRiskScanCommand(
+    invocation,
     rootPath,
-    "--json",
-    "--min-score",
-    String(scannerOptions.minScore),
-  ];
-  if (scannerOptions.includeLow) command.push("--include-low");
-  if (scannerOptions.includeIgnored) command.push("--include-ignored");
-  if (scannerOptions.includeUnknownCode) command.push("--include-unknown-code");
-  if (!scannerOptions.respectGitignore) command.push("--no-respect-gitignore");
-  if (scannerOptions.failAbove !== null && scannerOptions.failAbove !== undefined) {
-    command.push("--fail-above", String(scannerOptions.failAbove));
-  }
-  if (scannerOptions.maxFileBytes !== null && scannerOptions.maxFileBytes !== undefined) {
-    command.push("--max-file-bytes", String(scannerOptions.maxFileBytes));
-  }
-  if (explicitFiles.length > 0) command.push("--files", ...explicitFiles);
+    scannerOptions,
+    explicitFiles,
+  );
   const result = spawnSync(invocation.command, command, {
     cwd: rootPath,
     encoding: "utf8",
     shell: false,
     maxBuffer: 64 * 1024 * 1024,
   });
+  if (result.error) {
+    throw new Error(
+      `literal-risk scanner failed to start: ${result.error.message}`,
+    );
+  }
+  const stdout = result.stdout ?? "";
+  const stderr = result.stderr ?? "";
   let report;
   try {
-    report = JSON.parse(result.stdout || "{}");
+    report = JSON.parse(stdout || "{}");
   } catch (error) {
     throw new Error(
-      `literal-risk scanner emitted invalid JSON: ${error.message}\n${result.stdout}\n${result.stderr}`,
+      `literal-risk scanner emitted invalid JSON: ${error.message}\n${stdout}\n${stderr}`,
     );
   }
   return {
@@ -89,7 +126,7 @@ export function runLiteralRiskScan({
     files: explicitFiles,
     options: scannerOptions,
     report,
-    stderr: result.stderr,
+    stderr,
   };
 }
 

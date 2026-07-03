@@ -11,6 +11,11 @@ const npm = npmStep;
 
 const steps = [
   ['git diff whitespace check', 'git', ['diff', '--check']],
+  [
+    'literal-risk Rust scanner tests',
+    'cargo',
+    ['test', '--manifest-path', path.join(PACK_ROOT, 'Tools', 'ocentra-literal-scan', 'Cargo.toml')],
+  ],
   ['test suite', ...npm(['test'])],
   ['policy rule tests', ...npm(['run', 'test:policy'])],
   ['multi-language tests', ...npm(['run', 'test:multilang'])],
