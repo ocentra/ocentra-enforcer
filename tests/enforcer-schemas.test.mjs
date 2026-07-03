@@ -240,6 +240,27 @@ test("Effect Schema decodes valid registry, config, route, init, and reports", (
   assert.equal(checkArgs.tracked, true);
   assert.equal(checkArgs.summaryOnly, true);
 
+  const literalRiskArgs = decodeCheckToolArguments({
+    root: PACK_ROOT,
+    check: "literal-risk",
+    scope: "files",
+    files: ["src/checks.mjs"],
+    minScore: 60,
+    includeLow: true,
+    includeIgnored: true,
+    includeUnknownCode: true,
+    respectGitignore: false,
+    maxFileBytes: 1024,
+    failAbove: 90,
+    hardCategories: ["route-or-url"],
+    hardRuleIds: ["LIT-1.2"],
+  });
+  assert.equal(literalRiskArgs.check, "literal-risk");
+  assert.equal(literalRiskArgs.minScore, 60);
+  assert.equal(literalRiskArgs.includeLow, true);
+  assert.equal(literalRiskArgs.respectGitignore, false);
+  assert.deepEqual(literalRiskArgs.hardCategories, ["route-or-url"]);
+
   const coordinationArgs = decodeCoordinationToolArguments({
     stateRoot: path.join(PACK_ROOT, "tmp", "ledger"),
     hub: "generic-hub",

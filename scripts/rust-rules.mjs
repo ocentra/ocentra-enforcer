@@ -36,6 +36,16 @@ import {
   createCodexUninstallReport,
 } from "../src/codex-install.mjs";
 import {
+  printCheckReport,
+  printCodexDoctorReport,
+  printCodexInstallReport,
+  printScanReport,
+  printCodexUninstallReport,
+  printInitReport,
+  printRunReport,
+  printRunsReport,
+} from "./rust-rules-output.mjs";
+import {
   applyWaivers,
   applyRulePolicy,
   normalizeFailOn,
@@ -70,6 +80,10 @@ import {
 } from "../src/rule-metadata.mjs";
 
 import * as RustRulesCore from "./rust-rules-scan-core.mjs";
+import {
+  parseAdapterList,
+  normalizeVerifyMode,
+} from "./rust-rules-scan-core-args-options.mjs";
 const {
   usage,
   defaultArgs,
@@ -80,8 +94,6 @@ const {
   mergeConfigLayers,
   resolveDefaultConfigPath,
   normalizeConfig,
-  parseAdapterList,
-  normalizeVerifyMode,
   createInitReport,
   createCodexInstallReport,
   applyCodexInstallReport,
@@ -93,10 +105,6 @@ const {
   initWrite,
   mcpConfigTemplate,
   applyInitReport,
-  printInitReport,
-  printCodexInstallReport,
-  printCodexUninstallReport,
-  printCodexDoctorReport,
   normalizeRel,
   toPosix,
   repoAbsolute,
@@ -180,59 +188,6 @@ function ruleRegistryRules() {
     cachedRegistryRules = loadRegistryRules(PACK_ROOT);
   }
   return cachedRegistryRules;
-}
-
-function printHumanReport(report) {
-  const warnings = report.warnings ?? [];
-  if (report.violations.length === 0 && warnings.length === 0) {
-    console.log(
-      `Ocentra Enforcer ${report.command} passed for ${report.scope.files.length} file(s).`,
-    );
-    return;
-  }
-
-  if (report.violations.length === 0) {
-    console.log(
-      `Ocentra Enforcer ${report.command} passed with ${warnings.length} warning${warnings.length === 1 ? "" : "s"} for ${report.scope.files.length} file(s).`,
-    );
-    printFindingList(warnings, "Warning");
-    return;
-  }
-
-  console.error(
-    `Ocentra Enforcer ${report.command} failed with ${report.violations.length} violation${report.violations.length === 1 ? "" : "s"}.`,
-  );
-  console.error(`Profile: ${report.profileName}`);
-  console.error(`Scope: ${describeScope(report.scope)}`);
-  console.error(
-    `Failing severities: ${(report.failOn ?? ["error"]).join(", ")}`,
-  );
-  console.error("");
-  printFindingList(report.violations, "Reason");
-  if (warnings.length > 0) printFindingList(warnings, "Warning");
-}
-
-function printFindingList(findings, label) {
-  for (const finding of findings) {
-    console.error(
-      `${finding.file}:${finding.line}: ${finding.severity ?? "error"} ${finding.ruleId} ${finding.title}`,
-    );
-    console.error(`  ${label}: ${finding.detail}`);
-    console.error(`  Rule: ${finding.doc ?? ruleDocFor(finding.ruleId)}`);
-    console.error(`  Fix: ${finding.snippet}`);
-    if (finding.source) {
-      for (const line of String(finding.source).split(/\r?\n/u).slice(0, 12))
-        console.error(`  > ${line}`);
-    }
-    console.error("");
-  }
-}
-
-function describeScope(scope) {
-  if (scope.mode === "crate") return `crate ${scope.crateName}`;
-  if (scope.mode === "diff") return `diff ${scope.base}..${scope.head}`;
-  if (scope.mode === "files") return "explicit files";
-  return "workspace";
 }
 
 function explainRule(ruleId) {
@@ -440,74 +395,6 @@ function runRunsCommand(args, root, config) {
   }
 }
 
-function printRunReport(report) {
-  console.log(
-    `Ocentra Enforcer run ${report.summary.status}: ${report.summary.runId}`,
-  );
-  console.log(`Tool: ${report.summary.tool}`);
-  if (report.summary.crateName)
-    console.log(`Crate: ${report.summary.crateName}`);
-  if (report.summary.packageName)
-    console.log(`Package: ${report.summary.packageName}`);
-  if (report.summary.domain) console.log(`Domain: ${report.summary.domain}`);
-  console.log(`Exit: ${report.summary.exitCode}`);
-  console.log(`Diagnostics: ${report.summary.diagnosticCount}`);
-  console.log(
-    `Artifacts: ${Object.values(report.summary.artifacts).join(", ")}`,
-  );
-  for (const diagnostic of report.diagnostics.slice(0, 10)) {
-    console.log(
-      `${diagnostic.file}:${diagnostic.line}: ${diagnostic.ruleId} ${diagnostic.message}`,
-    );
-  }
-}
-
-function printRunsReport(command, report) {
-  if (command === "list") {
-    for (const run of report.runs) {
-      const meta = [
-        run.crateName ? `crate=${run.crateName}` : null,
-        run.packageName ? `package=${run.packageName}` : null,
-        run.domain ? `domain=${run.domain}` : null,
-        run.tags?.length ? `tags=${run.tags.join(",")}` : null,
-      ]
-        .filter(Boolean)
-        .join(" ");
-      console.log(
-        `${run.runId} ${run.status} ${run.tool} diagnostics=${run.diagnosticCount}${meta ? ` ${meta}` : ""}`,
-      );
-    }
-    return;
-  }
-  if (command === "artifact") {
-    console.log(report.text ?? report.message ?? "");
-    return;
-  }
-  if (command === "diagnostics") {
-    for (const diagnostic of report.diagnostics ?? []) {
-      console.log(
-        `${diagnostic.file}:${diagnostic.line}: ${diagnostic.ruleId} ${diagnostic.message}`,
-      );
-    }
-    return;
-  }
-  console.log(JSON.stringify(report, null, 2));
-}
-
-function printCheckReport(report) {
-  const label = report.check ?? report.command ?? "check";
-  if (report.violations.length === 0) {
-    console.log(`Ocentra Enforcer ${label} passed.`);
-    return;
-  }
-  console.error(
-    `Ocentra Enforcer ${label} failed with ${report.violations.length} violation${report.violations.length === 1 ? "" : "s"}.`,
-  );
-  console.error(`Profile: ${report.profileName}`);
-  console.error("");
-  printFindingList(report.violations, "Reason");
-}
-
 export function runRustRules(options = {}) {
   const root = path.resolve(options.root ?? process.cwd());
   const config = normalizeConfig({
@@ -664,6 +551,46 @@ export function runEnforcerCheck(options = {}) {
       decoded,
     });
   }
+  if (checkName === "no-naked-domain-strings") {
+    const report = runEnforcerScan({
+      root,
+      config,
+      rawScope,
+      command: "check",
+      scanOnly: true,
+      languages: ["rust", "typescript", "python", "common"],
+    });
+    const allowed = new Set(["RR-6.1", "RR-6.5", "RR-18.16", "TS-1.3", "PY-1.3"]);
+    const findings = [
+      ...(report.violations ?? []),
+      ...(report.warnings ?? []),
+    ].filter((finding) => {
+      if (!allowed.has(finding.ruleId)) return false;
+      const file = String(finding.file ?? "");
+      return (
+        !file.includes("/generated/") &&
+        !file.includes("\\generated\\")
+      );
+    });
+    const waived = (report.waived ?? []).filter((finding) =>
+      allowed.has(finding.ruleId),
+    );
+    const { violations, warnings, bySeverity } = splitFindings(findings, config);
+    return decorateRuleDocs({
+      ok: violations.length === 0,
+      command: "check",
+      check: checkName,
+      root,
+      profileName: report.profileName,
+      violations,
+      warnings,
+      waived,
+      findings: [...findings, ...waived],
+      bySeverity,
+      scope: report.scope,
+      languages: ["rust", "typescript", "python", "common"],
+    });
+  }
   const scannerBacked = SCANNER_BACKED_CHECKS[checkName];
   if (scannerBacked) {
     const report = runEnforcerScan({
@@ -716,6 +643,15 @@ export function runEnforcerCheck(options = {}) {
         staged: decoded.staged,
         tracked: decoded.tracked,
         strictEmptyTestTrees: decoded.strictEmptyTestTrees,
+        literalRiskMinScore: decoded.literalRiskMinScore,
+        literalRiskIncludeLow: decoded.literalRiskIncludeLow,
+        literalRiskIncludeIgnored: decoded.literalRiskIncludeIgnored,
+        literalRiskIncludeUnknownCode: decoded.literalRiskIncludeUnknownCode,
+        literalRiskRespectGitignore: decoded.literalRiskRespectGitignore,
+        literalRiskMaxFileBytes: decoded.literalRiskMaxFileBytes,
+        literalRiskFailAbove: decoded.literalRiskFailAbove,
+        literalRiskHardCategories: decoded.literalRiskHardCategories,
+        literalRiskHardRuleIds: decoded.literalRiskHardRuleIds,
       },
     }),
   );
@@ -979,6 +915,38 @@ if (isMainModule()) {
       process.exit(report.ok ? 0 : 1);
     }
 
+    if (args.command === "advise") {
+      if (args.adviseTarget !== "literals") {
+        throw new Error("ocentra-enforcer advise currently supports only literals");
+      }
+      const report = runEnforcerCheck({
+        root,
+        config,
+        rawScope: args.scope,
+        checkName: "literal-risk",
+        configPath: args.configPath,
+        profile: args.profile,
+        checkConfigPath: args.checkConfigPath,
+        output: args.output,
+        dryRun: args.dryRun,
+        staged: args.staged,
+        tracked: args.tracked,
+        strictEmptyTestTrees: args.strictEmptyTestTrees,
+        literalRiskMinScore: args.literalRiskMinScore,
+        literalRiskIncludeLow: args.literalRiskIncludeLow,
+        literalRiskIncludeIgnored: args.literalRiskIncludeIgnored,
+        literalRiskIncludeUnknownCode: args.literalRiskIncludeUnknownCode,
+        literalRiskRespectGitignore: args.literalRiskRespectGitignore,
+        literalRiskMaxFileBytes: args.literalRiskMaxFileBytes,
+        literalRiskFailAbove: args.literalRiskFailAbove,
+        literalRiskHardCategories: args.literalRiskHardCategories,
+        literalRiskHardRuleIds: args.literalRiskHardRuleIds,
+      });
+      if (args.json) console.log(JSON.stringify(report, null, 2));
+      else printCheckReport(report);
+      process.exit(report.ok ? 0 : 1);
+    }
+
     if (args.command === "check") {
       const report = runEnforcerCheck({
         root,
@@ -993,6 +961,15 @@ if (isMainModule()) {
         staged: args.staged,
         tracked: args.tracked,
         strictEmptyTestTrees: args.strictEmptyTestTrees,
+        literalRiskMinScore: args.literalRiskMinScore,
+        literalRiskIncludeLow: args.literalRiskIncludeLow,
+        literalRiskIncludeIgnored: args.literalRiskIncludeIgnored,
+        literalRiskIncludeUnknownCode: args.literalRiskIncludeUnknownCode,
+        literalRiskRespectGitignore: args.literalRiskRespectGitignore,
+        literalRiskMaxFileBytes: args.literalRiskMaxFileBytes,
+        literalRiskFailAbove: args.literalRiskFailAbove,
+        literalRiskHardCategories: args.literalRiskHardCategories,
+        literalRiskHardRuleIds: args.literalRiskHardRuleIds,
       });
       if (args.json) console.log(JSON.stringify(report, null, 2));
       else printCheckReport(report);
@@ -1029,7 +1006,7 @@ if (isMainModule()) {
       profile: args.profile,
     });
     if (args.json) console.log(JSON.stringify(report, null, 2));
-    else printHumanReport(report);
+    else printScanReport(report);
     process.exit(report.ok ? 0 : 1);
   } catch (error) {
     console.error(

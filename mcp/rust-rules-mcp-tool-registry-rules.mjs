@@ -89,6 +89,7 @@ export const RULE_TOOLS = [
             "single-source-contracts",
             "dependency-policy",
             "sbom",
+            "literal-risk",
             "ai-rule-index",
             "import-boundaries",
             "architecture-policy",

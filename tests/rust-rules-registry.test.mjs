@@ -76,7 +76,7 @@ test("registry has the expected schema shape", () => {
   for (const rule of registry.rules) {
     assert.match(
       rule.id,
-      /^(RR|TS|PY|SEC|GEN|DOC|DOCENF|HAR|TEST|PORT|SRC|CONTRACT|DEP|NPM|CI|REPO|SBOM|AI|ENF|CFG|WAIVER|ARCH|BOUND|MCP|PROOF|SCAN)-[0-9]+\.[0-9]+$/u,
+      /^(RR|TS|PY|SEC|GEN|DOC|DOCENF|HAR|TEST|PORT|SRC|CONTRACT|DEP|NPM|CI|REPO|SBOM|AI|ENF|CFG|WAIVER|ARCH|BOUND|MCP|PROOF|SCAN|LIT)-[0-9]+\.[0-9]+$/u,
     );
     assert.ok(
       ["rust", "typescript", "python", "common"].includes(rule.language),

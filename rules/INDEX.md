@@ -81,6 +81,9 @@ Documentation/comment rules are advisory by default. They appear as warnings
 unless a target config upgrades them to `error` or includes `warning` in
 `failOn`.
 
+String literal risk scanning is exposed through `rules/common/literal-risk.md`
+and the `ocentra-enforcer advise literals` / `check literal-risk` surfaces.
+
 ## Harness First
 
 For compiler, lint, and test commands, prefer the harness wrapper so raw terminal

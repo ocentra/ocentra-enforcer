@@ -555,7 +555,60 @@ const CHECK_RULES_VALUE = Object.freeze({
   },
 });
 
-export const CHECK_RULES = CHECK_RULES_VALUE;
+const LITERAL_RISK_RULES_VALUE = Object.freeze(
+  ruleMetadataEntries([
+    [
+      "LIT-1.1",
+      "Low-confidence literals require review",
+      "Centralize identifiers, status strings, test fixtures, and other ambiguous literals before they drift.",
+    ],
+    [
+      "LIT-1.2",
+      "Event and command-name literals require review",
+      "Replace ad hoc event or command name strings with shared constants or schema-backed values.",
+    ],
+    [
+      "LIT-1.3",
+      "Route and URL literals require review",
+      "Centralize route and URL literals so protocol changes do not fragment across the codebase.",
+    ],
+    [
+      "LIT-1.4",
+      "Magic string comparisons require review",
+      "Replace magic string comparisons with enums, tagged values, or shared constants.",
+    ],
+    [
+      "LIT-1.5",
+      "Protocol header and media literals require review",
+      "Pull protocol header and media-type strings into shared contract constants.",
+    ],
+    [
+      "LIT-1.6",
+      "Raw JSON blob literals require review",
+      "Move raw JSON blobs behind typed schemas or fixtures instead of inline string blobs.",
+    ],
+    [
+      "LIT-1.7",
+      "SQL fragment literals require review",
+      "Keep SQL fragments in query builders or typed helpers instead of inline string fragments.",
+    ],
+    [
+      "LIT-1.8",
+      "Shell fragment literals require review",
+      "Replace shell fragments with argv arrays or typed command builders.",
+    ],
+    [
+      "LIT-1.9",
+      "Repeated literals require review",
+      "Promote repeated literals to shared constants before they diverge.",
+    ],
+  ]),
+);
+
+export const CHECK_RULES = Object.freeze({
+  ...CHECK_RULES_VALUE,
+  ...LITERAL_RISK_RULES_VALUE,
+});
 
 const DEFAULT_ALLOWED_LICENSES = new Set([
   "0BSD",

@@ -20,10 +20,7 @@ import {
 } from "../schemas/effect/enforcer-schemas.mjs";
 import { routeRules } from "../src/routing.mjs";
 import { GENERIC_RULES, runGenericScan } from "../src/generic-scanners.mjs";
-import {
-  normalizeCheckName,
-  runStandaloneCheck,
-} from "../src/checks.mjs";
+import { runStandaloneCheck } from "../src/checks.mjs";
 import {
   CHECK_RULES,
   SCANNER_BACKED_CHECKS,
@@ -61,6 +58,7 @@ import {
 } from "../src/harness.mjs";
 import { runCoordinationCli } from "../src/coordination/runner.mjs";
 import { runProofCli } from "../src/proof.mjs";
+import { parseArgs } from "./rust-rules-scan-core-args.mjs";
 import {
   DEFAULT_ARCHITECTURE_POLICY_CHECKS,
   DEFAULT_CONFIG,
@@ -163,6 +161,7 @@ Usage:
   ocentra-enforcer init --root <repo> --profile <profile> --adapters codex,mcp,precommit,github-actions
   ocentra-enforcer route [options]
   ocentra-enforcer check <name> [options]
+  ocentra-enforcer advise literals [options]
   ocentra-enforcer verify [fast|local|ci] [options]
   ocentra-enforcer scan [options]
   ocentra-enforcer cargo [options]
@@ -210,6 +209,17 @@ Common options:
   --json                  Print machine-readable JSON report.
   --help                  Show this help.
 
+Literal-risk options:
+  --min-score <0-100>     Minimum advisory score to include in literal-risk.
+  --include-low           Include low-risk literal findings below min-score.
+  --include-ignored       Include files ignored by default scan rules.
+  --include-unknown-code  Include unknown textual files with the fallback lexer.
+  --no-respect-gitignore  Ignore .gitignore/.ignore rules.
+  --max-file-bytes <n>    Skip files larger than this size.
+  --fail-above <0-100>    Promote risks at or above this score into hard findings.
+  --hard-category <name>  Treat a scanner category as hard for this run.
+  --hard-rule-id <id>     Treat a rule ID as hard for this run.
+
 Proof options:
   --proof <id>            Proof definition id.
   --proofs <ids>          Comma-separated proof ids for claim/status.
@@ -234,229 +244,6 @@ Codex install options:
   --server-name <name>    MCP server name. Defaults to ocentra-enforcer.
   --ledger-root <path>    Per-PC ledger home. Defaults to <enforcer-install>/.ledger.
 `;
-}
-
-function defaultArgs() {
-  return {
-    command: "scan",
-    root: process.cwd(),
-    rootExplicit: false,
-    configPath: null,
-    scanOnly: false,
-    json: false,
-    help: false,
-    explainRuleId: null,
-    profile: null,
-    languages: null,
-    adapters: null,
-    dryRun: false,
-    force: false,
-    runTool: null,
-    runCommand: [],
-    runId: null,
-    routeRuleId: null,
-    checkName: null,
-    checkConfigPath: null,
-    output: null,
-    staged: false,
-    tracked: false,
-    strictEmptyTestTrees: false,
-    codexConfigPath: null,
-    ledgerRoot: null,
-    mcpServerName: "ocentra-enforcer",
-    installSkill: true,
-    installGlobalAgents: true,
-    runsCommand: null,
-    artifact: null,
-    limit: null,
-    limitBytes: null,
-    severity: null,
-    status: null,
-    file: null,
-    tag: null,
-    crateName: null,
-    packageName: null,
-    domain: null,
-    verifyMode: "local",
-    scope: { mode: "all" },
-  };
-}
-
-function parseArgs(argv) {
-  const args = defaultArgs();
-  const tokens = argv.slice(2);
-  if (
-    tokens[0] &&
-    [
-      "init",
-      "route",
-      "check",
-      "verify",
-      "scan",
-      "cargo",
-      "doctor",
-      "explain",
-      "run",
-      "runs",
-      "codex",
-    ].includes(tokens[0])
-  ) {
-    args.command = tokens.shift();
-  }
-
-  if (args.command === "explain") {
-    args.explainRuleId = tokens.shift() ?? null;
-  }
-  if (args.command === "check") {
-    args.checkName =
-      tokens[0] && !tokens[0].startsWith("-")
-        ? normalizeCheckName(tokens.shift())
-        : null;
-  }
-  if (args.command === "route" && tokens[0] && !tokens[0].startsWith("-")) {
-    args.routeRuleId = tokens.shift();
-  }
-  if (args.command === "verify" && tokens[0] && !tokens[0].startsWith("-")) {
-    args.verifyMode = normalizeVerifyMode(tokens.shift());
-  }
-  if (args.command === "runs") {
-    args.runsCommand =
-      tokens[0] && !tokens[0].startsWith("-") ? tokens.shift() : "list";
-  }
-  if (args.command === "codex") {
-    const codexCommand =
-      tokens[0] && !tokens[0].startsWith("-") ? tokens.shift() : "install";
-    if (codexCommand === "install") {
-      args.command = "codex-install";
-      args.adapters = ["codex", "mcp"];
-    } else if (codexCommand === "uninstall") {
-      args.command = "codex-uninstall";
-    } else if (codexCommand === "doctor") {
-      args.command = "codex-doctor";
-    } else {
-      throw new Error(`Unknown codex command: ${codexCommand}`);
-    }
-  }
-
-  const explicitFiles = [];
-  for (let i = 0; i < tokens.length; i += 1) {
-    const arg = tokens[i];
-    if (arg === "--root") {
-      args.root = tokens[++i];
-      args.rootExplicit = true;
-    } else if (arg === "--config") {
-      args.configPath = tokens[++i];
-    } else if (arg === "--profile") {
-      args.profile = tokens[++i];
-    } else if (arg === "--verify-mode") {
-      args.verifyMode = normalizeVerifyMode(tokens[++i] ?? "");
-    } else if (arg === "--languages") {
-      args.languages = parseAdapterList(tokens[++i] ?? "");
-    } else if (arg === "--adapters") {
-      args.adapters = parseAdapterList(tokens[++i] ?? "");
-    } else if (arg === "--tool") {
-      args.runTool = tokens[++i];
-    } else if (arg === "--run-id") {
-      args.runId = tokens[++i];
-    } else if (arg === "--rule-id") {
-      args.routeRuleId = tokens[++i];
-    } else if (arg === "--check-config") {
-      args.checkConfigPath = tokens[++i];
-    } else if (arg === "--output") {
-      args.output = tokens[++i];
-    } else if (arg === "--staged") {
-      args.staged = true;
-    } else if (arg === "--tracked") {
-      args.tracked = true;
-    } else if (arg === "--strict-empty-test-trees") {
-      args.strictEmptyTestTrees = true;
-    } else if (arg === "--codex-config") {
-      args.codexConfigPath = tokens[++i];
-    } else if (arg === "--ledger-root") {
-      args.ledgerRoot = tokens[++i];
-    } else if (arg === "--server-name") {
-      args.mcpServerName = tokens[++i];
-    } else if (arg === "--no-skill") {
-      args.installSkill = false;
-    } else if (arg === "--no-global-agents") {
-      args.installGlobalAgents = false;
-    } else if (arg === "--artifact") {
-      args.artifact = tokens[++i];
-    } else if (arg === "--limit") {
-      args.limit = Number(tokens[++i]);
-    } else if (arg === "--limit-bytes") {
-      args.limitBytes = Number(tokens[++i]);
-    } else if (arg === "--severity") {
-      args.severity = tokens[++i];
-    } else if (arg === "--status") {
-      args.status = tokens[++i];
-    } else if (arg === "--file") {
-      args.file = tokens[++i];
-    } else if (arg === "--tag") {
-      args.tag = tokens[++i];
-    } else if (arg === "--domain") {
-      args.domain = tokens[++i];
-    } else if (arg === "--package-name") {
-      args.packageName = tokens[++i];
-    } else if (arg === "--crate-name") {
-      args.crateName = tokens[++i];
-    } else if (arg === "--dry-run") {
-      args.dryRun = true;
-    } else if (arg === "--force") {
-      args.force = true;
-    } else if (arg === "--scan-only") {
-      args.scanOnly = true;
-    } else if (arg === "--json") {
-      args.json = true;
-    } else if (arg === "--workspace" || arg === "--all") {
-      args.scope = { mode: "all" };
-    } else if (arg === "--crate" || arg === "-p" || arg === "--package") {
-      const crateName = tokens[++i];
-      args.crateName = args.crateName ?? crateName;
-      args.scope = { mode: "crate", crateName };
-    } else if (arg === "--base") {
-      const base = tokens[++i] ?? null;
-      const current =
-        args.scope.mode === "diff"
-          ? args.scope
-          : { mode: "diff", base: null, head: null };
-      args.scope = { ...current, base };
-    } else if (arg === "--head") {
-      const head = tokens[++i] ?? null;
-      const current =
-        args.scope.mode === "diff"
-          ? args.scope
-          : { mode: "diff", base: null, head: null };
-      args.scope = { ...current, head };
-    } else if (arg === "--files") {
-      for (let fileIndex = i + 1; fileIndex < tokens.length; fileIndex += 1) {
-        if (tokens[fileIndex].startsWith("-")) {
-          i = fileIndex - 1;
-          break;
-        }
-        explicitFiles.push(...parseFileList(tokens[fileIndex]));
-        i = fileIndex;
-      }
-    } else if (arg === "--help" || arg === "-h") {
-      args.help = true;
-    } else if (arg === "--") {
-      args.runCommand = tokens.slice(i + 1);
-      break;
-    } else if (arg.startsWith("-")) {
-      throw new Error(`Unknown argument: ${arg}`);
-    } else {
-      explicitFiles.push(...parseFileList(arg));
-    }
-  }
-
-  if (explicitFiles.length > 0) {
-    args.scope = { mode: "files", files: explicitFiles };
-  }
-  if (args.scope.mode === "diff" && (!args.scope.base || !args.scope.head)) {
-    throw new Error("Diff scope requires --base <sha> --head <sha>.");
-  }
-
-  return args;
 }
 
 function loadConfig(root, explicitPath, profile = null) {
@@ -548,29 +335,6 @@ function normalizeConfig(config) {
     runtimeCratesSet: new Set(config.runtimeCrates),
     testOnlyCratesSet: new Set(config.testOnlyCrates),
   };
-}
-
-function parseAdapterList(value) {
-  return value
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-}
-
-function parseFileList(value) {
-  return String(value ?? "")
-    .split(/[,\r\n]/u)
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-}
-
-function normalizeVerifyMode(value) {
-  const mode = String(value ?? "local").trim().toLowerCase();
-  if (mode === "") return "local";
-  if (!Object.hasOwn(VERIFY_MODE_CHECKS, mode)) {
-    throw new Error(`Unknown verify mode: ${value}`);
-  }
-  return mode;
 }
 
 function createInitReport(args) {
@@ -1037,7 +801,6 @@ function policyPreflightFindings(root, config, options = {}) {
 
 export {
   usage,
-  defaultArgs,
   parseArgs,
   loadConfig,
   resolveConfigCandidate,
@@ -1045,8 +808,6 @@ export {
   mergeConfigLayers,
   resolveDefaultConfigPath,
   normalizeConfig,
-  parseAdapterList,
-  normalizeVerifyMode,
   createInitReport,
   createCodexInstallReport,
   applyCodexInstallReport,

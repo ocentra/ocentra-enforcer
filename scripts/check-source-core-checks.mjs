@@ -145,7 +145,18 @@ function collectNoNakedDomainStringsFindings(root, config, scope = { mode: "all"
     languages: ["rust", "typescript", "python", "common"],
   });
   const allowedRuleIds = new Set(["RR-6.1", "RR-6.5", "RR-18.16", "TS-1.3", "PY-1.3"]);
-  return (report.violations ?? []).filter((entry) => allowedRuleIds.has(entry.ruleId));
+  return (report.violations ?? []).filter(
+    (entry) =>
+      allowedRuleIds.has(entry.ruleId) &&
+      (() => {
+        const file = String(entry.file ?? "");
+        return (
+          !isGeneratedArtifactPath(file) &&
+          !file.includes("/generated/") &&
+          !file.includes("\\generated\\")
+        );
+      })(),
+  );
 }
 
 function collectWeakAssertionsFindings(root, config, scope = { mode: "all" }) {

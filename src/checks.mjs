@@ -7,6 +7,7 @@ import {
   collectFiles,
   normalizeRel,
 } from "./path-utils.mjs";
+import { resolveScope } from "../scripts/rust-rules-path-core.mjs";
 import { GENERIC_RULES, runGenericScan } from "./generic-scanners.mjs";
 import { scanAdditionalTypeScriptFile } from "./source-policy-scanners.mjs";
 import {
@@ -20,14 +21,7 @@ import {
   collectWaiverPolicyFindings,
 } from "./check-policy.mjs";
 import { collectDocsCompletenessFindings } from "./check-docs.mjs";
-import {
-  collectCiIntegrityFindings,
-  collectDependencyPolicyFindings,
-  collectMutationRiskFindings,
-  collectPackageDeterminismFindings,
-  collectRepoGovernanceFindings,
-  runSbomCheck,
-} from "./check-governance.mjs";
+import { collectGovernanceStandaloneFindings } from "./checks-governance-bridge.mjs";
 import {
   collectHarnessContractFindings,
   collectProofContractFindings,
@@ -90,7 +84,6 @@ import {
   countMatches,
   maxBraceNestingDepth,
   maxPythonIndentDepth,
-  countLines,
   findBlockEnd,
   findPythonBlockEnd,
   leadingWhitespace,
@@ -125,6 +118,8 @@ import {
   finding,
   genericFinding,
 } from "../scripts/check-source-core.mjs";
+import { collectLiteralRiskStandaloneFindings } from "./checks-literal-risk-bridge.mjs";
+import { collectAiRuleIndexStandaloneFindings } from "./checks-ai-index-bridge.mjs";
 
 const PACK_ROOT = path.resolve(path.join(path.dirname(fileURLToPath(import.meta.url)), ".."));
 
@@ -144,6 +139,7 @@ export function normalizeCheckName(value) {
 export function listStandaloneChecks() {
   return [
     ...Object.keys(SCANNER_BACKED_CHECKS),
+    "literal-risk",
     "source-shape",
     "required-tests",
     "single-source-contracts",
@@ -209,25 +205,28 @@ export function runStandaloneCheck({
         scope,
       });
     case "dependency-policy":
+    case "sbom": {
+      const governance = collectGovernanceStandaloneFindings({
+        checkName: normalized,
+        root,
+        config,
+        args,
+        scope,
+      });
       return buildReport({
         root,
         config,
         checkName: normalized,
-        findings: collectDependencyPolicyFindings(root, config),
+        findings: governance.findings,
+        scope: governance.scope ?? scope,
       });
-    case "sbom":
-      return buildReport({
-        root,
-        config,
-        checkName: normalized,
-        findings: runSbomCheck(root, args),
-      });
+    }
     case "ai-rule-index":
       return buildReport({
         root,
         config,
         checkName: normalized,
-        findings: collectAiRuleIndexFindings(root, config),
+        findings: collectAiRuleIndexStandaloneFindings(root, config),
       });
     case "generated-artifacts":
       return buildReport({
@@ -237,6 +236,21 @@ export function runStandaloneCheck({
         findings: collectGeneratedArtifactFindings(root, config, scope, args),
         scope,
       });
+    case "literal-risk": {
+      const literalRisk = collectLiteralRiskStandaloneFindings({
+        root,
+        config,
+        args,
+        scope,
+      });
+      return buildReport({
+        root,
+        config,
+        checkName: normalized,
+        findings: literalRisk.findings,
+        scope: literalRisk.scope,
+      });
+    }
     case "no-zod-source":
       return buildReport({
         root,
@@ -327,69 +341,27 @@ export function runStandaloneCheck({
         scope,
       });
     case "policy-integrity":
-      return buildReport({
-        root,
-        config,
-        checkName: normalized,
-        findings: [
-          ...collectConfigLockdownFindings(root, config),
-          ...collectWaiverPolicyFindings(root, config),
-          ...collectRuleCoverageFindings(root, config, args),
-          ...collectHarnessContractFindings(root, args),
-          ...collectProofContractFindings(root, args),
-          ...collectMcpContractFindings(root, args),
-          ...collectScannerContractFindings(root, args),
-        ],
-        scope,
-      });
     case "config-lockdown":
-      return buildReport({
-        root,
-        config,
-        checkName: normalized,
-        findings: collectConfigLockdownFindings(root, config),
-        scope,
-      });
     case "waiver-policy":
-      return buildReport({
-        root,
-        config,
-        checkName: normalized,
-        findings: collectWaiverPolicyFindings(root, config),
-        scope,
-      });
     case "ci-integrity":
-      return buildReport({
-        root,
-        config,
-        checkName: normalized,
-        findings: collectCiIntegrityFindings(root),
-        scope,
-      });
     case "repo-governance":
-      return buildReport({
-        root,
-        config,
-        checkName: normalized,
-        findings: collectRepoGovernanceFindings(root),
-        scope,
-      });
     case "package-determinism":
+    case "mutation-risk": {
+      const governance = collectGovernanceStandaloneFindings({
+        checkName: normalized,
+        root,
+        config,
+        args,
+        scope,
+      });
       return buildReport({
         root,
         config,
         checkName: normalized,
-        findings: collectPackageDeterminismFindings(root),
-        scope,
+        findings: governance.findings,
+        scope: governance.scope ?? scope,
       });
-    case "mutation-risk":
-      return buildReport({
-        root,
-        config,
-        checkName: normalized,
-        findings: collectMutationRiskFindings(root, scope),
-        scope,
-      });
+    }
     case "harness-contracts":
       return buildReport({
         root,
@@ -425,75 +397,6 @@ export function runStandaloneCheck({
     default:
       throw new Error(`Unknown standalone check: ${checkName}`);
   }
-}
-
-function collectAiRuleIndexFindings(root, config) {
-  const findings = [];
-  const agentsPath = path.join(root, "AGENTS.md");
-  const rulesRoot = path.join(root, ".ocentra-ai", "rules");
-  if (!fs.existsSync(agentsPath) || !fs.existsSync(rulesRoot)) return findings;
-
-  const ruleFiles = fs
-    .readdirSync(rulesRoot)
-    .filter((entry) => entry.endsWith(".md") || entry.endsWith(".mdc"))
-    .map((entry) => path.join(rulesRoot, entry));
-  const indexFile =
-    ruleFiles.find((file) => /rules|index/iu.test(path.basename(file))) ??
-    ruleFiles[0];
-  if (!indexFile) return findings;
-
-  const agentsText = fs.readFileSync(agentsPath, "utf8");
-  const indexText = fs.readFileSync(indexFile, "utf8");
-  const indexRel = normalizeRel(root, indexFile);
-  if (
-    !agentsText.includes(indexRel) &&
-    !agentsText.includes(indexRel.replaceAll("/", "\\"))
-  ) {
-    findings.push(
-      finding(
-        root,
-        agentsPath,
-        1,
-        "AI-1.1",
-        `AGENTS.md must reference ${indexRel}`,
-        null,
-      ),
-    );
-  }
-
-  for (const ruleFile of ruleFiles) {
-    const rel = normalizeRel(root, ruleFile);
-    const lineCount = countLines(fs.readFileSync(ruleFile, "utf8"));
-    if (
-      ruleFile !== indexFile &&
-      !indexText.includes(normalizeRel(rulesRoot, ruleFile))
-    ) {
-      findings.push(
-        finding(
-          root,
-          ruleFile,
-          1,
-          "AI-1.1",
-          `${rel} is not linked from ${indexRel}`,
-          null,
-        ),
-      );
-    }
-    const maxLines = config.agentRuleMaxLines ?? 220;
-    if (lineCount > maxLines) {
-      findings.push(
-        finding(
-          root,
-          ruleFile,
-          maxLines + 1,
-          "AI-1.1",
-          `${rel} has ${lineCount} lines; split rule files above ${maxLines}`,
-          null,
-        ),
-      );
-    }
-  }
-  return findings;
 }
 
 function collectRuleCoverageFindings(root, _config, args = {}) {

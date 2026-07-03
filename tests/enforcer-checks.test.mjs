@@ -313,6 +313,39 @@ test('check generated-artifacts --tracked ignores untracked output paths', () =>
   assert.equal(report.ok, true);
 });
 
+test('check literal-risk returns hard findings and warnings from the Rust scanner', () => {
+  const secretValue = ['sk', '-', 'abcdefghijklmnopqrstuvwxyz123456'].join('');
+  const project = makeProject({
+    'src/literals.ts': `
+export const route = "/api/v1/events";
+export const eventName = "user.created";
+export const secret = "${secretValue}";
+`,
+  });
+  const result = run(project, ['check', 'literal-risk', '--json', '--files', 'src/literals.ts']);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.check, 'literal-risk');
+  assert.equal(report.violations.some((violation) => violation.ruleId === 'SEC-2.10'), true);
+  assert.equal(report.warnings.some((violation) => String(violation.ruleId).startsWith('LIT-')), true);
+});
+
+test('advise literals aliases the literal-risk check', () => {
+  const secretValue = ['sk', '-', 'abcdefghijklmnopqrstuvwxyz123456'].join('');
+  const project = makeProject({
+    'src/literals.ts': `
+export const route = "/api/v1/events";
+export const eventName = "user.created";
+export const secret = "${secretValue}";
+`,
+  });
+  const result = run(project, ['advise', 'literals', '--json', '--files', 'src/literals.ts']);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.check, 'literal-risk');
+  assert.equal(report.violations.some((violation) => violation.ruleId === 'SEC-2.10'), true);
+});
+
 test('check secrets --staged scans only staged files', () => {
   const project = makeProject({
     '.env.local': ['API_', 'KEY="abcdefghijklmnop"', '\n'].join(''),

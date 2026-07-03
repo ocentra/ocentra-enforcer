@@ -53,8 +53,8 @@ const MCP_CONTRACT_SPECS = [
 ];
 
 const SCANNER_CONTRACT_SPECS = [
-  ["SCAN-1.1", "src/source-policy-scanners.mjs", [/maskJavaScriptLine/u]],
-  ["SCAN-1.2", "src/source-policy-scanners.mjs", [/maskJavaScriptLine/u, /\/\/|\/\*/u]],
+  ["SCAN-1.1", "src/source-policy-scanner-shared.mjs", [/maskJavaScriptLine/u]],
+  ["SCAN-1.2", "src/source-policy-scanner-shared.mjs", [/maskJavaScriptLine/u, /\/\/|\/\*/u]],
   ["SCAN-1.3", "src/generic-scanner-shared.mjs", [/ts-ignore|noqa|type:\s*ignore/u]],
   ["SCAN-1.4", "src/checks.mjs", [/split\(/u, /\\r\?\\n/u]],
   ["SCAN-1.5", "src/path-utils.mjs", [/toPosix/u, /normalizeRel/u]],

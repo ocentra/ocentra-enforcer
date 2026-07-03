@@ -9,6 +9,8 @@
   "ignoreFileGlobs": [
     "db/**",
     "views/**",
+    "**/dist/**",
+    "**/README.md",
     "Tools/**",
     "tools/**",
     "tests/enforcer-policy.test.mjs",

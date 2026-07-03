@@ -109,6 +109,10 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
     checkTool.inputSchema.properties.check.enum.includes("architecture-policy"),
     true,
   );
+  assert.equal(
+    checkTool.inputSchema.properties.check.enum.includes("literal-risk"),
+    true,
+  );
   assert.equal(checkTool.inputSchema.properties.staged.type, "boolean");
   assert.equal(checkTool.inputSchema.properties.tracked.type, "boolean");
   assert.equal(checkTool.inputSchema.properties.diagnosticLimit.type, "number");

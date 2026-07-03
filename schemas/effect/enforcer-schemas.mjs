@@ -182,6 +182,18 @@ export const ImportBoundaryPolicySchema = Schema.Struct({
   message: OptionalString,
 });
 
+export const LiteralRiskPolicySchema = Schema.Struct({
+  minScore: OptionalNumber,
+  includeLow: OptionalBoolean,
+  includeIgnored: OptionalBoolean,
+  includeUnknownCode: OptionalBoolean,
+  respectGitignore: OptionalBoolean,
+  maxFileBytes: OptionalNumber,
+  failAbove: OptionalNumber,
+  hardCategories: OptionalStringArray,
+  hardRuleIds: OptionalStringArray,
+});
+
 export const RuleEntrySchema = Schema.Struct({
   id: Schema.String,
   language: LanguageSchema,
@@ -292,6 +304,7 @@ export const ConfigSchema = Schema.Struct({
   importBoundaryPolicies: Schema.optional(
     Schema.Array(ImportBoundaryPolicySchema),
   ),
+  literalRisk: Schema.optional(LiteralRiskPolicySchema),
   architecturePolicyChecks: OptionalStringArray,
   singleSourceRequiredMirrorRoots: OptionalStringArray,
   strictEmptyTestTrees: OptionalBoolean,
@@ -384,6 +397,7 @@ export const CheckNameSchema = Schema.Literal(
   "reexports",
   "cross-platform-script-commands",
   "generated-artifacts",
+  "literal-risk",
   "secrets",
   "rust-string-boundaries",
   "source-shape",
@@ -426,6 +440,15 @@ export const CheckToolArgumentsSchema = Schema.Struct({
   summaryOnly: OptionalBoolean,
   groupBy: Schema.optional(Schema.Literal("file", "slice")),
   includeScope: OptionalBoolean,
+  minScore: OptionalNumber,
+  includeLow: OptionalBoolean,
+  includeIgnored: OptionalBoolean,
+  includeUnknownCode: OptionalBoolean,
+  respectGitignore: OptionalBoolean,
+  maxFileBytes: OptionalNumber,
+  failAbove: OptionalNumber,
+  hardCategories: OptionalStringArray,
+  hardRuleIds: OptionalStringArray,
 });
 
 export const AdapterNameSchema = Schema.Literal(

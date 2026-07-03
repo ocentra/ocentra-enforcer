@@ -1,0 +1,286 @@
+{
+  "TS-1.2": {
+    "title": "Direct Zod source usage is forbidden",
+    "snippet": "Use Effect Schema through domain-owned schemas instead of importing or exposing Zod directly."
+  },
+  "TS-1.3": {
+    "title": "Naked domain string aliases are forbidden",
+    "snippet": "Use Effect Schema brands plus decode helpers instead of type FooId = string or manual __brand intersections."
+  },
+  "TS-6.1": {
+    "title": "TypeScript any is forbidden",
+    "snippet": "Model unknown input with decoders and precise types; do not use any."
+  },
+  "TS-6.2": {
+    "title": "TypeScript unknown cannot escape boundaries",
+    "snippet": "Decode unknown at the boundary and expose precise domain types inward."
+  },
+  "TS-6.3": {
+    "title": "TypeScript type assertions are forbidden",
+    "snippet": "Replace as-casts with Effect Schema decoding, narrowing, or typed constructors."
+  },
+  "TS-6.4": {
+    "title": "TypeScript double assertions are forbidden",
+    "snippet": "Replace as unknown as casts with real decoding or narrowing."
+  },
+  "TS-6.5": {
+    "title": "TypeScript non-null assertions are forbidden",
+    "snippet": "Prove presence with control flow, schema decoding, or explicit error handling."
+  },
+  "TS-6.6": {
+    "title": "TypeScript definite assignment assertions are forbidden",
+    "snippet": "Initialize fields through constructors or modeled lifecycle states instead of prop! assertions."
+  },
+  "TS-6.7": {
+    "title": "Raw string domain aliases are forbidden",
+    "snippet": "Use Effect Schema branded domain types instead of type FooId = string."
+  },
+  "TS-6.8": {
+    "title": "Raw number domain values are forbidden",
+    "snippet": "Use branded IDs, counts, durations, and units instead of naked number domain parameters."
+  },
+  "TS-6.9": {
+    "title": "Raw boolean domain parameters are forbidden",
+    "snippet": "Replace boolean flags with explicit state/value objects or named option types."
+  },
+  "TS-6.10": {
+    "title": "Record<string, domain> APIs are forbidden",
+    "snippet": "Use a branded key type or domain map instead of Record<string, T>."
+  },
+  "TS-6.11": {
+    "title": "Map<string, domain> APIs are forbidden",
+    "snippet": "Use branded key maps or domain collections instead of Map<string, T>."
+  },
+  "TS-6.12": {
+    "title": "String arrays are forbidden in domain APIs",
+    "snippet": "Use typed collections or branded values instead of string[] domain surfaces."
+  },
+  "TS-6.13": {
+    "title": "TypeScript default exports are forbidden",
+    "snippet": "Use named exports from owning modules and avoid default export ambiguity."
+  },
+  "TS-6.14": {
+    "title": "Index barrels are forbidden",
+    "snippet": "Import from owning modules directly; do not use index.ts barrel re-exports."
+  },
+  "TS-6.15": {
+    "title": "TypeScript namespace declarations are forbidden",
+    "snippet": "Use modules and explicit imports instead of namespace declarations."
+  },
+  "TS-6.16": {
+    "title": "TypeScript enums are forbidden by default",
+    "snippet": "Use union literals or configured enum policy instead of unchecked enum surfaces."
+  },
+  "TS-6.17": {
+    "title": "Ambient declare global is forbidden outside type owners",
+    "snippet": "Keep global augmentation in owned type-boundary modules only."
+  },
+  "TS-6.18": {
+    "title": "process.env is forbidden outside config boundaries",
+    "snippet": "Read environment variables in a config boundary and pass typed values inward."
+  },
+  "TS-6.19": {
+    "title": "JSON.parse is forbidden outside decoder boundaries",
+    "snippet": "Use Effect Schema or a typed decoder for untrusted JSON input."
+  },
+  "TS-6.20": {
+    "title": "Date is forbidden in domain APIs",
+    "snippet": "Use branded time values or decoded timestamps instead of raw Date domain surfaces."
+  },
+  "TS-6.21": {
+    "title": "Promise<any> and Promise<unknown> are forbidden",
+    "snippet": "Return precise promise result types after boundary decoding."
+  },
+  "TS-6.22": {
+    "title": "Floating promises are forbidden",
+    "snippet": "Await promises, return them, or intentionally wrap them in a tracked task boundary."
+  },
+  "TS-6.23": {
+    "title": "Swallowed promise catches are forbidden",
+    "snippet": "Handle promise failures explicitly; do not use empty catch callbacks."
+  },
+  "TS-6.24": {
+    "title": "console logging is forbidden in source",
+    "snippet": "Use project logging domains or structured diagnostics instead of console logging."
+  },
+  "TS-6.25": {
+    "title": "Throwing string errors is forbidden",
+    "snippet": "Throw typed Error objects or return modeled domain errors."
+  },
+  "TS-6.26": {
+    "title": "return null is forbidden in domain APIs",
+    "snippet": "Use an explicit Option/Result-like type instead of null domain returns."
+  },
+  "TS-6.27": {
+    "title": "undefined domain state is forbidden",
+    "snippet": "Model absence explicitly instead of returning or storing undefined as state."
+  },
+  "TS-6.28": {
+    "title": "Optional domain fields are forbidden by default",
+    "snippet": "Use explicit state unions or value objects instead of partial optional domain objects."
+  },
+  "TS-6.29": {
+    "title": "Partial<T> is forbidden in domain logic",
+    "snippet": "Create explicit patch/input types instead of broad Partial<T> domain values."
+  },
+  "TS-6.30": {
+    "title": "Record<string, unknown> payloads are forbidden",
+    "snippet": "Decode command and event payloads into typed schemas instead of raw records."
+  },
+  "TS-6.31": {
+    "title": "Timer sleeps are forbidden by default",
+    "snippet": "Use fake clocks, deterministic events, or harness polling instead of setTimeout sleeps."
+  },
+  "TS-6.32": {
+    "title": "Dynamic imports are forbidden in domain code",
+    "snippet": "Use static imports and explicit boundaries instead of import()."
+  },
+  "TS-6.33": {
+    "title": "child_process is forbidden outside script boundaries",
+    "snippet": "Move process spawning to reviewed scripts or harness adapters."
+  },
+  "TS-6.34": {
+    "title": "Dynamic code execution is forbidden",
+    "snippet": "Remove eval, Function constructors, and dynamic code execution."
+  },
+  "TS-6.35": {
+    "title": "Spreading raw DTOs into domain objects is forbidden",
+    "snippet": "Map decoded fields explicitly instead of spreading raw, dto, payload, or json objects."
+  },
+  "TS-6.36": {
+    "title": "Spreading any into domain objects is forbidden",
+    "snippet": "Decode and construct domain values explicitly instead of spreading any values."
+  },
+  "TS-6.37": {
+    "title": "Exported functions require explicit return types",
+    "snippet": "Add explicit return types to exported functions so API contracts cannot drift."
+  },
+  "TS-6.38": {
+    "title": "Exported object literals cannot be inferred APIs",
+    "snippet": "Annotate exported object APIs or replace them with named typed values."
+  },
+  "TS-6.39": {
+    "title": "Use const instead of single-assignment let",
+    "snippet": "Use const for local values unless reassignment is required."
+  },
+  "TS-6.40": {
+    "title": "Mutating imported or shared objects is forbidden",
+    "snippet": "Return new values or use explicit owners instead of mutating imported/shared state."
+  },
+  "TS-7.1": {
+    "title": "TypeScript strict mode is required",
+    "snippet": "Enable strict compiler options instead of relying on partial type checking."
+  },
+  "TS-7.2": {
+    "title": "noImplicitAny is required",
+    "snippet": "Enable noImplicitAny in tsconfig."
+  },
+  "TS-7.3": {
+    "title": "strictNullChecks is required",
+    "snippet": "Enable strictNullChecks in tsconfig."
+  },
+  "TS-7.4": {
+    "title": "noUncheckedIndexedAccess is required",
+    "snippet": "Enable noUncheckedIndexedAccess in tsconfig."
+  },
+  "TS-7.5": {
+    "title": "exactOptionalPropertyTypes is required",
+    "snippet": "Enable exactOptionalPropertyTypes in tsconfig."
+  },
+  "TS-7.6": {
+    "title": "noImplicitOverride is required",
+    "snippet": "Enable noImplicitOverride in tsconfig."
+  },
+  "TS-7.7": {
+    "title": "noPropertyAccessFromIndexSignature is required",
+    "snippet": "Enable noPropertyAccessFromIndexSignature in tsconfig."
+  },
+  "TS-7.8": {
+    "title": "useUnknownInCatchVariables is required",
+    "snippet": "Enable useUnknownInCatchVariables in tsconfig."
+  },
+  "TS-7.9": {
+    "title": "skipLibCheck policy must be explicit",
+    "snippet": "Set skipLibCheck explicitly so consumers know the project policy."
+  },
+  "TS-7.10": {
+    "title": "Package manager lockfile is required",
+    "snippet": "Commit a package lockfile for TypeScript packages."
+  },
+  "TS-7.11": {
+    "title": "Loose npm dependency versions are forbidden",
+    "snippet": "Pin npm dependencies exactly; do not use ^, ~, *, latest, git, or path ranges."
+  },
+  "TS-7.12": {
+    "title": "npm ci is required in CI",
+    "snippet": "Use npm ci in workflows and scripts that represent CI gates."
+  },
+  "TS-7.13": {
+    "title": "ESLint must enforce unsafe TypeScript rules",
+    "snippet": "Enable no-floating-promises, no-explicit-any, and no-unsafe rules in ESLint config."
+  },
+  "TS-7.14": {
+    "title": "Zod dependencies are forbidden by policy",
+    "snippet": "Use Effect Schema through Enforcer policy instead of adding Zod dependencies."
+  },
+  "TS-7.15": {
+    "title": "Duplicate package managers are forbidden by default",
+    "snippet": "Use one configured package manager and one lockfile family per project."
+  },
+  "TS-8.1": {
+    "title": "Skipped and focused TypeScript tests are forbidden",
+    "snippet": "Remove .skip, .only, and .todo from checked-in tests."
+  },
+  "TS-8.2": {
+    "title": "TypeScript expect.any assertions are forbidden",
+    "snippet": "Assert concrete values instead of expect.anything or expect.any(String/Number)."
+  },
+  "TS-8.3": {
+    "title": "Weak TypeScript assertions are forbidden",
+    "snippet": "Assert concrete behavior instead of toBeTruthy, toBeDefined, or not.toThrow."
+  },
+  "TS-8.4": {
+    "title": "Empty TypeScript tests are forbidden",
+    "snippet": "Every test must exercise behavior and include assertions."
+  },
+  "TS-8.5": {
+    "title": "TypeScript tests must assert behavior",
+    "snippet": "Add explicit assertions to every test body."
+  },
+  "TS-8.6": {
+    "title": "Network calls are forbidden in TypeScript unit tests",
+    "snippet": "Move network checks to explicit integration proofs."
+  },
+  "TS-8.7": {
+    "title": "Real timers are forbidden in deterministic TypeScript tests",
+    "snippet": "Use fake clocks, events, or controlled polling instead of real timers."
+  },
+  "TS-8.8": {
+    "title": "TypeScript test doubles are forbidden by default",
+    "snippet": "Use real local collaborators and domain contracts instead of mocks, stubs, fakes, or spies."
+  },
+  "TS-8.9": {
+    "title": "Snapshots cannot contain volatile values",
+    "snippet": "Redact timestamps, UUIDs, and random IDs before snapshot assertions."
+  },
+  "TS-8.10": {
+    "title": "Decoder and schema tests require negative cases",
+    "snippet": "Add invalid-input, malformed, or throws/rejects tests for decoders and schemas."
+  },
+  "TEST-1.1": {
+    "title": "Test doubles are forbidden by default",
+    "snippet": "Use real domain contracts, real parsers, and real local services instead of mocks, fakes, stubs, or spies."
+  },
+  "PORT-1.1": {
+    "title": "Platform-specific script commands must be guarded",
+    "snippet": "Put Windows-only command invocations behind an explicit process.platform guard or use a cross-platform helper."
+  },
+  "SEC-1.2": {
+    "title": "Sensitive files are forbidden in source scope",
+    "snippet": "Do not commit .env files, private keys, mobile service secrets, or credential bundles."
+  },
+  "GEN-1.2": {
+    "title": "Generated output folders must not be committed as source",
+    "snippet": "Keep proof output, test results, reports, and generated build artifacts in ignored output folders or CI artifacts."
+  }
+}
