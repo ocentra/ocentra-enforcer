@@ -12,8 +12,8 @@
 > Proof rule: Before DONE, select tests in TEST_PROOF_EXPECTATIONS.md and update proof rows.
 <!-- /agent-capsule -->
 
-- owns: `crates/enforcer-scan/Cargo.toml`, `crates/enforcer-scan/src/lib.rs`, `crates/enforcer-scan/src/engine.rs`, `crates/enforcer-scan/src/modes.rs`, `crates/enforcer-scan/src/scope.rs`, `crates/enforcer-scan/src/walk.rs`, `crates/enforcer-scan/src/router/**`, `crates/enforcer-scan/src/rules/baseline_ratchet.rs`, `crates/enforcer-scan/tests/**`
-- deps: `arc-01`, `arc-02`, `arc-03`, `arc-04`, `arc-05`, `arc-06`, `arc-07`, `arc-08`, `arc-09`, `arc-10`, `arc-11`, `arc-12`, `arc-13`
+- owns: `crates/enforcer-scan/Cargo.toml`, `crates/enforcer-scan/src/lib.rs`, `crates/enforcer-scan/src/engine.rs`, `crates/enforcer-scan/src/scope.rs`, `crates/enforcer-scan/src/walk.rs`, `crates/enforcer-scan/tests/**` (SKELETON only — feature modules owned by siblings: `src/modes.rs` f01, `src/router/**` f05, `src/rules/baseline_ratchet.rs` d02)
+- deps: `arc-01`, `arc-02`, `arc-03`, `arc-04`, `arc-05`, `arc-06`, `arc-07`, `arc-08`, `arc-09`, `arc-10`, `arc-11`, `arc-12`, `arc-13`, `arc-25`
 - tier: `P1`
 
 Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md), [RUST_ARCHITECTURE](../RUST_ARCHITECTURE.md).

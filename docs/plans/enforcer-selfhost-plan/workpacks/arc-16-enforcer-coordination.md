@@ -13,7 +13,7 @@
 <!-- /agent-capsule -->
 
 - owns: `crates/enforcer-coordination/**`
-- deps: `arc-01`, `arc-02`
+- deps: `arc-01`, `arc-02`, `arc-25`
 - tier: `P1`
 
 Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md), [RUST_ARCHITECTURE](../RUST_ARCHITECTURE.md).

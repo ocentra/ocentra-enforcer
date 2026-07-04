@@ -13,7 +13,7 @@
 <!-- /agent-capsule -->
 
 - owns: `crates/enforcer-proof/Cargo.toml`, `crates/enforcer-proof/src/lib.rs`, `crates/enforcer-proof/src/harness.rs`, `crates/enforcer-proof/src/journal.rs`, `crates/enforcer-proof/src/envelope.rs`, `crates/enforcer-proof/src/claim.rs`, `crates/enforcer-proof/src/legacy_import.rs`, `crates/enforcer-proof/tests/**`
-- deps: `arc-01`, `arc-02`, `arc-15`
+- deps: `arc-01`, `arc-02`, `arc-15`, `arc-25`
 - tier: `P1`
 
 Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md), [RUST_ARCHITECTURE](../RUST_ARCHITECTURE.md).
