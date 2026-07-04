@@ -1,0 +1,10 @@
+[
+    {
+        "ruleId": "T1-NOREEXPORT.1",
+        "severity": "error",
+        "title": "No re-export barrels",
+        "detail": "pub use barrel re-export found",
+        "file": "crates/legacy/src/other.rs",
+        "line": 3
+    }
+]

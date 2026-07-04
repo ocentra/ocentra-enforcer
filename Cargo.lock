@@ -359,6 +359,7 @@ dependencies = [
  "enforcer-lang-security",
  "enforcer-lang-ts",
  "enforcer-literal-scan",
+ "enforcer-rules",
  "enforcer-validator",
  "rayon",
  "serde",

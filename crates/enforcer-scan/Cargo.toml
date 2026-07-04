@@ -28,6 +28,7 @@ enforcer-literal-scan = { path = "../enforcer-literal-scan", version = "0.1.0" }
 
 [dev-dependencies]
 tempfile = "3"
+enforcer-rules = { path = "../enforcer-rules", version = "0.1.0" }
 
 [lints]
 workspace = true

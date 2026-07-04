@@ -1,37 +1,45 @@
-//! d02 baseline-ratchet seam: a monotonic violation-count baseline. New
+//! d02 baseline-ratchet: a monotonic violation-count baseline. New
 //! violations fail closed (a violation not present in the recorded
 //! baseline blocks); a violation that used to be in the baseline but is
 //! no longer produced ratchets the recorded baseline DOWN — the baseline
 //! can only shrink over time, never grow to "grandfather in" a fresh
 //! violation.
 //!
-//! **SKELETON BOUNDARY / KNOWN CONFLICT**: `docs/plans/enforcer-selfhost-
-//! plan/workpacks/arc-15-enforcer-scan.md`'s own body directs THIS
-//! workpack to host `src/rules/baseline_ratchet.rs` as "the full
-//! behavioral contract." `WORKPACK_INDEX.md`'s arc-15 row and its own
-//! `d02-baseline-grandfather-ratchet.md` workpack instead say d02 (`deps:
-//! arc-15, d01-rule-mechanization-engine`) owns this exact file PLUS
-//! `tests/fixtures/baseline_ratchet/**`, and specifies a materially
-//! larger deliverable this module does NOT implement: a `Validator` impl
-//! over the aggregated `Report` (this module is a plain function, not a
-//! `Validator`), a versioned `serde` baseline record with a `Sha256`
-//! integrity hash persisted via `enforcer-core`'s append utilities (this
-//! module has no persistence — [`Baseline`] is in-memory only, built via
-//! [`Baseline::from_known`], with no load/save boundary), and an `enforcer
-//! check --baseline write` CLI mode (out of scope for a library crate
-//! skeleton). Followed the workpack's literal instruction per protocol
-//! ("execute workpack exactly"); this in-memory
-//! [`ratchet`]/[`Baseline`]/[`BaselineKey`] core (fail-closed on new,
-//! ratchet-down on fixed, never ratchet up) is offered as a reusable
-//! primitive d02 can build its persistence/CLI/`Validator` layer on top
-//! of, NOT a claim that d02's deliverable is done. See
-//! `memory/streams/arc-15.ndjson` for the recorded deviation.
+//! d02 builds three layers on top of arc-15's in-memory
+//! [`ratchet`]/[`Baseline`]/[`BaselineKey`] core (which stays exactly as
+//! arc-15 landed it — see the skeleton note preserved on those items):
+//!
+//! - [`BaselineRecord`]: the versioned `serde` wire form of a [`Baseline`],
+//!   carrying a [`Sha256`] integrity hash over its own entry payload so a
+//!   hand-edited or corrupted baseline file is detected rather than
+//!   silently trusted.
+//! - [`write_baseline`] / [`load_baseline`]: the persistence boundary
+//!   (`enforcer check --baseline write` writes via the former; a
+//!   `--baseline` run loads via the latter, verifying the hash before
+//!   trusting the record).
+//! - [`BaselineRatchetValidator`]: a `Report`-level classifier (the scan
+//!   crate's `Validator`-shaped mode, per the workpack's own "Validator/
+//!   mode" phrasing — this gate inspects a whole run's [`Violation`]s
+//!   against a loaded baseline, not one file's source text, so it does not
+//!   implement `enforcer_validator::validator::Validator` itself) that
+//!   turns [`ratchet`]'s outcome into `enforcer-domain` findings: baselined
+//!   violations demote to warnings, new/grown violations stay errors.
 
 use std::collections::BTreeSet;
+use std::path::Path;
 
-use enforcer_domain::findings::Violation;
+use enforcer_core::error::{DecodeError, Error as CoreError, Result as CoreResult};
+use enforcer_core::hash_chain::link_digest;
+use enforcer_domain::findings::{Finding, Violation};
+use enforcer_domain::hashes::Sha256;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::paths::RelPath;
+use enforcer_domain::severity::Severity;
+
+/// Schema version of [`BaselineRecord`]'s on-disk wire form. Bump on any
+/// breaking change to the record shape so an old baseline file fails to
+/// load loudly instead of silently misinterpreting.
+pub const BASELINE_RECORD_VERSION: u32 = 1;
 
 /// One baseline entry: the (rule, file, line) triple that identifies a
 /// specific known violation occurrence. Deliberately does not include the
@@ -142,6 +150,199 @@ pub fn ratchet(prior: &Baseline, current_violations: &[Violation]) -> RatchetOut
         ratcheted_baseline: Baseline {
             known: still_present,
         },
+    }
+}
+
+/// One entry in the persisted baseline record's wire form. Mirrors
+/// [`BaselineKey`] field-for-field, but as an explicit `serde` DTO —
+/// [`BaselineKey`] itself stays internal/unserialized so the in-memory
+/// core (arc-15's contract) is not coupled to the wire shape.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BaselineEntry {
+    /// The rule that fired.
+    pub rule_id: RuleId,
+    /// The file the violation was recorded against.
+    pub file: RelPath,
+    /// The line the violation was recorded at.
+    pub line: u32,
+}
+
+impl From<&BaselineKey> for BaselineEntry {
+    fn from(key: &BaselineKey) -> Self {
+        Self {
+            rule_id: key.rule_id.clone(),
+            file: key.file.clone(),
+            line: key.line,
+        }
+    }
+}
+
+impl From<BaselineEntry> for BaselineKey {
+    fn from(entry: BaselineEntry) -> Self {
+        Self {
+            rule_id: entry.rule_id,
+            file: entry.file,
+            line: entry.line,
+        }
+    }
+}
+
+/// The versioned, integrity-hashed wire form of a [`Baseline`]. This is
+/// what `enforcer check --baseline write` persists to the baseline file
+/// and what a `--baseline` run loads back.
+///
+/// Entries are stored sorted ([`BaselineEntry`]'s derived `Ord`) so two
+/// baselines with the same members always serialize byte-identically —
+/// same idempotency contract [`Baseline`] itself upholds via `BTreeSet`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BaselineRecord {
+    /// Schema version; see [`BASELINE_RECORD_VERSION`].
+    pub version: u32,
+    /// The recorded occurrences, sorted for deterministic serialization.
+    pub entries: Vec<BaselineEntry>,
+    /// Integrity digest over `entries`' canonical JSON payload. Computed
+    /// by [`BaselineRecord::compute_hash`]; verified on [`load_baseline`].
+    pub integrity: Sha256,
+}
+
+impl BaselineRecord {
+    /// Build a record from a [`Baseline`], computing its integrity hash.
+    pub fn from_baseline(baseline: &Baseline) -> CoreResult<Self> {
+        let entries: Vec<BaselineEntry> = baseline.known.iter().map(BaselineEntry::from).collect();
+        let integrity = Self::compute_hash(&entries)?;
+        Ok(Self {
+            version: BASELINE_RECORD_VERSION,
+            entries,
+            integrity,
+        })
+    }
+
+    /// Recover the in-memory [`Baseline`] this record describes.
+    pub fn to_baseline(&self) -> Baseline {
+        Baseline::from_known(self.entries.iter().cloned().map(BaselineKey::from))
+    }
+
+    /// Verify `integrity` matches a freshly recomputed hash over `entries`.
+    pub fn verify(&self) -> CoreResult<()> {
+        let expected = Self::compute_hash(&self.entries)?;
+        if expected == self.integrity {
+            Ok(())
+        } else {
+            Err(CoreError::Decode(DecodeError::new(
+                "baselineRecord.integrity",
+                "recorded hash does not match recomputed entries; baseline file was tampered with or corrupted",
+            )))
+        }
+    }
+
+    /// Digest the canonical JSON payload of `entries` into a branded
+    /// [`Sha256`]. Entries are sorted first so key order in the caller's
+    /// collection never changes the digest.
+    fn compute_hash(entries: &[BaselineEntry]) -> CoreResult<Sha256> {
+        let mut sorted = entries.to_vec();
+        sorted.sort();
+        let payload = serde_json::to_vec(&sorted)?;
+        let digest = link_digest(None, &payload);
+        digest.parse::<Sha256>().map_err(CoreError::Decode)
+    }
+}
+
+/// Write `baseline` to `path` as a [`BaselineRecord`] (pretty JSON, one
+/// record per file — this is a snapshot, not an append log). This is the
+/// `enforcer check --baseline write` persistence step.
+pub fn write_baseline(path: &Path, baseline: &Baseline) -> CoreResult<()> {
+    let record = BaselineRecord::from_baseline(baseline)?;
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent)?;
+        }
+    }
+    let payload = serde_json::to_vec_pretty(&record)?;
+    std::fs::write(path, payload)?;
+    Ok(())
+}
+
+/// Load a [`Baseline`] from `path`, verifying its integrity hash before
+/// trusting the entries. Fails closed: a missing/corrupt/tampered file is
+/// an error, never silently treated as an empty baseline (an empty
+/// baseline must be written explicitly via [`write_baseline`]).
+pub fn load_baseline(path: &Path) -> CoreResult<Baseline> {
+    let payload = std::fs::read(path)?;
+    let record: BaselineRecord = serde_json::from_slice(&payload)?;
+    record.verify()?;
+    Ok(record.to_baseline())
+}
+
+/// The outcome of running the baseline-ratchet gate over a fresh scan.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BaselineGateOutcome {
+    /// Violations NOT covered by the prior baseline — these stay
+    /// blocking errors regardless of what the baseline already tolerates.
+    pub errors: Vec<Violation>,
+    /// Violations covered by the prior baseline — demoted from blocking
+    /// violations to non-blocking warnings (as [`Finding`]s; a demoted
+    /// entry is never itself a [`Violation`] since its severity is no
+    /// longer `error`).
+    pub warnings: Vec<Finding>,
+    /// The ratcheted baseline to persist for the next run (see
+    /// [`ratchet`]'s contract: shrinks on fixes, grows only to cover the
+    /// violations just classified into `errors`).
+    pub ratcheted_baseline: Baseline,
+}
+
+impl BaselineGateOutcome {
+    /// True when the gate found no new/grown violations — i.e. every
+    /// violation in the fresh scan was already covered by the baseline.
+    pub fn passes(&self) -> bool {
+        self.errors.is_empty()
+    }
+}
+
+/// `enforcer-scan`'s baseline-ratchet gate: the `Report`-level mode a
+/// `--baseline` run invokes. Classifies each of `current_violations`
+/// against `prior`: in-baseline -> demoted to warning; not-in-baseline
+/// (new OR — because [`BaselineKey`] does not carry a count, tracked at
+/// the per-occurrence-line granularity the workpack's location
+/// normalization calls for — grown past what the baseline recorded) ->
+/// stays a blocking error. Delegates the set-diff itself to [`ratchet`]
+/// so this gate and the in-memory core can never disagree about what
+/// counts as "new".
+pub struct BaselineRatchetValidator;
+
+impl BaselineRatchetValidator {
+    /// Run the gate. `current_violations` is the fresh scan's full
+    /// violation list (already computed by the rest of `enforcer-scan`'s
+    /// pipeline); `prior` is the baseline loaded via [`load_baseline`] (or
+    /// [`Baseline::default`] for a first, unbaselined run — which fails
+    /// closed on every current violation, as it must).
+    pub fn gate(prior: &Baseline, current_violations: &[Violation]) -> BaselineGateOutcome {
+        let outcome = ratchet(prior, current_violations);
+        let new_keys: BTreeSet<BaselineKey> = outcome
+            .new_violations
+            .iter()
+            .map(BaselineKey::for_violation)
+            .collect();
+
+        let mut errors = Vec::new();
+        let mut warnings = Vec::new();
+        for violation in current_violations {
+            let key = BaselineKey::for_violation(violation);
+            if new_keys.contains(&key) {
+                errors.push(violation.clone());
+            } else {
+                let mut demoted = violation.finding().clone();
+                demoted.severity = Severity::Warning;
+                warnings.push(demoted);
+            }
+        }
+
+        BaselineGateOutcome {
+            errors,
+            warnings,
+            ratcheted_baseline: outcome.ratcheted_baseline,
+        }
     }
 }
 
