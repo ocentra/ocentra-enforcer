@@ -1,0 +1,16 @@
+[package]
+name = "enforcer-validator"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "The `Validator` trait plus the reusable fixture/parity harness: given a validator and its fail/pass fixtures, assert it fires on fail and stays silent on pass. Base crate every lang/security/literal-scan validator family builds on."
+publish = false
+
+[dependencies]
+thiserror = { workspace = true }
+enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+
+[lints]
+workspace = true

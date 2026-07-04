@@ -145,6 +145,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "enforcer-validator"
+version = "0.1.0"
+dependencies = [
+ "enforcer-core",
+ "enforcer-domain",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "errno"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
