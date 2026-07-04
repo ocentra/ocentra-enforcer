@@ -1,0 +1,7 @@
+[mcp_servers.enforcer]
+command = "__BINARY_PATH__"
+args = []
+enabled = true
+
+[mcp_servers.enforcer.env]
+OCENTRA_LEDGER_HOME = "${HOME}/.enforcer/ledger"
