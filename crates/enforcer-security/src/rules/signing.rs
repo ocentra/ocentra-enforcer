@@ -146,14 +146,16 @@ impl Validator for SigningValidator {
                 continue;
             }
 
-            let reason = match (signs_client_raw, missing_correlation) {
-                (true, true) => {
-                    "signs a client-raw/non-reconstructed payload AND has no \
-                                 correlation-id log at the sign site"
-                }
-                (true, false) => "signs a client-raw/non-reconstructed payload directly",
-                (false, true) => "has no correlation-id log backing this sign site",
-                (false, false) => unreachable!("guarded above"),
+            // The `!signs_client_raw && !missing_correlation` guard above
+            // already excludes the `(false, false)` case, so only the
+            // three violation shapes below are ever rendered.
+            let reason = if signs_client_raw && missing_correlation {
+                "signs a client-raw/non-reconstructed payload AND has no correlation-id log at \
+                 the sign site"
+            } else if signs_client_raw {
+                "signs a client-raw/non-reconstructed payload directly"
+            } else {
+                "has no correlation-id log backing this sign site"
             };
 
             findings.push(Finding {
