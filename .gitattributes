@@ -26,3 +26,4 @@ pre-commit text eol=lf
 *.tpl text eol=lf
 crates/enforcer-install/tests/fixtures/** text eol=lf
 crates/enforcer-install/src/emitters/templates/** text eol=lf
+husky-pre-commit text eol=lf
