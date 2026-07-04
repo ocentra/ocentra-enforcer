@@ -11179,12 +11179,10 @@
       "requiresPassFixture": false,
       "appliesTo": [
         "apps/*/src/**/*",
-        "packages/*/src/**/*",
-        "crates/*/src/**/*"
+        "packages/*/src/**/*"
       ],
       "triggers": [
         "inline tests",
-        "#[cfg(test)]",
         "describe(",
         "def test_"
       ],

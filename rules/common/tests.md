@@ -6,7 +6,7 @@
 - `TEST-1.2`: Weak assertions are forbidden. Avoid truthiness/existence-only checks and broad matcher placeholders.
 - `TEST-1.3`: Hidden, focused, todo, or ignored tests are forbidden. Rust `#[ignore]` is a hard failure.
 - `TEST-2.1`: Source workspaces must have test scaffolds. Packages/apps with `src/` need test files, and Rust crates need organized tests under `tests/`.
-- `TEST-2.2`: Tests must live in organized test roots. Do not hide unit tests inside production `src/` files, including Rust `#[cfg(test)] mod tests`, TypeScript/JavaScript `describe`/`it`/`test` blocks, or Python `def test_*` functions.
+- `TEST-2.2`: Tests must live in organized test roots. Do not hide unit tests inside production `src/` files: TypeScript/JavaScript `describe`/`it`/`test` blocks or Python `def test_*` functions belong in a dedicated test tree. Rust is exempt — `#[cfg(test)] mod tests` inline in `src/` is the idiomatic Rust unit-test root (compiled out of release builds), so it satisfies this rule; crate-level integration tests under `tests/` are still required by TEST-2.1.
 
 ## Enforcement
 

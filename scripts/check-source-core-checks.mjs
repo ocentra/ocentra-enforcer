@@ -11,6 +11,7 @@ import {
   importSpecifier,
   isGeneratedArtifactPath,
   isNonBlockingContractPath,
+  isSecretScanExemptFixturePath,
   isUnderRoots,
   loadContract,
   resolveContractConfigPath,
@@ -228,7 +229,9 @@ function collectSecretFindings(
       languages: ["common"],
     });
     return (genericReport.violations ?? []).filter(
-      (entry) => entry.ruleId === "SEC-1.1" || entry.ruleId === "SEC-1.2",
+      (entry) =>
+        (entry.ruleId === "SEC-1.1" || entry.ruleId === "SEC-1.2") &&
+        !isSecretScanExemptFixturePath(String(entry.file ?? "")),
     );
   }
   const genericReport = runGenericScan({
@@ -238,7 +241,9 @@ function collectSecretFindings(
     languages: ["common"],
   });
   return (genericReport.violations ?? []).filter(
-    (entry) => entry.ruleId === "SEC-1.1" || entry.ruleId === "SEC-1.2",
+    (entry) =>
+      (entry.ruleId === "SEC-1.1" || entry.ruleId === "SEC-1.2") &&
+      !isSecretScanExemptFixturePath(String(entry.file ?? "")),
   );
 }
 

@@ -163,10 +163,10 @@ mod tests {}
   assert.notEqual(result.status, 0, result.stdout || result.stderr);
   const report = JSON.parse(result.stdout);
   const inlineFindings = report.violations.filter((violation) => violation.ruleId === 'TEST-2.2');
-  assert.equal(inlineFindings.length, 3);
+  assert.equal(inlineFindings.length, 2);
   assert.equal(inlineFindings.some((violation) => violation.file === 'packages/app/src/index.ts'), true);
   assert.equal(inlineFindings.some((violation) => violation.file === 'packages/python/src/module.py'), true);
-  assert.equal(inlineFindings.some((violation) => violation.file === 'crates/core/src/lib.rs'), true);
+  assert.equal(inlineFindings.some((violation) => violation.file === 'crates/core/src/lib.rs'), false);
 });
 
 test('check required-tests does not treat regex or property .test calls as inline tests', () => {
@@ -193,7 +193,7 @@ export function isAllowedCharacter(
   assert.deepEqual(report.violations, []);
 });
 
-test('check required-tests requires organized Rust tests instead of inline modules', () => {
+test('check required-tests accepts Rust inline #[cfg(test)] modules but still requires tests/', () => {
   const project = makeProject({
     'crates/core/Cargo.toml': '[package]\nname = "core"\nversion = "0.1.0"\nedition = "2021"\n',
     'crates/core/src/lib.rs': `
@@ -209,7 +209,7 @@ mod tests {}
   assert.notEqual(result.status, 0, result.stdout || result.stderr);
   const report = JSON.parse(result.stdout);
   assert.equal(report.violations.some((violation) => violation.ruleId === 'TEST-2.1'), true);
-  assert.equal(report.violations.some((violation) => violation.ruleId === 'TEST-2.2'), true);
+  assert.equal(report.violations.some((violation) => violation.ruleId === 'TEST-2.2'), false);
 });
 
 test('check required-tests limits package discovery to touched project roots', () => {

@@ -9,6 +9,7 @@ export const LanguageSchema = Schema.Literal(
   "typescript",
   "python",
   "common",
+  "iac",
 );
 
 export const RustRuleFamilySchema = Schema.Literal(
@@ -30,6 +31,11 @@ export const PythonRuleFamilySchema = Schema.Literal(
   "source",
   "tests",
   "toolchain",
+);
+
+export const IacRuleFamilySchema = Schema.Literal(
+  "infra-security",
+  "infra-toolchain",
 );
 
 export const CommonRuleFamilySchema = Schema.Literal(
@@ -59,6 +65,7 @@ export const RuleFamilySchema = Schema.Union(
   TypeScriptRuleFamilySchema,
   PythonRuleFamilySchema,
   CommonRuleFamilySchema,
+  IacRuleFamilySchema,
 );
 
 export const SeveritySchema = Schema.Literal("error", "warning", "info");

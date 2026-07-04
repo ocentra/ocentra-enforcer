@@ -673,6 +673,20 @@ function isGeneratedArtifactPath(rel) {
   );
 }
 
+// Lang-family validator crates intentionally ship secret-shaped fail-fixtures
+// (fake tokens, fake .env, fake id_rsa, fake google-services.json) to prove
+// their Validator impls detect real secret shapes. Those fixtures are not
+// leaked secrets, so the live `secrets` dogfood check exempts any path living
+// under a `crates/*/fixtures/` or `*/tests/fixtures/` tree. The path must
+// actually contain a `fixtures/` segment — this never exempts production source.
+function isSecretScanExemptFixturePath(rel) {
+  if (!/(?:^|\/)fixtures\//u.test(rel)) return false;
+  return (
+    /^crates\/[^/]+\/fixtures\//u.test(rel) ||
+    /(?:^|\/)tests\/fixtures\//u.test(rel)
+  );
+}
+
 function reportScope(root, scope, findings) {
   const files =
     scope.mode === "all"
@@ -790,6 +804,7 @@ export {
   isGeneratedArtifactPath,
   isIgnored,
   isNonBlockingContractPath,
+  isSecretScanExemptFixturePath,
   isUnderRoots,
   leadingWhitespace,
   loadContract,
