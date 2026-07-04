@@ -18,7 +18,7 @@ Sources: this is the entry hub. Everything else is reachable from here.
 ## Default agent path (follow in order; stop as soon as your question is answered)
 
 1. **Orienting / "what is this plan?"** -> read [PLAN_STATE.md](./PLAN_STATE.md) (scope, resume-route, what's present, open gaps). Stop.
-2. **"What do I work on next / how do tracks sequence / how does parallel execution work?"** -> read [PLAN_EXECUTION_BLUEPRINT.md](./PLAN_EXECUTION_BLUEPRINT.md) (tracks A/B/C/D/E/F/G + cross-cutting, recommended sequence, frontier/lane/claim model). Stop.
+2. **"What do I work on next / how do tracks sequence / how does parallel execution work?"** -> read [PLAN_EXECUTION_BLUEPRINT.md](./PLAN_EXECUTION_BLUEPRINT.md) (tracks A/B/C/D/E/F/G/H + cross-cutting, recommended sequence, frontier/lane/claim model). Stop.
 3. **"Which workpack, what's its status, is it parallel-safe?"** -> read [WORKPACK_INDEX.md](./WORKPACK_INDEX.md) (full status table by track). Pick ONE workpack row. Stop.
 4. **You have a workpack selected** -> open exactly that one workpack file under [workpacks/](./workpacks/). Read its capsule + body. Do NOT open sibling workpacks.
 5. **You are about to close a workpack (DONE)** -> read [TEST_PROOF_EXPECTATIONS.md](./TEST_PROOF_EXPECTATIONS.md), select your proof tier via the decision tree, make the named proof row GREEN. Stop.
@@ -56,7 +56,7 @@ That is the whole loop: **PLAN_STATE -> BLUEPRINT -> WORKPACK_INDEX -> one workp
 
 These are large or scoped; opening them speculatively burns context and violates the stop rules:
 
-- **Any file under [workpacks/](./workpacks/)** — 120 workpack files. Open the ONE selected via WORKPACK_INDEX. Never batch-read siblings.
+- **Any file under [workpacks/](./workpacks/)** — 129 workpack files. Open the ONE selected via WORKPACK_INDEX. Never batch-read siblings.
 - **The full conversion swarm** (`workpacks/a-conv-01..50`) — 50 near-identical P1 conversion packs. Read only the one you claim.
 - **[TEST_PROOF_EXPECTATIONS.md](./TEST_PROOF_EXPECTATIONS.md) proof-row tables (section 4)** — long. Read only your workpack's row + the P0-P5 definitions + the decision tree; skip the other tracks' rows.
 - **[ARCHIVE_INDEX.md](./ARCHIVE_INDEX.md) contents** — historical only; never needed to execute current work.
