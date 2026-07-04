@@ -1,0 +1,86 @@
+{
+  "workpack": "d05-context-budget-brake",
+  "command": "cargo test -p enforcer-mcp -p enforcer-core",
+  "crates": ["enforcer-mcp", "enforcer-core"],
+  "modules": [
+    "crates/enforcer-mcp/src/tool_surface.rs",
+    "crates/enforcer-core/src/context_budget.rs"
+  ],
+  "unitTests": {
+    "suites": [
+      {
+        "suite": "enforcer-mcp::tool_surface::tests",
+        "count": 6,
+        "names": [
+          "measure_current_surface_matches_registry_byte_count",
+          "measure_current_surface_is_deterministic",
+          "advisory_score_is_in_unit_range_with_confidence",
+          "simulated_surface_growth_fixture_fails_the_ratchet",
+          "measurement_round_trips_through_the_shared_ndjson_sink",
+          "build_measurement_carries_ratchet_outcome_when_present"
+        ],
+        "result": "ok"
+      },
+      {
+        "suite": "enforcer-core::context_budget::tests",
+        "count": 10,
+        "names": [
+          "identical_surface_passes_with_zero_growth",
+          "shrink_always_passes",
+          "growth_within_tolerance_passes",
+          "simulated_surface_growth_beyond_tolerance_fails_the_ratchet",
+          "zero_byte_baseline_with_any_growth_fails_closed",
+          "zero_byte_baseline_with_no_growth_passes",
+          "efficiency_score_is_in_unit_range_with_confidence",
+          "efficiency_score_is_zero_confidence_for_empty_surface",
+          "efficiency_score_floors_at_zero_for_bloated_surface",
+          "efficiency_score_is_high_for_lean_surface"
+        ],
+        "result": "ok"
+      }
+    ]
+  },
+  "integrationTests": {
+    "suite": "crates/enforcer-mcp/tests/tool_surface.rs",
+    "count": 8,
+    "names": [
+      "measurement_is_deterministic_across_calls",
+      "simulated_surface_growth_fixture_fails_the_t1_ratchet",
+      "generous_fixture_baseline_passes",
+      "corrupt_baseline_fails_closed_on_load",
+      "missing_baseline_fails_closed_on_load",
+      "t2_advisory_score_is_in_unit_range_with_confidence",
+      "committed_baseline_file_is_loadable_and_well_formed",
+      "live_registry_currently_passes_the_committed_baseline"
+    ],
+    "result": "ok"
+  },
+  "acceptanceScenarios": {
+    "measurementDeterminism": "measure_current_surface_is_deterministic + measurement_is_deterministic_across_calls: two calls to measure_current_surface() in the same process produce byte-identical MeasuredSurface values",
+    "simulatedGrowthFailsRatchet": "simulated_surface_growth_fixture_fails_the_ratchet (unit, in-process starved baseline) + simulated_surface_growth_fixture_fails_the_t1_ratchet (integration, tests/fixtures/tool_surface/growth-fails-baseline.json: toolCount=1,totalBytes=10,tolerancePct=0.0): live registry surface always exceeds this fixture, proving evaluate() fails closed on real growth, not a stub",
+    "generousBaselinePasses": "generous_fixture_baseline_passes (tests/fixtures/tool_surface/generous-baseline.json: totalBytes=1000000, tolerancePct=5.0): proves the gate also passes when growth is within tolerance, not merely 'always fails'",
+    "t2ScoreInUnitRange": "advisory_score_is_in_unit_range_with_confidence + t2_advisory_score_is_in_unit_range_with_confidence: run_advisory_score() score and confidence both asserted in [0.0, 1.0] against the live registry",
+    "corruptBaselineFailsClosed": "corrupt_baseline_fails_closed_on_load (tests/fixtures/tool_surface/corrupt-baseline.json: malformed JSON) + missing_baseline_fails_closed_on_load: load_baseline() errors rather than silently treating an unreadable/absent baseline as an empty one"
+  },
+  "committedBaseline": {
+    "path": "crates/enforcer-mcp/context-budget-baseline.json",
+    "measuredAtCommitTime": {
+      "toolCount": 98,
+      "totalBytes": 19888,
+      "estimatedTokens": 4972
+    },
+    "tolerancePct": 10.0,
+    "verifiedBy": "live_registry_currently_passes_the_committed_baseline"
+  },
+  "seams": {
+    "d04RunTelemetry": "d04-run-telemetry-ndjson has not landed on rust-build as of this pass (no RunRecord type exists in the workspace). tool_surface::record_measurement/SurfaceMeasurement append via the SAME reusable enforcer_core::ndjson_writer::NdjsonWriter sink d04's RunRecord is specified to use, as a d05-local record shape. Folding these fields into RunRecord (or embedding an Option<SurfaceMeasurement> field) is a d04-owned follow-up documented in crates/enforcer-mcp/src/tool_surface.rs module docs; no shape change needed on this side.",
+    "arc21RegistryBoundary": "crate::registry::tool_surface_bytes/build_tool_descriptors (arc-21) compute the raw byte count; this workpack's tool_surface module owns turning that into a MeasuredSurface and ratcheting it — no duplicated arithmetic."
+  },
+  "lints": {
+    "clippy": "cargo clippy -p enforcer-mcp -p enforcer-core --all-targets -- -D warnings: clean (0 errors)",
+    "fmt": "cargo fmt -p enforcer-mcp -p enforcer-core -- --check: clean"
+  },
+  "wholeCrateResult": "cargo test -p enforcer-mcp: 63 passed, 0 failed; cargo test -p enforcer-core: 36 passed, 0 failed",
+  "workspaceResult": "cargo build --workspace: clean",
+  "status": "GREEN"
+}

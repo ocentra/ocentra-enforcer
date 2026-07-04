@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "surface": {
+    "toolCount": 1,
+    "totalBytes": 1000000,
+    "estimatedTokens": 250000
+  },
+  "tolerancePct": 5.0
+}

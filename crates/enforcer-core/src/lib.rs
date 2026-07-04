@@ -6,7 +6,10 @@
 //! infrastructure folded in per the OcentraParent "Logging = structured data
 //! (NO new crate)" borrow: two-layer redaction, a generic append-only
 //! [`ndjson_writer::NdjsonWriter`], a pure SHA-256 hash-chain primitive, and
-//! Windows-first path/time/env helpers.
+//! Windows-first path/time/env helpers. Also owns the d05 context-budget
+//! ratchet primitive ([`context_budget`]) — a generic measured-surface vs.
+//! committed-baseline gate with no knowledge of what surface is measured
+//! (`enforcer-mcp::tool_surface` is its one caller today).
 //!
 //! VENDORING ATTRIBUTION (arc-01 / EXECUTION_MODEL §2): the `redaction`,
 //! `ndjson_writer`, `hash_chain`, and `platform` modules are specified as
@@ -21,6 +24,7 @@
 //! No `pub use` barrels (workspace doctrine): consumers path through the
 //! modules directly, e.g. `enforcer_core::error::Result`.
 
+pub mod context_budget;
 pub mod error;
 pub mod exit_codes;
 pub mod hash_chain;

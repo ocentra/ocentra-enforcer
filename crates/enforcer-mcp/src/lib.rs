@@ -40,6 +40,15 @@
 //!   [`gate::should_block_stale_tool`];
 //! - the `check` named-check enum parity seam — [`registry`].
 //!
+//! # Context-budget brake (d05)
+//! [`tool_surface`] measures this crate's own consolidated tool registry
+//! (tool count + description bytes/token estimate) and ratchets it against
+//! a committed baseline via `enforcer-core`'s generic
+//! [`enforcer_core::context_budget`] gate — a T1 hard ratchet plus a T2
+//! advisory efficiency score. See [`tool_surface`]'s module docs for the
+//! d04 `RunRecord` telemetry seam this measure records into once that
+//! sibling pack lands.
+//!
 //! # Live orchestration lessons this surface must not regress
 //! `docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md` L1
 //! (idempotent init), L2 (caller identity required), L13 (glob claims +
@@ -65,4 +74,5 @@ pub mod name;
 pub mod registry;
 pub mod router;
 pub mod sink;
+pub mod tool_surface;
 pub mod transport;

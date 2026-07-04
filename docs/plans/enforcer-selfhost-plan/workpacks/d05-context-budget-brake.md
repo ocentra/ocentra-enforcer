@@ -25,11 +25,11 @@ The enforcer's MCP surface is consolidated via the router (arc-21 `enforcer-mcp`
 A measure over the enforcer's own Rust tool registry (tool count + total description bytes/tokens) and a fail-closed ratchet in `enforcer-core` that compares the measured surface against a committed baseline in CI. The measurement is enumerated in-process from the consolidated `enforcer-mcp` tool registry (no `.mjs` — the registry is the Rust router's typed tool set), and the measured surface is recorded into the d04 `RunRecord` telemetry.
 
 ## Requirement Checklist
-- [ ] Enumerate registered tools from the `enforcer-mcp` Rust tool registry (the router's consolidated tool set) and sum description size (bytes + token estimate) in `src/tool_surface.rs`.
-- [ ] Record the measured surface into the d04 telemetry `RunRecord` per run (reuse the `enforcer-core` NDJSON sink; do not duplicate it).
-- [ ] Compare against `crates/enforcer-mcp/context-budget-baseline.json` via the `enforcer-core::context_budget` ratchet; growth beyond a set tolerance is a CI failure (T1 hard ratchet, fail-closed).
-- [ ] Emit a T2 scored signal (surface-per-tool efficiency, with confidence in [0,1]) that is advisory, non-blocking.
-- [ ] Baseline is updatable only by an explicit, reviewed commit (declarative committed policy), never silently; obey `[workspace.lints]` (no `unwrap/expect/panic/print_*`).
+- [x] Enumerate registered tools from the `enforcer-mcp` Rust tool registry (the router's consolidated tool set) and sum description size (bytes + token estimate) in `src/tool_surface.rs`.
+- [x] Record the measured surface into the d04 telemetry `RunRecord` per run (reuse the `enforcer-core` NDJSON sink; do not duplicate it). — **Honest-scope deviation**: `d04-run-telemetry-ndjson` has not landed on `rust-build` as of this pass (no `RunRecord` type exists in the workspace). `tool_surface::record_measurement`/`SurfaceMeasurement` append via the SAME reusable `enforcer_core::ndjson_writer::NdjsonWriter` sink d04's `RunRecord` is specified to ride, as a documented d05-local record shape. Folding these fields into `RunRecord` is a d04-owned follow-up (no shape change needed here) — see `crates/enforcer-mcp/src/tool_surface.rs` module docs' "d04 telemetry seam".
+- [x] Compare against `crates/enforcer-mcp/context-budget-baseline.json` via the `enforcer-core::context_budget` ratchet; growth beyond a set tolerance is a CI failure (T1 hard ratchet, fail-closed).
+- [x] Emit a T2 scored signal (surface-per-tool efficiency, with confidence in [0,1]) that is advisory, non-blocking.
+- [x] Baseline is updatable only by an explicit, reviewed commit (declarative committed policy), never silently; obey `[workspace.lints]` (no `unwrap/expect/panic/print_*`).
 
 ## Acceptance And Proof
 Tier T1 (hard ratchet) + T2 (advisory score), proven at P2 CI cross-platform. Prove via `cargo test -p enforcer-mcp` (`crates/enforcer-mcp/tests/tool_surface.rs` with `tests/fixtures/tool_surface/**`: measurement determinism; a simulated surface-growth fixture fails the ratchet; the T2 score is in [0,1] with confidence) plus a CI job (via `enforcer-harness` arc-18 run-adapter) invoking the measure against the committed baseline on win/mac/linux. Mechanism: static enumeration of the Rust tool registry + byte/token count diffed against the committed baseline. Rows in TEST_PROOF_EXPECTATIONS.md.
