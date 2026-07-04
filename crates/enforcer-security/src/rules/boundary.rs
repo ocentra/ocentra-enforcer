@@ -45,13 +45,21 @@ use enforcer_validator::validator::{ValidationInput, Validator};
 use regex::Regex;
 
 fn internal_route_pattern() -> Result<Regex, DecodeError> {
-    Regex::new(r#"(?i)\b(?:router|app)\.internal\s*\(|['"`]/internal/"#)
-        .map_err(|err| DecodeError::new("boundary.internalRoutePattern", format!("invalid pattern: {err}")))
+    Regex::new(r#"(?i)\b(?:router|app)\.internal\s*\(|['"`]/internal/"#).map_err(|err| {
+        DecodeError::new(
+            "boundary.internalRoutePattern",
+            format!("invalid pattern: {err}"),
+        )
+    })
 }
 
 fn auth_guard_pattern() -> Result<Regex, DecodeError> {
-    Regex::new(r"(?i)\b(?:requireAuth|authenticate|verifyServiceToken)\s*\(")
-        .map_err(|err| DecodeError::new("boundary.authGuardPattern", format!("invalid pattern: {err}")))
+    Regex::new(r"(?i)\b(?:requireAuth|authenticate|verifyServiceToken)\s*\(").map_err(|err| {
+        DecodeError::new(
+            "boundary.authGuardPattern",
+            format!("invalid pattern: {err}"),
+        )
+    })
 }
 
 fn trusted_internal_header_pattern() -> Result<Regex, DecodeError> {

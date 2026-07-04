@@ -41,13 +41,19 @@ use enforcer_validator::validator::{ValidationInput, Validator};
 use regex::Regex;
 
 fn client_time_pattern() -> Result<Regex, DecodeError> {
-    Regex::new(r"(?i)\b(?:req|request)\.body\.(?:timestamp|expiresAt|expiry|now)\b|\bclient(?:Time|Now)\b")
-        .map_err(|err| DecodeError::new("time.clientTimePattern", format!("invalid pattern: {err}")))
+    Regex::new(
+        r"(?i)\b(?:req|request)\.body\.(?:timestamp|expiresAt|expiry|now)\b|\bclient(?:Time|Now)\b",
+    )
+    .map_err(|err| DecodeError::new("time.clientTimePattern", format!("invalid pattern: {err}")))
 }
 
 fn skew_tolerance_pattern() -> Result<Regex, DecodeError> {
-    Regex::new(r"(?i)\bskew_?tolerance\b")
-        .map_err(|err| DecodeError::new("time.skewTolerancePattern", format!("invalid pattern: {err}")))
+    Regex::new(r"(?i)\bskew_?tolerance\b").map_err(|err| {
+        DecodeError::new(
+            "time.skewTolerancePattern",
+            format!("invalid pattern: {err}"),
+        )
+    })
 }
 
 /// A fail-open expiry fallback: an expiry/`isExpired`-shaped helper whose
@@ -55,7 +61,12 @@ fn skew_tolerance_pattern() -> Result<Regex, DecodeError> {
 /// i.e. valid) rather than failing closed.
 fn fail_open_expiry_pattern() -> Result<Regex, DecodeError> {
     Regex::new(r"(?i)\bexpir\w*\b.*\breturn\s+false\b|\breturn\s+false\b.*//\s*not\s+expired")
-        .map_err(|err| DecodeError::new("time.failOpenExpiryPattern", format!("invalid pattern: {err}")))
+        .map_err(|err| {
+            DecodeError::new(
+                "time.failOpenExpiryPattern",
+                format!("invalid pattern: {err}"),
+            )
+        })
 }
 
 /// `MCM-TIME.1` — T1 clock-trust mechanics gate.

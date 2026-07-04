@@ -43,23 +43,33 @@ use enforcer_validator::validator::{ValidationInput, Validator};
 use regex::Regex;
 
 fn rollback_pattern() -> Result<Regex, DecodeError> {
-    Regex::new(r"(?i)\b(?:rollback|compensate|reverseTransaction)\s*\(")
-        .map_err(|err| DecodeError::new("rollback.rollbackPattern", format!("invalid pattern: {err}")))
+    Regex::new(r"(?i)\b(?:rollback|compensate|reverseTransaction)\s*\(").map_err(|err| {
+        DecodeError::new(
+            "rollback.rollbackPattern",
+            format!("invalid pattern: {err}"),
+        )
+    })
 }
 
 fn idempotent_guard_pattern() -> Result<Regex, DecodeError> {
-    Regex::new(r"(?i)\bidempotencyKey\b|\balreadyRolledBack\b|\bisCompensated\b")
-        .map_err(|err| DecodeError::new("rollback.idempotentGuardPattern", format!("invalid pattern: {err}")))
+    Regex::new(r"(?i)\bidempotencyKey\b|\balreadyRolledBack\b|\bisCompensated\b").map_err(|err| {
+        DecodeError::new(
+            "rollback.idempotentGuardPattern",
+            format!("invalid pattern: {err}"),
+        )
+    })
 }
 
 fn atomic_pattern() -> Result<Regex, DecodeError> {
-    Regex::new(r"(?i)\b(?:withLock|transaction|atomic)\s*\(")
-        .map_err(|err| DecodeError::new("rollback.atomicPattern", format!("invalid pattern: {err}")))
+    Regex::new(r"(?i)\b(?:withLock|transaction|atomic)\s*\(").map_err(|err| {
+        DecodeError::new("rollback.atomicPattern", format!("invalid pattern: {err}"))
+    })
 }
 
 fn tested_pattern() -> Result<Regex, DecodeError> {
-    Regex::new(r"(?i)//\s*rollback-tested\s*:")
-        .map_err(|err| DecodeError::new("rollback.testedPattern", format!("invalid pattern: {err}")))
+    Regex::new(r"(?i)//\s*rollback-tested\s*:").map_err(|err| {
+        DecodeError::new("rollback.testedPattern", format!("invalid pattern: {err}"))
+    })
 }
 
 /// Score >= this threshold crosses into a flagged non-idempotent-rollback
@@ -108,7 +118,9 @@ impl Validator for RollbackValidator {
         let mut missing = Vec::new();
         if !self.idempotent_guard.is_match(input.source) {
             score += 40;
-            missing.push("idempotent/replay-safe guard (no idempotencyKey/alreadyRolledBack/isCompensated)");
+            missing.push(
+                "idempotent/replay-safe guard (no idempotencyKey/alreadyRolledBack/isCompensated)",
+            );
         }
         if !self.atomic.is_match(input.source) {
             score += 30;

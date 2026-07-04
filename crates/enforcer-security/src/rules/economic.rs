@@ -42,18 +42,34 @@ use enforcer_validator::validator::{ValidationInput, Validator};
 use regex::Regex;
 
 fn retry_construct_pattern() -> Result<Regex, DecodeError> {
-    Regex::new(r"(?i)\bretry\s*\(|\bwhile\s*\(\s*attempts|\bfor\s*\([^)]*maxRetries")
-        .map_err(|err| DecodeError::new("economic.retryConstructPattern", format!("invalid pattern: {err}")))
+    Regex::new(r"(?i)\bretry\s*\(|\bwhile\s*\(\s*attempts|\bfor\s*\([^)]*maxRetries").map_err(
+        |err| {
+            DecodeError::new(
+                "economic.retryConstructPattern",
+                format!("invalid pattern: {err}"),
+            )
+        },
+    )
 }
 
 fn backend_cost_pattern() -> Result<Regex, DecodeError> {
     Regex::new(r"(?i)\b(?:chargeProvider|dbWrite|callPaymentGateway|settleTransaction)\s*\(")
-        .map_err(|err| DecodeError::new("economic.backendCostPattern", format!("invalid pattern: {err}")))
+        .map_err(|err| {
+            DecodeError::new(
+                "economic.backendCostPattern",
+                format!("invalid pattern: {err}"),
+            )
+        })
 }
 
 fn bound_or_charge_pattern() -> Result<Regex, DecodeError> {
     Regex::new(r"(?i)\bmaxRetries\s*=|\bretryBudget\b|\bchargeCaller\s*\(|\bboundedBy\s*\(")
-        .map_err(|err| DecodeError::new("economic.boundOrChargePattern", format!("invalid pattern: {err}")))
+        .map_err(|err| {
+            DecodeError::new(
+                "economic.boundOrChargePattern",
+                format!("invalid pattern: {err}"),
+            )
+        })
 }
 
 /// Score >= this threshold crosses into a flagged free-retry finding.

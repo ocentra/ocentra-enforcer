@@ -46,33 +46,59 @@ use enforcer_validator::validator::{ValidationInput, Validator};
 use regex::Regex;
 
 fn kill_switch_pattern() -> Result<Regex, DecodeError> {
-    Regex::new(r"(?i)\b(?:killSwitch|circuitBreaker|emergencyHalt|pausePayments)\b")
-        .map_err(|err| DecodeError::new("killswitch.killSwitchPattern", format!("invalid pattern: {err}")))
+    Regex::new(r"(?i)\b(?:killSwitch|circuitBreaker|emergencyHalt|pausePayments)\b").map_err(
+        |err| {
+            DecodeError::new(
+                "killswitch.killSwitchPattern",
+                format!("invalid pattern: {err}"),
+            )
+        },
+    )
 }
 
 fn atomic_pattern() -> Result<Regex, DecodeError> {
-    Regex::new(r"(?i)\b(?:withLock|transaction|atomic)\s*\(")
-        .map_err(|err| DecodeError::new("killswitch.atomicPattern", format!("invalid pattern: {err}")))
+    Regex::new(r"(?i)\b(?:withLock|transaction|atomic)\s*\(").map_err(|err| {
+        DecodeError::new(
+            "killswitch.atomicPattern",
+            format!("invalid pattern: {err}"),
+        )
+    })
 }
 
 fn authed_pattern() -> Result<Regex, DecodeError> {
-    Regex::new(r"(?i)\b(?:requireAuth|authenticate|verifyServiceToken)\s*\(")
-        .map_err(|err| DecodeError::new("killswitch.authedPattern", format!("invalid pattern: {err}")))
+    Regex::new(r"(?i)\b(?:requireAuth|authenticate|verifyServiceToken)\s*\(").map_err(|err| {
+        DecodeError::new(
+            "killswitch.authedPattern",
+            format!("invalid pattern: {err}"),
+        )
+    })
 }
 
 fn audited_pattern() -> Result<Regex, DecodeError> {
-    Regex::new(r"(?i)\b(?:auditLog|audit)\s*\(")
-        .map_err(|err| DecodeError::new("killswitch.auditedPattern", format!("invalid pattern: {err}")))
+    Regex::new(r"(?i)\b(?:auditLog|audit)\s*\(").map_err(|err| {
+        DecodeError::new(
+            "killswitch.auditedPattern",
+            format!("invalid pattern: {err}"),
+        )
+    })
 }
 
 fn replay_safe_pattern() -> Result<Regex, DecodeError> {
-    Regex::new(r"(?i)\bidempotencyKey\b|\breplayGuard\s*\(")
-        .map_err(|err| DecodeError::new("killswitch.replaySafePattern", format!("invalid pattern: {err}")))
+    Regex::new(r"(?i)\bidempotencyKey\b|\breplayGuard\s*\(").map_err(|err| {
+        DecodeError::new(
+            "killswitch.replaySafePattern",
+            format!("invalid pattern: {err}"),
+        )
+    })
 }
 
 fn tested_pattern() -> Result<Regex, DecodeError> {
-    Regex::new(r"(?i)//\s*kill-switch-tested\s*:")
-        .map_err(|err| DecodeError::new("killswitch.testedPattern", format!("invalid pattern: {err}")))
+    Regex::new(r"(?i)//\s*kill-switch-tested\s*:").map_err(|err| {
+        DecodeError::new(
+            "killswitch.testedPattern",
+            format!("invalid pattern: {err}"),
+        )
+    })
 }
 
 /// `MCM-KILLSWITCH.1` — T1 kill-switch mechanics gate.

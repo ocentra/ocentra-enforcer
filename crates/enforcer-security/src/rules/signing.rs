@@ -61,8 +61,14 @@ fn sign_call_pattern() -> Result<Regex, DecodeError> {
 /// `req.body`, `request.body`, `ctx.request.body`, or a bare
 /// `body`/`payload` identifier used as the call argument.
 fn client_raw_pattern() -> Result<Regex, DecodeError> {
-    Regex::new(r"(?i)\b(?:req|request|ctx\.request)\.body\b|\b(?:body|payload)\s*\)")
-        .map_err(|err| DecodeError::new("signing.clientRawPattern", format!("invalid pattern: {err}")))
+    Regex::new(r"(?i)\b(?:req|request|ctx\.request)\.body\b|\b(?:body|payload)\s*\)").map_err(
+        |err| {
+            DecodeError::new(
+                "signing.clientRawPattern",
+                format!("invalid pattern: {err}"),
+            )
+        },
+    )
 }
 
 /// A canonical, server-reconstructed payload builder:
@@ -70,14 +76,21 @@ fn client_raw_pattern() -> Result<Regex, DecodeError> {
 fn reconstructed_pattern() -> Result<Regex, DecodeError> {
     Regex::new(r"(?i)\b(?:canonicalize|reconstructPayload|buildSignable|rebuildPayload)\s*\(")
         .map_err(|err| {
-            DecodeError::new("signing.reconstructedPattern", format!("invalid pattern: {err}"))
+            DecodeError::new(
+                "signing.reconstructedPattern",
+                format!("invalid pattern: {err}"),
+            )
         })
 }
 
 /// A correlation-id log call anywhere in the scanned source.
 fn correlation_log_pattern() -> Result<Regex, DecodeError> {
-    Regex::new(r"(?i)\b(?:log|logger)\w*(?:\.\w+)?\s*\([^)]*correlationId")
-        .map_err(|err| DecodeError::new("signing.correlationLogPattern", format!("invalid pattern: {err}")))
+    Regex::new(r"(?i)\b(?:log|logger)\w*(?:\.\w+)?\s*\([^)]*correlationId").map_err(|err| {
+        DecodeError::new(
+            "signing.correlationLogPattern",
+            format!("invalid pattern: {err}"),
+        )
+    })
 }
 
 /// `MCM-SIGNING.1` — T1 backend-signing mechanics gate.
@@ -125,7 +138,8 @@ impl Validator for SigningValidator {
                 continue;
             }
 
-            let signs_client_raw = self.client_raw.is_match(text) && !self.reconstructed.is_match(text);
+            let signs_client_raw =
+                self.client_raw.is_match(text) && !self.reconstructed.is_match(text);
             let missing_correlation = !has_correlation_log;
 
             if !signs_client_raw && !missing_correlation {
@@ -133,8 +147,10 @@ impl Validator for SigningValidator {
             }
 
             let reason = match (signs_client_raw, missing_correlation) {
-                (true, true) => "signs a client-raw/non-reconstructed payload AND has no \
-                                 correlation-id log at the sign site",
+                (true, true) => {
+                    "signs a client-raw/non-reconstructed payload AND has no \
+                                 correlation-id log at the sign site"
+                }
                 (true, false) => "signs a client-raw/non-reconstructed payload directly",
                 (false, true) => "has no correlation-id log backing this sign site",
                 (false, false) => unreachable!("guarded above"),
