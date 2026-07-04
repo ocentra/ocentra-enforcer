@@ -33,6 +33,30 @@ Rust-family rule detection lives in `scripts/rust-rules-source-*.mjs` / `rust-ru
 - [ ] `cargo test -p enforcer-lang-rust` passes: every validator (including `no_reexports` and `error_handling`) fires on its fail fixture and is silent on its pass fixture.
 - [ ] Clean `cargo clippy` / `cargo fmt --check`.
 
+### Rule inventory (per-prefix)
+Every `language: "rust"` ruleId prefix present in `rules/rules.json` (166 rules total, grouped by `RR-N` prefix), each named and OWNED here as a provable row — nothing rides the generic "port the .mjs" bullet. Each prefix group ships fail/pass fixtures wired through the arc-05 parity harness (`crates/enforcer-lang-rust/tests/fixtures/RR-N/{bad,good}/`) and a `cargo test -p enforcer-lang-rust` detection test. Counts are exact as of the 2026-07-04 audit (WAVE 3); the completeness assertion below binds them.
+
+| Prefix | Count | `validator`(s) in rules.json | Family / doc | Backing `.mjs` source | Owned row |
+|---|---|---|---|---|---|
+| RR-1 | 5 | `rust/workspace-files` (4), `rust/cargo-manifest` (1) | toolchain-cargo (`rules/rust/toolchain-cargo.md`) | `rust-rules-cargo-scan.mjs` (+ workspace-file presence checks) | [ ] Toolchain/workspace-file presence Validator(s): `rust-toolchain.toml` pin + required workspace files + `Cargo.toml` manifest shape. |
+| RR-2 | 2 | `rust/source-scan` (2) | source (`rules/rust/source.md`) | `rust-rules-source-scan.mjs` + `rust-rules-source-patterns.mjs` | [ ] Source-scan Validator: base source-pattern rows. |
+| RR-3 | 22 | `rust/source-scan` (19), `rust/scanner` (3) | source (`rules/rust/source.md`) | `rust-rules-source-scan.mjs` / `-signatures*` / `-late-*` + `rust-rules-scan-core.mjs`/`-scan-engine.mjs` | [ ] Source-scan + generic-scanner Validators: signature/pattern/late-rule source family (largest source group). |
+| RR-4 | 20 | `rust/source-scan` (20) | source (`rules/rust/source.md`) | `rust-rules-source-scan.mjs` + `rust-rules-source-signature-rules.mjs`/`-signature-text.mjs` | [ ] Source-scan Validator: signature-rule / signature-text source family. |
+| RR-5 | 4 | `rust/source-scan` (4) | source (`rules/rust/source.md`) | `rust-rules-source-scan.mjs` + `rust-rules-source-names.mjs` | [ ] Source-scan Validator: naming/source-name rows. |
+| RR-6 | 33 | `rust/domain-types` (11), `rust/source-scan` (18), `rust/scanner` (3), `rust/serialized-domain-types` (1) | domain (`rules/rust/domain.md`) | `rust-rules-source-scan.mjs` + `-late-domain-debug.mjs` + `-classification.mjs`/`-helpers.mjs`; scan-engine | [ ] Domain-types + serialized-domain-types + source-scan Validators: domain-primitive discipline (largest overall group). |
+| RR-7 | 5 | `rust/imports-modules` (4), `rust/cargo-manifest` (1) | imports-modules (`rules/rust/imports-modules.md`) | `rust-rules-source-scan.mjs` (imports/modules) + `rust-rules-cargo-scan.mjs` | [ ] Imports-modules + cargo-manifest Validators: module/import discipline (kin to the hosted `no_reexports`). |
+| RR-8 | 17 | `rust/async-runtime` (4), `rust/source-scan` (9), `rust/scanner` (4) | async-runtime (`rules/rust/async-runtime.md`) | `rust-rules-source-scan.mjs` + `rust-rules-scan-core.mjs`/`-scan-engine.mjs` (async patterns) | [ ] Async-runtime + source-scan + scanner Validators: async/runtime discipline family. |
+| RR-9 | 20 | `rust/dependencies` (9), `rust/scanner` (11) | dependencies (`rules/rust/dependencies.md`) | `rust-rules-cargo-scan.mjs` + `rust-rules-scan-core.mjs`/`-scan-engine.mjs` | [ ] Dependencies + scanner Validators: dependency-policy discipline (blocked-protocol/git/path/build.rs etc). |
+| RR-10 | 4 | `rust/cargo-gates` (4) | toolchain-cargo (`rules/rust/toolchain-cargo.md`) | `rust-rules-cargo-scan.mjs` (cargo-deny/audit/doc gates) | [ ] Cargo-gates Validator: `cargo deny`/`cargo audit`/`cargo doc` gate rows. |
+| RR-11 | 3 | `rust/dependencies` (3) | dependencies (`rules/rust/dependencies.md`) | `rust-rules-cargo-scan.mjs` | [ ] Dependencies Validator: additional dependency-policy rows. |
+| RR-12 | 15 | `rust/scanner` (13), `rust/source-scan` (2) | source (`rules/rust/source.md`) | `rust-rules-scan-core.mjs`/`-scan-engine.mjs` + `rust-rules-source-scan.mjs` | [ ] Scanner + source-scan Validators: generic-scanner source rows. |
+| RR-14 | 15 | `rust/scanner` (13), `rust/source-scan` (2) | domain + source (`rules/rust/domain.md`, `rules/rust/source.md`) | `rust-rules-scan-core.mjs`/`-scan-engine.mjs` + `rust-rules-source-scan.mjs` | [ ] Scanner + source-scan Validators: cross domain/source scanner rows. |
+| RR-18 | 1 | `rust/runtime-strings` (1) | source (`rules/rust/source.md`) | `rust-rules-source-scan.mjs` (runtime-string literals) | [ ] Runtime-strings Validator: runtime string-literal ban row (arc-03 `enforceRuntimeStringLiterals` policy). |
+
+Note: the two hosted baseline validators above (`no_reexports`, d17 `error_handling`) are NEW structured ports (OcentraParent disciplines), not rows in the RR-* rules.json inventory; they are keyed to their own rule records (arc-04) and are additive to the 166.
+
+- [ ] **Completeness assertion (count parity):** `cargo test -p enforcer-lang-rust` MUST cover every `language: "rust"` ruleId in `rules/rules.json`. Add a parity test that loads the rust ruleId set from `enforcer-rules`, asserts each has a registered `Validator` + at least the required fail/pass fixture per rules.json `requiresFailFixture`/`requiresPassFixture`, and asserts `covered_count == 166` (13 prefixes: RR-1..RR-12, RR-14, RR-18). The test fails if rules.json grows a rust rule with no owning validator/fixture, so no rule silently drops.
+
 ## Acceptance And Proof
 Tier P1. Proof row asserts `cargo test -p enforcer-lang-rust` exits 0 with fail/pass fixture coverage per rule (Rust-native parity), including `no_reexports` (a `pub use` barrel fixture flags; a concrete-path fixture is silent) and `error_handling`/d17 (an `unwrap()` in first-party code flags; the same in `cfg(test)` is silent). Record the artifact path in TEST_PROOF_EXPECTATIONS.md.
 
