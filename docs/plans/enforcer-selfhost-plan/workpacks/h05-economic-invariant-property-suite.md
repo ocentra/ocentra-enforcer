@@ -29,12 +29,12 @@ An `economic_invariants` rule module in `enforcer-security` (arc-19) — a `crat
 ## Requirement Checklist
 Each rule is scaffolded via d01 `rule new`, landing a doc-anchor in its `enforcer-rules` record, the `Validator` impl in `src/rules/economic_invariants.rs`, and a fail+pass fixture pair under `crates/enforcer-security/tests/fixtures/economic_invariants/`.
 
-- [ ] Rule records registered in `enforcer-rules`, one per invariant ruleId, each carrying its tier. (Optional human-canonical `.md` may live in the g08 rules explorer surface.)
-- [ ] T1 presence (`ECON-INVARIANT-PRESENCE.1`): a money-critical unit missing any required invariant property emits a `Finding`; a unit with all ten is clean.
-- [ ] T1 assertion-shape (`ECON-INVARIANT-SHAPE.1`): an invariant "test" that is a single literal case (not a generator-driven property refutation) emits a `Finding`.
-- [ ] Consumes h01's money-critical classification manifest to scope which units require the suite; does not redefine classification.
-- [ ] All rows registered via d01 `rule new`; parity oracle green across ruleId <-> rule-record <-> `Validator` <-> {fail,pass} fixtures <-> `cargo test` detection.
-- [ ] Obeys `[workspace.lints]` (no `unwrap`/`expect`/`panic`/`print_*`); no `pub use` barrels.
+- [x] Rule records registered in `enforcer-rules`, one per invariant ruleId, each carrying its tier. (Optional human-canonical `.md` may live in the g08 rules explorer surface.)
+- [x] T1 presence (`ECON-INVARIANT-PRESENCE.1`): a money-critical unit missing any required invariant property emits a `Finding`; a unit with all ten is clean.
+- [x] T1 assertion-shape (`ECON-INVARIANT-SHAPE.1`): an invariant "test" that is a single literal case (not a generator-driven property refutation) emits a `Finding`.
+- [x] Consumes h01's money-critical classification manifest to scope which units require the suite; does not redefine classification.
+- [x] All rows registered via d01-shaped rule records (following h01/h03's precedent: hand-authored `rules/economic-invariants.json` records, no standalone `rule new` CLI binary exists yet in this workspace); parity oracle green across ruleId <-> rule-record <-> `Validator` <-> {fail,pass} fixtures <-> `cargo test` detection (`economic_invariants_parity.rs::h05_rule_scaffold_parity_is_clean`).
+- [x] Obeys `[workspace.lints]` (no `unwrap`/`expect`/`panic`/`print_*`); no `pub use` barrels.
 
 ## Acceptance And Proof
 5-way parity per rule, Rust-native (`Validator` impl + fail/pass fixtures + a `cargo test` detection test). Fixtures live under `crates/enforcer-security/tests/fixtures/economic_invariants/` (target test files in TS/JS/Python/Rust as the enforcer validates a user's test code).
