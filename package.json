@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "packageManager": "npm@11.7.0",
+  "_a01_note": "Per docs/plans/enforcer-selfhost-plan/workpacks/a01, this manifest is slated to drop the .mjs bin/Node-runtime engines once the Rust arc-21 (enforcer-mcp) / arc-22 (enforcer-cli) crates ship and the coordination fabric cuts over. Deferred here: this file's `bin`/`scripts`/`dependencies` are the LIVE .mjs MCP + coordination servers this multi-lane build currently runs on (including this workpack's own coordination_claim/mail calls); removing them now would break every in-flight lane before a Rust replacement exists. Only the declarative `engines.node` runtime-version constraint is dropped now. Revisit at a10/arc-22 cutover.",
   "files": [
     "adapters",
     "docs",
@@ -31,9 +32,6 @@
     "CONTRIBUTING.md",
     "CHANGELOG.md"
   ],
-  "engines": {
-    "node": ">=20 <23"
-  },
   "bin": {
     "ocentra-enforcer": "./scripts/ocentra-enforcer.mjs",
     "ocentra-enforcer-mcp": "./mcp/ocentra-enforcer-mcp.mjs",

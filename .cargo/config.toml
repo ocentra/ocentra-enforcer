@@ -1,0 +1,7 @@
+# Workspace-level cargo configuration.
+# Owned by a01 (docs/plans/enforcer-selfhost-plan/workpacks/a01-cargo-workspace-and-toolchain.md).
+# Intentionally minimal: no custom registries/build overrides are needed yet.
+# Add target-specific build flags or registry mirrors here as later workpacks require them.
+
+[term]
+progress.when = "auto"
