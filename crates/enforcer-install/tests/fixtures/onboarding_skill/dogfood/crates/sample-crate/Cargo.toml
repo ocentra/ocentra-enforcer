@@ -1,0 +1,4 @@
+[package]
+name = "sample-crate"
+version.workspace = true
+edition.workspace = true

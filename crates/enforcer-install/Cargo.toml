@@ -29,6 +29,11 @@ tempfile = "3"
 # test target. `enforcer-cli` does not depend on `enforcer-install` (no
 # cycle) -- this is a dev-only, test-scoped edge.
 enforcer-cli = { path = "../enforcer-cli", version = "0.1.0" }
+# c11's onboarding-skill integration test drives arc-03's 3-layer config
+# resolution directly (step 3 of the onboarding procedure) against the
+# dogfood/catfood fixtures. Dev-only, test-scoped edge; `enforcer-config`
+# does not depend on `enforcer-install` (no cycle).
+enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
 
 [lints]
 workspace = true
