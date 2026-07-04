@@ -17,6 +17,7 @@
 //! CONSUMER's OWN per-repo workflow set (codeql/secret-scan/sbom/etc.),
 //! never a release-pipeline or Action-definition file.
 
+pub mod branch_protection;
 pub mod github_action;
 pub mod installer_scripts;
 pub mod npm_wrapper;
