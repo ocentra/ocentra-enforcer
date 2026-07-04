@@ -1,0 +1,33 @@
+[package]
+name = "enforcer-scan"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Parallel scan engine (rayon fan-out) + detect-and-route router (f05) + scan modes (f01) unifying every landed language-family Validator (arc-06..12), the scored literal scanner (arc-13), and d02's baseline-ratchet into one enforcer-domain Report surface. Tri-modal scope resolver (paths | base..head diff | --all), ignored-segments walk, and an idempotency guard (deterministic ordering; parallel==serial) round out the engine skeleton."
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+rayon = { workspace = true }
+sha2 = { workspace = true }
+enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
+enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
+enforcer-events = { path = "../enforcer-events", version = "0.1.0" }
+enforcer-lang-common = { path = "../enforcer-lang-common", version = "0.1.0" }
+enforcer-lang-rust = { path = "../enforcer-lang-rust", version = "0.1.0" }
+enforcer-lang-ts = { path = "../enforcer-lang-ts", version = "0.1.0" }
+enforcer-lang-py = { path = "../enforcer-lang-py", version = "0.1.0" }
+enforcer-lang-security = { path = "../enforcer-lang-security", version = "0.1.0" }
+enforcer-lang-iac = { path = "../enforcer-lang-iac", version = "0.1.0" }
+enforcer-lang-k8s = { path = "../enforcer-lang-k8s", version = "0.1.0" }
+enforcer-literal-scan = { path = "../enforcer-literal-scan", version = "0.1.0" }
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true
