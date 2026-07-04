@@ -139,7 +139,7 @@ multi-service product).
 
 **Decisions locked (flip on request):** event dispatch = **SYNC-first** (rayon/CPU-bound; tokio only if a
 `serve` daemon appears); TS codegen = **`ts_rs`** derive; JSON/wire casing = **camelCase** (MCP/UI surface).
-Net crate-map delta: **+1 crate (`enforcer-events`)**; logging folds into core/domain/proof/harness (no `enforcer-log`).
+Net crate-map delta: **+2 crates (`enforcer-events`, `enforcer-memory`)** — `enforcer-memory` (x06) is the harness-memory graph/vector-recall crate over the x05 lesson corpus (local-first, codebase-memory model, zero-trust federation); logging folds into core/domain/proof/harness (no `enforcer-log`). Crate map = 25 arc + 3 E-built + 1 x06-built = **29 crates**.
 
 ## Distribution (codebase-memory model)
 `cargo build --release` per target -> GitHub Actions matrix (win/mac/linux, incl. musl + apple-silicon) ->

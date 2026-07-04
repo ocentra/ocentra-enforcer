@@ -14,7 +14,7 @@
 
 This is the binding contract. If anything below conflicts with a single workpack's prose, **this contract and the DOCTRINE win**.
 
-The engine is **pure Rust** — a Cargo workspace of 28 crates (see [RUST_ARCHITECTURE.md](./RUST_ARCHITECTURE.md)). The only TypeScript is the `enforcer-ui` Tauri/web frontend. Proof is `cargo test -p <crate>` + fail/pass fixtures + `clippy`/`fmt --check`/`deny`/`audit` — **never** `tsc`/`jest`/typecheck. There is no `.mjs`/TS-engine/Effect-Schema/eslint-as-our-linter residue in what you build. Execution follows [EXECUTION_MODEL.md](./EXECUTION_MODEL.md): a bootstrap-safe worktree, an orchestrator, and per-workpack workers.
+The engine is **pure Rust** — a Cargo workspace of 29 crates (see [RUST_ARCHITECTURE.md](./RUST_ARCHITECTURE.md)). The only TypeScript is the `enforcer-ui` Tauri/web frontend. Proof is `cargo test -p <crate>` + fail/pass fixtures + `clippy`/`fmt --check`/`deny`/`audit` — **never** `tsc`/`jest`/typecheck. There is no `.mjs`/TS-engine/Effect-Schema/eslint-as-our-linter residue in what you build. Execution follows [EXECUTION_MODEL.md](./EXECUTION_MODEL.md): a bootstrap-safe worktree, an orchestrator, and per-workpack workers.
 
 ## Read order (do this, in this order, then stop)
 

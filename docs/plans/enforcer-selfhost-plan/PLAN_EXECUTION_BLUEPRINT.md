@@ -45,7 +45,7 @@ x01 (neutral rename — product becomes `enforcer`, run EARLY, deps none)
                  f05 (detect-and-route router, deps a01/d01/f03) — check/scan/run + c04 route through it; f04 after c04+f01
        within C: c09 (remaining six adapters) after c01+c02 — completes all 11 harnesses; then c10 (CI integration) + c11 (onboarding skill)
        within E: e-pack-dart / e-pack-cfml / e-pack-crypto-blockchain each BUILD a NEW lang crate
-                 (enforcer-lang-dart / enforcer-lang-cfml / enforcer-lang-crypto — no arc pack for them; 25 arc + 3 E-built = 28 crates);
+                 (enforcer-lang-dart / enforcer-lang-cfml / enforcer-lang-crypto — no arc pack for them; 25 arc + 3 E-built + 1 x06-built enforcer-memory = 29 crates);
                  e-pack-frontend-react / e-pack-python add feature src/rules/* to arc-07 / arc-08;
                  e-pack-python after d01+d16+d22; e-pack-crypto-blockchain (OPTIONAL/opt-in, OFF by default) after d01+d17+d18+h01 — never in the default spine
        within G: g01 (serve surface) FIRST, then g02..g06 + g08 (rules-&-skills explorer) MOUNT into it (each also after its own data dep),
