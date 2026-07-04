@@ -1,17 +1,31 @@
-//! d02 baseline-ratchet: a monotonic violation-count baseline. New
+//! d02 baseline-ratchet seam: a monotonic violation-count baseline. New
 //! violations fail closed (a violation not present in the recorded
 //! baseline blocks); a violation that used to be in the baseline but is
 //! no longer produced ratchets the recorded baseline DOWN — the baseline
 //! can only shrink over time, never grow to "grandfather in" a fresh
 //! violation.
 //!
-//! **SKELETON BOUNDARY**: arc-15 hosts this file as the crate skeleton's
-//! d02 seam per the WORKPACK_INDEX split (`src/rules/baseline_ratchet.rs`
-//! is d02-owned content, landed here because f01/f05/d02 are hosted in
-//! THIS skeleton per the workpack, not spun out as separate feature
-//! packs). This implementation is the full behavioral contract: fail
-//! closed on new violations, ratchet down on fixed ones, never ratchet
-//! up.
+//! **SKELETON BOUNDARY / KNOWN CONFLICT**: `docs/plans/enforcer-selfhost-
+//! plan/workpacks/arc-15-enforcer-scan.md`'s own body directs THIS
+//! workpack to host `src/rules/baseline_ratchet.rs` as "the full
+//! behavioral contract." `WORKPACK_INDEX.md`'s arc-15 row and its own
+//! `d02-baseline-grandfather-ratchet.md` workpack instead say d02 (`deps:
+//! arc-15, d01-rule-mechanization-engine`) owns this exact file PLUS
+//! `tests/fixtures/baseline_ratchet/**`, and specifies a materially
+//! larger deliverable this module does NOT implement: a `Validator` impl
+//! over the aggregated `Report` (this module is a plain function, not a
+//! `Validator`), a versioned `serde` baseline record with a `Sha256`
+//! integrity hash persisted via `enforcer-core`'s append utilities (this
+//! module has no persistence — [`Baseline`] is in-memory only, built via
+//! [`Baseline::from_known`], with no load/save boundary), and an `enforcer
+//! check --baseline write` CLI mode (out of scope for a library crate
+//! skeleton). Followed the workpack's literal instruction per protocol
+//! ("execute workpack exactly"); this in-memory
+//! [`ratchet`]/[`Baseline`]/[`BaselineKey`] core (fail-closed on new,
+//! ratchet-down on fixed, never ratchet up) is offered as a reusable
+//! primitive d02 can build its persistence/CLI/`Validator` layer on top
+//! of, NOT a claim that d02's deliverable is done. See
+//! `memory/streams/arc-15.ndjson` for the recorded deviation.
 
 use std::collections::BTreeSet;
 
