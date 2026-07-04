@@ -102,6 +102,7 @@ fn render_template(
 }
 
 #[cfg(test)]
+#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used)]
 mod tests {
     use super::*;
 
