@@ -13,3 +13,10 @@ db/
 views/
 _test.out
 _test.err
+
+# d06 lifecycle tests exercise `enforcer_core::telemetry::RunTelemetrySink`
+# at its default relative path (`proof/telemetry/runs.ndjson`); `cargo test`
+# runs with the crate dir as cwd, so a nested `<crate>/proof/telemetry/`
+# can appear there rather than at the repo root. Never a real proof
+# artifact -- always test-run pollution.
+crates/*/proof/telemetry/

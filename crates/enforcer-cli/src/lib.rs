@@ -65,6 +65,7 @@ pub mod architecture;
 pub mod cli;
 pub mod commands;
 pub mod fix_hints;
+pub mod lifecycle;
 pub mod name;
 pub mod output;
 pub mod scope;
