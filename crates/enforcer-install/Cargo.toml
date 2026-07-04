@@ -1,0 +1,19 @@
+[package]
+name = "enforcer-install"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "arc-23 multi-harness installer SKELETON: harness-neutral install/uninstall/update/doctor core, the HarnessAdapter trait (plan/apply/verify), report types, managed-block/backup helpers, the CLI contract seam (--scope user|project, default user/global, --dry-run), and the platform binary distribution/download path. Hosts the Track C per-harness adapters (c01-c09) and the x03 legacy-name migration, which own specific files under this crate -- disjoint by file, sequenced after this skeleton."
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true
