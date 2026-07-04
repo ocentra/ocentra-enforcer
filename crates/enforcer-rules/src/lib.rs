@@ -40,6 +40,7 @@
 
 pub mod loader;
 pub mod registry;
+pub mod rules;
 pub mod version_drift;
 
 /// Load-time / structural failure for the rule registry.
