@@ -6,3 +6,4 @@
 
 pub mod deferred_work;
 pub mod fsm;
+pub mod size_shape;
