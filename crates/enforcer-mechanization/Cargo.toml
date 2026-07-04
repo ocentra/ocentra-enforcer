@@ -1,0 +1,21 @@
+[package]
+name = "enforcer-mechanization"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "d01: the rule scaffolder plus the fail-closed parity oracle. Scaffolds a new enforcer-rules RuleRecord + Validator stub + fixture slots, and refuses to accept any rule that lacks a firing validator and both fixtures (reuses the enforcer-validator fixture/parity harness as the oracle)."
+publish = false
+
+[dependencies]
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+enforcer-rules = { path = "../enforcer-rules", version = "0.1.0" }
+enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
+
+[dev-dependencies]
+enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
+
+[lints]
+workspace = true
