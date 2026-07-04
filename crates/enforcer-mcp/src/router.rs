@@ -41,7 +41,7 @@ pub struct DispatchContext {
 pub fn dispatch(name: &str, args: &serde_json::Value, ctx: &DispatchContext) -> DispatchOutcome {
     let canonical = if crate::aliases::deprecation_window_open() {
         crate::aliases::normalize_tool_name(name)
-    } else if name.starts_with(crate::name::LEGACY_ALIAS_PREFIX) {
+    } else if name.starts_with(crate::aliases::LEGACY_ALIAS_PREFIX) {
         // Deprecation window closed: an alias call is Unknown, matching
         // the workpack's fail fixture intent exactly.
         return DispatchOutcome::UnknownTool;

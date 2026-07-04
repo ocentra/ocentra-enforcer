@@ -7,7 +7,7 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.82"
 license = "MIT"
-repository = "https://github.com/ocentra/ocentra-enforcer.git"
+repository = "https://github.com/ocentra/enforcer.git"
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }

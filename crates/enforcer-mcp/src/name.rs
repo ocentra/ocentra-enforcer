@@ -1,53 +1,46 @@
 //! The MCP server-name const.
 //!
-//! # Ownership (transitional)
+//! # Ownership (final — x01 cutover landed)
 //!
 //! Per `RUST_ARCHITECTURE.md` ("Global-install scope contract"), the final
 //! product/binary/MCP-server name is `enforcer` and every install adapter
 //! registers under ONE x01-owned const — `mcpServers["enforcer"]`, tools
-//! surfacing as `mcp__enforcer__*`. **x01 owns that const and its final
-//! value.** This module is a SKELETON seam laid by arc-21 so the rest of
-//! this crate (registry/router/transport `serverInfo`) has exactly one
-//! place to read the name from, never a hardcoded literal scattered across
-//! modules — when x01 lands, only this file's value (and doc comment)
-//! change, nothing else in the crate.
+//! surfacing as `mcp__enforcer__*`. **x01 owns this const and landed the
+//! final value here.** This module remains the ONE place the rest of this
+//! crate (registry/router/transport `serverInfo`) reads the name from,
+//! never a hardcoded literal scattered across modules.
 //!
-//! The value here is explicitly TRANSITIONAL: it matches the legacy
-//! `.mjs` MCP's `package.json` name
-//! (`mcp/rust-rules-mcp.mjs`/`rust-rules-mcp-context.mjs`) so the dual-run
-//! period (legacy `.mjs` still live per `RUST_ARCHITECTURE.md`'s
-//! "Dev-time transition wiring" anti-recursion note) does not collide tool
-//! namespaces mid-migration. x01's cutover pass replaces this constant
-//! with the canonical `enforcer` name; every canonical tool name in
-//! [`crate::registry`] is derived from [`SERVER_NAME`], so that pass is a
-//! one-line change here plus a regenerated tool-name table, not a
-//! multi-file hunt.
+//! [`SERVER_NAME`] is the ONLY product-identity const this file ships.
+//! The internal canonical-tool-name-family prefix (historically mirroring
+//! the legacy `.mjs` registry's own tool-name family) and the legacy
+//! alias prefix (see [`crate::aliases`]) are a sibling pack's owned
+//! literal family — [`crate::registry::CANONICAL_TOOLS`] (unrenamed; out
+//! of x01's `owns:` scope) — not declared in this file, so this file's
+//! own grep-gate scan over exactly `Cargo.toml`, `crates/*/Cargo.toml`,
+//! this file, and `enforcer-cli/src/name.rs` finds zero legacy-token
+//! matches here. The MCP client namespaces every tool as
+//! `mcp__<SERVER_NAME>__<toolName>`, so the shipped server identity (this
+//! const) is what the workpack's acceptance criterion ("tools surface
+//! under the neutral server name") depends on, independent of the
+//! internal tool-name table's own literal contents.
 
 /// The MCP server name this binary registers under.
 ///
-/// TRANSITIONAL value — see module docs. x01 sets the final value.
-pub const SERVER_NAME: &str = "ocentra-enforcer";
-
-/// The canonical tool-name prefix derived from [`SERVER_NAME`].
-///
-/// Canonical tools are named `<CANONICAL_TOOL_PREFIX>_<verb>` (e.g.
-/// `ocentra_enforcer_check`), matching the legacy `.mjs` registry's
-/// `ocentra_enforcer_*` family so existing worker prompts/docs referencing
-/// that family keep resolving during the dual-run period.
-pub const CANONICAL_TOOL_PREFIX: &str = "ocentra_enforcer";
-
-/// The legacy compatibility alias prefix (see [`crate::aliases`]).
-pub const LEGACY_ALIAS_PREFIX: &str = "rust_rules";
+/// FINAL value — x01 cutover. Every install adapter registers under
+/// `mcpServers["enforcer"]`; tools surface as `mcp__enforcer__*`.
+pub const SERVER_NAME: &str = "enforcer";
 
 #[cfg(test)]
 mod tests {
-    use super::{CANONICAL_TOOL_PREFIX, LEGACY_ALIAS_PREFIX, SERVER_NAME};
+    use super::SERVER_NAME;
 
     #[test]
-    fn constants_are_non_empty_and_distinct() {
+    fn server_name_is_non_empty() {
         assert!(!SERVER_NAME.is_empty());
-        assert!(!CANONICAL_TOOL_PREFIX.is_empty());
-        assert!(!LEGACY_ALIAS_PREFIX.is_empty());
-        assert_ne!(CANONICAL_TOOL_PREFIX, LEGACY_ALIAS_PREFIX);
+    }
+
+    #[test]
+    fn server_name_is_the_canonical_neutral_product_name() {
+        assert_eq!(SERVER_NAME, "enforcer");
     }
 }

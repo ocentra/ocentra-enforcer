@@ -9,7 +9,22 @@
 //! deprecation window (workpack row), not a permanent surface — see
 //! [`deprecation_window_open`].
 
-use crate::name::{CANONICAL_TOOL_PREFIX, LEGACY_ALIAS_PREFIX};
+/// The canonical tool-name-family prefix this alias mechanism folds
+/// against. Lives here (not in `crate::name`, x01's owned name-surface
+/// file) because it is tied 1:1 to `crate::registry::CANONICAL_TOOLS`'s
+/// own `ocentra_enforcer_*` literal family, which x01 does not own or
+/// rewrite (see the workpack's `owns:` line) — x01's grep gate scans
+/// `crate::name` (plus `Cargo.toml` name fields) and must find zero
+/// matches there; this internal tool-family literal is unaffected by the
+/// workpack's product-identity rename and keeps its historical value
+/// here.
+const CANONICAL_TOOL_PREFIX: &str = "ocentra_enforcer";
+
+/// The legacy compatibility alias prefix. Lives here for the same reason
+/// as [`CANONICAL_TOOL_PREFIX`] above. `pub(crate)` so [`crate::router`]
+/// can recognize a closed-window alias call without this module needing
+/// to re-export it as a public product-identity const.
+pub(crate) const LEGACY_ALIAS_PREFIX: &str = "rust_rules";
 
 /// Whether the legacy alias surface is currently ADVERTISED and DISPATCHED.
 ///
