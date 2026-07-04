@@ -1,302 +1,246 @@
-# Codex MCP And Skill Setup
+# Per-Harness MCP And Skill Setup
 
-This is the important part for Codex. MCP setup must point to the Ocentra
-Enforcer install path, not to the target repo being scanned.
-
-## Required Paths
-
-Example Windows install:
-
-```text
-Enforcer repo: E:\ocentra-enforcer
-MCP server:    E:\ocentra-enforcer\mcp\ocentra-enforcer-mcp.mjs
-Target repo:   C:\path\to\your-project
+<!-- ai-dense -->
+```yaml
+scope: "neutral install/setup doc; Codex is ONE of 11 harness adapters, shown here as the worked example -- same shape applies to claude/cursor/windsurf/gemini/antigravity/opencode/aider/kilocode/kiro/generic"
+binary: single native `enforcer` executable = MCP stdio server AND CLI; install points each harness's MCP config at this binary's absolute path
+default_scope: user/global (mcpServers map in the harness's user-level config), never a per-repo file, so any repo already has it
+canonical_command: "enforcer install [--root <repo>] [--profile <name>] [--dry-run]"
+doctor_command: "enforcer doctor [--root <repo>]"
+server_name: enforcer (never a harness-branded name; tools resolve as mcp__enforcer__*)
+common_failure_mode: "path mistakes -- absolute path to the installed binary, not a relative path or repo checkout path"
+harness_config_locations:
+  codex: "~/.codex/config.toml [mcp_servers.enforcer]"
+  claude: "~/.claude.json top-level mcpServers map (same registry codebase-memory-mcp uses)"
+  generic: "the harness's own user-level equivalent of .mcp.json, resolved by the c02 autodetect adapter"
+validation: "enforcer doctor; ask the harness to call mcp__enforcer__route and confirm serverInfo.name == enforcer"
 ```
+<!-- /ai-dense -->
 
-Example macOS/Linux install:
+This document is per-harness MCP and skill setup. **Codex is used below as
+the worked example** because its manual/CLI setup paths are the most
+detailed to document, but the enforcer supports 11 harness adapters
+(Claude Code, Codex, Cursor, Windsurf, Gemini, Antigravity, OpenCode, Aider,
+KiloCode, Kiro, and any generic `.mcp.json`-based harness) and none of them
+is the canonical/reference/default target. Setup must point to the
+**installed enforcer binary**, not to the target repo being scanned.
 
-```text
-Enforcer repo: ~/tools/ocentra-enforcer
-MCP server:    ~/tools/ocentra-enforcer/mcp/ocentra-enforcer-mcp.mjs
-Target repo:   ~/src/your-project
-```
+## Preferred Setup: The Enforcer Installer
 
-## Preferred Setup: Enforcer Installer
-
-Run this from the enforcer install path. It updates Codex Desktop's global MCP
-config, installs the user skill, and creates or updates a managed Enforcer
-block in global `AGENTS.md`. A target repo is optional; pass `--root` only when
-you also want project-local wiring generated.
-
-```powershell
-node E:/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex install --dry-run
-node E:/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex install
-node E:/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex doctor
-```
-
-The default ledger root is `E:/ocentra-enforcer/.ledger`; hub folders live under
-it, such as `E:/ocentra-enforcer/.ledger/ocentra-parent`. To use a different
-synced folder on a PC, pass `--ledger-root <path>` during install.
-
-macOS/Linux:
+Run this once per machine per harness. It auto-detects installed harnesses,
+writes each one's MCP server entry, installs the user skill, and creates or
+updates a managed enforcer block in that harness's global agent
+instructions. A target repo is optional; pass `--root` only when you also
+want project-local wiring generated.
 
 ```bash
-node ~/tools/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex install --dry-run
-node ~/tools/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex install
-node ~/tools/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex doctor
+enforcer install --dry-run
+enforcer install
+enforcer doctor
 ```
 
-The installer writes a backup before changing `~/.codex/config.toml` or
-`%USERPROFILE%\.codex\config.toml`, and before changing an existing global
-`AGENTS.md`. Start a new Codex thread after installing. If the tool does not
-appear, restart the Codex app.
+The default ledger root lives alongside the installed binary; hub folders
+live under it. Pass `--ledger-root <path>` during install to use a different
+synced folder on a machine.
+
+The installer writes a backup before changing any harness's config file.
+Restart the harness (or start a new session) after installing. If the tool
+does not appear, restart the harness app.
 
 To generate target repo wiring at the same time:
 
-```powershell
-node E:/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex install --root C:/path/to/target-repo --profile strict
-node E:/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex doctor --root C:/path/to/target-repo
+```bash
+enforcer install --root <target-repo> --profile strict
+enforcer doctor --root <target-repo>
 ```
 
-To remove only the Enforcer-managed global pieces:
+To remove only the enforcer-managed pieces for a harness:
 
-```powershell
-node E:/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex uninstall --dry-run
-node E:/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex uninstall
+```bash
+enforcer uninstall --dry-run
+enforcer uninstall
 ```
 
-## Optional Setup: Codex CLI
+## Worked Example: Codex
 
-Use this only if you want to manage MCP entries through the Codex CLI directly:
+Codex's config format (`config.toml`) needs the most manual detail of any
+adapter, which is why it is spelled out here. The same install/doctor
+commands above cover Codex automatically; the manual steps below are a
+fallback only.
 
-```powershell
-codex mcp add ocentra-enforcer -- node E:/ocentra-enforcer/mcp/ocentra-enforcer-mcp.mjs
-codex mcp get ocentra-enforcer
+### Optional: Codex CLI
+
+Use this only if you want to manage MCP entries through the Codex CLI
+directly:
+
+```bash
+codex mcp add enforcer -- <path-to-installed-enforcer-binary>
+codex mcp get enforcer
 codex mcp list
 ```
 
-## Manual Setup: `config.toml`
+### Manual Fallback: `config.toml`
 
-Use this when `codex mcp add` is unavailable or gives a broken config.
-
-Edit:
-
-```text
-%USERPROFILE%\.codex\config.toml
-```
-
-Add:
+Use this when `codex mcp add` is unavailable or gives a broken config. Edit
+the user-level `config.toml` for your platform (Windows:
+`%USERPROFILE%\.codex\config.toml`; macOS/Linux: `~/.codex/config.toml`) and
+add:
 
 ```toml
-[mcp_servers.ocentra-enforcer]
-command = "node"
-args = ["E:/ocentra-enforcer/mcp/ocentra-enforcer-mcp.mjs"]
-env = { OCENTRA_LEDGER_HOME = "E:/ocentra-enforcer/.ledger" }
+[mcp_servers.enforcer]
+command = "<absolute-path-to-installed-enforcer-binary>"
+args = ["serve"]
 startup_timeout_sec = 20
 enabled = true
 ```
 
-macOS/Linux path:
+Use forward slashes in TOML paths on Windows to avoid backslash-escaping
+mistakes; use `<absolute-path-to-installed-enforcer-binary>` — the actual
+path the installer reports, never a hardcoded example path.
 
-```text
-~/.codex/config.toml
-```
+### Project `.mcp.json` Setup (any harness that reads it)
 
-```toml
-[mcp_servers.ocentra-enforcer]
-command = "node"
-args = ["/home/YOU/tools/ocentra-enforcer/mcp/ocentra-enforcer-mcp.mjs"]
-startup_timeout_sec = 20
-enabled = true
-```
-
-Use forward slashes in TOML paths on Windows. They avoid backslash escaping
-mistakes.
-
-## Project `.mcp.json` Setup
-
-For repo-local MCP config, create or merge this in the target repo:
+For repo-local MCP config, create or merge this in the target repo, using
+the same absolute installed-binary path:
 
 ```json
 {
   "mcpServers": {
-    "ocentra-enforcer": {
-      "command": "node",
-      "args": ["E:/ocentra-enforcer/mcp/ocentra-enforcer-mcp.mjs"]
+    "enforcer": {
+      "command": "<absolute-path-to-installed-enforcer-binary>",
+      "args": ["serve"]
     }
   }
 }
 ```
 
-The enforcer repo also has its own `.mcp.json`, but target repos should use an
-absolute path to the installed enforcer.
+Target repos should point at the installed enforcer binary; they should not
+copy the enforcer's own source or its own `.mcp.json`.
 
 ## Validate MCP Directly
 
-From the enforcer repo:
-
-```powershell
-npm run mcp:smoke
-node E:/ocentra-enforcer/scripts/mcp-smoke.mjs --root C:/path/to/target-repo --profile strict --file Cargo.toml
-node E:/ocentra-enforcer/scripts/mcp-smoke.mjs --root C:/path/to/target-repo --profile strict --file Cargo.toml --framing ndjson
+```bash
+enforcer doctor
 ```
 
-Expected output includes:
+Expected output includes a healthy `serverInfo.name: "enforcer"` handshake
+and the resolved harness/ledger paths.
 
-```json
-{
-  "ok": true,
-  "serverInfo": {
-    "name": "ocentra-enforcer"
-  }
-}
-```
+## Validate MCP From The Harness
 
-## Validate MCP From Codex
-
-In a new Codex thread, ask:
+In a new session, ask:
 
 ```text
-Use the ocentra-enforcer MCP server. Call ocentra_enforcer_route for root C:/path/to/target-repo, profile strict, scope files, files ["Cargo.toml"]. Then summarize the docs and rules returned.
+Use the enforcer MCP server. Call mcp__enforcer__route for root <target-repo>, profile strict, scope files, files ["Cargo.toml"]. Then summarize the docs and rules returned.
 ```
 
 Expected behavior:
 
-- Codex sees `ocentra_enforcer_route`.
+- The harness sees `mcp__enforcer__route`.
 - The tool returns compact JSON.
-- `Cargo.toml` routes to Rust toolchain/Cargo, dependency, and common security docs.
-- Unknown files return no detailed docs instead of the whole rulebook.
+- `Cargo.toml` routes to Rust toolchain/Cargo, dependency, and common
+  security rule records.
+- Unknown files return no detailed rules instead of the whole rule corpus.
 
 For coordination/presence, ask:
 
 ```text
-Use the ocentra-enforcer MCP server. Call ocentra_enforcer_coordination_presence for hub my-hub and summarize active PCs, worktrees, lanes, Codex threads, exact-file claims, unread inbox counts, and stale/offline rows.
+Use the enforcer MCP server. Call mcp__enforcer__coordination_presence for hub my-hub and summarize active machines, worktrees, lanes, harness threads, exact-file claims, unread inbox counts, and stale/offline rows.
 ```
 
 For LAN/WAN sync health, ask:
 
 ```text
-Use the ocentra-enforcer MCP server. Call ocentra_enforcer_coordination_peer with action "list", then call ocentra_enforcer_coordination_streams for the same hub. Do not read raw stream files unless the compact manifest is insufficient.
+Use the enforcer MCP server. Call mcp__enforcer__coordination_peer with action "list", then call mcp__enforcer__coordination_streams for the same hub. Do not read raw stream files unless the compact manifest is insufficient.
 ```
 
 For proof routing and PR-ready claims, ask:
 
 ```text
-Use the ocentra-enforcer MCP server. Call ocentra_enforcer_proof_route for root C:/path/to/target-repo with files ["scripts/test/example-proof.mjs"]. Then call ocentra_enforcer_proof_inventory for the same root and summarize proof families and device/manual-required counts.
+Use the enforcer MCP server. Call mcp__enforcer__proof_route for root <target-repo> with files ["package.json"]. Then call mcp__enforcer__proof_inventory for the same root and summarize proof families and device/manual-required counts.
 ```
 
 For a fresh proof run:
 
 ```text
-Call ocentra_enforcer_proof_run for root C:/path/to/target-repo, proofId "PROOF-COMMAND-GENERIC", and command ["node", "--version"]. Then call ocentra_enforcer_proof_claim for the same root and proofId before making any PR-ready claim.
+Call mcp__enforcer__proof_run for root <target-repo>, proofId "PROOF-COMMAND-GENERIC", and command ["node", "--version"]. Then call mcp__enforcer__proof_claim for the same root and proofId before making any PR-ready claim.
 ```
 
 Expected behavior:
 
-- Codex sees `ocentra_enforcer_proof_route`, `ocentra_enforcer_proof_run`, and `ocentra_enforcer_proof_claim`.
+- The harness sees `mcp__enforcer__proof_route`, `mcp__enforcer__proof_run`,
+  and `mcp__enforcer__proof_claim`.
 - Proof output is stored under the target repo at `.enforce/proofs`.
-- Raw proof artifacts are not read unless `ocentra_enforcer_proof_artifact` is explicitly requested.
+- Raw proof artifacts are not read unless `mcp__enforcer__proof_artifact` is
+  explicitly requested.
 
-## Validate Named Checks From Codex
+## Validate Named Checks
 
-Ask Codex:
-
-```text
-Use the ocentra-enforcer MCP server. Call ocentra_enforcer_check for root C:/path/to/target-repo, profile strict, check "source-shape", scope workspace. Return only the compact JSON summary.
-```
-
-For a named pack profile or repo-specific migrated checks, use:
+Ask the harness:
 
 ```text
-Call ocentra_enforcer_check for root C:/path/to/target-repo, profile strict, check "no-zod-source", scope files, files ["src/index.ts"].
+Use the enforcer MCP server. Call mcp__enforcer__check for root <target-repo>, profile strict, check "source-shape", scope workspace. Return only the compact JSON summary.
 ```
 
 Expected behavior:
 
-- Codex sees `ocentra_enforcer_check`.
-- The tool runs from the Enforcer install path but targets the passed `root`.
-- The result is a compact `check` report with `violations`, `warnings`, `bySeverity`, and exact rule IDs.
+- The harness sees `mcp__enforcer__check`.
+- The tool runs from the installed enforcer binary but targets the passed
+  `root`.
+- The result is a compact `check` report with `violations`, `warnings`,
+  `bySeverity`, and exact rule IDs.
 
-## Validate Harness From Codex
+## Validate Harness Diagnostics
 
-Ask Codex to run a small command through the harness:
-
-```text
-Use the ocentra-enforcer MCP server. Call ocentra_enforcer_run for root C:/path/to/target-repo with tool "node" and command ["node", "--version"]. Then call ocentra_enforcer_run_status for the same root.
-```
-
-For real checks, prefer:
+Ask the harness to run a small command through the harness diagnostics tool:
 
 ```text
-Call ocentra_enforcer_run for root C:/path/to/target-repo, tool "tsc", command ["npx", "tsc", "--noEmit", "--pretty", "false"]. If it fails, call ocentra_enforcer_last_failure before reading any raw artifact.
+Use the enforcer MCP server. Call mcp__enforcer__run for root <target-repo> with tool "cargo" and command ["cargo", "--version"]. Then call mcp__enforcer__run_status for the same root.
 ```
 
 ## Skill Setup
 
-The preferred installer above copies the canonical skill to
-`~/.codex/skills/ocentra-enforcer` or
-`%USERPROFILE%\.codex\skills\ocentra-enforcer` and writes global AGENTS
-instructions. Manual copying is only needed if you intentionally use
-`--no-skill`.
-
-The bundled canonical skill currently lives at:
-
-```text
-E:\ocentra-enforcer\skills\ocentra-enforcer\SKILL.md
-```
-
-To install it as a user skill on Windows:
-
-```powershell
-$skillRoot = "$env:USERPROFILE\.codex\skills\ocentra-enforcer"
-New-Item -ItemType Directory -Force -Path $skillRoot
-Copy-Item -Recurse -Force E:\ocentra-enforcer\skills\ocentra-enforcer\* $skillRoot
-```
-
-Then start a new Codex thread. The canonical skill name is `ocentra-enforcer`.
-`rust-rules-hard-gate` remains a temporary compatibility alias for older prompts.
+The preferred installer above copies the canonical skill to the harness's
+user-level skill directory and writes global agent instructions. Manual
+copying is only needed if you intentionally use `--no-skill`. The canonical
+skill name is `enforcer` (see [skills/enforcer/SKILL.md](../skills/enforcer/SKILL.md)).
 
 ## Common MCP Failures
 
-`codex mcp list` does not show `ocentra-enforcer`:
+The MCP server does not show up in `list`:
 
-- Run `node E:/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex install --root C:/path/to/target-repo --profile strict`.
-- Run `node E:/ocentra-enforcer/scripts/ocentra-enforcer.mjs codex doctor --root C:/path/to/target-repo`.
-- Check `%USERPROFILE%\.codex\config.toml`.
-- Restart Codex.
+- Run `enforcer install --root <target-repo> --profile strict`.
+- Run `enforcer doctor --root <target-repo>`.
+- Check the harness's own user-level MCP config file.
+- Restart the harness.
 
-Server works but Codex still does not expose tools:
+Server works but the harness still does not expose tools:
 
-- Run both `npm run mcp:smoke` and `npm run mcp:smoke:ndjson` from the Enforcer repo.
-- If smoke passes, the server protocol is healthy and the remaining issue is Codex app config/reload.
-- If only `mcp:smoke:ndjson` fails, report an MCP framing regression.
+- Run `enforcer doctor` to separate MCP server protocol failures from
+  harness app config failures before blaming the rule engine.
 
-MCP server starts but tools do not appear:
-
-- Run `node E:/ocentra-enforcer/scripts/mcp-smoke.mjs --root E:/ocentra-enforcer --file Cargo.toml`.
-- Confirm Node.js 20+ is available with `node --version`.
-- Confirm `npm install` was run in `E:\ocentra-enforcer`.
-
-MCP tools appear but scans target the wrong repo:
+Tools appear but scans target the wrong repo:
 
 - Always pass `root` in tool arguments.
-- Do not rely on MCP server current working directory.
+- Do not rely on the MCP server's own current working directory.
 - Use `profile` for pack policy or `configPath` for target repo policy.
 
 Harness command fails but no useful diagnostics appear:
 
-- Call `ocentra_enforcer_last_failure` first.
-- If compact diagnostics are insufficient, call `ocentra_enforcer_artifact` with `artifact: "stderr"` and a small `limitBytes`.
-- Native tool JSON is preferred: Cargo `--message-format=json`, ESLint `--format json`, Ruff `--output-format json`, Pyright `--outputjson`.
+- Call `mcp__enforcer__last_failure` first.
+- If compact diagnostics are insufficient, call `mcp__enforcer__artifact`
+  with `artifact: "stderr"` and a small `limitBytes`.
+- Native tool JSON is preferred: Cargo `--message-format=json`, ESLint
+  `--format json`, Ruff `--output-format json`, Pyright `--outputjson`.
 
 Windows path issues:
 
-- Prefer forward slashes in Codex/TOML/JSON: `E:/ocentra-enforcer/...`.
+- Prefer forward slashes in TOML/JSON config on Windows.
 - Quote paths containing spaces.
-- Do not use relative MCP paths in global config.
+- Do not use relative MCP paths in global config; use the absolute installed
+  binary path the installer reports.
 
 Profile errors:
 
 - `profile: "strict"` is built in.
-- `profile: "ocentra-parent"` uses `profiles/ocentra-parent.json`.
 - For project-specific policy, pass `configPath` instead of `profile`.

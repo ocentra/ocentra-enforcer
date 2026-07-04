@@ -1,6 +1,17 @@
 # Research Grounding — Design Principles and Citations
 
-This document cites the research and design references that inform the Enforcer's architecture and rule mechanization approach. Every claim in the README's **Research Grounding** section traces back to a numbered source below.
+<!-- ai-dense -->
+```yaml
+purpose: citation list backing README's Research Grounding section
+principles: "context budgets [1], AST-over-prose enforcement [2], ratchets [3], deferred-work gates [4], rules-as-structured-data [5]"
+enforcement: "each principle maps to a specific enforcer-* crate/validator, not aspiration"
+```
+<!-- /ai-dense -->
+
+This document cites the research and design references that inform the
+enforcer's architecture and rule mechanization approach. Every claim in the
+README's **Research Grounding** section traces back to a numbered source
+below.
 
 ---
 
@@ -12,7 +23,7 @@ This document cites the research and design references that inform the Enforcer'
 
 **Application:** The Enforcer routes agents to only the rule docs needed for touched files, scope, profile, or explicit rule ID (ref: README §2, "Indexed Decision Trees Save Context"). Long plans, AGENTS files, and rulebooks are indexed, not streamed by default, to preserve context budget for the actual work.
 
-**Implementation:** `rules/INDEX.md`, `rules/rules.json` (machine-readable registry), and the `ocentra_enforcer_route` MCP tool emit a scoped decision tree. Agents read a small index first, classify the task, then open only the docs that apply. Fallback to broad reading only when the route is unknown or policy changes.
+**Implementation:** `rules/INDEX.md`, `rules/rules.json` (machine-readable registry), and the `mcp__enforcer__route` MCP tool emit a scoped decision tree. Agents read a small index first, classify the task, then open only the docs that apply. Fallback to broad reading only when the route is unknown or policy changes.
 
 ---
 
@@ -76,7 +87,7 @@ This document cites the research and design references that inform the Enforcer'
 
 These five foundations — context budgets, AST-over-prose, ratchets, deferred-work markers, and structured rules — are **not philosophy**. They are mechanically enforced:
 
-- **Context budgets** are measured by the `ocentra_enforcer_route` tool, not hoped for.
+- **Context budgets** are measured by the `mcp__enforcer__route` tool, not hoped for.
 - **AST-over-prose** is achieved by validators that reject invalid types/schemas at the boundary.
 - **Ratchets** are stored in `.enforce/` and compared in CI; a grown baseline fails the gate.
 - **Deferred-work markers** are regex-scanned; unmarked TODOs fail a pre-commit hook.

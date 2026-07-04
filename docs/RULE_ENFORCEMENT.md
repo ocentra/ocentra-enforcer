@@ -1,7 +1,15 @@
 # Rule Enforcement System
 
-Ocentra Enforcer does not treat rules as prose. Every enforced rule must be
-routable, registered, validator-backed, and explainable through CLI/MCP output.
+<!-- ai-dense -->
+```yaml
+model: "every rule is a typed record (enforcer-rules): ruleId <-> Validator impl <-> fail/pass fixtures <-> doc-anchor <-> tier"
+never: "rules as prose only -- .md is optional human-canonical reading, browsed via the Tauri UI explorer (g08), never the AI's default read"
+```
+<!-- /ai-dense -->
+
+The enforcer does not treat rules as prose. Every enforced rule must be
+routable, registered, validator-backed, and explainable through CLI/MCP
+output.
 
 ## Flow
 

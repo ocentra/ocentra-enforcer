@@ -1,8 +1,16 @@
 # Harness Diagnostics
 
-The harness exists because raw terminal output is a poor AI interface. Native
-tools still run, but Codex should query compact diagnostics before reading raw
-logs.
+<!-- ai-dense -->
+```yaml
+purpose: compact structured diagnostics over raw terminal output for native tool runs (cargo/tsc/ruff/dart/CFLint/...)
+storage: ".enforce/runs/<runId>/ + .enforce/db/ under the TARGET repo"
+query_first: "mcp__enforcer__last_failure / enforcer runs last-failure before reading raw stdout/stderr artifacts"
+```
+<!-- /ai-dense -->
+
+The harness exists because raw terminal output is a poor AI interface.
+Native tools still run, but any AI harness should query compact diagnostics
+before reading raw logs.
 
 ## Flow
 
@@ -36,12 +44,12 @@ surface. Retention and prune commands keep old run data bounded.
 ## Query Pattern
 
 ```bash
-ocentra-enforcer run --root <repo> --tool cargo -- cargo check --workspace
-ocentra-enforcer runs last-failure --root <repo> --json
-ocentra-enforcer runs diagnostics --root <repo> --run-id <runId> --json
-ocentra-enforcer runs artifact --root <repo> --run-id <runId> --artifact stdout --limit-bytes 8000
+enforcer run --root <repo> --tool cargo -- cargo check --workspace
+enforcer runs last-failure --root <repo> --json
+enforcer runs diagnostics --root <repo> --run-id <runId> --json
+enforcer runs artifact --root <repo> --run-id <runId> --artifact stdout --limit-bytes 8000
 ```
 
-MCP equivalents are `ocentra_enforcer_run`,
-`ocentra_enforcer_last_failure`, `ocentra_enforcer_diagnostics`, and
-`ocentra_enforcer_artifact`.
+MCP equivalents are `mcp__enforcer__run`,
+`mcp__enforcer__last_failure`, `mcp__enforcer__diagnostics`, and
+`mcp__enforcer__artifact`.

@@ -1,109 +1,117 @@
-# Install Ocentra Enforcer
+# Install Enforcer
 
-This guide is for a fresh machine, a fresh Codex thread, or a target project
-that has never used Ocentra Enforcer before.
+<!-- ai-dense -->
+```yaml
+model: one native Rust binary (`enforcer`) is both the MCP stdio server and the CLI
+install_default: user/global scope, one install per machine per harness, zero per-repo config
+install_command: "enforcer install [--dry-run] [--root <repo>] [--profile <name>] [--scope user|project]"
+consumer_ci: install.sh/install.ps1 (zero-Rust-toolchain) or the composite `.github/actions/enforcer-scan` GitHub Action or the npm wrapper; see docs/TARGET_REPO_WIRING.md
+build_from_source_fallback: "cargo build --release" (only for developing the enforcer itself, or when no matching prebuilt binary exists)
+harnesses: 11 adapters (codex, claude, cursor, windsurf, gemini, antigravity, opencode, aider, kilocode, kiro, generic .mcp.json) — Codex is one of eleven, never the reference target
+update: binary swap only ("enforcer update" or the harness prompt "update enforcer") — no repo pull, no toolchain
+```
+<!-- /ai-dense -->
 
-## 1. Clone The Enforcer Repo
+This guide is for a fresh machine, or a target project that has never used the
+enforcer before. The enforcer ships as **one native binary** per platform
+(Windows/macOS/Linux, including musl and Apple Silicon) — there is no runtime
+toolchain to install for consumers.
 
-Choose a stable tool path outside the target project. On Windows, prefer `E:\`
-or another non-system drive if available.
+## 1. Get The Binary
+
+Preferred: download the released binary and register it with your harness in
+one step.
 
 ```powershell
-git clone https://github.com/ocentra/ocentra-enforcer.git E:\ocentra-enforcer
-Set-Location E:\ocentra-enforcer
-npm install
+irm https://<release-host>/install.ps1 | iex
+enforcer install --dry-run
+enforcer install
 ```
 
-macOS/Linux example:
+macOS/Linux:
 
 ```bash
-git clone https://github.com/ocentra/ocentra-enforcer.git ~/tools/ocentra-enforcer
-cd ~/tools/ocentra-enforcer
-npm install
+curl -fsSL https://<release-host>/install.sh | sh
+enforcer install --dry-run
+enforcer install
+```
+
+Building from source is a documented fallback only — for developing the
+enforcer itself, or a platform without a published binary:
+
+```bash
+git clone <this-repo-url> enforcer-rust
+cd enforcer-rust
+cargo build --release --workspace
 ```
 
 ## 2. Validate The Install
 
-Run these from the enforcer repo root:
-
 ```bash
-npm test
-npm run rust:rules:scan
-npm run rust:rules
-npm run mcp:smoke
-npm run proof:smoke
-npm run proof:run:smoke
+enforcer doctor
+enforcer scan --root . --workspace
+enforcer proof run --proof PROOF-COMMAND-GENERIC --json -- enforcer --version
 ```
 
 Expected result:
 
-- `npm test` passes.
-- `npm run mcp:smoke` prints JSON with `"ok": true`.
-- The listed MCP tools include `ocentra_enforcer_route`,
-  `ocentra_enforcer_scan`, `ocentra_enforcer_doctor`, and
-  `ocentra_enforcer_explain`, plus coordination tools such as
-  `ocentra_enforcer_coordination_presence`,
-  `ocentra_enforcer_coordination_sync`, and
-  `ocentra_enforcer_coordination_peer`, plus proof tools such as
-  `ocentra_enforcer_proof_route`, `ocentra_enforcer_proof_run`, and
-  `ocentra_enforcer_proof_claim`.
+- `enforcer doctor` reports the MCP registration healthy for the detected
+  harness(es) and the ledger root resolved.
+- `enforcer scan --workspace` runs clean against this repo's own crates
+  (native dogfood — the enforcer validates itself).
+- The proof run produces a structured, artifact-backed result under
+  `.enforce/proofs`.
 
-## 3. Wire Codex Globally
+## 3. Wire Your Harness Globally
 
-Read [docs/CODEX_SETUP.md](docs/CODEX_SETUP.md). Use the Enforcer installer
-first. It writes Codex Desktop's global MCP server config, installs the
-canonical user skill, and creates or updates a managed Enforcer block in
-`~/.codex/AGENTS.md` or `%USERPROFILE%\.codex\AGENTS.md`.
+`enforcer install` with no `--scope` flag resolves to **user/global** — one
+install per machine per harness, so every repo you open already has the
+enforcer's MCP server registered, with no per-repo config file. Read
+[docs/CODEX_SETUP.md](docs/CODEX_SETUP.md) for the per-harness detail (Codex
+setup shown as one concrete example; the same shape applies to every
+supported harness's adapter).
 
-```powershell
-node E:/ocentra-enforcer/scripts/rust-rules.mjs codex install --dry-run
-node E:/ocentra-enforcer/scripts/rust-rules.mjs codex install
-node E:/ocentra-enforcer/scripts/rust-rules.mjs codex doctor
+```bash
+enforcer install --dry-run
+enforcer install
+enforcer doctor
 ```
 
-By default this configures the per-PC ledger root as
-`E:/ocentra-enforcer/.ledger`; hubs live below it, for example
-`E:/ocentra-enforcer/.ledger/ocentra-parent`. Use `--ledger-root <path>` only
-when this machine should use a different synced ledger folder.
+The installer writes each harness's MCP server entry pointing at the
+**absolute path** of the installed binary — a relative path cannot resolve
+from an arbitrary repo's working directory. Existing harness config is
+backed up before it is changed.
 
-You can also pass a target repo when you want project-local wiring generated at
-the same time:
+You can also pass a target repo when you want project-local wiring generated
+at the same time:
 
-```powershell
-node E:/ocentra-enforcer/scripts/rust-rules.mjs codex install --root C:/Users/sujan/.codex/worktrees/ocentra-parent-codex-a/OcentraParent --profile ocentra-parent --dry-run
-node E:/ocentra-enforcer/scripts/rust-rules.mjs codex install --root C:/Users/sujan/.codex/worktrees/ocentra-parent-codex-a/OcentraParent --profile ocentra-parent
-node E:/ocentra-enforcer/scripts/rust-rules.mjs codex doctor --root C:/Users/sujan/.codex/worktrees/ocentra-parent-codex-a/OcentraParent
+```bash
+enforcer install --root <target-repo> --profile strict --dry-run
+enforcer install --root <target-repo> --profile strict
+enforcer doctor --root <target-repo>
 ```
 
 For any worktree, the target root is the worktree being validated, not some
-other checkout. Coordination/hub/lane state is Enforcer-managed Codex harness
-state and lives under the installed Enforcer ledger root, not inside a product
-repo.
+other checkout. Coordination/hub/lane state is enforcer-managed harness
+state and lives under the installed enforcer's own ledger root, not inside a
+product repo.
 
-Then restart Codex Desktop or start a new thread so the app reloads MCP
-servers. If local CLI config parsing is blocked by unrelated config settings,
-verify with:
+Restart your harness (or start a new session) so it reloads MCP servers
+after install.
 
-```powershell
-codex -c service_tier='"fast"' mcp list
-```
+To remove only the enforcer-managed wiring:
 
-If the installer cannot write the config, use the manual
-`%USERPROFILE%\.codex\config.toml` method in [docs/CODEX_SETUP.md](docs/CODEX_SETUP.md).
-
-To remove only Enforcer-managed Codex wiring:
-
-```powershell
-node E:/ocentra-enforcer/scripts/rust-rules.mjs codex uninstall --dry-run
-node E:/ocentra-enforcer/scripts/rust-rules.mjs codex uninstall
+```bash
+enforcer uninstall --dry-run
+enforcer uninstall
 ```
 
 ## 4. Add Hooks And CI For A Target Repo
 
 Run a dry-run first:
 
-```powershell
-node E:/ocentra-enforcer/scripts/rust-rules.mjs init --root C:/path/to/target-repo --profile strict --adapters precommit,github-actions --dry-run
+```bash
+enforcer init --root <target-repo> --profile strict --adapters precommit,github-actions --dry-run
 ```
 
 Then follow [docs/TARGET_REPO_WIRING.md](docs/TARGET_REPO_WIRING.md).
@@ -112,32 +120,31 @@ Then follow [docs/TARGET_REPO_WIRING.md](docs/TARGET_REPO_WIRING.md).
 
 CLI smoke:
 
-```powershell
-node E:/ocentra-enforcer/scripts/rust-rules.mjs doctor --root C:/path/to/target-repo --profile strict --workspace
-node E:/ocentra-enforcer/scripts/rust-rules.mjs scan --root C:/path/to/target-repo --profile strict --files Cargo.toml
-node E:/ocentra-enforcer/scripts/rust-rules.mjs proof route --root C:/path/to/target-repo --files Cargo.toml --json
-node E:/ocentra-enforcer/scripts/rust-rules.mjs proof run --root C:/path/to/target-repo --proof PROOF-COMMAND-GENERIC --json -- node --version
+```bash
+enforcer doctor --root <target-repo> --profile strict --workspace
+enforcer scan --root <target-repo> --profile strict --files Cargo.toml
+enforcer proof route --root <target-repo> --files Cargo.toml --json
+enforcer proof run --root <target-repo> --proof PROOF-COMMAND-GENERIC --json -- node --version
 ```
 
-MCP smoke:
+MCP smoke: ask your harness to call `mcp__enforcer__route` for the target
+root, profile `strict`, scope `files`, files `["Cargo.toml"]`, and confirm
+the response is `serverInfo.name == "enforcer"` with a compact routed
+result, not the full rule corpus.
 
-```powershell
-node E:/ocentra-enforcer/scripts/mcp-smoke.mjs --root C:/path/to/target-repo --profile strict --file Cargo.toml
-node E:/ocentra-enforcer/scripts/mcp-smoke.mjs --root C:/path/to/target-repo --profile strict --file Cargo.toml --framing ndjson
-```
-
-If these pass, the enforcer repo is installed and can validate that target repo.
-`mcp-smoke` verifies the server itself; `codex doctor` verifies Codex's global
-config points at that server. Restart Codex Desktop or start a new thread after
-config changes.
+If these pass, the enforcer is installed and can validate that target repo.
+Restart your harness after any config change.
 
 ## Install Model Decision
 
 Use this order:
 
-1. Git clone plus Codex MCP, recommended today.
-2. npm global/package install, after package publishing exists.
-3. Git submodule, only when the target project requires source pinning.
+1. `enforcer install` from a released binary — recommended for every normal
+   use.
+2. `cargo build --release` from source — only for developing the enforcer
+   itself or an unreleased platform.
+3. Git submodule pinning — only when a target project genuinely requires
+   source pinning of the enforcer itself; not the default model.
 
-Do not copy the enforcer source into every target repo. Target repos should keep
-thin config/wiring only.
+Do not copy the enforcer source into every target repo. Target repos should
+keep thin config/wiring only.

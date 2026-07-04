@@ -1,8 +1,18 @@
 # Enforced Checks Catalog
 
-This is a high-level catalog of what Enforcer checks today. It is not the full
-rulebook. Agents should still route through `rules/INDEX.md` and MCP
-`ocentra_enforcer_route` before reading detailed rule docs.
+<!-- ai-dense -->
+```yaml
+scope: high-level catalog of what the enforcer checks today; not the full rule corpus
+implementation: every row below is a native Rust Validator (enforcer-lang-{rust,ts,py,common,security,iac,k8s}), never a TS/Node scanner
+routing: call mcp__enforcer__route / `enforcer route` before reading detailed rule docs -- the router returns only matching rule records
+languages_validated_not_implemented_in: typescript, javascript, python, dart, cfml -- the enforcer inspects these in a TARGET repo; the enforcer's own implementation is Rust end to end
+```
+<!-- /ai-dense -->
+
+This is a high-level catalog of what the enforcer checks today. It is not the
+full rule corpus. Agents should still route through `enforcer route` / MCP
+`mcp__enforcer__route` before reading detailed rule docs — every check below
+is backed by a native Rust `Validator`, not a TypeScript/Node scanner.
 
 ## Rust
 
@@ -23,8 +33,8 @@ rulebook. Agents should still route through `rules/INDEX.md` and MCP
 
 | Area | What Fails |
 | --- | --- |
-| Runtime schema authority | Zod source usage where Effect Schema is the configured contract layer. |
-| Naked domain strings | `type FooId = string`, raw branded intersections, and manual string identity aliases where Effect Schema brands and decode helpers should own the boundary. |
+| Runtime schema authority | Zod source usage where a branded/typed contract layer is the configured authority. |
+| Naked domain strings | `type FooId = string`, raw branded intersections, and manual string identity aliases where branded types and decode helpers should own the boundary. |
 | Strict source slop | `any`, unsafe `as` casts, double assertions, non-null assertions, default exports, `process.env` outside config boundaries, `JSON.parse` outside decoder boundaries, console debugging, and thrown string errors. |
 | Barrel exports and re-exports | `export *`, `export * as`, `export { X } from`, `export type { X } from`, and `export { default as X } from`. |
 | Suppression and bypass | `eslint-disable`, `ts-ignore`, formatter bypasses, and validation-bypass comments unless a profile explicitly permits them. |
@@ -60,6 +70,35 @@ rulebook. Agents should still route through `rules/INDEX.md` and MCP
 | Documentation | Public API docs and comment rules are warnings by default; profiles can promote them to hard failures. |
 | Agent-rule hygiene | Oversized or unindexed agent/rule docs that would force broad context loading. |
 
+## Dart And CFML
+
+| Area | What Fails |
+| --- | --- |
+| Dart | tree-sitter-backed structural checks (`enforcer-lang-dart`): the same suppression/bypass, test-integrity, and source-shape families as TS/Python, adapted to Dart syntax. |
+| CFML | CFLint-backed checks (`enforcer-lang-cfml`) ingested through the harness, plus native structural checks where CFLint coverage is incomplete. |
+
+## Detect-And-Route Router (f05)
+
+Before any validator runs, the router mechanically detects each touched
+file's language/structure and dispatches it to the matching validator
+family and native tool — an agent or CI job never has to name the language
+by hand. `enforcer scan` (no `--languages` flag) uses the router by default;
+passing `--languages` explicitly narrows the router's dispatch rather than
+replacing it.
+
+## Scan Modes (f01)
+
+Scans run in one of five typed modes, chosen for the right cost/coverage
+tradeoff:
+
+| Mode | When |
+| --- | --- |
+| `quick` | Fast pre-save/pre-commit pass over a small file set. |
+| `full` | Full workspace sweep, e.g. before a release or a PR-ready claim. |
+| `scoped` | An explicit `--files`/`--crate` scope. |
+| `diff` | `--base <ref> --head <ref>` changed-lines/changed-files scope. |
+| `plan-scan` | Scoped to a plan/workpack's declared `owns` surface. |
+
 ## Scope Modes
 
 Checks can run against:
@@ -71,3 +110,38 @@ Checks can run against:
 
 Prefer the smallest scope that covers the change. Use full workspace checks for
 PR-ready or release gates, not for every edit loop.
+
+## UI Layer (Track G, Optional)
+
+An optional Tauri desktop control-plane app (Rust backend, TS/web frontend)
+gives humans a cockpit over the same enforcer any harness drives via MCP —
+never required; the CLI/MCP surface is fully functional standalone. It
+includes a rules-and-skills explorer (g08 — every rule/skill rendered with
+meaning, fail/pass examples, tier, and framework mapping; this is where
+`.md` prose lives for human browsing, while the AI still reads only the
+structured rule record), a live lane/hub coordination panel (g06), and a
+scan report with per-violation fix/ignore/later/waiver actions (g02/g03).
+
+## Multi-Harness Install (Track C)
+
+The enforcer installs into any of 11 AI-harness adapters — Claude Code,
+Codex, Cursor, Windsurf, Gemini, Antigravity, OpenCode, Aider, KiloCode,
+Kiro, and any generic `.mcp.json`-based harness — at user/global scope by
+default, so a single per-machine install covers every repo. See
+[SKILL_MCP_SYSTEM.md](SKILL_MCP_SYSTEM.md) and
+[CODEX_SETUP.md](CODEX_SETUP.md) (Codex shown there as the worked example,
+not the reference target).
+
+## Onboarding + Autoindex (f02)
+
+A one-time, agent-first onboarding loop (install -> inspect the target's real
+build system -> configure a fitting `enforcer-config` -> wire CI -> verify
+the wiring actually fires) scaffolds a project's `.enforce/` working
+directory the first time the enforcer touches an unfamiliar repo. See
+[skills/enforcer-onboarding/SKILL.md](../skills/enforcer-onboarding/SKILL.md).
+
+## Silent Vs Human Mode (f04)
+
+Every scan/check carries a `RunContext`: `AgentInline` (silent, terse,
+machine-consumed diagnostics) or `HumanReview` (verbose, human-readable
+report). The mode changes report *shape* only — never what is enforced.

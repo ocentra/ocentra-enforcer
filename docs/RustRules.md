@@ -1,13 +1,33 @@
 # Rust Rules
 
-This document is the law for Rust code in this repository. Rules are numbered so humans, AI agents, CI, and validation scripts can point to the exact broken rule.
+<!-- ai-dense -->
+```yaml
+status: "legacy monolithic Rust rulebook, kept as fallback human-canonical reading only -- NOT the AI's default read"
+canonical_form: "typed rule records in enforcer-rules (arc-04), each ruleId <-> Validator impl <-> fail/pass fixtures <-> doc-anchor <-> tier"
+routing: "mcp__enforcer__route / enforcer route returns only the matching rule records; this file is loaded on broad-review fallback only"
+enforcement_runtime: "native Rust (enforcer-lang-rust, cargo clippy/fmt/deny/audit), NOT Node -- the 'Hard: Node' language below is HISTORICAL, describing the retired .mjs-era gate"
+```
+<!-- /ai-dense -->
+
+This document is the law for Rust code in this repository. Rules are
+numbered so humans, AI agents, CI, and validation scripts can point to the
+exact broken rule. **This file is the optional human-canonical reading
+surface only** — the enforcer's AI-facing entrypoint is the typed rule
+record in `enforcer-rules` plus the router (`enforcer route` /
+`mcp__enforcer__route`), never this prose file by default.
 
 ## Severity and enforcement language
 
+The "Hard: Node" rows below are a **historical label** describing the
+retired `.mjs`-era gate (`scripts/rust-rules.mjs`, no longer part of the
+enforcer's implementation). The current enforcement runtime for every rule
+in this document is the native Rust `enforcer-lang-rust` validator plus
+`cargo clippy`/`fmt`/`deny`/`audit` — never Node.
+
 | Term | Meaning |
 |---|---|
-| Hard: Node | Enforced by `scripts/rust-rules.mjs`. Failure exits non-zero and prints rule ID, reason, doc anchor, and fix snippet. |
-| Hard: Cargo | Enforced by Cargo/rustc/rustfmt/Clippy/rustdoc commands invoked by the Node gate. |
+| Hard: Node (historical) | Enforced, in the retired TS-engine era, by `scripts/rust-rules.mjs`. Superseded by the native Rust `enforcer-lang-rust` validator; failure still exits non-zero and prints rule ID, reason, doc anchor, and fix snippet. |
+| Hard: Cargo | Enforced by Cargo/rustc/rustfmt/Clippy/rustdoc commands invoked by the enforcer's native Rust gate. |
 | Hard: cargo-deny/audit | Enforced by Cargo dependency policy tools. |
 | Hard: Review/Test | Mandatory design rule that must be proven by tests or review. Add deterministic validation when practical. |
 | Hard: Process | Mandatory agent/repository process rule. |
@@ -1087,9 +1107,10 @@ Required form: `/// BRAND-INVARIANT: <validation rule and semantic meaning>` nea
 <a id="rr-105"></a>
 ### RR-10.5 — Validator tests must pass
 
-**Enforcement:** Hard: Node test.
+**Enforcement:** Hard: Cargo test.
 
-**Rule:** Run node --test tests/rust-rules.test.mjs.
+**Rule:** Run `cargo test --workspace` (validator/detection tests live under
+each `enforcer-lang-*` crate's `tests/`).
 
 <a id="rr-106"></a>
 ### RR-10.6 — CI must run the same script as local dev
@@ -1110,7 +1131,7 @@ Required form: `/// BRAND-INVARIANT: <validation rule and semantic meaning>` nea
 
 **Enforcement:** Hard: Local policy.
 
-**Rule:** Use npm run rust:rules:scan for fast feedback.
+**Rule:** Use `enforcer scan --root . --workspace` for fast feedback.
 
 <a id="rr-109"></a>
 ### RR-10.9 — Release builds must be reproducible
@@ -1996,7 +2017,7 @@ Required form: `/// BRAND-INVARIANT: <validation rule and semantic meaning>` nea
 
 **Enforcement:** Hard: Process.
 
-**Rule:** A Rust task is incomplete until npm run rust:rules passes.
+**Rule:** A Rust task is incomplete until `enforcer scan --root . --workspace` (or the CI-exact `cargo build --workspace && cargo test --workspace`) passes.
 
 <a id="rr-192"></a>
 ### RR-19.2 — AI must not weaken validation

@@ -1,9 +1,17 @@
 ---
 name: enforcer-onboarding
-description: Onboard a brand-new project onto Ocentra Enforcer end-to-end — install, inspect the real build system, configure, wire CI, and verify the wiring actually fires. Use once, the first time Enforcer touches an unfamiliar repo, before day-to-day usage (skills/ocentra-enforcer/SKILL.md).
+description: Onboard a brand-new project onto the enforcer end-to-end — install, inspect the real build system, configure, wire CI, and verify the wiring actually fires. Use once, the first time the enforcer touches an unfamiliar repo, before day-to-day usage (skills/enforcer/SKILL.md).
 ---
 
 # Enforcer Onboarding
+
+<!-- ai-dense -->
+```yaml
+seven_steps: "install (mechanical, per-harness adapter) -> inspect (read real manifest) -> configure (author enforcer-config.json) -> scaffold .enforce/ (f02) -> wire CI (new or integrate) -> verify (seed-fail + clean-pass, MANDATORY) -> report"
+use_once: "first time the enforcer touches an unfamiliar repo; day-to-day usage after verification = skills/enforcer/SKILL.md"
+never_report_done_without: "step 6 BOTH seeded-violation-fires AND clean-baseline-passes observed"
+```
+<!-- /ai-dense -->
 
 **The real user of this procedure is an AI agent, not a human.** A human can trigger each step
 manually, but that is incidental, not the design target. This skill is deliberately NOT a script —
@@ -12,7 +20,7 @@ rather than replace, are judgment calls only an agent (AI or human) can make. Th
 make that judgment RELIABLE and REPEATABLE across projects, not to eliminate it.
 
 Use this skill exactly once per project, the first time Enforcer is introduced. Once onboarding is
-verified (step 6), switch to `skills/ocentra-enforcer/SKILL.md` for day-to-day route/scan/check/proof
+verified (step 6), switch to `skills/enforcer/SKILL.md` for day-to-day route/scan/check/proof
 usage — that skill assumes a repo is already wired and does not re-teach onboarding.
 
 Do not report onboarding complete after any step short of a passing step 6. File existence is never
@@ -29,10 +37,10 @@ Command surface (per-harness adapters, c03/c06/c07/c08/c09 — covering all 11 h
 shared install core and harness autodetection they build on):
 
 ```bash
-ocentra-enforcer codex install --root <repo> --profile strict --dry-run
-ocentra-enforcer codex install --root <repo> --profile strict
-ocentra-enforcer codex doctor --root <repo>
-ocentra-enforcer init --root <repo> --profile strict --adapters codex,mcp,precommit,github-actions --dry-run
+enforcer install --root <repo> --profile strict --dry-run
+enforcer install --root <repo> --profile strict
+enforcer doctor --root <repo>
+enforcer init --root <repo> --profile strict --adapters codex,mcp,precommit,github-actions --dry-run
 ```
 
 Prefer `--dry-run` first, review the planned write set, then apply without it. Global install
@@ -54,7 +62,7 @@ default profile/config blind — the point of inspecting first is that step 3's 
 what you find here, not assumed.
 
 ### 3. Configure — author a fitting `enforcer-config`
-Author (or update) the project's `ocentra-enforcer.config.json` using the 3-layer model (arc-03,
+Author (or update) the project's `enforcer-config.json` using the 3-layer model (arc-03,
 `enforcer-config` crate): a base profile (`profileName`: `strict`, `default`, `ocentra-enforcer`, or
 `ocentra-parent`) plus project-local overrides layered on top. This is a judgment call informed by
 step 2, never a blind copy of another project's config:
@@ -92,7 +100,7 @@ platforms detected in step 2:
 
 - If the project has NO existing CI: create a fresh workflow. For GitHub Actions targets, the
   `github-actions` install adapter's consumer-CI emitter writes the bundled `.github/workflows/*.yml`
-  set (`ocentra-enforcer`, `codeql`, `dependency-policy`, `secret-scan`, `sbom`) scoped to this
+  set (`enforcer`, `codeql`, `dependency-policy`, `secret-scan`, `sbom`) scoped to this
   project; other CI providers get their own native equivalent, hand-authored to match.
 - If the project ALREADY has CI: INTEGRATE with it — add the enforcer step(s) into the existing
   pipeline rather than blindly overwriting what is already there. Never force-overwrite a
@@ -110,7 +118,7 @@ never be reported as complete — until BOTH of the following are true:
 
 1. **Seed a known-bad case and confirm the gate actually fires.** Locate or introduce one concrete,
    real violation appropriate to this project (a rule the configured profile/languages actually cover)
-   and run the wired check (the CI-equivalent local command, e.g. `ocentra-enforcer scan --root <repo>
+   and run the wired check (the CI-equivalent local command, e.g. `enforcer scan --root <repo>
    --workspace` or the project's own CI job locally) against it. Confirm it exits non-zero and names
    the violation. If it does not fire, onboarding has FAILED — go back and fix the configuration, do
    not report done.
@@ -138,7 +146,7 @@ This skill stitches together, without duplicating, the mechanics owned elsewhere
 - Wire CI (step 5): the `github-actions` install adapter / consumer-CI emitter (`c07`) for the
   per-project workflow files, and `c10` (release/binary-bootstrap pipeline) for the zero-toolchain
   consumer-CI install path.
-- Day-to-day usage once onboarding is verified: `skills/ocentra-enforcer/SKILL.md`.
+- Day-to-day usage once onboarding is verified: `skills/enforcer/SKILL.md`.
 
 This procedure is explicitly NOT eliminable by more automation. Steps 2, 3, and 5 require judgment;
 step 6 is the one part that IS mechanically gated — never trust prose over its result.

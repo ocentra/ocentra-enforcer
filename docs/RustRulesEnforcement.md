@@ -1,51 +1,55 @@
 # Rust Integration Guide
 
-Ocentra Enforcer is a standalone, multi-language enforcement platform. Rust is
-one implemented module alongside TypeScript/JavaScript, Python, common
-security/generated-artifact checks, proof harnessing, compact diagnostics, and
-coordination. This document explains the Rust surface only; it is not the
-system architecture document.
+<!-- ai-dense -->
+```yaml
+scope: "Rust surface only, not the system architecture doc -- see RUST_ARCHITECTURE.md and README.md for the full model"
+implementation: enforcer-lang-rust crate (syn-backed); Rust is also the enforcer's OWN implementation language
+routing: enforcer route / mcp__enforcer__route -- do not default-load the monolithic RustRules.md
+contract_layer: enforcer-domain (serde + branded newtypes); TS types for the UI derived via ts_rs, never hand-written
+meta_enforcement: "enforcer check rule-coverage/policy-integrity/waiver-policy -- immutable rules cannot be disabled by project config"
+```
+<!-- /ai-dense -->
+
+The enforcer is a standalone, multi-language enforcement platform. Rust is
+one validated language family alongside TypeScript/JavaScript, Python, Dart,
+CFML, and common security/generated-artifact checks, proof harnessing,
+compact diagnostics, and coordination — and Rust is also the enforcer's own
+implementation language end to end. This document explains the Rust
+validator surface only; it is not the system architecture document.
 
 For the full system model, use:
 
 - [../README.md](../README.md)
+- [../docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md](plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md)
 - [ENFORCED_CHECKS.md](ENFORCED_CHECKS.md)
 - [COORDINATION.md](COORDINATION.md)
 - [TARGET_REPO_WIRING.md](TARGET_REPO_WIRING.md)
 
 ## Consumption Model
 
-Default use is package plus Codex plugin/MCP:
+Default use is install-once, MCP/CLI:
 
 ```bash
-ocentra-enforcer init --root C:/path/to/repo --profile strict --adapters codex,mcp,precommit,github-actions --dry-run
-ocentra-enforcer scan --root C:/path/to/repo --files crates/example/src/lib.rs
-ocentra-enforcer cargo --root C:/path/to/repo --crate example-crate
+enforcer init --root <repo> --profile strict --adapters codex,mcp,precommit,github-actions --dry-run
+enforcer scan --root <repo> --files crates/example/src/lib.rs
+enforcer cargo --root <repo> --crate example-crate
 ```
 
-Git submodules are optional for source pinning only. MCP should run from the
-Enforcer install path, and each tool call must pass the target repo as `root`.
+Each tool call must pass the target repo as `root`. The enforcer binary
+itself never needs to live inside the target repo.
 
 ## Indexed Rule Routing
 
-Agents must read `rules/INDEX.md` first, then call:
+Agents should call:
 
 ```text
-ocentra_enforcer_route
+mcp__enforcer__route
 ```
 
-Use the returned `docs` list instead of loading `docs/RustRules.md` by default.
-The monolithic Rust rulebook remains a fallback for broad Rust policy review,
-missing registry entries, or unknown failures.
-
-Legacy MCP aliases remain for one compatibility release:
-
-```text
-rust_rules_route
-rust_rules_scan
-rust_rules_doctor
-rust_rules_explain
-```
+Use the returned rule records instead of loading a monolithic Rust rulebook
+by default. `docs/RustRules.md` remains a fallback for broad Rust policy
+review, missing registry entries, or unknown failures — the canonical form
+of every rule is the typed record in `enforcer-rules`, not the prose file.
 
 ## Rust Gate Shape
 
@@ -69,32 +73,31 @@ Use `rules/rust/*.md` for routed remediation details and
 Rust rules are protected by the shared policy layer:
 
 ```bash
-ocentra-enforcer check rule-coverage --root <repo>
-ocentra-enforcer check policy-integrity --root <repo>
-ocentra-enforcer check waiver-policy --root <repo>
+enforcer check rule-coverage --root <repo>
+enforcer check policy-integrity --root <repo>
+enforcer check waiver-policy --root <repo>
 ```
 
-Immutable Rust rules cannot be disabled or downgraded by project config. Waivers
-must be narrow, visible, expiring, and owner-backed where a rule permits them.
+Immutable Rust rules cannot be disabled or downgraded by project config.
+Waivers must be narrow, visible, expiring, and owner-backed where a rule
+permits them.
 
 ## Contract Layer
 
-Effect Schema is the runtime contract source:
-
-```text
-schemas/effect/enforcer-schemas.mjs
-```
-
-It decodes configs, profiles, registry data, route requests, scan reports,
-violations, init requests, and MCP tool payloads. JSON-schema-compatible
-artifacts live under `schemas/json/` for docs, tests, MCP clients, and
-non-Effect consumers.
+`enforcer-domain` is the single serde-only, dependency-light contract source:
+branded newtypes + serde own every DTO shape, and every id is a validated
+branded newtype parsed at the boundary. It decodes configs, profiles,
+registry data, route requests, scan reports, violations, init requests, and
+MCP tool payloads. TS types for the optional UI are DERIVED from
+`enforcer-domain` via `#[derive(ts_rs::TS)]`, guarded by a fail-closed
+`cargo test` drift check (byte-compare committed vs freshly emitted) — never
+hand-written.
 
 ## Target Repo Boundary
 
-A target repo should keep product code, product-specific dev servers, release
-packaging, and domain-specific proof meaning. Enforcer owns reusable guards,
-coordination, compact diagnostics, proof running, policy integrity, and
-architecture checks. Existing repo-local wrappers should stay thin until
-old-vs-new parity is proven for file, crate/package, diff, workspace, hook, and
-CI scopes.
+A target repo should keep product code, product-specific dev servers,
+release packaging, and domain-specific proof meaning. The enforcer owns
+reusable guards, coordination, compact diagnostics, proof running, policy
+integrity, and architecture checks. Existing repo-local wrappers should stay
+thin until old-vs-new parity is proven for file, crate/package, diff,
+workspace, hook, and CI scopes.

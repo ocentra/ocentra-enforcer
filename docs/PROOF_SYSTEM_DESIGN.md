@@ -1,7 +1,16 @@
-# Ocentra Enforcer Proof System Design
+# Enforcer Proof System Design
 
-This document defines the reusable proof system. It is intentionally generic:
-large legacy repositories are consumers, not owners of the model.
+<!-- ai-dense -->
+```yaml
+crate: enforcer-proof (hash-chained NDJSON journal, verify-on-open + on-replay)
+model: "evidence-backed claim for a commit+scope+profile+capability, never a raw terminal dump, never a permanent source artifact"
+storage: ".enforce/proofs/runs/<run-id>/ under the TARGET repo"
+pr_ready_gate: "proof claim --pr-ready rejects missing/stale/manual-required/failed/artifact-broken claims"
+```
+<!-- /ai-dense -->
+
+This document defines the reusable proof system. It is intentionally
+generic: large legacy repositories are consumers, not owners of the model.
 
 ## Why This Exists
 
@@ -136,7 +145,7 @@ permission.
 
 ## Deterministic Migration Sequence
 
-1. Inventory: run `ocentra-enforcer proof inventory --root <repo> --json` and
+1. Inventory: run `enforcer proof inventory --root <repo> --json` and
    inspect `migrationMatrix` before opening individual scripts.
 2. Route: pick one plan bucket and one template, for example
    `eventing-network + RuntimeEventProof`.
@@ -158,8 +167,8 @@ The bridge is intentionally artifact-first. It does not compare two JavaScript
 files line by line; it compares proof evidence.
 
 ```text
-ocentra-enforcer proof import-legacy --root <repo> --proof PROOF-LEGACY-ARTIFACT-IMPORT --legacy-paths test-results/foo-proof,output/foo-proof --json
-ocentra-enforcer proof parity --root <repo> --proof PROOF-LEGACY-ARTIFACT-IMPORT --legacy-paths test-results/foo-proof,output/foo-proof --run-id <run-id> --json
+enforcer proof import-legacy --root <repo> --proof PROOF-LEGACY-ARTIFACT-IMPORT --legacy-paths test-results/foo-proof,output/foo-proof --json
+enforcer proof parity --root <repo> --proof PROOF-LEGACY-ARTIFACT-IMPORT --legacy-paths test-results/foo-proof,output/foo-proof --run-id <run-id> --json
 ```
 
 `import-legacy` reads existing legacy proof artifacts from `test-results`,
