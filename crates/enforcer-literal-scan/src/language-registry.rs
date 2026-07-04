@@ -583,6 +583,15 @@ pub fn language_registry() -> Vec<LanguageSpec> {
             false,
             false,
         ),
+        spec(
+            "coldfusion",
+            LanguageFamily::Markup,
+            &["cfc", "cfm"],
+            &[],
+            true,
+            false,
+            false,
+        ),
     ]
 }
 

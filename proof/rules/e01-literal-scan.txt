@@ -1,0 +1,92 @@
+=== cargo test -p enforcer-literal-scan ===
+
+    Finished `test` profile [unoptimized + debuginfo] target(s)
+     Running unittests src\lib.rs (target\debug\deps\enforcer_literal_scan-*.exe)
+
+running 13 tests
+test bridge::tests::dart_and_cfml_extensions_are_registered ... ok
+test lib_tests::markdown_is_common_text_not_code ... ok
+test lib_tests::python_lexer_extracts_fstrings_and_docstrings ... ok
+test lib_tests::rust_lexer_skips_comments_chars_and_lifetimes ... ok
+test lib_tests::secret_is_blocking ... ok
+test bridge::tests::impossible_threshold_is_caught_as_silent_by_the_parity_oracle ... ok
+test bridge::tests::advisory_findings_never_promote_to_violation ... ok
+test lib_tests::ts_lexer_classifies_import_specifier ... ok
+test lib_tests::scoring_marks_domain_event_high_and_test_fixture_low ... ok
+test bridge::tests::unrecognized_target_degrades_to_silence ... ok
+test bridge::tests::cfml_fail_crosses_threshold_and_pass_stays_under ... ok
+test bridge::tests::dart_fail_crosses_threshold_and_pass_stays_under ... ok
+test lib_tests::gitignore_and_default_ignored_dirs_work ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+     Running unittests src\main.rs (target\debug\deps\enforcer_literal_scan-*.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+     Running tests\bridge.rs (target\debug\deps\bridge-*.exe)
+
+running 3 tests
+test advisory_findings_are_nonblocking_and_unknown_targets_skip_gracefully ... ok
+test cfml_threshold_crossing_parity ... ok
+test dart_threshold_crossing_parity ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+     Running tests\integration.rs (target\debug\deps\integration-*.exe)
+
+running 8 tests
+test ignored_files_are_skipped_by_default ... ok
+test fail_above_turns_high_risk_into_hard_failure ... ok
+test good_dataset_has_no_hard_findings ... ok
+test include_ignored_scans_ignored_dataset ... ok
+test bad_dataset_produces_hard_and_soft_findings ... ok
+test binary_file_does_not_crash ... ok
+test output_is_deterministic_for_same_input ... ok
+test many_language_dataset_scans_broad_language_families ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+   Doc-tests enforcer_literal_scan
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+=== Named proof rows (TEST_PROOF_EXPECTATIONS.md, Track E, e01) ===
+- literal-scan-universal-threshold  -> bridge::tests::dart_fail_crosses_threshold_and_pass_stays_under,
+                                        bridge::tests::cfml_fail_crosses_threshold_and_pass_stays_under,
+                                        tests/bridge.rs::dart_threshold_crossing_parity,
+                                        tests/bridge.rs::cfml_threshold_crossing_parity
+                                        (high-literal-risk Dart/CFML source crosses the advisory score
+                                        threshold via enforcer-validator's run_fixture_parity oracle;
+                                        clean equivalent stays under and yields zero findings)
+- literal-scan-graceful-skip        -> bridge::tests::unrecognized_target_degrades_to_silence,
+                                        tests/bridge.rs::advisory_findings_are_nonblocking_and_unknown_targets_skip_gracefully
+                                        (a target the language registry cannot classify degrades to an
+                                        empty finding set rather than erroring; run stays exit-0-capable)
+- literal-scan-advisory-nonblocking (workpack's own wording for the same requirement)
+                                     -> bridge::tests::advisory_findings_never_promote_to_violation,
+                                        tests/bridge.rs::advisory_findings_are_nonblocking_and_unknown_targets_skip_gracefully
+                                        (every mapped finding carries Severity::Warning, never
+                                        Severity::Error; Violation::try_from is asserted to fail on
+                                        every finding this validator emits)
+- registry additive rows            -> bridge::tests::dart_and_cfml_extensions_are_registered
+                                        (.dart already registered by arc-13; .cfc/.cfm newly added by
+                                        this pack under a "coldfusion" LanguageFamily::Markup entry)
+- broken-validator negative case    -> bridge::tests::impossible_threshold_is_caught_as_silent_by_the_parity_oracle
+                                        (min_score=255 makes the validator effectively silent on the
+                                        fail fixture; run_fixture_parity fails closed, proving the
+                                        oracle itself would catch a broken/misconfigured bridge)
+
+=== cargo fmt -p enforcer-literal-scan --check ===
+(no output = clean)
+
+=== cargo clippy -p enforcer-literal-scan --all-targets -- -D warnings ===
+(clean; only pre-existing ts-rs serde-attribute-parse warnings from enforcer-domain, unrelated to
+this crate's own code)
+
+=== cargo build --workspace ===
+Finished `dev` profile [unoptimized + debuginfo] target(s) -- clean, no errors.

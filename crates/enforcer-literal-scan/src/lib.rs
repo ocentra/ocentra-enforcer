@@ -45,6 +45,7 @@ mod lexer_shell_scan;
 #[path = "risk-heuristics.rs"]
 mod risk_heuristics;
 
+mod bridge;
 mod discovery;
 mod languages;
 mod lexer;
@@ -151,6 +152,7 @@ const DEFAULT_IGNORED_FILE_SUFFIXES: &[&str] = &[
     ".duckdb",
 ];
 
+pub use bridge::LiteralScanBridgeValidator;
 pub use languages::language_registry;
 pub use models::{
     CliOptions, FileRole, Finding, IgnoredSummary, LanguageFamily, LanguageSpec, LiteralCandidate,

@@ -18,6 +18,7 @@ path = "src/main.rs"
 [dependencies]
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 
 [lints]
 workspace = true
