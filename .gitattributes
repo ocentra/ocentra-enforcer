@@ -21,3 +21,8 @@ Cargo.lock text eol=lf
 *.onnx  binary
 *.tpl   text eol=lf
 *.txt   text eol=lf
+# extensionless + fixture files (L17 tail: golden-byte tests need stable checkout EOL)
+pre-commit text eol=lf
+*.tpl text eol=lf
+crates/enforcer-install/tests/fixtures/** text eol=lf
+crates/enforcer-install/src/emitters/templates/** text eol=lf
