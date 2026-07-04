@@ -6,9 +6,12 @@
 //! `crates/enforcer-mcp/tests/stdio_smoke.rs`'s pattern of spawning the
 //! real binary rather than faking the process boundary.
 
+#[cfg(feature = "full")]
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::Command;
+#[cfg(feature = "full")]
+use std::process::Stdio;
 
 fn binary_path() -> Result<PathBuf, Box<dyn std::error::Error>> {
     let exe = std::env::current_exe()?;
@@ -180,6 +183,7 @@ fn help_never_advertises_a_bypass_flag() -> Result<(), Box<dyn std::error::Error
 /// same pattern `enforcer-mcp`'s own stdio smoke test uses against its
 /// throwaway smoke binary, run here against the PRODUCTION `enforcer
 /// serve` mode.
+#[cfg(feature = "full")]
 fn round_trip(
     stdin: &mut impl Write,
     stdout: &mut impl BufRead,
@@ -191,6 +195,40 @@ fn round_trip(
     let mut reply_line = String::new();
     stdout.read_line(&mut reply_line)?;
     Ok(serde_json::from_str(reply_line.trim_end())?)
+}
+
+/// `lite` builds must not merely HIDE `serve`/`coordination`/`ledger`
+/// from `--help` -- they must be absent from the compiled dependency
+/// graph. This test only proves the `--help` text (the cheapest
+/// process-boundary check available); the Cargo-graph exclusion itself is
+/// proven by the fact that this whole `tests/cli_integration.rs` binary
+/// compiles under `--no-default-features --features lite` with zero
+/// `enforcer-coordination` reference reachable (see `Cargo.toml`'s
+/// `full = ["enforcer-coordination"]` gate) -- if `coordination`/`ledger`
+/// leaked into the lite grammar, this crate would fail to link without
+/// the optional dependency.
+#[cfg(not(feature = "full"))]
+#[test]
+fn lite_help_omits_full_only_subcommands() -> Result<(), Box<dyn std::error::Error>> {
+    let binary = binary_path()?;
+    let output = Command::new(&binary).arg("--help").output()?;
+    let text = String::from_utf8_lossy(&output.stdout);
+    // Match each subcommand's own listing line (two-space-indented name at
+    // the start of a line, as clap renders its `Commands:` block), not a
+    // bare substring -- "serve" is also a substring of prose like
+    // "...only reserves the subcommand name...", which would otherwise
+    // false-positive this assertion against the `install` entry's help
+    // text.
+    for full_only in ["serve", "coordination", "ledger"] {
+        let listing_prefix = format!("  {full_only} ");
+        let listing_line = format!("  {full_only}\n");
+        assert!(
+            !text.contains(&listing_prefix) && !text.contains(&listing_line),
+            "lite build's top-level --help must never list the `{full_only}` subcommand \
+             (full-only subcommand leaked into a lite binary); help was:\n{text}"
+        );
+    }
+    Ok(())
 }
 
 #[cfg(feature = "full")]

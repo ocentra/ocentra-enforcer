@@ -29,6 +29,8 @@
 //!   flag anywhere in this crate — the only sanctioned exemption path is a
 //!   declarative, committed, gated waiver read through `enforcer-config`
 //!   (`enforcer_domain::findings::Report::waived`), never a CLI flag.
+//! - [`name`] — the TRANSITIONAL `BINARY_NAME` const (x01 owns the final
+//!   value), the CLI-side counterpart to `enforcer_mcp::name::SERVER_NAME`.
 //!
 //! # `lite`/`full` feature split (ONE source tree, DRY)
 //! `full` (default) pulls in `enforcer-coordination` and enables the
@@ -63,6 +65,7 @@ pub mod architecture;
 pub mod cli;
 pub mod commands;
 pub mod fix_hints;
+pub mod name;
 pub mod output;
 pub mod scope;
 pub mod verify;

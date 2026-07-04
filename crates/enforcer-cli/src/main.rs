@@ -38,7 +38,17 @@ fn run() -> ExitCode {
             // delegate to clap's own (already-audited) writer -- no new
             // print-sink is added here.
             let _ = err.print();
-            return ExitCode::UsageError;
+            // `--help`/`--version` surface through `try_parse`'s `Err`
+            // variant by clap's own design (so the caller can choose how
+            // to exit) -- they are NOT usage errors and must exit 0, the
+            // same as any other successful invocation. Only a genuine
+            // parse failure (unknown flag, missing/duplicate arg, an
+            // `ArgGroup` collision) is the `UsageError` class.
+            return if err.use_stderr() {
+                ExitCode::UsageError
+            } else {
+                ExitCode::Success
+            };
         }
     };
     dispatch(&cli.command)

@@ -1,0 +1,607 @@
+=== cargo test -p enforcer-cli (full, default features) ===
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "Finding", into = "Finding")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+   Compiling enforcer-cli v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-a98ca040f5a4c8bae\crates\enforcer-cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.82s
+     Running unittests src\lib.rs (target\debug\deps\enforcer_cli-b15fab7d0a05c4f0.exe)
+
+running 34 tests
+test advise::tests::any_other_target_is_a_hard_error ... ok
+test architecture::tests::rust_and_typescript_parse ... ok
+test cli::tests::check_with_all_parses ... ok
+test architecture::tests::unknown_language_is_an_error ... ok
+test cli::tests::base_head_and_paths_collision_is_a_clap_error ... ok
+test cli::tests::bare_architecture_without_check_is_a_usage_error ... ok
+test cli::tests::all_and_paths_collision_is_a_clap_error ... ok
+test cli::tests::advise_literals_parses ... ok
+test cli::tests::advise_other_target_is_a_usage_error ... ok
+test cli::tests::base_without_head_is_a_clap_error ... ok
+test cli::tests::all_and_base_head_collision_is_a_clap_error ... ok
+test cli::tests::check_with_explicit_paths_parses ... ok
+test advise::tests::literals_parses ... ok
+test cli::tests::ledger_is_a_visible_alias_of_coordination ... ok
+test fix_hints::tests::known_family_gets_a_specific_hint ... ok
+test cli::tests::verify_defaults_to_local_mode ... ok
+test commands::tests::current_repo_root_resolves_in_a_real_process ... ok
+test cli::tests::architecture_check_parses ... ok
+test cli::tests::check_with_base_head_parses ... ok
+test cli::tests::verify_mode_bogus_is_a_clap_error ... ok
+test name::tests::binary_name_is_non_empty ... ok
+test name::tests::binary_name_matches_the_clap_program_name ... ok
+test output::tests::rendered_finding_always_carries_a_fix_hint ... ok
+test fix_hints::tests::no_hint_ever_offers_a_bypass ... ok
+test fix_hints::tests::unknown_family_still_gets_a_terse_fallback_hint ... ok
+test scope::tests::all_mode_maps_through ... ok
+test scope::tests::diff_mode_maps_through ... ok
+test scope::tests::no_scope_at_all_is_a_usage_error ... ok
+test scope::tests::paths_mode_maps_through ... ok
+test verify::tests::default_is_local ... ok
+test verify::tests::every_known_mode_round_trips_through_display_and_from_str ... ok
+test verify::tests::empty_string_coerces_to_local ... ok
+test verify::tests::unknown_value_is_a_hard_parse_error ... ok
+test cli::tests::no_such_thing_as_an_override_flag ... ok
+
+test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\main.rs (target\debug\deps\enforcer-99239570b79aaaf7.exe)
+
+running 3 tests
+test tests::success_exit_code_maps_to_process_code_zero ... ok
+test tests::unwired_install_reports_internal_error_not_success ... ok
+test tests::advise_other_target_never_reaches_dispatch ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\cli_integration.rs (target\debug\deps\cli_integration-89934b1ca051657b.exe)
+
+running 14 tests
+error: invalid value 'bogus' for '--mode <MODE>'
+  [possible values: fast, local, ci, parent]
+
+For more information, try '--help'.
+test help_never_advertises_a_bypass_flag ... ok
+test verify_mode_bogus_is_a_usage_error_not_a_finding_exit_code ... ok
+enforcer advise literals: clean (0 literal(s) scanned).
+test advise_literals_parses_and_routes ... ok
+error: the argument '[PATHS]...' cannot be used with:
+  --base <BASE>
+  --head <HEAD>
+
+Usage: enforcer.exe check <PATHS>...
+
+For more information, try '--help'.
+test base_head_and_paths_collision_is_a_usage_error ... ok
+enforcer: usage error: no scope given: pass <paths...>, --all, or --base <sha> --head <sha>
+test no_scope_at_all_is_a_usage_error ... ok
+The architecture-policy / import-boundaries named-check family (`src/cli-checks.mjs` port). A bare `architecture` with no `check` token is a usage error -- the subcommand only, deliberately
+
+Usage: enforcer.exe architecture <COMMAND>
+
+Commands:
+  check  Run the architecture-policy/import-boundaries checks
+  help   Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+test architecture_bare_without_check_is_a_usage_error ... ok
+error: invalid value 'somethingElse' for '<TARGET>'
+  [possible values: literals]
+
+For more information, try '--help'.
+test advise_unknown_target_is_a_usage_error ... ok
+error: unexpected argument '--force' found
+
+  tip: to pass '--force' as a value, use '-- --force'
+
+Usage: enforcer.exe check --all [PATHS]...
+
+For more information, try '--help'.
+test serve_mode_responds_to_initialize_over_stdio ... ok
+error: unexpected argument '--no-verify' found
+
+  tip: to pass '--no-verify' as a value, use '-- --no-verify'
+
+Usage: enforcer.exe check --all [PATHS]...
+
+For more information, try '--help'.
+error: unexpected argument '--skip' found
+
+  tip: to pass '--skip' as a value, use '-- --skip'
+
+Usage: enforcer.exe check --all [PATHS]...
+
+For more information, try '--help'.
+error: unexpected argument '--bypass' found
+
+  tip: a similar argument exists: '--base'
+
+Usage: enforcer.exe check --all --base <BASE> [PATHS]...
+
+For more information, try '--help'.
+error: unexpected argument '--ignore-findings' found
+
+  tip: to pass '--ignore-findings' as a value, use '-- --ignore-findings'
+
+Usage: enforcer.exe check --all [PATHS]...
+
+For more information, try '--help'.
+test there_is_no_override_flag_on_the_real_binary ... ok
+enforcer: no violations (0 finding(s) total).
+enforcer: 1 violation(s), 0 warning(s), 0 waived.
+  [error] src/lib.rs:1 T1-RUSTERR.1 -- rust-error-handling: `unwrap` in first-party code
+    Fix: replace unwrap()/expect()/panic! with a typed Result and `?`.
+enforcer: no violations (0 finding(s) total).
+test pass_fixture_all_mode_exits_zero ... ok
+test fail_fixture_paths_mode_exits_non_zero_with_violations_class ... ok
+test pass_fixture_paths_mode_exits_zero ... ok
+enforcer: no violations (0 finding(s) total).
+test base_head_mode_parses_and_routes ... ok
+enforcer: 1 violation(s), 0 warning(s), 0 waived.
+  [error] src/lib.rs:1 T1-RUSTERR.1 -- rust-error-handling: `unwrap` in first-party code
+    Fix: replace unwrap()/expect()/panic! with a typed Result and `?`.
+test fail_fixture_all_mode_exits_non_zero ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+   Doc-tests enforcer_cli
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+=== cargo test -p enforcer-cli --no-default-features --features lite ===
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "Finding", into = "Finding")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+   Compiling enforcer-cli v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-a98ca040f5a4c8bae\crates\enforcer-cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.22s
+     Running unittests src\lib.rs (target\debug\deps\enforcer_cli-25b96cb592be54c4.exe)
+
+running 33 tests
+test advise::tests::any_other_target_is_a_hard_error ... ok
+test architecture::tests::rust_and_typescript_parse ... ok
+test architecture::tests::unknown_language_is_an_error ... ok
+test advise::tests::literals_parses ... ok
+test cli::tests::advise_literals_parses ... ok
+test cli::tests::check_with_all_parses ... ok
+test cli::tests::base_without_head_is_a_clap_error ... ok
+test cli::tests::bare_architecture_without_check_is_a_usage_error ... ok
+test cli::tests::advise_other_target_is_a_usage_error ... ok
+test cli::tests::all_and_base_head_collision_is_a_clap_error ... ok
+test cli::tests::base_head_and_paths_collision_is_a_clap_error ... ok
+test cli::tests::all_and_paths_collision_is_a_clap_error ... ok
+test cli::tests::architecture_check_parses ... ok
+test cli::tests::check_with_base_head_parses ... ok
+test cli::tests::check_with_explicit_paths_parses ... ok
+test fix_hints::tests::known_family_gets_a_specific_hint ... ok
+test fix_hints::tests::unknown_family_still_gets_a_terse_fallback_hint ... ok
+test fix_hints::tests::no_hint_ever_offers_a_bypass ... ok
+test cli::tests::verify_defaults_to_local_mode ... ok
+test commands::tests::current_repo_root_resolves_in_a_real_process ... ok
+test cli::tests::verify_mode_bogus_is_a_clap_error ... ok
+test name::tests::binary_name_is_non_empty ... ok
+test name::tests::binary_name_matches_the_clap_program_name ... ok
+test output::tests::rendered_finding_always_carries_a_fix_hint ... ok
+test cli::tests::no_such_thing_as_an_override_flag ... ok
+test scope::tests::all_mode_maps_through ... ok
+test scope::tests::diff_mode_maps_through ... ok
+test scope::tests::no_scope_at_all_is_a_usage_error ... ok
+test scope::tests::paths_mode_maps_through ... ok
+test verify::tests::default_is_local ... ok
+test verify::tests::empty_string_coerces_to_local ... ok
+test verify::tests::every_known_mode_round_trips_through_display_and_from_str ... ok
+test verify::tests::unknown_value_is_a_hard_parse_error ... ok
+
+test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\main.rs (target\debug\deps\enforcer-8ce783b32fb9f6de.exe)
+
+running 3 tests
+test tests::success_exit_code_maps_to_process_code_zero ... ok
+test tests::unwired_install_reports_internal_error_not_success ... ok
+test tests::advise_other_target_never_reaches_dispatch ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\cli_integration.rs (target\debug\deps\cli_integration-d3a14ec4facac1e2.exe)
+
+running 14 tests
+test lite_help_omits_full_only_subcommands ... ok
+test help_never_advertises_a_bypass_flag ... ok
+enforcer advise literals: clean (0 literal(s) scanned).
+error: invalid value 'somethingElse' for '<TARGET>'
+  [possible values: literals]
+
+For more information, try '--help'.
+test advise_literals_parses_and_routes ... ok
+test advise_unknown_target_is_a_usage_error ... ok
+error: the argument '[PATHS]...' cannot be used with:
+  --base <BASE>
+  --head <HEAD>
+
+Usage: enforcer.exe check <PATHS>...
+
+For more information, try '--help'.
+test base_head_and_paths_collision_is_a_usage_error ... ok
+enforcer: usage error: no scope given: pass <paths...>, --all, or --base <sha> --head <sha>
+test no_scope_at_all_is_a_usage_error ... ok
+The architecture-policy / import-boundaries named-check family (`src/cli-checks.mjs` port). A bare `architecture` with no `check` token is a usage error -- the subcommand only, deliberately
+
+Usage: enforcer.exe architecture <COMMAND>
+
+Commands:
+  check  Run the architecture-policy/import-boundaries checks
+  help   Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help  Print help
+test architecture_bare_without_check_is_a_usage_error ... ok
+error: unexpected argument '--force' found
+
+  tip: to pass '--force' as a value, use '-- --force'
+
+Usage: enforcer.exe check --all [PATHS]...
+
+For more information, try '--help'.
+error: invalid value 'bogus' for '--mode <MODE>'
+  [possible values: fast, local, ci, parent]
+
+For more information, try '--help'.
+test verify_mode_bogus_is_a_usage_error_not_a_finding_exit_code ... ok
+error: unexpected argument '--no-verify' found
+
+  tip: to pass '--no-verify' as a value, use '-- --no-verify'
+
+Usage: enforcer.exe check --all [PATHS]...
+
+For more information, try '--help'.
+error: unexpected argument '--skip' found
+
+  tip: to pass '--skip' as a value, use '-- --skip'
+
+Usage: enforcer.exe check --all [PATHS]...
+
+For more information, try '--help'.
+error: unexpected argument '--bypass' found
+
+  tip: a similar argument exists: '--base'
+
+Usage: enforcer.exe check --all --base <BASE> [PATHS]...
+
+For more information, try '--help'.
+error: unexpected argument '--ignore-findings' found
+
+  tip: to pass '--ignore-findings' as a value, use '-- --ignore-findings'
+
+Usage: enforcer.exe check --all [PATHS]...
+
+For more information, try '--help'.
+enforcer: 1 violation(s), 0 warning(s), 0 waived.
+  [error] src/lib.rs:1 T1-RUSTERR.1 -- rust-error-handling: `unwrap` in first-party code
+    Fix: replace unwrap()/expect()/panic! with a typed Result and `?`.
+test there_is_no_override_flag_on_the_real_binary ... ok
+test fail_fixture_all_mode_exits_non_zero ... ok
+enforcer: no violations (0 finding(s) total).
+test pass_fixture_paths_mode_exits_zero ... ok
+enforcer: no violations (0 finding(s) total).
+enforcer: no violations (0 finding(s) total).
+test base_head_mode_parses_and_routes ... ok
+test pass_fixture_all_mode_exits_zero ... ok
+enforcer: 1 violation(s), 0 warning(s), 0 waived.
+  [error] src/lib.rs:1 T1-RUSTERR.1 -- rust-error-handling: `unwrap` in first-party code
+    Fix: replace unwrap()/expect()/panic! with a typed Result and `?`.
+test fail_fixture_paths_mode_exits_non_zero_with_violations_class ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.20s
+
+   Doc-tests enforcer_cli
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+=== cargo clippy -p enforcer-cli --all-targets (full) ===
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "Finding", into = "Finding")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.17s
+
+=== cargo clippy -p enforcer-cli --all-targets --no-default-features --features lite ===
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "Finding", into = "Finding")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.10s
+
+=== cargo fmt -p enforcer-cli --check ===
+(fmt exit code: 0)
