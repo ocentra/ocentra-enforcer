@@ -1,0 +1,29 @@
+[package]
+name = "enforcer-mcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "The Rust stdio MCP server (arc-21): transport (dual Content-Length/NDJSON framing) + consolidated tool registry + router that dispatches every ocentra_enforcer_*/rust_rules_* tool to the engine crates (enforcer-scan/-coordination/-proof/-harness). No business logic; typed I/O via enforcer-domain, camelCase wire casing."
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+sha2 = { workspace = true }
+enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
+enforcer-rules = { path = "../enforcer-rules", version = "0.1.0" }
+enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
+enforcer-scan = { path = "../enforcer-scan", version = "0.1.0" }
+enforcer-coordination = { path = "../enforcer-coordination", version = "0.1.0" }
+enforcer-proof = { path = "../enforcer-proof", version = "0.1.0" }
+enforcer-harness = { path = "../enforcer-harness", version = "0.1.0" }
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true
