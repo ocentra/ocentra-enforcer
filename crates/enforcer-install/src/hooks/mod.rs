@@ -5,6 +5,7 @@
 //! artifacts (see that module's doc comment).
 //!
 //! # Ownership (mount-point deviation)
+//!
 //! This barrel file is not in any single workpack's `owns:` line the same
 //! way [`crate::emitters`] is not: c04 owns `pretooluse.rs`, c05 owns
 //! `sessionstart.rs`, and both packs add ONLY their own `pub mod` line here
@@ -13,6 +14,7 @@
 //! it carries) is the single source of truth both hooks read from, so the
 //! PreToolUse deny reason and the SessionStart reminder can never drift
 //! against each other.
+pub mod pretooluse;
 pub mod sessionstart;
 
 /// Tier token embedded verbatim in [`DOCTRINE_TEXT`] — a hard/deterministic
@@ -72,18 +74,8 @@ mod tests {
         assert!(DOCTRINE_TEXT.contains(TIER_T3_TOKEN));
     }
 
+    #[test]
     fn doctrine_text_names_the_enforcer_first_marker() {
         assert!(DOCTRINE_TEXT.starts_with("Enforcer-first"));
-//! Claude Code hook EMITTERS (arc-23 Track C). Each module here is owned
-//! by its own workpack -- c04 `pretooluse` (this pack), c05 `sessionstart`
-//! (sequenced concurrently, disjoint file). Both are Rust modules that
-//! produce structured hook-config records for the c03 [`crate::adapters::claude::ClaudeAdapter`]
-//! to register through the c01 `apply` path; NEITHER emits a `.ts`/`.mjs`
-//! hook script -- the hook body IS this crate's compiled logic, invoked at
-//! runtime via the emitted config's `command` (the installed `enforcer`
-//! binary itself, never a second interpreted script).
-//! This `mod.rs` only wires the module tree; it does not itself implement
-//! a hook.
-
-pub mod pretooluse;
-
+    }
+}
