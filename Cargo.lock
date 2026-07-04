@@ -147,6 +147,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "enforcer-lang-ts"
+version = "0.1.0"
+dependencies = [
+ "enforcer-core",
+ "enforcer-domain",
+ "enforcer-validator",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "enforcer-mechanization"
 version = "0.1.0"
 dependencies = [
