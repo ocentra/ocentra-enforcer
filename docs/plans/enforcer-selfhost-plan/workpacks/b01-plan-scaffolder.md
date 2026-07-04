@@ -12,27 +12,28 @@
 > Proof rule: Before DONE, select tests in TEST_PROOF_EXPECTATIONS.md and update proof rows.
 <!-- /agent-capsule -->
 
-- owns: `src/plan/scaffolder/**, src/plan/skeleton-templates/**, test/plan/scaffolder.*.test.ts`
-- deps: `none`
-- tier: `P1`
+- owns: `crates/enforcer-plan/src/scaffolder.rs, crates/enforcer-plan/tests/fixtures/scaffolder/**`
+- deps: `arc-20-enforcer-plan`
+- tier: `P1 T1`
 
-Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md).
+Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [RUST_ARCHITECTURE](../RUST_ARCHITECTURE.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md).
 
 ## Where We Are
-Plans today are hand-assembled: someone copies a prior plan dir, hand-edits the capsule, and hopes the skeleton matches. There is no `ocentra plan new` command and no single source of the OcentraParent skeleton, so drift between plans is guaranteed and unprovable.
+Plans today are hand-assembled: someone copies a prior plan dir, hand-edits the capsule, and hopes the skeleton matches. There is no `enforcer plan new` command and no single source of the OcentraParent skeleton, so drift between plans is guaranteed and unprovable. arc-20 stands up the `enforcer-plan` crate skeleton (`Cargo.toml`/`lib.rs`/module root/`Validator` registration) but nothing inside it deterministically emits a plan directory. This pack owns the `src/scaffolder.rs` module plus its `cargo test` fixtures — it does NOT own the whole `enforcer-plan` crate.
 
 ## Where We Want To Be
-A deterministic emitter: `ocentra plan new <name>` writes a complete, byte-stable plan skeleton (PLAN_STATE, PLAN_EXECUTION_BLUEPRINT, TEST_PROOF_EXPECTATIONS, WORKPACK_INDEX, capsule-stamped workpack stub) that b02 validates green.
+A deterministic emitter in `enforcer-plan` (arc-20): `enforcer plan new <name>` (a `scaffolder` module driven by the `enforcer-cli`/`enforcer-mcp` surface) writes a complete, byte-stable plan skeleton (PLAN_STATE, PLAN_EXECUTION_BLUEPRINT, TEST_PROOF_EXPECTATIONS, WORKPACK_INDEX, capsule-stamped workpack stub) rendered from b03's template assets under `crates/enforcer-plan/templates/`, and that b02's PLAN-* `Validator` validates green. Emitted names route through `enforcer-domain` branded newtypes (parse-at-boundary), never bare `String`.
 
 ## Requirement Checklist
-- [ ] `ocentra plan new <name>` CLI subcommand emits the full directory tree under `docs/plans/<name>/`.
-- [ ] Every emitted file carries the exact agent-capsule block and required frontmatter (owns/deps/tier).
-- [ ] Emission is deterministic: same `<name>` yields byte-identical output (golden fixture).
-- [ ] Refuses to overwrite an existing plan dir (fail-closed) unless `--force`.
-- [ ] Emitted skeleton passes b02's PLAN-* validator with zero findings.
+- [ ] `enforcer plan new <name>` emits the full directory tree under `docs/plans/<name>/` via the `scaffolder` module in `enforcer-plan`.
+- [ ] Every emitted file carries the exact agent-capsule block and required frontmatter (owns/deps/tier), rendered from b03's `crates/enforcer-plan/templates/` assets (no inline duplicate of the capsule literal).
+- [ ] Emission is deterministic: same `<name>` yields byte-identical output (golden fixture under `crates/enforcer-plan/tests/fixtures/scaffolder/`).
+- [ ] Refuses to overwrite an existing plan dir (fail-closed) unless `--force`; the plan name parses into an `enforcer-domain` newtype before any I/O.
+- [ ] Emitted skeleton passes b02's PLAN-* `Validator` with zero `Finding`s.
+- [ ] Obeys `[workspace.lints]` (no `unwrap`/`expect`/`panic`/`print_*`); no `pub use` barrels.
 
 ## Acceptance And Proof
-Tier T1 / P1. Proof: `test/plan/scaffolder.emit.test.ts` diffs emitter output against a checked-in golden tree fixture (`test/fixtures/plan-golden/**`); `scaffolder.determinism.test.ts` runs the emitter twice and asserts identical bytes; a cross-check test feeds emitted output to b02's validator entrypoint and asserts zero findings. Name these in TEST_PROOF_EXPECTATIONS.md proof rows before DONE.
+Tier T1 / P1, Rust-native (`cargo test`). Prove via `cargo test -p enforcer-plan` over `crates/enforcer-plan/tests/fixtures/scaffolder/**`: an emit test diffs emitter output against a checked-in golden tree fixture; a determinism test runs the emitter twice and asserts identical bytes; a cross-check test feeds emitted output to b02's validator entrypoint (`#[test]` invoking the PLAN-* `Validator`) and asserts zero `Finding`s. Name these detection tests in TEST_PROOF_EXPECTATIONS.md proof rows before DONE.
 
 ## Parallel Ownership Notes
-Blocks nothing directly but b02 and b05 consume its golden fixture and validator cross-check. Its owns: set (scaffolder + skeleton-templates + its tests) is disjoint from b02 (validator src) and b03 (capsule/index template text), so all three run concurrently; the only shared artifact is the golden fixture, produced here and read-only elsewhere.
+Deps `arc-20-enforcer-plan` (which owns the crate skeleton — `Cargo.toml`/`lib.rs`/module root/`Validator` registration), sequenced after that skeleton exists. Blocks nothing directly, but b02 and b05 consume its golden fixture and validator cross-check, and it renders from b03's template assets read-only. Owns only `crates/enforcer-plan/src/scaffolder.rs` + `crates/enforcer-plan/tests/fixtures/scaffolder/**`, disjoint by file from b02 (validator module), b03 (`templates/` assets), b04 (orchestrator module), b05 (skill/command), and d25 (verify-gates module) inside the same arc-20 crate — the only shared artifact is the golden fixture, produced here and read-only elsewhere, so all run concurrently once arc-20 lands.

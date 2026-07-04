@@ -12,27 +12,27 @@
 > Proof rule: Before DONE, select tests in TEST_PROOF_EXPECTATIONS.md and update proof rows.
 <!-- /agent-capsule -->
 
-- owns: `src/harness-feedback.ts, src/harness-feedback-classify.ts, tests/harness-feedback.test.mjs, tests/fixtures/harness-feedback/**`
-- deps: `d01-rule-mechanization-engine`
+- owns: `crates/enforcer-mechanization/src/feedback.rs, crates/enforcer-mechanization/src/feedback/classify.rs, crates/enforcer-mechanization/tests/feedback.rs, crates/enforcer-mechanization/tests/fixtures/feedback/**`
+- deps: `d01-rule-mechanization-engine, arc-14-enforcer-mechanization`
 - tier: `P1 unit`
 
-Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md).
+Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md), [RUST_ARCHITECTURE](../RUST_ARCHITECTURE.md).
 
 ## Where We Are
-When a harness surfaces an escaped defect, the lesson dies in a chat log. The enforcer parses harness output (`src/harness.mjs`, `src/harness-parsers*.mjs`) but never turns a failure into a candidate rule. ADBP's "close the loop" is prose.
+When a harness surfaces an escaped defect, the lesson dies in a chat log. `enforcer-harness` (arc-18) parses native-tool output into `enforcer-domain` diagnostics but never turns a failure into a candidate rule, and `enforcer-mechanization` (arc-14, the d01 scaffolder) is not yet fed by those failures. ADBP's "close the loop" is prose.
 
 ## Where We Want To Be
-A pipeline that ingests harness failures, classifies each as preventable (could have been a static rule) vs detect-only, and for preventable ones auto-scaffolds a PROPOSED validator via the d01 engine.
+A feedback module in `enforcer-mechanization` that ingests harness failure diagnostics, classifies each as preventable (could have been a static `Validator`) vs detect-only, and for preventable ones auto-scaffolds a PROPOSED rule record via the d01 scaffolder in the same crate.
 
 ## Requirement Checklist
-- [ ] Ingest structured harness failures (reuse existing `harness-parsers*` shapes).
-- [ ] Classify each failure into `prevent` vs `detect` via explicit signal rules (mechanical, not vibe).
-- [ ] For `prevent`, call d01 `rule new` to scaffold a validator/doc/fixtures marked status `PROPOSED`.
-- [ ] PROPOSED rules do not gate builds until reviewed/promoted; status is machine-readable in the registry.
-- [ ] Classification decisions logged to d04 telemetry with the input fingerprint.
+- [ ] Ingest structured harness failures as typed `enforcer-domain` diagnostics (reuse the `enforcer-harness` parse output shapes).
+- [ ] Classify each failure into `prevent` vs `detect` via explicit signal rules encoded in Rust (mechanical match on diagnostic fields, not vibe).
+- [ ] For `prevent`, call the d01 scaffolder (this crate's `scaffold`) to emit a `Validator` stub + doc anchor + fail/pass fixtures in an `enforcer-rules` record with a machine-readable `status = Proposed` (a `Tier`/status field on the rule record, not prose).
+- [ ] PROPOSED rules do not gate builds until reviewed/promoted; the status is a typed enum in the registry so the scan engine can skip them.
+- [ ] Classification decisions logged as d04 telemetry records (versioned serde struct in `enforcer-domain`) carrying the input `Sha256` fingerprint, appended via the `enforcer-core` NDJSON sink.
 
 ## Acceptance And Proof
-Tier T1 (P1 unit). Prove via `tests/harness-feedback.test.mjs` over `tests/fixtures/harness-feedback/**`: a preventable failure produces a PROPOSED registry row + fixtures passing d01 parity; a detect-only failure produces none; PROPOSED rules are non-blocking. Mechanism: classifier over parsed failure fields feeding the d01 scaffolder, asserted by resulting registry state.
+Tier T1 (P1 unit). Prove via `cargo test -p enforcer-mechanization` (`crates/enforcer-mechanization/tests/feedback.rs`) over `crates/enforcer-mechanization/tests/fixtures/feedback/**`: a preventable failure produces a PROPOSED registry record + fixtures that pass the d01 parity oracle; a detect-only failure produces none; PROPOSED rules are non-blocking in a scan. Mechanism: a classifier over parsed failure fields feeding the d01 scaffolder, asserted by the resulting registry state.
 
 ## Parallel Ownership Notes
-Depends on d01 (scaffolder). Feeds d10 (auditor). Owns disjoint feedback files, concurrent with d06/d07.
+Depends on d01 (the scaffolder + parity oracle in this same crate) and arc-14 for the `enforcer-mechanization` crate skeleton. Owns only `src/feedback.rs`, its `src/feedback/classify.rs` submodule, and the `tests/fixtures/feedback/**` fixtures inside `enforcer-mechanization` — disjoint from d01's `scaffold.rs`/`parity.rs` and the arc-14 skeleton by file, sequenced after them. Feeds d10 (auditor). owns disjoint? = Y (deps d01 + arc-14 sequence it after the scaffolder and crate skeleton exist).

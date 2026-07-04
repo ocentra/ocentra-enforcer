@@ -12,36 +12,36 @@
 > Proof rule: Before DONE, select tests in TEST_PROOF_EXPECTATIONS.md and update proof rows.
 <!-- /agent-capsule -->
 
-- owns: `src/install/adapters/{antigravity,windsurf,opencode,aider,kilocode,kiro}.*`
-- deps: `c01-install-core-and-cli-contract, c02-harness-autodetect`
+- owns: `crates/enforcer-install/src/adapters/antigravity.rs, crates/enforcer-install/src/adapters/windsurf.rs, crates/enforcer-install/src/adapters/opencode.rs, crates/enforcer-install/src/adapters/aider.rs, crates/enforcer-install/src/adapters/kilocode.rs, crates/enforcer-install/src/adapters/kiro.rs, crates/enforcer-install/tests/fixtures/remaining/**`
+- deps: `c01-install-core-and-cli-contract, c02-harness-autodetect, arc-23`
 - tier: `P5 install-proof`
 
-Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md).
+Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md), [RUST_ARCHITECTURE](../RUST_ARCHITECTURE.md).
 
 ## Where We Are
-The Track C adapters cover Claude (c03), Codex (c06), generic (c07), and gemini/cursor/zed (c08). But codebase-memory supports six more harnesses the plan currently omits entirely: Antigravity, Windsurf, OpenCode, Aider, KiloCode, Kiro. There is no adapter, no autodetect entry, and no doctor coverage for any of them, so enforcer cannot self-register into those harnesses.
+The Track C adapters cover Claude (c03), Codex (c06), generic (c07), and gemini/cursor/zed (c08). But codebase-memory supports six more harnesses the plan currently omits entirely: Antigravity, Windsurf, OpenCode, Aider, KiloCode, Kiro. There is no adapter module, no autodetect entry, and no doctor coverage for any of them, so `enforcer install` cannot self-register into those harnesses.
 
 ## Where We Want To Be
-Six real adapters over the c01 interface (`plan/apply/verify`), each writing its NATIVE MCP registration format idempotently, surfaced by c02 autodetect and verified by the shared doctor. With c03+c06+c07+c08+this, all 11 harnesses are covered. Native surfaces:
-- **Antigravity**: detect `~/.gemini/antigravity-cli`; write MCP entry into `~/.gemini/config/mcp_config.json`.
+Six real adapter modules implementing the arc-23 `Adapter` trait (`plan`/`apply`/`verify`), each writing its NATIVE MCP registration format idempotently (registering the `enforcer` binary as the stdio MCP server), surfaced by c02 autodetect and verified by the c07 shared doctor. With c03+c06+c07+c08+this, all 11 harnesses are covered. Native surfaces:
+- **Antigravity**: detect `~/.gemini/antigravity-cli`; upsert MCP entry into `~/.gemini/config/mcp_config.json` (`serde_json`).
 - **Windsurf**: upsert `mcpServers` JSON (`~/.codeium/windsurf/mcp_config.json`).
 - **KiloCode**: VS Code `globalStorage/kilocode.kilo-code` MCP settings JSON.
 - **Kiro**: `~/.kiro` MCP config.
-- **OpenCode / Aider**: CLI-shim / CLI detected; if no MCP config surface exists, detect+document (emit a T3-labeled `deferred: no mcp surface` verify check, write nothing).
+- **OpenCode / Aider**: CLI-shim / CLI detected; if no MCP config surface exists, detect+document (emit a T3-labeled `deferred: no mcp surface` verify `Check`, write nothing).
 
 ## Requirement Checklist
-- [ ] Each adapter implements `plan/apply/verify` and registers in the c01 registry so c02 autodetect surfaces it.
-- [ ] JSON-config harnesses (antigravity, windsurf, kilocode, kiro) upsert the `enforcer` server entry idempotently (second apply = no diff).
-- [ ] CLI-only harnesses (opencode, aider) detect the binary and, absent an MCP surface, return a T3 `deferred` verify check writing zero files.
-- [ ] Absent harness -> `verify` returns `skipped:not-detected` (honest, never silent).
-- [ ] Shared doctor re-reads disk and reports per-adapter pass/fail.
+- [ ] Each adapter implements the `Adapter` trait (`plan`/`apply`/`verify`) and registers in the arc-23 registry (keyed by `AdapterId`) so c02 autodetect surfaces it.
+- [ ] JSON-config harnesses (antigravity, windsurf, kilocode, kiro) upsert the `enforcer` server entry idempotently via `serde_json` value edits (second apply = no diff), preserving unrelated keys.
+- [ ] CLI-only harnesses (opencode, aider) detect the binary via `enforcer-harness` (arc-18) and, absent an MCP surface, return a `Tier::T3` `deferred` verify `Check` writing zero files.
+- [ ] Absent harness -> `verify` returns `Status::Skipped` with reason `not-detected` (honest, never silent).
+- [ ] The c07 shared doctor re-reads disk and reports per-adapter pass/fail; modules obey `[workspace.lints]` (no `unwrap`/`expect`/`panic`/`print_*`, no `pub use` barrels).
 
 ## Acceptance And Proof
-P5 install-proof (`remaining-harness-adapters` in TEST_PROOF_EXPECTATIONS.md). For each of the six adapters:
-- **fail fixture**: harness present but server entry missing/renamed on disk -> `verify` reports the named failing check.
-- **pass fixture**: apply against a temp-home fixture yields the correct native config; re-reading matches the golden; a second apply is byte-identical (idempotent).
-- **not-detected fixture**: no harness marker -> `skipped:not-detected`, zero writes.
-- **detection test** (`remaining-adapters-detect`): autodetect enumerates all six ids and doctor aggregates their checks. CLI-only pair additionally asserts the `deferred` T3 label with a stated reason.
+P5 install-proof (`remaining-harness-adapters` in TEST_PROOF_EXPECTATIONS.md), proved by `cargo test -p enforcer-install`. Fixtures live under `crates/enforcer-install/tests/fixtures/remaining/`. For each of the six adapters:
+- **fail fixture**: harness present but server entry missing/renamed on disk -> `verify` reports the named failing `Check`.
+- **pass fixture**: `apply` against a temp-home fixture yields the correct native config; re-reading matches the golden; a second `apply` is byte-identical (idempotent).
+- **not-detected fixture**: no harness marker -> `Status::Skipped` (`not-detected`), zero writes.
+- **detection test** (`remaining-adapters-detect`): autodetect enumerates all six `AdapterId`s and doctor aggregates their checks. The CLI-only pair additionally asserts the `Tier::T3` `deferred` label with a stated reason.
 
 ## Parallel Ownership Notes
-Owns only the six new adapter files under `src/install/adapters/` — disjoint from c03/c06/c07/c08. Depends on c01 (interface/core) and c02 (autodetect). Runs concurrently with all other Track C adapter packs.
+Owns only the six new adapter modules under `crates/enforcer-install/src/adapters/` (+ `tests/fixtures/remaining/**`) — disjoint by file from c03/c06/c07/c08; the crate skeleton, trait, and registry belong to arc-23. Depends on c01 (interface/core), c02 (autodetect), and arc-23. Runs concurrently with all other Track C adapter packs. owns disjoint? = Y

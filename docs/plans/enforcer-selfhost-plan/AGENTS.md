@@ -14,14 +14,25 @@
 
 This is the binding contract. If anything below conflicts with a single workpack's prose, **this contract and the DOCTRINE win**.
 
+The engine is **pure Rust** — a Cargo workspace of 28 crates (see [RUST_ARCHITECTURE.md](./RUST_ARCHITECTURE.md)). The only TypeScript is the `enforcer-ui` Tauri/web frontend. Proof is `cargo test -p <crate>` + fail/pass fixtures + `clippy`/`fmt --check`/`deny`/`audit` — **never** `tsc`/`jest`/typecheck. There is no `.mjs`/TS-engine/Effect-Schema/eslint-as-our-linter residue in what you build. Execution follows [EXECUTION_MODEL.md](./EXECUTION_MODEL.md): a bootstrap-safe worktree, an orchestrator, and per-workpack workers.
+
 ## Read order (do this, in this order, then stop)
 
-1. **`PLAN_STATE.md`** — scope, resume route, what is present, open gaps. Orients you.
-2. **`NEXT_ACTIONS.md`** — the ordered ready-now frontier. Confirms what is claimable.
-3. **`WORKPACK_INDEX.md`** — the status table. Locate your single assigned workpack, confirm its Track, `owns` disjointness, and tier.
-4. **The ONE assigned workpack** under `workpacks/`, plus its rows in **`TEST_PROOF_EXPECTATIONS.md`**.
+1. **`EXECUTION_MODEL.md`** — how the build runs (bootstrap-safe worktree, orchestrator + worker swarm, coordination hub). Sets the operating frame.
+2. **`PLAN_STATE.md`** — scope, resume route, what is present, open gaps. Orients you.
+3. **`NEXT_ACTIONS.md`** — the ordered ready-now frontier. Confirms what is claimable.
+4. **`WORKPACK_INDEX.md`** — the status table (107 workpacks). Locate your single assigned workpack, confirm its Track, `owns` disjointness, and tier.
+5. **The ONE assigned workpack** under `workpacks/`, plus its rows in **`TEST_PROOF_EXPECTATIONS.md`**.
 
-Do not read sibling workpacks. Do not read the full narrative to "get context." Your capsule + these four files are sufficient.
+Do not read sibling workpacks. Do not read the full narrative to "get context." Your capsule + these files are sufficient.
+
+## Orchestration model (per EXECUTION_MODEL.md)
+
+- **Bootstrap-safe worktree.** All crate work happens in a SEPARATE git worktree + branch (`git worktree add ../enforcer-rust -b rust-engine`). `main` and the installed `.mjs` MCP stay pinned and live throughout the rebuild; the MCP is swapped to the Rust binary only after the `z01` dogfood gate is green. Workers operate on ABSOLUTE paths inside the one shared `../enforcer-rust` worktree — no per-agent ephemeral worktrees.
+- **Orchestrator.** A high-capability model (Fable 5) drives. It reads `WORKPACK_INDEX.md`, takes the dependency-free frontier of disjoint-`owns:` workpacks, and spawns workers. It does not hand-write crate code beyond trivial glue.
+- **Workers.** One worker per disjoint workpack — **Sonnet / Haiku / Opus**, reasoning matched to difficulty (Haiku for mechanical, Sonnet for standard crate builds, Opus for hard validator/parity/security work). Within a workpack, further disjoint sub-units may run in parallel.
+- **Coordination hub.** Each worker takes a lane (`<agent>-<wp>`), `claim`s its `owns:` globs, `guard`s before write, posts `intent` on any unavoidable overlap (intent-queue serializes via mail), and `closeout`s when its proof is green. Disjoint-`owns:` + no dep edge ⇒ safe parallel by construction. If the coordination MCP refuses writes as stale (`writeCompatible:false`), restart/reload it (or use the `ocentra_enforcer_run` CLI fallback) before claiming.
+- **Consumer contract.** BOTH MCP and CLI are first-class surfaces of the `enforcer` binary; neither is secondary.
 
 ## DOCTRINE you must uphold (T1 / T2 / T3)
 
@@ -44,7 +55,7 @@ If your workpack's requirement can be mechanized, mechanize it. Dragging an ADBP
 
 - Touch any file outside your `owns:` set. If you need a change in another pack's scope, file it via the intent-queue; do not edit across the boundary.
 - Open or "fix" sibling workpacks.
-- Move product / plan status on the strength of prose, a green typecheck alone, or a partial run.
+- Move product / plan status on the strength of prose, a green `cargo build`/`cargo check` alone, or a partial run.
 - Weaken a gate to make it pass. Waivers (see `a08`) are the only sanctioned exception, and they must be honest and named.
 - Ship a rule/borrow as prose when it could be a T1/T2 check.
 
@@ -62,7 +73,7 @@ If your workpack's requirement can be mechanized, mechanize it. Dragging an ADBP
 A workpack is DONE only when **all** hold:
 
 - Every item in its Requirement Checklist is satisfied.
-- Its named tests/validators in `TEST_PROOF_EXPECTATIONS.md` are green at the required proof tier (P0–P5) for its type.
+- Its named tests/validators in `TEST_PROOF_EXPECTATIONS.md` are green at the required proof tier (P0–P5) for its type — proven by `cargo test -p <crate>` + fail/pass fixtures + `clippy`/`fmt --check`/`deny`/`audit`, not a typecheck.
 - Its proof rows are updated with the real artifact paths / exit codes.
 - Its `owns:` set is the only thing changed; disjointness held.
 - Its row in `WORKPACK_INDEX.md` is flipped to DONE with the proof reference.

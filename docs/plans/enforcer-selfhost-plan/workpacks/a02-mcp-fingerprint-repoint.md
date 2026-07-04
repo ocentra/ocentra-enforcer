@@ -12,26 +12,27 @@
 > Proof rule: Before DONE, select tests in TEST_PROOF_EXPECTATIONS.md and update proof rows.
 <!-- /agent-capsule -->
 
-- owns: `mcp/rust-rules-mcp-fingerprint.mjs`, `mcp/rust-rules-mcp-helpers.mjs`
-- deps: `a01`
+- owns: `crates/enforcer-mcp/src/fingerprint.rs`
+- deps: `a01`, `a05`
 - tier: `P3`
 
-Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md).
+Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [RUST_ARCHITECTURE](../RUST_ARCHITECTURE.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md).
 
 ## Where We Are
-`mcp/rust-rules-mcp-helpers.mjs` holds `MCP_FINGERPRINT_FILES` (a hardcoded list of source `.mjs` paths, ~10 entries) consumed by `buildMcpFingerprint` in `mcp/rust-rules-mcp-fingerprint.mjs`. Once sources compile to `dist/`, the running MCP loads built artifacts but fingerprints stale source paths, so restart-detection no longer reflects what is actually executing.
+The legacy MCP fingerprint hashed a hardcoded list of ~10 source `.mjs` paths (`MCP_FINGERPRINT_FILES`) to power restart/freshness detection. In the Rust engine the MCP server is the compiled `enforcer` binary itself (`enforcer-mcp` on stdio), so a frozen list of `.mjs` source paths is meaningless — it describes neither what is executing nor what changed. The freshness/restart signal must be derived from the actually-running binary.
 
 ## Where We Want To Be
-Fingerprinting tracks the emitted `dist/` artifacts the process actually imports, not a frozen list of source `.mjs` paths, so the freshness/restart signal is truthful post-build.
+The MCP fingerprint is a `Sha256` (a05's brand) computed over the running crate artifact(s) — the built `enforcer` binary and/or the workspace source tree it was compiled from — so the freshness/restart signal is truthful for the Rust engine and changes iff the shipped binary changes.
 
 ## Requirement Checklist
-- [ ] Replace the hardcoded `MCP_FINGERPRINT_FILES` list with resolution against `dist/` (or the resolved entry graph) of the running server.
-- [ ] `buildMcpFingerprint` digest changes iff a shipped `dist/` artifact changes; unchanged source-adjacent files do not perturb it.
-- [ ] Missing `dist/` (unbuilt) yields an explicit `exists:false` entry, not a silent pass.
-- [ ] No path is hardcoded to a location that does not correspond to a loaded module.
+- [ ] Replace the hardcoded `.mjs` path list with a fingerprint over the running binary artifact (e.g. `current_exe()`) and/or a build-time content hash of the compiled crates, not source `.mjs` paths.
+- [ ] `build_mcp_fingerprint` returns a `Sha256` (a05 brand); the digest changes iff the built artifact changes; unrelated source-adjacent files do not perturb it.
+- [ ] A missing/unresolvable artifact yields an explicit `exists: false` (or a typed error) surfaced by `mcp_status`, never a silent pass.
+- [ ] No path is hardcoded to a location that does not correspond to the loaded binary/crate.
+- [ ] Optionally fold in the build fingerprint (`CARGO_PKG_VERSION` + git hash / build id) so a rebuilt-but-unmoved binary is still detectable.
 
 ## Acceptance And Proof
-Tier P3 (live MCP-tool). A live test invokes the MCP `mcp_status`/freshness path and asserts the fingerprint digest over `dist/` artifacts; mutate a `dist/` file, reobserve a changed digest; unbuilt tree yields `exists:false`. Named in TEST_PROOF_EXPECTATIONS.md.
+Tier P3 (live MCP-tool). A live test invokes the MCP `mcp_status`/freshness path and asserts the fingerprint `Sha256` over the running artifact; rebuild/replace the binary and reobserve a changed digest; a missing artifact yields `exists: false`. A `cargo test` in `enforcer-mcp` asserts the digest is a valid `Sha256`. Named in TEST_PROOF_EXPECTATIONS.md.
 
 ## Parallel Ownership Notes
-Depends on a01 (needs `dist/` to exist). Owns only the two fingerprint modules; a05 owns the branded `Sha256` types those modules will consume, so ordering is a05 or coordinate on the shared file — globs here are the fingerprint pair exclusively.
+Depends on a01 (workspace/binary) and a05 (consumes the `Sha256` brand from `enforcer-domain`). Owns only `crates/enforcer-mcp/src/fingerprint.rs`; disjoint from a05's domain newtype file. Sequence a05 before a02 (a02 consumes `Sha256`).

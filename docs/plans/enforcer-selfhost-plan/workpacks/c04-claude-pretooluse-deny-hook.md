@@ -12,27 +12,27 @@
 > Proof rule: Before DONE, select tests in TEST_PROOF_EXPECTATIONS.md and update proof rows.
 <!-- /agent-capsule -->
 
-- owns: `src/install/hooks/pretooluse-*, src/install/hooks/guard-*`
-- deps: `c01-install-core-and-cli-contract, c03-claude-adapter`
+- owns: `crates/enforcer-install/src/hooks/pretooluse.rs, crates/enforcer-install/tests/fixtures/pretooluse_hook/**`
+- deps: `arc-23`, `c01-install-core-and-cli-contract`, `c03-claude-adapter`
 - tier: `P5 install-proof`
 
-Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md).
+Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md), [RUST_ARCHITECTURE](../RUST_ARCHITECTURE.md).
 
 ## Where We Are
-Installed enforcer tools (`ocentra_enforcer_scan`, `ocentra_enforcer_check`) exist but nothing forces the agent to run them before writing. Guidance-only installs are prose, not proof: an agent can ignore a skill. There is no mechanical gate on file edits.
+The enforcer binary exposes MCP tools (`enforcer check`, `enforcer scan`, coordination guard) but nothing forces the agent to run them before writing. Guidance-only installs are prose, not proof: an agent can ignore a skill. There is no mechanical gate on file edits, and the arc-23 crate has no hook-emitter module.
 
 ## Where We Want To Be
-A Claude PreToolUse deny-hook that, on `Edit|Write|MultiEdit`, runs the enforcer scan/check plus coordination guard against the pending change and BLOCKS deterministic (T1) violations before the write lands. This is the T1 mechanical bridge that makes self-enforcement real, not advisory.
+A Rust EMITTER module `src/hooks/pretooluse.rs` in `enforcer-install` that generates and registers a Claude PreToolUse deny-hook config. The emitted hook, on `Edit|Write|MultiEdit`, shells out to the installed `enforcer` binary (`enforcer check`/`scan` + coordination guard) against the pending change and BLOCKS deterministic (T1) violations before the write lands. This is the T1 mechanical bridge that makes self-enforcement real, not advisory. The pack owns the RUST emitter (the module that writes the hook config + invocation), NOT a `.ts`/`.mjs` hook script.
 
 ## Requirement Checklist
-- [ ] Hook reads the PreToolUse payload (tool name + target path + proposed content) from stdin.
-- [ ] On `Edit|Write|MultiEdit` it invokes scan/check + coordination guard on the candidate content.
-- [ ] T1 (hard validator) violation -> exit deny with `ruleId` and the `fix` string in the reason. T2 (scored) -> allow with warning surfaced. T3 -> never blocks.
-- [ ] Fail-closed on enforcer error/timeout for T1 scope; other tools pass through untouched.
-- [ ] Hook is emitted/registered by the Claude adapter (c03) and is idempotent to install.
+- [ ] Implement the emitter as a Rust function/type in `src/hooks/pretooluse.rs` that produces the PreToolUse hook config (matcher `Edit|Write|MultiEdit` -> `enforcer` binary invocation) as a structured record the c03 Claude adapter registers.
+- [ ] The emitted hook contract: read the PreToolUse payload (tool name + target path + proposed content) from stdin and invoke `enforcer check`/`scan` + coordination guard on the candidate content.
+- [ ] T1 (hard `Validator` finding) -> exit deny with the `RuleId` and the `Fix:` hint string in the reason. T2 (scored literal-scan) -> allow with warning surfaced. T3 -> never blocks. (Tier vocabulary preserved.)
+- [ ] Fail-closed on enforcer error/timeout for T1 scope; non-edit tools pass through untouched.
+- [ ] The hook config is emitted/registered by the c03 Claude adapter (via the c01 apply path) and is idempotent to install. Obey `[workspace.lints]`; no `pub use` barrels.
 
 ## Acceptance And Proof
-P5 mechanical-bridge proof (`claude-deny-hook-blocks` in TEST_PROOF_EXPECTATIONS.md): feed the hook a PreToolUse payload for a **seeded violating edit** and assert exit code = deny AND stderr/JSON reason contains the exact `ruleId` and its `fix`. A conforming edit must exit allow. A T2-only finding must exit allow-with-warning, never deny.
+Tier P5 mechanical-bridge proof (`claude-deny-hook-blocks` in TEST_PROOF_EXPECTATIONS.md): `cargo test -p enforcer-install` exercises the emitter + the hook contract against fixtures under `tests/fixtures/pretooluse_hook/**` — a **seeded violating edit** payload asserts exit = deny AND the JSON/stderr reason contains the exact `RuleId` and its `Fix:` hint; a conforming edit asserts exit = allow; a T2-only finding asserts exit = allow-with-warning, never deny. Clean `cargo clippy` / `cargo fmt --check`.
 
 ## Parallel Ownership Notes
-Owns only `src/install/hooks/pretooluse-*` and `guard-*`, disjoint from c05 which owns `src/install/hooks/sessionstart-*`. Both are registered by the c03 adapter but live in separate files, so c04 and c05 run concurrently. Depends on c01/c03 for interface and registration.
+Owns only `crates/enforcer-install/src/hooks/pretooluse.rs` (+ its fixtures), disjoint from c05 which owns `src/hooks/sessionstart.rs`. Both are emitted/registered by the c03 adapter but live in separate files, so c04 and c05 run concurrently. Depends on arc-23 (skeleton) + c01 (report/apply + tier vocab) + c03 (adapter registration). owns disjoint? = Y.

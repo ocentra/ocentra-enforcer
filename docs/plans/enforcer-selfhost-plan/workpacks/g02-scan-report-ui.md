@@ -12,27 +12,27 @@
 > Proof rule: Before DONE, select tests in TEST_PROOF_EXPECTATIONS.md and update proof rows.
 <!-- /agent-capsule -->
 
-- owns: `src/ui/report/*`
+- owns: `crates/enforcer-ui/src/report/`
 - deps: `g01`, `f01`
 - tier: `P3`
 
-Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md).
+Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md), [RUST_ARCHITECTURE](../RUST_ARCHITECTURE.md).
 
 ## Where We Are
-Scan results land in `.enforce/` as structured data, but there is no human-readable enforcement view. The vendored dashboard renders coordination/ledger state only — nothing shows a developer WHICH rules fired, where, or why.
+`enforcer-scan` (arc-15) produces a typed `enforcer-domain` `Report` (findings/violations/tiers) persisted under `.enforce/` as versioned serde records, but there is no human-readable enforcement view. The g01 serve surface exposes a view-mount registry and the arc-24 backend derives frontend types from `enforcer-domain` via `ts_rs` — nothing yet shows a developer WHICH rules fired, where, or why.
 
 ## Where We Want To Be
-A self-contained enforcement REPORT page mounted into the g01 shell (hub dashboard pattern, inline CSS, no framework). It reads `.enforce/` scan results and renders a rule-by-rule VIOLATION MATRIX, groupable by severity / tier / file / crate. Each row shows: the `ruleId`, WHAT it forbids, WHY it matters (the doc anchor), and the offending location (file:line). It is strictly HUMAN-invoked: when f04 silent mode is active (agent running inline checks), the report renders nothing and emits no UI.
+An enforcement REPORT module — `crates/enforcer-ui/src/report/` — that renders the `enforcer-domain` `Report` at the Rust boundary and mounts into the g01 view registry (Tauri command + served HTML fallback). It reads the `.enforce/` scan output (typed `Report`, arc-15/f01 shape) and produces a rule-by-rule VIOLATION MATRIX, groupable by severity / tier / file / crate. Each row carries: the `RuleId`, WHAT it forbids, WHY it matters (the doc-anchor from the `enforcer-rules` record), and the offending location (`RelPath`:line). The frontend (TS under `crates/enforcer-ui/frontend/`) only presents; the payload is built in Rust from derived types. Strictly HUMAN-invoked: when f04 silent mode is active (`enforcer-core` run-context), the report renders nothing and emits no UI.
 
 ## Requirement Checklist
-- [ ] `src/ui/report/*` reads `.enforce/` scan output; never re-runs the scanner itself.
-- [ ] Renders a violation matrix with grouping by severity, tier, file, and crate.
-- [ ] Each row carries `ruleId`, forbidden-behavior text, WHY/doc-anchor link, and file:line location.
-- [ ] Output is one self-contained HTML view mounted into g01's registry (no external assets).
-- [ ] Honors f04 silent mode: no report render, no UI, during inline agent runs.
+- [ ] `crates/enforcer-ui/src/report/` reads the `.enforce/` typed `enforcer-domain` `Report` (arc-15/f01 shape); never re-runs the scanner itself.
+- [ ] Builds a violation-matrix payload with grouping by severity, tier, file, and crate at the Rust boundary; the frontend only presents.
+- [ ] Each row carries `RuleId`, forbidden-behavior text, WHY/doc-anchor (resolved from the `enforcer-rules` record), and `RelPath`:line location.
+- [ ] Output mounts into g01's view registry (Tauri command + self-contained served HTML fallback, no external assets); frontend types derived from `enforcer-domain` via `ts_rs`.
+- [ ] Honors f04 silent mode (`enforcer-core` run-context): no report render, no UI, during inline agent runs.
 
 ## Acceptance And Proof
-Tier P3. Fail-fixture: `report-silent-mode-suppressed` (f04 silent active) -> zero UI output emitted. Pass-fixture: `report-matrix-render` (fixture `.enforce/` with mixed severities) -> matrix groups correctly and every row exposes ruleId + why-anchor + location. Detection test: `report-view-contract` asserts each violation row is complete (no missing anchor/location), grouping keys resolve, silent-mode suppression holds, and no external asset is fetched. Rows in TEST_PROOF_EXPECTATIONS.md.
+Tier P3. Fail-fixture: `report-silent-mode-suppressed` (f04 silent active) -> zero UI output emitted. Pass-fixture: `report-matrix-render` (fixture `.enforce/` `Report` with mixed severities) -> matrix groups correctly and every row exposes `RuleId` + why-anchor + location. Detection test: `report-view-contract` (`cargo test -p enforcer-ui`) asserts each violation row is complete (no missing anchor/location), grouping keys resolve, silent-mode suppression holds, and no external asset is fetched. Clean `cargo clippy` / `cargo fmt --check` (obey `[workspace.lints]`). Rows in TEST_PROOF_EXPECTATIONS.md.
 
 ## Parallel Ownership Notes
-Owns `src/ui/report/*` exclusively. Mounts into g01's shell registry (read-only on serve). Depends on f01 for scan-result shape/schema and g01 for the surface. Provides the row surface that g03 attaches per-violation actions to.
+Owns `crates/enforcer-ui/src/report/` exclusively. Mounts into g01's view registry (read-only on serve). Depends on f01/arc-15 for the `Report` shape/schema and g01 for the surface. Provides the row surface that g03 attaches per-violation actions to. Deps arc-24 skeleton (via g01); owns stay DISJOINT BY FILE from sibling g0x modules.

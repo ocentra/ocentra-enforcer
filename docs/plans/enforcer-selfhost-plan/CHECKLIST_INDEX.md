@@ -32,12 +32,13 @@ Run before flipping a WORKPACK_INDEX status to `CLAIMED`.
 
 - [ ] Edit **only** files inside this workpack's `owns:` globs. Touching a sibling's file is a parallel-safety violation — stop and coordinate.
 - [ ] Hold the coordination guard (`coordination_guard`) for the duration; it is the mechanical backstop against a concurrent overlapping write.
-- [ ] For `.mjs -> TS` conversions: drop every `import * as` wildcard (use named imports); keep the module's public surface; if the file is a SPLIT target, split by responsibility with no barrel wildcards and preserve every existing test case.
-- [ ] For brand/schema packs: mint the brand **only** at the boundary (the owning module), and add the `tsc --noEmit` negative fixture that proves a bare `string` cannot substitute.
+- [ ] For crate-build (arc-*) packs: the crate compiles standalone and opts into the deny wall via `[lints] workspace = true`; keep `unsafe_code = forbid`; add **no re-export barrels** (`pub use`/`pub(crate) use`) — import concrete module paths (enforced as an `enforcer-lang-rust` Validator); an arc pack owns only its crate SKELETON, never a sibling feature's `src/rules/**` / `src/adapters/**` / `src/hooks/**`.
+- [ ] For brand/schema packs (`enforcer-domain` newtypes): parse-at-boundary via serde in the owning module, and add the negative test that proves a bare primitive (e.g. `String`) cannot substitute for the branded newtype.
 - [ ] For validators (T1): make it **fail-closed** on missing/invalid input; add pass + fail fixtures; ensure ruleId<->validator<->doc<->fixture parity (via d01 once it exists).
 - [ ] For scored checks (T2): emit `score in [0,1]` + a `confidence`, and never change exit code.
 - [ ] For T3 content: add the exact `advisory, no mechanization possible: <reason>` label and the mechanical label gate; never claim a check you did not build.
-- [ ] Work stays inside `C:/Projects/ocentra-enforcer`; do not touch anything outside the workpack's owns.
+- [ ] For `enforcer-domain` DTOs consumed by the UI: derive `#[derive(ts_rs::TS)]` — never hand-write the `.ts`; the fail-closed drift test is what proves the committed types match.
+- [ ] Work stays inside `C:/Projects/ocentra-enforcer` (the `../enforcer-rust` worktree during the build); do not touch anything outside the workpack's owns.
 
 ---
 
@@ -50,7 +51,8 @@ Run before flipping a WORKPACK_INDEX status to `DONE`. This is the doctrine gate
 - [ ] For **T1 / P4 / P5**: the **seeded-violation case** is demonstrated to FAIL (a gate that never trips proves nothing).
 - [ ] For **T2**: assert `score in [0,1]`, confidence present, exit code unchanged.
 - [ ] For **T3**: the label gate passes (the prose itself is not trusted).
-- [ ] For **conversions**: scoped `tsc --noEmit` over owned files exits 0 under strict; `grep 'import *'` over owned files is empty; SPLIT exports == original surface.
+- [ ] For **crate-build (arc-*) packs**: `cargo test -p <crate>` is green, and `cargo clippy` / `cargo fmt --check` / `cargo deny` / `cargo audit` are clean over the crate — the deny wall (`unsafe_code=forbid` + clippy denies) holds and the no-reexports Validator finds zero barrels in the owned crate.
+- [ ] For **`enforcer-domain` schema changes**: the `ts_rs` drift test passes (committed generated `.ts` == freshly-emitted); do not commit hand-edited types.
 - [ ] Record the artifact path in the proof row and flip that row's Status to `GREEN` in TEST_PROOF_EXPECTATIONS.md.
 - [ ] Release the lane and close out via `coordination_closeout`.
 - [ ] Only now set the WORKPACK_INDEX status to `DONE`. Do not move product/plan status beyond this one workpack's scope (per the workpack stop rule).
@@ -75,7 +77,7 @@ Run before flipping a WORKPACK_INDEX status to `DONE`. This is the doctrine gate
 - [ ] Assign frontier workpacks to **hub lanes** such that no two concurrent lanes share `owns:` globs (reuse the PLAN-PARALLEL-SAFETY predicate; do not reimplement).
 - [ ] Drive each lane through `coordination_claim` -> `coordination_guard` -> `coordination_closeout`.
 - [ ] Route any residual owns-overlap through the **intent-queue** (serialize; fail-closed refuse concurrent claim on overlapping owns).
-- [ ] Respect the global sequence: a01 -> conversion swarm -> A domain packs -> D01 -> rest of D + C in parallel -> B last.
+- [ ] Respect the global sequence: a01 (Rust toolchain) -> arc-01/arc-02 (workspace core + domain) -> rest of the arc crate swarm (incl. arc-25 `enforcer-events`) -> A domain packs (a02..a09) -> D01 -> feature packs (C/D/E/F/G/H) in parallel -> B last -> a10.
 - [ ] Do not read workpack bodies; you route, lanes execute.
 
 ---
@@ -86,6 +88,11 @@ These lists are procedure; the doctrine is that procedure must be *checkable*:
 
 - Claim/parallel-safety -> **b02** PLAN-PARALLEL-SAFETY rule + coordination MCP guard.
 - Proof-before-DONE -> **TEST_PROOF_EXPECTATIONS** GREEN rows (the only DONE authority).
-- Conversion invariants -> per-pack scoped typecheck + `import *` grep (a-conv proof rows).
+- Crate-build invariants -> per-crate `cargo test -p enforcer-<crate>` + clippy/fmt/deny/audit clean (arc-01..arc-25 proof rows); the `[workspace.lints]` deny wall (unsafe_code=forbid + clippy denies) lands in **a01**.
+- No re-export barrels -> **enforcer-lang-rust** `no-reexports` Validator (syn-AST, structured Findings); also shipped as a T1 rule for consumer repos.
+- Two-layer redaction (key-name + value-pattern) -> folded into **enforcer-core** (no `enforcer-log` crate).
+- Hash-chain proof journal -> append-only SHA-256 hash-chained NDJSON in **enforcer-proof** (verify-on-open + on-replay).
+- Rust->TS drift -> **enforcer-domain** `ts_rs` derive + fail-closed drift test (arc-02 / g05 `ts_drift` proof rows).
+- Disjoint-owns -> **b02** PLAN-PARALLEL-SAFETY rule + coordination MCP guard.
 - Doc/capsule structure -> **b02** PLAN-CAPSULE / PLAN-SKELETON / PLAN-FRONTMATTER rules.
 - T3 labeling -> **d14** label gate; doc-rule citations -> **d09** parity.

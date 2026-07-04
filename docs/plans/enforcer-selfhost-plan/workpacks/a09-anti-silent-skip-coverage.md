@@ -1,9 +1,9 @@
-# a09 Anti Silent Skip Coverage
+# a09 Anti Silent Skip Coverage (enforcer-scan)
 
 <!-- agent-capsule -->
 > Agent Capsule
 > Plan: `enforcer-selfhost-plan`
-> Doc: `Anti Silent Skip Coverage`
+> Doc: `Anti Silent Skip Coverage (enforcer-scan)`
 > Kind: assigned workpack; read only when selected by hub or WORKPACK_INDEX.
 > Read when: Only when this exact workpack is assigned or selected from WORKPACK_INDEX.md.
 > Stop rule: Do not open sibling workpacks. Do not move product status unless this workpack and its proof rows say so.
@@ -12,26 +12,27 @@
 > Proof rule: Before DONE, select tests in TEST_PROOF_EXPECTATIONS.md and update proof rows.
 <!-- /agent-capsule -->
 
-- owns: `src/generic-*scanner*.*`, `src/cli-scan.*`
+- owns: `crates/enforcer-scan/src/coverage.rs`, `crates/enforcer-scan/src/outcome.rs`
 - deps: `a01`
 - tier: `P4`
 
-Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md).
+Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [RUST_ARCHITECTURE](../RUST_ARCHITECTURE.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md).
 
 ## Where We Are
-The generic scanners (`src/generic-common-scanner.mjs`, `src/generic-typescript-scanner.mjs`, `src/generic-python-scanner.mjs`, and friends) and `src/cli-scan.mjs` can early-return on unmatched extension, missing tool, or empty selection with no emitted record. A validator that runs on nothing looks identical to a validator that ran and passed — this is the hollow self-scan: green because it checked nothing.
+The legacy generic scanners and CLI scan could early-return on unmatched extension, missing tool, or empty selection with no emitted record. A validator that runs on nothing looked identical to one that ran and passed — the hollow self-scan: green because it checked nothing. In the Rust engine, `enforcer-scan` fans out validators (rayon) over routed targets; without an explicit coverage model the same hollow-green failure mode returns.
 
 ## Where We Want To Be
-Every validator/scanner emits an explicit outcome for every candidate: `ran`, or `skipped: <reason>`. A skip is never silent; the scan report distinguishes "passed" from "did not run" so a hollow scan cannot masquerade as a clean one.
+`enforcer-scan` models every candidate's outcome explicitly as a Rust enum — `Ran { .. }` or `Skipped { reason }` (non-empty reason) — and the scan engine hard-fails when it ran zero checks. A skip is never silent; the report distinguishes "passed" from "did not run", so a scan that executed no validators FAILS rather than reporting a bare success.
 
 ## Requirement Checklist
-- [ ] Each generic scanner returns a per-target result with status `ran | skipped` and, when skipped, a non-empty `reason`.
-- [ ] `src/cli-scan.*` aggregates and surfaces skip reasons in the report/summary counts.
-- [ ] No code path exits a scanner without recording a result for the target(s) it was handed.
-- [ ] A scan over zero applicable targets reports `skipped` counts, not a bare success.
+- [ ] Define an outcome enum in `crates/enforcer-scan/src/outcome.rs`: `Outcome::Ran { .. } | Outcome::Skipped { reason: String }` with `reason` guaranteed non-empty by construction.
+- [ ] Every validator dispatch in `enforcer-scan` returns an `Outcome` for each target it is handed; no code path returns from the scan without recording a result per target.
+- [ ] `crates/enforcer-scan/src/coverage.rs` aggregates outcomes into ran/skipped counts and surfaces skip reasons in the `Report` (from `enforcer-domain`).
+- [ ] A scan whose total ran-count is zero returns an error / non-zero exit (anti-silent-skip): zero checks executed is a hard failure, not a clean pass.
+- [ ] Skip counts and reasons are part of the serialized report, so a hollow scan is visible.
 
 ## Acceptance And Proof
-Tier P4 (self-enforce green). A test feeds unmatched-extension, missing-tool, and empty-selection inputs and asserts each yields an explicit `skipped: <reason>` record; asserts the report exposes skip counts. Running `enforcer:self:scan` on the repo shows nonzero ran-count with reasons for any skips. Rows in TEST_PROOF_EXPECTATIONS.md.
+Tier P4 (self-enforce green). `cargo test` in `enforcer-scan`: unmatched-extension, missing-tool, and empty-selection inputs each yield an explicit `Outcome::Skipped { reason }`; a scan that ran zero checks returns `Err`/fails; the report exposes ran/skipped counts. Running the enforcer's scan on its own workspace (a10 dogfood) shows a nonzero ran-count with reasons for any skips. Fail/pass fixtures per RUST_ARCHITECTURE 5-way parity. Rows in TEST_PROOF_EXPECTATIONS.md.
 
 ## Parallel Ownership Notes
-Depends on a01. Owns the generic scanner modules and `src/cli-scan.*` exclusively; disjoint from a10 (which owns CI scripts/workflows and `enforcer:self` wiring). a09 makes the scan honest; a10 makes it hard-fail.
+Depends on a01. Owns the two `enforcer-scan` modules exclusively; disjoint from a10 (which owns CI workflows and the native-dogfood wiring). a09 makes the scan honest (explicit outcomes + zero-ran hard-fail); a10 runs it on the enforcer's own crates and hard-fails CI. Coordinate `mod`/`pub use` in `enforcer-scan/src/lib.rs`.

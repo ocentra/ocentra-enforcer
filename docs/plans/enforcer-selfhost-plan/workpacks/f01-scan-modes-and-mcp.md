@@ -12,30 +12,30 @@
 > Proof rule: Before DONE, select tests in TEST_PROOF_EXPECTATIONS.md and update proof rows.
 <!-- /agent-capsule -->
 
-- owns: `src/scan/modes.*`, `src/scan/modes-schema.*`, mcp `enforcer_scan` tool schema, cli scan-mode dispatch
-- deps: `a01-ts-toolchain-and-build, d01-rule-mechanization-engine`
+- owns: `crates/enforcer-scan/src/modes.rs`, `crates/enforcer-scan/tests/modes.rs`, `crates/enforcer-scan/tests/fixtures/modes/**`
+- deps: `arc-15-enforcer-scan, d01-rule-mechanization-engine`
 - tier: `P1/P3`
 
-Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md).
+Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md), [RUST_ARCHITECTURE](../RUST_ARCHITECTURE.md).
 
 ## Where We Are
-Scanning is all-or-nothing: the agent can only run a broad check with no named scope. There is no schema that lets an AI agent, while coding, pick "just this crate" or "just the diff." Whole-repo runs are the only path, which is slow and wrong as an inline default.
+Scanning is all-or-nothing: the agent can only run a broad check with no named scope. There is no typed selector that lets an AI agent, while coding, pick "just this crate" or "just the diff." Whole-repo runs are the only path, which is slow and wrong as an inline default. The `enforcer-scan` crate skeleton (arc-15) provides the rayon fan-out engine and the `enforcer-domain` `Report`, but no `modes` module bounds a run's scope/depth.
 
 ## Where We Want To Be
-An `enforcer_scan` MCP tool plus `enforcer scan --mode <m>` CLI with named MODES the agent selects: `quick` (fast most-common T1 subset), `full` (everything the enforcer can do), `repo`/`workspace`, `scoped` (crate-or-folder), `diff` (changed files only), and `plan-scan` (validate a plan dir). Scope+depth are schema-driven; default is scoped-not-whole-repo. The tool is agent-callable so the AI decides what to run inline.
+A `ScanMode` selector in `crates/enforcer-scan/src/modes.rs`, surfaced by the `enforcer_scan` MCP tool and the `enforcer scan --mode <m>` CLI, with named MODES the agent selects: `quick` (fast most-common T1 subset), `full` (everything the enforcer can do), `repo`/`workspace`, `scoped` (crate-or-folder), `diff` (changed files only), and `plan-scan` (validate a plan dir). Scope + depth are a typed `serde` enum + newtypes from `enforcer-domain` (`ScanScope`, `Tier`), parsed at the MCP/CLI boundary; default is scoped-not-whole-repo. The tool is agent-callable so the AI decides what to run inline over the arc-15 scan engine.
 
 ## Requirement Checklist
-- [ ] A mode enum + JSON schema (scope path, depth, tier filter) validated at the MCP/CLI boundary.
-- [ ] Each mode maps to a deterministic rule/scope selection over the d01 engine; `quick` = named T1 subset, `full` = all tiers.
+- [ ] A `ScanMode` enum + a `ScanRequest` struct (scope path, depth, tier filter) built on `enforcer-domain` newtypes (`ScanScope`, `RelPath`, `Tier`), `serde`-deserialized and validated at the MCP/CLI boundary (parse-at-boundary; malformed mode/scope is a typed `thiserror` error, never a silent default).
+- [ ] Each mode maps to a deterministic rule/scope selection driving the arc-15 fan-out over the d01-scaffolded rule set; `quick` = a named T1 subset, `full` = all tiers.
 - [ ] Default when no scope given is `scoped` (cwd crate/folder), never whole-repo.
-- [ ] `diff` mode reads changed paths; `plan-scan` targets a plan dir.
-- [ ] MCP tool name is `enforcer_scan` (mcp__enforcer__*); CLI is `enforcer scan --mode`.
+- [ ] `diff` mode reads changed paths (base/head, via the tri-modal scope contract); `plan-scan` targets a plan dir.
+- [ ] MCP tool name is `enforcer_scan` (registered in `enforcer-mcp`, arc-21); CLI is `enforcer scan --mode` (clap, `enforcer-cli`, arc-22). Both call the same `modes.rs` resolver — no logic duplicated in a surface.
 
 ## Acceptance And Proof
-Tier P1/P3. Proof row `scan-modes-select` in TEST_PROOF_EXPECTATIONS.md:
-- fail-fixture: a `full`-only violation seeded outside the scoped path -> asserts `scoped`/`quick` does NOT report it (scope honored).
+Tier P1/P3. Proof row `scan-modes-select` in TEST_PROOF_EXPECTATIONS.md asserts `cargo test -p enforcer-scan --test modes` exits 0:
+- fail-fixture: a `full`-only violation seeded outside the scoped path in `tests/fixtures/modes/**` -> asserts `scoped`/`quick` does NOT report it (scope honored).
 - pass-fixture: same violation inside scope -> `scoped` reports it; `full` always reports it.
-- detection test: invalid mode string is rejected at the schema boundary (non-zero/error), and each mode resolves to its expected rule/scope set.
+- detection test: an invalid mode string is rejected at the deserialization boundary (typed error, non-zero), and each mode resolves to its expected rule/scope set.
 
 ## Parallel Ownership Notes
-Owns `src/scan/modes.*` and the `enforcer_scan` schema only; consumes the d01 engine and a01 toolchain. Disjoint from f03 (project-config) and f04 (run-context mode), which f01 references but does not own.
+Owns ONLY `crates/enforcer-scan/src/modes.rs` + its `tests/modes.rs` and `tests/fixtures/modes/**` — disjoint files inside the arc-15 crate, which owns the crate skeleton (`Cargo.toml`, `lib.rs`, module root, fan-out engine). Deps arc-15 (sequenced after the skeleton exists) and d01 (rule set/parity). Disjoint by file from f02 (`onboard.rs`) and f05 (`router/**`), which also live in `enforcer-scan`; disjoint from f03 (project-config) and f04 (run-context mode), which f01 references but does not own. `owns disjoint? = Y`.

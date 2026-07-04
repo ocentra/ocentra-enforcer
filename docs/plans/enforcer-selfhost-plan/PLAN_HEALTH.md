@@ -39,20 +39,22 @@ This is the plan's own dogfood: the doctrine says enforcement must be mechanical
 - **STATUS-DEPS-GREEN:** a DONE pack's deps are all DONE. A pack cannot be DONE ahead of its dependencies.
 - **STATUS-NO-SILENT-SKIP:** a validator/self-scan that ran zero checks is red, not green (the `a09`/`a10` rule applied to the plan itself).
 
-## Current health snapshot (2026-07-03)
+## Current health snapshot (2026-07-04)
+
+Plan size: **107 workpacks total** (A 35 [arc-01..arc-25 crate swarm + a01..a10] + C 9 + D 25 + E 6 + B 5 + F 5 + G 8 + H 10 + cross-cutting/X 4), across a **28-crate** Cargo workspace (25 arc crates + 3 Track-E-built lang crates). See [WORKPACK_INDEX](./WORKPACK_INDEX.md) totals and [RUST_ARCHITECTURE](./RUST_ARCHITECTURE.md) crate map.
 
 | Invariant class | State | Note |
 |---|---|---|
 | Structural (capsule/frontmatter/xlink) | **Manual-pass** | Authored to satisfy; `b02` validator not yet built to prove it mechanically. |
-| Owns-disjoint | **Manual-pass** | Verified from `WORKPACK_INDEX.md` owns column; the parallel model depends on this staying true. |
-| Deps resolve / acyclic | **Manual-pass** | All `deps:` name real packs; roots are `a01`/`a-conv-01`/`c01`/`d01`/`b01`-`b03`/`a08`/`d14`/`d15`. |
+| Owns-disjoint | **Manual-pass** | Verified from `WORKPACK_INDEX.md` owns column; the parallel model depends on this staying true. The dominant `Y*` class is skeleton-vs-feature (a feature pack owns a concrete file its host arc crate lays down as SKELETON only — e.g. arc-15 vs d02, arc-04 vs d13, arc-06 vs d17, arc-15 `src/router/mod.rs` vs f05, arc-21 `fingerprint.rs` vs a02), resolved by dep-sequencing (host arc pack lands first); owns are disjoint by construction. |
+| Deps resolve / acyclic | **Manual-pass** | All `deps:` name real packs; roots are `a01`/`arc-01`/`c01`/`d01`/`h01`/the b-track roots. The reconciliation pass added edges (`arc-15`/`arc-16`/`arc-17`->`arc-25`; `a02`->`arc-21`; `x01`->`a01`/`arc-21`/`arc-22`; every `b*`->`arc-20`) — re-verified DAG, no cycle introduced. |
 | Doctrine labeling | **Manual-pass** | T3 items (`d14`, `d15`) scoped/labeled as advisory; no prose-gates authored. |
 | Status integrity | **N/A** | No pack is DONE yet, so nothing to inflate; enforce these as soon as the first closeout happens. |
 
 ### Watch items / risks
 
 - **Self-referential proof:** `b05` and `PLAN_HEALTH` both want the `PLAN-*` validator run against *this* plan dir. Until `b02` ships, structural invariants are audited by hand — treat "manual-pass" as provisional, re-run the validator once it exists.
-- **Root contention:** four roots (`a01`, `c01`, `d01`, `b01`) gate most fan-out. If any stalls, its whole track stalls — prioritize roots.
+- **Root contention:** the roots (`a01` workspace/toolchain, `arc-01` `enforcer-core`, `c01`, `d01`, `h01`, and the b-track roots — all now behind `arc-20`) gate most fan-out. `a01`->`arc-01` is the tightest bottleneck: `arc-01` blocks every other crate. If any root stalls, its whole track stalls — prioritize roots.
 - **`a10` ordering:** flipping on hard-fail self-enforcement before the tree is green would red-line CI. Health gate: do not DONE `a10` unless `a01`+`a09` are DONE and the migrated tree is green.
 - **Silent-skip regressions:** any validator that "passes" with zero ran-checks is a health failure regardless of exit code; auditors must inspect ran-counts, not just exit codes.
 

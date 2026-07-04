@@ -12,27 +12,27 @@
 > Proof rule: Before DONE, select tests in TEST_PROOF_EXPECTATIONS.md and update proof rows.
 <!-- /agent-capsule -->
 
-- owns: `src/ui/serve.*`, cli `enforcer serve`/`enforcer ui`, mcp ui tool
-- deps: `a01`
+- owns: `crates/enforcer-ui/src/serve.rs`, cli `enforcer serve`/`enforcer ui`, mcp ui tool
+- deps: `arc-24`
 - tier: `P5`
 
-Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md).
+Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md), [RUST_ARCHITECTURE](../RUST_ARCHITECTURE.md).
 
 ## Where We Are
-The hub UI is already vendored at `src/coordination/vendor/server.js` (13.5KB Node `http` createServer + token gate) and `src/coordination/vendor/dashboard.js` (18KB self-contained "Ocentra Ledger" HTML, zero framework, inline CSS). It is reachable ONLY via a buried `coordination ledger:dashboard` command and renders only coordination/ledger state — not enforcement.
+The `enforcer-ui` crate skeleton (arc-24) exists — a Rust UI-server / Tauri backend serving a self-contained HTML fallback for headless use and backing the Tauri desktop app, plus the `ts_rs` type-gen pipeline — but no first-class serve surface is wired: there is no `enforcer serve` / `enforcer ui` entry, and the served shell exposes no view-mount registry for the g0x feature modules to plug into. The coordination hub state lives in `enforcer-coordination` (arc-16); UI rendering of enforcement is not yet reachable.
 
 ## Where We Want To Be
-Promote the vendored server into a first-class `src/ui/serve.*` module exposing `enforcer serve` / `enforcer ui` (CLI) and an `mcp__enforcer__ui` tool. It reuses the vendored Node HTTP + self-contained HTML shell — loopback default, token required for any non-loopback bind — and provides a neutral HTML shell + view registry that g02 (report) and later settings/hub views MOUNT into. No framework, no bundler, no binary. This is HUMAN-invoked surface only; inline agent checks stay silent (see f04).
+Stand up `crates/enforcer-ui/src/serve.rs`: the first-class serve surface exposing `enforcer serve` / `enforcer ui` (clap CLI in `enforcer-cli`, arc-22) and an `mcp__enforcer__ui` tool (arc-21). It drives the arc-24 UI server — the Tauri shell for the desktop app AND the served self-contained HTML fallback for headless use — loopback (127.0.0.1) default, token required for any non-loopback bind. It provides a neutral shell + a Rust-side VIEW-MOUNT REGISTRY that g02 (report), g05 (settings), g06 (hub), g08 (explorer) MOUNT into. Presentation-only TS lives under `crates/enforcer-ui/frontend/` (types derived from `enforcer-domain` via `ts_rs`); no business logic in TS. This is HUMAN-invoked surface only; inline agent checks stay silent (see f04, `enforcer-core` run-context).
 
 ## Requirement Checklist
-- [ ] `src/ui/serve.*` wraps the vendored `server.js` HTTP core; no fork of the transport.
-- [ ] `enforcer serve` and `enforcer ui` both resolve to this surface; the old buried path still works.
-- [ ] Binds loopback (127.0.0.1) by default; any remote/host bind REQUIRES a token or refuses to start.
-- [ ] Serves a self-contained HTML shell exposing a view-mount registry for downstream packs.
-- [ ] MCP `ui` tool returns the served URL, never auto-launches during silent agent runs.
+- [ ] `crates/enforcer-ui/src/serve.rs` drives the arc-24 UI server (Tauri shell + served HTML fallback); it does not fork the transport or reimplement the arc-24 backend root.
+- [ ] `enforcer serve` and `enforcer ui` both resolve to this surface via the `enforcer-cli` clap dispatch; exit-code-driven, Windows-first argv handling.
+- [ ] Binds loopback (127.0.0.1) by default; any remote/host bind REQUIRES a token or refuses to start (fail-closed).
+- [ ] Exposes a Rust view-mount registry that downstream g0x modules register into; the served HTML fallback is self-contained (no external assets), frontend types derived from `enforcer-domain`.
+- [ ] MCP `ui` tool returns the served URL, never auto-launches during silent agent runs (`enforcer-core` run-context gate).
 
 ## Acceptance And Proof
-Tier P5. Fail-fixture: `serve-remote-no-token` (host bind without token) -> server refuses to start. Pass-fixture: `serve-loopback-default` -> binds 127.0.0.1, returns shell HTML with mount registry present. Detection test: `serve-surface-contract` asserts the CLI aliases resolve, loopback-default holds, remote-without-token is rejected, and the vendored HTTP core is reused (not reimplemented). Rows in TEST_PROOF_EXPECTATIONS.md.
+Tier P5. Fail-fixture: `serve-remote-no-token` (host bind without token) -> server refuses to start. Pass-fixture: `serve-loopback-default` -> binds 127.0.0.1, returns shell HTML with the mount registry present. Detection test: `serve-surface-contract` (`cargo test -p enforcer-ui`) asserts the CLI aliases resolve, loopback-default holds, remote-without-token is rejected, and the arc-24 UI-server backend is reused (not reimplemented). Clean `cargo clippy` / `cargo fmt --check` (obey `[workspace.lints]`; no `pub use` barrels). Rows in TEST_PROOF_EXPECTATIONS.md.
 
 ## Parallel Ownership Notes
-Owns `src/ui/serve.*` exclusively; does not touch `src/coordination/vendor/*` (read/wrap only). Foundation for g02/g03 — they mount views, they never re-open the HTTP layer. Depends on a01 toolchain for the build.
+Owns `crates/enforcer-ui/src/serve.rs` exclusively; does not own the arc-24 crate skeleton (`Cargo.toml`/`lib.rs`/backend root — read/drive only). Foundation for g02/g05/g06/g08 — they register views into the registry, they never re-open the transport. Deps arc-24 (crate skeleton) and is sequenced after it exists. owns stay DISJOINT BY FILE from sibling g0x modules.

@@ -12,31 +12,33 @@
 > Proof rule: Before DONE, select tests in TEST_PROOF_EXPECTATIONS.md and update proof rows.
 <!-- /agent-capsule -->
 
-- owns: `README.md, docs/**.md (CODEX_SETUP, COORDINATION, INSTALL, TARGET_REPO_WIRING, ENFORCED_CHECKS, SKILL_MCP_SYSTEM, etc.), skills/*/SKILL.md, AGENTS.md/CLAUDE templates`
+- owns: `README.md, docs/**.md (CODEX_SETUP, COORDINATION, INSTALL, TARGET_REPO_WIRING, ENFORCED_CHECKS, SKILL_MCP_SYSTEM, etc.), skills/*/SKILL.md, AGENTS.md / CLAUDE.md doctrine-ref templates`
 - deps: `x01-neutral-rename`
 - tier: `P1`
 
-Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md).
+Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md), [RUST_ARCHITECTURE](../RUST_ARCHITECTURE.md).
 
 ## Where We Are
-The enforcer's own product docs still describe the legacy `ocentra` product name and the Codex-only install path (`codex install`, `CODEX_SETUP` framed as the single setup doc). They also predate the new capabilities: the detect-and-route router (f05), scan modes (f01), the UI layer (g-track), multi-harness install across all 11 harnesses (c-track), onboarding/autoindex (f02), and the new language packs (dart/cfml/frontend/python). x01 renames the shipped/config surfaces; the docs describing them are stale.
+The enforcer's own product docs still describe the legacy `ocentra` product name AND the retired Node/`.mjs` engine: they talk about `.mjs` entrypoints, an npm/Node install, `tsconfig`/`eslint`-as-our-linter, Effect-Schema, and jest/`node:test`, and they frame Codex as the single setup path (`codex install`, `CODEX_SETUP` as the one setup doc). None of that matches the pivot in RUST_ARCHITECTURE.md: the enforcer is now a **Cargo workspace of Rust crates** shipping as one native `enforcer` binary (MCP stdio server + CLI), rules are STRUCTURED DATA (typed rule records), dogfood is native (`cargo clippy`/`fmt`/`deny`/`audit` + the enforcer's own Rust validators), and only the Tauri UI FRONTEND is TS. The docs also predate the new capabilities: detect-and-route router (f05), scan modes (f01), the UI layer (g-track), multi-harness install across all 11 harnesses (c-track), onboarding/autoindex (f02), silent-vs-human mode (f04), and the language packs (rust/ts/py/dart/cfml/frontend). x01 renamed the shipped/config surfaces; the docs describing them are stale in both NAME and ARCHITECTURE.
 
 ## Where We Want To Be
-Product docs read **enforcer** everywhere and describe current capability. `CODEX_SETUP` becomes a per-harness / neutral setup doc (Codex is one of 11). Every new top-level capability has a doc section:
-- detect-and-route router (f05), scan modes (f01), UI layer (g-track), multi-harness install / all 11 harnesses (c-track incl. c09), onboarding+autoindex (f02), silent-vs-human mode (f04), new languages dart/cfml/frontend/python.
+Product docs read **enforcer** everywhere, describe the **Rust engine** accurately, and cover current capability. Every architecture statement matches RUST_ARCHITECTURE.md: one native `enforcer` binary (per-platform, downloaded via `enforcer install` / the codebase-memory distribution model — no runtime toolchain for consumers), rules-as-data (typed records, `.md` kept only as optional human-canonical reading surfaced via the UI explorer), native dogfood, and TS confined to the Tauri UI frontend (types DERIVED from `enforcer-domain` via `ts_rs`). `CODEX_SETUP` becomes a per-harness / neutral setup doc (Codex is one adapter of eleven; install registers the `enforcer` binary as each harness's MCP stdio server). Every new top-level capability has a doc section:
+- detect-and-route router (f05), scan modes (f01), UI layer (g-track), multi-harness install / all 11 harnesses (c-track incl. c09), onboarding+autoindex (f02), silent-vs-human mode (f04), and the language coverage (Rust via `syn`; TS/JS/Python/Dart/CFML via tree-sitter/swc/CFLint — i.e. the enforcer VALIDATES those languages; it is not implemented in them).
 
 ## Requirement Checklist
-- [ ] Rename product/command/MCP-server/skill references from `ocentra`/`codex install` to `enforcer` across README.md, docs/**.md, skills/*/SKILL.md, AGENTS.md/CLAUDE templates.
-- [ ] Reframe `CODEX_SETUP` as neutral per-harness setup (Codex = one adapter of eleven).
-- [ ] Add/refresh a doc section for each new top-level capability listed above.
-- [ ] Do not edit real file-path references that x01 owns (physical rename/config paths) nor Tools/ocentra-literal-scan/**.
-- [ ] Product name is **enforcer**, never **ocentra**, in all prose.
+- [ ] Rename product/command/MCP-server/skill references from `ocentra` / `codex install` to `enforcer` across README.md, docs/**.md, skills/*/SKILL.md, and the AGENTS.md / CLAUDE.md doctrine-ref templates.
+- [ ] Remove all TS-engine residue from prose: `.mjs`/`.ts` engine source, npm/Node install of the engine, `tsconfig`, `eslint`-as-our-linter, Effect-Schema, jest/`node:test`. Replace with the Rust reality: Cargo workspace + one native binary, `cargo clippy`/`fmt`/`deny`/`audit`, serde + branded newtypes, `cargo test` fixtures, rules-as-data. ALLOWED to remain: the Tauri UI **frontend** (TS/web, presentation only) and any reference to the enforcer VALIDATING a user's TS/JS/Python/Dart/CFML code (that is the enforcer's job, not its implementation).
+- [ ] Reframe install/distribution docs to the native-binary model: `enforcer install` downloads the per-platform binary (win/mac/linux incl. musl + apple-silicon) and registers it as each harness's MCP stdio server; the CLI is equally first-class (tri-modal scope, exit-code-driven, cargo-alias/pre-commit emitters). Reframe `CODEX_SETUP` as neutral per-harness setup (Codex = one adapter of eleven).
+- [ ] Describe rules-as-data + native dogfood: typed rule records (`ruleId <-> validator <-> fail/pass fixtures <-> doc-anchor <-> tier`); `.md` kept only as optional human-canonical text browsed via the UI rules-&-skills explorer; the enforcer runs its own Rust rules + toolchain on its own crates.
+- [ ] Add/refresh a doc section for each new top-level capability listed above (router f05, scan modes f01, UI g-track, multi-harness c-track, onboarding f02, silent-vs-human f04, language coverage rust/ts/py/dart/cfml/frontend).
+- [ ] Do not edit the real name-source surfaces x01 owns (`Cargo.toml`/crate `[package]` names, the binary/MCP name consts) nor the `enforcer-literal-scan` crate; this pack owns PROSE only.
+- [ ] Product name is **enforcer**, never **ocentra**, in all prose; the engine language is **Rust**, never described as TS/Node.
 
 ## Acceptance And Proof
-Tier T1 (deterministic) link-and-name gate (`docs-refresh-grep-clean` + `docs-refresh-sections-present` in TEST_PROOF_EXPECTATIONS.md):
-- **fail fixture**: a docs surface containing a stale `ocentra`/`codex install` *product* reference, OR a missing capability section -> gate fails naming the offending file/section.
-- **pass fixture**: `grep -riE "ocentra|codex install"` over the owned docs product surfaces (excluding real file-path refs x01 owns and `Tools/ocentra-literal-scan/**`) returns empty, AND every new top-level capability (router f05, scan modes f01, UI g-track, multi-harness c-track, onboarding f02, silent-vs-human f04, dart/cfml/frontend/python) has a present, non-empty doc section.
-- **detection test** (`docs-refresh-check`): asserts grep-clean over product surfaces and presence of each required capability heading.
+Tier T1 (deterministic) link-and-name gate. 5-way parity is Rust-native only insofar as a `cargo test` / xtask doc-check drives it; the doc content itself is prose. Rows `docs-refresh-grep-clean` + `docs-refresh-sections-present` in TEST_PROOF_EXPECTATIONS.md:
+- **fail fixture**: a docs surface containing a stale `ocentra` / `codex install` *product* reference, OR a TS-engine residue token (`.mjs`, `tsconfig`, `eslint` as our linter, Effect-Schema, jest/`node:test` describing the engine), OR a missing capability section -> the gate fails naming the offending file/section.
+- **pass fixture**: a grep over the owned docs product surfaces for `ocentra` / `codex install` / TS-engine-residue tokens (excluding the ALLOWED Tauri-frontend and validate-a-user's-code mentions, and excluding the name-source refs x01 owns and the `enforcer-literal-scan` crate) returns empty, AND every new top-level capability (router f05, scan modes f01, UI g-track, multi-harness c-track, onboarding f02, silent-vs-human f04, language coverage) has a present, non-empty doc section, AND the architecture prose states the Rust/native-binary/rules-as-data model.
+- **detection test** (`docs-refresh-check`): a `cargo test` / xtask doc-check asserts grep-clean over product + TS-residue surfaces and presence of each required capability heading.
 
 ## Parallel Ownership Notes
-Depends on x01 (rename must land first so docs describe the real names). Owns product/doc prose only; disjoint from x01's shipped/config file surfaces. The grep gate is deliberately scoped to exclude x01-owned path references and the distinct `Tools/ocentra-literal-scan/**` dir to avoid double-ownership.
+Depends on x01 (the rename must land first so docs describe the real `enforcer` names/consts). Owns product/doc PROSE only; disjoint from x01's name-source `Cargo.toml`/const surfaces and from the `enforcer-literal-scan` crate. The grep gate is deliberately scoped to exclude the x01-owned name-source surfaces and to permit the two ALLOWED TS mentions (Tauri UI frontend; validating a user's non-Rust code) so it does not double-own or false-positive. owns disjoint? = Y.

@@ -12,20 +12,20 @@
 > Proof rule: Before DONE, select tests in TEST_PROOF_EXPECTATIONS.md and update proof rows.
 <!-- /agent-capsule -->
 
-- owns: `rules/rust/error-handling.md, src/validators/rust-err-*.ts, tests/fixtures/rust/err-**`
-- deps: `d01`
+- owns: `crates/enforcer-lang-rust/src/rules/error_handling.rs, crates/enforcer-lang-rust/tests/fixtures/error_handling/**`
+- deps: `d01, arc-06, arc-05, arc-04`
 - tier: `P0`
 
-Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md), [ADBP_GAPS](../ADBP_GAPS.md).
+Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md), [ADBP_GAPS](../ADBP_GAPS.md), [RUST_ARCHITECTURE](../RUST_ARCHITECTURE.md).
 
 ## Where We Are
-The Rust rule set has partial error-handling coverage: `#[from]` cause preservation is backed, one `ExitCode` hit exists, and `SAFETY` strings are present, but the depth ADBP requires (rows 51-67, 130 of ADBP_GAPS.md) is missing. There is no ban on `.unwrap()`/`.expect()`/`panic!` in non-test paths, no `thiserror`-for-lib / `anyhow`-for-bin split, no `#[non_exhaustive]` requirement on public error enums, no `.with_context` at `?` boundaries, and no Rust-specific hardening (exhaustive match, captured format idents, no-lossy-`as`, borrow-not-own, thin `main.rs`).
+The `enforcer-lang-rust` crate (arc-06) has partial error-handling coverage of a user's Rust code: `#[from]` cause preservation is backed, one `ExitCode` hit exists, and `SAFETY` strings are present, but the depth ADBP requires (rows 51-67, 130 of ADBP_GAPS.md) is missing. There is no ban on `.unwrap()`/`.expect()`/`panic!` in non-test paths, no `thiserror`-for-lib / `anyhow`-for-bin split, no `#[non_exhaustive]` requirement on public error enums, no `.with_context` at `?` boundaries, and no Rust-specific hardening (exhaustive match, captured format idents, no-lossy-`as`, borrow-not-own, thin `main.rs`). (These rules govern the Rust code the enforcer validates — including, under dogfood, its own crates.)
 
 ## Where We Want To Be
-A Rust error-handling + hardening family (docs in `rules/rust/error-handling.md`, validators `src/validators/rust-err-*.ts`, fixtures `tests/fixtures/rust/err-**`), scaffolded via d01 with full 5-way parity. T1 blocks the deterministic structural rules; T2 scores the style/design rules on the Rust literal-scan model.
+A Rust error-handling + hardening `Validator` family in `enforcer-lang-rust` (arc-06) — one `src/rules/error_handling.rs` module, fixtures `crates/enforcer-lang-rust/tests/fixtures/error_handling/**` — scaffolded via d01 (arc-14) with full 5-way parity. Each rule is a `Validator` impl (built on the `enforcer-validator` trait) that parses the target Rust with `syn`, walks the AST, and emits structured `Finding`s plus a terse `Fix:` hint. T1 blocks the deterministic structural rules; T2 scores the style/design rules on the `enforcer-literal-scan` scored model.
 
 ## Requirement Checklist
-Each rule is scaffolded with `enforcer rule new <ID>` (d01), landing a doc anchor, a `rust-err-*.ts` validator, and a fail+pass fixture pair under `tests/fixtures/rust/err-*`.
+Each rule is scaffolded via d01, landing a doc-anchor in its `enforcer-rules` record, a `syn`-based `Validator` in `src/rules/error_handling.rs`, and a fail+pass fixture pair under `crates/enforcer-lang-rust/tests/fixtures/error_handling/<rule>/{bad,good}/`.
 
 - [ ] **T1 RUST-ERR-NONEXHAUSTIVE — public error enums `#[non_exhaustive]`.** fail `pub enum ConfigError { NotFound }`; pass `#[non_exhaustive] pub enum ConfigError {...}`.
 - [ ] **T1 (this pack's core) no `.unwrap()`/`.expect()`/`panic!` in non-test paths.** fail `let v = parse().unwrap();` in `src/` non-`#[cfg(test)]`; pass `let v = parse()?;`. Validator excludes `#[cfg(test)]` / `tests/` / `benches/`.
@@ -50,12 +50,12 @@ Each rule is scaffolded with `enforcer rule new <ID>` (d01), landing a doc ancho
 - **Bounded concurrency vs unbounded `tokio::spawn`: PARTIAL / already-covered.** This is backed by the existing async-runtime family (RR-8.18 / RR-8.19 / RR-8.20). Do NOT create `RUST-ASYNC-BOUNDED-CONCURRENCY`; note the mapping to RR-8.18/8.19/8.20 in the doc and defer to that family. ADBP_GAPS row 63 is superseded here.
 
 ## Acceptance And Proof
-Tier P0. The T1 rules block; the T2 rules score on the Rust literal-scan model (fixtures assert the score crosses the fail threshold and stays under it on pass). Non-test-path exclusion (`#[cfg(test)]`, `tests/`, `benches/`) is itself proven by a pass fixture that keeps `.unwrap()` inside a `#[cfg(test)]` module clean. For every ruleId the fail-fixture is flagged and the pass-fixture stays clean under its `rust-err-*.ts` validator; the detection test asserts both. No T3 in this pack. Re-run the d01 `rule-scaffold-parity` oracle and record detection-test artifact paths in TEST_PROOF_EXPECTATIONS.md.
+Tier P0. Prove via `cargo test -p enforcer-lang-rust`. The T1 rules block; the T2 rules score on the `enforcer-literal-scan` model (fixtures assert the score crosses the fail threshold and stays under it on pass). Non-test-path exclusion (`#[cfg(test)]`, `tests/`, `benches/`) is itself proven by a pass fixture that keeps `.unwrap()` inside a `#[cfg(test)]` module clean. For every ruleId the fail-fixture is flagged and the pass-fixture stays clean under its `Validator` impl in `src/rules/error_handling.rs`; the detection test asserts both. No T3 in this pack. Re-run the d01 `rule-scaffold-parity` oracle and record detection-test artifact paths in TEST_PROOF_EXPECTATIONS.md.
 
-Representative triples:
-- RUST-ERR-NONEXHAUSTIVE: fail `tests/fixtures/rust/err-nonexhaustive/fail.rs`, pass `.../pass.rs`, test `rust-err-nonexhaustive.test`.
-- unwrap-ban: fail `tests/fixtures/rust/err-unwrap/fail_nontest.rs`, pass `.../pass_test_module.rs` (unwrap under `#[cfg(test)]`), test `rust-err-unwrap.test`.
-- RUST-ERR-CONTEXT (T2): fail `tests/fixtures/rust/err-context/fail_bare_question.rs`, pass `.../pass_with_context.rs`, test `rust-err-context.test`.
+Representative triples (fixtures are `.rs` sample code the `syn`-based `Validator` parses):
+- RUST-ERR-NONEXHAUSTIVE: fail `crates/enforcer-lang-rust/tests/fixtures/error_handling/nonexhaustive/bad/enum.rs`, pass `.../good/enum.rs`, `#[test] rust_err_nonexhaustive`.
+- unwrap-ban: fail `crates/enforcer-lang-rust/tests/fixtures/error_handling/unwrap/bad/nontest.rs`, pass `.../good/test_module.rs` (unwrap under `#[cfg(test)]`), `#[test] rust_err_unwrap`.
+- RUST-ERR-CONTEXT (T2): fail `crates/enforcer-lang-rust/tests/fixtures/error_handling/context/bad/bare_question.rs`, pass `.../good/with_context.rs`, `#[test] rust_err_context`.
 
 ## Parallel Ownership Notes
-Owns `rules/rust/error-handling.md`, `src/validators/rust-err-*.ts`, and `tests/fixtures/rust/err-**` exclusively; disjoint from siblings. Depends on d01. The Rust layer/MCP lane here is distinct from the FSM (d16) and security (d18) packs; the async-runtime family (RR-8.18/8.19/8.20) is owned elsewhere and must not be edited from this pack.
+Owns `crates/enforcer-lang-rust/src/rules/error_handling.rs` and `crates/enforcer-lang-rust/tests/fixtures/error_handling/**` exclusively; disjoint from siblings. Lands inside the `enforcer-lang-rust` crate whose skeleton arc-06 owns — must not edit the crate skeleton, the baseline Rust validators (including the `no-reexports` syn check), or the language registration arc-06 owns. Depends on d01, arc-05 (Validator trait), arc-04 (rule records). The Rust layer/MCP lane here is distinct from the FSM (d16) and security (d18) packs; the async-runtime family (RR-8.18/8.19/8.20) is owned elsewhere and must not be edited from this pack.

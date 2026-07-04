@@ -17,9 +17,9 @@ Sources: [TEST_PROOF_EXPECTATIONS](./TEST_PROOF_EXPECTATIONS.md) (authority), [W
 
 ## The one rule this index exists to enforce
 
-**A workpack is DONE only when its proof row in [TEST_PROOF_EXPECTATIONS.md](./TEST_PROOF_EXPECTATIONS.md) is GREEN.** GREEN means: the named test passes on the migrated tree AND (for T1 / P4 / P5) the seeded-violation case is demonstrated to fail. A green test that never trips is a hollow scan — a doctrine violation, not a proof.
+**A workpack is DONE only when its proof row in [TEST_PROOF_EXPECTATIONS.md](./TEST_PROOF_EXPECTATIONS.md) is GREEN.** GREEN means: the named `cargo test -p <crate>` passes on the Rust workspace AND (for T1 / P4 / P5) the seeded-violation fixture is demonstrated to fail. A green test that never trips is a hollow scan — a doctrine violation, not a proof. Every proof is Rust-native (`cargo test -p <crate>` + fail/pass fixtures + `clippy`/`fmt`/`deny`/`audit`) — never `tsc`/`jest`/typecheck.
 
-To review a workpack: open [TEST_PROOF_EXPECTATIONS.md](./TEST_PROOF_EXPECTATIONS.md) section 4, find the row, run the named test + the seeded-violation case, then authorize (or reject) the WORKPACK_INDEX status move.
+To review a workpack: open [TEST_PROOF_EXPECTATIONS.md](./TEST_PROOF_EXPECTATIONS.md) section 4, find the row, run the named `cargo test -p <crate>` + the seeded-violation fixture, then authorize (or reject) the WORKPACK_INDEX status move.
 
 ---
 
@@ -27,9 +27,9 @@ To review a workpack: open [TEST_PROOF_EXPECTATIONS.md](./TEST_PROOF_EXPECTATION
 
 | Tier | One-liner | Fail-closed evidence |
 |------|-----------|----------------------|
-| **P0** | Contract / schema | tsc negative fixture OR schema decode test OR frozen snapshot |
-| **P1** | Unit | pass+fail+edge test; conversions: scoped `tsc --noEmit`==0 + no `import *` |
-| **P2** | CI / cross-platform | CI job runs it; determinism + seeded-skew-fails |
+| **P0** | Contract / schema | `cargo test -p <crate>` negative fixture OR serde decode test OR frozen snapshot |
+| **P1** | Unit | `cargo test -p <crate>` pass+fail+edge fixtures; crate builds: clean `cargo test -p <crate>` + `clippy`/`fmt`/`deny`/`audit` |
+| **P2** | CI / cross-platform | CI job runs `cargo test -p <crate>`; determinism + seeded-skew-fails |
 | **P3** | Live MCP-tool | invoke the tool path; mutate input; re-observe |
 | **P4** | Self-enforce green | real gate vs live tree, honestly green + seeded self-violation fails |
 | **P5** | Install / integration | temp-home install->verify green; corrupt->fail; uninstall restores; hooks: exact deny+ruleId+fix |
@@ -43,29 +43,42 @@ Rule-mechanization ladder (orthogonal): **T1** hard/deterministic (fail-closed),
 Counts are primary-tier assignments; several workpacks carry a secondary row (noted).
 
 ### P0 - Contract / schema
-- **Track A**: a03, a04, a05, a06, a07 (all T1 brands/boundaries, proven by tsc negative fixtures + decode tests).
+- **Track A**: a03, a04, a05, a06, a07 (all T1 brands/boundaries, proven by `cargo test -p` negative fixtures + serde decode tests).
 - **Track C**: c08 (adapter stubs; T3-labeled `status:"deferred"`, contract-verified).
 - **Track D**: d12 (T1 AST rules), d14 (T1 label gate over T3 content).
 - **Track B**: b03 (frozen-snapshot templates).
+- **Track E**: e-pack-dart, e-pack-cfml, e-pack-frontend-react, e-pack-python, e-pack-crypto-blockchain (each P0/P1 mixed: T1 structural blocks + T2 scored + labeled T3 residue; crypto pack is OPTIONAL/opt-in).
+- **Track H**: h01 (money-critical classifier: T2 classification + T1 annotation gate), h06 (money-critical mechanics: T1 signing/time/boundary/killswitch + T2 economic/rollback).
 
 ### P1 - Unit
-- **Track A**: a01, a08, and the **entire conversion swarm a-conv-01..50** (uniform scoped-typecheck proof).
+- **Track A**: a01, a08, and the **entire crate swarm arc-01..arc-25** (uniform `cargo test -p <crate>` proof; includes arc-25 `enforcer-events`).
 - **Track C**: c01, c02, c07.
 - **Track D**: d01, d02, d03, d04, d06, d07, d08, d09, d10, d13.
 - **Track B**: b01, b04.
+- **Track E**: e01 (literal-scan universal T2 layer; non-blocking scored/advisory).
+- **Track F**: f01 (scan modes), f03 (project-tie + native augment), f04 (silent-vs-human mode), f05 (detect-and-route, T1).
+- **Track G**: g03 (violation actions), g05 (settings/config UI).
+- **Track H**: h04 (security-test-quality: T1 banned/required + T2 scored), h05 (economic-invariant suite), h08 (testing-mandate skill + profile: T1 ingest-mapping + T2 unbacked-rule flag), h11 (cyberskills-corpus-to-Rust-rules).
 
 ### P2 - CI / cross-platform
 - **Track D**: d05 (T1 ratchet + T2 score), d11 (T1 CI==local parity).
+- **Track H**: h07 (security tooling/CI/observability: T1 coverage/sampling + T2 observability), h11/h12 secondary rows (see Dual-tier).
 
 ### P3 - Live MCP-tool
-- **Track A**: a02 (fingerprint-over-`dist/` against live `mcp_status`/freshness).
+- **Track A**: a02 (fingerprint-over-built-artifacts against live `mcp_status`/freshness).
+- **Track F**: f01 (secondary — MCP `enforcer_scan` tool schema live-invoked).
+- **Track G**: g02 (scan report UI), g06 (hub coordination dashboard — live materialized ledger state), g08 (rules-&-skills explorer).
+- **Track H**: h03 (threat-test-invariant mapping, secondary row).
 
 ### P4 - Self-enforce green
 - **Track A**: a09 (honest skips), a10 (real self-enforcement + CI hard-fail).
 - **Track B**: b02 (validator vs THIS plan dir), b05 (skill self-validate vs THIS plan dir).
+- **Track H**: h02 (required-test-categories gate), h03 (threat-test-invariant mapping, primary row), h07/h12 secondary rows (see Dual-tier).
 
 ### P5 - Install / integration proof
-- **Track C**: c03, c04 (T1 deny-hook mechanical bridge), c05, c06.
+- **Track C**: c03, c04 (T1 deny-hook mechanical bridge), c05, c06, c09 (remaining harness adapters).
+- **Track F**: f02 (onboard + autoindex).
+- **Track G**: g01 (UI serve surface), g04 (run-dispatch), g05 (secondary row), g07 (UI security, T1).
 
 ### Doc-only (no runtime tier)
 - **Track D**: d15 (README research grounding; proof = artifact exists + cross-link integrity; explicitly gates nothing — the honesty guardrail is the doc-only label itself).
@@ -80,6 +93,8 @@ These emit a hard gate **and** a scored signal; both rows must be satisfied:
 |----------|------------------------|---------------------------|
 | d05 Context Budget | surface-growth ratchet vs committed baseline | surface-per-tool efficiency score + confidence |
 | d10 Resilience Auditor | required-test obligation rows | failure-mode "smell" scores + confidence |
+| h07 Security Tooling CI | coverage/sampling floor gate | observability wiring score + confidence |
+| h12 Cyberskills Python Adapters | OPTIONAL, out-of-dogfood; graceful-skip honesty gate | adapter-finding severity score feeding f05, non-blocking |
 
 For each, the T2 proof asserts `score in [0,1]`, a confidence value, and **zero effect on exit code**.
 

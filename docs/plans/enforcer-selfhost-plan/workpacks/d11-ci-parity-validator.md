@@ -12,27 +12,27 @@
 > Proof rule: Before DONE, select tests in TEST_PROOF_EXPECTATIONS.md and update proof rows.
 <!-- /agent-capsule -->
 
-- owns: `src/ci-parity.ts, scripts/ci-parity-verify.mjs, tests/ci-parity.test.mjs`
-- deps: `d01-rule-mechanization-engine`
+- owns: `crates/enforcer-harness/src/ci_parity.rs, crates/enforcer-harness/tests/ci_parity.rs, crates/enforcer-harness/tests/fixtures/ci_parity/**`
+- deps: `d01-rule-mechanization-engine, arc-18-enforcer-harness`
 - tier: `P2 CI cross-platform`
 
-Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md).
+Sources: [PLAN_STATE](../PLAN_STATE.md), [PLAN_EXECUTION_BLUEPRINT](../PLAN_EXECUTION_BLUEPRINT.md), [TEST_PROOF_EXPECTATIONS](../TEST_PROOF_EXPECTATIONS.md), [RUST_ARCHITECTURE](../RUST_ARCHITECTURE.md).
 
 ## Where We Are
-`scripts/ci-local.mjs` lists local steps and there is an `enforcer:verify:ci` script, but drift between local hooks and CI jobs (or between pinned tool versions) is possible. ADBP's "local == CI" is a guideline, not a check.
+Local dogfood steps (the pre-commit hook / cargo-alias emitted by the installer) and the CI job matrix can drift, and pinned toolchain versions can skew. ADBP's "local == CI" is a guideline, not a check. `enforcer-harness` (arc-18) already runs native tools (cargo/clippy/fmt/deny/audit) but has no module that proves local and CI run the same steps and pins.
 
 ## Where We Want To Be
-A T1 validator asserting the set of local hook/steps equals the set of CI jobs, and that pinned versions (node, cargo/rust-toolchain, key deps) match between the two sources of truth.
+A T1 module in `enforcer-harness` (`ci_parity`) asserting the set of local hook/steps equals the set of CI jobs, and that pinned versions (`rust-toolchain.toml`, workspace `Cargo.toml` deps, CI action/tool versions) agree between the two sources of truth. Runs both as a local `enforcer` check (through the harness run-adapters) and as a CI job.
 
 ## Requirement Checklist
-- [ ] Parse local step list (`scripts/ci-local.mjs`) and the CI job definition into comparable step sets.
-- [ ] Assert step-set equality: any local-only or CI-only step fails closed.
-- [ ] Assert pinned versions agree (e.g. `rust-toolchain.toml`, engines in `package.json`, action/tool versions).
-- [ ] Validator is deterministic and runs both locally and as a CI job (self-referential parity).
-- [ ] Failure names the specific mismatched step or version.
+- [ ] Parse the local step manifest (the installer-emitted pre-commit/cargo-alias steps) and the CI workflow job definition into comparable step sets.
+- [ ] Assert step-set equality: any local-only or CI-only step fails closed (emit a `Finding`).
+- [ ] Assert pinned versions agree — `rust-toolchain.toml` channel, key `[workspace.dependencies]` versions in the root `Cargo.toml`, and CI action/tool versions — parsed at boundary into typed records.
+- [ ] Deterministic; runs both locally (via the `enforcer-harness` run-adapters) and as a CI job (self-referential parity). Obey `[workspace.lints]` (no `unwrap`/`panic`/`print_*`).
+- [ ] Failure names the specific mismatched step or version in the `Finding`.
 
 ## Acceptance And Proof
-Tier T1, P2 CI cross-platform. Prove via `tests/ci-parity.test.mjs`: injected extra local step fails; injected version skew fails; matched sets pass. CI job runs `scripts/ci-parity-verify.mjs`. Mechanism: normalized set/version diff between the local step manifest and the CI manifest, fail-closed on any delta.
+Tier T1, P2 CI cross-platform. Prove via `cargo test -p enforcer-harness` (`crates/enforcer-harness/tests/ci_parity.rs`) over `crates/enforcer-harness/tests/fixtures/ci_parity/**`: an injected extra local step fails; an injected version skew fails; matched sets pass. The CI job runs the same check via the `enforcer` binary / `enforcer-harness` adapter. Mechanism: a normalized set/version diff between the local step manifest and the CI manifest, fail-closed on any delta.
 
 ## Parallel Ownership Notes
-Depends on d01 conventions only lightly (shares validator harness). Owns disjoint ci-parity files; shares a CI stage with d05 but no files, so concurrent.
+Depends on d01 lightly (shares the validator/parity conventions) and arc-18 for the `enforcer-harness` crate skeleton (run-adapters + compact diagnostics) it plugs into. Owns only `src/ci_parity.rs` and its `tests/ci_parity.rs` + fixtures inside `enforcer-harness` — disjoint from the arc-18 skeleton and from d28 (target-ci-parity, the other harness feature module) by file. Shares a CI stage with d05 but no files. owns disjoint? = Y (deps arc-18 sequences it after the crate skeleton exists).
