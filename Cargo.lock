@@ -147,6 +147,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "enforcer-mechanization"
+version = "0.1.0"
+dependencies = [
+ "enforcer-core",
+ "enforcer-domain",
+ "enforcer-rules",
+ "enforcer-validator",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "enforcer-rules"
 version = "0.1.0"
 dependencies = [
