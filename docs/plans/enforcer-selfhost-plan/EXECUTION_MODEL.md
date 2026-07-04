@@ -110,6 +110,14 @@ applied to the swarm.
 - **Mail = inter-lane, for everything else** (status, questions, hand-offs, and — the important one — PR
   gating). Different lane/worktree/branch ⇒ no lock needed, by construction, ⇒ mail is the coordination
   primitive.
+- **Worker mail lifecycle (owner-set, 2026-07-04): started → progress → done/blocked, never final-only.**
+  A worker lane mails `primary` at THREE points, not one: (1) **`<lane> started`** immediately after its claim
+  succeeds and BEFORE it builds anything — so the orchestrator's presence picture always says who is actively
+  working what, not just who claimed; (2) **`<lane> progress`** whenever it has something SUBSTANTIAL to report —
+  a proof gone green, a checkpoint pushed, an unexpected finding, a decision taken inside its own scope — not a
+  timer tick and not silence-until-done; (3) **`<lane> done`** (or **`<lane> blocked`** with the exact blocker)
+  with branch + commit sha + proof summary. A worker that reports only at the end has violated the protocol even
+  if its work is perfect: the orchestrator cannot re-plan around invisible in-flight state.
 - **VERIFIED GAP (read the code, don't just trust the model):** `detectConflicts()` in
   `src/coordination/vendor/materialize.js:374` compares claims by BARE NORMALIZED RELATIVE PATH only
   (`normalizeCoordinationPath` = slash/case normalization; no `worktreeRoot` folded into the key — confirmed by
@@ -122,21 +130,30 @@ applied to the swarm.
   ONE of: (i) keep the per-worktree/per-lane-hub convention (simplest — what we use today), or (ii) key claim
   conflicts by `(worktreeRoot, normalizedRelPath)` instead of bare relPath so a genuinely shared hub is safe.**
   Default to (i) unless a workpack explicitly needs (ii).
-- **PR creation is CENTRALIZED to the primary lane — verified as a real, gated mechanism, not just convention.**
+- **PR creation is CENTRALIZED and THREE-ROLE — worker → orchestrator → gatekeeper (owner-set, 2026-07-04).**
   `WorkerState`/`TaskState` include `pr_ready` as a first-class state (`domain.js:22-23`, NOT an ad-hoc
   message); `guard.js:122` gates the `pr_ready` operation on `allowMergeRisks`; `guard.js:153` recognizes a
-  literally-named `"primary"` lane with `allowPrimaryWithoutClaims`. The protocol:
-  1. A worker lane does its OWN local due diligence — runs its tests, collects its proof, genuinely believes it
-     is done — THEN transitions to `pr_ready` and mails the primary lane. It does NOT open a PR itself; only
-     the primary lane ever does.
-  2. The primary lane does NOT trust the `pr_ready` claim on faith (same zero-trust doctrine as rule
+  literally-named `"primary"` lane with `allowPrimaryWithoutClaims`. The roles are DISTINCT — the lane that
+  coordinates work must not be the lane that certifies it:
+  1. **Worker lane** does its OWN local due diligence — runs its tests, collects its proof, genuinely believes
+     it is done — mails `<lane> done` to the orchestrator. A worker NEVER declares `pr_ready` and NEVER opens
+     a PR.
+  2. **Orchestrator (primary lane)** does NOT trust the done-claim on faith (same zero-trust doctrine as rule
      authoring — "even our own validators are untrusted until fixtures pass" — now applied to orchestration).
-     Since proof is never uploaded anywhere central (§2b/§2c — `.enforce/` stays local), the primary lane goes
-     to that lane's ACTUAL local worktree, inspects the claim + what tests ran + what proof was collected, and
-     INDEPENDENTLY RE-RUNS the CI gates itself before creating the PR.
-  3. **CI gates can be heavy — potentially hours.** This is exactly why `pr_ready` is a deliberate, rare
-     escalation a lane only declares after genuine local due diligence — not something re-triggered casually,
-     and not something other lanes attempt speculatively "to see if they're ready."
+     Since proof is never uploaded anywhere central (§2b/§2c — `.enforce/` stays local), the orchestrator goes
+     to that lane's ACTUAL pushed branch/worktree, inspects the diff against the pack's `owns:` set, checks the
+     claimed proof, and integrates the checkpoint into the working branch. When a coherent milestone is
+     assembled (not per-pack — per genuinely shippable slice), THE ORCHESTRATOR is the one who declares
+     `pr_ready`/CI-ready.
+  3. **Gatekeeper (a separate verifier lane — NOT the orchestrator)** owns the final gate. On `pr_ready` it
+     verifies the assembled milestone AGAINST THE PLAN: every claimed workpack's proof rows in
+     TEST_PROOF_EXPECTATIONS.md are green and evidenced, the `owns:` boundaries were respected, checkpoints
+     exist on the remote, and the CI gates pass when IT re-runs them. Only a gatekeeper-green milestone
+     produces an actual PR to the protected branch. The orchestrator assembling the work and the gatekeeper
+     certifying it being the same mind is the exact self-review failure the whole enforcer exists to prevent.
+  4. **CI gates can be heavy — potentially hours.** This is exactly why `pr_ready` is a deliberate, rare
+     escalation the orchestrator only declares after genuine integration due diligence — not something
+     re-triggered casually, and not something worker lanes attempt speculatively "to see if they're ready."
 - **Heartbeat / mail-check cadence.** AI sessions are not continuously live, so the primary lane needs a
   recurring scheduled check ("you are on this lane, check your mail") at a cadence matched to urgency (e.g.
   1/5/15-minute). Codex apparently does this natively (direct cross-session task-passing with little friction).
