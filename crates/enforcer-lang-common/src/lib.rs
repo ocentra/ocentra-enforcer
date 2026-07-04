@@ -37,7 +37,13 @@
 //!   annotation grammar), one module per rule, mirroring
 //!   [`port_platform`]'s existing bespoke-validator precedent.
 //! - [`registry`] — [`registry::all`], the single entry point returning
-//!   every validator this crate owns.
+//!   every validator this crate owns (the arc-09 count-parity set).
+//! - [`rules`] — NEW-mechanism rule families scaffolded via d01 that sit
+//!   OUTSIDE the legacy `rules.json` `language==common` count-parity set:
+//!   [`rules::fsm`] (d16, FSM transition validity — ADBP_GAPS.md rows
+//!   41-50). Disjoint files/tests/fixtures from [`families`]/[`registry`];
+//!   not included in [`registry::all`]'s count and not part of
+//!   `tests/parity.rs`'s legacy-catalog assertion.
 //!
 //! No `pub use` barrels (workspace doctrine): consumers path through the
 //! modules directly, e.g. `enforcer_lang_common::registry::all`.

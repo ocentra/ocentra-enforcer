@@ -5,3 +5,4 @@
 //! `RuleId` plus its fixtures, per the workpack that introduced it.
 
 pub mod deferred_work;
+pub mod fsm;
