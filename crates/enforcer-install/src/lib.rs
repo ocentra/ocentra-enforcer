@@ -60,6 +60,7 @@
 pub mod backup;
 pub mod cli_contract;
 pub mod core;
+pub mod detect;
 pub mod distribution;
 pub mod error;
 pub mod managed_block;

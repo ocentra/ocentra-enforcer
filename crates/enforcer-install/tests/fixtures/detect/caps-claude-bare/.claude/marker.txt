@@ -1,0 +1,3 @@
+Bare .claude home dir fixture -- deliberately carries no agentic
+capability markers, so every HarnessCapabilities field on this fixture
+must resolve to the fail-closed Unknown/Support::Unknown default.

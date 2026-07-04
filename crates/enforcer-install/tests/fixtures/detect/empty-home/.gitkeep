@@ -1,0 +1,2 @@
+Intentionally empty "home" fixture: no harness marker directories at
+all, asserting the no-false-positives case (workpack c02 acceptance row).
