@@ -1,0 +1,17 @@
+[package]
+name = "enforcer-lang-py"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "arc-08: the Python-family Validator crate. Implements every language==\"python\" rule from rules/rules.json (61 rules across PY-1..PY-6) against the enforcer-validator Validator trait, proven via the arc-05 fixture/parity harness."
+publish = false
+
+[dependencies]
+serde_json = { workspace = true }
+enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
+
+[lints]
+workspace = true

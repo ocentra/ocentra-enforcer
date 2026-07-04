@@ -1,0 +1,8 @@
+[
+  {
+    "filename": "src/app.py",
+    "code": "E501",
+    "message": "line too long (92 > 88 characters)",
+    "location": { "row": 12, "column": 89 }
+  }
+]

@@ -1,0 +1,9 @@
+{
+  "generalDiagnostics": [
+    {
+      "file": "src/app.py",
+      "severity": "error",
+      "message": "Type mismatch"
+    }
+  ]
+}
