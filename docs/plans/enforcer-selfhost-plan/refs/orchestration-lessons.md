@@ -13,6 +13,12 @@
 Format: `id | date | observed (live evidence) | lesson | landed-at (durable artifact) | ships-via (harness surface)`.
 The x05 workpack mechanizes this: capture tool + routing emitters + fail-closed doctor ("every lesson routes to a landed artifact").
 
+Lessons are DUAL-DOMAIN (`harness` | `code` — RUST_ARCHITECTURE "The learning thesis"): orchestration/protocol
+lessons AND coding-fault/fix-pattern lessons flow through the same loop; a `code` lesson lands as a rule-candidate
+WITH fixtures or it does not land. Rows L13+ carry an explicit domain tag in the `observed` cell; of the seed rows,
+L9 and L10 are `code`-domain, the rest `harness`. Learning is PROVABLE: t0 observation → t1 landed artifact →
+t2 recurrence query (x06 `memory evidence`), backed by the tamper-evident proof journal.
+
 | id | date | observed | lesson | landed-at | ships-via |
 |---|---|---|---|---|---|
 | L1 | 2026-07-04 | `coordination_init` re-init threw raw `EEXIST` | init must be idempotent (return existing identity, not a filesystem error) | arc-16 finding (this row) | fixed MCP tool behavior (arc-16) |

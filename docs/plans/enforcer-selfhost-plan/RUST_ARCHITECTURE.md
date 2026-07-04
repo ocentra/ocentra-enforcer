@@ -179,6 +179,24 @@ bytes behind it change. Freshness is the a02 fingerprint over the running artifa
 when a newer build is available). This is what makes the enforcer harness-, repo-, and folder-agnostic in steady
 state: whether the host is Claude or anything else, an MCP fires a versioned binary, not a checkout.
 
+### The learning thesis — experience over pretraining, PROVEN by the proof system (owner-set, 2026-07-04)
+The enforcer's end state is a **human-like learning system**: it gets better BY BEING USED, not by waiting for a
+better pretrained model. Lessons are DUAL-DOMAIN — `harness` (orchestration/protocol/coordination, e.g. the
+mail-lifecycle and stale-base lessons) AND `code` (fault patterns the gates catch, fix patterns that survive
+review, tooling drift like a deny-schema migration). Both flow through the same x05 capture → x06 memory →
+retrieval-at-action loop: a coding lesson lands as a rule-candidate WITH fail/pass fixtures, ships as an enforced
+gate, and is recalled at session start — so the next agent cannot repeat the fault even if its base model would.
+The intelligence accumulates in the SYSTEM (rules + fixtures + graph), not the weights — which is why a
+capsule-disciplined small model performs like a frontier model here (measured live: L8).
+**And the claim is FALSIFIABLE, not aspirational — the proof system is the instrument:** a learning event is the
+triple (t0: violation/incident observed, recorded with `observedIn` provenance) → (t1: artifact landed — rule +
+fixtures green, doctrine block, forest node — x05 fail-closed doctor) → (t2+: recurrence query over the x06 graph
++ the tamper-evident `enforcer-proof` hash-chained journal shows the fault class caught-at-gate or extinct).
+"The harness learned X" is thus a query with evidence, never a vibe; the aggregate curve (violation/recurrence
+rates declining over usage) is the benchmark that proves experience-driven learning works — bad code prevented
+IS the movement toward good code, made cumulative and measurable. z01 (dogfood gate) is the terminal instance:
+the system proving, against itself, that everything it learned holds.
+
 ### Dev-time transition wiring (until the Rust binary exists) — anti-recursion
 While the enforcer itself is being converted to Rust, the live MCP still runs the legacy `.mjs` from a repo
 checkout. Running the harness's live tool out of the SAME code under active edit is a self-editing recursion
