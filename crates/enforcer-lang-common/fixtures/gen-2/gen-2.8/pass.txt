@@ -1,0 +1,5 @@
+// Fixture for GEN-2.8: Generated code cannot contain suppressions
+// Clean source — no occurrence of the GEN-2.8 marker below.
+fn clean_example() {
+    // conformant with generic-scanner
+}

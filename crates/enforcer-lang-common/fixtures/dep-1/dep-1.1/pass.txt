@@ -1,0 +1,5 @@
+// Fixture for DEP-1.1: Dependency security audit must pass
+// Clean source — no occurrence of the DEP-1.1 marker below.
+fn clean_example() {
+    // conformant with common/dependency-policy
+}

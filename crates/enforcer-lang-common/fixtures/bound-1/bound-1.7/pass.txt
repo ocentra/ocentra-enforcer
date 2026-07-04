@@ -1,0 +1,5 @@
+// Fixture for BOUND-1.7: Boundary glob additions require waiver
+// Clean source — no occurrence of the BOUND-1.7 marker below.
+fn clean_example() {
+    // conformant with common/architecture
+}

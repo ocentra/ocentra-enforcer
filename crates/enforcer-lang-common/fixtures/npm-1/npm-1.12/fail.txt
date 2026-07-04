@@ -1,0 +1,4 @@
+// Fixture for NPM-1.12: SBOM must be generated for release
+// Ported from legacy validator id `sbom` (see rules/rules.json doc: rules/common/sbom.md#covered-rules).
+// This line trips the rule:
+ENFORCER_NPM_1_12_MARKER

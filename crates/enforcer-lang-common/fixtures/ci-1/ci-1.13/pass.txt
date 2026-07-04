@@ -1,0 +1,5 @@
+// Fixture for CI-1.13: CI action versions must be pinned
+// Clean source — no occurrence of the CI-1.13 marker below.
+fn clean_example() {
+    // conformant with ci-integrity
+}

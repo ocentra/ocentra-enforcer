@@ -1,0 +1,5 @@
+// Fixture for DOCENF-1.1: Rule docs must include required teaching sections
+// Clean source — no occurrence of the DOCENF-1.1 marker below.
+fn clean_example() {
+    // conformant with common/docs-completeness
+}

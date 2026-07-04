@@ -1,0 +1,5 @@
+// Fixture for SCAN-1.14: Unknown extensions must not trigger false language scans
+// Clean source — no occurrence of the SCAN-1.14 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

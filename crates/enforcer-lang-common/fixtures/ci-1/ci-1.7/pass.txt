@@ -1,0 +1,5 @@
+// Fixture for CI-1.7: CI must validate schemas
+// Clean source — no occurrence of the CI-1.7 marker below.
+fn clean_example() {
+    // conformant with common/ci-integrity
+}

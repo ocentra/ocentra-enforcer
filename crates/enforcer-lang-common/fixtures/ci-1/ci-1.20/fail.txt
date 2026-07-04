@@ -1,0 +1,4 @@
+// Fixture for CI-1.20: Required checks must include Enforcer
+// Ported from legacy validator id `ci-integrity` (see rules/rules.json doc: rules/common/governance.md#covered-rules).
+// This line trips the rule:
+ENFORCER_CI_1_20_MARKER

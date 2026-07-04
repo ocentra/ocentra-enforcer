@@ -1,0 +1,5 @@
+// Fixture for ENF-1.15: CLI and MCP behavior must match
+// Clean source — no occurrence of the ENF-1.15 marker below.
+fn clean_example() {
+    // conformant with common/rule-coverage
+}

@@ -1,0 +1,5 @@
+// Fixture for ARCH-1.4: Domain cannot import HTTP clients or servers
+// Clean source — no occurrence of the ARCH-1.4 marker below.
+fn clean_example() {
+    // conformant with common/architecture
+}

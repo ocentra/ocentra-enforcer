@@ -1,0 +1,4 @@
+// Fixture for SCAN-2.9: Regex scanner must remain fast preflight
+// Ported from legacy validator id `common/scanner-contracts` (see rules/rules.json doc: rules/common/scanner.md#covered-rules).
+// This line trips the rule:
+ENFORCER_SCAN_2_9_MARKER

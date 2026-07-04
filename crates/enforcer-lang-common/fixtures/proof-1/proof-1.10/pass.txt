@@ -1,0 +1,5 @@
+// Fixture for PROOF-1.10: Proof registry docs paths must exist
+// Clean source — no occurrence of the PROOF-1.10 marker below.
+fn clean_example() {
+    // conformant with common/proof-contracts
+}

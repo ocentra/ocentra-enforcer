@@ -1,0 +1,5 @@
+// Fixture for SCAN-2.10: Native and regex reports must merge without duplicate spam
+// Clean source — no occurrence of the SCAN-2.10 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

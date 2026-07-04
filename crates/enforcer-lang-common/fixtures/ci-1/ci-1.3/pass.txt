@@ -1,0 +1,5 @@
+// Fixture for CI-1.3: CI must run rule and policy tests
+// Clean source — no occurrence of the CI-1.3 marker below.
+fn clean_example() {
+    // conformant with common/ci-integrity
+}

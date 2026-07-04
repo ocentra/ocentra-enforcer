@@ -1,0 +1,5 @@
+// Fixture for HAR-2.2: Raw harness logs must be bounded and redacted
+// Clean source — no occurrence of the HAR-2.2 marker below.
+fn clean_example() {
+    // conformant with common/harness-contracts
+}

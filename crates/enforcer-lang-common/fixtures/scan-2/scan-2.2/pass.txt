@@ -1,0 +1,5 @@
+// Fixture for SCAN-2.2: Rust strict mode must use parser-backed checks
+// Clean source — no occurrence of the SCAN-2.2 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

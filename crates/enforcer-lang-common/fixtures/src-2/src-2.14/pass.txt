@@ -1,0 +1,5 @@
+// Fixture for SRC-2.14: Internal modules cannot expose public API
+// Clean source — no occurrence of the SRC-2.14 marker below.
+fn clean_example() {
+    // conformant with common/source-shape
+}

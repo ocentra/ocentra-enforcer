@@ -1,0 +1,5 @@
+// Fixture for ARCH-1.15: Package and crate ownership files are required
+// Clean source — no occurrence of the ARCH-1.15 marker below.
+fn clean_example() {
+    // conformant with common/architecture
+}

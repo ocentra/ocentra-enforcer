@@ -1,0 +1,24 @@
+[package]
+name = "enforcer-lang-common"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "arc-09: the common-family Validator crate — cross-language rules (governance, manifest, docs/policy, contract-family dispatch, shared generic-scanner engine) that are not specific to any one source language. Owns count-parity for all `language==common` RuleIds except the SEC-2 family (delegated to enforcer-security/arc-10, which depends on this crate's engine only)."
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
+enforcer-rules = { path = "../enforcer-rules", version = "0.1.0" }
+enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
+
+[dev-dependencies]
+enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
+
+[lints]
+workspace = true

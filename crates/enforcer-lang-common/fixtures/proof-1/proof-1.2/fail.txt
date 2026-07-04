@@ -1,0 +1,4 @@
+// Fixture for PROOF-1.2: Proof freshness must bind commit and scope
+// Ported from legacy validator id `common/proof-contracts` (see rules/rules.json doc: rules/common/proof.md#covered-rules).
+// This line trips the rule:
+ENFORCER_PROOF_1_2_MARKER

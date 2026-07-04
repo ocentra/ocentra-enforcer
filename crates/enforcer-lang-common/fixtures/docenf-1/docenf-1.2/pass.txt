@@ -1,0 +1,5 @@
+// Fixture for DOCENF-1.2: Source rule docs must include fail and pass code blocks
+// Clean source — no occurrence of the DOCENF-1.2 marker below.
+fn clean_example() {
+    // conformant with common/docs-completeness
+}

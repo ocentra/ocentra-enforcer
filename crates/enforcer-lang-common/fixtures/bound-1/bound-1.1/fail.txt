@@ -1,0 +1,4 @@
+// Fixture for BOUND-1.1: Boundary modules require invariant documentation
+// Ported from legacy validator id `common/architecture` (see rules/rules.json doc: rules/common/architecture.md#covered-rules).
+// This line trips the rule:
+ENFORCER_BOUND_1_1_MARKER

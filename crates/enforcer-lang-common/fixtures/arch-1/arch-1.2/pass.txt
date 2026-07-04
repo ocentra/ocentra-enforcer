@@ -1,0 +1,5 @@
+// Fixture for ARCH-1.2: Domain cannot import UI
+// Clean source — no occurrence of the ARCH-1.2 marker below.
+fn clean_example() {
+    // conformant with common/architecture
+}

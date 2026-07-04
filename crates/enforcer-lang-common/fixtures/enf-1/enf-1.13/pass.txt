@@ -1,0 +1,5 @@
+// Fixture for ENF-1.13: Enforcer source cannot carry temporary bypasses
+// Clean source — no occurrence of the ENF-1.13 marker below.
+fn clean_example() {
+    // conformant with common/rule-coverage
+}

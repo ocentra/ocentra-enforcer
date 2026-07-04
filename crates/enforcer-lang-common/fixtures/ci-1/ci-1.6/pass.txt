@@ -1,0 +1,5 @@
+// Fixture for CI-1.6: CI must run Enforcer self-scan
+// Clean source — no occurrence of the CI-1.6 marker below.
+fn clean_example() {
+    // conformant with common/ci-integrity
+}

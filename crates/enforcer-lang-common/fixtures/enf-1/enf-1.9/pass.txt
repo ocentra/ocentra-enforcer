@@ -1,0 +1,5 @@
+// Fixture for ENF-1.9: JSON output must be deterministic
+// Clean source — no occurrence of the ENF-1.9 marker below.
+fn clean_example() {
+    // conformant with common/rule-coverage
+}

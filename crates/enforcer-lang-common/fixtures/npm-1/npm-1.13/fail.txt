@@ -1,0 +1,4 @@
+// Fixture for NPM-1.13: Published package files must be explicit
+// Ported from legacy validator id `common/package-determinism` (see rules/rules.json doc: rules/common/policy.md#covered-rules).
+// This line trips the rule:
+ENFORCER_NPM_1_13_MARKER

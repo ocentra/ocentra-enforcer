@@ -1,0 +1,5 @@
+// Fixture for ARCH-1.12: Barrel/facade files require explicit profile
+// Clean source — no occurrence of the ARCH-1.12 marker below.
+fn clean_example() {
+    // conformant with common/architecture
+}

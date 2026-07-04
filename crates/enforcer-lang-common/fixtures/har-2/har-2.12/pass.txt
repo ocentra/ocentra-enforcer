@@ -1,0 +1,5 @@
+// Fixture for HAR-2.12: Failed harness commands must fail process gates
+// Clean source — no occurrence of the HAR-2.12 marker below.
+fn clean_example() {
+    // conformant with common/harness-contracts
+}

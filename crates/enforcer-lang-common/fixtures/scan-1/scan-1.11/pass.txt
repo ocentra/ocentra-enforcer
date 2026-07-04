@@ -1,0 +1,5 @@
+// Fixture for SCAN-1.11: Scanner must bound file reads
+// Clean source — no occurrence of the SCAN-1.11 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

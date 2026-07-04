@@ -1,0 +1,5 @@
+// Fixture for SCAN-2.4: Rust strict mode must ingest rustdoc warnings
+// Clean source — no occurrence of the SCAN-2.4 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

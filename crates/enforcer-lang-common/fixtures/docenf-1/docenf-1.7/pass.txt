@@ -1,0 +1,5 @@
+// Fixture for DOCENF-1.7: Docs must not make legacy aliases canonical
+// Clean source — no occurrence of the DOCENF-1.7 marker below.
+fn clean_example() {
+    // conformant with common/docs-completeness
+}

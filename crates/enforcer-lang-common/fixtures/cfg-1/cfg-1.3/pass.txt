@@ -1,0 +1,5 @@
+// Fixture for CFG-1.3: Immutable rules cannot be downgraded
+// Clean source — no occurrence of the CFG-1.3 marker below.
+fn clean_example() {
+    // conformant with common/config-lockdown
+}

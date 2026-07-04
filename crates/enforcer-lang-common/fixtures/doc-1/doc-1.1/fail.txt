@@ -1,0 +1,4 @@
+// Fixture for DOC-1.1: Public API documentation is recommended
+// Ported from legacy validator id `common/documentation` (see rules/rules.json doc: rules/common/documentation.md#covered-rules).
+// This line trips the rule:
+ENFORCER_DOC_1_1_MARKER

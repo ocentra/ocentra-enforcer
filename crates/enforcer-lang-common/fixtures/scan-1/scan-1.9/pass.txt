@@ -1,0 +1,5 @@
+// Fixture for SCAN-1.9: Scanner must avoid symlink loops
+// Clean source — no occurrence of the SCAN-1.9 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

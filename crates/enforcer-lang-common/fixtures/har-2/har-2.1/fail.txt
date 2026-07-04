@@ -1,0 +1,4 @@
+// Fixture for HAR-2.1: Harness runs must identify command lifecycle
+// Ported from legacy validator id `common/harness-contracts` (see rules/rules.json doc: rules/common/harness.md#covered-rules).
+// This line trips the rule:
+ENFORCER_HAR_2_1_MARKER

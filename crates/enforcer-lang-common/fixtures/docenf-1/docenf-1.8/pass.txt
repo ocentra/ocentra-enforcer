@@ -1,0 +1,5 @@
+// Fixture for DOCENF-1.8: Docs cannot describe the pack as Rust-only
+// Clean source — no occurrence of the DOCENF-1.8 marker below.
+fn clean_example() {
+    // conformant with common/docs-completeness
+}

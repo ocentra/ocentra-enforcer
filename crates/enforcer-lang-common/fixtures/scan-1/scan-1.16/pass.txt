@@ -1,0 +1,5 @@
+// Fixture for SCAN-1.16: File scope must not scan the whole repo
+// Clean source — no occurrence of the SCAN-1.16 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

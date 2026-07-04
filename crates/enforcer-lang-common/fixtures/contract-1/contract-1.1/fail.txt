@@ -1,0 +1,4 @@
+// Fixture for CONTRACT-1.1: Single-source contract values must not be copied
+// Ported from legacy validator id `common/single-source-contracts` (see rules/rules.json doc: rules/common/contracts.md#covered-rules).
+// This line trips the rule:
+ENFORCER_CONTRACT_1_1_MARKER

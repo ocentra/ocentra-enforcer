@@ -1,0 +1,5 @@
+// Fixture for CI-1.11: Hard CI gates cannot continue on error
+// Clean source — no occurrence of the CI-1.11 marker below.
+fn clean_example() {
+    // conformant with common/ci-integrity
+}

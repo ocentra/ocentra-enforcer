@@ -1,0 +1,5 @@
+// Fixture for MCP-1.5: MCP diagnostic limits must be enforced
+// Clean source — no occurrence of the MCP-1.5 marker below.
+fn clean_example() {
+    // conformant with common/mcp-contracts
+}

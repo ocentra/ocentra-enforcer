@@ -1,0 +1,4 @@
+// Fixture for DOCENF-1.9: Advisory rule docs must explain promotion
+// Ported from legacy validator id `common/docs-completeness` (see rules/rules.json doc: rules/common/registry.md#covered-rules).
+// This line trips the rule:
+ENFORCER_DOCENF_1_9_MARKER

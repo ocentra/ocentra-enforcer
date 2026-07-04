@@ -1,0 +1,5 @@
+// Fixture for HAR-2.1: Harness runs must identify command lifecycle
+// Clean source — no occurrence of the HAR-2.1 marker below.
+fn clean_example() {
+    // conformant with common/harness-contracts
+}

@@ -1,0 +1,5 @@
+// Fixture for HAR-2.14: Harness human output must redact secrets
+// Clean source — no occurrence of the HAR-2.14 marker below.
+fn clean_example() {
+    // conformant with common/harness-contracts
+}

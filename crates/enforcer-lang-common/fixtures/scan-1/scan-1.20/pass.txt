@@ -1,0 +1,5 @@
+// Fixture for SCAN-1.20: Doctor must expose ignore globs
+// Clean source — no occurrence of the SCAN-1.20 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

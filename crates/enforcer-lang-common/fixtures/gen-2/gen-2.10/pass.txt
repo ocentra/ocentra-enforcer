@@ -1,0 +1,5 @@
+// Fixture for GEN-2.10: Generated snapshots must be stable
+// Clean source — no occurrence of the GEN-2.10 marker below.
+fn clean_example() {
+    // conformant with generic-scanner
+}

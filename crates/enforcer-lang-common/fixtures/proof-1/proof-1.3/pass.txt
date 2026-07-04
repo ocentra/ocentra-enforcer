@@ -1,0 +1,5 @@
+// Fixture for PROOF-1.3: Manual-required proof cannot auto-pass
+// Clean source — no occurrence of the PROOF-1.3 marker below.
+fn clean_example() {
+    // conformant with common/proof-contracts
+}

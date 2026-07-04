@@ -1,0 +1,5 @@
+// Fixture for ENF-1.2: Registry docs must point to stable anchors
+// Clean source — no occurrence of the ENF-1.2 marker below.
+fn clean_example() {
+    // conformant with common/rule-coverage
+}

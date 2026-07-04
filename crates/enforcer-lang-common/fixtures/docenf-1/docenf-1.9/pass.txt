@@ -1,0 +1,5 @@
+// Fixture for DOCENF-1.9: Advisory rule docs must explain promotion
+// Clean source — no occurrence of the DOCENF-1.9 marker below.
+fn clean_example() {
+    // conformant with common/docs-completeness
+}

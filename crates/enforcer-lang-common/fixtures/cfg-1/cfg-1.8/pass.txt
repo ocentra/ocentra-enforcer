@@ -1,0 +1,5 @@
+// Fixture for CFG-1.8: Rule disable requires expiry
+// Clean source — no occurrence of the CFG-1.8 marker below.
+fn clean_example() {
+    // conformant with common/config-lockdown
+}

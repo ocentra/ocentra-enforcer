@@ -1,0 +1,4 @@
+#!/bin/sh
+# Fixture for PORT-1.1: bash-only script, no unguarded platform-specific
+# markers present.
+echo "building"

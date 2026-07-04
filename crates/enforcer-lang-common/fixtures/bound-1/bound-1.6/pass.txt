@@ -1,0 +1,5 @@
+// Fixture for BOUND-1.6: Boundary raw type count is budgeted
+// Clean source — no occurrence of the BOUND-1.6 marker below.
+fn clean_example() {
+    // conformant with common/architecture
+}

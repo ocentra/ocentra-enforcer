@@ -1,0 +1,4 @@
+// Fixture for GEN-2.9: Generated code cannot live in domain modules
+// Ported from legacy validator id `generic-scanner` (see rules/rules.json doc: rules/common/generated-artifacts.md#covered-rules).
+// This line trips the rule:
+ENFORCER_GEN_2_9_MARKER

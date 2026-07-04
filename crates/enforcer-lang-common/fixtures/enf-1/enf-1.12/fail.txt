@@ -1,0 +1,4 @@
+// Fixture for ENF-1.12: Validator source must be self-scanned
+// Ported from legacy validator id `common/rule-coverage` (see rules/rules.json doc: rules/common/registry.md#covered-rules).
+// This line trips the rule:
+ENFORCER_ENF_1_12_MARKER

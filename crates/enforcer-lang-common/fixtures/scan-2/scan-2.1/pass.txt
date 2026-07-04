@@ -1,0 +1,5 @@
+// Fixture for SCAN-2.1: Rust strict mode must use cargo metadata
+// Clean source — no occurrence of the SCAN-2.1 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

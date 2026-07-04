@@ -1,0 +1,5 @@
+// Fixture for CFG-1.6: Build scripts and non-registry dependencies require waiver
+// Clean source — no occurrence of the CFG-1.6 marker below.
+fn clean_example() {
+    // conformant with common/config-lockdown
+}

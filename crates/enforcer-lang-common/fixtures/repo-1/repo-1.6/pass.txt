@@ -1,0 +1,5 @@
+// Fixture for REPO-1.6: Package lockfile is required
+// Clean source — no occurrence of the REPO-1.6 marker below.
+fn clean_example() {
+    // conformant with common/repo-governance
+}

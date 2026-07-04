@@ -1,0 +1,4 @@
+// Fixture for AI-1.1: Agent rule docs must be indexed
+// Ported from legacy validator id `common/ai-rule-index` (see rules/rules.json doc: rules/common/agent-rules.md#covered-rules).
+// This line trips the rule:
+ENFORCER_AI_1_1_MARKER

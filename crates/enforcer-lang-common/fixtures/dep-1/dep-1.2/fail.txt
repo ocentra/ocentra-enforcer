@@ -1,0 +1,4 @@
+// Fixture for DEP-1.2: External npm package licenses must match policy
+// Ported from legacy validator id `common/dependency-policy` (see rules/rules.json doc: rules/common/dependencies.md#covered-rules).
+// This line trips the rule:
+ENFORCER_DEP_1_2_MARKER

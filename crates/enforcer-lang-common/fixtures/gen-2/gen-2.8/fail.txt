@@ -1,0 +1,4 @@
+// Fixture for GEN-2.8: Generated code cannot contain suppressions
+// Ported from legacy validator id `generic-scanner` (see rules/rules.json doc: rules/common/generated-artifacts.md#covered-rules).
+// This line trips the rule:
+ENFORCER_GEN_2_8_MARKER

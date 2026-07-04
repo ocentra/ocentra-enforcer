@@ -1,0 +1,5 @@
+// Fixture for ENF-1.14: Generated JSON schemas must match Effect schemas
+// Clean source — no occurrence of the ENF-1.14 marker below.
+fn clean_example() {
+    // conformant with common/rule-coverage
+}

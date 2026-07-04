@@ -1,0 +1,5 @@
+// Fixture for BOUND-1.4: Domain modules cannot import boundary modules
+// Clean source — no occurrence of the BOUND-1.4 marker below.
+fn clean_example() {
+    // conformant with common/architecture
+}

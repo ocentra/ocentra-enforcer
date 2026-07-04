@@ -1,0 +1,4 @@
+// Fixture for REPO-1.12: Contributing guide must explain rule changes
+// Ported from legacy validator id `common/repo-governance` (see rules/rules.json doc: rules/common/policy.md#covered-rules).
+// This line trips the rule:
+ENFORCER_REPO_1_12_MARKER

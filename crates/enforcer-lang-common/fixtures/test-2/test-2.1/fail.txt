@@ -1,0 +1,4 @@
+// Fixture for TEST-2.1: Source workspaces must have test scaffolds
+// Ported from legacy validator id `common/required-tests` (see rules/rules.json doc: rules/common/tests.md#covered-rules).
+// This line trips the rule:
+ENFORCER_TEST_2_1_MARKER

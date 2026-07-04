@@ -1,0 +1,5 @@
+// Fixture for DOCENF-1.10: Review and proof rules must name proof evidence
+// Clean source — no occurrence of the DOCENF-1.10 marker below.
+fn clean_example() {
+    // conformant with common/docs-completeness
+}

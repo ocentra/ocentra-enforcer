@@ -1,0 +1,5 @@
+// Fixture for SCAN-1.4: Scanner must handle CRLF and LF identically
+// Clean source — no occurrence of the SCAN-1.4 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

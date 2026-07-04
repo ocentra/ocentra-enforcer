@@ -1,0 +1,5 @@
+// Fixture for REPO-1.13: Changelog is required for rule behavior changes
+// Clean source — no occurrence of the REPO-1.13 marker below.
+fn clean_example() {
+    // conformant with common/repo-governance
+}

@@ -1,0 +1,5 @@
+// Fixture for MCP-1.7: MCP status must include version and hash
+// Clean source — no occurrence of the MCP-1.7 marker below.
+fn clean_example() {
+    // conformant with common/mcp-contracts
+}

@@ -1,0 +1,5 @@
+// Fixture for MCP-1.8: MCP explain must match CLI explain
+// Clean source — no occurrence of the MCP-1.8 marker below.
+fn clean_example() {
+    // conformant with common/mcp-contracts
+}

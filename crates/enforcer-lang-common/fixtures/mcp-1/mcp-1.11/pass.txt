@@ -1,0 +1,5 @@
+// Fixture for MCP-1.11: MCP write tools cannot be generic action dispatchers
+// Clean source — no occurrence of the MCP-1.11 marker below.
+fn clean_example() {
+    // conformant with common/mcp-contracts
+}

@@ -1,0 +1,5 @@
+// Fixture for DOC-1.1: Public API documentation is recommended
+// Clean source — no occurrence of the DOC-1.1 marker below.
+fn clean_example() {
+    // conformant with common/documentation
+}

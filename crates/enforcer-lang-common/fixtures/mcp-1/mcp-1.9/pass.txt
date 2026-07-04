@@ -1,0 +1,5 @@
+// Fixture for MCP-1.9: MCP route must match CLI route
+// Clean source — no occurrence of the MCP-1.9 marker below.
+fn clean_example() {
+    // conformant with common/mcp-contracts
+}

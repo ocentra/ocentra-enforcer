@@ -1,0 +1,5 @@
+// Fixture for SCAN-1.13: Invalid UTF-8 must produce bounded diagnostics
+// Clean source — no occurrence of the SCAN-1.13 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

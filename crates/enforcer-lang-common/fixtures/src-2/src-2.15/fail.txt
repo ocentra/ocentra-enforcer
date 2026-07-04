@@ -1,0 +1,4 @@
+// Fixture for SRC-2.15: Dependency direction violations are forbidden
+// Ported from legacy validator id `common/source-shape` (see rules/rules.json doc: rules/common/source-shape.md#covered-rules).
+// This line trips the rule:
+ENFORCER_SRC_2_15_MARKER

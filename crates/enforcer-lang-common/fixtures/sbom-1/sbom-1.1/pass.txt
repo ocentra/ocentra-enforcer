@@ -1,0 +1,5 @@
+// Fixture for SBOM-1.1: SBOM generation must complete
+// Clean source — no occurrence of the SBOM-1.1 marker below.
+fn clean_example() {
+    // conformant with common/sbom
+}

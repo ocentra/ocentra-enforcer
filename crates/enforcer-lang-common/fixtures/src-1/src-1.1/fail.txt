@@ -1,0 +1,4 @@
+// Fixture for SRC-1.1: Source files must stay within shape limits
+// Ported from legacy validator id `common/source-shape` (see rules/rules.json doc: rules/common/source-shape.md#covered-rules).
+// This line trips the rule:
+ENFORCER_SRC_1_1_MARKER

@@ -1,0 +1,5 @@
+// Fixture for ENF-2.1: Policy-critical mutations require stronger proof
+// Clean source — no occurrence of the ENF-2.1 marker below.
+fn clean_example() {
+    // conformant with common/mutation-risk
+}

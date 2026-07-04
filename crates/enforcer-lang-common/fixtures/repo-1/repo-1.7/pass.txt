@@ -1,0 +1,5 @@
+// Fixture for REPO-1.7: packageManager is required
+// Clean source — no occurrence of the REPO-1.7 marker below.
+fn clean_example() {
+    // conformant with common/repo-governance
+}

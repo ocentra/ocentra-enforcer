@@ -1,0 +1,4 @@
+// Fixture for HAR-1.1: Harnessed command failed
+// Ported from legacy validator id `harness/run-capture` (see rules/rules.json doc: rules/common/harness.md#covered-rules).
+// This line trips the rule:
+ENFORCER_HAR_1_1_MARKER

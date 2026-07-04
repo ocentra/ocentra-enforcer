@@ -1,0 +1,4 @@
+// Fixture for SRC-2.4: Type count budget must be respected
+// Ported from legacy validator id `source-shape-check` (see rules/rules.json doc: rules/common/source-shape.md#covered-rules).
+// This line trips the rule:
+ENFORCER_SRC_2_4_MARKER

@@ -1,0 +1,4 @@
+// Fixture for SRC-1.2: Placeholder implementation markers are forbidden
+// Ported from legacy validator id `common/source-scan` (see rules/rules.json doc: rules/common/source.md#covered-rules).
+// This line trips the rule:
+ENFORCER_SRC_1_2_MARKER

@@ -1,0 +1,5 @@
+// Fixture for HAR-2.11: Pinned proof runs must survive pruning
+// Clean source — no occurrence of the HAR-2.11 marker below.
+fn clean_example() {
+    // conformant with common/harness-contracts
+}

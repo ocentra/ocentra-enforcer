@@ -1,0 +1,5 @@
+// Fixture for MCP-1.6: Stale MCP write processes must fail closed
+// Clean source — no occurrence of the MCP-1.6 marker below.
+fn clean_example() {
+    // conformant with common/mcp-contracts
+}

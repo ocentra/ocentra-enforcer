@@ -1,0 +1,5 @@
+// Fixture for WAIVER-1.9: Waiver owner must be a human or team
+// Clean source — no occurrence of the WAIVER-1.9 marker below.
+fn clean_example() {
+    // conformant with common/waiver-policy
+}

@@ -1,0 +1,5 @@
+// Fixture for ENF-1.12: Validator source must be self-scanned
+// Clean source — no occurrence of the ENF-1.12 marker below.
+fn clean_example() {
+    // conformant with common/rule-coverage
+}

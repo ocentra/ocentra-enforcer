@@ -1,0 +1,5 @@
+// Fixture for SEC-1.1: Inline secrets are forbidden
+// Clean source — no occurrence of the SEC-1.1 marker below.
+fn clean_example() {
+    // conformant with common/secret-scan
+}

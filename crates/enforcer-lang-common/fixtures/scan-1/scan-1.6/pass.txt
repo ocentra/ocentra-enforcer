@@ -1,0 +1,5 @@
+// Fixture for SCAN-1.6: Scanner must support spaces in paths
+// Clean source — no occurrence of the SCAN-1.6 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

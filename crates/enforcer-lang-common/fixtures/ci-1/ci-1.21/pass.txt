@@ -1,0 +1,5 @@
+// Fixture for CI-1.21: Subprocess JSON capture must be CI-safe
+// Clean source — no occurrence of the CI-1.21 marker below.
+fn clean_example() {
+    // conformant with ci-integrity
+}

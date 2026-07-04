@@ -1,0 +1,5 @@
+// Fixture for GEN-2.3: Generated files cannot be edited manually
+// Clean source — no occurrence of the GEN-2.3 marker below.
+fn clean_example() {
+    // conformant with generic-scanner
+}

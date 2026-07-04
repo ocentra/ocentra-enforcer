@@ -1,0 +1,4 @@
+// Fixture for BOUND-1.7: Boundary glob additions require waiver
+// Ported from legacy validator id `common/architecture` (see rules/rules.json doc: rules/common/architecture.md#covered-rules).
+// This line trips the rule:
+ENFORCER_BOUND_1_7_MARKER

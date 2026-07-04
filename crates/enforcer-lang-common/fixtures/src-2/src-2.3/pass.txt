@@ -1,0 +1,5 @@
+// Fixture for SRC-2.3: Export count budget must be respected
+// Clean source — no occurrence of the SRC-2.3 marker below.
+fn clean_example() {
+    // conformant with source-shape-check
+}

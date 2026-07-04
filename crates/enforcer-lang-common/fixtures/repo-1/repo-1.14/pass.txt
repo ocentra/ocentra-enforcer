@@ -1,0 +1,5 @@
+// Fixture for REPO-1.14: Release policy must be documented
+// Clean source — no occurrence of the REPO-1.14 marker below.
+fn clean_example() {
+    // conformant with common/repo-governance
+}

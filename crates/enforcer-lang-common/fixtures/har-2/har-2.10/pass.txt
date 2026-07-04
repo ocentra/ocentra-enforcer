@@ -1,0 +1,5 @@
+// Fixture for HAR-2.10: Harness artifacts cannot escape storage
+// Clean source — no occurrence of the HAR-2.10 marker below.
+fn clean_example() {
+    // conformant with common/harness-contracts
+}

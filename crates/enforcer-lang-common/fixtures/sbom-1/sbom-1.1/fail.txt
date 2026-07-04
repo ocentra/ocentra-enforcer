@@ -1,0 +1,4 @@
+// Fixture for SBOM-1.1: SBOM generation must complete
+// Ported from legacy validator id `common/sbom` (see rules/rules.json doc: rules/common/sbom.md#covered-rules).
+// This line trips the rule:
+ENFORCER_SBOM_1_1_MARKER

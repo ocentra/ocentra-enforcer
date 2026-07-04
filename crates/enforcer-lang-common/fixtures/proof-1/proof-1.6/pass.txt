@@ -1,0 +1,5 @@
+// Fixture for PROOF-1.6: Dirty worktrees invalidate PR-ready proof
+// Clean source — no occurrence of the PROOF-1.6 marker below.
+fn clean_example() {
+    // conformant with common/proof-contracts
+}

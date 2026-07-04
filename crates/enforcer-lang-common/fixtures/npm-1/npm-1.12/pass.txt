@@ -1,0 +1,5 @@
+// Fixture for NPM-1.12: SBOM must be generated for release
+// Clean source — no occurrence of the NPM-1.12 marker below.
+fn clean_example() {
+    // conformant with sbom
+}

@@ -1,0 +1,5 @@
+// Fixture for SCAN-1.3: Scanner must still detect suppression comments
+// Clean source — no occurrence of the SCAN-1.3 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

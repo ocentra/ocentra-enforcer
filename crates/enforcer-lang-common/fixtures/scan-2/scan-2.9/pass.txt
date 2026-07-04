@@ -1,0 +1,5 @@
+// Fixture for SCAN-2.9: Regex scanner must remain fast preflight
+// Clean source — no occurrence of the SCAN-2.9 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

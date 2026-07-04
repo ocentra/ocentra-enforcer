@@ -1,0 +1,5 @@
+// Fixture for PROOF-1.5: Proof artifacts must hash-match
+// Clean source — no occurrence of the PROOF-1.5 marker below.
+fn clean_example() {
+    // conformant with common/proof-contracts
+}

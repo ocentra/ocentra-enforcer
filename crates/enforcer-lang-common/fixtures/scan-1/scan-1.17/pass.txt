@@ -1,0 +1,5 @@
+// Fixture for SCAN-1.17: Workspace scope must scan configured roots
+// Clean source — no occurrence of the SCAN-1.17 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

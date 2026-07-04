@@ -1,0 +1,5 @@
+// Fixture for WAIVER-1.8: Permanent waiver grandfathering is forbidden
+// Clean source — no occurrence of the WAIVER-1.8 marker below.
+fn clean_example() {
+    // conformant with common/waiver-policy
+}

@@ -1,0 +1,5 @@
+// Fixture for SRC-1.1: Source files must stay within shape limits
+// Clean source — no occurrence of the SRC-1.1 marker below.
+fn clean_example() {
+    // conformant with common/source-shape
+}

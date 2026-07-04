@@ -1,0 +1,5 @@
+// Fixture for ENF-1.3: Scanner-emitted rule IDs must be registered
+// Clean source — no occurrence of the ENF-1.3 marker below.
+fn clean_example() {
+    // conformant with common/rule-coverage
+}

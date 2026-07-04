@@ -1,0 +1,5 @@
+// Fixture for ARCH-1.8: CLI/main depends on application boundary only
+// Clean source — no occurrence of the ARCH-1.8 marker below.
+fn clean_example() {
+    // conformant with common/architecture
+}

@@ -1,0 +1,4 @@
+// Fixture for REPO-1.6: Package lockfile is required
+// Ported from legacy validator id `common/repo-governance` (see rules/rules.json doc: rules/common/governance.md#covered-rules).
+// This line trips the rule:
+ENFORCER_REPO_1_6_MARKER

@@ -1,0 +1,5 @@
+// Fixture for HAR-2.4: Harness parsers must not throw on malformed output
+// Clean source — no occurrence of the HAR-2.4 marker below.
+fn clean_example() {
+    // conformant with common/harness-contracts
+}

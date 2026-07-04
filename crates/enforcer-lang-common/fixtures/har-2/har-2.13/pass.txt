@@ -1,0 +1,5 @@
+// Fixture for HAR-2.13: Harness JSON output must have schema artifacts
+// Clean source — no occurrence of the HAR-2.13 marker below.
+fn clean_example() {
+    // conformant with common/harness-contracts
+}

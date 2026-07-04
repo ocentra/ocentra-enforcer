@@ -1,0 +1,5 @@
+// Fixture for BOUND-1.8: Boundary utility filenames are forbidden
+// Clean source — no occurrence of the BOUND-1.8 marker below.
+fn clean_example() {
+    // conformant with common/architecture
+}

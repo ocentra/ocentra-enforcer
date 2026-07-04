@@ -1,0 +1,4 @@
+// Fixture for NPM-1.6: Dependency install scripts require approval
+// Ported from legacy validator id `package-determinism` (see rules/rules.json doc: rules/common/dependencies.md#covered-rules).
+// This line trips the rule:
+ENFORCER_NPM_1_6_MARKER

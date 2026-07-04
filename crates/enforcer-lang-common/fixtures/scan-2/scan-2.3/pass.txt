@@ -1,0 +1,5 @@
+// Fixture for SCAN-2.3: Rust strict mode must ingest Clippy JSON
+// Clean source — no occurrence of the SCAN-2.3 marker below.
+fn clean_example() {
+    // conformant with common/scanner-contracts
+}

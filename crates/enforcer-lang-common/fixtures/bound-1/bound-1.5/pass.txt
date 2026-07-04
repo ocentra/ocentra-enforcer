@@ -1,0 +1,5 @@
+// Fixture for BOUND-1.5: Boundary modules require negative tests
+// Clean source — no occurrence of the BOUND-1.5 marker below.
+fn clean_example() {
+    // conformant with common/architecture
+}
