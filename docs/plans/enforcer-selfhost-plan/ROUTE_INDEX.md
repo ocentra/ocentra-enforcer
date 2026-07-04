@@ -56,7 +56,7 @@ That is the whole loop: **PLAN_STATE -> BLUEPRINT -> WORKPACK_INDEX -> one workp
 
 These are large or scoped; opening them speculatively burns context and violates the stop rules:
 
-- **Any file under [workpacks/](./workpacks/)** — 129 workpack files. Open the ONE selected via WORKPACK_INDEX. Never batch-read siblings.
+- **Any file under [workpacks/](./workpacks/)** — 131 workpack files. Open the ONE selected via WORKPACK_INDEX. Never batch-read siblings.
 - **The full conversion swarm** (`workpacks/a-conv-01..50`) — 50 near-identical P1 conversion packs. Read only the one you claim.
 - **[TEST_PROOF_EXPECTATIONS.md](./TEST_PROOF_EXPECTATIONS.md) proof-row tables (section 4)** — long. Read only your workpack's row + the P0-P5 definitions + the decision tree; skip the other tracks' rows.
 - **[ARCHIVE_INDEX.md](./ARCHIVE_INDEX.md) contents** — historical only; never needed to execute current work.

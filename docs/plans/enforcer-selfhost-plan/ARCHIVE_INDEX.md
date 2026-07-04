@@ -17,7 +17,7 @@ Sources: [DOC_INDEX](./DOC_INDEX.md), [ROUTE_INDEX](./ROUTE_INDEX.md).
 
 ## Current archive contents
 
-**Empty.** This plan is newly authored; no doc has been superseded yet. The live surface is the eight root docs listed in [DOC_INDEX.md](./DOC_INDEX.md) plus the 129 workpacks under `workpacks/`.
+**Empty.** This plan is newly authored; no doc has been superseded yet. The live surface is the eight root docs listed in [DOC_INDEX.md](./DOC_INDEX.md) plus the 131 workpacks under `workpacks/`.
 
 | Archived doc | Superseded by | Date archived | Reason |
 |--------------|---------------|---------------|--------|

@@ -9,6 +9,7 @@
   "requireCargoAudit": false,
   "runCargoDoc": false,
   "ignoreFileGlobs": [
+    "vendor/**",
     "db/**",
     "views/**",
     "**/dist/**",
