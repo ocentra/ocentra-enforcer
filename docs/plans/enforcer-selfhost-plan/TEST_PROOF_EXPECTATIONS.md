@@ -179,7 +179,7 @@ All P1 unit, T-tier N/A (mechanical Cargo-workspace crate build). Uniform proof:
 
 | Workpack | Proof tier(s) | Named test / oracle | Artifact path | Seeded-violation case | Status |
 |----------|--------------|---------------------|---------------|-----------------------|--------|
-| d01 | P1 unit (T1) | `cargo test -p enforcer-mechanization` (`rule-scaffold-parity` + `rule-new`) | `proof/rules/d01-parity.txt` | unknown validator / dangling doc anchor / missing fixture / orphan -> parity fails closed | PENDING |
+| d01 | P1 unit (T1) | `cargo test -p enforcer-mechanization` (`rule-scaffold-parity` + `rule-new`) | `proof/rules/d01-parity.txt` | unknown validator / dangling doc anchor / missing fixture / orphan -> parity fails closed | GREEN (33/33 tests: 22 unit incl. arc-14's scaffold/oracle + d01's parity::tests, 9 `tests/parity.rs` integration seeding each of the 5 parity legs missing in turn incl. T3 label gate + reverse orphan check, 2 `tests/scaffold.rs` scaffold->tempdir->parity round trip; clippy/fmt clean) |
 | d02 | P1 unit (T1) | `cargo test -p enforcer-scan` (`baseline-ratchet`) | `proof/rules/d02-baseline.json` | one added finding fails; grown count fails; ratchet can't silently expand | PENDING |
 | d03 | P1 unit (T1) | `cargo test -p enforcer-lang-common` (`deferred-work-gate`) | `proof/rules/d03-deferred.txt` | unmarked stub in diff fails; malformed `DEFERRED(#ref)[revisit:]` fails; legacy stub passes | PENDING |
 | d04 | P1 unit (T1) | `cargo test -p enforcer-core` (`run-telemetry`, re-parse every NDJSON line) | `proof/telemetry/runs.ndjson` | schema-invalid line rejected; half-line on crash -> not written | PENDING |

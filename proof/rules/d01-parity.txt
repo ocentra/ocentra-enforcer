@@ -1,44 +1,73 @@
 === cargo test -p enforcer-mechanization ===
 
-running 12 tests
+running 22 tests
 test oracle::tests::scope_is_files_for_fixture_reads ... ok
 test oracle::tests::rejects_missing_validator ... ok
-test scaffold::tests::validator_skeleton_names_the_type_and_rule ... ok
-test oracle::tests::rejects_validator_rule_id_mismatch ... ok
-test oracle::tests::accepts_a_complete_rule ... ok
-test scaffold::tests::rejects_empty_validator_path ... ok
-test oracle::tests::rejects_validator_that_fires_on_pass_fixture ... ok
-test scaffold::tests::rejects_identical_fail_and_pass_fixture_paths ... ok
-test oracle::tests::rejects_non_firing_validator_on_fail_fixture ... ok
-test scaffold::tests::scaffolds_a_loadable_record ... ok
+test parity::tests::sweep_flags_orphan_artifact_not_in_registry ... ok
 test oracle::tests::rejects_record_with_missing_fixture_path ... ok
+test oracle::tests::rejects_validator_rule_id_mismatch ... ok
+test parity::tests::sweep_flags_validator_rule_id_mismatch ... ok
+test parity::tests::sweep_flags_missing_validator_for_t1_record ... ok
+test oracle::tests::accepts_a_complete_rule ... ok
+test parity::tests::sweep_flags_t3_record_missing_label ... ok
+test parity::tests::orphan_with_matching_registry_record_is_not_flagged ... ok
+test oracle::tests::rejects_validator_that_fires_on_pass_fixture ... ok
+test oracle::tests::rejects_non_firing_validator_on_fail_fixture ... ok
+test parity::tests::sweep_is_clean_for_t3_record_with_label ... ok
+test parity::tests::sweep_flags_missing_fixture_for_t1_record ... ok
+test parity::tests::validator_wrapper_delegates_to_sweep ... ok
 test scaffold::tests::rejects_empty_title ... ok
+test scaffold::tests::rejects_empty_validator_path ... ok
+test parity::tests::sweep_flags_dangling_doc_anchor ... ok
+test parity::tests::sweep_is_clean_for_a_fully_wired_t1_record ... ok
+test scaffold::tests::rejects_identical_fail_and_pass_fixture_paths ... ok
+test scaffold::tests::scaffolds_a_loadable_record ... ok
+test scaffold::tests::validator_skeleton_names_the_type_and_rule ... ok
 
-test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
+     Running tests\parity.rs
+
+running 9 tests
+test t3_record_without_label_fails_closed ... ok
+test missing_registry_record_leg_fails_closed ... ok
+test missing_validator_leg_fails_closed ... ok
+test missing_fail_fixture_leg_fails_closed ... ok
+test full_five_way_chain_passes_clean ... ok
+test validator_does_not_fire_on_fail_fixture_fails_closed ... ok
+test missing_pass_fixture_leg_fails_closed ... ok
+test validator_fires_on_pass_fixture_fails_closed ... ok
+test missing_doc_anchor_leg_fails_closed ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\scaffold.rs
+
+running 2 tests
+test scaffold_output_lands_five_artifacts_and_re_passes_parity ... ok
+test scaffold_output_fails_parity_before_fixtures_are_filled_in ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+   Doc-tests enforcer_mechanization
 
 running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
+=== Seeded-violation coverage (whole-registry parity sweep, tests/parity.rs) ===
+- missing_registry_record_leg_fails_closed  -> orphan validator/doc/fixture claim with no RuleRecord: 1 finding, "orphan mechanization artifact"
+- missing_doc_anchor_leg_fails_closed       -> dangling doc anchor (file/fragment does not resolve): 1 finding, "does not resolve"
+- missing_validator_leg_fails_closed        -> no validator wired for a T1 rule id: 1 finding, "no validator wired"
+- missing_fail_fixture_leg_fails_closed     -> fail fixture path missing on disk: 1 finding
+- missing_pass_fixture_leg_fails_closed     -> pass fixture path missing on disk: 1 finding
+- validator_does_not_fire_on_fail_fixture_fails_closed -> silent validator on fail fixture: 1 finding
+- validator_fires_on_pass_fixture_fails_closed         -> validator fires on pass fixture: 1 finding
+- t3_record_without_label_fails_closed      -> T3 record missing verbatim label: 1 finding, "mandatory verbatim label"
+- full_five_way_chain_passes_clean          -> all five legs agree: sweep returns zero findings
 
 === cargo fmt -p enforcer-mechanization --check ===
 (no output = clean)
 
 === cargo clippy -p enforcer-mechanization --all-targets -- -D warnings ===
-warning: failed to parse serde attribute
-warning: failed to parse serde attribute
-warning: failed to parse serde attribute
-warning: failed to parse serde attribute
-warning: failed to parse serde attribute
-warning: failed to parse serde attribute
-warning: failed to parse serde attribute
-warning: failed to parse serde attribute
-warning: failed to parse serde attribute
-warning: failed to parse serde attribute
-warning: failed to parse serde attribute
-warning: failed to parse serde attribute
-warning: failed to parse serde attribute
-warning: failed to parse serde attribute
-warning: failed to parse serde attribute
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.15s
+(clean; only pre-existing ts-rs serde-attribute-parse warnings from enforcer-domain, unrelated to this crate's own code)
