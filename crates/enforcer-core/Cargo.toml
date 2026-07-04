@@ -1,0 +1,22 @@
+[package]
+name = "enforcer-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Shared foundation crate for the Ocentra Enforcer workspace: Result/Error, tracing setup, exit codes, two-layer redaction, append-only NDJSON sink, pure SHA-256 hash-chain, and Windows-first path/time/env helpers."
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+sha2 = { workspace = true }
+# regex is not in [workspace.dependencies] (a01-owned root manifest); declared
+# here directly to avoid an unclaimed root edit. Centralize in a later a01 pass.
+regex = "1"
+
+[lints]
+workspace = true
