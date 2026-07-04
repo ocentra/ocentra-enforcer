@@ -51,6 +51,46 @@ pub enum PlanError {
         /// Plan-directory path that already exists.
         path: String,
     },
+
+    /// (b04) A workpack's `deps:` field references a workpack id that is
+    /// absent from the frontier input, or the dep graph contains a cycle —
+    /// either way the frontier computation cannot proceed deterministically.
+    #[error("plan graph error: {reason}")]
+    GraphInvalid {
+        /// Human-readable description (unknown dep id, or a cycle
+        /// participant list); free-form diagnostic text, not matched on.
+        reason: String,
+    },
+
+    /// (b04) The underlying `enforcer-coordination` claim/release/closeout
+    /// call failed. Wrapped (not silently swallowed) so orchestrator
+    /// callers see the coordination crate's own `Display` text.
+    #[error("coordination error: {0}")]
+    Coordination(#[from] enforcer_coordination::CoordinationError),
+
+    /// (b04, L14/L16) A `tick()` call would end with lanes still in flight
+    /// and no next-wake scheduled. Ending a turn in this fragile state is a
+    /// FAILURE MODE, not a rest state — this variant makes that failure
+    /// mechanically unrepresentable as a silent `Ok(())`.
+    #[error(
+        "idle-without-watchdog: {in_flight_lanes} lane(s) in flight but no next tick was armed"
+    )]
+    IdleWithoutWatchdog {
+        /// Count of lanes still in flight when the tick ended.
+        in_flight_lanes: usize,
+    },
+
+    /// (b04, zero-trust integration) A lane's `done` mail was rejected
+    /// because independent re-verification (scope diff against `owns:`,
+    /// re-run proof) did not corroborate the claim — the done-claim is
+    /// tampered or premature and must never be trusted on faith.
+    #[error("done-claim rejected for lane `{lane}`: {reason}")]
+    DoneClaimRejected {
+        /// The lane whose done-claim failed independent verification.
+        lane: String,
+        /// Why verification failed (free-form diagnostic text).
+        reason: String,
+    },
 }
 
 /// Result alias for `enforcer-plan` fallible operations.

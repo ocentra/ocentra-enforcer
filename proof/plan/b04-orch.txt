@@ -1,0 +1,29 @@
+
+running 19 tests
+test orchestrator::tests::intent_queue_queues_blocked_claim_and_retries_after_release ... ok
+test orchestrator::tests::dispatch_defaults_every_lane_to_its_own_worktree ... ok
+test orchestrator::tests::loop_run_until_done_returns_error_when_frontier_never_advances ... ok
+test orchestrator::tests::loop_empty_frontier_all_done_hands_off_to_gatekeeper ... ok
+test orchestrator::tests::loop_ending_fragile_with_in_flight_lanes_and_no_wake_is_typed_error ... ok
+test orchestrator::tests::loop_dead_lane_is_detected_and_respawned ... ok
+test orchestrator::tests::loop_tampered_done_claim_is_rejected_not_integrated ... ok
+test orchestrator::tests::guard_before_claim_is_rejected ... ok
+test orchestrator::tests::orchestrator_claim_guard_closeout_invoked_in_order ... ok
+test orchestrator::tests::orchestrator_claim_guard_rejects_overlapping_concurrent_claim_fail_closed ... ok
+test orchestrator::tests::orchestrator_frontier_advances_once_deps_are_done ... ok
+test orchestrator::tests::orchestrator_frontier_returns_dep_free_nodes_first ... ok
+test orchestrator::tests::orchestrator_frontier_detects_cycle ... ok
+test orchestrator::tests::loop_verified_done_claim_integrates_and_frontier_redispatches ... ok
+test orchestrator::tests::orchestrator_lanes_keeps_disjoint_owns_in_one_batch ... ok
+test orchestrator::tests::orchestrator_lanes_splits_overlapping_owns_into_separate_batches ... ok
+test orchestrator::tests::probe_relpath_literal_is_valid ... ok
+test orchestrator::tests::worker_reuse_cap_retires_lane_identity_after_two_chained_dispatches ... ok
+test orchestrator::tests::rule_id_probe_literal_is_valid ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
