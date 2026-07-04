@@ -73,4 +73,5 @@ pub mod emitters;
 pub mod error;
 pub mod hooks;
 pub mod managed_block;
+pub mod migrate_legacy_name;
 pub mod report;
