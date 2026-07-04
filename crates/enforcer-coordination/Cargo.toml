@@ -1,0 +1,28 @@
+[package]
+name = "enforcer-coordination"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Multi-agent coordination engine for the Ocentra Enforcer workspace: hub/lane/claim/guard/ledger/presence, ported from src/coordination/{vendor/*.js,api.mjs,runner.mjs} with behavior parity (wire-hash canonicalization, 6 lock-conflict classes, protected-singleton escalation, append-only event streams)."
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+sha2 = { workspace = true }
+enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+# glob is not in [workspace.dependencies] (a01-owned root manifest); declared
+# here directly (same rationale as regex in enforcer-core / ts-rs in
+# enforcer-domain) to avoid an unclaimed root edit. Used for L13 owns-set
+# glob/dir expansion in claim requests.
+glob = "0.3"
+
+[dev-dependencies]
+serde_json = { workspace = true }
+tempfile = "3"
+
+[lints]
+workspace = true
