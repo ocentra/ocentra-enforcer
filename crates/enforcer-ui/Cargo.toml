@@ -1,0 +1,36 @@
+[package]
+name = "enforcer-ui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "UI server / Tauri backend skeleton (arc-24): serves scan/report data (via enforcer-scan/enforcer-mcp) to a self-contained served-HTML fallback for headless use and the Tauri desktop shell, plus the Rust->TS type-generation pipeline (ts_rs export + committed generated .ts + fail-closed drift test). The TS/web frontend under frontend/ is the SOLE TS surface in the product -- presentation only, types DERIVED from enforcer-domain, never hand-written. Hosts Track G feature-pack mount points (g01..g08); this workpack lays the mounts, the feature packs fill them."
+publish = false
+
+[lib]
+name = "enforcer_ui"
+path = "src/lib.rs"
+
+[[bin]]
+name = "enforcer-ui-export-ts"
+path = "src/bin/export_ts.rs"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
+enforcer-scan = { path = "../enforcer-scan", version = "0.1.0" }
+enforcer-mcp = { path = "../enforcer-mcp", version = "0.1.0" }
+# ts-rs is not in [workspace.dependencies] (a01-owned root manifest);
+# declared here directly, same rationale as enforcer-domain's own
+# unclaimed-root-edit avoidance note.
+ts-rs = "10"
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true
