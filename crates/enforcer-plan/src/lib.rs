@@ -55,6 +55,7 @@
 
 pub mod agents_forest;
 pub mod error;
+pub mod lessons;
 pub mod orchestrator;
 pub mod scaffolder;
 pub mod templates;
