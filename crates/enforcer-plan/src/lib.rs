@@ -53,6 +53,7 @@
 //! No `pub use` barrels (workspace doctrine): consumers path through the
 //! modules directly, e.g. `enforcer_plan::validator::PlanParallelSafety`.
 
+pub mod agents_forest;
 pub mod error;
 pub mod orchestrator;
 pub mod scaffolder;
