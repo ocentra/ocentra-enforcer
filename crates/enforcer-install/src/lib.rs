@@ -66,5 +66,6 @@ pub mod distribution;
 pub mod doctor;
 pub mod emitters;
 pub mod error;
+pub mod hooks;
 pub mod managed_block;
 pub mod report;
