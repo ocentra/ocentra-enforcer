@@ -1,4 +1,4 @@
-use ocentra_literal_scan::CliOptions;
+use enforcer_literal_scan::CliOptions;
 
 pub(crate) fn consume_mode(args: &[String], opts: &mut CliOptions) -> usize {
     if args.first().map(String::as_str) == Some("scan") {

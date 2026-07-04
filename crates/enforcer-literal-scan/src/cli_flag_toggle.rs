@@ -1,4 +1,4 @@
-use ocentra_literal_scan::CliOptions;
+use enforcer_literal_scan::CliOptions;
 
 pub(crate) fn apply_toggle_flag(flag: &str, opts: &mut CliOptions) -> bool {
     match flag {

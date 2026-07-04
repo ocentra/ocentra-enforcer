@@ -1,4 +1,4 @@
-use ocentra_literal_scan::{CliOptions, OutputFormat};
+use enforcer_literal_scan::{CliOptions, OutputFormat};
 
 pub(crate) fn apply_output_flag(flag: &str, opts: &mut CliOptions) -> bool {
     match flag {

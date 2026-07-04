@@ -1,10 +1,11 @@
+#[allow(clippy::print_stdout)]
 pub(crate) fn print_usage() {
     println!(
-        r#"ocentra-literal-scan
+        r#"enforcer-literal-scan
 
 Usage:
-  ocentra-literal-scan scan --root <repo> [options]
-  ocentra-literal-scan scan --root <repo> --files <path...> [options]
+  enforcer-literal-scan scan --root <repo> [options]
+  enforcer-literal-scan scan --root <repo> --files <path...> [options]
 
 Options:
   --json                  Print pretty JSON report.

@@ -11,7 +11,7 @@ mod cli_usage;
 use std::env;
 use std::process;
 
-use ocentra_literal_scan::run_scan;
+use enforcer_literal_scan::run_scan;
 
 use crate::cli_output::{exit_if_failed, print_report};
 use crate::cli_parse::parse_args;
@@ -31,17 +31,19 @@ fn main() {
     exit_if_failed(&report);
 }
 
+#[allow(clippy::print_stderr)]
 fn fail_with_usage(message: &str) -> ! {
     eprintln!("{message}");
     print_usage();
     process::exit(2);
 }
 
-fn run_scan_or_exit(opts: &ocentra_literal_scan::CliOptions) -> ocentra_literal_scan::ScanReport {
+#[allow(clippy::print_stderr)]
+fn run_scan_or_exit(opts: &enforcer_literal_scan::CliOptions) -> enforcer_literal_scan::ScanReport {
     match run_scan(opts) {
         Ok(report) => report,
         Err(error) => {
-            eprintln!("ocentra-literal-scan failed: {error}");
+            eprintln!("enforcer-literal-scan failed: {error}");
             process::exit(1);
         }
     }

@@ -1,4 +1,4 @@
-use ocentra_literal_scan::CliOptions;
+use enforcer_literal_scan::CliOptions;
 
 pub(crate) fn apply_value_flag(
     args: &[String],

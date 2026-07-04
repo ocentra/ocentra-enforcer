@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use ocentra_literal_scan::{run_scan, CliOptions, RiskCategory};
+use enforcer_literal_scan::{run_scan, CliOptions, RiskCategory};
 
 fn fixture(path: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures").join(path)

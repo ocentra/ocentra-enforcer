@@ -1,4 +1,4 @@
-use ocentra_literal_scan::CliOptions;
+use enforcer_literal_scan::CliOptions;
 
 use crate::cli_flag_output::apply_output_flag;
 use crate::cli_flag_scope::apply_scope_flag;

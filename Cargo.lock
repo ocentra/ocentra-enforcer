@@ -229,6 +229,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "enforcer-literal-scan"
+version = "0.1.0"
+dependencies = [
+ "enforcer-core",
+ "enforcer-domain",
+]
+
+[[package]]
 name = "enforcer-mechanization"
 version = "0.1.0"
 dependencies = [

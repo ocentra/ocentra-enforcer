@@ -1,4 +1,4 @@
-use ocentra_literal_scan::CliOptions;
+use enforcer_literal_scan::CliOptions;
 
 use crate::cli_flag::apply_flag;
 use crate::cli_mode::consume_mode;
