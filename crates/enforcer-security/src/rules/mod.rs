@@ -3,6 +3,7 @@
 //! [`registry`] only; feature packs land their own `<name>` submodules
 //! alongside these per the workpack's Parallel Ownership Notes).
 
+pub mod economic_invariants;
 pub mod money_critical;
 pub mod no_bypass;
 pub mod registry;

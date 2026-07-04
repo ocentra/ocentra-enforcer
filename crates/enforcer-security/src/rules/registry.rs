@@ -11,6 +11,9 @@
 use enforcer_core::error::DecodeError;
 use enforcer_validator::validator::Validator;
 
+use super::economic_invariants::{
+    EconomicInvariantPresenceValidator, EconomicInvariantShapeValidator,
+};
 use super::money_critical::{MoneyCriticalAnnotatedValidator, MoneyCriticalClassifyValidator};
 use super::no_bypass::NoBypassValidator;
 use super::threat_test_mapping::{
@@ -56,6 +59,14 @@ pub fn build_all() -> Result<Vec<RegistryRow>, DecodeError> {
             rule_id: "THREAT-MAP-THREAT-HAS-TEST.1",
             validator: Box::new(ThreatMapThreatHasTestValidator::new()?),
         },
+        RegistryRow {
+            rule_id: "ECON-INVARIANT-PRESENCE.1",
+            validator: Box::new(EconomicInvariantPresenceValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "ECON-INVARIANT-SHAPE.1",
+            validator: Box::new(EconomicInvariantShapeValidator::new()?),
+        },
     ];
 
     Ok(rows)
@@ -68,7 +79,7 @@ mod tests {
     #[test]
     fn registry_builds_cleanly() -> Result<(), Box<dyn std::error::Error>> {
         let rows = build_all()?;
-        assert_eq!(rows.len(), 6);
+        assert_eq!(rows.len(), 8);
         assert!(rows.iter().any(|row| row.rule_id == "H00-1.1"));
         assert!(rows
             .iter()
@@ -85,6 +96,12 @@ mod tests {
         assert!(rows
             .iter()
             .any(|row| row.rule_id == "THREAT-MAP-THREAT-HAS-TEST.1"));
+        assert!(rows
+            .iter()
+            .any(|row| row.rule_id == "ECON-INVARIANT-PRESENCE.1"));
+        assert!(rows
+            .iter()
+            .any(|row| row.rule_id == "ECON-INVARIANT-SHAPE.1"));
         Ok(())
     }
 }

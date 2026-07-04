@@ -1,0 +1,54 @@
+[
+    {
+        "ruleId": "ECON-INVARIANT-PRESENCE.1",
+        "version": 1,
+        "title": "Economic/logic invariant property-suite presence gate (T1, §2.3/§4/§8.3)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::economic_invariants::EconomicInvariantPresenceValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/economic_invariants/failure_not_reward/bad/missing_failure_not_reward.json",
+            "pass": "crates/enforcer-security/tests/fixtures/economic_invariants/full_suite/good/full_suite.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h05-economic-invariant-property-suite.md#ECON-INVARIANT-PRESENCE",
+        "tags": ["security", "money-critical", "track-h", "economic-invariants", "generic-value-system"],
+        "params": {
+            "requiredInvariants": [
+                "idempotent-replay",
+                "failure-not-reward",
+                "retry-not-mutation",
+                "partial-failure-not-profit",
+                "order-not-advantage",
+                "attacker-cost-not-below-system-cost",
+                "compensation-idempotent-replay-safe",
+                "time-assumptions-fail-closed",
+                "backend-never-signs-unverifiable",
+                "emergency-reduces-blast"
+            ],
+            "scopeSource": "h01 money-critical classifier manifest (consumed read-only)"
+        }
+    },
+    {
+        "ruleId": "ECON-INVARIANT-SHAPE.1",
+        "version": 1,
+        "title": "Economic/logic invariant property-test assertion-shape gate (T1, §4/§8.3)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::economic_invariants::EconomicInvariantShapeValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/economic_invariants/idempotency/bad/single_case.json",
+            "pass": "crates/enforcer-security/tests/fixtures/economic_invariants/idempotency/good/property.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h05-economic-invariant-property-suite.md#ECON-INVARIANT-SHAPE",
+        "tags": ["security", "money-critical", "track-h", "economic-invariants", "property-shape", "generic-value-system"],
+        "params": {
+            "acceptedShapes": ["property"],
+            "rejectedShapes": ["single_case"],
+            "doctrine": "a generator-driven refutation (fc.assert(fc.property(...)) / proptest!/quickcheck / Hypothesis @given), never a single literal case"
+        }
+    }
+]
