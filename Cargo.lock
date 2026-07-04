@@ -56,6 +56,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "enforcer-config"
+version = "0.1.0"
+dependencies = [
+ "enforcer-core",
+ "enforcer-domain",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "enforcer-core"
 version = "0.1.0"
 dependencies = [

@@ -1,0 +1,21 @@
+[package]
+name = "enforcer-config"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Typed config load, parse-at-boundary, 3-layer resolution (embedded global profiles -> per-project override -> one resolved EffectiveConfig) for the Ocentra Enforcer workspace."
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

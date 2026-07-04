@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 2,
+  "profileName": "ocentra-enforcer",
+  "failOn": ["error"],
+  "languages": ["rust", "typescript", "python", "common"],
+  "requireCargoDeny": false,
+  "requireCargoAudit": false,
+  "runCargoDoc": false,
+  "cargoOnFileScope": false,
+  "cargoOnDiffScope": false,
+  "allowUnsafeCode": false,
+  "allowBuildRs": false,
+  "allowGitDependencies": false,
+  "allowPathDependencies": false,
+  "publicReexportPolicy": "forbid",
+  "ignoreDirs": [
+    ".git",
+    ".hub",
+    ".turbo",
+    "target",
+    "node_modules",
+    ".next",
+    "dist",
+    "build",
+    "coverage",
+    "output"
+  ],
+  "ignoreFileGlobs": [
+    "src/generic-scanners.mjs",
+    "src/source-policy-scanners.mjs",
+    "tests/enforcer-policy.test.mjs",
+    "tests/rust-rules.test.mjs",
+    "tests/enforcer-multilang.test.mjs",
+    "tests/fixtures/enforcer/**",
+    "profiles/*/legacy-scripts/**"
+  ],
+  "rules": {},
+  "waivers": [],
+  "tools": {},
+  "harness": {
+    "store": "ndjson-duckdb",
+    "storageDir": ".enforce",
+    "maxArtifactBytes": 8000,
+    "maxRuns": 50,
+    "maxRunsPerTool": 20,
+    "maxFailedRuns": 20,
+    "pruneAfterDays": 14
+  }
+}
