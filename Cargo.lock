@@ -79,6 +79,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "enforcer-events"
+version = "0.1.0"
+dependencies = [
+ "enforcer-core",
+ "enforcer-domain",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
