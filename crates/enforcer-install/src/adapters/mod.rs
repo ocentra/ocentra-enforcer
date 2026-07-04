@@ -5,3 +5,4 @@
 //! adapter.
 
 pub mod claude;
+pub mod generic;
