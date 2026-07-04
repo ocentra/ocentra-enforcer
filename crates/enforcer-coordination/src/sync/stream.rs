@@ -74,7 +74,7 @@ pub fn stream_segments(root: &Path, stream_name: &str) -> Result<Vec<StreamSegme
 }
 
 enum ParsedLine {
-    Event(HubEvent),
+    Event(Box<HubEvent>),
     Warning { line: usize, warning: String },
 }
 
@@ -92,7 +92,7 @@ fn read_stream_lenient(path: &Path) -> Result<Vec<ParsedLine>> {
             continue;
         }
         match serde_json::from_str::<HubEvent>(trimmed) {
-            Ok(event) => parsed.push(ParsedLine::Event(event)),
+            Ok(event) => parsed.push(ParsedLine::Event(Box::new(event))),
             Err(err) => {
                 let is_final_line = index == lines.len() - 1
                     || (index == lines.len() - 2 && lines.last() == Some(&""));
@@ -119,7 +119,7 @@ pub fn read_stream(path: &Path) -> Result<Vec<HubEvent>> {
         match item {
             ParsedLine::Event(event) => {
                 assert_event_hash(&event)?;
-                events.push(event);
+                events.push(*event);
             }
             ParsedLine::Warning { line, warning } => {
                 return Err(CoordinationError::rejected(format!(
@@ -170,7 +170,7 @@ pub fn read_all_streams(root: &Path) -> Result<AllStreams> {
                             continue;
                         }
                         seen.insert(event.id.clone());
-                        events.push(event);
+                        events.push(*event);
                     }
                 }
             }
@@ -274,6 +274,7 @@ pub fn parse_line_value(line: &str) -> Result<Value> {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
 mod tests {
     use super::*;
     use crate::events::hash_for_event_value;
@@ -333,7 +334,10 @@ mod tests {
         append_completed_event(root, &node, &lane, &second).expect("append 2");
         let lines_after_second = read_lines(&stream_path(root, &node, &lane)).expect("read lines");
         assert_eq!(lines_after_second.len(), 2);
-        assert_eq!(lines_after_second[0], lines_after_first[0], "line 1 must never be rewritten");
+        assert_eq!(
+            lines_after_second[0], lines_after_first[0],
+            "line 1 must never be rewritten"
+        );
 
         let all = read_all_streams(root).expect("read all streams");
         assert_eq!(all.events.len(), 2);

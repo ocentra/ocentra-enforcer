@@ -180,8 +180,7 @@ pub fn coordination_hash_compatibility() -> HashCompatibility {
         expected_wire_hash: EXPECTED_HASH_COMPATIBILITY_WIRE_HASH.to_owned(),
         actual_wire_hash,
         extension_hash: extension_hash.clone(),
-        context_excluded_from_wire_hash: extension_hash
-            != hash_for_event_value(&sample),
+        context_excluded_from_wire_hash: extension_hash != hash_for_event_value(&sample),
     }
 }
 
@@ -264,13 +263,17 @@ fn canonicalize(value: &Value) -> Value {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
 mod tests {
     use super::*;
 
     #[test]
     fn golden_sentinel_matches_expected_wire_hash() {
         let result = coordination_hash_compatibility();
-        assert_eq!(result.actual_wire_hash, EXPECTED_HASH_COMPATIBILITY_WIRE_HASH);
+        assert_eq!(
+            result.actual_wire_hash,
+            EXPECTED_HASH_COMPATIBILITY_WIRE_HASH
+        );
         assert!(result.ok, "golden fixture must pass: {result:?}");
     }
 
@@ -280,7 +283,10 @@ mod tests {
         let baseline = hash_for_event_value(&sample);
         sample["context"]["projectId"] = Value::String("something-else-entirely".into());
         let mutated = hash_for_event_value(&sample);
-        assert_eq!(baseline, mutated, "context mutation must not affect wire hash");
+        assert_eq!(
+            baseline, mutated,
+            "context mutation must not affect wire hash"
+        );
     }
 
     #[test]
@@ -289,7 +295,10 @@ mod tests {
         let baseline = hash_for_event_value(&sample);
         sample["reason"] = Value::String("different reason".into());
         let mutated = hash_for_event_value(&sample);
-        assert_ne!(baseline, mutated, "wire-field mutation must change the hash");
+        assert_ne!(
+            baseline, mutated,
+            "wire-field mutation must change the hash"
+        );
     }
 
     #[test]
@@ -338,7 +347,7 @@ mod tests {
         completed.hash = hash_for_event(&event).expect("hash computable");
         assert!(assert_event_hash(&completed).is_ok());
 
-        let mut tampered = completed.clone();
+        let mut tampered = completed;
         tampered.reason = Some("tampered".into());
         assert!(assert_event_hash(&tampered).is_err());
     }

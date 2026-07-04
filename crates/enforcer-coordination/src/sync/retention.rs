@@ -35,7 +35,9 @@ pub struct CompactionResult {
 /// `retention.js#compactLedger`.
 pub fn compact_ledger(root: &std::path::Path, keep_latest: usize) -> Result<CompactionResult> {
     if keep_latest == 0 {
-        return Err(CoordinationError::rejected("keepLatest must be a positive integer"));
+        return Err(CoordinationError::rejected(
+            "keepLatest must be a positive integer",
+        ));
     }
     let mut compacted_streams = Vec::new();
     for stream in list_stream_files(root)? {
@@ -83,6 +85,7 @@ fn archive_stamp() -> String {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
 mod tests {
     use super::*;
     use crate::domain::NodeId;
@@ -161,6 +164,10 @@ mod tests {
             .filter(|l| !l.trim().is_empty())
             .map(str::to_owned)
             .collect();
-        assert_eq!(live_lines.len(), 2, "live stream must shrink after compaction");
+        assert_eq!(
+            live_lines.len(),
+            2,
+            "live stream must shrink after compaction"
+        );
     }
 }

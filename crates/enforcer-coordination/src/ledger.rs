@@ -55,9 +55,7 @@ pub fn active_claims(events: &[HubEvent]) -> Vec<RawClaim> {
                     claims.retain(|_, claim| {
                         !claim.paths.iter().any(|claim_path| {
                             let cp = normalize_coordination_path(claim_path);
-                            normalized_release
-                                .iter()
-                                .any(|rp| path_overlaps(rp, &cp))
+                            normalized_release.iter().any(|rp| path_overlaps(rp, &cp))
                         })
                     });
                 }
@@ -75,9 +73,7 @@ pub fn active_claims(events: &[HubEvent]) -> Vec<RawClaim> {
                     claims.retain(|_, claim| {
                         let overlaps = claim.paths.iter().any(|claim_path| {
                             let cp = normalize_coordination_path(claim_path);
-                            normalized_resolve
-                                .iter()
-                                .any(|rp| path_overlaps(rp, &cp))
+                            normalized_resolve.iter().any(|rp| path_overlaps(rp, &cp))
                         });
                         if !overlaps {
                             return true;

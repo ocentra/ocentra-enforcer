@@ -244,6 +244,7 @@ pub fn lock_path(root: &Path, node_id: &NodeId, lane: &LaneId) -> PathBuf {
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
 mod tests {
     use super::*;
 
@@ -265,7 +266,9 @@ mod tests {
     #[test]
     fn resolve_ledger_root_prefers_explicit_root_override() {
         let root = resolve_ledger_root(Some("some-hub"), Some("C:/tmp/explicit-root"));
-        assert!(root.ends_with("explicit-root") || root.to_string_lossy().contains("explicit-root"));
+        assert!(
+            root.ends_with("explicit-root") || root.to_string_lossy().contains("explicit-root")
+        );
     }
 
     #[test]

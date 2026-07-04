@@ -49,10 +49,11 @@ impl LockKind {
 
 /// The coordination operation an actor is performing. Ported from
 /// `lock-policy.js#OPERATION_VALUES`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Operation {
     Inspect,
+    #[default]
     Edit,
     Commit,
     Push,
@@ -230,12 +231,12 @@ pub fn enrich_claim(claim: &RawClaim, has_explicit_context: bool) -> EnrichedCla
         .iter()
         .filter_map(|p| protected_singleton_group(p))
         .collect();
-    let lock_kind = if declared_lock_kind == LockKind::GlobalWriteLock || !singleton_groups.is_empty()
-    {
-        LockKind::GlobalWriteLock
-    } else {
-        declared_lock_kind
-    };
+    let lock_kind =
+        if declared_lock_kind == LockKind::GlobalWriteLock || !singleton_groups.is_empty() {
+            LockKind::GlobalWriteLock
+        } else {
+            declared_lock_kind
+        };
     let operation = claim
         .context
         .operation
@@ -383,7 +384,11 @@ fn overlapping(left: &[String], right: &[String]) -> Vec<String> {
     )
 }
 
-fn paths_for_conflict(left: &EnrichedClaim, right: &EnrichedClaim, path_keys: &[String]) -> Vec<String> {
+fn paths_for_conflict(
+    left: &EnrichedClaim,
+    right: &EnrichedClaim,
+    path_keys: &[String],
+) -> Vec<String> {
     let normalized: BTreeSet<&String> = path_keys.iter().collect();
     let combined: Vec<String> = left
         .paths
@@ -399,7 +404,13 @@ fn paths_for_conflict(left: &EnrichedClaim, right: &EnrichedClaim, path_keys: &[
         .cloned()
         .collect();
     if combined.is_empty() {
-        unique(left.paths.iter().chain(right.paths.iter()).cloned().collect())
+        unique(
+            left.paths
+                .iter()
+                .chain(right.paths.iter())
+                .cloned()
+                .collect(),
+        )
     } else {
         unique(combined)
     }
@@ -454,7 +465,12 @@ pub struct PairConflicts {
     pub advisories: Vec<Conflict>,
 }
 
-fn make_conflict(kind: ConflictType, left: &EnrichedClaim, right: &EnrichedClaim, paths: Vec<String>) -> Conflict {
+fn make_conflict(
+    kind: ConflictType,
+    left: &EnrichedClaim,
+    right: &EnrichedClaim,
+    paths: Vec<String>,
+) -> Conflict {
     Conflict {
         kind,
         paths,
@@ -472,55 +488,72 @@ fn make_conflict(kind: ConflictType, left: &EnrichedClaim, right: &EnrichedClaim
 pub fn classify_claim_pair(left: &EnrichedClaim, right: &EnrichedClaim) -> PairConflicts {
     let global_overlap = overlapping(&left.global_keys, &right.global_keys);
     let physical_overlap = overlapping(&left.physical_keys, &right.physical_keys);
-    let branch_lease_overlap = if left.lock_kind == LockKind::BranchLease
-        && right.lock_kind == LockKind::BranchLease
-    {
-        overlapping(&left.branch_keys, &right.branch_keys)
-    } else {
-        Vec::new()
-    };
+    let branch_lease_overlap =
+        if left.lock_kind == LockKind::BranchLease && right.lock_kind == LockKind::BranchLease {
+            overlapping(&left.branch_keys, &right.branch_keys)
+        } else {
+            Vec::new()
+        };
     let same_path = overlapping(&left.path_keys, &right.path_keys);
     let common_paths = paths_for_conflict(left, right, &same_path);
 
     let mut result = PairConflicts::default();
 
     if !global_overlap.is_empty() {
-        result
-            .global_write_conflicts
-            .push(make_conflict(ConflictType::GlobalWriteConflict, left, right, common_paths));
+        result.global_write_conflicts.push(make_conflict(
+            ConflictType::GlobalWriteConflict,
+            left,
+            right,
+            common_paths,
+        ));
         return result;
     }
     if !same_path.is_empty() && same_project(left, right) && same_worktree(left, right) {
-        result
-            .write_conflicts
-            .push(make_conflict(ConflictType::WriteLockConflict, left, right, common_paths));
+        result.write_conflicts.push(make_conflict(
+            ConflictType::WriteLockConflict,
+            left,
+            right,
+            common_paths,
+        ));
         return result;
     }
     if !physical_overlap.is_empty() {
-        result
-            .write_conflicts
-            .push(make_conflict(ConflictType::WriteLockConflict, left, right, common_paths));
+        result.write_conflicts.push(make_conflict(
+            ConflictType::WriteLockConflict,
+            left,
+            right,
+            common_paths,
+        ));
         return result;
     }
     if !branch_lease_overlap.is_empty() {
-        result
-            .branch_lease_conflicts
-            .push(make_conflict(ConflictType::BranchLeaseConflict, left, right, common_paths));
+        result.branch_lease_conflicts.push(make_conflict(
+            ConflictType::BranchLeaseConflict,
+            left,
+            right,
+            common_paths,
+        ));
         return result;
     }
     if same_path.is_empty() || !same_project(left, right) {
         return result;
     }
     if same_branch(left, right) && !same_worktree(left, right) {
-        result
-            .branch_write_conflicts
-            .push(make_conflict(ConflictType::BranchWriteConflict, left, right, common_paths));
+        result.branch_write_conflicts.push(make_conflict(
+            ConflictType::BranchWriteConflict,
+            left,
+            right,
+            common_paths,
+        ));
         return result;
     }
     if !same_branch(left, right) {
-        result
-            .merge_risks
-            .push(make_conflict(ConflictType::MergeRisk, left, right, common_paths));
+        result.merge_risks.push(make_conflict(
+            ConflictType::MergeRisk,
+            left,
+            right,
+            common_paths,
+        ));
         return result;
     }
     if left.lock_kind == LockKind::WorkReservation || right.lock_kind == LockKind::WorkReservation {
@@ -532,12 +565,6 @@ pub fn classify_claim_pair(left: &EnrichedClaim, right: &EnrichedClaim) -> PairC
         ));
     }
     result
-}
-
-impl Default for Operation {
-    fn default() -> Self {
-        Self::Edit
-    }
 }
 
 /// The decision for a claim request against currently-active claims. Ported
@@ -631,6 +658,7 @@ pub fn conflict_touches_paths(conflict: &Conflict, changed_paths: &[String]) -> 
 }
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
 mod tests {
     use super::*;
 
@@ -657,27 +685,50 @@ mod tests {
     #[test]
     fn same_path_same_worktree_different_owners_is_write_lock_conflict() {
         let a = enrich_claim(
-            &claim("node1.laneA", "laneA", &["src/lib.rs"], ctx("proj", "wt1", "main")),
+            &claim(
+                "node1.laneA",
+                "laneA",
+                &["src/lib.rs"],
+                ctx("proj", "wt1", "main"),
+            ),
             true,
         );
         let b = enrich_claim(
-            &claim("node2.laneB", "laneB", &["src/lib.rs"], ctx("proj", "wt1", "main")),
+            &claim(
+                "node2.laneB",
+                "laneB",
+                &["src/lib.rs"],
+                ctx("proj", "wt1", "main"),
+            ),
             true,
         );
         let conflicts = classify_claim_pair(&a, &b);
         assert_eq!(conflicts.write_conflicts.len(), 1);
-        assert_eq!(conflicts.write_conflicts[0].kind, ConflictType::WriteLockConflict);
+        assert_eq!(
+            conflicts.write_conflicts[0].kind,
+            ConflictType::WriteLockConflict
+        );
         assert!(conflicts.merge_risks.is_empty());
     }
 
     #[test]
     fn different_worktrees_different_branches_is_only_merge_risk() {
         let a = enrich_claim(
-            &claim("node1.laneA", "laneA", &["src/lib.rs"], ctx("proj", "wt1", "feature-a")),
+            &claim(
+                "node1.laneA",
+                "laneA",
+                &["src/lib.rs"],
+                ctx("proj", "wt1", "feature-a"),
+            ),
             true,
         );
         let b = enrich_claim(
-            &claim("node2.laneB", "laneB", &["src/lib.rs"], ctx("proj", "wt2", "feature-b")),
+            &claim(
+                "node2.laneB",
+                "laneB",
+                &["src/lib.rs"],
+                ctx("proj", "wt2", "feature-b"),
+            ),
             true,
         );
         let conflicts = classify_claim_pair(&a, &b);
@@ -717,8 +768,14 @@ mod tests {
         context_a.lock_kind = Some("workReservation".to_owned());
         let mut context_b = ctx("proj", "wt1", "main");
         context_b.lock_kind = Some("workReservation".to_owned());
-        let a = enrich_claim(&claim("node1.laneA", "laneA", &["src/lib.rs"], context_a), true);
-        let b = enrich_claim(&claim("node2.laneB", "laneB", &["src/lib.rs"], context_b), true);
+        let a = enrich_claim(
+            &claim("node1.laneA", "laneA", &["src/lib.rs"], context_a),
+            true,
+        );
+        let b = enrich_claim(
+            &claim("node2.laneB", "laneB", &["src/lib.rs"], context_b),
+            true,
+        );
         let conflicts = classify_claim_pair(&a, &b);
         assert_eq!(
             conflicts.write_conflicts.len(),
@@ -731,11 +788,21 @@ mod tests {
     #[test]
     fn protected_singleton_escalates_across_worktrees_to_global_conflict() {
         let a = enrich_claim(
-            &claim("node1.laneA", "laneA", &["Cargo.lock"], ctx("proj", "wt1", "feature-a")),
+            &claim(
+                "node1.laneA",
+                "laneA",
+                &["Cargo.lock"],
+                ctx("proj", "wt1", "feature-a"),
+            ),
             true,
         );
         let b = enrich_claim(
-            &claim("node2.laneB", "laneB", &["Cargo.lock"], ctx("proj", "wt2", "feature-b")),
+            &claim(
+                "node2.laneB",
+                "laneB",
+                &["Cargo.lock"],
+                ctx("proj", "wt2", "feature-b"),
+            ),
             true,
         );
         assert!(a.protected_singleton);
@@ -758,11 +825,21 @@ mod tests {
         // ordinary (non-singleton) files from the same two claimants
         // produce nothing.
         let a = enrich_claim(
-            &claim("node1.laneA", "laneA", &["src/a.rs"], ctx("proj", "wt1", "feature-a")),
+            &claim(
+                "node1.laneA",
+                "laneA",
+                &["src/a.rs"],
+                ctx("proj", "wt1", "feature-a"),
+            ),
             true,
         );
         let b = enrich_claim(
-            &claim("node2.laneB", "laneB", &["src/b.rs"], ctx("proj", "wt2", "feature-b")),
+            &claim(
+                "node2.laneB",
+                "laneB",
+                &["src/b.rs"],
+                ctx("proj", "wt2", "feature-b"),
+            ),
             true,
         );
         let conflicts = classify_claim_pair(&a, &b);
@@ -775,11 +852,21 @@ mod tests {
     #[test]
     fn pr_ready_operation_blocks_on_merge_risk_unless_allowed() {
         let active = enrich_claim(
-            &claim("node1.laneA", "laneA", &["src/lib.rs"], ctx("proj", "wt1", "feature-a")),
+            &claim(
+                "node1.laneA",
+                "laneA",
+                &["src/lib.rs"],
+                ctx("proj", "wt1", "feature-a"),
+            ),
             true,
         );
         let request = enrich_claim(
-            &claim("node2.laneB", "laneB", &["src/lib.rs"], ctx("proj", "wt2", "feature-b")),
+            &claim(
+                "node2.laneB",
+                "laneB",
+                &["src/lib.rs"],
+                ctx("proj", "wt2", "feature-b"),
+            ),
             true,
         );
         let decision = blockers_for_request(&[active], &request, Operation::PrReady);
@@ -792,7 +879,7 @@ mod tests {
         let mut lease_ctx = ctx("proj", "wt1", "main");
         lease_ctx.lock_kind = Some("branchLease".to_owned());
         let active = enrich_claim(
-            &claim("node1.laneA", "laneA", &["src/lib.rs"], lease_ctx.clone()),
+            &claim("node1.laneA", "laneA", &["src/lib.rs"], lease_ctx),
             true,
         );
         let mut request_ctx = ctx("proj", "wt2", "main");
@@ -812,8 +899,14 @@ mod tests {
         context_a.codex_thread_id = Some("thread-1".to_owned());
         let mut context_b = ctx("proj", "wt1", "main");
         context_b.codex_thread_id = Some("thread-1".to_owned());
-        let a = enrich_claim(&claim("node1.laneA", "laneA", &["src/lib.rs"], context_a), true);
-        let b = enrich_claim(&claim("node1.laneA", "laneA", &["src/lib.rs"], context_b), true);
+        let a = enrich_claim(
+            &claim("node1.laneA", "laneA", &["src/lib.rs"], context_a),
+            true,
+        );
+        let b = enrich_claim(
+            &claim("node1.laneA", "laneA", &["src/lib.rs"], context_b),
+            true,
+        );
         assert!(same_logical_owner(&a, &b));
         let decision = blockers_for_request(&[a], &b, Operation::Edit);
         assert!(decision.blockers.is_empty());

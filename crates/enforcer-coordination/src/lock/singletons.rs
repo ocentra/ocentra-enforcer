@@ -111,7 +111,10 @@ mod tests {
 
     #[test]
     fn ordinary_source_paths_are_not_protected() {
-        assert_eq!(protected_singleton_group("crates/enforcer-core/src/lib.rs"), None);
+        assert_eq!(
+            protected_singleton_group("crates/enforcer-core/src/lib.rs"),
+            None
+        );
         assert_eq!(protected_singleton_group("README.md"), None);
     }
 }
