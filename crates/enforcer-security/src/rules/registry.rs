@@ -11,14 +11,20 @@
 use enforcer_core::error::DecodeError;
 use enforcer_validator::validator::Validator;
 
+use super::boundary::BoundaryValidator;
+use super::economic::EconomicValidator;
 use super::economic_invariants::{
     EconomicInvariantPresenceValidator, EconomicInvariantShapeValidator,
 };
+use super::killswitch::KillSwitchValidator;
 use super::money_critical::{MoneyCriticalAnnotatedValidator, MoneyCriticalClassifyValidator};
 use super::no_bypass::NoBypassValidator;
+use super::rollback::RollbackValidator;
+use super::signing::SigningValidator;
 use super::threat_test_mapping::{
     ThreatMapNoUnmappedValidator, ThreatMapThreatHasTestValidator, ThreatMapUnitCoverageValidator,
 };
+use super::time::TimeValidator;
 
 /// One registry row: the rule id this row proves, paired with the
 /// constructed [`Validator`] trait object.
@@ -67,6 +73,30 @@ pub fn build_all() -> Result<Vec<RegistryRow>, DecodeError> {
             rule_id: "ECON-INVARIANT-SHAPE.1",
             validator: Box::new(EconomicInvariantShapeValidator::new()?),
         },
+        RegistryRow {
+            rule_id: "MCM-SIGNING.1",
+            validator: Box::new(SigningValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "MCM-TIME.1",
+            validator: Box::new(TimeValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "MCM-BOUNDARY.1",
+            validator: Box::new(BoundaryValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "MCM-KILLSWITCH.1",
+            validator: Box::new(KillSwitchValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "MCM-ECONOMIC.1",
+            validator: Box::new(EconomicValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "MCM-ROLLBACK.1",
+            validator: Box::new(RollbackValidator::new()?),
+        },
     ];
 
     Ok(rows)
@@ -79,7 +109,7 @@ mod tests {
     #[test]
     fn registry_builds_cleanly() -> Result<(), Box<dyn std::error::Error>> {
         let rows = build_all()?;
-        assert_eq!(rows.len(), 8);
+        assert_eq!(rows.len(), 14);
         assert!(rows.iter().any(|row| row.rule_id == "H00-1.1"));
         assert!(rows
             .iter()
@@ -102,6 +132,12 @@ mod tests {
         assert!(rows
             .iter()
             .any(|row| row.rule_id == "ECON-INVARIANT-SHAPE.1"));
+        assert!(rows.iter().any(|row| row.rule_id == "MCM-SIGNING.1"));
+        assert!(rows.iter().any(|row| row.rule_id == "MCM-TIME.1"));
+        assert!(rows.iter().any(|row| row.rule_id == "MCM-BOUNDARY.1"));
+        assert!(rows.iter().any(|row| row.rule_id == "MCM-KILLSWITCH.1"));
+        assert!(rows.iter().any(|row| row.rule_id == "MCM-ECONOMIC.1"));
+        assert!(rows.iter().any(|row| row.rule_id == "MCM-ROLLBACK.1"));
         Ok(())
     }
 }

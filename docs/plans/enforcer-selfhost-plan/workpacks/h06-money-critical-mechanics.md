@@ -34,13 +34,13 @@ Each `Validator` obeys `[workspace.lints]` (no `unwrap/expect/panic/print_*`; no
 
 ## Requirement Checklist
 Each rule is scaffolded via `enforcer rule new <ID>` (d01), landing a doc-anchor in its `enforcer-rules` record, a `Validator` impl in `crates/enforcer-security/src/rules/<facet>.rs`, and a fail+pass fixture pair under `crates/enforcer-security/tests/fixtures/money_critical_mechanics/<facet>/{bad,good}/`.
-- [ ] T1 SIGNING (`signing.rs`): signing a client-raw / non-reconstructable / unverified payload emits a `Finding`; canonical+correlation-id sign site clean.
-- [ ] T1 TIME (`time.rs`): client-clock use in a money path emits a `Finding`; server-time + explicit skew + fail-closed expiry clean.
-- [ ] T1 BOUNDARY (`boundary.rs`): an unauthenticated internal endpoint / trusted internal header emits a `Finding`; authed internal endpoint clean.
-- [ ] T1 KILL-SWITCH (`killswitch.rs`): kill-switch not halt-all/atomic/authed/audited/replay-safe or untested emits a `Finding`.
-- [ ] T2 ECONOMIC (`economic.rs`) + ROLLBACK (`rollback.rs`): cost/retry/dust and rollback idempotency/atomicity emit score+confidence; untested rollback flagged.
-- [ ] Scoped by h01 money-critical classification (consumed read-only, never redefined); all rows registered via d01 `rule new`; parity oracle green across `RuleId` <-> doc-anchor <-> `Validator` <-> {fail,pass} fixtures <-> `cargo test` detection test.
-- [ ] Clean `cargo clippy` / `cargo fmt --check` (obey `[workspace.lints]`).
+- [x] T1 SIGNING (`signing.rs`, `MCM-SIGNING.1` {#MCM-SIGNING}): signing a client-raw / non-reconstructable / unverified payload emits a `Finding`; canonical+correlation-id sign site clean.
+- [x] T1 TIME (`time.rs`, `MCM-TIME.1` {#MCM-TIME}): client-clock use in a money path emits a `Finding`; server-time + explicit skew + fail-closed expiry clean.
+- [x] T1 BOUNDARY (`boundary.rs`, `MCM-BOUNDARY.1` {#MCM-BOUNDARY}): an unauthenticated internal endpoint / trusted internal header emits a `Finding`; authed internal endpoint clean.
+- [x] T1 KILL-SWITCH (`killswitch.rs`, `MCM-KILLSWITCH.1` {#MCM-KILLSWITCH}): kill-switch not halt-all/atomic/authed/audited/replay-safe or untested emits a `Finding`.
+- [x] T2 ECONOMIC (`economic.rs`, `MCM-ECONOMIC.1` {#MCM-ECONOMIC}) + ROLLBACK (`rollback.rs`, `MCM-ROLLBACK.1` {#MCM-ROLLBACK}): cost/retry/dust and rollback idempotency/atomicity emit score+confidence; untested rollback flagged.
+- [x] Scoped by h01 money-critical classification (consumed read-only, never redefined); all rows registered via d01 `rule new`; parity oracle green across `RuleId` <-> doc-anchor <-> `Validator` <-> {fail,pass} fixtures <-> `cargo test` detection test.
+- [x] Clean `cargo clippy` / `cargo fmt --check` (obey `[workspace.lints]`).
 
 ## Acceptance And Proof
 Tier P0/P1 mixed. Prove via `cargo test -p enforcer-security`. 5-way parity per rule. Fixtures are target-language sample code parsed by the Rust `Validator`, under `crates/enforcer-security/tests/fixtures/money_critical_mechanics/<facet>/{bad,good}/`.
