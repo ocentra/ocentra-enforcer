@@ -13,6 +13,11 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+# c07 deviation (owns: is Cargo.toml-silent, but the workpack binds the
+# generic adapter to the x01 MCP server-name const as the single source of
+# truth for `mcpServers[<name>]` — never a hardcoded literal). Additive,
+# non-conflicting dependency edit; enforcer-mcp does not depend on this
+# crate, so no cycle.
 enforcer-mcp = { path = "../enforcer-mcp", version = "0.1.0" }
 
 [dev-dependencies]

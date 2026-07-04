@@ -1,0 +1,4 @@
+pre-commit:
+  commands:
+    ocentra-enforcer:
+      run: ocentra-enforcer scan --root . --workspace --config "${OCENTRA_ENFORCER_CONFIG:-ocentra-enforcer.config.json}"
