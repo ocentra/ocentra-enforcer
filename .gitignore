@@ -11,3 +11,5 @@ build/
 .ledger/
 db/
 views/
+_test.out
+_test.err
