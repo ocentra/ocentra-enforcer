@@ -161,6 +161,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "enforcer-lang-iac"
+version = "0.1.0"
+dependencies = [
+ "enforcer-core",
+ "enforcer-domain",
+ "enforcer-validator",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "enforcer-lang-k8s"
 version = "0.1.0"
 dependencies = [
