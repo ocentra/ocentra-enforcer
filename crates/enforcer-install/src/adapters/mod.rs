@@ -4,9 +4,15 @@
 //! `mod.rs` only wires the module tree; it does not itself implement an
 //! adapter.
 
+pub mod aider;
+pub mod antigravity;
 pub mod claude;
 pub mod codex;
 pub mod cursor;
 pub mod gemini;
 pub mod generic;
+pub mod kilocode;
+pub mod kiro;
+pub mod opencode;
+pub mod windsurf;
 pub mod zed;
