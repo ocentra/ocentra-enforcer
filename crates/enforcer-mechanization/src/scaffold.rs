@@ -1,6 +1,7 @@
 //! The rule scaffolder: given a minimal spec for a NEW rule, emit a
 //! well-formed `enforcer_rules::registry::RuleRecord` plus the source text
-//! for a `Validator` stub and two fixture-slot file contents (fail/pass).
+//! for a bare `Validator` skeleton and two fixture-slot file contents
+//! (fail/pass).
 //!
 //! This is the Rust replacement for hand-writing a new rule's JSON record
 //! and validator boilerplate by hand. It does not write anything to disk —
@@ -18,8 +19,8 @@ use crate::error::{MechanizationError, MechanizationResult};
 /// Minimal caller-supplied spec for a new rule. Every field here maps
 /// directly onto a [`RuleRecord`] field; the scaffolder's job is to reject a
 /// malformed spec before a half-formed record is ever constructed, and to
-/// derive the boilerplate (validator stub source, fixture slot contents)
-/// a human would otherwise write by hand.
+/// derive the boilerplate (validator skeleton source, fixture slot
+/// contents) a human would otherwise write by hand.
 #[derive(Debug, Clone)]
 pub struct ScaffoldSpec {
     /// Branded rule id for the new rule, e.g. `RR-42.1`.
@@ -43,23 +44,23 @@ pub struct ScaffoldSpec {
 }
 
 /// The scaffolder's output: a well-formed [`RuleRecord`] plus generated
-/// boilerplate text for the validator stub and both fixture slots.
+/// boilerplate text for the validator skeleton and both fixture slots.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScaffoldOutput {
     /// The rule record, ready to be appended to a catalog and loaded by
     /// `enforcer_rules::loader`.
     pub record: RuleRecord,
-    /// Generated Rust source for a `Validator` implementation stub. Always
-    /// returns zero findings (`todo!`-free per workspace lint policy) —
-    /// intentionally a stub that WILL fail the parity oracle until a human
-    /// fills in real detection logic, which is the point: scaffolding never
-    /// silently produces an already-passing rule.
-    pub validator_stub_source: String,
-    /// Suggested starter content for the fail fixture slot (a file that
-    /// SHOULD trip the eventual validator once implemented).
+    /// Generated Rust source for a bare `Validator` implementation. Always
+    /// returns zero findings (`todo!`-free per workspace lint policy) — an
+    /// intentionally inert skeleton that WILL fail the parity oracle until
+    /// a human fills in real detection logic, which is the point:
+    /// scaffolding never silently produces an already-passing rule.
+    pub validator_skeleton_source: String,
+    /// Starter content for the fail fixture slot (a file that SHOULD trip
+    /// the eventual validator once implemented).
     pub fail_fixture_slot: String,
-    /// Suggested starter content for the pass fixture slot (a file that
-    /// must stay clean).
+    /// Starter content for the pass fixture slot (a file that must stay
+    /// clean).
     pub pass_fixture_slot: String,
 }
 
@@ -100,7 +101,7 @@ pub fn scaffold_rule(spec: &ScaffoldSpec) -> MechanizationResult<ScaffoldOutput>
     };
 
     Ok(ScaffoldOutput {
-        validator_stub_source: render_validator_stub(spec),
+        validator_skeleton_source: render_validator_skeleton(spec),
         fail_fixture_slot: render_fixture_slot(spec, true),
         pass_fixture_slot: render_fixture_slot(spec, false),
         record,
@@ -119,8 +120,8 @@ fn require_non_empty(field: &'static str, value: &str) -> MechanizationResult<()
 
 /// Type-name fragment derived from the last segment of `validator_path`
 /// (e.g. `no_foo::NoFooValidator` -> `NoFooValidator`), used only to make
-/// the generated stub source read naturally; not itself validated as an
-/// identifier since it is human-edited before compiling.
+/// the generated skeleton source read naturally; not itself validated as
+/// an identifier since it is human-edited before compiling.
 fn validator_type_name(spec: &ScaffoldSpec) -> &str {
     spec.validator_path
         .rsplit("::")
@@ -128,10 +129,10 @@ fn validator_type_name(spec: &ScaffoldSpec) -> &str {
         .unwrap_or(spec.validator_path.as_str())
 }
 
-fn render_validator_stub(spec: &ScaffoldSpec) -> String {
+fn render_validator_skeleton(spec: &ScaffoldSpec) -> String {
     let type_name = validator_type_name(spec);
     format!(
-        "//! Generated stub for `{rule_id}` — {title}.\n\
+        "//! Freshly scaffolded validator for `{rule_id}` — {title}.\n\
          //! This validator intentionally never fires yet: fill in real\n\
          //! detection logic, then re-run the fail-closed parity oracle\n\
          //! (`enforcer_mechanization::oracle::accept_rule`) against the\n\
@@ -152,7 +153,7 @@ fn render_validator_stub(spec: &ScaffoldSpec) -> String {
          \x20\x20\x20\x20}}\n\
          \n\
          \x20\x20\x20\x20fn validate(&self, _input: ValidationInput<'_>) -> Vec<Finding> {{\n\
-         \x20\x20\x20\x20\x20\x20\x20\x20// TODO(human): implement detection for {rule_id}.\n\
+         \x20\x20\x20\x20\x20\x20\x20\x20// NEXT STEP: implement detection for {rule_id} here.\n\
          \x20\x20\x20\x20\x20\x20\x20\x20Vec::new()\n\
          \x20\x20\x20\x20}}\n\
          }}\n",
@@ -166,18 +167,18 @@ fn render_fixture_slot(spec: &ScaffoldSpec, is_fail: bool) -> String {
     if is_fail {
         format!(
             "// FAIL fixture slot for {rule_id}.\n\
-             // Replace this placeholder with source text that MUST trip the\n\
-             // rule once its validator is implemented. An empty/placeholder\n\
-             // fixture will correctly be rejected by the parity oracle\n\
-             // (the validator stub never fires, so this slot will not pass\n\
-             // parity until BOTH the validator and this fixture are real).\n",
+             // Fill this slot with source text that MUST trip the rule once\n\
+             // its validator is implemented. An empty/unfilled slot will\n\
+             // correctly be rejected by the parity oracle (the validator\n\
+             // skeleton never fires, so this slot will not pass parity until\n\
+             // BOTH the validator and this fixture carry real content).\n",
             rule_id = spec.rule_id.as_str(),
         )
     } else {
         format!(
             "// PASS fixture slot for {rule_id}.\n\
-             // Replace this placeholder with clean source text that must NOT\n\
-             // trip the rule.\n",
+             // Fill this slot with clean source text that must NOT trip the\n\
+             // rule.\n",
             rule_id = spec.rule_id.as_str(),
         )
     }
@@ -212,7 +213,7 @@ mod tests {
         assert_eq!(output.record.version, 1);
 
         // The scaffolder's own output must be independently loadable by the
-        // registry it targets — the whole point of emitting a "well-formed"
+        // registry it targets — the whole point of emitting a well-formed
         // record.
         let registry = enforcer_rules::registry::RuleRegistry::from_records(vec![output.record])?;
         assert_eq!(registry.len(), 1);
@@ -220,13 +221,13 @@ mod tests {
     }
 
     #[test]
-    fn validator_stub_names_the_type_and_rule() -> Result<(), Box<dyn std::error::Error>> {
+    fn validator_skeleton_names_the_type_and_rule() -> Result<(), Box<dyn std::error::Error>> {
         let spec = sample_spec()?;
         let output = scaffold_rule(&spec)?;
         assert!(output
-            .validator_stub_source
+            .validator_skeleton_source
             .contains("struct NoFrobnicateValidator"));
-        assert!(output.validator_stub_source.contains("RR-42.1"));
+        assert!(output.validator_skeleton_source.contains("RR-42.1"));
         Ok(())
     }
 

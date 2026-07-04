@@ -9,10 +9,10 @@
 //! replacement:
 //!
 //! - [`scaffold`] — given a minimal spec for a NEW rule, emit a well-formed
-//!   `enforcer_rules::registry::RuleRecord`, a `Validator` implementation
-//!   stub (source text), and starter content for both fixture slots. The
+//!   `enforcer_rules::registry::RuleRecord`, a bare `Validator` skeleton
+//!   (source text), and starter content for both fixture slots. The
 //!   scaffolder never silently produces an already-passing rule: the
-//!   generated validator stub always returns zero findings, so a
+//!   generated validator skeleton always returns zero findings, so a
 //!   freshly-scaffolded rule fails the oracle below until a human
 //!   implements real detection logic.
 //! - [`oracle`] — the fail-closed parity oracle: a candidate rule is only
