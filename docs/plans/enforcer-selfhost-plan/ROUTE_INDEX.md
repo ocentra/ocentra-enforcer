@@ -40,6 +40,7 @@ That is the whole loop: **PLAN_STATE -> BLUEPRINT -> WORKPACK_INDEX -> one workp
 | What proof does a workpack need before DONE? What do P0-P5 mean? | [TEST_PROOF_EXPECTATIONS.md](./TEST_PROOF_EXPECTATIONS.md) |
 | Where's the running proof-row status / how do proof tiers map to workpacks? | [PROOF_INDEX.md](./PROOF_INDEX.md) |
 | Which docs exist in this plan and what is each for? | [DOC_INDEX.md](./DOC_INDEX.md) |
+| How should x06 memory/RAG/retrieval/model/vector/artifact storage be designed? | [MEMORY_RETRIEVAL_ARCHITECTURE.md](./MEMORY_RETRIEVAL_ARCHITECTURE.md) |
 | What must I check off before claiming / before closing a workpack? | [CHECKLIST_INDEX.md](./CHECKLIST_INDEX.md) |
 | Where do superseded / historical docs go? | [ARCHIVE_INDEX.md](./ARCHIVE_INDEX.md) |
 | The actual work item detail (Where We Are / Want To Be / Requirement Checklist) | the specific file in [workpacks/](./workpacks/) — only once selected |
