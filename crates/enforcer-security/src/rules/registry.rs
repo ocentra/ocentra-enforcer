@@ -1,0 +1,49 @@
+//! The `enforcer-security` `Validator`-registration seam.
+//!
+//! [`build_all`] is the single place every rule this crate owns is
+//! enumerated, paired with its constructed [`Validator`]. This workpack
+//! (arc-19, the crate skeleton) registers only the no-bypass meta-check's
+//! row. Feature packs (d18, h01-h08, h11) add their own rows here as they
+//! land their `src/rules/<name>.rs` modules — this is the seam they
+//! extend, not a file they own outright (this file is part of the
+//! skeleton `owns:` set per the workpack's Parallel Ownership Notes).
+
+use enforcer_core::error::DecodeError;
+use enforcer_validator::validator::Validator;
+
+use super::no_bypass::NoBypassValidator;
+
+/// One registry row: the rule id this row proves, paired with the
+/// constructed [`Validator`] trait object.
+pub struct RegistryRow {
+    /// The rule id this row proves, e.g. `H00-1.1`.
+    pub rule_id: &'static str,
+    /// The constructed validator for this rule.
+    pub validator: Box<dyn Validator>,
+}
+
+/// Build every row this crate currently owns. Fails closed (propagates
+/// the first construction error) rather than silently dropping a
+/// malformed entry — a registry that failed to build completely must not
+/// be treated as "loaded".
+pub fn build_all() -> Result<Vec<RegistryRow>, DecodeError> {
+    let rows = vec![RegistryRow {
+        rule_id: "H00-1.1",
+        validator: Box::new(NoBypassValidator::new()?),
+    }];
+
+    Ok(rows)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_all;
+
+    #[test]
+    fn registry_builds_cleanly() -> Result<(), Box<dyn std::error::Error>> {
+        let rows = build_all()?;
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].rule_id, "H00-1.1");
+        Ok(())
+    }
+}

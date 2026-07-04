@@ -1,0 +1,19 @@
+[package]
+name = "enforcer-security"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Track H money-critical & security-testing Validator implementations, plus the no-bypass meta-check (enforcer-config is the single declarative control-plane; the enforcer ships no inline-suppress escape hatch). This crate owns the crate skeleton and Validator-registration seam; feature packs (d18, h01-h08, h11) drop in src/rules/<name>.rs."
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+regex = "1"
+enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
+
+[lints]
+workspace = true
