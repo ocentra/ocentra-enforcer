@@ -6,3 +6,4 @@
 pub mod money_critical;
 pub mod no_bypass;
 pub mod registry;
+pub mod threat_test_mapping;

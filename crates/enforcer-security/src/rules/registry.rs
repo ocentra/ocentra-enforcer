@@ -13,6 +13,9 @@ use enforcer_validator::validator::Validator;
 
 use super::money_critical::{MoneyCriticalAnnotatedValidator, MoneyCriticalClassifyValidator};
 use super::no_bypass::NoBypassValidator;
+use super::threat_test_mapping::{
+    ThreatMapNoUnmappedValidator, ThreatMapThreatHasTestValidator, ThreatMapUnitCoverageValidator,
+};
 
 /// One registry row: the rule id this row proves, paired with the
 /// constructed [`Validator`] trait object.
@@ -41,6 +44,18 @@ pub fn build_all() -> Result<Vec<RegistryRow>, DecodeError> {
             rule_id: "MONEY-CRIT-ANNOTATED.1",
             validator: Box::new(MoneyCriticalAnnotatedValidator::new()?),
         },
+        RegistryRow {
+            rule_id: "THREAT-MAP-UNIT-COVERAGE.1",
+            validator: Box::new(ThreatMapUnitCoverageValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "THREAT-MAP-NO-UNMAPPED.1",
+            validator: Box::new(ThreatMapNoUnmappedValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "THREAT-MAP-THREAT-HAS-TEST.1",
+            validator: Box::new(ThreatMapThreatHasTestValidator::new()?),
+        },
     ];
 
     Ok(rows)
@@ -53,7 +68,7 @@ mod tests {
     #[test]
     fn registry_builds_cleanly() -> Result<(), Box<dyn std::error::Error>> {
         let rows = build_all()?;
-        assert_eq!(rows.len(), 3);
+        assert_eq!(rows.len(), 6);
         assert!(rows.iter().any(|row| row.rule_id == "H00-1.1"));
         assert!(rows
             .iter()
@@ -61,6 +76,15 @@ mod tests {
         assert!(rows
             .iter()
             .any(|row| row.rule_id == "MONEY-CRIT-ANNOTATED.1"));
+        assert!(rows
+            .iter()
+            .any(|row| row.rule_id == "THREAT-MAP-UNIT-COVERAGE.1"));
+        assert!(rows
+            .iter()
+            .any(|row| row.rule_id == "THREAT-MAP-NO-UNMAPPED.1"));
+        assert!(rows
+            .iter()
+            .any(|row| row.rule_id == "THREAT-MAP-THREAT-HAS-TEST.1"));
         Ok(())
     }
 }

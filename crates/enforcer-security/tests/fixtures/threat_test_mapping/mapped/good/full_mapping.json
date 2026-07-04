@@ -1,0 +1,35 @@
+{
+  "moneyCriticalUnits": ["credit_balance", "sign_payment"],
+  "units": [
+    {
+      "unit": "credit_balance",
+      "threats": ["T1565.001"],
+      "invariants": ["balance-non-negative"],
+      "tests": {
+        "property": ["prop_credit_balance_conserves_total"],
+        "concurrency": ["conc_credit_balance_no_lost_update"],
+        "replay": ["replay_credit_balance_idempotent"]
+      }
+    },
+    {
+      "unit": "sign_payment",
+      "threats": ["T1552.001"],
+      "invariants": ["signature-covers-full-payload"],
+      "tests": {
+        "property": ["prop_sign_payment_rejects_tampered_payload"],
+        "concurrency": ["conc_sign_payment_no_double_sign"],
+        "replay": ["replay_sign_payment_rejects_replayed_signature"]
+      }
+    }
+  ],
+  "threats": [
+    {
+      "threatId": "T1565.001",
+      "tests": ["prop_credit_balance_conserves_total"]
+    },
+    {
+      "threatId": "T1552.001",
+      "tests": ["prop_sign_payment_rejects_tampered_payload"]
+    }
+  ]
+}

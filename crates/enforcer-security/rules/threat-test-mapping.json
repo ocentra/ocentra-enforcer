@@ -1,0 +1,59 @@
+[
+    {
+        "ruleId": "THREAT-MAP-UNIT-COVERAGE.1",
+        "version": 1,
+        "title": "Money-critical unit threat/invariant/test mapping completeness (T1, §8.5)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::threat_test_mapping::ThreatMapUnitCoverageValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/threat_test_mapping/mapped/bad/partial_mapping.json",
+            "pass": "crates/enforcer-security/tests/fixtures/threat_test_mapping/mapped/good/full_mapping.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h03-threat-test-invariant-mapping.md#THREAT-MAP-UNIT-COVERAGE",
+        "tags": ["security", "money-critical", "track-h", "threat-mapping", "generic-value-system"],
+        "params": {
+            "requiredEdges": ["threat", "invariant", "property test", "concurrency test", "replay test"]
+        }
+    },
+    {
+        "ruleId": "THREAT-MAP-NO-UNMAPPED.1",
+        "version": 1,
+        "title": "Unmapped money-critical logic is forbidden (T1, §0.5)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::threat_test_mapping::ThreatMapNoUnmappedValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/threat_test_mapping/unmapped/bad/unit_absent.json",
+            "pass": "crates/enforcer-security/tests/fixtures/threat_test_mapping/unmapped/good/full_mapping.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h03-threat-test-invariant-mapping.md#THREAT-MAP-NO-UNMAPPED",
+        "tags": ["security", "money-critical", "track-h", "threat-mapping", "unmapped-logic-forbidden"],
+        "params": {
+            "doctrine": "unmapped logic is forbidden logic"
+        }
+    },
+    {
+        "ruleId": "THREAT-MAP-THREAT-HAS-TEST.1",
+        "version": 1,
+        "title": "Declared threat completeness — zero-test threats forbidden (T1, §0.5)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::threat_test_mapping::ThreatMapThreatHasTestValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/threat_test_mapping/incomplete/bad/threat_zero_tests.json",
+            "pass": "crates/enforcer-security/tests/fixtures/threat_test_mapping/incomplete/good/threat_with_test.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h03-threat-test-invariant-mapping.md#THREAT-MAP-THREAT-HAS-TEST",
+        "tags": ["security", "money-critical", "track-h", "threat-mapping", "incomplete-threat-model"],
+        "params": {
+            "doctrine": "a declared threat with zero tests means the threat model is incomplete"
+        }
+    }
+]
