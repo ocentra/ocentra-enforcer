@@ -148,6 +148,50 @@ registers it as each harness's MCP server (the binary itself speaks MCP on stdio
 required by consumers. Optional graceful-skip adapters (Python/CLI tools) only where an engine is
 irreplaceable (symbolic-exec/fuzz/network-scan/binary-forensics).
 
+### Global-install scope contract (canonical, harness-neutral)
+The canonical/default install is **USER/GLOBAL scope** — install-once, zero-per-repo-config, so any repo the
+agent opens already has the enforcer. Each adapter writes the enforcer's MCP registration into its harness's
+**user-level** config, NEVER a per-repo project file, and points `command` at the **absolute** path of the
+installed `enforcer` binary (a relative path cannot resolve from an arbitrary repo cwd). Concretely, mirroring
+how `codebase-memory-mcp` is registered machine-wide:
+- **Claude Code** -> the top-level `mcpServers` map in **`~/.claude.json`** — the SAME file/registry
+  `codebase-memory-mcp` lives in. NOT a per-repo `.mcp.json`, and NOT `~/.claude/.mcp.json`. User-scope
+  entries here need no per-project `enabledMcpjsonServers` approval, unlike checked-in project `.mcp.json`
+  servers (which is why project scope is not the release default).
+- **Codex** -> the user `~/.codex/config.toml` `[mcp_servers.<name>]` table.
+- **Every other harness** -> that harness's equivalent user/global registry (c02 autodetect resolves the home;
+  c07 generic writer handles plain-`.mcp.json` harnesses at their **user** home, not the target repo).
+
+`enforcer install` with no scope resolves to `user`; `--scope project` is an explicit, NON-default opt-in (useful
+only for developing the enforcer itself — that is the sole role of this repo's own root `.mcp.json`, which the
+installer does NOT emit into consumers). The install CORE and this default path are **harness-neutral**: Codex is
+one adapter among ~11, never the canonical/reference/default target, and no shipped name or default surface is
+named after any single harness (product/binary/MCP-server name is `enforcer`; see x01). Every adapter registers
+under the x01-owned server-name const — `mcpServers["enforcer"]`, tools surface as `mcp__enforcer__*` — never a
+hardcoded legacy literal.
+
+### Update UX (binary swap, not a repo pull)
+Once installed, staying current is a **binary swap**: `enforcer update` (or a harness-exposed pub/sub trigger — e.g.
+the user says "update enforcer") checks the release channel and, if a newer signed build exists, removes the old
+binary and downloads the new one — no source checkout, no toolchain, nothing else. Because the MCP registration
+points at the **binary path** (not a repo/folder/branch), the harness keeps firing the identical command; only the
+bytes behind it change. Freshness is the a02 fingerprint over the running artifact (`mcp_status` reports `stale`
+when a newer build is available). This is what makes the enforcer harness-, repo-, and folder-agnostic in steady
+state: whether the host is Claude or anything else, an MCP fires a versioned binary, not a checkout.
+
+### Dev-time transition wiring (until the Rust binary exists) — anti-recursion
+While the enforcer itself is being converted to Rust, the live MCP still runs the legacy `.mjs` from a repo
+checkout. Running the harness's live tool out of the SAME code under active edit is a self-editing recursion
+(the tool validating a change IS the change). Until `enforcer install` can wire the compiled binary, the live
+global MCP is therefore pinned to a **separate, frozen worktree** from the one being edited:
+- live global MCP -> a frozen worktree's entrypoint by ABSOLUTE path (e.g.
+  `C:/Projects/ocentra-enforcer/mcp/ocentra-enforcer-mcp.mjs`), registered in `~/.claude.json` (user scope);
+- active edits happen in a DIFFERENT worktree (e.g. `C:/Projects/enforcer-rust`) — the frozen tool enforces the
+  work without being the work;
+- refresh on a checkpoint, never mid-edit: commit+push in the edit worktree, then `git -C <frozen-worktree> pull`
+  (or checkout the good commit) to advance the live MCP deliberately.
+This is transitional scaffolding, torn out the moment the binary path (above) is wired.
+
 ## CI integration for CONSUMER projects (c10 — a different surface from AI-harness install)
 Researched 2026-07-04: `cargo-dist` (axodotdev) is the standard tool for exactly this — it generates its own
 GitHub release pipeline (plan/build/host/publish across the target matrix above) plus portable `install.sh`/

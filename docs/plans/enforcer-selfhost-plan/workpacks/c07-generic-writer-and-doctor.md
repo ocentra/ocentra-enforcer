@@ -27,7 +27,7 @@ A generic adapter (`crates/enforcer-install/src/adapters/generic.rs`) that upser
 2. **Pre-commit hook emitters** (`emitters/git_hooks.rs`) — the consumer git-hook (`adapters/git-hooks/pre-commit.sh` → `.git/hooks/pre-commit`), husky (`adapters/husky/pre-commit` → `.husky/pre-commit`), and lefthook (`adapters/lefthook/lefthook.yml` → `lefthook.yml`) emitters, selected per-adapter. Distinct from c04/c05, which emit Claude PreToolUse/SessionStart hooks (a different mechanism). Both emitter modules honor `--dry-run` (returns the planned write set, touches zero files) and select strictly by requested adapter (choosing one hook flavor never writes the others).
 
 ## Requirement Checklist
-- [ ] Generic adapter upserts `mcpServers["ocentra-enforcer"]` into a target `.mcp.json` (`serde_json` value edit, preserving unrelated keys) given a resolved home path from arc-23; command points at the `enforcer` binary.
+- [ ] Generic adapter upserts `mcpServers[<x01 server-name const -> "enforcer">]` into the harness's USER/GLOBAL `.mcp.json` at the resolved home path from arc-23 (`serde_json` value edit, preserving unrelated keys) — never a per-repo project file, and never the legacy `ocentra-enforcer` literal; command points at the ABSOLUTE `enforcer` binary path.
 - [ ] Shared doctor aggregates each registered adapter's `verify` checks into one `Report` with typed `Severity` (from `enforcer-domain`, arc-02).
 - [ ] Doctor is mechanical: every check re-reads the actual file and resolves the server binary path from disk, never trusts the plan.
 - [ ] Doctor result is fail-closed — any `Severity::Error` check drives a non-zero CLI exit (arc-22); `Severity::Warning` checks do not fail.

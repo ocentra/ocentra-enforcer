@@ -159,6 +159,22 @@ applied to the swarm.
   worktree + `enforcer-rust-build` hub) is the hand-run PROTOTYPE of exactly this — once arc-16/b04/c01 ship,
   it's one command instead of `git worktree add` + `coordination init` + explicit `--repo-root` plumbing.
 
+## 2e. Checkpoint discipline — commit + push after every step (owner-set, 2026-07-04)
+**There is no local undo.** Claude / this harness has NO built-in step-checkpoint or working-tree revert (unlike
+Codex / Cursor); the ONLY safety net is the git remote. So every executor treats commit+push as PART OF finishing
+a step, not an afterthought:
+- After each workpack close-out — and after any self-contained intermediate step worth not losing (a passing
+  proof, a completed file, a green build) — `git add` the touched scope, commit with a scoped message, and
+  `git push` the lane's branch to `origin`. **A step is not "done" until its bytes are on the remote.**
+- **One checkpoint = one revertable point.** Keep commits small and scoped to the lane's `owns:` set so a bad
+  step reverts in isolation without dragging siblings. This is per-LANE/worktree branch (each lane pushes its own
+  branch).
+- Checkpoints are CHEAP and FREQUENT; they PRECEDE and are distinct from the §2d `pr_ready` PR gate (rare,
+  heavy, due-diligence-gated). Push freely to your lane branch; open a PR only on genuine done.
+- **Never use the working tree as memory.** If it isn't committed+pushed, assume it can vanish — a clobbering
+  tool, a crashed session, or a discarded/rebuilt worktree (§2b) is normal, not a failure. Commit+push is the
+  save button the harness doesn't give you.
+
 ## 3. Orchestration — orchestrator + worker swarm
 - A high-capability ORCHESTRATOR model (Fable 5) drives; it does NOT write code itself unless absolutely
   necessary. It reads WORKPACK_INDEX, picks the dependency-free frontier of disjoint-`owns:` workpacks, and

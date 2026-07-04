@@ -64,4 +64,4 @@ Rationale: stand up the Rust Cargo workspace (A) so everything else builds on th
 
 ## Claiming discipline
 
-Pick exactly one row. Confirm its dep rows are DONE in `WORKPACK_INDEX.md`. Confirm its `owns:` set does not intersect any lane already claimed (`PLAN_EXECUTION_BLUEPRINT.md` -> parallel model). Claim the lane, guard the scope, read only that workpack, produce proof, close out. Then return here for the next frontier.
+Pick exactly one row. Confirm its dep rows are DONE in `WORKPACK_INDEX.md`. Confirm its `owns:` set does not intersect any lane already claimed (`PLAN_EXECUTION_BLUEPRINT.md` -> parallel model). Claim the lane, guard the scope, read only that workpack, produce proof, **commit+push a checkpoint to the lane branch** (EXECUTION_MODEL §2e — no local undo; a step isn't done until its bytes are on the remote), close out. Then return here for the next frontier.
