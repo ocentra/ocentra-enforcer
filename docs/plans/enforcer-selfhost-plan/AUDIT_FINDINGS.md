@@ -13,8 +13,8 @@ preserved what existed, never DISCOVERED what was absent, and several arc-* pack
 - [x] arc-25 note de-futured ("wired by reconciliation pass" -> "declared 2026-07-04").
 
 ## WAVE 1 — mechanical consistency (cheap, do first)
-- [ ] Propagate **109 total / Track C = 11** into the 10 stale docs (all say 107/C=9): PLAN_STATE, PLAN_EXECUTION_BLUEPRINT, NEXT_ACTIONS, PLAN_HEALTH, README, AGENTS, DOC_INDEX, ARCHIVE_INDEX, ROUTE_INDEX. Root cause: c10/c11 were added to WORKPACK_INDEX only (satellite reconciliation ran BEFORE c10/c11 existed).
-- [ ] Kill stale framing: PLAN_EXECUTION_BLUEPRINT:17 "B/C/D/E/F/G/H re-framed in a follow-up pass" (DONE already), :31 "sharing the ONE ../enforcer-rust worktree" (contradicts §2b total-isolation), :66/:69 pre-Rust `src/**`/`.ts`/`eslint-rules` globs (now `crates/**`); ARCHIVE_INDEX:22 "when Track G is re-framed" (done).
+- [x] Propagate **109 total / Track C = 11** into the 10 stale docs (all say 107/C=9): PLAN_STATE, PLAN_EXECUTION_BLUEPRINT, NEXT_ACTIONS, PLAN_HEALTH, README, AGENTS, DOC_INDEX, ARCHIVE_INDEX, ROUTE_INDEX. Root cause: c10/c11 were added to WORKPACK_INDEX only (satellite reconciliation ran BEFORE c10/c11 existed).
+- [x] Kill stale framing: PLAN_EXECUTION_BLUEPRINT:17 "B/C/D/E/F/G/H re-framed in a follow-up pass" (DONE already), :31 "sharing the ONE ../enforcer-rust worktree" (contradicts §2b total-isolation), :66/:69 pre-Rust `src/**`/`.ts`/`eslint-rules` globs (now `crates/**`); ARCHIVE_INDEX:22 "when Track G is re-framed" (done).
 - CLEAN (verified): no dangling deps; no disjoint-owns violation (every owns-overlap has a dep edge); "MCP secondary" never asserted.
 
 ## WAVE 2 — re-scope the monolith packs (they name subsystems but don't decompose semantics)

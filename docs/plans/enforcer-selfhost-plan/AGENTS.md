@@ -21,7 +21,7 @@ The engine is **pure Rust** — a Cargo workspace of 28 crates (see [RUST_ARCHIT
 1. **`EXECUTION_MODEL.md`** — how the build runs (bootstrap-safe worktree, orchestrator + worker swarm, coordination hub). Sets the operating frame.
 2. **`PLAN_STATE.md`** — scope, resume route, what is present, open gaps. Orients you.
 3. **`NEXT_ACTIONS.md`** — the ordered ready-now frontier. Confirms what is claimable.
-4. **`WORKPACK_INDEX.md`** — the status table (107 workpacks). Locate your single assigned workpack, confirm its Track, `owns` disjointness, and tier.
+4. **`WORKPACK_INDEX.md`** — the status table (109 workpacks). Locate your single assigned workpack, confirm its Track, `owns` disjointness, and tier.
 5. **The ONE assigned workpack** under `workpacks/`, plus its rows in **`TEST_PROOF_EXPECTATIONS.md`**.
 
 Do not read sibling workpacks. Do not read the full narrative to "get context." Your capsule + these files are sufficient.

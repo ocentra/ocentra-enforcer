@@ -12,7 +12,7 @@
 > Proof rule: Product status changes only via a workpack's named tests in TEST_PROOF_EXPECTATIONS.md.
 <!-- /agent-capsule -->
 
-This plan makes the `enforcer` **eat its own dog food**. It is a **pure-Rust, 28-crate Cargo-workspace engine** built across **107 workpacks** in tracks A/B/C/D/E/F/G/H plus a cross-cutting (X) track. Governing docs: [`RUST_ARCHITECTURE.md`](./RUST_ARCHITECTURE.md) (WHAT the engine is) and [`EXECUTION_MODEL.md`](./EXECUTION_MODEL.md) (HOW it is built — bootstrap-safe worktree + orchestrated worker swarm).
+This plan makes the `enforcer` **eat its own dog food**. It is a **pure-Rust, 28-crate Cargo-workspace engine** built across **109 workpacks** in tracks A/B/C/D/E/F/G/H plus a cross-cutting (X) track. Governing docs: [`RUST_ARCHITECTURE.md`](./RUST_ARCHITECTURE.md) (WHAT the engine is) and [`EXECUTION_MODEL.md`](./EXECUTION_MODEL.md) (HOW it is built — bootstrap-safe worktree + orchestrated worker swarm).
 
 - **A — Self-host (dogfood), 35 packs:** stand up the enforcer as a **RUST Cargo workspace** — `arc-01`..`arc-25` (25 crate-build packs, dependency-ordered) plus `a01`..`a10` (10 Rust hardening packs: Cargo/clippy/rustfmt/deny/audit toolchain, `enforcer-domain` branded newtypes with parse-at-boundary, waiver honesty, anti-silent-skip, and real self-enforcement in CI — the enforcer's own Rust rules over its own crates). See [`RUST_ARCHITECTURE.md`](./RUST_ARCHITECTURE.md).
 - **B — Planning skill, 5 packs:** ship the OcentraParent plan methodology as a mechanical `enforcer plan new` scaffolder + `PLAN-*` structure validator + `/plan` skill that self-validates against this very plan (lands in `enforcer-plan`).
@@ -61,7 +61,7 @@ Then do the work, produce the named proof, update that workpack's row. Stop.
 
 ## Do not default-read
 
-- Any workpack other than the one assigned to you (there are 107; reading siblings wastes context and risks cross-scope edits).
+- Any workpack other than the one assigned to you (there are 109; reading siblings wastes context and risks cross-scope edits).
 - [`README_FULL_ORIGINAL.md`](./README_FULL_ORIGINAL.md) — long-form narrative; open only for background, never as a task list.
 - [`PLAN_HEALTH.md`](./PLAN_HEALTH.md) — for the hub / auditor, not for a workpack executor.
 - [`PLAN_EXECUTION_BLUEPRINT.md`](./PLAN_EXECUTION_BLUEPRINT.md) — for whoever is sequencing/orchestrating, not for a single-pack executor (your capsule already tells you your deps).
