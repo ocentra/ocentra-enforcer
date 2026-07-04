@@ -27,24 +27,24 @@ A Rust error-handling + hardening `Validator` family in `enforcer-lang-rust` (ar
 ## Requirement Checklist
 Each rule is scaffolded via d01, landing a doc-anchor in its `enforcer-rules` record, a `syn`-based `Validator` in `src/rules/error_handling.rs`, and a fail+pass fixture pair under `crates/enforcer-lang-rust/tests/fixtures/error_handling/<rule>/{bad,good}/`.
 
-- [ ] **T1 RUST-ERR-NONEXHAUSTIVE — public error enums `#[non_exhaustive]`.** fail `pub enum ConfigError { NotFound }`; pass `#[non_exhaustive] pub enum ConfigError {...}`.
-- [ ] **T1 (this pack's core) no `.unwrap()`/`.expect()`/`panic!` in non-test paths.** fail `let v = parse().unwrap();` in `src/` non-`#[cfg(test)]`; pass `let v = parse()?;`. Validator excludes `#[cfg(test)]` / `tests/` / `benches/`.
-- [ ] **T1 RUST-SAFETY-COMMENT — `unsafe` needs `// SAFETY:`.** fail `unsafe { *ptr }` with no comment; pass `// SAFETY: ...` immediately above.
-- [ ] **T1 RUST-MATCH-NO-WILDCARD / RUST-MATCH-OVER-IFLET — no catch-all `_ =>` on internal enum; prefer `match`.** fail `match s { A => .., _ => .. }` on an internal closed enum; pass exhaustive per-variant arms.
-- [ ] **T1 RUST-CAST-NO-AS-LOSSY — no lossy `as`.** fail `x as u8` from a wider int; pass `u8::try_from(x)?`.
-- [ ] **T1 RUST-FN-MAX-PARAMS — max 5 params (Rust-specific count gate; cross-language count gate is d19/d22).** fail `fn f(a,b,c,d,e,f)`; pass `fn f(input: FooInput)`.
-- [ ] **T1 RUST-ALLOW-1.1 — `#[allow(...)]`/`#[expect]` must carry `reason = "..."`.** fail `#[allow(dead_code)]`; pass `#[allow(dead_code, reason = "...")]`.
-- [ ] **T1 RUST-LAYER-1.1/2.1 / RUST-MCP-1.1 — Rust layer/MCP lane.** No forbidden-crate import in `src/domain/` and no I/O macros in domain; rmcp crate must not write `io::stdout`/`print!` (stdout is the protocol channel) — write to stderr/tracing. fail `use reqwest;` in `src/domain/x.rs` and `io::stdout().write(...)` in the rmcp crate; pass pure domain + stderr/tracing writes.
-- [ ] **T2 RUST-ERR-CONTEXT / RUST-ERR-1.1 — `thiserror` lib / `anyhow` bin split; `.with_context` at `?`; cause preserved.** fail bare `read_to_string(p)?` in `commands/` and error enum without `#[from]` losing cause; pass `.with_context(|| format!("reading {p}"))?`.
-- [ ] **T2 RUST-ERR-MSG-STYLE — error messages lowercase, no trailing punctuation.** fail `#[error("File Not Found.")]`; pass `#[error("config file not found")]`.
-- [ ] **T2 RUST-ERR-SENTINEL / RUST-SENTINEL-1.1 — no sentinel returns; use `Result`/`Option`.** fail `fn find() -> i64 { -1 }`; pass `-> Option<T>`/`-> Result<T, E>`.
-- [ ] **T2 RUST-ERR-MAIN-EXITCODE — `main` -> `ExitCode`/`anyhow::Result<()>`; no scattered `process::exit`.** fail scattered `std::process::exit(1)`; pass `fn main() -> ExitCode`.
-- [ ] **T2 RUST-FMT-CAPTURED-IDENT / RUST-FMT-1.1 — inline captured format args.** fail `format!("{}", path)`; pass `format!("{path}")`.
-- [ ] **T2 RUST-DOC-PUBLIC-ITEM — `///` on every public item with `# Errors`/`# Panics`.** fail `pub fn foo()` with no `///`; pass `/// Summary` above.
-- [ ] **T2 RUST-FN-COMPLEXITY — cyclomatic < 10, nesting <= 3.** fail 12-branch / 5-deep fn; pass guard-claused fn.
-- [ ] **T2 RUST-BORROW-1.1 — borrow read-only params.** fail `fn f(s: String)` for read-only; pass `fn f(s: &str)`.
-- [ ] **T2 RUST-ARCH-1.1 — no logic in `main.rs`.** fail business fn in `main.rs`; pass `main.rs` only parse + `run()`.
-- [ ] **T1/T2 RUST-NO-UTILS-MODULE — no catch-all `utils.rs`/`helpers` dumping ground >50 lines.** fail `src/utils.rs` >50 lines; pass responsibility-named module. (T1 on the banned name, T2 on the >50-line split threshold.)
+- [x] **T1 RUST-ERR-NONEXHAUSTIVE — public error enums `#[non_exhaustive]`.** fail `pub enum ConfigError { NotFound }`; pass `#[non_exhaustive] pub enum ConfigError {...}`.
+- [x] **T1 (this pack's core) no `.unwrap()`/`.expect()`/`panic!` in non-test paths.** fail `let v = parse().unwrap();` in `src/` non-`#[cfg(test)]`; pass `let v = parse()?;`. Validator excludes `#[cfg(test)]` / `tests/` / `benches/`. (Pre-existing baseline `T1-RUSTERR.1` in `error_handling.rs`, landed before this pack ran.)
+- [x] **T1 RUST-SAFETY-COMMENT — `unsafe` needs `// SAFETY:`.** fail `unsafe { *ptr }` with no comment; pass `// SAFETY: ...` immediately above.
+- [x] **T1 RUST-MATCH-NO-WILDCARD / RUST-MATCH-OVER-IFLET — no catch-all `_ =>` on internal enum; prefer `match`.** fail `match s { A => .., _ => .. }` on an internal closed enum; pass exhaustive per-variant arms.
+- [x] **T1 RUST-CAST-NO-AS-LOSSY — no lossy `as`.** fail `x as u8` from a wider int; pass `u8::try_from(x)?`.
+- [x] **T1 RUST-FN-MAX-PARAMS — max 5 params (Rust-specific count gate; cross-language count gate is d19/d22).** fail `fn f(a,b,c,d,e,f)`; pass `fn f(input: FooInput)`.
+- [x] **T1 RUST-ALLOW-1.1 — `#[allow(...)]`/`#[expect]` must carry `reason = "..."`.** fail `#[allow(dead_code)]`; pass `#[allow(dead_code, reason = "...")]`.
+- [x] **T1 RUST-LAYER-1.1/2.1 / RUST-MCP-1.1 — Rust layer/MCP lane.** No forbidden-crate import in `src/domain/` and no I/O macros in domain; rmcp crate must not write `io::stdout`/`print!` (stdout is the protocol channel) — write to stderr/tracing. fail `use reqwest;` in `src/domain/x.rs` and `io::stdout().write(...)` in the rmcp crate; pass pure domain + stderr/tracing writes. (Implemented RUST-LAYER-1.1 forbidden-import check and RUST-MCP-1.1 stdout-write check, both path-scoped; RUST-LAYER-2.1 domain-print-macro sub-check deferred — see Deviations.)
+- [x] **T2 RUST-ERR-CONTEXT / RUST-ERR-1.1 — `thiserror` lib / `anyhow` bin split; `.with_context` at `?`; cause preserved.** fail bare `read_to_string(p)?` in `commands/` and error enum without `#[from]` losing cause; pass `.with_context(|| format!("reading {p}"))?`. (Implemented the bare-`?`-on-fs-io half as `RUST-ERR-CONTEXT`; the lib/bin thiserror/anyhow split and `#[from]`-cause-preservation half were already proven pre-pack per this doc's "Where We Are".)
+- [x] **T2 RUST-ERR-MSG-STYLE — error messages lowercase, no trailing punctuation.** fail `#[error("File Not Found.")]`; pass `#[error("config file not found")]`.
+- [x] **T2 RUST-ERR-SENTINEL / RUST-SENTINEL-1.1 — no sentinel returns; use `Result`/`Option`.** fail `fn find() -> i64 { -1 }`; pass `-> Option<T>`/`-> Result<T, E>`.
+- [x] **T2 RUST-ERR-MAIN-EXITCODE — `main` -> `ExitCode`/`anyhow::Result<()>`; no scattered `process::exit`.** fail scattered `std::process::exit(1)`; pass `fn main() -> ExitCode`.
+- [x] **T2 RUST-FMT-CAPTURED-IDENT / RUST-FMT-1.1 — inline captured format args.** fail `format!("{}", path)`; pass `format!("{path}")`.
+- [x] **T2 RUST-DOC-PUBLIC-ITEM — `///` on every public item with `# Errors`/`# Panics`.** fail `pub fn foo()` with no `///`; pass `/// Summary` above. (Presence-of-`///` half implemented; the `# Errors`/`# Panics` section-content check is a style refinement not yet structurally enforced — see Deviations.)
+- [x] **T2 RUST-FN-COMPLEXITY — cyclomatic < 10, nesting <= 3.** fail 12-branch / 5-deep fn; pass guard-claused fn. (Cyclomatic-complexity half implemented via McCabe approximation; nesting-depth<=3 sub-metric not separately implemented — see Deviations.)
+- [x] **T2 RUST-BORROW-1.1 — borrow read-only params.** fail `fn f(s: String)` for read-only; pass `fn f(s: &str)`.
+- [x] **T2 RUST-ARCH-1.1 — no logic in `main.rs`.** fail business fn in `main.rs`; pass `main.rs` only parse + `run()`.
+- [x] **T1/T2 RUST-NO-UTILS-MODULE — no catch-all `utils.rs`/`helpers` dumping ground >50 lines.** fail `src/utils.rs` >50 lines; pass responsibility-named module. (T1 on the banned name, T2 on the >50-line split threshold.) (T1 banned-name half implemented, fires independent of line count; the T2 >50-line-on-a-differently-named-module half is not separately implemented — see Deviations.)
 
 ### Explicitly NOT a new rule (already covered)
 - **Bounded concurrency vs unbounded `tokio::spawn`: PARTIAL / already-covered.** This is backed by the existing async-runtime family (RR-8.18 / RR-8.19 / RR-8.20). Do NOT create `RUST-ASYNC-BOUNDED-CONCURRENCY`; note the mapping to RR-8.18/8.19/8.20 in the doc and defer to that family. ADBP_GAPS row 63 is superseded here.

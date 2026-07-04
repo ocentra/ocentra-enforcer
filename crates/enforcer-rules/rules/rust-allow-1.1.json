@@ -1,0 +1,18 @@
+[
+    {
+        "ruleId": "RUST-ALLOW-1.1",
+        "version": 1,
+        "title": "`#[allow(...)]`/`#[expect(...)]` must carry `reason = \"...\"`",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "error_handling::allow_reason::AllowReasonValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/allow-reason/fail_no_reason.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/allow-reason/pass_with_reason.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent",
+        "tags": ["rust", "error-handling", "d17"]
+    }
+]

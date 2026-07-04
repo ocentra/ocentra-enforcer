@@ -1,0 +1,18 @@
+[
+    {
+        "ruleId": "RUST-LAYER-1.1",
+        "version": 1,
+        "title": "Domain layer must not import forbidden I/O/framework crates",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "error_handling::layer_domain::LayerDomainValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/layer-domain/fail_forbidden_import.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/layer-domain/pass_pure_domain.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/parity-gaps/linters-frontend-rust-cfml.md#rust-layer-11",
+        "tags": ["rust", "layer", "d17"]
+    }
+]

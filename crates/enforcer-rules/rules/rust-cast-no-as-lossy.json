@@ -1,0 +1,18 @@
+[
+    {
+        "ruleId": "RUST-CAST-NO-AS-LOSSY",
+        "version": 1,
+        "title": "No lossy numeric `as` cast; use TryFrom",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "error_handling::cast_lossy::CastLossyValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/cast-lossy/fail_as.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/cast-lossy/pass_try_from.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent",
+        "tags": ["rust", "error-handling", "d17"]
+    }
+]

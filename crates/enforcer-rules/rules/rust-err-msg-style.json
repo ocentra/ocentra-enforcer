@@ -1,0 +1,18 @@
+[
+    {
+        "ruleId": "RUST-ERR-MSG-STYLE",
+        "version": 1,
+        "title": "Error messages: lowercase, no trailing punctuation",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "error_handling::err_msg_style::ErrMsgStyleValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/err-msg-style/fail_style.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/err-msg-style/pass_style.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent",
+        "tags": ["rust", "error-handling", "d17"]
+    }
+]

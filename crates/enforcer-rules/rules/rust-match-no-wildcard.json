@@ -1,0 +1,18 @@
+[
+    {
+        "ruleId": "RUST-MATCH-NO-WILDCARD",
+        "version": 1,
+        "title": "No catch-all `_ =>` arm on a match over a local enum",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "error_handling::match_wildcard::MatchWildcardValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/match-wildcard/fail_wildcard.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/match-wildcard/pass_exhaustive.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent",
+        "tags": ["rust", "error-handling", "d17"]
+    }
+]

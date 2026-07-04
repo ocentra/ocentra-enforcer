@@ -1,0 +1,18 @@
+[
+    {
+        "ruleId": "RUST-NO-UTILS-MODULE",
+        "version": 1,
+        "title": "No catch-all utils.rs/helpers.rs dumping-ground module",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "error_handling::no_utils_module::NoUtilsModuleValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/no-utils-module/fail_banned_name.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/no-utils-module/pass_named_module.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent",
+        "tags": ["rust", "error-handling", "d17"]
+    }
+]

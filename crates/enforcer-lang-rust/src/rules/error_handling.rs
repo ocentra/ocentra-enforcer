@@ -25,6 +25,28 @@ use enforcer_domain::paths::RelPath;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
+// Each sibling rule lives in its own submodule (not re-exported — this
+// crate's own `no_reexports` rule bans `pub use` barrels, so callers import
+// e.g. `error_handling::nonexhaustive::NonExhaustiveValidator` directly).
+pub mod allow_reason;
+pub mod arch_main_thin;
+pub mod borrow_param;
+pub mod cast_lossy;
+pub mod doc_public_item;
+pub mod err_context;
+pub mod err_main_exitcode;
+pub mod err_msg_style;
+pub mod err_sentinel;
+pub mod fmt_captured_ident;
+pub mod fn_complexity;
+pub mod fn_max_params;
+pub mod layer_domain;
+pub mod match_wildcard;
+pub mod mcp_stdout;
+pub mod no_utils_module;
+pub mod nonexhaustive;
+pub mod safety_comment;
+
 /// The `T1-RUSTERR.1` d17 rust-error-handling `Validator`.
 pub struct ErrorHandlingValidator {
     rule_id: RuleId,

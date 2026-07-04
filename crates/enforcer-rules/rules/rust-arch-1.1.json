@@ -1,0 +1,18 @@
+[
+    {
+        "ruleId": "RUST-ARCH-1.1",
+        "version": 1,
+        "title": "No business logic in main.rs",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "error_handling::arch_main_thin::ArchMainThinValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/arch-main-thin/fail_logic_in_main.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/arch-main-thin/pass_thin_main.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent",
+        "tags": ["rust", "error-handling", "d17"]
+    }
+]

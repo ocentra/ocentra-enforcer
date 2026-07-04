@@ -1,0 +1,18 @@
+[
+    {
+        "ruleId": "RUST-BORROW-1.1",
+        "version": 1,
+        "title": "Borrow read-only params instead of taking ownership",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "error_handling::borrow_param::BorrowParamValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/borrow-param/fail_owned_string.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/borrow-param/pass_borrowed_str.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent",
+        "tags": ["rust", "error-handling", "d17"]
+    }
+]

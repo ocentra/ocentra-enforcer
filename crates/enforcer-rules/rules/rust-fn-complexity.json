@@ -1,0 +1,19 @@
+[
+    {
+        "ruleId": "RUST-FN-COMPLEXITY",
+        "version": 1,
+        "title": "Cyclomatic complexity < 10, nesting <= 3",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "error_handling::fn_complexity::FnComplexityValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/fn-complexity/fail_complex.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/fn-complexity/pass_simple.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent",
+        "tags": ["rust", "error-handling", "d17"],
+        "params": { "maxCyclomatic": 10, "maxNesting": 3 }
+    }
+]

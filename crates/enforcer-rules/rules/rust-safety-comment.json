@@ -1,0 +1,18 @@
+[
+    {
+        "ruleId": "RUST-SAFETY-COMMENT",
+        "version": 1,
+        "title": "`unsafe` blocks require a `// SAFETY:` comment",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "error_handling::safety_comment::SafetyCommentValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/safety-comment/fail_unsafe.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/safety-comment/pass_unsafe.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent",
+        "tags": ["rust", "error-handling", "d17"]
+    }
+]
