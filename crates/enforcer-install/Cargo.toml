@@ -23,6 +23,12 @@ enforcer-mcp = { path = "../enforcer-mcp", version = "0.1.0" }
 
 [dev-dependencies]
 tempfile = "3"
+# c04 (`src/hooks/pretooluse.rs`) integration tests shell out to the REAL
+# built `enforcer` binary via Cargo's `CARGO_BIN_EXE_enforcer`, which Cargo
+# only sets when the bin's owning crate is a dependency of this crate's own
+# test target. `enforcer-cli` does not depend on `enforcer-install` (no
+# cycle) -- this is a dev-only, test-scoped edge.
+enforcer-cli = { path = "../enforcer-cli", version = "0.1.0" }
 
 [lints]
 workspace = true

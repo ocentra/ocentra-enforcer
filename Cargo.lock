@@ -330,6 +330,7 @@ dependencies = [
 name = "enforcer-install"
 version = "0.1.0"
 dependencies = [
+ "enforcer-cli",
  "enforcer-core",
  "enforcer-domain",
  "enforcer-mcp",
