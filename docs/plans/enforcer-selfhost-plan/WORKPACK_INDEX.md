@@ -1,0 +1,246 @@
+# WORKPACK_INDEX
+
+<!-- agent-capsule -->
+> Agent Capsule
+> Plan: `enforcer-selfhost-plan`
+> Doc: `Workpack Index`
+> Kind: index / status table. This is the single authority for *which* workpack exists, its status, its owns, its tier, and what it is parallel-safe with.
+> Read when: A hub or agent is selecting the next workpack to claim, checking a status, or verifying disjoint-owns before parallel claim.
+> Stop rule: Do NOT open a workpack file until it is selected here (or routed by the hub). Do NOT move a Status to DONE unless that workpack's proof row in TEST_PROOF_EXPECTATIONS.md is GREEN. This index tracks status; it does not itself prove anything.
+> Proves: nothing on its own — it is a routing/status surface. Proof lives in TEST_PROOF_EXPECTATIONS.md.
+> Does not prove: workpack completion or product status; those come from GREEN proof rows plus workpack closeout.
+<!-- /agent-capsule -->
+
+Sources: [PLAN_EXECUTION_BLUEPRINT](./PLAN_EXECUTION_BLUEPRINT.md), [PLAN_STATE](./PLAN_STATE.md), [TEST_PROOF_EXPECTATIONS](./TEST_PROOF_EXPECTATIONS.md), [ROUTE_INDEX](./ROUTE_INDEX.md).
+
+---
+
+## How to read this index
+
+- **Status**: `TODO` (not started) | `CLAIMED` (a lane holds it) | `IN-PROGRESS` | `PROOF` (code done, proof row not yet GREEN) | `DONE` (proof row GREEN + closed out). All rows start `TODO`.
+- **owns disjoint?**: `Y` = this workpack's `owns:` globs are disjoint from every *concurrently-runnable* sibling (safe to claim in parallel). `Y*` = shares a file with a named sibling **by design** — must sequence or coordinate on that file (see the note). Two workpacks with no dep edge between them MUST have disjoint owns (PLAN-PARALLEL-SAFETY, enforced by b02).
+- **tier**: the workpack's declared tier (proof-tier vocabulary; T-tier of the rule noted where scored/advisory). See [TEST_PROOF_EXPECTATIONS](./TEST_PROOF_EXPECTATIONS.md) for what each means.
+- **parallel-safe with**: the frontier this workpack may run alongside once its deps are satisfied.
+- Recommended global sequence (blueprint): **A00/a01 -> conversion swarm -> A domain packs -> D01 -> rest of D + C in parallel -> B last**. See [PLAN_EXECUTION_BLUEPRINT](./PLAN_EXECUTION_BLUEPRINT.md).
+
+---
+
+## Track A - Eat own dog food: big-bang .mjs -> TS + brand domains + real self-enforcement
+
+### A.0 Toolchain gate (must land first)
+
+| Status | Workpack | Track | owns | owns disjoint? | tier | parallel-safe with |
+|--------|----------|-------|------|----------------|------|--------------------|
+| TODO | [a01 TS Toolchain And Build](./workpacks/a01-ts-toolchain-and-build.md) | A | `tsconfig.json`, `package.json#scripts.build`, `package.json#scripts.typecheck`, `package.json#engines` | Y | P1 | none — blocks all of Track A (compiler contract) |
+
+### A.1 Conversion swarm (a-conv-01 .. a-conv-50) — all P1 unit, all gated behind a01
+
+a-conv-01 is the root leaf; the rest fan out. All owns are disjoint file lists; parallel-safety within a wave is determined by the dep edges below. Each may run concurrently with any other conv pack whose deps are also satisfied and whose owns do not overlap (they never do by construction).
+
+| Status | Workpack | Track | owns (summary) | owns disjoint? | tier | deps | parallel-safe with |
+|--------|----------|-------|----------------|----------------|------|------|--------------------|
+| TODO | [a-conv-01 Core Path And Metadata Leaves](./workpacks/a-conv-01-core-path-and-metadata-leaves.md) | A-conv | path-utils, check-metadata, policy, rule-metadata(SPLIT), documentation-hints | Y | P1 unit | a01 | root of swarm; blocks conv siblings but disjoint owns |
+| TODO | [a-conv-02 Rule Registry And Routing](./workpacks/a-conv-02-rule-registry-and-routing.md) | A-conv | rule-registry, routing | Y | P1 unit | a-conv-01 | 03,11,13,14,15 (same wave) |
+| TODO | [a-conv-03 Source Policy Primitives](./workpacks/a-conv-03-source-policy-primitives.md) | A-conv | source-policy-{rule-registry,paths,text,helpers,test-double-patterns,windows-command-patterns,violation} | Y | P1 unit | a-conv-01 | 02,11,13,14,15 |
+| TODO | [a-conv-04 Source Policy Scanner Shared And Common Security](./workpacks/a-conv-04-source-policy-scanner-shared-and-common-security.md) | A-conv | source-policy-scanner-shared, source-policy-common-security-* | Y | P1 unit | a-conv-03 | 05,08 |
+| TODO | [a-conv-05 Source Policy TS Domain Boundaries Ops](./workpacks/a-conv-05-source-policy-ts-domain-boundaries-ops.md) | A-conv | source-policy-typescript-source-domain-domain-boundaries-* + domain-core | Y | P1 unit | a-conv-03 | 04,08 |
+| TODO | [a-conv-06 Source Policy TS Domain Source Rollup](./workpacks/a-conv-06-source-policy-ts-domain-source-rollup.md) | A-conv | source-policy-typescript-source-domain-{domain,source,rules}, source-domain, source | Y | P1 unit | a-conv-03, a-conv-05 | 07 chain sibling |
+| TODO | [a-conv-07 Source Policy TS Tests And Blocks](./workpacks/a-conv-07-source-policy-ts-tests-and-blocks.md) | A-conv | source-policy-typescript-{test-blocks,test-rules,tests,tests-domain,lines} | Y | P1 unit | a-conv-03, a-conv-06 | 08 |
+| TODO | [a-conv-08 Source Policy TS Package Manifest Deps](./workpacks/a-conv-08-source-policy-ts-package-manifest-deps.md) | A-conv | source-policy-typescript-package-manifest-* | Y | P1 unit | a-conv-03 | 04,05,07 |
+| TODO | [a-conv-09 Source Policy TS Manifest And Tsconfig](./workpacks/a-conv-09-source-policy-ts-manifest-and-tsconfig.md) | A-conv | source-policy-typescript-{manifest-tsconfig,manifest-rules,manifest}, typescript | Y | P1 unit | a-conv-03, a-conv-07, a-conv-08 | 10 |
+| TODO | [a-conv-10 Source Policy Common And Scanners Rollup](./workpacks/a-conv-10-source-policy-common-and-scanners-rollup.md) | A-conv | source-policy-common, source-policy-scanners | Y | P1 unit | a-conv-01, a-conv-03, a-conv-04, a-conv-08, a-conv-09 | 11,12 |
+| TODO | [a-conv-11 Generic Scanner Shared And Python](./workpacks/a-conv-11-generic-scanner-shared-and-python.md) | A-conv | generic-scanner-shared, generic-common-line-rules, generic-common-source-ownership, generic-python-scanner(-rules) | Y | P1 unit | a-conv-01, a-conv-02 | 03,13,14,15 |
+| TODO | [a-conv-12 Generic Scanners Rollup](./workpacks/a-conv-12-generic-scanners-rollup.md) | A-conv | generic-common-scanner, generic-typescript-scanner, generic-scanners | Y | P1 unit | a-conv-01, a-conv-10, a-conv-11 | 30 |
+| TODO | [a-conv-13 Harness Parsers And Harness](./workpacks/a-conv-13-harness-parsers-and-harness.md) | A-conv | harness-parsers-json-*, harness-parsers, harness | Y | P1 unit | a-conv-01 | 02,03,11,14,15 |
+| TODO | [a-conv-14 Literal Risk Family](./workpacks/a-conv-14-literal-risk-family.md) | A-conv | literal-risk-{command,options,findings}, literal-risk | Y | P1 unit | a-conv-01 | 02,03,11,13,15 |
+| TODO | [a-conv-15 Proof CLI Storage Legacy](./workpacks/a-conv-15-proof-cli-storage-legacy.md) | A-conv | proof-cli-{format,parse}, proof-cli, proof-storage, proof-legacy | Y | P1 unit | a-conv-01 | 02,03,11,13,14 |
+| TODO | [a-conv-16 Proof Entry](./workpacks/a-conv-16-proof-entry.md) | A-conv | proof | Y | P1 unit | a-conv-01, a-conv-02, a-conv-13, a-conv-15 | 24,28 downstream |
+| TODO | [a-conv-17 Coordination Vendor Domain Leaf](./workpacks/a-conv-17-coordination-vendor-domain-leaf.md) | A-conv | coordination/vendor/{domain,paths,root,dashboard,context}.js | Y | P1 unit | a01 | root of coordination sub-chain |
+| TODO | [a-conv-18 Coordination Vendor Events Identity Claim](./workpacks/a-conv-18-coordination-vendor-events-identity-claim.md) | A-conv | coordination/vendor/{events,identity,claim-policy,lock-policy}.js | Y | P1 unit | a-conv-17 | 19 chain sibling |
+| TODO | [a-conv-19 Coordination Vendor Stream And Sync](./workpacks/a-conv-19-coordination-vendor-stream-and-sync.md) | A-conv | coordination/vendor/{stream,sync/local,sync/http,manifest,retention}.js | Y | P1 unit | a-conv-17, a-conv-18 | 20 |
+| TODO | [a-conv-20 Coordination Vendor Materialize And Views](./workpacks/a-conv-20-coordination-vendor-materialize-and-views.md) | A-conv | coordination/vendor/{materialize,peers,presence,read-index,notify,doctor}.js | Y | P1 unit | a-conv-17, a-conv-18, a-conv-19 | 21 |
+| TODO | [a-conv-21 Coordination Vendor Guard Repair Server](./workpacks/a-conv-21-coordination-vendor-guard-repair-server.md) | A-conv | coordination/vendor/{guard,repair,server,daemon}.js | Y | P1 unit | a-conv-17, a-conv-18, a-conv-19, a-conv-20 | 22,23 |
+| TODO | [a-conv-22 Coordination Vendor CLI](./workpacks/a-conv-22-coordination-vendor-cli.md) | A-conv | coordination/vendor/cli.js | Y | P1 unit | a-conv-17..21 | 23 |
+| TODO | [a-conv-23 Coordination API](./workpacks/a-conv-23-coordination-api.md) | A-conv | coordination/api.mjs | Y | P1 unit | a-conv-19, a-conv-20, a-conv-21 | 22,24 |
+| TODO | [a-conv-24 Coordination Runner And Script](./workpacks/a-conv-24-coordination-runner-and-script.md) | A-conv | coordination/runner.mjs, scripts/coordination.mjs | Y | P1 unit | a-conv-17, a-conv-19, a-conv-20, a-conv-23 | 35,38 downstream |
+| TODO | [a-conv-25 Check Governance Manifest Family](./workpacks/a-conv-25-check-governance-manifest-family.md) | A-conv | check-governance-manifest-{errors,json,package,shared,deps,policy,lock,values} | Y | P1 unit | a-conv-01, a-conv-30 | 27 |
+| TODO | [a-conv-26 Check Governance Rollup](./workpacks/a-conv-26-check-governance-rollup.md) | A-conv | check-governance-{manifest,dependency,sbom,packages}, check-governance | Y | P1 unit | a-conv-01, a-conv-25, a-conv-30 | 27,28 downstream |
+| TODO | [a-conv-27 Check Docs And Policy](./workpacks/a-conv-27-check-docs-and-policy.md) | A-conv | check-docs, check-policy | Y | P1 unit | a-conv-01, a-conv-02 | 25,26 |
+| TODO | [a-conv-28 Checks Bridges And Checks](./workpacks/a-conv-28-checks-bridges-and-checks.md) | A-conv | checks-*-bridge, checks-contracts, checks | Y | P1 unit | a-conv-01, a-conv-10, a-conv-12, a-conv-26, a-conv-27, a-conv-30, a-conv-31 | 34,35 downstream |
+| TODO | [a-conv-29 Rust Rules Path Core Leaf](./workpacks/a-conv-29-rust-rules-path-core-leaf.md) | A-conv | scripts/rust-rules-path-core.mjs | Y | P1 unit | a-conv-01, a-conv-02 | root of rust-rules sub-chain |
+| TODO | [a-conv-30 Check Source Core Helpers And Family](./workpacks/a-conv-30-check-source-core-helpers-and-family.md) | A-conv | scripts/check-source-core-*, check-source-shape-scanners | Y | P1 unit | a-conv-01, a-conv-02, a-conv-10, a-conv-12 | 25,26,28,31 |
+| TODO | [a-conv-31 Rust Rules Source Patterns And Leaves](./workpacks/a-conv-31-rust-rules-source-patterns-and-leaves.md) | A-conv | scripts/rust-rules-source-{patterns,helpers,names,signature-text,classification,signatures} | Y | P1 unit | a-conv-29 | 32 |
+| TODO | [a-conv-32 Rust Rules Source Late Parts](./workpacks/a-conv-32-rust-rules-source-late-parts.md) | A-conv | scripts/rust-rules-source-late-*, source-signature-rules, source-late-rules | Y | P1 unit | a-conv-29, a-conv-31 | 33 |
+| TODO | [a-conv-33 Rust Rules Source Scan And Engine](./workpacks/a-conv-33-rust-rules-source-scan-and-engine.md) | A-conv | scripts/rust-rules-source-scan, rust-rules-scan-engine, rust-rules-cargo-scan | Y | P1 unit | a-conv-01, a-conv-29, a-conv-31, a-conv-32 | 34,35 |
+| TODO | [a-conv-34 Rust Rules Scan Core Args](./workpacks/a-conv-34-rust-rules-scan-core-args.md) | A-conv | scripts/rust-rules-scan-core-args-* | Y | P1 unit | a-conv-28 | 35 |
+| TODO | [a-conv-35 Rust Rules Scan Core Entry](./workpacks/a-conv-35-rust-rules-scan-core-entry.md) | A-conv | scripts/rust-rules-scan-core.mjs | Y | P1 unit | a-conv-02, a-conv-12, a-conv-16, a-conv-24, a-conv-28, a-conv-33, a-conv-34 | 38,40 downstream |
+| TODO | [a-conv-36 CLI Support Output And Scan Leaves](./workpacks/a-conv-36-cli-support-output-and-scan-leaves.md) | A-conv | cli-output, cli-support, cli-architecture, cli-check-routing, cli-check-scanner-backed, cli-scan, cli-report, codex-install | Y | P1 unit | a01 | 37 chain sibling |
+| TODO | [a-conv-37 CLI Checks And Command Dispatch](./workpacks/a-conv-37-cli-checks-and-command-dispatch.md) | A-conv | cli-checks, cli-command-dispatch | Y | P1 unit | a-conv-36 | 38 |
+| TODO | [a-conv-38 CLI Main Entry](./workpacks/a-conv-38-cli-main-entry.md) | A-conv | cli-main.mjs | Y | P1 unit | a-conv-01, a-conv-02, a-conv-12, a-conv-16, a-conv-24, a-conv-28, a-conv-34, a-conv-35, a-conv-36, a-conv-37 | 40,49 downstream |
+| TODO | [a-conv-39 Rust Rules Output Family](./workpacks/a-conv-39-rust-rules-output-family.md) | A-conv | scripts/rust-rules-output-{check,run,runs,init,codex-*} | Y | P1 unit | a01 | 40 chain sibling |
+| TODO | [a-conv-40 Rust Rules Output Rollup And Entrypoints](./workpacks/a-conv-40-rust-rules-output-rollup-and-entrypoints.md) | A-conv | scripts/rust-rules-output, rust-rules, ocentra-enforcer, ci-local, mcp-smoke, profile-proof-runner, validate-codex-assets | Y | P1 unit | a-conv-38, a-conv-39 | 46 |
+| TODO | [a-conv-41 MCP Context And Schema Leaves](./workpacks/a-conv-41-mcp-context-and-schema-leaves.md) | A-conv | mcp/rust-rules-mcp-context, mcp-input-schemas-*, mcp-freshness | Y | P1 unit | a01 | root of mcp sub-chain |
+| TODO | [a-conv-42 MCP Input Schemas Compact Helpers](./workpacks/a-conv-42-mcp-input-schemas-compact-helpers.md) | A-conv | mcp/rust-rules-mcp-input-schemas, mcp-compact-*, mcp-helpers | Y | P1 unit | a-conv-41 | 43,44 |
+| TODO | [a-conv-43 MCP Fallback Route Fingerprint](./workpacks/a-conv-43-mcp-fallback-route-fingerprint.md) | A-conv | mcp/rust-rules-mcp-fallback-*, mcp-route(-shared), mcp-fingerprint | Y* (see a05/a02) | P1 unit | a-conv-02, a-conv-41, a-conv-42 | 44 — but `mcp-fingerprint.mjs` is also touched by a05 (brand) / a02 (dist); coordinate |
+| TODO | [a-conv-44 MCP Tool Registry Family](./workpacks/a-conv-44-mcp-tool-registry-family.md) | A-conv | mcp/rust-rules-mcp-tool-registry-* | Y | P1 unit | a-conv-42 | 43,45 |
+| TODO | [a-conv-45 MCP Runner Transport Dispatch](./workpacks/a-conv-45-mcp-runner-transport-dispatch.md) | A-conv | mcp/rust-rules-mcp-runner-*, mcp-transport-*, mcp-dispatch | Y | P1 unit | a-conv-02, a-conv-18, a-conv-42, a-conv-43, a-conv-44 | 46 |
+| TODO | [a-conv-46 MCP Entrypoints](./workpacks/a-conv-46-mcp-entrypoints.md) | A-conv | mcp/rust-rules-mcp.mjs, mcp/ocentra-enforcer-mcp.mjs | Y | P1 unit | a-conv-42, a-conv-44, a-conv-45 | 50 downstream |
+| TODO | [a-conv-47 Eslint Rules](./workpacks/a-conv-47-eslint-rules.md) | A-conv | eslint-rules/{no-app-string-literals,no-naked-domain-string-types,no-runtime-string-types,index}.js | Y | P1 unit | a01 | fully independent (only dep a01) |
+| TODO | [a-conv-48 Tests Shared Harness](./workpacks/a-conv-48-tests-shared-harness.md) | A-conv | tests/cli-spawn.mjs | Y | P1 unit | a01 | 49 |
+| TODO | [a-conv-49 Tests CLI Policy Multilang](./workpacks/a-conv-49-tests-cli-policy-multilang.md) | A-conv | tests/enforcer-{checks,edge-cases,fixtures,harness,policy,multilang}.test, rust-rules.test | Y | P1 unit | a-conv-38, a-conv-48 | 50 |
+| TODO | [a-conv-50 Tests Schemas Proof Registry Coord MCP](./workpacks/a-conv-50-tests-schemas-proof-registry-coord-mcp.md) | A-conv | tests/enforcer-{schemas,proof}.test, rust-rules-{registry,mcp(SPLIT)}.test, coordination.test(SPLIT) | Y | P1 unit | a-conv-01, a-conv-12, a-conv-17, a-conv-19, a-conv-20, a-conv-21, a-conv-46 | 49 |
+
+### A.2 Domain packs (a02 .. a10) — brands, boundaries, honest self-enforcement
+
+| Status | Workpack | Track | owns | owns disjoint? | tier | deps | parallel-safe with |
+|--------|----------|-------|------|----------------|------|------|--------------------|
+| TODO | [a02 MCP Fingerprint Repoint](./workpacks/a02-mcp-fingerprint-repoint.md) | A | mcp/rust-rules-mcp-fingerprint, mcp/rust-rules-mcp-helpers | Y* (a05) | P3 | a01 | shares fingerprint module with a05; sequence a05 before a02 (consumes `Sha256`) |
+| TODO | [a03 Branded RuleId And Registry](./workpacks/a03-branded-ruleid-and-registry.md) | A | schemas/effect/**, src/rule-registry.*, src/policy.* | Y | P0 (T1) | a01 | a04, a05, a06 (disjoint brand domains) |
+| TODO | [a04 Branded Paths RepoRoot RelPath](./workpacks/a04-branded-paths-reporoot-relpath.md) | A | src/path-utils.* | Y | P0 (T1) | a01 | a03, a05, a06 |
+| TODO | [a05 Branded Sha256 And Fingerprint Ids](./workpacks/a05-branded-sha256-and-fingerprint-ids.md) | A | mcp/rust-rules-mcp-fingerprint.* (type/brand surface) | Y* (a02) | P0 (T1) | a01 | a03, a04, a06; sequence before a02 (which consumes `Sha256`) |
+| TODO | [a06 Branded Hub Lane Coordination Ids](./workpacks/a06-branded-hub-lane-coordination-ids.md) | A | src/coordination/context.* | Y | P0 (T1) | a01 | a03, a04, a05 |
+| TODO | [a07 Parse At Boundary Json And Env](./workpacks/a07-parse-at-boundary-json-and-env.md) | A | src/routing.*, src/env-boundary.* | Y | P0 (T1) | a01, a03 | a04, a05, a06 (after a03) |
+| TODO | [a08 Waiver Honesty Overrides To Waivers](./workpacks/a08-waiver-honesty-overrides-to-waivers.md) | A | ocentra-enforcer.config.json | Y | P1 (T1) | none | any (config-only, single most-contended file, deliberately one pack) |
+| TODO | [a09 Anti Silent Skip Coverage](./workpacks/a09-anti-silent-skip-coverage.md) | A | src/generic-*scanner*.*, src/cli-scan.* | Y | P4 (T1) | a01 | a10 (a09 makes scan honest; a10 makes it hard-fail) |
+| TODO | [a10 Real Self Enforcement And CI](./workpacks/a10-real-self-enforcement-and-ci.md) | A | scripts/ci-local.mjs, .github/workflows/**, package.json#scripts.{enforcer:self,enforcer:self:scan,enforcer:all} | Y | P4 (T1) | a01, a09 | capstone of Track A |
+
+Note on A domain vs A-conv file overlap: a03/a04/a06/a07/a09 touch source files that the conversion swarm also converts (e.g. `src/path-utils`, `src/policy`, `src/routing`, `src/coordination/context`, `src/generic-*-scanner`, `src/cli-scan`). These are **sequenced, not concurrent**: the conversion swarm lands `.ts` first, then the domain packs brand/harden the typed surface. See PLAN_EXECUTION_BLUEPRINT sequence (conv swarm -> A domain packs).
+
+---
+
+## Track C - Install + enforce across any harness
+
+| Status | Workpack | Track | owns | owns disjoint? | tier | deps | parallel-safe with |
+|--------|----------|-------|------|----------------|------|------|--------------------|
+| TODO | [c01 Install Core And CLI Contract](./workpacks/c01-install-core-and-cli-contract.md) | C | src/install/{core,index,cli-contract,report-types}.* | Y | P1 unit (T1) | none | blocks c02-c08 (they consume the interface) |
+| TODO | [c02 Harness Autodetect](./workpacks/c02-harness-autodetect.md) | C | src/install/{detect,detect-probes}.* | Y | P1 unit (T1) | c01 | c03-c08 |
+| TODO | [c03 Claude Adapter](./workpacks/c03-claude-adapter.md) | C | src/install/adapters/claude.* | Y | P5 install-proof (T1) | c01, c02 | c04-c08 (adapters/hooks disjoint) |
+| TODO | [c04 Claude PreToolUse Deny Hook](./workpacks/c04-claude-pretooluse-deny-hook.md) | C | src/install/hooks/{pretooluse-*,guard-*} | Y | P5 install-proof (T1 bridge) | c01, c03 | c05 (disjoint hook file), c06-c08 |
+| TODO | [c05 Claude SessionStart Hook](./workpacks/c05-claude-sessionstart-hook.md) | C | src/install/hooks/sessionstart-* | Y | P5 install-proof (T1) | c01, c03 | c04 (disjoint hook file), c06-c08 |
+| TODO | [c06 Codex Adapter Parity](./workpacks/c06-codex-adapter-parity.md) | C | src/install/adapters/codex.* | Y | P5 install-proof (T1) | c01 | c03, c07, c08 |
+| TODO | [c07 Generic Writer And Doctor](./workpacks/c07-generic-writer-and-doctor.md) | C | src/install/adapters/generic.*, src/install/doctor.* | Y | P1 unit (T1) | c01, c02 | c03, c06, c08 |
+| TODO | [c08 Adapter Stubs Gemini Cursor Zed](./workpacks/c08-adapter-stubs-gemini-cursor-zed.md) | C | src/install/adapters/{gemini,cursor,zed}.* | Y | P0 contract/schema (T3-labeled) | c01 | c03, c06, c07 |
+| TODO | [c09 Remaining Harness Adapters](./workpacks/c09-remaining-harness-adapters.md) | C | src/install/adapters/{antigravity,windsurf,opencode,aider,kilocode,kiro}.* | Y | P5 install-proof (T1) | c01, c02 | c03, c06, c07, c08 (disjoint adapter files) |
+
+Track C note: source-file `src/codex-install.mjs` is converted by a-conv-36 (swarm) and then *lifted into adapters* by c01/c06. c01 must land after the swarm has typed `codex-install.mjs`, or coordinate on it. All C adapter/hook work fans out concurrently once c01 lands. With c03+c06+c07+c08+c09, all 11 harnesses are covered (c09 adds Antigravity, Windsurf, OpenCode, Aider, KiloCode, Kiro; the two CLI-only harnesses degrade to a T3-labeled `deferred: no mcp surface`).
+
+---
+
+## Track D - Borrow ADBP ideas, rebuilt mechanically (dragged UP the T1/T2/T3 ladder)
+
+| Status | Workpack | Track | owns | owns disjoint? | tier | deps | parallel-safe with |
+|--------|----------|-------|------|----------------|------|------|--------------------|
+| TODO | [d01 Rule Mechanization Engine](./workpacks/d01-rule-mechanization-engine.md) | D | src/rule-new.ts, src/rule-scaffold-parity.ts, scripts/rule-new.mjs, tests/rule-{new,scaffold-parity}.test.mjs | Y | P1 unit (T1) | none | keystone — blocks d02,d03,d04,d06,d07,d08,d09,d10,d12,d13 |
+| TODO | [d02 Baseline Grandfather Ratchet](./workpacks/d02-baseline-grandfather-ratchet.md) | D | src/baseline-{ratchet,store}.ts, tests/baseline-ratchet.test.mjs, tests/fixtures/baseline/** | Y | P1 unit (T1) | d01 | d03, d04 (composes with d03 diff-scoping) |
+| TODO | [d03 Deferred Work Gate](./workpacks/d03-deferred-work-gate.md) | D | src/deferred-work-gate.ts, tests/deferred-work-gate.test.mjs, tests/fixtures/deferred/** | Y | P1 unit (T1) | d01 | d02, d04 |
+| TODO | [d04 Run Telemetry NDJSON](./workpacks/d04-run-telemetry-ndjson.md) | D | src/run-telemetry.ts, schemas/effect/run-telemetry-schema.ts, tests/run-telemetry.test.mjs | Y | P1 unit (T1) | d01 | d02, d03 (feeds d05, d10) |
+| TODO | [d05 Context Budget Brake](./workpacks/d05-context-budget-brake.md) | D | src/context-budget.ts, scripts/context-budget-scan.mjs, proof/context-budget-baseline.json, tests/context-budget.test.mjs | Y | P2 CI (T1 ratchet + T2 score) | d01, d04 | d11 (shares CI stage, disjoint files) |
+| TODO | [d06 Lifecycle Commands](./workpacks/d06-lifecycle-commands.md) | D | src/lifecycle-{commands,oracle}.ts, tests/lifecycle-commands.test.mjs | Y | P1 unit (T1) | d01 | d07, d08 (wraps d07/d10 by contract) |
+| TODO | [d07 Self-Correct Fix Loop](./workpacks/d07-self-correct-fix-loop.md) | D | src/fix-loop.ts, src/fix-loop-dispatch.ts, tests/fix-loop.test.mjs, tests/fixtures/fix-loop/** | Y | P1 unit (T1) | d01 | d06, d08 (invoked by d06 fix) |
+| TODO | [d08 Harness Feedback Pipeline](./workpacks/d08-harness-feedback-pipeline.md) | D | src/harness-feedback.ts, src/harness-feedback-classify.ts, tests/harness-feedback.test.mjs, tests/fixtures/harness-feedback/** | Y | P1 unit (T1) | d01 | d06, d07 (feeds d10) |
+| TODO | [d09 Per-Stack Agents And Doc-Rule Parity](./workpacks/d09-perstack-agents-and-doc-rule-parity.md) | D | docs/agents/**, src/doc-rule-parity.ts, tests/doc-rule-parity.test.mjs | Y | P1 unit (T3 persona + T1 citation) | d01 | d14, d15 (all three doc-ish, disjoint) |
+| TODO | [d10 Resilience Auditor](./workpacks/d10-resilience-auditor.md) | D | src/resilience-auditor.ts, src/failure-mode-smells.ts, tests/resilience-auditor.test.mjs, tests/fixtures/resilience/** | Y | P1 unit (T1 obligations + T2 smells) | d01, d04 | d07, d08 (consumed by d06 review) |
+| TODO | [d11 CI Parity Validator](./workpacks/d11-ci-parity-validator.md) | D | src/ci-parity.ts, scripts/ci-parity-verify.mjs, tests/ci-parity.test.mjs | Y | P2 CI (T1) | d01 (light) | d05 (shares CI stage, disjoint files), d13 |
+| TODO | [d12 Layered And Frontend RuleIds](./workpacks/d12-layered-and-frontend-ruleids.md) | D | eslint-rules/{no-repo-in-router,no-fetch-in-use-effect,feature-boundaries,str-enum-only,symbol-level-di}.js, rules/typescript/layered-frontend.md, tests/fixtures/layered-frontend/** | Y | P0 contract/schema (T1 AST) | d01 | disjoint from pre-existing eslint rules and all siblings |
+| TODO | [d13 Rule Version And Drift](./workpacks/d13-rule-version-and-drift.md) | D | src/rule-version-drift.ts, rules/rule-version-manifest.json, tests/rule-version-drift.test.mjs | Y | P1 unit (T1) | d01 | d11 |
+| TODO | [d14 Ideation Skills T3](./workpacks/d14-ideation-skills-t3.md) | D | skills/ideation/{devil,think-with-me,README}.md, tests/ideation-skills-labeling.test.mjs | Y | P0 contract/schema (T1 label over T3 content) | none | d09, d15 |
+| TODO | [d15 Readme Research Grounding](./workpacks/d15-readme-research-grounding.md) | D | docs/research-grounding.md, README.md#research-grounding | Y | doc-only (no runtime tier) | none | d09, d14 |
+| TODO | [d16 FSM Transition Validity](./workpacks/d16-fsm-transition-validity.md) | D | rules/common/fsm.md, src/validators/fsm-*.ts, tests/fixtures/fsm/** | Y | P0/P1 mixed (T1 blocks + T2 scored) | d01 | d17, d18, d21, d22, d23; consumed by d23 + e-pack-dart/cfml/frontend |
+| TODO | [d17 Rust Error Handling](./workpacks/d17-rust-error-handling.md) | D | rules/rust/error-handling.md, src/validators/rust-err-*.ts, tests/fixtures/rust/err-** | Y | P0 (T1 blocks + T2 scored) | d01 | d16, d18, d21, d22, d23 |
+| TODO | [d18 Security Stop Watchlist](./workpacks/d18-security-stop-watchlist.md) | D | rules/common/security-stop.md, src/validators/security-stop-*.ts, tests/fixtures/security-stop/** | Y* (d26) | P0 (T1 + two T2 audit rows + one labeled T3) | d01 | d16, d17, d21, d22, d23; shares dispatch-prompt surface with d26 (d18 owns SECURITY-STOP block content, d26 owns block ordering) |
+| TODO | [d21 Change Discipline](./workpacks/d21-change-discipline.md) | D | rules/common/change-discipline.md, src/change-discipline.ts, tests/change-discipline.test.mjs, tests/fixtures/change-discipline/** | Y | P2 (T1 marker grammar + T2 dep-add + T3-labeled) | d01 | d16, d17, d18, d22, d23 |
+| TODO | [d22 Size Shape Caps](./workpacks/d22-size-shape-caps.md) | D | rules/common/size-shape.md, src/size-shape.ts, tests/size-shape.test.mjs, tests/fixtures/size-shape/** | Y | P1 (T1 hard caps + T2 scored complexity) | d01, d02 | d16, d17, d18, d21, d23; composes with d02 ratchet; consumed by e-pack-dart/cfml/frontend |
+| TODO | [d23 Test Companion And Quality](./workpacks/d23-test-companion-and-quality.md) | D | rules/common/test-quality.md, src/test-quality.ts, tests/test-quality.test.mjs, tests/fixtures/test-quality/** | Y | P1 (T1 presence + T2 quality heuristics) | d01, d16 | d17, d18, d21, d22 (consumes d16 FSM transition model) |
+| TODO | [d25 Orchestrator Verification Gates](./workpacks/d25-orchestrator-verification-gates.md) | D | src/orchestrator/verify-gate-{a,b,c}.ts, src/orchestrator/verify-index.ts, tests/orchestrator-verify-gate-{a,b,c}.test.mjs | Y* (d26) | P1 (T1 + labeled T3 residue) | d01 | d26, d27, d28; ORCH-1.10 shares dispatch-prompt concept with d26 but disjoint files (d25 owns src/orchestrator/*, d26 owns src/dispatch/*) |
+| TODO | [d26 Dispatch Prompt Assembly](./workpacks/d26-dispatch-prompt-assembly.md) | D | src/dispatch/quality-blocks.ts, src/dispatch/quality-blocks.md, src/dispatch/assemble-prompt.ts, tests/dispatch-quality-blocks.test.mjs, tests/fixtures/dispatch/** | Y* (d25, d18) | P1 (T1) | d01 | d25, d27, d28; disjoint files from d25 (concurrent-safe); Block 1 shared conceptually with d18 SEC-STOP-GATE |
+| TODO | [d27 Loop Resilience And Telemetry](./workpacks/d27-loop-resilience-and-telemetry.md) | D | src/loop/resilience-{hooks,meter,hydrate}.ts, hooks/statusline-meter.sh, hooks/loop-compaction-flag.sh, tests/loop-resilience-{hooks,meter}.test.mjs | Y | P1 (T1/T2 mechanizable + LOOP-1.5 labeled T3) | d01, d04 | d25, d26, d28; references d04 telemetry + d05 context-ceiling (disjoint files) |
+| TODO | [d28 Target CI Parity Validator](./workpacks/d28-target-ci-parity-validator.md) | D | src/validators/target-ci-parity.ts, src/validators/target-ci-parity-manifest.ts, tests/target-ci-parity.test.mjs, tests/fixtures/target-ci-parity/** | Y | P2 (T1 structural + T2 DOCGATE header-completeness) | d01 | d25, d26, d27; complements d11 (audits scanned target repos, disjoint from d11's src/ci-parity.ts) |
+
+Track D note: d01 is the keystone (deps: none) and must land before the rest of D. d14 and d15 have `deps: none` and can start any time; d11 leans only lightly on d01. Everything else in D rides d01's engine + parity oracle. The ten new D packs (d16-d18, d21-d23, d25-d28) all borrow d01's mechanization engine + 5-way parity oracle; d16 (FSM) is a prerequisite for d23 and for the Track E language packs; d22 (size/shape) composes with d02 and is consumed by the Track E language packs; d27 references (does not duplicate) d04's telemetry record.
+
+---
+
+## Track E - New languages + universal scanning
+
+New first-class languages (Dart, CFML/ColdFusion, frontend React/Next) plus the always-on universal literal-scan T2 floor. All ride d01's mechanization engine + 5-way parity oracle; the three bespoke language packs also consume d16 (FSM/enum semantics) and d22 (size/shape caps) rather than re-implementing them. e-pack-dart and e-pack-cfml both append their language to the single `Tools/ocentra-literal-scan` registry (append-only, coordinate ordering).
+
+| Status | Workpack | Track | owns | owns disjoint? | tier | deps | parallel-safe with |
+|--------|----------|-------|------|----------------|------|------|--------------------|
+| TODO | [e01 Literal-Scan Universal T2 Layer](./workpacks/e01-literal-scan-universal-t2.md) | E | src/validators/literal-scan-bridge.ts, src/validators/literal-scan-bridge.*, tests/fixtures/literal-scan/**, tests/literal-scan-bridge.test.mjs | Y* (registry) | P1 / T2 (scored/advisory, non-blocking) | d01 | e-pack-dart, e-pack-cfml, e-pack-frontend-react; adds Dart/CFML to literal-scan registry (coordinate with the two language packs) |
+| TODO | [e-pack-dart Dart And Flutter Language Pack](./workpacks/e-pack-dart.md) | E | rules/dart/**.md, src/validators/dart-*.ts, tests/fixtures/dart/** | Y* (registry) | P0/P1 (T1 blocks + T2 scored + labeled T3) | d01, d16, d22 | e-pack-cfml, e-pack-frontend-react, e01; shares `Tools/ocentra-literal-scan` registry (append-only) with e-pack-cfml |
+| TODO | [e-pack-cfml CFML And ColdFusion Language Pack](./workpacks/e-pack-cfml.md) | E | rules/coldfusion/**.md, src/validators/cfml-*.ts, tests/fixtures/cfml/** | Y* (registry) | P0/P1 (T1 CFLint/structural + T2 scored + labeled T3) | d01, d16, d22 | e-pack-dart, e-pack-frontend-react, e01; shares `Tools/ocentra-literal-scan` registry (append-only) with e-pack-dart; CFLint/CommandBox shell-out adapter (no native AST) |
+| TODO | [e-pack-frontend-react Frontend React And Next Rule Family](./workpacks/e-pack-frontend-react.md) | E | rules/frontend/**.md, src/validators/frontend-*.ts, tests/fixtures/frontend/** | Y | P0/P1 (T1 blocks + one T2 layer-inversion) | d01, d16, d22 | e-pack-dart, e-pack-cfml, e01; Effect-only divergence (FE-EFFECT-1.1 bans Zod, mandates Effect Schema) |
+| TODO | [e-pack-python Python FastAPI Layered And Clean-Arch Rule Family](./workpacks/e-pack-python.md) | E | rules/python-fastapi/**.md, src/validators/python-layered-*.ts, tests/fixtures/python-fastapi/** | Y | P0/P1 (T1 layering/DI + security blocks) | d01, d16, d22 | e-pack-dart, e-pack-cfml, e-pack-frontend-react, e01; consumes d16 (StrEnum/enum) + d22 (size/shape); existing python language-hygiene rows untouched |
+
+---
+
+## Track F - Scan surface, onboarding & agent-shaping
+
+Named scan MODES (agent-selectable scope/depth), index-on-ask onboarding that scaffolds `.enforce/`, the per-project native-tie config that the deny-hook + scan consume, and the formal AGENT-INLINE (silent) vs HUMAN-REVIEW run-context split. All ride the foundation (`a01` toolchain; `d01` engine for the scan modes). f03 is the config contract f01/f02 consume; f04's silent-mode gate is what Track G's UI honors.
+
+| Status | Workpack | Track | owns | owns disjoint? | tier | deps | parallel-safe with |
+|--------|----------|-------|------|----------------|------|------|--------------------|
+| TODO | [f01 Scan Modes And MCP](./workpacks/f01-scan-modes-and-mcp.md) | F | `src/scan/modes.*`, `src/scan/modes-schema.*`, mcp `enforcer_scan` tool schema, cli scan-mode dispatch | Y | P1/P3 | a01, d01 | f03 (config, disjoint); early frontier leaf once a01/d01 land |
+| TODO | [f02 Onboard And Autoindex](./workpacks/f02-onboard-and-autoindex.md) | F | `src/onboard/*`, `.enforce/` scaffolding writer, cli `enforcer onboard`, mcp onboard tool | Y | P1/P5 | a01, f03 | f01 (invokes baseline scan through shared engine, disjoint owns) |
+| TODO | [f03 Project Tie And Native Augment](./workpacks/f03-project-tie-and-native-augment.md) | F | `src/project-config/*`, `.enforce/config` schema (Effect) | Y | P1 | a01 | f01, f04 (config contract they consume; disjoint owns); early frontier leaf once a01 lands |
+| TODO | [f04 Silent Vs Human Mode](./workpacks/f04-silent-vs-human-mode.md) | F | `src/run-context/mode.*`, mode-signal threading in hooks + mcp entrypoints | Y | P1 | c04, f01 | f03 (orthogonal axis); gate Track G's UI honors |
+| TODO | [f05 Detect And Route](./workpacks/f05-detect-and-route.md) | F | `src/router/{detect,route-plan,native-tie,scope}.ts`, tests/router/**, tests/fixtures/router/** | Y | P1/P3 T1 | a01, d01, f03 | f01, f03 (disjoint owns); foundational router — f01/f03/c04 + check/scan/run consume its route plan (consolidates per-tool commands) |
+
+Track F note: `f03` is the config contract (`.enforce/config`) that `f01` (scan) and `f02` (onboard) plus the c04 deny-hook consume — none of them redefine it. `f05` is the foundational **detect-and-route** router: given nothing, it mechanically detects languages/structure/scope and emits a serializable ROUTE PLAN, routing each language to its enforcer rule packs AND its native tools (per f03's tie config), running native AND ours. This CONSOLIDATES the per-language/per-tool MCP surface into one routed call — `f01` scan-modes, the check/scan/run MCP tools, and the `c04` deny-hook CONSUME `f05`'s plan rather than hardcoding a language. `f02` writes `.enforce/` scaffolding; it invokes a baseline scan through the shared d01 engine but owns disjoint files from `f01`. `f04` threads the silent-vs-human run-context signal and is what every Track G UI pack checks before rendering (agent-inline = no UI). `f01` and `f03` are early frontier leaves (deps only `a01`/`d01`); `f05` follows `f03` (reads its tie config) and consumes the literal-scan ext registry read-only.
+
+## Track G - UI layer (built on vendored hub dashboard/server)
+
+The human-invoked local UI, built on the vendored `src/coordination/vendor/{server.js, dashboard.js}` (Node `http` core + self-contained HTML shell — reused/wrapped read-only, never re-implemented). `g01` promotes the vendored server into a first-class serve surface with a view-mount registry; `g02`-`g06` MOUNT their views into it. Every G pack is HUMAN-invoked and honors f04 silent mode (no UI during inline agent runs).
+
+| Status | Workpack | Track | owns | owns disjoint? | tier | deps | parallel-safe with |
+|--------|----------|-------|------|----------------|------|------|--------------------|
+| TODO | [g01 Ui Serve Surface](./workpacks/g01-ui-serve-surface.md) | G | `src/ui/serve.*`, cli `enforcer serve`/`enforcer ui`, mcp ui tool | Y* (vendor) | P5 | a01 | none in G until it lands — g02-g06 MOUNT into this surface; wraps vendored `server.js` read-only. Early frontier leaf (dep only a01) |
+| TODO | [g02 Scan Report Ui](./workpacks/g02-scan-report-ui.md) | G | `src/ui/report/*` | Y* (`.enforce/` read) | P3 | g01, f01 | g05, g06 (all mount into g01; disjoint own-dirs); provides the row surface g03 attaches to |
+| TODO | [g03 Violation Actions](./workpacks/g03-violation-actions.md) | G | `src/ui/actions/*`, `.enforce` waiver/override writer | Y* (`.enforce/` write) | P1 | g02, a08 | g04, g05, g06 (disjoint own-dirs); reuses a08 waiver SHAPE (does not redefine) |
+| TODO | [g04 Run Dispatch](./workpacks/g04-run-dispatch.md) | G | `src/ui/run-dispatch/*` | Y* (`.enforce/`/ledger) | P5 | g02, a-conv-23, a-conv-24 | g03, g05, g06 (disjoint own-dirs); consumes a-conv-23/24 coordination facade read-only |
+| TODO | [g05 Settings Config UI](./workpacks/g05-settings-config-ui.md) | G | `src/ui/settings/*` | Y | P1/P5 | g01, c01 | g02, g04, g06 (disjoint own-dirs); writes route through c-track adapters read-only |
+| TODO | [g06 Hub Coordination Dashboard](./workpacks/g06-hub-coordination-dashboard.md) | G | `src/ui/hub/*` | Y* (vendor) | P3 | g01, a-conv-20, a-conv-23 | g02, g04, g05 (disjoint own-dirs); reuses vendored `dashboard.js` HTML read-only |
+| TODO | [g07 Ui Security](./workpacks/g07-ui-security.md) | G | `src/ui/security/*`, tests/ui-security/** | Y | P5 T1 | g01, g04 | g02, g03, g05, g06 (guards their endpoints; disjoint own-dir); wraps g01 serve surface + g04 dispatch without re-opening HTTP transport |
+
+Track G sequencing note: `g01` lands the serve surface first (view-mount registry over the vendored Node HTTP core); `g02`-`g06` then mount their views into it and never re-open the HTTP layer. `g07` is the dedicated UI-security layer (`src/ui/security/*`): loopback-bind assertion, same-origin/CSRF guards on the g03 waiver-write + g05 config-write mutation endpoints, and intent-token + sandbox authorization on the g04 Run-dispatch — reused by every g0x endpoint so the guards are not re-inlined per endpoint (guards HUMAN surface only; silent agent-inline runs are unaffected). By-design shared surfaces: `g01`/`g06` both read the vendored `src/coordination/vendor/{server.js,dashboard.js}` (read-only, no vendor edit — `Y*`); `g02`/`g03`/`g04` all read/write `.enforce/` scan+waiver state (g02 reads scan output, g03 writes the a08-shaped waiver, g04 writes the fix-intent to the ledger) but own disjoint `src/ui/*` sub-dirs, so parallel-safe once g01 (and each pack's data dep) lands. All G packs honor f04 silent mode.
+
+---
+
+## Cross-cutting - Rename + docs refresh + rename migration + terminal dogfood gate
+
+x01 has no deps and runs early (product rename before other packs cite new names); x02 (docs refresh) and x03 (rename migration) both follow x01 (the shipped rename must land first so the docs describe, and the migration targets, the stable `enforcer` name); z01 depends on ALL tracks and is the terminal plan-DONE gate that runs the finished enforcer against its own now-TS multi-language self.
+
+| Status | Workpack | Track | owns | owns disjoint? | tier | deps | parallel-safe with |
+|--------|----------|-------|------|----------------|------|------|--------------------|
+| TODO | [x01 Neutral Rename](./workpacks/x01-neutral-rename.md) | X | package.json (name/bin only), scripts/enforcer.mjs, mcp/enforcer-mcp.mjs, enforcer.config.json, mcp/rust-rules-mcp-fingerprint.mjs (server-name + path list) | Y | P1 (T1 grep-clean + mcp:smoke) | none | run early; other packs adding bin/MCP-name refs target `enforcer` once this lands |
+| TODO | [x02 Docs Refresh](./workpacks/x02-docs-refresh.md) | X | README.md, docs/**.md (CODEX_SETUP, COORDINATION, INSTALL, TARGET_REPO_WIRING, ENFORCED_CHECKS, SKILL_MCP_SYSTEM, ...), skills/*/SKILL.md, AGENTS.md/CLAUDE templates | Y | P1 (T1 grep-clean + sections-present) | x01 | x03 (disjoint: x02 owns doc/product prose, x03 owns install migration code); excludes x01-owned path refs + `Tools/ocentra-literal-scan/**` |
+| TODO | [x03 Rename Migration](./workpacks/x03-rename-migration.md) | X | src/install/migrate-legacy-name.*, tests/migrate-legacy-name/** | Y | P1 (T1) | x01 | x02 (disjoint owns); transitional (not a permanent alias) — rewrites already-installed `ocentra-enforcer` regs to `enforcer` |
+| TODO | [z01 Dogfood Proof Gate](./workpacks/z01-dogfood-proof-gate.md) | Z | proof/dogfood-gate.mjs, proof/dogfood-gate.*, proof/dogfood-manifest.json, tests/dogfood-gate.test.mjs | Y | P4 (T1 terminal gate on plan-DONE) | ALL tracks (A, C, D, E, F, G, B) | NONE — runs LAST; composes a09/a10, e01, b02 self-validation entrypoints (read-only) |
+
+---
+
+## Track B - Ship a planning skill (self-validating, last)
+
+| Status | Workpack | Track | owns | owns disjoint? | tier | deps | parallel-safe with |
+|--------|----------|-------|------|----------------|------|------|--------------------|
+| TODO | [b01 Plan Scaffolder](./workpacks/b01-plan-scaffolder.md) | B | src/plan/scaffolder/**, src/plan/skeleton-templates/**, test/plan/scaffolder.*.test.ts | Y* | P1 (T1) | none | b02, b03 (only shared artifact = golden fixture, produced here, read-only elsewhere) |
+| TODO | [b02 Plan Structure Validator](./workpacks/b02-plan-structure-validator.md) | B | src/plan/validator/**, src/rules/plan/**, test/plan/validator.*.test.ts, test/fixtures/plan-validator/** | Y | P4 self-enforce green (T1) | none | b01, b03 (consumes b01 golden read-only) |
+| TODO | [b03 Capsule Index Templates](./workpacks/b03-capsule-index-templates.md) | B | src/plan/templates/{capsule,workpack-index,plan-readme}.tpl, test/fixtures/plan-templates/** | Y | P0 (T1) | none | b01, b02 (shared contract layer; b01/b02/b04/b05 import read-only) |
+| TODO | [b04 Parallel Orchestrator Binding](./workpacks/b04-parallel-orchestrator-binding.md) | B | src/plan/orchestrator/**, test/plan/orchestrator.*.test.ts | Y | P1 (T1) | b02 | none in B blocks it; reuses b02 parallel-safety predicate + coordination MCP |
+| TODO | [b05 Plan Skill And Self Validate](./workpacks/b05-plan-skill-and-self-validate.md) | B | skills/plan/**, .claude/commands/plan.md, test/plan/skill.*.test.ts | Y | P4 self-enforce green (T1) | b01, b02, b03 | capstone of Track B; consumes b01/b02/b03 read-only |
+
+---
+
+## Totals
+
+- Track A: **60** workpacks (a01 [1] + a-conv-01..50 [50] + a02..a10 [9]).
+- Track C: **9** (c01..c09).
+- Track D: **25** (d01..d15 [15] + d16-d18, d21-d23, d25-d28 [10 new]).
+- Track E: **5** (e01 + e-pack-dart + e-pack-cfml + e-pack-frontend-react + e-pack-python).
+- Track B: **5** (b01..b05).
+- Track F: **5** (f01 scan-modes + f02 onboard + f03 project-tie + f04 silent-vs-human + f05 detect-and-route).
+- Track G: **7** (g01 serve-surface + g02 report + g03 violation-actions + g04 run-dispatch + g05 settings + g06 hub-dashboard + g07 ui-security).
+- Cross-cutting: **4** (x01 neutral-rename, x02 docs-refresh, x03 rename-migration, z01 dogfood-proof-gate).
+- **120 workpacks total** (A 60 + C 9 + D 25 + E 5 + B 5 + F 5 + G 7 + cross-cutting 4).
+
+Every row's `owns disjoint?` is `Y` for all concurrently-runnable siblings; the only `Y*` rows share a file or state surface **by design** and are called out with the sequencing rule (a02/a05 on `rust-rules-mcp-fingerprint`; a-conv-43 on the same file; b01 golden fixture; d18/d25/d26 share the dispatch/orchestrator prompt surface by concept but against disjoint files; e01/e-pack-dart/e-pack-cfml append-only to the single `Tools/ocentra-literal-scan` language registry; g01/g06 read the vendored `src/coordination/vendor/{server,dashboard}.js` read-only; g02/g03/g04 read/write `.enforce/` scan+waiver/ledger state against disjoint `src/ui/*` sub-dirs, sequenced behind g01). The six new packs are all disjoint (`Y`): `c09` owns six new adapter files under `src/install/adapters/`; `e-pack-python` owns new `rules/python-fastapi/**` + `src/validators/python-layered-*.ts` paths (consumes d16/d22 read-only); `f05` owns new `src/router/**` paths (consumes the literal-scan ext registry + f03 tie config read-only, and is CONSUMED by f01/c04 + the check/scan/run tools); `g07` owns `src/ui/security/*` and guards g01/g03/g04/g05 endpoints without re-opening the HTTP transport; `x02` owns doc/product prose (scoped to exclude x01-owned path refs + `Tools/ocentra-literal-scan/**`) and `x03` owns install migration code, so both sequence behind x01 but are disjoint from each other. All `Y*` cases are resolved by sequence, read-only reuse, append-only coordination, or by the intent-queue in the parallel-execution model (see [PLAN_EXECUTION_BLUEPRINT](./PLAN_EXECUTION_BLUEPRINT.md)).
