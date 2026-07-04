@@ -1,6 +1,6 @@
 node_modules/
 target/
-coverage/
+/coverage/
 dist/
 build/
 .turbo/
