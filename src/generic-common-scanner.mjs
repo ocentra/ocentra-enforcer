@@ -15,6 +15,7 @@ import {
   scanRustDocumentationHints,
   scanTypeScriptDocumentationHints,
 } from "./documentation-hints.mjs";
+import { maskJavaScriptTemplateBodies } from "./source-policy-text.mjs";
 import {
   addViolation,
   PY_EXTENSIONS,
@@ -28,12 +29,15 @@ import {
 export function scanCommonFile(root, filePath) {
   const rel = normalizeRel(root, filePath);
   const lines = fs.readFileSync(filePath, "utf8").split(/\r?\n/u);
-  const text = lines.join("\n");
   const ext = path.extname(filePath).toLowerCase();
+  const scanLines = TS_EXTENSIONS.has(ext)
+    ? maskJavaScriptTemplateBodies(lines)
+    : lines;
+  const text = lines.join("\n");
   const violations = [];
   const context = buildCommonScanContext(root, filePath, rel, ext, lines, text, violations, hasOwnershipFile);
   scanCommonFilePrelude(context);
-  lines.forEach((line, idx) => {
+  scanLines.forEach((line, idx) => {
     scanCommonLineRules(context, line, idx);
   });
   if (context.isProductionSource) {

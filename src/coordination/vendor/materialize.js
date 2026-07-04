@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { parseLaneId, parseWorkerState, } from "./domain.js";
 import { assertEventHash } from "./events.js";
 import { classifyOwnership, pathOverlaps, normalizeCoordinationPath } from "./lock-policy.js";
+import { applyReleaseEvent, claimIdentityKey } from "./materialize-claim-identity.js";
 import { laneViewsDir, viewsDir } from "./paths.js";
 import { readAllStreams } from "./stream.js";
 export async function materialize(root) {
@@ -97,6 +98,7 @@ export async function materialize(root) {
                 expiresAt,
                 stale: Date.parse(expiresAt) < Date.now(),
                 eventId: event.id,
+                ...(event.context === undefined ? {} : { context: event.context }),
                 ...(event.summary === undefined ? {} : { summary: event.summary }),
             });
             worker.summary = event.summary ?? `session ${event.sessionId}`;
@@ -157,7 +159,7 @@ export async function materialize(root) {
                     ...(event.context === undefined ? {} : { context: event.context }),
                     ...(event.reason === undefined ? {} : { reason: event.reason }),
                 };
-                activeClaims.set(claimKey(event.writer, path), claim);
+                activeClaims.set(claimIdentityKey(claim), claim);
                 removeMatchingIntents(editIntents, claim);
             }
             if (event.reason !== undefined) {
@@ -180,9 +182,7 @@ export async function materialize(root) {
             }
         }
         if (event.type === "release" && event.paths !== undefined) {
-            for (const path of event.paths) {
-                activeClaims.delete(claimKey(event.writer, path));
-            }
+            applyReleaseEvent(activeClaims, event, overlappingPaths);
         }
         if (event.type === "claim.resolve" && event.paths !== undefined) {
             const owners = Array.isArray(event.owners) ? new Set(event.owners) : null;
@@ -359,9 +359,6 @@ function workerStateFromTaskState(state) {
             return parseWorkerState("idle");
     }
 }
-function claimKey(writer, path) {
-    return `${writer}:${path}`;
-}
 function intentKey(intent) {
     return `${intent.writer}:${intent.paths.map(normalizeCoordinationPath).join(",")}`;
 }
@@ -373,6 +370,7 @@ function removeMatchingIntents(editIntents, claim) {
         }
     }
 }
+
 function detectConflicts(claims) {
     const conflicts = [];
     for (let leftIndex = 0; leftIndex < claims.length; leftIndex += 1) {

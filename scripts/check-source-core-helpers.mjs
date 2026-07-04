@@ -264,13 +264,23 @@ function countMatches(lines, pattern) {
 function maxBraceNestingDepth(lines) {
   let depth = 0;
   let max = 0;
-  for (const line of lines) {
+  for (const rawLine of lines) {
+    const line = maskBraceSensitiveLine(rawLine);
     for (const ch of line) {
       if (ch === "{") max = Math.max(max, ++depth);
       else if (ch === "}") depth = Math.max(0, depth - 1);
     }
   }
   return max;
+}
+
+function maskBraceSensitiveLine(line) {
+  return String(line ?? "")
+    .replace(/\/\/.*$/u, "")
+    .replace(/'(?:[^'\\]|\\.)*'/gu, "''")
+    .replace(/"(?:[^"\\]|\\.)*"/gu, '""')
+    .replace(/`(?:[^`\\]|\\.)*`/gu, "``")
+    .replace(/\/(?:[^\/\\\n]|\\.)+\/[dgimsuvy]*/gu, "//");
 }
 
 function maxPythonIndentDepth(lines) {
@@ -291,7 +301,7 @@ function findBlockEnd(lines, start) {
   let depth = 0;
   let sawOpeningBrace = false;
   for (let index = start; index < lines.length; index += 1) {
-    const line = lines[index];
+    const line = maskBraceSensitiveLine(lines[index]);
     for (const ch of line) {
       if (ch === "{") {
         depth += 1;

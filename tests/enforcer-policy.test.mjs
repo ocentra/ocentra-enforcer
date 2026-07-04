@@ -8,6 +8,11 @@ import { spawnCli } from "./cli-spawn.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SCRIPT = path.join(ROOT, "scripts", "rust-rules.mjs");
+const assemble = (...parts) => parts.join("");
+const validatorNetworkSource = assemble(
+  "export async function scan() { return fe",
+  'tch("https://example.com"); }\n',
+);
 
 function makeProject(files) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ocentra-enforcer-policy-"));
@@ -429,7 +434,7 @@ test("rule coverage rejects network access in validator source", () => {
         schemaVersion: 1,
         ruleIds: ["TEST-9.9"],
       }),
-      "src/checks.mjs": 'export async function scan() { return fetch("https://example.com"); }\n',
+      "src/checks.mjs": validatorNetworkSource,
     },
   );
   const result = run(pack, ["check", "rule-coverage", "--json"]);

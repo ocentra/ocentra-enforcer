@@ -1,4 +1,5 @@
 import process from "node:process";
+import { collectFilesFromManifest } from "../scripts/rust-rules-scan-core-args-files.mjs";
 
 function assignNext(key) {
   return (args, tokens, index) => {
@@ -28,6 +29,18 @@ function collectFiles(args, tokens, index) {
   return nextIndex;
 }
 
+function collectFilesFromScopeManifest(args, tokens, index) {
+  args.scopeName = "files";
+  args.fileManifests.push(tokens[index + 1]);
+  return index + 1;
+}
+
+function collectFilesFromInlineManifest(args, _tokens, index, token) {
+  args.scopeName = "files";
+  args.fileManifests.push(token.slice("--files-from=".length));
+  return index;
+}
+
 const TOKEN_HANDLERS = {
   "--root": assignNext("root"),
   "--config": assignNext("configPath"),
@@ -40,6 +53,7 @@ const TOKEN_HANDLERS = {
   "--workspace": setScope("all"),
   "--json": setJsonFlag,
   "--files": collectFiles,
+  "--files-from": collectFilesFromScopeManifest,
 };
 
 export function parseArchitectureCheckTokens(tokens) {
@@ -53,12 +67,15 @@ export function parseArchitectureCheckTokens(tokens) {
     configPath: null,
     profile: null,
     json: false,
+    fileManifests: [],
   };
   for (let index = 1; index < tokens.length; index += 1) {
     const token = tokens[index];
     const handler = TOKEN_HANDLERS[token];
     if (handler) {
       index = handler(args, tokens, index);
+    } else if (token.startsWith("--files-from=")) {
+      index = collectFilesFromInlineManifest(args, tokens, index, token);
     } else if (token.startsWith("-")) {
       throw new Error(`Unknown architecture argument: ${token}`);
     } else {
@@ -67,6 +84,9 @@ export function parseArchitectureCheckTokens(tokens) {
   }
   if (args.language !== "rust") {
     throw new Error("architecture check currently supports --language rust");
+  }
+  for (const manifestPath of args.fileManifests) {
+    args.files.push(...collectFilesFromManifest(manifestPath, args.root));
   }
   return {
     json: args.json,

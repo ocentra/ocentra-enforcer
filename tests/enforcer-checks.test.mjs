@@ -330,6 +330,26 @@ export const secret = "${secretValue}";
   assert.equal(report.warnings.some((violation) => String(violation.ruleId).startsWith('LIT-')), true);
 });
 
+test('check literal-risk respects explicit file scope', () => {
+  const secretValue = ['sk', '-', 'abcdefghijklmnopqrstuvwxyz123456'].join('');
+  const project = makeProject({
+    'src/requested.ts': `export const safeRoute = "/api/v1/events";\n`,
+    'src/not-requested.ts': `export const secret = "${secretValue}";\n`,
+  });
+  const result = run(project, ['check', 'literal-risk', '--json', '--files', 'src/requested.ts']);
+  assert.equal(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.check, 'literal-risk');
+  assert.equal(report.ok, true);
+  assert.deepEqual(report.scope.files, ['src/requested.ts']);
+  assert.equal(
+    [...report.violations, ...report.warnings].some(
+      (violation) => violation.file === 'src/not-requested.ts',
+    ),
+    false,
+  );
+});
+
 test('advise literals aliases the literal-risk check', () => {
   const secretValue = ['sk', '-', 'abcdefghijklmnopqrstuvwxyz123456'].join('');
   const project = makeProject({
@@ -451,6 +471,45 @@ test('check architecture-policy keeps file scope when --files is passed as one c
   assert.deepEqual(report.violations, []);
 });
 
+test('check architecture-policy accepts file scope from a manifest file', () => {
+  const project = makeProject({
+    'ocentra-enforcer.config.json': JSON.stringify({
+      profileName: 'architecture-scope-test',
+      architecturePolicyChecks: ['required-tests'],
+      strictEmptyTestTrees: true,
+    }),
+    'packages/covered/package.json': JSON.stringify({ name: '@fixture/covered' }),
+    'packages/covered/src/index.ts': 'export const value = 1;\n',
+    'packages/covered/tests/index.test.ts': 'test("value", () => expect(1).toBe(1));\n',
+    'packages/missing/package.json': JSON.stringify({ name: '@fixture/missing' }),
+    'packages/missing/src/index.ts': 'export const leak = 1;\n',
+    'scope-files.json': JSON.stringify({
+      files: [
+        'packages/covered/src/index.ts',
+        'packages/covered/tests/index.test.ts',
+      ],
+    }),
+    'scope-files.txt': 'packages/covered/src/index.ts\npackages/covered/tests/index.test.ts\n',
+  });
+  for (const manifest of ['scope-files.json', 'scope-files.txt']) {
+    const result = run(project, [
+      'check',
+      'architecture-policy',
+      '--json',
+      '--files-from',
+      manifest,
+    ]);
+    assert.equal(result.status, 0, result.stdout || result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.equal(report.ok, true);
+    assert.deepEqual(report.scope.files, [
+      'packages/covered/src/index.ts',
+      'packages/covered/tests/index.test.ts',
+    ]);
+    assert.deepEqual(report.violations, []);
+  }
+});
+
 test('architecture check now routes to full architecture-policy instead of reexports only', () => {
   const project = makeProject({
     'ocentra-enforcer.config.json': JSON.stringify({
@@ -464,6 +523,31 @@ test('architecture check now routes to full architecture-policy instead of reexp
   const report = JSON.parse(result.stdout);
   assert.equal(report.check, 'architecture-policy');
   assert.deepEqual(report.checks, [{ check: 'no-zod-source', ok: false, violations: 1 }]);
+  assert.equal(report.violations.some((violation) => violation.ruleId === 'TS-1.2'), true);
+});
+
+test('architecture check accepts file scope from a manifest file', () => {
+  const project = makeProject({
+    'ocentra-enforcer.config.json': JSON.stringify({
+      profileName: 'architecture-policy-test',
+      architecturePolicyChecks: ['no-zod-source'],
+    }),
+    'src/schema.ts': ['import { z } from "zo', 'd";\nexport const value = z.string();\n'].join(''),
+    'scope-files.json': JSON.stringify({ files: ['src/schema.ts'] }),
+  });
+  const result = run(project, [
+    'architecture',
+    'check',
+    '--json',
+    '--language',
+    'rust',
+    '--files-from',
+    'scope-files.json',
+  ]);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.check, 'architecture-policy');
+  assert.deepEqual(report.scope.files, ['src/schema.ts']);
   assert.equal(report.violations.some((violation) => violation.ruleId === 'TS-1.2'), true);
 });
 

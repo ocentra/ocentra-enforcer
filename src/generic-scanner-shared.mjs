@@ -214,6 +214,7 @@ const pythonRawJsonDictPattern = /\b(?:payload|json|data|body)\s*:\s*dict\s*(?:\
 const pythonEnvReadPattern = /\bos\.environ(?:\.|\[)|\bos\.getenv\s*\(/u;
 
 export function collectGenericScopeFiles(root, scope, config, activeLanguages) {
+  if (scope.mode === "crate" && !scope.crateRoot) return [];
   const entries =
     scope.mode === "files"
       ? (scope.files ?? [])

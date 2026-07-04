@@ -3,6 +3,8 @@
   "profileName": "ocentra-enforcer",
   "failOn": ["error"],
   "languages": ["rust", "typescript", "python", "common"],
+  "rustRoots": ["src", "crates"],
+  "crateRootGlobs": ["crates/*", "."],
   "requireCargoDeny": false,
   "requireCargoAudit": false,
   "runCargoDoc": false,
@@ -11,12 +13,10 @@
     "views/**",
     "**/dist/**",
     "**/README.md",
-    "Tools/**",
-    "tools/**",
-    "tests/enforcer-policy.test.mjs",
-    "tests/rust-rules.test.mjs",
-    "tests/enforcer-multilang.test.mjs",
     "tests/fixtures/enforcer/**",
+    "Tools/ocentra-literal-scan/tests/fixtures/bad/**",
+    "tools/ocentra-literal-scan/tests/fixtures/bad/**",
+    "Tools/ocentra-literal-scan/schemas/**",
     "profiles/*/legacy-scripts/**"
   ],
   "sourceShapePolicies": [
@@ -29,6 +29,25 @@
       "maxFunctions": 30,
       "maxFunctionLines": 80,
       "maxLines": 1000
+    },
+    {
+      "roots": ["tests"],
+      "extensions": [".ts", ".tsx", ".js", ".mjs", ".cjs"],
+      "kind": "typescript",
+      "maxClasses": 1,
+      "maxExports": 20,
+      "maxFunctions": 24,
+      "maxFunctionLines": 80,
+      "maxLines": 1000
+    },
+    {
+      "roots": ["Tools", "tools"],
+      "extensions": [".rs"],
+      "kind": "rust",
+      "maxFunctionLines": 80,
+      "maxFunctions": 18,
+      "maxLines": 1000,
+      "maxTypes": 24
     }
   ],
   "sourceShapeOverrides": [

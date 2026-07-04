@@ -11,6 +11,7 @@ export function isTypeScriptTypedPath(rel) {
 
 export function isToolingBoundaryPath(rel) {
   return /^(?:scripts|mcp|eslint-rules|adapters|tests|schemas)\//u.test(rel) ||
+    /^(?:Tools|tools)\/ocentra-literal-scan\/integration\//u.test(rel) ||
     /^src\/(?:checks|check-[^/]+|cli(?:-[^/]+)?|codex-install|documentation-hints|generic-[^/]+|harness(?:-[^/]+)?|literal-risk(?:-[^/]+)?|path-utils|policy|proof(?:-[^/]+)?|routing|rule-[^/]+|source-policy-[^/]+)\.mjs$/u.test(rel) ||
     /^src\/coordination\//u.test(rel);
 }

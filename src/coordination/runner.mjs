@@ -411,6 +411,7 @@ async function printHookContext(lane, context) {
 
 async function tryClaimSession(lane, sessionId, eventName, context) {
   const { coordinationRoot } = await import("./api.mjs");
+  const { buildCoordinationContext } = await import("./vendor/context.js");
   const { loadIdentity } = await import("./vendor/identity.js");
   const { materialize } = await import("./vendor/materialize.js");
   const { appendEvent } = await import("./vendor/stream.js");
@@ -418,17 +419,25 @@ async function tryClaimSession(lane, sessionId, eventName, context) {
   const config = await loadIdentity(root);
   const state = await materialize(root);
   const existing = state.sessions.get(lane);
-  if (existing !== undefined && existing.sessionId !== sessionId) {
-    return { ok: false, activeSessionId: existing.sessionId };
-  }
   await appendEvent(root, config, lane, {
     type: "session.claim",
     sessionId,
     ttlSeconds: 7200,
     summary: `${eventName} hook active`,
+    context: buildCoordinationContext({
+      ...context,
+      cwd: process.cwd(),
+      root: process.cwd(),
+      codexSessionId: sessionId,
+    }),
   });
   writeActiveSessionId(sessionId, context);
-  return { ok: true, activeSessionId: sessionId };
+  return {
+    ok: true,
+    activeSessionId: sessionId,
+    previousActiveSessionId:
+      existing?.sessionId !== sessionId ? existing?.sessionId : undefined,
+  };
 }
 
 function sanitizeSessionId(value) {

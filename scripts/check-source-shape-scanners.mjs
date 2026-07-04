@@ -6,55 +6,7 @@ import {
   maxBraceNestingDepth,
   maxPythonIndentDepth,
 } from "./check-source-core-helpers.mjs";
-
-export function inspectTypeScriptShape(root, file, text, policy) {
-  const findings = [];
-  const lines = text.split(/\r?\n/u);
-  const maxNestingDepth = maxBraceNestingDepth(lines);
-  const branchCount = countMatches(lines, /\b(?:if|else\s+if|for|while|switch|case|catch)\b|\?\s*[^:]+:/u);
-  const classCount = countMatches(lines, /^\s*(?:export\s+)?class\s+[A-Za-z_$]/u);
-  const exportCount = countMatches(
-    lines,
-    /^\s*export\s+(?:class|function|const|let|var|type|interface|enum|default|\{|\*)/u,
-  );
-  const functionStarts = [];
-
-  if (maxNestingDepth > (policy.maxNestingDepth ?? 4)) {
-    findings.push(finding(root, file, 1, "SRC-2.6", `file nesting depth is ${maxNestingDepth}; maximum is ${policy.maxNestingDepth ?? 4}`, null));
-  }
-  if (branchCount > (policy.maxBranches ?? 12)) {
-    findings.push(finding(root, file, 1, "SRC-2.7", `file has ${branchCount} branch points; maximum is ${policy.maxBranches ?? 12}`, null));
-  }
-
-  lines.forEach((line, index) => {
-    if (
-      /^\s*(?:export\s+)?(?:async\s+)?function\s+[A-Za-z_$]|\)\s*=>\s*\{|\b(?:async\s+)?[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{/u.test(
-        line,
-      )
-    ) {
-      functionStarts.push(index);
-    }
-  });
-
-  if (classCount > policy.maxClasses) {
-    findings.push(finding(root, file, 1, "SRC-1.1", `file has ${classCount} classes; maximum is ${policy.maxClasses}`, null));
-    findings.push(finding(root, file, 1, "SRC-2.5", `file has ${classCount} classes; maximum is ${policy.maxClasses}`, null));
-  }
-  if (exportCount > policy.maxExports) {
-    findings.push(finding(root, file, 1, "SRC-1.1", `file has ${exportCount} exports; maximum is ${policy.maxExports}`, null));
-    findings.push(finding(root, file, 1, "SRC-2.3", `file has ${exportCount} exports; maximum is ${policy.maxExports}`, null));
-  }
-  for (const start of functionStarts) {
-    const end = findBlockEnd(lines, start);
-    const span = end - start + 1;
-    if (span > policy.maxFunctionLines) {
-      findings.push(finding(root, file, start + 1, "SRC-1.1", `function has ${span} lines; maximum is ${policy.maxFunctionLines}`, lines[start]));
-      findings.push(finding(root, file, start + 1, "SRC-2.2", `function has ${span} lines; maximum is ${policy.maxFunctionLines}`, lines[start]));
-    }
-  }
-
-  return findings;
-}
+import { inspectTypeScriptShape } from "./check-source-shape-typescript.mjs";
 
 export function inspectPythonShape(root, file, text, policy) {
   const findings = [];
@@ -133,3 +85,5 @@ export function inspectRustShape(root, file, text, policy) {
 
   return findings;
 }
+
+export { inspectTypeScriptShape };

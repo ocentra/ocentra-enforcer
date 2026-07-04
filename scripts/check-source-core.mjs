@@ -64,6 +64,24 @@ import {
   collectValidationBypassFindings,
   collectWeakAssertionsFindings,
 } from "./check-source-core-checks.mjs";
+import {
+  collectContractScanFiles,
+  collectCoveredContractPaths,
+  enforceRequiredMirrorCoverage,
+  isNonBlockingContractPath,
+  loadContract,
+  resolveContractConfigPath,
+  sourceContractExtension,
+} from "./check-source-core-contracts.mjs";
+import {
+  createLiteralMatchPattern,
+  escapeRegExp,
+  valueAtPath,
+  valueAtRustConst,
+  valueAtRustSerdeRename,
+  valueAtSourceObjectPath,
+  valueFromSpec,
+} from "./check-source-core-contract-values.mjs";
 
 const PACK_ROOT = path.resolve(path.join(path.dirname(fileURLToPath(import.meta.url)), ".."));
 
@@ -395,7 +413,7 @@ function collectPolicyFiles(root, config, policy, scope = { mode: "all" }) {
   const predicate = (file, rel) =>
     extensions.has(path.extname(file).toLowerCase()) &&
     isUnderRoots(rel, policy.roots ?? []);
-  if (scope.mode === "all")
+  if (isWorkspaceScope(scope))
     return collectFiles(root, policy.roots ?? [], config, predicate);
   return collectFiles(
     root,
@@ -427,7 +445,7 @@ function maxBraceNestingDepth(lines) {
   let depth = 0;
   let maxDepth = 0;
   for (const rawLine of lines) {
-    const line = String(rawLine ?? "").replace(/\/\/.*$/u, "");
+    const line = maskBraceSensitiveLine(rawLine);
     for (const char of line) {
       if (char === "{") {
         depth += 1;
@@ -438,6 +456,15 @@ function maxBraceNestingDepth(lines) {
     }
   }
   return maxDepth;
+}
+
+function maskBraceSensitiveLine(line) {
+  return String(line ?? "")
+    .replace(/\/\/.*$/u, "")
+    .replace(/'(?:[^'\\]|\\.)*'/gu, "''")
+    .replace(/"(?:[^"\\]|\\.)*"/gu, '""')
+    .replace(/`(?:[^`\\]|\\.)*`/gu, "``")
+    .replace(/\/(?:[^\/\\\n]|\\.)+\/[dgimsuvy]*/gu, "//");
 }
 
 function maxPythonIndentDepth(lines) {
@@ -495,263 +522,12 @@ function leadingWhitespace(line) {
   return /^\s*/u.exec(line)?.[0] ?? "";
 }
 
-function valueAtPath(source, jsonPath) {
-  let value = source;
-  for (const segment of jsonPath.split(".")) {
-    if (value === null || typeof value !== "object" || !(segment in value)) {
-      throw new Error(`${jsonPath} is missing`);
-    }
-    value = value[segment];
-  }
-  return value;
-}
-
-function valueFromSpec(root, ownerPath, valueSpec) {
-  const sourceText = fs.readFileSync(repoAbsolute(root, ownerPath), "utf8");
-  if ("jsonPath" in valueSpec)
-    return valueAtPath(JSON.parse(sourceText), valueSpec.jsonPath);
-  if ("sourceObjectPath" in valueSpec)
-    return valueAtSourceObjectPath(
-      sourceText,
-      valueSpec.sourceObjectPath,
-      ownerPath,
-    );
-  if ("rustConst" in valueSpec)
-    return valueAtRustConst(sourceText, valueSpec.rustConst, ownerPath);
-  if ("rustSerdeRename" in valueSpec)
-    return valueAtRustSerdeRename(
-      sourceText,
-      valueSpec.rustSerdeRename,
-      ownerPath,
-    );
-  throw new Error(
-    `${ownerPath}: ${valueSpec.name} needs jsonPath, sourceObjectPath, rustConst, or rustSerdeRename`,
-  );
-}
-
-function loadContract(root, rawContract) {
-  const ownerPath = rawContract.ownerPath;
-  const values = (rawContract.values ?? []).map((valueSpec) => {
-    const text = valueFromSpec(root, ownerPath, valueSpec);
-    if (typeof text !== "string" || text.length === 0) {
-      throw new Error(
-        `${ownerPath}: ${valueSpec.name} must be a non-empty string`,
-      );
-    }
-    return {
-      name: valueSpec.name,
-      text,
-      pattern: createLiteralMatchPattern(text),
-    };
-  });
-  const valueByName = new Map(values.map((value) => [value.name, value.text]));
-  const mirrorPaths = [];
-  for (const mirror of rawContract.mirrors ?? []) {
-    mirrorPaths.push(mirror.path);
-    for (const mirrorValueSpec of mirror.values ?? []) {
-      const ownerText = valueByName.get(mirrorValueSpec.name);
-      if (ownerText === undefined)
-        throw new Error(
-          `${mirror.path}: ${mirrorValueSpec.name} does not match an owner value name`,
-        );
-      const mirrorText = valueFromSpec(root, mirror.path, mirrorValueSpec);
-      if (mirrorText !== ownerText) {
-        throw new Error(
-          `${mirror.path}: ${rawContract.name}.${mirrorValueSpec.name} ${mirrorText} does not match ${ownerPath} ${ownerText}`,
-        );
-      }
-    }
-  }
-  return {
-    ...rawContract,
-    allowedPaths: new Set(
-      [ownerPath, ...mirrorPaths, ...(rawContract.allowedPaths ?? [])].map(
-        (entry) => entry.replaceAll("\\", "/"),
-      ),
-    ),
-    scanRoots: rawContract.scanRoots ?? [],
-    values,
-  };
-}
-
-function collectContractScanFiles(root, contract, config) {
-  return collectFiles(
-    root,
-    contract.scanRoots,
-    config,
-    (file, rel) =>
-      sourceContractExtension(file) &&
-      !contract.allowedPaths.has(rel) &&
-      !isNonBlockingContractPath(rel),
-  ).map((file) => normalizeRel(root, file));
-}
-
-function enforceRequiredMirrorCoverage(
-  root,
-  configPath,
-  config,
-  scopedFiles,
-  findings,
-) {
-  for (const rootPath of config.requiredMirrorRoots ??
-    config.singleSourceRequiredMirrorRoots ??
-    []) {
-    const coveredPaths = collectCoveredContractPaths(config, rootPath);
-    const candidates =
-      scopedFiles === null
-        ? collectFiles(
-            root,
-            [rootPath],
-            {},
-            (file) => path.extname(file) === ".rs",
-          ).map((file) => normalizeRel(root, file))
-        : scopedFiles.filter(
-            (filePath) =>
-              filePath.startsWith(`${rootPath}/`) &&
-              path.extname(filePath) === ".rs",
-          );
-    for (const filePath of candidates) {
-      if (coveredPaths.has(filePath)) continue;
-      findings.push(
-        finding(
-          root,
-          repoAbsolute(root, filePath),
-          1,
-          "CONTRACT-1.1",
-          `missing single-source manifest coverage; add it as a mirror/allowed path in ${normalizeRel(root, configPath)}`,
-          null,
-        ),
-      );
-    }
-  }
-}
-
-function collectCoveredContractPaths(config, rootPath) {
-  const covered = new Set();
-  for (const contract of config.contracts ?? []) {
-    if (contract.ownerPath?.startsWith(`${rootPath}/`))
-      covered.add(contract.ownerPath);
-    for (const mirror of contract.mirrors ?? []) {
-      if (mirror.path?.startsWith(`${rootPath}/`)) covered.add(mirror.path);
-    }
-    for (const allowedPath of contract.allowedPaths ?? []) {
-      if (allowedPath?.startsWith(`${rootPath}/`)) covered.add(allowedPath);
-    }
-  }
-  return covered;
-}
-
-function valueAtSourceObjectPath(source, sourceObjectPath, ownerPath) {
-  const lastDotIndex = sourceObjectPath.lastIndexOf(".");
-  if (lastDotIndex <= 0 || lastDotIndex === sourceObjectPath.length - 1) {
-    throw new Error(
-      `${ownerPath}: ${sourceObjectPath} must be formatted as ObjectName.PropertyName or ObjectName.PropertyName[index]`,
-    );
-  }
-  const objectName = sourceObjectPath.slice(0, lastDotIndex);
-  const propertyPath = sourceObjectPath.slice(lastDotIndex + 1);
-  const arrayIndexMatch =
-    /^(?<propertyName>[A-Za-z0-9_]+)\[(?<index>\d+)\]$/u.exec(propertyPath);
-  const propertyName = arrayIndexMatch?.groups?.propertyName ?? propertyPath;
-  const objectPattern = new RegExp(
-    `(?:export\\s+)?const\\s+${escapeRegExp(objectName)}\\s*=\\s*\\{([\\s\\S]*?)\\}\\s*(?:as\\s+const)?`,
-    "u",
-  );
-  const kindGroupPattern = new RegExp(
-    `(?:export\\s+)?const\\s+${escapeRegExp(objectName)}\\s*=\\s*defineLiteralKindGroup\\(\\s*\\{([\\s\\S]*?)\\}\\s*(?:as\\s+const)?\\s*\\)`,
-    "u",
-  );
-  const objectBody =
-    objectPattern.exec(source)?.[1] ?? kindGroupPattern.exec(source)?.[1];
-  if (objectBody === undefined)
-    throw new Error(`${ownerPath}: ${objectName} constant object is missing`);
-  const directStringMatch = new RegExp(
-    `\\b${escapeRegExp(propertyName)}\\s*:\\s*(['"\`])([^'"\`]+)\\1`,
-    "u",
-  ).exec(objectBody);
-  if (directStringMatch !== null) return directStringMatch[2];
-  const parsedStringMatch = new RegExp(
-    `\\b${escapeRegExp(propertyName)}\\s*:\\s*[A-Za-z0-9_$.]+\\.parse\\(\\s*(['"\`])([^'"\`]+)\\1\\s*\\)`,
-    "u",
-  ).exec(objectBody);
-  if (parsedStringMatch !== null) return parsedStringMatch[2];
-  if (arrayIndexMatch !== null) {
-    const arrayMatch = new RegExp(
-      `\\b${escapeRegExp(propertyName)}\\s*:\\s*\\[([\\s\\S]*?)\\]`,
-      "u",
-    ).exec(objectBody);
-    if (arrayMatch === null)
-      throw new Error(
-        `${ownerPath}: ${sourceObjectPath} array literal is missing`,
-      );
-    const stringMatches = [...arrayMatch[1].matchAll(/(['"`])([^'"`]+)\1/gu)];
-    const index = Number.parseInt(arrayIndexMatch.groups.index, 10);
-    if (index < stringMatches.length) return stringMatches[index][2];
-    throw new Error(`${ownerPath}: ${sourceObjectPath} array entry is missing`);
-  }
-  throw new Error(
-    `${ownerPath}: ${sourceObjectPath} string literal is missing`,
-  );
-}
-
-function valueAtRustConst(source, rustConst, ownerPath) {
-  const constMatch = new RegExp(
-    `(?:pub\\s+)?const\\s+${escapeRegExp(rustConst)}\\s*:\\s*&str\\s*=\\s*"([^"]+)"\\s*;`,
-    "u",
-  ).exec(source);
-  if (constMatch === null)
-    throw new Error(`${ownerPath}: ${rustConst} string const is missing`);
-  return constMatch[1];
-}
-
-function valueAtRustSerdeRename(source, rustSerdeRename, ownerPath) {
-  const segments = rustSerdeRename.split("::");
-  if (
-    segments.length !== 2 ||
-    segments.some((segment) => segment.length === 0)
-  ) {
-    throw new Error(
-      `${ownerPath}: ${rustSerdeRename} must be formatted as EnumName::VariantName`,
-    );
-  }
-  const [enumName, variantName] = segments;
-  const enumMatch = new RegExp(
-    `enum\\s+${escapeRegExp(enumName)}\\s*\\{([\\s\\S]*?)\\n\\}`,
-    "u",
-  ).exec(source);
-  if (enumMatch === null)
-    throw new Error(`${ownerPath}: ${enumName} enum is missing`);
-  const variantMatch = new RegExp(
-    `#\\[serde\\(rename\\s*=\\s*"([^"]+)"\\)\\]\\s*${escapeRegExp(variantName)}\\b`,
-    "u",
-  ).exec(enumMatch[1]);
-  if (variantMatch === null)
-    throw new Error(`${ownerPath}: ${rustSerdeRename} serde rename is missing`);
-  return variantMatch[1];
-}
-
-function createLiteralMatchPattern(value) {
-  return new RegExp(
-    `(?<![A-Za-z0-9@._/-])${escapeRegExp(value)}(?![A-Za-z0-9@._/-])`,
-    "u",
-  );
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-}
-
-function sourceContractExtension(filePath) {
-  return /\.(?:rs|ts|tsx|mjs|cjs|js|json|md|ya?ml)$/u.test(filePath);
-}
-
-function isNonBlockingContractPath(rel) {
-  return /^(?:docs(?:\/|$)|scripts\/test(?:\/|$))|.*(?:^|\/)tests?\/|.*(?:^|\/)[^/]*_tests?\.rs$|.*(?:^|\/)[^/]*\.(?:test|spec)\.(?:ts|tsx|js|jsx|mjs|cjs)$/u.test(
-    rel,
-  );
+function isWorkspaceScope(scope = {}) {
+  return scope.mode === "all" || scope.mode === "workspace";
 }
 
 function scopeEntries(root, scope, config = {}) {
+  if (isWorkspaceScope(scope)) return [];
   if (scope.mode === "files") return scope.files ?? [];
   if (scope.mode === "diff") return diffFiles(root, scope.base, scope.head);
   if (scope.mode === "crate")
@@ -777,7 +553,7 @@ function scopeRelativeFiles(root, scope, config = {}) {
 }
 
 function scopedProjectRoots(root, config, scope) {
-  if (scope.mode === "all") return null;
+  if (isWorkspaceScope(scope)) return null;
   const rels = scopeRelativeFiles(root, scope, config);
   const roots = new Set();
   for (const rel of rels) {
@@ -796,10 +572,10 @@ function scopedProjectRoots(root, config, scope) {
 
 function trackedScopeFiles(root, scope) {
   const files =
-    scope.mode === "all"
+    isWorkspaceScope(scope)
       ? gitNameOnly(root, ["ls-files"])
       : scopeRelativeFiles(root, scope, {});
-  if (scope.mode === "all") return files;
+  if (isWorkspaceScope(scope)) return files;
   const tracked = new Set(gitNameOnly(root, ["ls-files"]));
   return files.filter((rel) => tracked.has(rel));
 }
@@ -891,15 +667,6 @@ function reportScope(root, scope, findings) {
     base: scope.base ?? undefined,
     head: scope.head ?? undefined,
   };
-}
-
-function resolveContractConfigPath(root, explicitConfigPath) {
-  const candidates = [
-    explicitConfigPath ? repoAbsolute(root, explicitConfigPath) : null,
-    path.join(root, "ocentra-enforcer.single-source-contracts.json"),
-    path.join(root, "scripts", "check-single-source-contracts.json"),
-  ].filter(Boolean);
-  return candidates.find((candidate) => fs.existsSync(candidate)) ?? null;
 }
 
 function spawnInRoot(root, command, args) {

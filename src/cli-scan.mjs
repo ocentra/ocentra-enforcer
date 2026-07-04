@@ -100,12 +100,14 @@ export function runEnforcerScan(options = {}, deps) {
   });
   const activeLanguages = resolveScanLanguages(options.languages, config);
   const rawScope = options.rawScope ?? options.scope ?? { mode: "all" };
+  const resolvedScope = deps.resolveScope(root, config, rawScope);
+  const genericScope = rawScope.mode === "crate" ? resolvedScope : rawScope;
   const rustReport = activeLanguages.includes("rust")
     ? runRustRules(
         {
           root,
           config,
-          scope: rawScope,
+          scope: resolvedScope,
           command: options.command ?? "scan",
           scanOnly: options.scanOnly,
         },
@@ -118,7 +120,7 @@ export function runEnforcerScan(options = {}, deps) {
         root,
         profileName: config.profileName,
         scanOnly: Boolean(options.scanOnly || options.command === "scan"),
-        scope: { ...rawScope, files: [] },
+        scope: { ...resolvedScope, files: [] },
       };
   const genericLanguages = activeLanguages.filter(
     (language) => language !== "rust",
@@ -128,7 +130,7 @@ export function runEnforcerScan(options = {}, deps) {
       ? { files: [], violations: [] }
       : runGenericScan({
           root,
-          scope: rawScope,
+          scope: genericScope,
           config,
           languages: genericLanguages,
         });

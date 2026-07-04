@@ -56,7 +56,9 @@ function collectSourceShapeFindings(root, config, scope = { mode: "all" }) {
     for (const file of collectPolicyFiles(root, config, policy, scope)) {
       const rel = normalizeRel(root, file);
       const text = fs.readFileSync(file, "utf8");
-      const effectivePolicy = applySourceShapeOverrides(config, rel, policy);
+      const effectivePolicy = withSourceShapeDefaults(
+        applySourceShapeOverrides(config, rel, policy),
+      );
       if (effectivePolicy.kind === "rust") {
         findings.push(...inspectRustShape(root, file, text, effectivePolicy));
       } else if (effectivePolicy.kind === "python") {
@@ -113,9 +115,30 @@ function applySourceShapeOverrides(config, rel, policy) {
       note: _note,
       ...limits
     } = override;
-    effectivePolicy = { ...effectivePolicy, ...limits };
+    effectivePolicy = {
+      ...effectivePolicy,
+      ...Object.fromEntries(
+        Object.entries(limits).filter((entry) => entry[1] !== undefined),
+      ),
+    };
   }
   return effectivePolicy;
+}
+
+function withSourceShapeDefaults(policy) {
+  const common = {
+    maxBranches: 12,
+    maxFunctionLines: 80,
+    maxLines: 1000,
+    maxNestingDepth: 4,
+  };
+  if (policy.kind === "rust") {
+    return { ...common, maxFunctions: 18, maxTypes: 24, ...policy };
+  }
+  if (policy.kind === "python") {
+    return { ...common, maxClasses: 4, maxFunctions: 30, maxLines: 800, ...policy };
+  }
+  return { ...common, maxClasses: 1, maxExports: 35, ...policy };
 }
 
 export {

@@ -26,7 +26,8 @@ export const DEFAULT_IGNORE_DIRS = [
 const globCache = new Map();
 
 export function uniqueSorted(values) {
-  return [...new Set(values)].sort((a, b) => a.localeCompare(b));
+  return [...new Map(values.map((value) => [String(value).toLowerCase(), value])).values()]
+    .sort((a, b) => a.localeCompare(b));
 }
 
 export function toPosix(value) {

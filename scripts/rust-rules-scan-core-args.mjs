@@ -1,12 +1,8 @@
 import { consumeCommand, applyCommandHead } from "./rust-rules-scan-core-args-command.mjs";
-import { collectFileTokens } from "./rust-rules-scan-core-args-files.mjs";
 import {
-  FLAG_OPTIONS,
-  VALUE_OPTIONS,
-  normalizeVerifyMode,
-  parseAdapterList,
-  parseFileList,
-} from "./rust-rules-scan-core-args-options.mjs";
+  collectFilesFromManifest,
+} from "./rust-rules-scan-core-args-files.mjs";
+import { collectParsedTokens } from "./rust-rules-scan-core-args-parse.mjs";
 
 export function defaultArgs() {
   return {
@@ -71,32 +67,10 @@ export function parseArgs(argv) {
   args.command = consumeCommand(tokens);
   applyCommandHead(args, tokens);
 
-  const explicitFiles = [];
-  for (let index = 0; index < tokens.length; index += 1) {
-    const arg = tokens[index];
-    if (arg === "--") {
-      args.runCommand = tokens.slice(index + 1);
-      break;
-    }
-    const flag = FLAG_OPTIONS[arg];
-    if (flag) {
-      args[flag] = true;
-      continue;
-    }
-    if (arg === "--files") {
-      index = collectFileTokens(tokens, index + 1, explicitFiles) - 1;
-      continue;
-    }
-    const valueHandler = VALUE_OPTIONS[arg];
-    if (valueHandler) {
-      const value = tokens[++index];
-      valueHandler(args, value);
-      continue;
-    }
-    if (arg.startsWith("-")) {
-      throw new Error(`Unknown argument: ${arg}`);
-    }
-    explicitFiles.push(...parseFileList(arg));
+  const { explicitFiles, explicitFileManifests } = collectParsedTokens(tokens, args);
+
+  for (const manifestPath of explicitFileManifests) {
+    explicitFiles.push(...collectFilesFromManifest(manifestPath, args.root));
   }
 
   if (explicitFiles.length > 0) {

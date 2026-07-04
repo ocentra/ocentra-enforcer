@@ -220,7 +220,8 @@ function resolveScope(root, config, scope) {
 }
 
 function uniqueSorted(files) {
-  return [...new Set(files)].sort((a, b) => a.localeCompare(b));
+  return [...new Map(files.map((file) => [String(file).toLowerCase(), file])).values()]
+    .sort((a, b) => a.localeCompare(b));
 }
 
 function maskRustCode(source) {

@@ -58,7 +58,7 @@ export async function guardLedger(root, input) {
     const laneView = state.lanes.get(lane);
     const activeSession = state.sessions.get(lane);
     if (input.sessionId !== undefined && activeSession !== undefined && activeSession.sessionId !== input.sessionId) {
-        findings.push(`lane ${lane} is owned by active session ${activeSession.sessionId}`);
+        noteGlobalWarning(`lane ${lane} also has active session ${activeSession.sessionId}; exact-file claims remain the write gate`);
     }
     const unread = laneView?.inbox.filter((item) => item.ackedBy.length === 0) ?? [];
     if (operation !== "inspect" && lane !== "primary" && unread.length > 0) {
@@ -69,10 +69,15 @@ export async function guardLedger(root, input) {
         repoRoot: input.repoRoot ?? input.root,
         cwd: input.cwd ?? input.root,
     });
+    if (input.codexThreadId !== undefined) {
+        requestContext.explicitCodexThreadId = input.codexThreadId;
+    }
+    if (input.codexSessionId !== undefined) {
+        requestContext.explicitCodexSessionId = input.codexSessionId;
+    }
     const requestLockKind = operation === "push" ? "branchLease" : normalizeLockKind(input.lockKind, "writeLock");
-    const claimsForDecision = state.ownership.activeClaims.filter((claim) => claim.lane !== lane);
     const decision = changedPaths.length > 0
-        ? blockersForRequest(claimsForDecision, buildRequestClaim({
+        ? blockersForRequest(state.ownership.activeClaims, buildRequestClaim({
             writer: `request.${lane}`,
             lane,
             paths: changedPaths,
@@ -122,57 +127,9 @@ export async function guardLedger(root, input) {
             }
         }
     }
-    const requiresClaim = operation === "commit";
-    if (requiresClaim && changedPaths.length > 0 && (lane !== "primary" || input.allowPrimaryWithoutClaims !== true)) {
-        const laneClaims = state.ownership.activeClaims.filter((claim) => claim.lane === lane);
-        if (laneClaims.length === 0) {
-            const unownedPaths = [];
-            for (const path of changedPaths) {
-                const ownerClaims = ownerClaimsForPath(state.ownership.activeClaims, path, lane);
-                if (ownerClaims.length > 0) {
-                    findings.push(`changed path ${path} is claimed by ${ownerClaims.map(claimOwnerLabel).join(", ")}; lane ${lane} cannot write it`);
-                }
-                else {
-                    unownedPaths.push(path);
-                }
-            }
-            if (unownedPaths.length > 0) {
-                findings.push(`lane ${lane} has changed files but no active ledger claim: ${unownedPaths.join(", ")}`);
-            }
-        }
-        else {
-            for (const path of changedPaths) {
-                if (!laneClaims.some((claim) => claimMatchesOperation(claim, path, operation, { ...requestContext, lane }))) {
-                    const ownerClaims = ownerClaimsForPath(state.ownership.activeClaims, path, lane);
-                    if (ownerClaims.length > 0) {
-                        findings.push(`changed path ${path} is claimed by ${ownerClaims.map(claimOwnerLabel).join(", ")}; lane ${lane} cannot write it`);
-                    }
-                    else {
-                        findings.push(`changed path ${path} is outside active ledger claims for lane ${lane}`);
-                    }
-                }
-            }
-        }
-    }
-    for (const claim of state.ownership.activeClaims.filter((item) => item.lane === lane)) {
-        for (const path of claim.paths) {
-            const normalizedClaimPath = normalizeCoordinationPath(path);
-            if ((!focused || changedPaths.some((changedPath) => pathOverlaps(changedPath, normalizedClaimPath))) && await isFolderLikeClaimPath(root, String(path))) {
-                findings.push(`lane ${lane} has non-exact claim path ${path}; claims must be exact files`);
-            }
-        }
-    }
-    for (const diagnostic of inspection.diagnostics) {
-        if (diagnostic.level === "error") {
-            const message = `${diagnostic.stream}: ${diagnostic.message}`;
-            if (!focused || diagnosticBlocksFocusedGuard(diagnostic, lane)) {
-                findings.push(message);
-            }
-            else {
-                noteGlobalWarning(message);
-            }
-        }
-    }
+    addCommitClaimFindings(findings, state, lane, changedPaths, operation, input, requestContext);
+    await addFolderClaimFindings(findings, root, state, lane, focused, changedPaths);
+    addDiagnosticFindings(findings, inspection.diagnostics, lane, focused, noteGlobalWarning);
     return {
         ok: findings.length === 0,
         lane,
@@ -191,6 +148,57 @@ export async function guardLedger(root, input) {
         diagnosticCount: inspection.diagnostics.length,
         diagnosticsTruncated: inspection.diagnostics.length > globalWarningLimit,
     };
+}
+function addCommitClaimFindings(findings, state, lane, changedPaths, operation, input, requestContext) {
+    if (operation !== "commit" || changedPaths.length === 0 || (lane === "primary" && input.allowPrimaryWithoutClaims === true)) return;
+    const laneClaims = state.ownership.activeClaims.filter((claim) => claim.lane === lane);
+    if (laneClaims.length === 0) {
+        addMissingLaneClaimFindings(findings, state, lane, changedPaths);
+        return;
+    }
+    for (const path of changedPaths) {
+        if (laneClaims.some((claim) => claimMatchesOperation(claim, path, operation, { ...requestContext, lane }))) continue;
+        const ownerClaims = ownerClaimsForPath(state.ownership.activeClaims, path, lane);
+        findings.push(ownerClaims.length > 0
+            ? `changed path ${path} is claimed by ${ownerClaims.map(claimOwnerLabel).join(", ")}; lane ${lane} cannot write it`
+            : `changed path ${path} is outside active ledger claims for lane ${lane}`);
+    }
+}
+function addMissingLaneClaimFindings(findings, state, lane, changedPaths) {
+    const unownedPaths = [];
+    for (const path of changedPaths) {
+        const ownerClaims = ownerClaimsForPath(state.ownership.activeClaims, path, lane);
+        if (ownerClaims.length > 0) {
+            findings.push(`changed path ${path} is claimed by ${ownerClaims.map(claimOwnerLabel).join(", ")}; lane ${lane} cannot write it`);
+        }
+        else {
+            unownedPaths.push(path);
+        }
+    }
+    if (unownedPaths.length > 0) findings.push(`lane ${lane} has changed files but no active ledger claim: ${unownedPaths.join(", ")}`);
+}
+async function addFolderClaimFindings(findings, root, state, lane, focused, changedPaths) {
+    for (const claim of state.ownership.activeClaims.filter((item) => item.lane === lane)) {
+        for (const path of claim.paths) {
+            const normalizedClaimPath = normalizeCoordinationPath(path);
+            const touchesFocus = !focused || changedPaths.some((changedPath) => pathOverlaps(changedPath, normalizedClaimPath));
+            if (touchesFocus && await isFolderLikeClaimPath(root, String(path))) {
+                findings.push(`lane ${lane} has non-exact claim path ${path}; claims must be exact files`);
+            }
+        }
+    }
+}
+function addDiagnosticFindings(findings, diagnostics, lane, focused, noteGlobalWarning) {
+    for (const diagnostic of diagnostics) {
+        if (diagnostic.level !== "error") continue;
+        const message = `${diagnostic.stream}: ${diagnostic.message}`;
+        if (!focused || diagnosticBlocksFocusedGuard(diagnostic, lane)) {
+            findings.push(message);
+        }
+        else {
+            noteGlobalWarning(message);
+        }
+    }
 }
 function claimMatchesPath(claim, path) {
     return claim.paths.some((claimPath) => pathMatchesClaim(path, normalizeCoordinationPath(claimPath)));

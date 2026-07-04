@@ -1,3 +1,5 @@
+import { protectedSingletonGroup } from "./lock-policy-singletons.js";
+
 const OPERATION_VALUES = new Set([
   // PUBLIC-API-BUDGET-JUSTIFICATION: lock policy exports operation helpers used by coordination health, claim, guard, and tests.
   "inspect",
@@ -17,15 +19,6 @@ const LOCK_KIND_VALUES = new Set([
 ]);
 
 const ON_CONFLICT_VALUES = new Set(["fail", "intent"]);
-
-const LOCKFILE_NAMES = new Set([
-  "cargo.lock",
-  "package-lock.json",
-  "pnpm-lock.yaml",
-  "yarn.lock",
-  "uv.lock",
-  "poetry.lock",
-]);
 
 export function normalizeOperation(value, fallback = "commit") {
   const normalized = String(value ?? fallback).trim();
@@ -110,10 +103,13 @@ export function enrichClaim(claim) {
   const projectKey = normalizeKey(
     context.projectId ?? context.gitRemote ?? context.repoRoot ?? "legacy-unknown-project",
   );
+  const repoRootKey = optionalKey(context.repoRoot);
+  const gitRemoteKey = optionalKey(context.gitRemote);
   const worktreeKey = normalizeKey(
     context.worktreeRoot ?? context.repoRoot ?? "legacy-unknown-worktree",
   );
   const branchKey = normalizeKey(context.branch ?? "unknown-branch");
+  const ownerKey = logicalOwnerKey(claim.writer, context);
   const pathKeys = claimGroup === null ? paths : [normalizeKey(claimGroup)];
   const globalKeys =
     lockKind === "globalWriteLock"
@@ -138,8 +134,11 @@ export function enrichClaim(claim) {
     operation,
     claimGroup,
     projectKey,
+    repoRootKey,
+    gitRemoteKey,
     worktreeKey,
     branchKey,
+    ownerKey,
     pathKeys,
     globalKeys,
     physicalKeys,
@@ -162,7 +161,7 @@ export function classifyOwnership(activeClaims, editIntents = []) {
     for (let rightIndex = leftIndex + 1; rightIndex < claims.length; rightIndex += 1) {
       const left = claims[leftIndex];
       const right = claims[rightIndex];
-      if (left === undefined || right === undefined || left.writer === right.writer) continue;
+      if (left === undefined || right === undefined || sameLogicalOwner(left, right)) continue;
       const conflicts = classifyClaimPair(left, right);
       writeConflicts.push(...conflicts.writeConflicts);
       branchWriteConflicts.push(...conflicts.branchWriteConflicts);
@@ -203,7 +202,8 @@ export function blockersForRequest(activeClaims, requestClaim, operation) {
   const effectiveOperation = normalizeOperation(operation ?? request.operation, "edit");
 
   for (const active of activeClaims.map(enrichClaim)) {
-    if (active.writer === request.writer) continue;
+    if (sameLogicalOwner(active, request)) continue;
+    if (!requestHasExplicitOwner(request.context ?? {}) && active.lane === request.lane) continue;
     const conflicts = classifyClaimPair(active, request);
     const hard = [
       ...conflicts.writeConflicts,
@@ -240,7 +240,7 @@ export function claimMatchesOperation(claim, path, operation, requestContext = {
   const normalizedPath = normalizeCoordinationPath(path);
   const requested = enrichClaim({
     writer: "__request__.lane",
-    lane: "__request__",
+    lane: requestContext.lane ?? "__request__",
     paths: [normalizedPath],
     eventId: "__request__",
     context: {
@@ -250,8 +250,12 @@ export function claimMatchesOperation(claim, path, operation, requestContext = {
     },
   });
   if (operation === "commit") {
+    const ownerMatches = requestHasExplicitOwner(requestContext)
+      ? sameLogicalOwner(enriched, requested)
+      : enriched.lane === requestContext.lane;
     return (
       enriched.lane === requestContext.lane &&
+      ownerMatches &&
       sameProject(enriched, requested) &&
       sameWorktree(enriched, requested) &&
       overlapping(enriched.pathKeys, requested.pathKeys).length > 0
@@ -293,6 +297,10 @@ function classifyClaimPair(left, right) {
 
   if (globalOverlap.length > 0) {
     result.globalWriteConflicts.push(conflict("global-write-conflict", left, right, commonPaths));
+    return result;
+  }
+  if (samePath.length > 0 && sameProject(left, right) && sameWorktree(left, right)) {
+    result.writeConflicts.push(conflict("write-lock-conflict", left, right, commonPaths));
     return result;
   }
   if (physicalOverlap.length > 0) {
@@ -343,8 +351,14 @@ function ownerSummary(claim) {
     lane: claim.lane,
     eventId: claim.eventId,
     lockKind: claim.lockKind,
+    ownerKey: claim.ownerKey,
     branch: claim.branchKey,
     worktree: claim.worktreeKey,
+    project: claim.projectKey,
+    repoRoot: claim.repoRootKey,
+    gitRemote: claim.gitRemoteKey,
+    codexThreadId: claim.context?.codexThreadId ?? null,
+    codexSessionId: claim.context?.codexSessionId ?? null,
     paths: claim.paths,
     reason: claim.reason ?? null,
   };
@@ -359,32 +373,20 @@ function pathsForConflict(left, right, pathKeys) {
   return unique(paths.length > 0 ? paths : [...left.paths, ...right.paths]);
 }
 
-function protectedSingletonGroup(path) {
-  const normalized = normalizeCoordinationPath(path);
-  const basename = normalized.split("/").at(-1) ?? normalized;
-  if (LOCKFILE_NAMES.has(basename)) return `lockfile:${basename}`;
-  if (/^(changelog|changes|release-notes)(\.md)?$/u.test(basename)) {
-    return `release:${basename}`;
-  }
-  if (/^(version|VERSION)$/u.test(path)) return `release:${basename.toLowerCase()}`;
-  if (normalized.includes("/migrations/") || normalized.startsWith("migrations/")) {
-    return `migrations:${normalized}`;
-  }
-  if (
-    normalized.includes("/generated/") ||
-    normalized.startsWith("generated/") ||
-    normalized.includes("generated") && /schema|contract|dto|bridge/u.test(normalized)
-  ) {
-    return `generated:${normalized}`;
-  }
-  if (normalized.startsWith(".github/workflows/")) {
-    return `ci:${normalized}`;
-  }
-  return null;
+function sameProject(left, right) {
+  if (left.projectKey === right.projectKey) return true;
+  if (left.gitRemoteKey !== null && left.gitRemoteKey === right.gitRemoteKey) return true;
+  return left.repoRootKey !== null && left.repoRootKey === right.repoRootKey;
 }
 
-function sameProject(left, right) {
-  return left.projectKey === right.projectKey;
+function sameLogicalOwner(left, right) {
+  const leftThread = meaningfulOwnerPart(left.context?.codexThreadId);
+  const rightThread = meaningfulOwnerPart(right.context?.codexThreadId);
+  if (leftThread !== null && leftThread === rightThread && left.lane === right.lane) return true;
+  const leftSession = meaningfulOwnerPart(left.context?.codexSessionId);
+  const rightSession = meaningfulOwnerPart(right.context?.codexSessionId);
+  if (leftSession !== null && leftSession === rightSession && left.lane === right.lane) return true;
+  return left.ownerKey === right.ownerKey;
 }
 
 function sameWorktree(left, right) {
@@ -406,6 +408,29 @@ function normalizeKey(value) {
     .replace(/\\/gu, "/")
     .replace(/\/+/gu, "/")
     .toLowerCase();
+}
+
+function optionalKey(value) {
+  const normalized = normalizeKey(value);
+  return normalized.length === 0 ? null : normalized;
+}
+
+function logicalOwnerKey(writer, context) {
+  const threadId = meaningfulOwnerPart(context.codexThreadId);
+  const sessionId = meaningfulOwnerPart(context.codexSessionId);
+  return normalizeKey(`${writer}:${threadId ?? sessionId ?? writer}`);
+}
+
+function requestHasExplicitOwner(context) {
+  return (
+    meaningfulOwnerPart(context.explicitCodexThreadId) !== null ||
+    meaningfulOwnerPart(context.explicitCodexSessionId) !== null
+  );
+}
+
+function meaningfulOwnerPart(value) {
+  const normalized = String(value ?? "").trim();
+  return normalized.length === 0 || normalized === "unknown" ? null : normalized;
 }
 
 function unique(values) {

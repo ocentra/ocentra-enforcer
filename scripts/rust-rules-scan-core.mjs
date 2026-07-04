@@ -188,6 +188,7 @@ Compatibility aliases:
 
 Scope options:
   --files <path...>       Scan explicit files or directories.
+  --files-from <path>     Read file scope from a newline/comma text file or JSON files array.
   --crate <name>          Scan one Cargo package by package.name.
   --workspace, --all      Scan the whole workspace/repo.
   --base <sha> --head <sha>
@@ -248,7 +249,7 @@ Codex install options:
 
 function loadConfig(root, explicitPath, profile = null) {
   const profileConfig = profile ? readProfileConfig(profile) : {};
-  const candidate = resolveConfigCandidate(root, explicitPath, profile);
+  const candidate = resolveConfigCandidate(root, explicitPath);
   let userConfig = {};
   if (candidate && fs.existsSync(candidate)) {
     userConfig = JSON.parse(fs.readFileSync(candidate, "utf8"));
@@ -260,17 +261,14 @@ function loadConfig(root, explicitPath, profile = null) {
   );
 }
 
-function resolveConfigCandidate(root, explicitPath, profile) {
+function resolveConfigCandidate(root, explicitPath) {
   if (explicitPath)
     return path.isAbsolute(explicitPath)
       ? explicitPath
       : path.join(root, explicitPath);
-  if (profile) {
-    return null;
-  }
   const targetConfig = resolveDefaultConfigPath(root);
   if (targetConfig) return targetConfig;
-  return path.join(PACK_ROOT, "profiles", "strict.json");
+  return null;
 }
 
 function readProfileConfig(profile) {

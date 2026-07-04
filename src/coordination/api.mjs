@@ -24,6 +24,7 @@ import {
   repairSequenceBreaks,
 } from "./vendor/repair.js";
 import { compactLedger } from "./vendor/retention.js";
+import { buildHealthPresence } from "./vendor/health-presence.js";
 import { syncFromHttpPeer } from "./vendor/sync/http.js";
 import { syncFromPeer } from "./vendor/sync/local.js";
 import {
@@ -309,11 +310,12 @@ export async function coordinationRelease(args = {}) {
       };
     }
   }
+  const releaseContextValue = releaseContext(args);
   const event = await appendEvent(root, config, lane, {
     type: "release",
     paths,
     ...(args.reason ? { reason: parseUserText(args.reason) } : {}),
-    context: contextFor(args),
+    ...(releaseContextValue === undefined ? {} : { context: releaseContextValue }),
   });
   const state = await materialize(root);
   const notificationEvents = [];
@@ -888,78 +890,6 @@ function quoteCli(value) {
   return `"${String(value).replaceAll('"', '\\"')}"`;
 }
 
-function buildHealthPresence(root, state, options = {}) {
-  const rows = [...state.workers.values()].map((worker) => {
-    const lane = state.lanes.get(worker.lane);
-    const context = worker.context ?? {};
-    return {
-      writer: worker.writer,
-      lane: worker.lane,
-      state: worker.state,
-      nodeId: worker.nodeId,
-      nodeName: worker.nodeName,
-      machine: context.machine ?? worker.nodeName,
-      projectId: context.projectId ?? "unknown",
-      worktreeRoot: context.worktreeRoot ?? null,
-      branch: context.branch ?? null,
-      commit: context.commit ?? null,
-      codexThreadId: context.codexThreadId ?? "unknown",
-      codexSessionId: context.codexSessionId ?? "unknown",
-      lastSeenAt: worker.lastSeenAt,
-      heartbeatExpiresAt: worker.heartbeat?.expiresAt ?? null,
-      activeClaimCount: (worker.activeClaims ?? []).length,
-      unreadInboxCount:
-        lane?.inbox.filter((item) => item.ackedBy.length === 0).length ?? 0,
-      stale: worker.state === "offline" || worker.heartbeat?.stale === true,
-    };
-  });
-  const limit = Number.isFinite(options.limit) ? options.limit : 25;
-  return {
-    ok: true,
-    root,
-    generatedAt: new Date().toISOString(),
-    totalRows: rows.length,
-    rows: rows.slice(0, limit),
-    views: {
-      byClaimedPath: focusedClaimedPathView(
-        [...state.workers.values()],
-        options.changedPaths ?? [],
-        limit,
-      ),
-      staleOffline: rows.filter((row) => row.stale).slice(0, limit),
-    },
-  };
-}
-
-function focusedClaimedPathView(workers, changedPaths, limit) {
-  if (changedPaths.length === 0) return {};
-  const claimed = {};
-  for (const worker of workers) {
-    for (const claim of worker.activeClaims ?? []) {
-      for (const claimPath of claim.paths ?? []) {
-        const normalizedClaimPath = claimPath
-          .replace(/\\/gu, "/")
-          .replace(/^\.\//u, "")
-          .toLowerCase();
-        if (!changedPaths.some((changedPath) => pathOverlaps(changedPath, normalizedClaimPath))) {
-          continue;
-        }
-        claimed[claimPath] ??= [];
-        if (claimed[claimPath].length < limit) {
-          claimed[claimPath].push({
-            writer: worker.writer,
-            lane: worker.lane,
-            state: worker.state,
-            eventId: claim.eventId,
-            reason: claim.reason ?? null,
-          });
-        }
-      }
-    }
-  }
-  return claimed;
-}
-
 function pathList(value) {
   if (Array.isArray(value)) return value.map((entry) => String(entry));
   if (typeof value === "string") {
@@ -973,6 +903,20 @@ function pathList(value) {
 
 function contextFor(args = {}) {
   return buildCoordinationContext(args);
+}
+
+function releaseContext(args = {}) {
+  const scoped = [
+    args.root,
+    args.cwd,
+    args.repoRoot,
+    args.worktreeRoot,
+    args.projectId,
+    args.gitRemote,
+    args.codexThreadId,
+    args.codexSessionId,
+  ].some((value) => value !== undefined);
+  return scoped ? { ...contextFor(args), explicitReleaseScope: true } : undefined;
 }
 
 async function syncPeer(root, peer, args) {

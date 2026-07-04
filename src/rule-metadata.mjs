@@ -759,6 +759,7 @@ export const VERIFY_MODE_CHECKS = Object.freeze({
   local: [
     "rule-coverage",
     "policy-integrity",
+    "source-shape",
     "ci-integrity",
     "repo-governance",
     "package-determinism",
@@ -766,6 +767,7 @@ export const VERIFY_MODE_CHECKS = Object.freeze({
   ci: [
     "rule-coverage",
     "policy-integrity",
+    "source-shape",
     "ci-integrity",
     "repo-governance",
     "package-determinism",

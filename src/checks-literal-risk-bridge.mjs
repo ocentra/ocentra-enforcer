@@ -1,8 +1,14 @@
-import { resolveScope } from "../scripts/rust-rules-path-core.mjs";
 import {
   mapLiteralRiskFindings,
   runLiteralRiskScan,
 } from "./literal-risk.mjs";
+
+function resolveLiteralRiskScope(scope) {
+  if (scope?.mode === "files") {
+    return { mode: "files", files: scope.files ?? [] };
+  }
+  return scope ?? { mode: "all" };
+}
 
 export function collectLiteralRiskStandaloneFindings({
   root,
@@ -10,10 +16,10 @@ export function collectLiteralRiskStandaloneFindings({
   args,
   scope,
 }) {
-  const resolvedScope = resolveScope(root, config, scope ?? { mode: "all" });
+  const resolvedScope = resolveLiteralRiskScope(scope);
   const scan = runLiteralRiskScan({
     root,
-    files: resolvedScope.files ?? [],
+    files: resolvedScope.mode === "files" ? resolvedScope.files : [],
     config,
     args,
   });

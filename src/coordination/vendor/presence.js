@@ -1,8 +1,31 @@
 export function buildPresenceMatrix(root, state, options = {}) {
-    const rows = [...state.workers.values()].map((worker) => {
-        const lane = state.lanes.get(worker.lane);
-        const activeTask = worker.currentTaskId === undefined ? null : state.tasks.get(worker.currentTaskId) ?? null;
-        const context = worker.context ?? {};
+    const rows = [...state.workers.values()].flatMap((worker) => workerPresenceRows(worker, state));
+    const limit = Number.isFinite(options.limit) ? options.limit : rows.length;
+    const limitedRows = rows.slice(0, limit);
+    return {
+        ok: true,
+        root,
+        generatedAt: new Date().toISOString(),
+        totalRows: rows.length,
+        rows: limitedRows,
+        views: {
+            byPc: groupRows(rows, (row) => row.machine),
+            byProject: groupRows(rows, (row) => row.projectId),
+            byWorktree: groupRows(rows, (row) => row.worktreeRoot ?? "unknown"),
+            byLane: groupRows(rows, (row) => row.lane),
+            byThread: groupRows(rows, (row) => row.codexThreadId),
+            byClaimedPath: claimedPathView(rows),
+            staleOffline: rows.filter((row) => row.stale).map(compactRow),
+        },
+    };
+}
+
+function workerPresenceRows(worker, state) {
+    const lane = state.lanes.get(worker.lane);
+    const activeTask = worker.currentTaskId === undefined ? null : state.tasks.get(worker.currentTaskId) ?? null;
+    const claims = worker.activeClaims ?? [];
+    const groups = claims.length === 0 ? [[worker.context ?? {}, []]] : claimContextGroups(worker);
+    return groups.map(([context, activeClaims]) => {
         return {
             writer: worker.writer,
             nodeId: worker.nodeId,
@@ -26,31 +49,34 @@ export function buildPresenceMatrix(root, state, options = {}) {
             lastSeenAt: worker.lastSeenAt,
             heartbeatExpiresAt: worker.heartbeat?.expiresAt ?? null,
             activeTask,
-            activeClaims: worker.activeClaims ?? [],
+            activeClaims,
             unreadInboxCount: lane?.inbox.filter((item) => item.ackedBy.length === 0).length ?? 0,
             peerUrl: context.peerUrl ?? null,
             syncStatus: context.syncStatus ?? "unknown",
             stale: worker.state === "offline" || worker.heartbeat?.stale === true,
         };
     });
-    const limit = Number.isFinite(options.limit) ? options.limit : rows.length;
-    const limitedRows = rows.slice(0, limit);
-    return {
-        ok: true,
-        root,
-        generatedAt: new Date().toISOString(),
-        totalRows: rows.length,
-        rows: limitedRows,
-        views: {
-            byPc: groupRows(rows, (row) => row.machine),
-            byProject: groupRows(rows, (row) => row.projectId),
-            byWorktree: groupRows(rows, (row) => row.worktreeRoot ?? "unknown"),
-            byLane: groupRows(rows, (row) => row.lane),
-            byThread: groupRows(rows, (row) => row.codexThreadId),
-            byClaimedPath: claimedPathView(rows),
-            staleOffline: rows.filter((row) => row.stale).map(compactRow),
-        },
-    };
+}
+
+function claimContextGroups(worker) {
+    const grouped = new Map();
+    for (const claim of worker.activeClaims ?? []) {
+        const context = { ...(worker.context ?? {}), ...(claim.context ?? {}) };
+        const key = contextKey(context);
+        const entry = grouped.get(key) ?? [context, []];
+        entry[1].push(claim);
+        grouped.set(key, entry);
+    }
+    return [...grouped.values()];
+}
+
+function contextKey(context) {
+    return [
+        context.projectId ?? "unknown",
+        context.worktreeRoot ?? context.repoRoot ?? "unknown",
+        context.branch ?? "unknown",
+        context.codexThreadId ?? context.codexSessionId ?? "unknown",
+    ].map((entry) => String(entry).replace(/\\/gu, "/").toLowerCase()).join("|");
 }
 
 function groupRows(rows, keyForRow) {

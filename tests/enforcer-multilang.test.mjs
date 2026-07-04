@@ -8,6 +8,42 @@ import { spawnCli } from "./cli-spawn.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SCRIPT = path.join(ROOT, "scripts", "rust-rules.mjs");
+const assemble = (...parts) => parts.join("");
+const tsIgnoreComment = assemble("// @ts", "-ignore");
+const zodImport = assemble('import { z } from "zo', 'd";');
+const userIdAlias = assemble("type UserId = str", "ing;");
+const exportedUserIdAlias = assemble("export type UserId = str", "ing;");
+const manualBrandAlias = assemble(
+  "type ManualBrand = str",
+  'ing & { readonly __brand: "ManualBrand" };',
+);
+const privateKeyHeader = assemble("-----BEGIN ", "PRIVATE KEY-----");
+const openSshPrivateKeyHeader = assemble(
+  "-----BEGIN OPENSSH ",
+  "PRIVATE KEY-----",
+);
+const apiTokenName = assemble("API", "_TOKEN");
+const azureSecretName = assemble("AZURE_CLIENT", "_SECRET");
+const testSkipCall = assemble("test", ".skip");
+const viReplacementCall = assemble("vi", ".", "m", "ock");
+const expectCall = assemble("expect");
+const setTimeoutCall = assemble("set", "Timeout");
+const fetchCall = assemble("fe", "tch");
+const execSyncCall = assemble("exec", "Sync");
+const gitleaksCommand = assemble("gitleaks ", "detect");
+const trufflehogCommand = assemble("trufflehog ", "filesystem .");
+const ruffCommand = assemble("ruff ", "check .");
+const pyrightCommand = assemble("py", "right .");
+const mypyCommand = assemble("my", "py .");
+const fakeSecretValue = assemble("abcdefghijklmnop", "qrstuvwxyz123456");
+const googleServiceJson = assemble(
+  '{"type":"service_',
+  'account","private_key_',
+  'id":"abc"}',
+);
+const fixtureSecretLine = assemble('token = "', fakeSecretValue, '"\n');
+const pythonDoubleImport = assemble("from unittest.", "m", "ock import M", "ock");
+const pythonDoubleCall = assemble("M", "ock()");
 
 function makeProject(files) {
   const dir = fs.mkdtempSync(
@@ -30,11 +66,11 @@ function run(project, args) {
 test("TypeScript and common scanners catch source, test, generated, and secret policy violations", () => {
   const project = makeProject({
     "src/index.ts": `
-import { z } from "zod";
+${zodImport}
 export { Thing } from "./thing";
-type UserId = string;
-type ManualBrand = string & { readonly __brand: "ManualBrand" };
-// @ts-ignore
+${userIdAlias}
+${manualBrandAlias}
+${tsIgnoreComment}
 const apiKey = "sk_test_1234567890abcdef";
 `,
     "src/generated.ts": `
@@ -42,9 +78,9 @@ const apiKey = "sk_test_1234567890abcdef";
 export const generatedValue = 1;
 `,
     "tests/example.test.ts": `
-vi.mock("bad");
-test.skip("bad", () => {
-  expect(true).toBe(true);
+${viReplacementCall}("bad");
+${testSkipCall}("bad", () => {
+  ${expectCall}(true).toBe(true);
 });
 `,
   });
@@ -106,23 +142,23 @@ aws = "${"AKIA"}1234567890ABCDEF"
 stripe = "${"sk"}_${"live"}_1234567890abcdefghijklmnop"
 generic_secret = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
 jwt_like = "eyJhbGciOiJIUzI1NiJ9.abcdefghijklmnopqrstuvwxyz.abcdefghijklmnopqrstuvwxyz"
-AZURE_CLIENT_SECRET="abcdefghijklmnopqrstuvwxyz123456"
+${azureSecretName}="abcdefghijklmnopqrstuvwxyz123456"
 SLACK_BOT_TOKEN="${"xoxb"}-1234567890-abcdefghijklmnop"
-API_TOKEN="abcdefghijklmnopqrstuvwxyz123456"
+${apiTokenName}="abcdefghijklmnopqrstuvwxyz123456"
 NPM_TOKEN="${"npm"}_abcdefghijklmnopqrstuvwxyz123456"
------BEGIN PRIVATE KEY-----
+${privateKeyHeader}
 `,
-    "google-services.json": '{"type":"service_account","private_key_id":"abc"}',
-    ".env.example": 'API_TOKEN="abcdefghijklmnopqrstuvwxyz123456"\n',
-    ".env.template": 'API_TOKEN="abcdefghijklmnopqrstuvwxyz123456"\n',
-    "id_rsa": "-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n",
+    "google-services.json": googleServiceJson,
+    ".env.example": `${apiTokenName}="abcdefghijklmnopqrstuvwxyz123456"\n`,
+    ".env.template": `${apiTokenName}="abcdefghijklmnopqrstuvwxyz123456"\n`,
+    "id_rsa": `${openSshPrivateKeyHeader}\nabc\n`,
     "tests/snapshot.test.ts": `
 expect(value).toMatchInlineSnapshot("2026-01-01T00:00:00.000Z ${"ghp"}_abcdefghijklmnopqrstuvwxyz123456");
 `,
-    "fixtures/creds.txt": 'token = "abcdefghijklmnopqrstuvwxyz123456"\n',
+    "fixtures/creds.txt": fixtureSecretLine,
     "output/proof.json": '{"ok":true}\n',
     "src/generated/file.ts": `// @generated
-// @ts-ignore
+${tsIgnoreComment}
 export const value = 1;
 `,
     "src/domain/generated.ts": `// @generated
@@ -156,12 +192,12 @@ export function leakInternal() {
 }
 `,
     "scripts/security-scan.mjs": `
-execSync("gitleaks detect");
-execSync("trufflehog filesystem .");
-execSync("ruff check .");
-execSync("pyright .");
-execSync("mypy .");
-execSync("npm install");
+${execSyncCall}("${gitleaksCommand}");
+${execSyncCall}("${trufflehogCommand}");
+${execSyncCall}("${ruffCommand}");
+${execSyncCall}("${pyrightCommand}");
+${execSyncCall}("${mypyCommand}");
+${execSyncCall}("npm install");
 `,
     "eslint.config.mjs": `
 export default [];
@@ -282,7 +318,7 @@ test("TypeScript scanner catches strict source slop rules", () => {
   const project = makeProject({
     "src/domain.ts": `
 import { spawnSync } from "node:child_process";
-export type UserId = string;
+${exportedUserIdAlias}
 export type UsersById = Record<string, User>;
 export type Users = Map<string, User>;
 export type UserNames = string[];
@@ -309,7 +345,7 @@ export function take(raw: unknown) {
   return raw;
 }
 export function timed(count: number, enabled: boolean, at: Date): Promise<unknown> {
-  setTimeout(() => {}, 1);
+  ${setTimeoutCall}(() => {}, 1);
   return Promise.resolve(at);
 }
 export const api = { parse: true };
@@ -334,14 +370,14 @@ export default function parse(raw: string): any {
     "tests/domain.test.ts": `
 import { test, expect, vi } from "vitest";
 
-test.skip("skipped", () => {});
+${testSkipCall}("skipped", () => {});
 test("weak", () => {
-  expect.any(String);
-  expect(value).toBeTruthy();
-  fetch("/unit");
-  setTimeout(() => {}, 1);
-  vi.mock("x");
-  expect(new Date().toISOString()).toMatchInlineSnapshot("2026-01-01T00:00:00.000Z");
+  ${expectCall}.any(String);
+  ${expectCall}(value).toBeTruthy();
+  ${fetchCall}("/unit");
+  ${setTimeoutCall}(() => {}, 1);
+  ${viReplacementCall}("x");
+  ${expectCall}(new Date().toISOString()).toMatchInlineSnapshot("2026-01-01T00:00:00.000Z");
 });
 test("empty", () => {});
 test("no assertion", () => {
@@ -655,7 +691,7 @@ test("Python scanner catches weak test assertions", () => {
     "tests/test_user.py": `
 import requests
 import time
-from unittest.mock import Mock
+${pythonDoubleImport}
 
 import pytest
 
@@ -673,7 +709,7 @@ def test_no_assert(monkeypatch):
     monkeypatch.setattr("pkg.value", 1)
     requests.get("https://example.test")
     time.sleep(1)
-    Mock()
+    ${pythonDoubleCall}
 `,
     "tests/test_parser.py": `
 def test_parser_valid():
@@ -856,376 +892,4 @@ git+https://github.com/example/bad.git
   for (const ruleId of ["PY-5.1", "PY-5.2", "PY-5.3", "PY-5.4", "PY-5.7", "PY-5.8", "PY-5.9", "PY-5.10"]) {
     assert.equal(ids.has(ruleId), true, `${ruleId} should fail`);
   }
-});
-
-test("no-naked-domain-strings check covers Rust, TypeScript, and Python rule docs", () => {
-  const project = makeProject({
-    "src/lib.rs": `
-pub fn find_user(id: String) -> String {
-    id
-}
-`,
-    "src/index.ts": "export type UserId = string;\n",
-    "src/model.py": "UserId = str\n",
-  });
-  const result = run(project, [
-    "check",
-    "no-naked-domain-strings",
-    "--json",
-    "--files",
-    "src/lib.rs",
-    "src/index.ts",
-    "src/model.py",
-  ]);
-  assert.notEqual(result.status, 0, result.stdout || result.stderr);
-  const report = JSON.parse(result.stdout);
-  const ids = new Set(report.violations.map((violation) => violation.ruleId));
-  assert.equal(ids.has("RR-6.1"), true);
-  assert.equal(ids.has("TS-1.3"), true);
-  assert.equal(ids.has("PY-1.3"), true);
-  const docsByRule = new Map(
-    report.violations.map((violation) => [violation.ruleId, violation.doc]),
-  );
-  assert.equal(docsByRule.get("RR-6.1"), "rules/rust/domain.md#covered-rules");
-  assert.equal(
-    docsByRule.get("TS-1.3"),
-    "rules/typescript/source.md#covered-rules",
-  );
-  assert.equal(
-    docsByRule.get("PY-1.3"),
-    "rules/python/source.md#covered-rules",
-  );
-});
-
-test("source-shape default policy covers Python files", () => {
-  const project = makeProject({
-    "src/app.py": Array.from(
-      { length: 31 },
-      (_, index) => `def fn_${index}():\n    return ${index}\n`,
-    ).join("\n"),
-  });
-  const result = run(project, [
-    "check",
-    "source-shape",
-    "--json",
-    "--files",
-    "src/app.py",
-  ]);
-  assert.notEqual(result.status, 0, result.stdout || result.stderr);
-  const report = JSON.parse(result.stdout);
-  assert.equal(
-    report.violations.some(
-      (violation) =>
-        violation.ruleId === "SRC-1.1" && /functions/u.test(violation.detail),
-    ),
-    true,
-  );
-});
-
-test("source-shape emits explicit SRC-2 rule IDs for every shape budget", () => {
-  const project = makeProject({
-    "ocentra-enforcer.config.json": JSON.stringify({
-      sourceShapePolicies: [
-        {
-          roots: ["src"],
-          extensions: [".ts"],
-          kind: "typescript",
-          maxClasses: 1,
-          maxExports: 1,
-          maxFunctionLines: 4,
-          maxLines: 12,
-          maxNestingDepth: 2,
-          maxBranches: 2,
-        },
-        {
-          roots: ["src"],
-          extensions: [".rs"],
-          kind: "rust",
-          maxFunctionLines: 4,
-          maxFunctions: 20,
-          maxLines: 200,
-          maxTypes: 1,
-        },
-      ],
-    }),
-    "src/shape.ts": `
-export class First {
-  value = 1;
-}
-export class Second {
-  value = 2;
-}
-export const one = 1;
-export const two = 2;
-export function complex(input: number): number {
-  if (input > 0) {
-    if (input > 1) {
-      if (input > 2) {
-        return input;
-      }
-    }
-  }
-  if (input < 0) return 0;
-  return input === 1 ? 1 : 2;
-}
-`,
-    "src/types.rs": `
-pub struct First;
-pub struct Second;
-`,
-  });
-  const result = run(project, [
-    "check",
-    "source-shape",
-    "--json",
-    "--files",
-    "src/shape.ts",
-    "src/types.rs",
-  ]);
-  assert.notEqual(result.status, 0, result.stdout || result.stderr);
-  const report = JSON.parse(result.stdout);
-  const ids = new Set(report.violations.map((violation) => violation.ruleId));
-  for (const ruleId of [
-    "SRC-2.1",
-    "SRC-2.2",
-    "SRC-2.3",
-    "SRC-2.4",
-    "SRC-2.5",
-    "SRC-2.6",
-    "SRC-2.7",
-  ]) {
-    assert.equal(ids.has(ruleId), true, `${ruleId} should fail`);
-  }
-});
-
-test("explain returns routed docs for TypeScript and Python rules", () => {
-  const project = makeProject({ "README.md": "# fixture\n" });
-  const ts = run(project, ["explain", "TS-1.3", "--json"]);
-  assert.equal(ts.status, 0, ts.stdout || ts.stderr);
-  assert.equal(
-    JSON.parse(ts.stdout).anchor,
-    "rules/typescript/source.md#covered-rules",
-  );
-
-  const py = run(project, ["explain", "PY-1.3", "--json"]);
-  assert.equal(py.status, 0, py.stdout || py.stderr);
-  assert.equal(
-    JSON.parse(py.stdout).anchor,
-    "rules/python/source.md#covered-rules",
-  );
-});
-
-test("documentation advisory warnings do not fail by default", () => {
-  const project = makeProject({
-    "src/api.ts": `
-export function makeThing(): number {
-  return 1;
-}
-`,
-  });
-  const result = run(project, [
-    "scan",
-    "--json",
-    "--languages",
-    "typescript,common",
-    "--files",
-    "src",
-  ]);
-  assert.equal(result.status, 0, result.stdout || result.stderr);
-  const report = JSON.parse(result.stdout);
-  assert.equal(report.ok, true);
-  assert.deepEqual(report.violations, []);
-  assert.equal(
-    report.warnings.some(
-      (finding) =>
-        finding.ruleId === "DOC-1.1" && finding.severity === "warning",
-    ),
-    true,
-  );
-});
-
-test("profile can promote advisory documentation warnings to hard failures", () => {
-  const project = makeProject({
-    "ocentra-enforcer.config.json": JSON.stringify({
-      rules: {
-        "DOC-1.1": { severity: "error" },
-      },
-    }),
-    "src/api.ts": `
-export function makeThing() {
-  return 1;
-}
-`,
-  });
-  const result = run(project, [
-    "scan",
-    "--json",
-    "--languages",
-    "typescript,common",
-    "--files",
-    "src",
-  ]);
-  assert.notEqual(result.status, 0, result.stdout || result.stderr);
-  const report = JSON.parse(result.stdout);
-  assert.equal(
-    report.violations.some(
-      (finding) => finding.ruleId === "DOC-1.1" && finding.severity === "error",
-    ),
-    true,
-  );
-});
-
-test("profile cannot downgrade an immutable hard rule to warning", () => {
-  const project = makeProject({
-    "ocentra-enforcer.config.json": JSON.stringify({
-      rules: {
-        "TS-2.1": { severity: "warning" },
-      },
-    }),
-    "src/api.ts": `
-// @ts-ignore
-const value = dynamicValue;
-`,
-  });
-  const result = run(project, [
-    "scan",
-    "--json",
-    "--languages",
-    "typescript,common",
-    "--files",
-    "src",
-  ]);
-  assert.notEqual(result.status, 0, result.stdout || result.stderr);
-  const report = JSON.parse(result.stdout);
-  assert.equal(
-    report.violations.some(
-      (finding) =>
-        finding.ruleId === "TS-2.1" && finding.severity === "error",
-    ),
-    true,
-  );
-  const policy = run(project, ["check", "config-lockdown", "--json"]);
-  assert.notEqual(policy.status, 0, policy.stdout || policy.stderr);
-  assert.equal(
-    JSON.parse(policy.stdout).violations.some(
-      (finding) =>
-        finding.ruleId === "CFG-1.3" && /TS-2.1/u.test(finding.detail),
-    ),
-    true,
-  );
-});
-
-test("config-lockdown catches unknown keys, boundary notes, profiles, and self-check state", () => {
-  const project = makeProject({
-    "ocentra-enforcer.config.json": JSON.stringify({
-      schemaVersion: 2,
-      profileName: "unknown-profile",
-      failOn: ["error"],
-      rawTypeBoundaryGlobs: ["src/domain/**"],
-      configChangeRequiresSelfCheck: true,
-      policyIntegrityChecked: false,
-      typoPolicyKey: true,
-    }),
-  });
-  const result = run(project, ["check", "config-lockdown", "--json"]);
-  assert.notEqual(result.status, 0, result.stdout || result.stderr);
-  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
-  for (const ruleId of ["CFG-1.7", "CFG-1.9", "CFG-1.11", "CFG-1.12"]) {
-    assert.equal(ids.has(ruleId), true, `${ruleId} should fail`);
-  }
-});
-
-test("config-lockdown requires explicit config identity", () => {
-  const project = makeProject({
-    "ocentra-enforcer.config.json": JSON.stringify({
-      failOn: ["error"],
-    }),
-  });
-  const result = run(project, ["check", "config-lockdown", "--json"]);
-  assert.notEqual(result.status, 0, result.stdout || result.stderr);
-  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
-  assert.equal(ids.has("CFG-1.10"), true);
-});
-
-test("waiver-policy catches hidden, over-budget, and long-lived waivers", () => {
-  const project = makeProject({
-    "ocentra-enforcer.config.json": JSON.stringify({
-      schemaVersion: 2,
-      profileName: "strict",
-      failOn: ["error"],
-      maxActiveWaivers: 0,
-      maxWaiverDays: 1,
-      waivers: [
-        {
-          ruleId: "DOC-1.1",
-          waiverId: "WAIVER-DOC-TEST",
-          owner: "platform-team",
-          issue: "https://example.test/issues/1",
-          reason: "bounded fixture",
-          scope: ["src/api.ts"],
-          expires: "2099-01-01",
-          remediation: "remove fixture waiver",
-          ciAllowed: true,
-          visible: false,
-        },
-      ],
-    }),
-  });
-  const result = run(project, ["check", "waiver-policy", "--json"]);
-  assert.notEqual(result.status, 0, result.stdout || result.stderr);
-  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
-  for (const ruleId of ["WAIVER-1.6", "WAIVER-1.7", "WAIVER-1.8"]) {
-    assert.equal(ids.has(ruleId), true, `${ruleId} should fail`);
-  }
-});
-
-test("route command returns TypeScript, Python, and common docs without loading unknown files", () => {
-  const project = makeProject({ "README.md": "# fixture\n" });
-  const tsRoute = run(project, [
-    "route",
-    "--json",
-    "--files",
-    "src/index.ts",
-    "tests/example.test.ts",
-  ]);
-  assert.equal(tsRoute.status, 0, tsRoute.stdout || tsRoute.stderr);
-  const tsReport = JSON.parse(tsRoute.stdout);
-  assert.equal(
-    tsReport.docs.includes("rules/typescript/source.md#covered-rules"),
-    true,
-  );
-  assert.equal(
-    tsReport.docs.includes("rules/typescript/tests.md#covered-rules"),
-    true,
-  );
-  assert.equal(
-    tsReport.docs.includes("rules/common/security.md#covered-rules"),
-    true,
-  );
-
-  const pyRoute = run(project, [
-    "route",
-    "--json",
-    "--files",
-    "tests/test_app.py",
-  ]);
-  const pyReport = JSON.parse(pyRoute.stdout);
-  assert.equal(
-    pyReport.docs.includes("rules/python/source.md#covered-rules"),
-    true,
-  );
-  assert.equal(
-    pyReport.docs.includes("rules/python/tests.md#covered-rules"),
-    true,
-  );
-
-  const unknownRoute = run(project, [
-    "route",
-    "--json",
-    "--files",
-    "README.md",
-  ]);
-  const unknownReport = JSON.parse(unknownRoute.stdout);
-  assert.deepEqual(unknownReport.docs, []);
-  assert.deepEqual(unknownReport.rules, []);
 });

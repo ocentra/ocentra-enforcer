@@ -3,7 +3,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { normalizeRel } from "./path-utils.mjs";
+import { normalizeRel, repoAbsolute } from "./path-utils.mjs";
 import { buildLiteralRiskScanCommand } from "./literal-risk-command.mjs";
 import { buildLiteralRiskOptions } from "./literal-risk-options.mjs";
 import { mapLiteralRiskFindings as mapLiteralRiskFindingsImpl } from "./literal-risk-findings.mjs";
@@ -29,9 +29,30 @@ function resolveBuiltBinary() {
   return builtBinaryCandidates().find((candidate) => fs.existsSync(candidate));
 }
 
+function newestSourceMtimeMs(dir) {
+  let newest = 0;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === "target") continue;
+      newest = Math.max(newest, newestSourceMtimeMs(fullPath));
+      continue;
+    }
+    if (entry.name.endsWith(".rs") || entry.name === "Cargo.toml") {
+      newest = Math.max(newest, fs.statSync(fullPath).mtimeMs);
+    }
+  }
+  return newest;
+}
+
+function isBinaryFresh(binaryPath) {
+  const binaryMtime = fs.statSync(binaryPath).mtimeMs;
+  return binaryMtime >= newestSourceMtimeMs(LITERAL_SCAN_ROOT);
+}
+
 function ensureBuiltBinary() {
   const existingBinary = resolveBuiltBinary();
-  if (existingBinary) return existingBinary;
+  if (existingBinary && isBinaryFresh(existingBinary)) return existingBinary;
   if (!fs.existsSync(LITERAL_SCAN_MANIFEST)) {
     throw new Error(
       `Literal-risk scanner crate is missing: ${LITERAL_SCAN_MANIFEST}`,
@@ -90,7 +111,7 @@ export function runLiteralRiskScan({
   const scannerOptions = buildLiteralRiskOptions(config, args);
   const invocation = resolveScannerInvocation();
   const explicitFiles = files
-    .map((file) => normalizeRel(rootPath, file))
+    .map((file) => normalizeRel(rootPath, repoAbsolute(rootPath, file)))
     .filter(Boolean);
   const command = buildLiteralRiskScanCommand(
     invocation,
