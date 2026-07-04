@@ -6,3 +6,6 @@
 {"ts":"2026-07-04T00:10:00Z","lane":"c01","event":"checkpoint","commit":"cb89c57","note":"first proof-green: cargo test -p enforcer-install 58/58 passed"}
 {"ts":"2026-07-04T00:20:00Z","lane":"c01","event":"proof_green","tests":58,"failed":0,"clippy":"clean","fmt":"clean","workspace_regression":"none (cargo test --workspace all green)"}
 {"ts":"2026-07-04T00:25:00Z","lane":"c01","event":"done","artifact":"proof/install/c01-contract.json","summary":"arc-23 skeleton audited+extended: fail-closed unknown-adapter, skill-asset doctor fold-in, parallel-execution doctrine snippet citing refs/orchestration-lessons.md, branded RepoRoot paths, stable CommandEnvelope command/checks JSON schema"}
+{"ts":"2026-07-04T00:26:00Z","lane":"c01","event":"closeout_attempt","tool":"mcp__ocentra-enforcer__ocentra_enforcer_coordination_closeout","result":"stale_mcp_reload_required"}
+{"ts":"2026-07-04T00:26:01Z","lane":"c01","event":"mail_attempt","subject":"c01 done","result":"stale_mcp_reload_required"}
+{"ts":"2026-07-04T00:26:02Z","lane":"c01","event":"final_push","commit":"25d4bce","branch":"lane/c01","result":"pushed_to_origin"}
