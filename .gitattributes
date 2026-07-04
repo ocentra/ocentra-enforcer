@@ -27,3 +27,6 @@ pre-commit text eol=lf
 crates/enforcer-install/tests/fixtures/** text eol=lf
 crates/enforcer-install/src/emitters/templates/** text eol=lf
 husky-pre-commit text eol=lf
+# generated installer artifacts: LF to match their Rust-rendered source-of-truth (overrides *.ps1 eol=crlf)
+install.ps1 text eol=lf
+install.sh text eol=lf
