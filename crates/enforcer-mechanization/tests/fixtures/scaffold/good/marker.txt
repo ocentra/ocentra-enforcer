@@ -1,0 +1,2 @@
+This is a clean fixture that must NOT trip the round-trip scaffold test's
+MarkerValidator (it deliberately omits the SCAFFOLD_MARKER literal).

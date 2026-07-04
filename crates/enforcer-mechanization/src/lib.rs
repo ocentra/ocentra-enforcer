@@ -33,4 +33,5 @@
 
 pub mod error;
 pub mod oracle;
+pub mod parity;
 pub mod scaffold;

@@ -16,6 +16,7 @@ enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 
 [dev-dependencies]
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
+tempfile = "3"
 
 [lints]
 workspace = true

@@ -276,6 +276,7 @@ dependencies = [
  "enforcer-rules",
  "enforcer-validator",
  "serde_json",
+ "tempfile",
  "thiserror 1.0.69",
 ]
 
