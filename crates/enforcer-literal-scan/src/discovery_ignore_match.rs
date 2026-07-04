@@ -28,13 +28,18 @@ pub(crate) fn gitignore_pattern_matches(pattern: &str, rel: &str, is_dir: bool) 
 pub(crate) fn is_default_ignored_dir(path: &Path) -> bool {
     path.file_name()
         .and_then(OsStr::to_str)
-        .map(|name| DEFAULT_IGNORED_DIRS.iter().any(|entry| name.eq_ignore_ascii_case(entry)))
+        .map(|name| {
+            DEFAULT_IGNORED_DIRS
+                .iter()
+                .any(|entry| name.eq_ignore_ascii_case(entry))
+        })
         .unwrap_or(false)
 }
 
 pub(crate) fn is_default_ignored_file(path: &Path) -> bool {
     let name = path.file_name().and_then(OsStr::to_str).unwrap_or("");
-    DEFAULT_IGNORED_FILE_SUFFIXES
-        .iter()
-        .any(|suffix| name.to_ascii_lowercase().ends_with(&suffix.to_ascii_lowercase()))
+    DEFAULT_IGNORED_FILE_SUFFIXES.iter().any(|suffix| {
+        name.to_ascii_lowercase()
+            .ends_with(&suffix.to_ascii_lowercase())
+    })
 }

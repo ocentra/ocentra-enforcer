@@ -135,8 +135,17 @@ fn write_language_counts(out: &mut String, report: &ScanReport) {
     }
     out.push('\n');
     for (idx, (language, count)) in report.languages.iter().enumerate() {
-        let comma = if idx + 1 == report.languages.len() { "" } else { "," };
-        out.push_str(&format!("    {}: {}{}\n", json_string(language), count, comma));
+        let comma = if idx + 1 == report.languages.len() {
+            ""
+        } else {
+            ","
+        };
+        out.push_str(&format!(
+            "    {}: {}{}\n",
+            json_string(language),
+            count,
+            comma
+        ));
     }
     out.push_str("  },\n");
 }

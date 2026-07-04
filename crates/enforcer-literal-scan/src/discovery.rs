@@ -2,19 +2,16 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use super::{CliOptions, FileJob, FileResult, IgnoredSummary};
 use crate::discovery_ignore::{walk, IgnoreState};
 use crate::lexer::{lex_literals, line_at};
-use super::{CliOptions, FileJob, FileResult, IgnoredSummary};
 
 pub(crate) fn scan_file(job: FileJob) -> io::Result<FileResult> {
     let source = fs::read_to_string(&job.path)?;
     let mut candidates = lex_literals(&source, job.language, &job.rel);
     for candidate in &mut candidates {
         if candidate.context.is_empty() {
-            candidate.context = match line_at(&source, candidate.line) {
-                Some(line) => line,
-                None => String::new(),
-            };
+            candidate.context = line_at(&source, candidate.line).unwrap_or_default();
         }
     }
     Ok(FileResult {

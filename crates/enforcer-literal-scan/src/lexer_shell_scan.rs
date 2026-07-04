@@ -51,5 +51,8 @@ fn parse_shell_string(
     } else {
         LiteralKind::Normal
     };
-    Some((candidate(&content, line, col, kind, line_at(source, line)), consumed))
+    Some((
+        candidate(&content, line, col, kind, line_at(source, line)),
+        consumed,
+    ))
 }

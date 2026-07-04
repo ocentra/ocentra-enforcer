@@ -85,7 +85,13 @@ fn try_python_triple_string(
     if *last_block_start {
         kind = LiteralKind::DocString;
     }
-    out.push(candidate(content, *line, *col, kind, line_at(source, *line)));
+    out.push(candidate(
+        content,
+        *line,
+        *col,
+        kind,
+        line_at(source, *line),
+    ));
     let consumed = prefix_len + 3 + end + 3;
     advance_position(&source[*index..*index + consumed], line, col);
     *index += consumed;
@@ -93,6 +99,10 @@ fn try_python_triple_string(
     true
 }
 
+// Inherited from the standalone Tools/ocentra-literal-scan tool (arc-13
+// fold-in preserves lexer behavior as-is; a param-struct refactor across
+// the shared cursor-state signature is out of scope for this workpack).
+#[allow(clippy::too_many_arguments)]
 fn try_python_quoted_string(
     source: &str,
     prefix_len: usize,
@@ -114,7 +124,13 @@ fn try_python_quoted_string(
     } else {
         LiteralKind::Normal
     };
-    out.push(candidate(&content, *line, *col, kind, line_at(source, *line)));
+    out.push(candidate(
+        &content,
+        *line,
+        *col,
+        kind,
+        line_at(source, *line),
+    ));
     let consumed = prefix_len + consumed_quote;
     advance_position(&source[*index..*index + consumed], line, col);
     *index += consumed;

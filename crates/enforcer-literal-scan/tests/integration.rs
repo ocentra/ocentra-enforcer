@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -6,7 +8,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use enforcer_literal_scan::{run_scan, CliOptions, RiskCategory};
 
 fn fixture(path: &str) -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures").join(path)
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures")
+        .join(path)
 }
 
 #[test]
@@ -19,10 +23,22 @@ fn bad_dataset_produces_hard_and_soft_findings() {
     };
     let report = run_scan(&opts).expect("scan should run");
     assert!(!report.ok, "secret fixture should hard fail");
-    assert!(report.hard_findings.iter().any(|finding| finding.category == RiskCategory::SecretLike));
-    assert!(report.literal_risks.iter().any(|finding| finding.category == RiskCategory::EventOrCommandName));
-    assert!(report.literal_risks.iter().any(|finding| finding.category == RiskCategory::RouteOrUrl));
-    assert!(report.literal_risks.iter().any(|finding| finding.category == RiskCategory::MagicStringComparison));
+    assert!(report
+        .hard_findings
+        .iter()
+        .any(|finding| finding.category == RiskCategory::SecretLike));
+    assert!(report
+        .literal_risks
+        .iter()
+        .any(|finding| finding.category == RiskCategory::EventOrCommandName));
+    assert!(report
+        .literal_risks
+        .iter()
+        .any(|finding| finding.category == RiskCategory::RouteOrUrl));
+    assert!(report
+        .literal_risks
+        .iter()
+        .any(|finding| finding.category == RiskCategory::MagicStringComparison));
 }
 
 #[test]
@@ -98,13 +114,31 @@ fn many_language_dataset_scans_broad_language_families() {
         "dockerfile",
         "html",
     ] {
-        assert!(languages.contains(expected), "expected language {expected} in {languages:?}");
+        assert!(
+            languages.contains(expected),
+            "expected language {expected} in {languages:?}"
+        );
     }
-    assert!(!languages.contains("markdown"), "markdown must not be code literal-risk scanned");
-    assert!(!languages.contains("json"), "json must not be code literal-risk scanned");
-    assert!(report.literal_risks.iter().any(|finding| finding.category == RiskCategory::ShellFragment));
-    assert!(report.literal_risks.iter().any(|finding| finding.category == RiskCategory::ProtocolHeaderOrMedia));
-    assert!(report.literal_risks.iter().any(|finding| finding.category == RiskCategory::EventOrCommandName));
+    assert!(
+        !languages.contains("markdown"),
+        "markdown must not be code literal-risk scanned"
+    );
+    assert!(
+        !languages.contains("json"),
+        "json must not be code literal-risk scanned"
+    );
+    assert!(report
+        .literal_risks
+        .iter()
+        .any(|finding| finding.category == RiskCategory::ShellFragment));
+    assert!(report
+        .literal_risks
+        .iter()
+        .any(|finding| finding.category == RiskCategory::ProtocolHeaderOrMedia));
+    assert!(report
+        .literal_risks
+        .iter()
+        .any(|finding| finding.category == RiskCategory::EventOrCommandName));
 }
 
 #[test]
@@ -132,7 +166,10 @@ fn include_ignored_scans_ignored_dataset() {
     };
     let report = run_scan(&opts).expect("scan should run");
     assert!(report.summary.files_scanned >= 2);
-    assert!(report.literal_risks.iter().any(|finding| finding.literal_preview.contains("ignored.created")));
+    assert!(report
+        .literal_risks
+        .iter()
+        .any(|finding| finding.literal_preview.contains("ignored.created")));
 }
 
 #[test]
@@ -161,7 +198,10 @@ fn fail_above_turns_high_risk_into_hard_failure() {
     };
     let report = run_scan(&opts).expect("scan should run");
     assert!(!report.ok);
-    assert!(report.hard_findings.iter().any(|finding| finding.rule_id.starts_with("LIT-")));
+    assert!(report
+        .hard_findings
+        .iter()
+        .any(|finding| finding.rule_id.starts_with("LIT-")));
 }
 
 #[test]
@@ -169,7 +209,10 @@ fn binary_file_does_not_crash() {
     let root = temp_dir("literal_scan_binary");
     fs::create_dir_all(root.join("src")).unwrap();
     fs::write(root.join("src/bin.rs"), [0u8, 159, 146, 150]).unwrap();
-    let opts = CliOptions { root: root.clone(), ..CliOptions::default() };
+    let opts = CliOptions {
+        root: root.clone(),
+        ..CliOptions::default()
+    };
     let report = run_scan(&opts).expect("scan should handle binary");
     assert_eq!(report.summary.files_scanned, 0);
     assert!(report.ignored.binary >= 1);

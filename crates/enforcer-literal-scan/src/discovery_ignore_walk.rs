@@ -52,7 +52,9 @@ fn visit_directory(
     ignored: &mut IgnoredSummary,
     out: &mut Vec<PathBuf>,
 ) -> io::Result<()> {
-    let mut entries = fs::read_dir(current)?.filter_map(Result::ok).collect::<Vec<_>>();
+    let mut entries = fs::read_dir(current)?
+        .filter_map(Result::ok)
+        .collect::<Vec<_>>();
     entries.sort_by_key(|entry| entry.path());
     for entry in entries {
         walk(root, &entry.path(), opts, ignore_state, ignored, out)?;

@@ -56,7 +56,13 @@ fn try_hash_triple_string(
         return false;
     };
     let content = &source[*index + 3..*index + 3 + end];
-    out.push(candidate(content, *line, *col, LiteralKind::Triple, line_at(source, *line)));
+    out.push(candidate(
+        content,
+        *line,
+        *col,
+        LiteralKind::Triple,
+        line_at(source, *line),
+    ));
     let consumed = 3 + end + 3;
     advance_position(&source[*index..*index + consumed], line, col);
     *index += consumed;
@@ -78,7 +84,13 @@ fn try_hash_string(
     let Some((content, consumed)) = read_quoted(&source[*index..], ch) else {
         return false;
     };
-    out.push(candidate(&content, *line, *col, LiteralKind::Normal, line_at(source, *line)));
+    out.push(candidate(
+        &content,
+        *line,
+        *col,
+        LiteralKind::Normal,
+        line_at(source, *line),
+    ));
     advance_position(&source[*index..*index + consumed], line, col);
     *index += consumed;
     true
@@ -99,7 +111,13 @@ fn try_hash_template(
     let Some((content, consumed)) = read_quoted(&source[*index..], '`') else {
         return false;
     };
-    out.push(candidate(&content, *line, *col, LiteralKind::Template, line_at(source, *line)));
+    out.push(candidate(
+        &content,
+        *line,
+        *col,
+        LiteralKind::Template,
+        line_at(source, *line),
+    ));
     advance_position(&source[*index..*index + consumed], line, col);
     *index += consumed;
     true

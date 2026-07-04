@@ -18,15 +18,19 @@ pub(crate) fn apply_value_flag(
         }
         "--max-file-bytes" => {
             *index += 1;
-            let raw = args.get(*index).ok_or("--max-file-bytes requires a number")?;
+            let raw = args
+                .get(*index)
+                .ok_or("--max-file-bytes requires a number")?;
             opts.max_file_bytes = raw
                 .parse::<u64>()
-                .map_err(|_| "--max-file-bytes must be a positive integer".to_string())?;
+                .map_err(|error| format!("--max-file-bytes must be a positive integer: {error}"))?;
             Ok(true)
         }
         "--languages" => {
             *index += 1;
-            let raw = args.get(*index).ok_or("--languages requires a comma list")?;
+            let raw = args
+                .get(*index)
+                .ok_or("--languages requires a comma list")?;
             opts.languages = raw
                 .split(',')
                 .map(str::trim)
@@ -42,7 +46,7 @@ pub(crate) fn apply_value_flag(
 fn parse_u8(value: Option<&String>, flag: &str) -> Result<u8, String> {
     let raw = value.ok_or_else(|| format!("{flag} requires a number"))?;
     raw.parse::<u8>()
-        .map_err(|_| format!("{flag} must be a number from 0 to 100"))
+        .map_err(|error| format!("{flag} must be a number from 0 to 100: {error}"))
         .and_then(|value| {
             if value <= 100 {
                 Ok(value)

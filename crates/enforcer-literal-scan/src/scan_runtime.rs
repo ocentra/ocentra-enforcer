@@ -3,8 +3,8 @@ use std::io;
 use std::time::SystemTime;
 
 use crate::discovery_ignore::IgnoreState;
-use crate::scan_parallel::scan_jobs_in_parallel;
 use crate::scan_jobs::build_scan_jobs;
+use crate::scan_parallel::scan_jobs_in_parallel;
 use crate::scan_results::classify_scan_results;
 use crate::{CliOptions, IgnoredSummary, ScanReport, ScanSummary};
 
@@ -28,7 +28,10 @@ pub fn run_scan(opts: &CliOptions) -> io::Result<ScanReport> {
             literals_found,
             literal_risks: literal_risks.len(),
             hard_findings: hard_findings.len(),
-            duration_ms: started.elapsed().map(|elapsed| elapsed.as_millis()).unwrap_or(0),
+            duration_ms: started
+                .elapsed()
+                .map(|elapsed| elapsed.as_millis())
+                .unwrap_or(0),
         },
         ignored,
         hard_findings,

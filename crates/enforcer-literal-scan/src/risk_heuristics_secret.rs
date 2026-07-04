@@ -18,7 +18,8 @@ pub(crate) fn looks_high_entropy_secret(text: &str) -> bool {
         text.chars().any(|c| c.is_ascii_lowercase()),
         text.chars().any(|c| c.is_ascii_uppercase()),
         text.chars().any(|c| c.is_ascii_digit()),
-        text.chars().any(|c| matches!(c, '+' | '/' | '_' | '-' | '=' | '.')),
+        text.chars()
+            .any(|c| matches!(c, '+' | '/' | '_' | '-' | '=' | '.')),
     ];
     classes.iter().filter(|value| **value).count() >= 3
 }
@@ -35,7 +36,9 @@ fn github_token(value: &str) -> bool {
 fn aws_key(value: &str) -> bool {
     value.starts_with("AKIA")
         && value.len() >= 20
-        && value.chars().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit())
+        && value
+            .chars()
+            .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit())
 }
 
 fn openai_key(value: &str) -> bool {

@@ -1,6 +1,10 @@
 use crate::stable_hash_hex;
 use crate::{FileRole, Finding, LiteralCandidate, RiskCategory};
 
+// Inherited from the standalone Tools/ocentra-literal-scan tool (arc-13
+// fold-in preserves its scoring behavior as-is; a param-struct refactor is
+// out of scope for this workpack -- see arc-13 workpack "no regression").
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn make_finding(
     rule_id: &str,
     severity: &str,

@@ -45,7 +45,10 @@ pub(crate) fn build_scan_jobs(
 }
 
 fn collect_language_filter(opts: &CliOptions) -> HashSet<String> {
-    opts.languages.iter().map(|value| value.to_lowercase()).collect()
+    opts.languages
+        .iter()
+        .map(|value| value.to_lowercase())
+        .collect()
 }
 
 fn should_skip_large_or_binary_file(

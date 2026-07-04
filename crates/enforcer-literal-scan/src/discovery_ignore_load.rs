@@ -13,9 +13,7 @@ fn read_patterns_from_file(path: &Path) -> Vec<String> {
     let Ok(text) = fs::read_to_string(path) else {
         return Vec::new();
     };
-    text.lines()
-        .filter_map(normalize_pattern_line)
-        .collect()
+    text.lines().filter_map(normalize_pattern_line).collect()
 }
 
 fn normalize_pattern_line(line: &str) -> Option<String> {

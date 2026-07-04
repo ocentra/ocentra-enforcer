@@ -42,13 +42,23 @@ pub(crate) fn try_rust_raw_string(
         return false;
     };
     let content = &source[content_start..content_start + end_rel];
-    out.push(candidate(content, *line, *col, kind, line_at(source, *line)));
+    out.push(candidate(
+        content,
+        *line,
+        *col,
+        kind,
+        line_at(source, *line),
+    ));
     let consumed = prefix_len + end_rel + closing.len();
     advance_position(&source[*index..*index + consumed], line, col);
     *index += consumed;
     true
 }
 
+// Inherited from the standalone Tools/ocentra-literal-scan tool (arc-13
+// fold-in preserves lexer behavior as-is; a param-struct refactor across
+// the shared cursor-state signature is out of scope for this workpack).
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn try_rust_byte_string(
     source: &str,
     ch: char,
@@ -64,12 +74,22 @@ pub(crate) fn try_rust_byte_string(
     let Some((content, consumed)) = read_quoted(&source[*index + 1..], '"') else {
         return false;
     };
-    out.push(candidate(&content, *line, *col, LiteralKind::Byte, line_at(source, *line)));
+    out.push(candidate(
+        &content,
+        *line,
+        *col,
+        LiteralKind::Byte,
+        line_at(source, *line),
+    ));
     advance_position(&source[*index..*index + 1 + consumed], line, col);
     *index += 1 + consumed;
     true
 }
 
+// Inherited from the standalone Tools/ocentra-literal-scan tool (arc-13
+// fold-in preserves lexer behavior as-is; a param-struct refactor across
+// the shared cursor-state signature is out of scope for this workpack).
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn try_rust_standard_string(
     source: &str,
     ch: char,
@@ -84,7 +104,13 @@ pub(crate) fn try_rust_standard_string(
     let Some((content, consumed)) = read_quoted(&source[*index..], '"') else {
         return false;
     };
-    out.push(candidate(&content, *line, *col, LiteralKind::Normal, line_at(source, *line)));
+    out.push(candidate(
+        &content,
+        *line,
+        *col,
+        LiteralKind::Normal,
+        line_at(source, *line),
+    ));
     advance_position(&source[*index..*index + consumed], line, col);
     *index += consumed;
     true

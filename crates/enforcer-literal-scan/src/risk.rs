@@ -1,9 +1,13 @@
+use super::{FileRole, Finding, LiteralCandidate, RiskCategory};
 use crate::risk_finding::make_finding;
 use crate::risk_primary::primary_category;
 use crate::risk_reason::reason_and_suggestion;
 use crate::risk_score::score_literal;
-use super::{FileRole, Finding, LiteralCandidate, RiskCategory};
 
+// Inherited from the standalone Tools/ocentra-literal-scan tool (arc-13
+// fold-in preserves its scoring behavior as-is; a param-struct refactor is
+// out of scope for this workpack -- see arc-13 workpack "no regression").
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn classify_literal(
     candidate: &LiteralCandidate,
     file: &str,
@@ -16,10 +20,14 @@ pub(crate) fn classify_literal(
     let mut score = score_literal(candidate, role, category, repeated_files);
     if should_upgrade_to_repeated_literal(category, repeated_files, score) {
         category = RiskCategory::RepeatedLiteral;
-        score = score.saturating_add(repeated_literal_bonus(repeated_files)).min(100);
+        score = score
+            .saturating_add(repeated_literal_bonus(repeated_files))
+            .min(100);
     }
     let blocking = category == RiskCategory::SecretLike
-        || fail_above.map(|threshold| score >= threshold).unwrap_or(false);
+        || fail_above
+            .map(|threshold| score >= threshold)
+            .unwrap_or(false);
     let severity = if blocking {
         "error"
     } else if score >= 70 {

@@ -1,4 +1,5 @@
-use super::{FileRole, LanguageFamily, LanguageSpec};pub(crate) fn classify_file_role(rel: &str, language: LanguageSpec) -> FileRole {
+use super::{FileRole, LanguageFamily, LanguageSpec};
+pub(crate) fn classify_file_role(rel: &str, language: LanguageSpec) -> FileRole {
     let lower = rel.to_ascii_lowercase();
     if language.family == LanguageFamily::CommonText {
         if lower.ends_with(".md") || lower.ends_with(".mdx") || lower.ends_with(".txt") {
@@ -6,7 +7,10 @@ use super::{FileRole, LanguageFamily, LanguageSpec};pub(crate) fn classify_file_
         }
         return FileRole::CommonText;
     }
-    if contains_segment(&lower, "generated") || contains_segment(&lower, "__generated__") || lower.contains("auto-generated") {
+    if contains_segment(&lower, "generated")
+        || contains_segment(&lower, "__generated__")
+        || lower.contains("auto-generated")
+    {
         return FileRole::Generated;
     }
     if contains_segment(&lower, "test")
@@ -32,10 +36,16 @@ use super::{FileRole, LanguageFamily, LanguageSpec};pub(crate) fn classify_file_
     {
         return FileRole::Boundary;
     }
-    if contains_segment(&lower, "config") || contains_segment(&lower, "settings") || contains_segment(&lower, "env") {
+    if contains_segment(&lower, "config")
+        || contains_segment(&lower, "settings")
+        || contains_segment(&lower, "env")
+    {
         return FileRole::Config;
     }
-    if contains_segment(&lower, "scripts") || contains_segment(&lower, "tools") || language.family == LanguageFamily::Shell {
+    if contains_segment(&lower, "scripts")
+        || contains_segment(&lower, "tools")
+        || language.family == LanguageFamily::Shell
+    {
         return FileRole::Script;
     }
     if contains_segment(&lower, "domain")
@@ -52,4 +62,3 @@ use super::{FileRole, LanguageFamily, LanguageSpec};pub(crate) fn classify_file_
 fn contains_segment(path: &str, segment: &str) -> bool {
     path.split('/').any(|part| part == segment)
 }
-

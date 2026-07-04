@@ -18,7 +18,8 @@ use crate::cli_parse::parse_args;
 use crate::cli_usage::print_usage;
 
 fn main() {
-    let opts = match parse_args(env::args().skip(1).collect()) {
+    let args: Vec<String> = env::args().skip(1).collect();
+    let opts = match parse_args(&args) {
         Ok(opts) => opts,
         Err(message) => fail_with_usage(&message),
     };

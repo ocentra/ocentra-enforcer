@@ -1,4 +1,5 @@
-use super::{LiteralCandidate, LiteralKind};pub(crate) fn read_quoted(source: &str, quote: char) -> Option<(String, usize)> {
+use super::{LiteralCandidate, LiteralKind};
+pub(crate) fn read_quoted(source: &str, quote: char) -> Option<(String, usize)> {
     let mut chars = source.char_indices();
     let (_, first) = chars.next()?;
     if first != quote {
@@ -36,17 +37,25 @@ pub(crate) fn advance_position(text: &str, line: &mut usize, col: &mut usize) {
     }
 }
 
-pub(crate) fn candidate(text: &str, line: usize, column: usize, kind: LiteralKind, context: Option<String>) -> LiteralCandidate {
+pub(crate) fn candidate(
+    text: &str,
+    line: usize,
+    column: usize,
+    kind: LiteralKind,
+    context: Option<String>,
+) -> LiteralCandidate {
     LiteralCandidate {
         text: text.to_string(),
         line,
         column,
         kind,
-        context: match context { Some(value) => value, None => String::new() },
+        context: context.unwrap_or_default(),
     }
 }
 
 pub(crate) fn line_at(source: &str, line: usize) -> Option<String> {
-    source.lines().nth(line.saturating_sub(1)).map(str::to_string)
+    source
+        .lines()
+        .nth(line.saturating_sub(1))
+        .map(str::to_string)
 }
-

@@ -17,8 +17,7 @@ pub(crate) fn primary_category(candidate: &LiteralCandidate, role: FileRole) -> 
         return category;
     }
     let category = pattern_category(text);
-    if is_magic_string_comparison(context)
-        && matches!(category, Some(RiskCategory::StateOrStatus))
+    if is_magic_string_comparison(context) && matches!(category, Some(RiskCategory::StateOrStatus))
     {
         return RiskCategory::MagicStringComparison;
     }

@@ -1,10 +1,17 @@
 #![forbid(unsafe_code)]
+// Inherited from the standalone Tools/ocentra-literal-scan tool (arc-13
+// fold-in preserves lexer/scoring behavior as-is). The lexer family shares
+// a cursor-state signature (`source`/`out`/`index`/`line`/`col`/...)
+// across ~10 call sites; a param-struct refactor is out of scope for this
+// fold-in workpack ("preserve existing scanner behavior -- no regression"
+// per docs/plans/enforcer-selfhost-plan/workpacks/arc-13-enforcer-literal-scan.md).
+#![allow(clippy::too_many_arguments)]
 
 #[path = "discovery-ignore.rs"]
 mod discovery_ignore;
 mod discovery_ignore_binary;
-mod discovery_ignore_glob;
 mod discovery_ignore_filter;
+mod discovery_ignore_glob;
 mod discovery_ignore_load;
 mod discovery_ignore_match;
 mod discovery_ignore_state;
@@ -32,9 +39,9 @@ mod lexer_rust;
 mod lexer_rust_helpers;
 mod lexer_rust_scan;
 mod lexer_rust_string;
-mod lexer_shell_scan;
 #[path = "lexer-shared.rs"]
 mod lexer_shared;
+mod lexer_shell_scan;
 #[path = "risk-heuristics.rs"]
 mod risk_heuristics;
 
@@ -157,4 +164,5 @@ pub(crate) use scan_types::{FileJob, FileResult};
 pub(crate) use utils::{normalize_path, stable_hash_hex};
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod lib_tests;

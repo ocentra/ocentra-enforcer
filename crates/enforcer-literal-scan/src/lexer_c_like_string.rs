@@ -20,7 +20,13 @@ pub(crate) fn try_triple_string(
         return false;
     };
     let content = &source[*index + 3..*index + 3 + end];
-    out.push(candidate(content, *line, *col, LiteralKind::Triple, line_at(source, *line)));
+    out.push(candidate(
+        content,
+        *line,
+        *col,
+        LiteralKind::Triple,
+        line_at(source, *line),
+    ));
     let consumed = 3 + end + 3;
     advance_position(&source[*index..*index + consumed], line, col);
     *index += consumed;
@@ -44,10 +50,18 @@ pub(crate) fn try_standard_string(
         return false;
     };
     let mut kind = LiteralKind::Normal;
-    if ts_mode && is_import_specifier_context(line_at(source, *line).as_deref().unwrap_or(""), &content) {
+    if ts_mode
+        && is_import_specifier_context(line_at(source, *line).as_deref().unwrap_or(""), &content)
+    {
         kind = LiteralKind::ImportSpecifier;
     }
-    out.push(candidate(&content, *line, *col, kind, line_at(source, *line)));
+    out.push(candidate(
+        &content,
+        *line,
+        *col,
+        kind,
+        line_at(source, *line),
+    ));
     advance_position(&source[*index..*index + consumed], line, col);
     *index += consumed;
     true
@@ -73,7 +87,13 @@ pub(crate) fn try_template_string(
     } else {
         LiteralKind::Template
     };
-    out.push(candidate(&content, *line, *col, kind, line_at(source, *line)));
+    out.push(candidate(
+        &content,
+        *line,
+        *col,
+        kind,
+        line_at(source, *line),
+    ));
     advance_position(&source[*index..*index + consumed], line, col);
     *index += consumed;
     true
@@ -94,7 +114,13 @@ pub(crate) fn try_verbatim_string(
     let Some((content, consumed)) = read_quoted(&source[*index + 1..], '"') else {
         return false;
     };
-    out.push(candidate(&content, *line, *col, LiteralKind::Raw, line_at(source, *line)));
+    out.push(candidate(
+        &content,
+        *line,
+        *col,
+        LiteralKind::Raw,
+        line_at(source, *line),
+    ));
     advance_position(&source[*index..*index + 1 + consumed], line, col);
     *index += 1 + consumed;
     true

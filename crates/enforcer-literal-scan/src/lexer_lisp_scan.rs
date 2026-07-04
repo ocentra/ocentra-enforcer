@@ -25,7 +25,13 @@ pub(crate) fn lex_lisp(source: &str) -> Vec<LiteralCandidate> {
         }
         if ch == '"' {
             if let Some((content, consumed)) = read_quoted(&source[index..], '"') {
-                out.push(candidate(&content, line, col, LiteralKind::Normal, line_at(source, line)));
+                out.push(candidate(
+                    &content,
+                    line,
+                    col,
+                    LiteralKind::Normal,
+                    line_at(source, line),
+                ));
                 advance_position(&source[index..index + consumed], &mut line, &mut col);
                 index += consumed;
                 continue;

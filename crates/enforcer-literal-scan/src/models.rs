@@ -193,22 +193,8 @@ const RISK_CATEGORY_NAMES: [&str; 16] = [
 ];
 
 const RISK_CATEGORY_RULE_IDS: [&str; 16] = [
-    "SEC-2.10",
-    "LIT-1.2",
-    "LIT-1.3",
-    "LIT-1.5",
-    "LIT-1.1",
-    "LIT-1.1",
-    "LIT-1.6",
-    "LIT-1.7",
-    "LIT-1.8",
-    "LIT-1.4",
-    "LIT-1.9",
-    "LIT-1.1",
-    "LIT-1.1",
-    "LIT-1.1",
-    "LIT-1.1",
-    "LIT-1.1",
+    "SEC-2.10", "LIT-1.2", "LIT-1.3", "LIT-1.5", "LIT-1.1", "LIT-1.1", "LIT-1.6", "LIT-1.7",
+    "LIT-1.8", "LIT-1.4", "LIT-1.9", "LIT-1.1", "LIT-1.1", "LIT-1.1", "LIT-1.1", "LIT-1.1",
 ];
 
 impl RiskCategory {

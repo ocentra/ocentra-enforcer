@@ -52,7 +52,9 @@ pub(crate) fn lex_c_like(
         if try_triple_string(source, language, &mut out, &mut index, &mut line, &mut col) {
             continue;
         }
-        if try_standard_string(source, language, ts_mode, &mut out, &mut index, &mut line, &mut col) {
+        if try_standard_string(
+            source, language, ts_mode, &mut out, &mut index, &mut line, &mut col,
+        ) {
             continue;
         }
         if try_template_string(source, language, &mut out, &mut index, &mut line, &mut col) {

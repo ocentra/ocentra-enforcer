@@ -83,9 +83,17 @@ pub(crate) fn looks_like_json_blob(text: &str) -> bool {
 
 pub(crate) fn looks_like_sql(text: &str) -> bool {
     let upper = text.to_ascii_uppercase();
-    ["SELECT ", "INSERT ", "UPDATE ", "DELETE ", "CREATE TABLE", "ALTER TABLE", "DROP TABLE"]
-        .iter()
-        .any(|needle| upper.contains(needle))
+    [
+        "SELECT ",
+        "INSERT ",
+        "UPDATE ",
+        "DELETE ",
+        "CREATE TABLE",
+        "ALTER TABLE",
+        "DROP TABLE",
+    ]
+    .iter()
+    .any(|needle| upper.contains(needle))
 }
 
 pub(crate) fn looks_like_shell(text: &str) -> bool {

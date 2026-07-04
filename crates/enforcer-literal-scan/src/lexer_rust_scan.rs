@@ -1,6 +1,6 @@
 use crate::lexer_rust_string::{
-    try_rust_byte_string, try_rust_char_or_lifetime, try_rust_raw_string,
-    try_rust_standard_string, update_block_comment_state,
+    try_rust_byte_string, try_rust_char_or_lifetime, try_rust_raw_string, try_rust_standard_string,
+    update_block_comment_state,
 };
 use crate::LiteralCandidate;
 
