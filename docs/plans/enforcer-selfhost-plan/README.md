@@ -12,17 +12,17 @@
 > Proof rule: Product status changes only via a workpack's named tests in TEST_PROOF_EXPECTATIONS.md.
 <!-- /agent-capsule -->
 
-This plan makes the `enforcer` **eat its own dog food**. It is a **pure-Rust, 28-crate Cargo-workspace engine** built across **109 workpacks** in tracks A/B/C/D/E/F/G/H plus a cross-cutting (X) track. Governing docs: [`RUST_ARCHITECTURE.md`](./RUST_ARCHITECTURE.md) (WHAT the engine is) and [`EXECUTION_MODEL.md`](./EXECUTION_MODEL.md) (HOW it is built — bootstrap-safe worktree + orchestrated worker swarm).
+This plan makes the `enforcer` **eat its own dog food**. It is a **pure-Rust, 28-crate Cargo-workspace engine** built across **111 workpacks** in tracks A/B/C/D/E/F/G/H plus a cross-cutting (X) track. Governing docs: [`RUST_ARCHITECTURE.md`](./RUST_ARCHITECTURE.md) (WHAT the engine is) and [`EXECUTION_MODEL.md`](./EXECUTION_MODEL.md) (HOW it is built — bootstrap-safe worktree + orchestrated worker swarm).
 
 - **A — Self-host (dogfood), 35 packs:** stand up the enforcer as a **RUST Cargo workspace** — `arc-01`..`arc-25` (25 crate-build packs, dependency-ordered) plus `a01`..`a10` (10 Rust hardening packs: Cargo/clippy/rustfmt/deny/audit toolchain, `enforcer-domain` branded newtypes with parse-at-boundary, waiver honesty, anti-silent-skip, and real self-enforcement in CI — the enforcer's own Rust rules over its own crates). See [`RUST_ARCHITECTURE.md`](./RUST_ARCHITECTURE.md).
-- **B — Planning skill, 5 packs:** ship the OcentraParent plan methodology as a mechanical `enforcer plan new` scaffolder + `PLAN-*` structure validator + `/plan` skill that self-validates against this very plan (lands in `enforcer-plan`).
+- **B — Planning skill, 6 packs:** ship the OcentraParent plan methodology as a mechanical `enforcer plan new` scaffolder + `PLAN-*` structure validator + `/plan` skill that self-validates against this very plan (lands in `enforcer-plan`), plus `b06` the AGENTS.md decision-forest.
 - **C — Install + enforce anywhere, 9 packs:** harness-neutral install core and adapters (Claude, Codex, generic, stubs, + the remaining 11-harness fleet) with a **PreToolUse deny-hook** that mechanically blocks T1 violations before a write lands (lands in `enforcer-install`).
 - **D — ADBP borrows, mechanized, 25 packs:** every idea borrowed from ADBP is dragged UP the enforcement ladder (grandfather ratchet, deferred-work gate, telemetry, context brake, fix loop, doc-rule parity, plus FSM validity, Rust error handling, security STOP watchlist, change discipline, size/shape caps, test companion/quality, orchestrator verify gates, dispatch prompt assembly, loop resilience, target-repo CI parity), never copied as prose.
 - **E — New languages + universal scanning, 6 packs:** an always-on universal literal-scan T2 floor plus first-class Dart, CFML/ColdFusion, React/Next (Effect-only), and Python/FastAPI language packs, and an OPTIONAL opt-in crypto/blockchain pack (OFF by default). Three E packs BUILD their own new lang crates (`enforcer-lang-dart`, `enforcer-lang-cfml`, `enforcer-lang-crypto`).
 - **F — Scan surface / onboarding / agent-shaping, 5 packs:** named scan modes, index-on-ask onboarding, per-project native-tie config, detect-and-route router, and the silent (agent-inline) vs human-review split.
 - **G — UI layer, 8 packs:** the OPTIONAL Tauri control-plane cockpit (`enforcer-ui`) — serve surface, scan report, violation actions, run-dispatch, settings, hub dashboard, UI-security, and the rules-&-skills explorer (`g08`).
 - **H — Money-critical & security testing, 10 packs:** the `enforcer-security` validators.
-- **Cross-cutting (X), 4 packs:** early rename to `enforcer`; the terminal `z01` dogfood-proof-gate that runs the finished `enforcer` against its own multi-language self (bootstrap swap point) and gates plan-DONE on zero self-violations.
+- **Cross-cutting (X), 5 packs:** early rename to `enforcer`; the `x04` main-branch-protection CI; the terminal `z01` dogfood-proof-gate that runs the finished `enforcer` against its own multi-language self (bootstrap swap point) and gates plan-DONE on zero self-violations.
 
 ## Locked decisions (scope)
 
@@ -61,7 +61,7 @@ Then do the work, produce the named proof, update that workpack's row. Stop.
 
 ## Do not default-read
 
-- Any workpack other than the one assigned to you (there are 109; reading siblings wastes context and risks cross-scope edits).
+- Any workpack other than the one assigned to you (there are 111; reading siblings wastes context and risks cross-scope edits).
 - [`README_FULL_ORIGINAL.md`](./README_FULL_ORIGINAL.md) — long-form narrative; open only for background, never as a task list.
 - [`PLAN_HEALTH.md`](./PLAN_HEALTH.md) — for the hub / auditor, not for a workpack executor.
 - [`PLAN_EXECUTION_BLUEPRINT.md`](./PLAN_EXECUTION_BLUEPRINT.md) — for whoever is sequencing/orchestrating, not for a single-pack executor (your capsule already tells you your deps).
