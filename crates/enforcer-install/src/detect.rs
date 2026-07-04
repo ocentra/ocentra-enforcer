@@ -184,7 +184,7 @@ impl Evidence {
 /// agents, max sub-agent nesting depth). `Unknown` is the fail-closed
 /// default — an undetectable cap is NEVER guessed as `Unbounded` or a
 /// specific bound.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Cap {
     /// A concrete, detected upper bound.
@@ -192,20 +192,15 @@ pub enum Cap {
     /// Detected as having no enforced upper bound.
     Unbounded,
     /// Not detectable from available evidence — fail-closed default.
+    #[default]
     Unknown,
-}
-
-impl Default for Cap {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 /// Whether a harness supports a binary agentic primitive (background
 /// tasks, scheduled tasks, cross-session messaging, implicit
 /// invocation). `Unknown` is the fail-closed default — an undetectable
 /// primitive is NEVER declared `Yes`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Support {
     /// Detected as present.
@@ -213,13 +208,8 @@ pub enum Support {
     /// Detected as absent.
     No,
     /// Not detectable from available evidence — fail-closed default.
+    #[default]
     Unknown,
-}
-
-impl Default for Support {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 /// A capability value paired with the [`Evidence`] that justifies it.
@@ -629,7 +619,7 @@ fn codex_capability_manifest(home: Option<&Path>, fs: &dyn FsSource) -> HarnessC
         HarnessCapabilities {
             implicit_invocation: SupportValue {
                 value: Support::Yes,
-                evidence: vec![ev.clone()],
+                evidence: vec![ev],
             },
             cross_session_messaging: SupportValue {
                 value: Support::Yes,
@@ -702,7 +692,7 @@ mod tests {
         KNOWN_HARNESS_IDS,
     };
     use std::fs;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
     /// Build a temp dir standing in for a user's home, with the given
     /// dot-directories created inside it (each optionally carrying an
@@ -734,15 +724,18 @@ mod tests {
         }
     }
 
-    fn env_with_home(home: &PathBuf) -> MapEnv {
+    fn env_with_home(home: &Path) -> MapEnv {
         MapEnv::new().with("HOME", home.display().to_string())
     }
 
-    fn find<'a>(records: &'a [DetectedHarness], id: &str) -> &'a DetectedHarness {
+    fn find<'a>(
+        records: &'a [DetectedHarness],
+        id: &str,
+    ) -> Result<&'a DetectedHarness, Box<dyn std::error::Error>> {
         records
             .iter()
             .find(|r| r.id.as_str() == id)
-            .expect("harness id must be in KNOWN_HARNESS_IDS")
+            .ok_or_else(|| format!("harness id {id:?} must be in KNOWN_HARNESS_IDS").into())
     }
 
     #[test]
@@ -789,8 +782,8 @@ mod tests {
         let fs = RealFs;
 
         let records = detect_harnesses(&env, &fs)?;
-        assert!(find(&records, "claude").present);
-        assert!(find(&records, "codex").present);
+        assert!(find(&records, "claude")?.present);
+        assert!(find(&records, "codex")?.present);
 
         // Every other known harness must remain absent -- the exact
         // detected-adapter set, not a superset.
@@ -799,7 +792,7 @@ mod tests {
                 continue;
             }
             assert!(
-                !find(&records, id).present,
+                !find(&records, id)?.present,
                 "expected {id} absent when only .claude/.codex were seeded"
             );
         }
@@ -814,7 +807,7 @@ mod tests {
         let fs = RealFs;
 
         let records = detect_harnesses(&env, &fs)?;
-        let gemini = find(&records, "gemini");
+        let gemini = find(&records, "gemini")?;
         assert!(gemini.present);
         assert_eq!(
             gemini.home_path.as_deref(),
@@ -824,8 +817,8 @@ mod tests {
     }
 
     #[test]
-    fn env_override_takes_precedence_over_the_default_dir(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn env_override_takes_precedence_over_the_default_dir() -> Result<(), Box<dyn std::error::Error>>
+    {
         let home = TempHome::new()?;
         // Seed the CONVENTIONAL default (~/.codex) but point CODEX_HOME at
         // a DIFFERENT directory that does not exist -- if precedence were
@@ -833,19 +826,20 @@ mod tests {
         // report `present: true`.
         home.seed_dir(".codex")?;
         let overridden_missing = home.path().join("codex-elsewhere");
-        let env = env_with_home(&home.path()).with(
-            "CODEX_HOME",
-            overridden_missing.display().to_string(),
-        );
+        let env = env_with_home(&home.path())
+            .with("CODEX_HOME", overridden_missing.display().to_string());
         let fs = RealFs;
 
         let records = detect_harnesses(&env, &fs)?;
-        let codex = find(&records, "codex");
+        let codex = find(&records, "codex")?;
         assert!(
             !codex.present,
             "env override must take precedence over the default dir even when the default exists"
         );
-        assert_eq!(codex.home_path.as_deref(), Some(overridden_missing.as_path()));
+        assert_eq!(
+            codex.home_path.as_deref(),
+            Some(overridden_missing.as_path())
+        );
         Ok(())
     }
 
@@ -855,12 +849,11 @@ mod tests {
         let home = TempHome::new()?;
         home.seed_dir("codex-elsewhere")?;
         let overridden = home.path().join("codex-elsewhere");
-        let env =
-            env_with_home(&home.path()).with("CODEX_HOME", overridden.display().to_string());
+        let env = env_with_home(&home.path()).with("CODEX_HOME", overridden.display().to_string());
         let fs = RealFs;
 
         let records = detect_harnesses(&env, &fs)?;
-        let codex = find(&records, "codex");
+        let codex = find(&records, "codex")?;
         assert!(codex.present);
         assert_eq!(codex.home_path.as_deref(), Some(overridden.as_path()));
         Ok(())
@@ -892,12 +885,12 @@ mod tests {
         let fs = RealFs;
 
         let records = detect_harnesses(&env, &fs)?;
-        let codex = find(&records, "codex");
+        let codex = find(&records, "codex")?;
         assert!(codex.present);
         let caps = codex
             .capabilities
             .as_ref()
-            .expect("present harness must carry a capability manifest");
+            .ok_or("present harness must carry a capability manifest")?;
 
         assert_eq!(caps.implicit_invocation.value, Support::Yes);
         assert!(!caps.implicit_invocation.evidence.is_empty());
@@ -922,12 +915,12 @@ mod tests {
         let fs = RealFs;
 
         let records = detect_harnesses(&env, &fs)?;
-        let claude = find(&records, "claude");
+        let claude = find(&records, "claude")?;
         assert!(claude.present);
         let caps = claude
             .capabilities
             .as_ref()
-            .expect("present harness must carry a capability manifest");
+            .ok_or("present harness must carry a capability manifest")?;
 
         assert_eq!(caps.max_concurrent_agents.value, Cap::Unknown);
         assert_eq!(caps.sub_agent_nesting_depth.value, Cap::Unknown);
@@ -947,8 +940,11 @@ mod tests {
         let fs = RealFs;
 
         let records = detect_harnesses(&env, &fs)?;
-        let codex = find(&records, "codex");
-        let caps = codex.capabilities.as_ref().expect("present harness");
+        let codex = find(&records, "codex")?;
+        let caps = codex
+            .capabilities
+            .as_ref()
+            .ok_or("present harness must carry a capability manifest")?;
         assert_eq!(caps.implicit_invocation.value, Support::No);
         // A false marker is not evidence for cross-session messaging
         // either -- must not silently inherit Yes from a sibling field.
@@ -979,7 +975,7 @@ mod tests {
         let fs = RealFs;
 
         let records = detect_harnesses(&env, &fs)?;
-        let codex = find(&records, "codex");
+        let codex = find(&records, "codex")?;
         let wire = serde_json::to_string(codex)?;
         assert!(wire.contains("\"homePath\""));
         assert!(wire.contains("\"implicitInvocation\""));

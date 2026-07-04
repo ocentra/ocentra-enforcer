@@ -6,10 +6,8 @@
 //! file additionally proves the on-disk fixture layout itself stays
 //! correct (a reviewer can inspect the exact bytes a fixture carries).
 
-use enforcer_install::detect::{
-    detect_harnesses, Cap, EnvSource, MapEnv, RealFs, Support,
-};
-use std::path::PathBuf;
+use enforcer_install::detect::{detect_harnesses, Cap, EnvSource, MapEnv, RealFs, Support};
+use std::path::{Path, PathBuf};
 
 fn fixture_root(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -17,7 +15,7 @@ fn fixture_root(name: &str) -> PathBuf {
         .join(name)
 }
 
-fn env_for(home: &PathBuf) -> impl EnvSource {
+fn env_for(home: &Path) -> impl EnvSource {
     MapEnv::new().with("HOME", home.display().to_string())
 }
 
@@ -36,8 +34,7 @@ fn empty_home_fixture_detects_no_harness_present() -> Result<(), Box<dyn std::er
 }
 
 #[test]
-fn caps_codex_fixture_declares_implicit_invocation_yes() -> Result<(), Box<dyn std::error::Error>>
-{
+fn caps_codex_fixture_declares_implicit_invocation_yes() -> Result<(), Box<dyn std::error::Error>> {
     let home = fixture_root("caps-codex");
     let env = env_for(&home);
     let fs = RealFs;
