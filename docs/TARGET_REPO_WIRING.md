@@ -102,7 +102,9 @@ is faster and deterministic for source/config policy.
 When Codex is working in a target repo:
 
 1. Read target repo instructions first.
-2. Read `E:/ocentra-enforcer/rules/INDEX.md`.
+2. Run `enforcer explain <ruleId>` for any rule that needs explaining. Rules
+   are compiled into the binary (rules-as-data); there is no external
+   `INDEX.md`/rules file to locate at a filesystem path, local or otherwise.
 3. Call MCP `ocentra_enforcer_route` with target `root`, profile/config, and exact touched files.
 4. Open only docs returned by the route result.
 5. Run `ocentra_enforcer_scan` for broad source/config policy, or `ocentra_enforcer_check` for migrated named guards such as `source-shape`, `required-tests`, `single-source-contracts`, `dependency-policy`, `sbom`, and scanner-backed Parent checks.

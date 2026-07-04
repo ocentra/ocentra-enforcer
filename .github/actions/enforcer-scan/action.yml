@@ -1,0 +1,73 @@
+name: "enforcer scan"
+description: >-
+  Installs the enforcer binary (zero Rust toolchain required) with an
+  actions/cache entry keyed by version+platform, exposes it on PATH, and
+  optionally runs `enforcer scan` directly. CI always regenerates proof
+  fresh -- this action never trusts a pre-computed/uploaded artifact as a
+  substitute for running the binary.
+inputs:
+  version:
+    description: >-
+      Pinned enforcer release version to install (e.g. "0.1.0"). Version
+      pinning is the default for consumers; there is no "latest" default
+      here on purpose -- pass version: "latest" explicitly to opt into
+      the floating-latest channel.
+    required: true
+  variant:
+    description: 'Binary variant to install: "lite" (default, no coordination hub/UI) or "full".'
+    required: false
+    default: "lite"
+  scan-args:
+    description: 'Extra arguments forwarded to "enforcer scan" if run-scan is true.'
+    required: false
+    default: ""
+  run-scan:
+    description: "If true, this action also runs `enforcer scan $scan-args` itself after installing."
+    required: false
+    default: "false"
+outputs:
+  enforcer-path:
+    description: "Absolute path to the installed enforcer binary."
+    value: ${{ steps.install.outputs.enforcer-path }}
+runs:
+  using: "composite"
+  steps:
+    - name: Resolve platform
+      id: platform
+      shell: bash
+      run: |
+        case "$(uname -s)" in
+          Linux*) echo "os=linux" >> "$GITHUB_OUTPUT" ;;
+          Darwin*) echo "os=macos" >> "$GITHUB_OUTPUT" ;;
+          MINGW*|MSYS*|CYGWIN*) echo "os=windows" >> "$GITHUB_OUTPUT" ;;
+          *) echo "unsupported platform: $(uname -s)" >&2; exit 1 ;;
+        esac
+        echo "arch=$(uname -m)" >> "$GITHUB_OUTPUT"
+    - name: Cache enforcer binary
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/enforcer-bin
+        key: enforcer-${{ inputs.variant }}-${{ steps.platform.outputs.os }}-${{ steps.platform.outputs.arch }}-v${{ inputs.version }}
+    - name: Install enforcer (cache miss)
+      id: install
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        ENFORCER_VERSION: ${{ inputs.version }}
+        ENFORCER_VARIANT: ${{ inputs.variant }}
+        ENFORCER_INSTALL_DIR: ${{ runner.temp }}/enforcer-bin
+      run: |
+        curl -fsSL https://raw.githubusercontent.com/ocentra/enforcer/main/install.sh | sh
+        echo "enforcer-path=${ENFORCER_INSTALL_DIR}/enforcer" >> "$GITHUB_OUTPUT"
+    - name: Expose cached enforcer binary
+      if: steps.cache.outputs.cache-hit == 'true'
+      shell: bash
+      run: echo "enforcer-path=${{ runner.temp }}/enforcer-bin/enforcer" >> "$GITHUB_OUTPUT"
+    - name: Add enforcer to PATH
+      shell: bash
+      run: echo "${{ runner.temp }}/enforcer-bin" >> "$GITHUB_PATH"
+    - name: Run enforcer scan
+      if: inputs.run-scan == 'true'
+      shell: bash
+      run: enforcer scan ${{ inputs.scan-args }}

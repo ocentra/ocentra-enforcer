@@ -23,6 +23,10 @@
 //!   install never leaves a harness config corrupted.
 //! - [`distribution`] — platform binary resolution (win/mac/linux incl.
 //!   musl + apple-silicon) and the download path for `enforcer install`.
+//! - [`ci`] (c10) — this repo's OWN release pipeline, the reusable
+//!   `enforcer-scan` composite GitHub Action, the portable
+//!   `install.sh`/`install.ps1` scripts, and the optional npm wrapper
+//!   package, so consumer CI never needs a Rust toolchain.
 //!
 //! # Global-install scope contract (binding — RUST_ARCHITECTURE.md)
 //!
@@ -59,6 +63,7 @@
 
 pub mod adapters;
 pub mod backup;
+pub mod ci;
 pub mod cli_contract;
 pub mod core;
 pub mod detect;

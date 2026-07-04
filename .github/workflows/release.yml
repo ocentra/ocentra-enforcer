@@ -1,0 +1,111 @@
+name: Release
+
+# c10 -- the enforcer's OWN release pipeline (cargo-dist-style):
+# plan -> build -> host -> publish across the win/mac/linux (+musl,
+# +apple-silicon) matrix declared in dist-workspace.toml, for BOTH the
+# `full` and `lite` binary variants. This repo's OWN CI builds and
+# PUBLISHES the release; every consumer project's CI only ever POINTS AT
+# it via install.sh/install.ps1, the enforcer-scan composite Action, or
+# the optional npm wrapper (RUST_ARCHITECTURE.md, binding).
+#
+# A release is never published broken: the pre-publish cross-platform
+# smoke gate (both variants, every target platform) must pass before the
+# publish job runs. A broken/panicking binary on ANY platform blocks the
+# release entirely.
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+        variant: [lite, full]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          targets: ${{ matrix.target }}
+      - name: Build (${{ matrix.variant }})
+        run: cargo build --release --locked -p enforcer-cli --no-default-features --features ${{ matrix.variant }} --target ${{ matrix.target }}
+      - name: Pre-publish smoke gate -- fail fixture must be a blocking violation, never a panic or silent pass
+        shell: bash
+        run: |
+          set -eu
+          bin="target/${{ matrix.target }}/release/enforcer"
+          [ -f "$bin.exe" ] && bin="$bin.exe"
+          set +e
+          "$bin" scan --files crates/enforcer-install/tests/fixtures/ci/smoke/fail/main.rs
+          code=$?
+          set -e
+          if [ "$code" -ne 1 ]; then
+            echo "smoke gate FAILED: expected exit 1 (Violations) on the seeded fail fixture, got $code" >&2
+            exit 1
+          fi
+      - name: Pre-publish smoke gate -- pass fixture must exit clean
+        shell: bash
+        run: |
+          set -eu
+          bin="target/${{ matrix.target }}/release/enforcer"
+          [ -f "$bin.exe" ] && bin="$bin.exe"
+          "$bin" scan --files crates/enforcer-install/tests/fixtures/ci/smoke/pass/main.rs
+      - name: Package asset
+        shell: bash
+        run: |
+          set -eu
+          version="${GITHUB_REF_NAME#v}"
+          name="enforcer-v${version}-${{ matrix.variant }}-${{ matrix.target }}"
+          bin="target/${{ matrix.target }}/release/enforcer"
+          stage="target/dist/${name}"
+          mkdir -p "$stage"
+          if [ -f "$bin.exe" ]; then
+            cp "$bin.exe" "$stage/enforcer.exe"
+            (cd target/dist && 7z a "${name}.zip" "${name}")
+          else
+            cp "$bin" "$stage/enforcer"
+            tar -czf "target/dist/${name}.tar.gz" -C target/dist "${name}"
+          fi
+          (cd target/dist && sha256sum "${name}".* > "${name}.sha256" 2>/dev/null || shasum -a 256 "${name}".* > "${name}.sha256")
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-${{ matrix.target }}-${{ matrix.variant }}
+          path: target/dist/*
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish GitHub Release
+        # NOTE: pin this to the exact upstream commit SHA (matching this
+        # repo's own convention of full-SHA action pins, see
+        # .github/workflows/ci.yml and adapters/github-actions/*.yml)
+        # before this workflow is first exercised for real -- deferred
+        # here rather than fabricating an unverified hash.
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/**
+          fail_on_unmatched_files: true
