@@ -2,3 +2,6 @@
 {"ts":"2026-07-04T00:00:01Z","lane":"d22","event":"claim_attempt","result":"hub_stale","detail":"MCP coordination server reported stale/reloadRequired; proceeding per protocol (log+proceed)"}
 {"ts":"2026-07-04T00:00:02Z","lane":"d22","event":"mail_attempt","result":"hub_stale","detail":"d22 started mail failed (hub stale); proceeding per protocol (log+proceed)"}
 {"ts":"2026-07-04T00:00:10Z","lane":"d22","event":"mid_pack_checkpoint","result":"proof_green","detail":"size_shape.rs (9 validators) + fixtures + size-shape.json catalog + size_shape_registry.rs + size_shape_parity.rs all green: cargo test -p enforcer-lang-common -p enforcer-rules, cargo clippy -D warnings, cargo fmt --check, cargo build --workspace"}
+{"ts":"2026-07-04T00:00:20Z","lane":"d22","event":"commit","result":"ok","detail":"adf1d2e1a3938369dc1dce2eb2f29ffa7c57b7a6 feat(d22): size/shape caps"}
+{"ts":"2026-07-04T00:00:21Z","lane":"d22","event":"push","result":"ok","detail":"pushed lane/d22 -u origin"}
+{"ts":"2026-07-04T00:00:22Z","lane":"d22","event":"closeout_attempt","result":"hub_stale","detail":"coordination closeout failed (hub stale); proceeding per protocol (log+proceed); work is committed+pushed to lane/d22"}
