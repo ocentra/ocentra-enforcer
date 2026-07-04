@@ -1,0 +1,81 @@
+[
+    {
+        "ruleId": "T1-PARENTPOSTURE.1",
+        "version": 1,
+        "title": "ocentra-parent posture: public re-exports forbidden repo-wide",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "no_reexports::NoReexportsValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/ocentra-parent-posture/fail_reexport.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/ocentra-parent-posture/pass_no_reexport.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent",
+        "tags": ["rust", "ocentra-parent", "reexports"],
+        "params": {
+            "publicReexportPolicy": "forbid",
+            "pairedValidatorRuleId": "T1-NOREEXPORT.1"
+        }
+    },
+    {
+        "ruleId": "T1-PARENTPOSTURE.2",
+        "version": 1,
+        "title": "ocentra-parent posture: runtime string-literal ban",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "runtime_literal::RuntimeLiteralValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/ocentra-parent-posture/fail_runtime_literal.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/ocentra-parent-posture/pass_runtime_literal.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent",
+        "tags": ["rust", "ocentra-parent", "runtime-literal"],
+        "params": {
+            "enforceRuntimeStringLiterals": true,
+            "configSubstrate": "enforcer-config::model::RuntimeLiteralPolicy"
+        }
+    },
+    {
+        "ruleId": "T1-PARENTPOSTURE.3",
+        "version": 1,
+        "title": "ocentra-parent posture: domain-typed serialized public fields",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "domain_typed_fields::SerializedDomainPrimitiveValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/ocentra-parent-posture/fail_bare_primitive_field.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/ocentra-parent-posture/pass_branded_field.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent",
+        "tags": ["rust", "ocentra-parent", "domain-typed"],
+        "params": {
+            "enforceSerializedPublicDomainPrimitives": true,
+            "configSubstrate": "enforcer-config::model::RuntimeLiteralPolicy"
+        }
+    },
+    {
+        "ruleId": "T1-PARENTPOSTURE.4",
+        "version": 1,
+        "title": "ocentra-parent posture: blocked protocol-crate dependencies",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "cargo_dependency::BlockedProtocolDependencyValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/ocentra-parent-posture/fail_blocked_dependency_manifest.json",
+            "pass": "crates/enforcer-lang-rust/fixtures/ocentra-parent-posture/pass_clean_dependency_manifest.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent",
+        "tags": ["rust", "ocentra-parent", "cargo-dependency"],
+        "params": {
+            "configSubstrate": "enforcer-config::model::CargoDependencyPolicy::blocked_protocol_dependencies"
+        }
+    }
+]

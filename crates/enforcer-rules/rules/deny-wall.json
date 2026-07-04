@@ -1,0 +1,44 @@
+[
+    {
+        "ruleId": "T1-DENYWALL.1",
+        "version": 1,
+        "title": "[workspace.lints] deny-wall (rules-as-data)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-rust",
+            "path": "workspace_lints::DenyWallValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/deny-wall/fail_missing_lints.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/deny-wall/pass_opts_in.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent",
+        "tags": ["rust", "workspace-lints", "consumer-repo"],
+        "params": {
+            "requiredWorkspaceRustLints": {
+                "unsafe_code": "forbid"
+            },
+            "requiredWorkspaceClippyLints": {
+                "unwrap_used": "deny",
+                "expect_used": "deny",
+                "panic": "deny",
+                "todo": "deny",
+                "unimplemented": "deny",
+                "dbg_macro": "deny",
+                "print_stdout": "deny",
+                "print_stderr": "deny",
+                "await_holding_lock": "deny",
+                "future_not_send": "deny",
+                "clone_on_ref_ptr": "deny",
+                "redundant_clone": "deny",
+                "needless_pass_by_value": "deny",
+                "map_err_ignore": "deny",
+                "large_enum_variant": "deny"
+            },
+            "printStdoutStderrAllowlist": [
+                "one output-sink module of enforcer-cli/enforcer-mcp"
+            ],
+            "everyCrateMustOptIn": "[lints] workspace = true"
+        }
+    }
+]

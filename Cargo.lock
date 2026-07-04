@@ -101,6 +101,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "enforcer-rules"
+version = "0.1.0"
+dependencies = [
+ "enforcer-config",
+ "enforcer-core",
+ "enforcer-domain",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
