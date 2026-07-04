@@ -161,11 +161,17 @@ pub fn stale_fallback(name: &str, freshness: Freshness, cli_path: &str) -> Stale
     } else {
         "MCP server is stale"
     };
-    let command = vec![cli_path.to_owned(), "coordination".to_owned(), "run".to_owned()];
+    let command = vec![
+        cli_path.to_owned(),
+        "coordination".to_owned(),
+        "run".to_owned(),
+    ];
     let command_line = command.join(" ");
     StaleFallback {
         ok: false,
-        error: format!("{reason}; refusing {name} because it may write incompatible coordination events."),
+        error: format!(
+            "{reason}; refusing {name} because it may write incompatible coordination events."
+        ),
         operation: name.to_owned(),
         direct_writes_allowed: false,
         write_capable: false,
@@ -176,8 +182,9 @@ pub fn stale_fallback(name: &str, freshness: Freshness, cli_path: &str) -> Stale
             command,
             command_line,
         },
-        next_step: "Restart the MCP client, or call ocentra_enforcer_run with the fallback command."
-            .to_owned(),
+        next_step:
+            "Restart the MCP client, or call ocentra_enforcer_run with the fallback command."
+                .to_owned(),
     }
 }
 
@@ -194,7 +201,10 @@ mod tests {
             &GateArgs::default(),
             Freshness::stale(),
         );
-        assert!(blocked, "a stale server must refuse a coordination WRITE tool");
+        assert!(
+            blocked,
+            "a stale server must refuse a coordination WRITE tool"
+        );
         let fallback = stale_fallback(
             "ocentra_enforcer_coordination_claim",
             Freshness::stale(),
@@ -211,7 +221,10 @@ mod tests {
             &GateArgs::default(),
             Freshness::fresh(),
         );
-        assert!(!blocked, "a fresh, hash-compatible server must dispatch the write tool");
+        assert!(
+            !blocked,
+            "a fresh, hash-compatible server must dispatch the write tool"
+        );
     }
 
     #[test]
@@ -237,7 +250,10 @@ mod tests {
             &GateArgs::default(),
             Freshness::stale(),
         );
-        assert!(!dry_run_default, "dryRun unset defaults to allowed (not a write)");
+        assert!(
+            !dry_run_default,
+            "dryRun unset defaults to allowed (not a write)"
+        );
 
         let dry_run_true = should_block_stale_tool(
             "ocentra_enforcer_coordination_repair",
@@ -298,7 +314,11 @@ mod tests {
 
     #[test]
     fn hash_incompatible_reason_string_differs_from_plain_stale() {
-        let stale = stale_fallback("ocentra_enforcer_coordination_claim", Freshness::stale(), "/x");
+        let stale = stale_fallback(
+            "ocentra_enforcer_coordination_claim",
+            Freshness::stale(),
+            "/x",
+        );
         let incompatible = stale_fallback(
             "ocentra_enforcer_coordination_claim",
             Freshness::hash_incompatible(),

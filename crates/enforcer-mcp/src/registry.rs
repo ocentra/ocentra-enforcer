@@ -121,7 +121,10 @@ pub const NAMED_CHECKS: &[&str] = &[
 /// data. Until then an empty backing vec means "declared, not yet wired",
 /// which is what [`is_wired`] reports honestly rather than silently.
 pub fn named_check_backing() -> Vec<(&'static str, Vec<RuleId>)> {
-    NAMED_CHECKS.iter().map(|&name| (name, Vec::new())).collect()
+    NAMED_CHECKS
+        .iter()
+        .map(|&name| (name, Vec::new()))
+        .collect()
 }
 
 /// True once at least one [`RuleId`] backs the named check (see
@@ -136,7 +139,9 @@ pub fn is_wired(entry: &(&'static str, Vec<RuleId>)) -> bool {
 /// owns the measurable surface; d05 owns the baseline/ratchet files, see
 /// the workpack's "Parallel Ownership Notes").
 pub fn tool_surface_bytes(descriptors: &[ToolDescriptor]) -> usize {
-    serde_json::to_vec(descriptors).map(|bytes| bytes.len()).unwrap_or(0)
+    serde_json::to_vec(descriptors)
+        .map(|bytes| bytes.len())
+        .unwrap_or(0)
 }
 
 /// Build every tool descriptor: canonical tools first (stable order,
@@ -238,7 +243,10 @@ mod tests {
         .into_iter()
         .collect();
         let actual: BTreeSet<&str> = NAMED_CHECKS.iter().copied().collect();
-        assert_eq!(actual, expected, "named-check enum must not silently drop or gain an entry");
+        assert_eq!(
+            actual, expected,
+            "named-check enum must not silently drop or gain an entry"
+        );
     }
 
     #[test]
@@ -262,7 +270,10 @@ mod tests {
         let mut backing_keys: BTreeSet<&str> = backing.iter().map(|(name, _)| *name).collect();
         backing_keys.remove("sbom");
         let enum_keys: BTreeSet<&str> = NAMED_CHECKS.iter().copied().collect();
-        assert_ne!(backing_keys, enum_keys, "removing one entry must break bidirectional equality");
+        assert_ne!(
+            backing_keys, enum_keys,
+            "removing one entry must break bidirectional equality"
+        );
     }
 
     #[test]
@@ -276,12 +287,16 @@ mod tests {
     }
 
     #[test]
-    fn tool_surface_enumeration_is_deterministic() {
+    fn tool_surface_enumeration_is_deterministic() -> Result<(), Box<dyn std::error::Error>> {
         let first = build_tool_descriptors();
         let second = build_tool_descriptors();
-        let first_json = serde_json::to_string(&first).expect("serializable");
-        let second_json = serde_json::to_string(&second).expect("serializable");
-        assert_eq!(first_json, second_json, "tool-surface enumeration must be byte-deterministic for the d05 measure");
+        let first_json = serde_json::to_string(&first)?;
+        let second_json = serde_json::to_string(&second)?;
+        assert_eq!(
+            first_json, second_json,
+            "tool-surface enumeration must be byte-deterministic for the d05 measure"
+        );
+        Ok(())
     }
 
     #[test]
@@ -294,15 +309,16 @@ mod tests {
     }
 
     #[test]
-    fn check_tool_schema_carries_the_named_check_enum() {
+    fn check_tool_schema_carries_the_named_check_enum() -> Result<(), Box<dyn std::error::Error>> {
         let descriptors = build_tool_descriptors();
         let check_tool = descriptors
             .iter()
             .find(|d| d.name == "ocentra_enforcer_check")
-            .expect("ocentra_enforcer_check must be registered");
+            .ok_or("ocentra_enforcer_check must be registered")?;
         let schema_enum = check_tool.input_schema["properties"]["check"]["enum"]
             .as_array()
-            .expect("check enum must be an array");
+            .ok_or("check enum must be an array")?;
         assert_eq!(schema_enum.len(), NAMED_CHECKS.len());
+        Ok(())
     }
 }

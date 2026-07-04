@@ -62,8 +62,14 @@ mod tests {
 
     #[test]
     fn normalize_tool_name_folds_alias_back_to_canonical() {
-        assert_eq!(normalize_tool_name("rust_rules_check"), "ocentra_enforcer_check");
-        assert_eq!(normalize_tool_name("ocentra_enforcer_check"), "ocentra_enforcer_check");
+        assert_eq!(
+            normalize_tool_name("rust_rules_check"),
+            "ocentra_enforcer_check"
+        );
+        assert_eq!(
+            normalize_tool_name("ocentra_enforcer_check"),
+            "ocentra_enforcer_check"
+        );
         assert_eq!(normalize_tool_name("some_other_tool"), "some_other_tool");
     }
 

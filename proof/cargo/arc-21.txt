@@ -1,0 +1,238 @@
+=== cargo test -p enforcer-mcp ===
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  | 
+  | #[serde(try_from = "Finding", into = "Finding")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+     Running unittests src\lib.rs (target\debug\deps\enforcer_mcp-d71365709c8747c2.exe)
+
+running 39 tests
+test aliases::tests::alias_name_derives_rust_rules_prefix ... ok
+test aliases::tests::normalize_tool_name_folds_alias_back_to_canonical ... ok
+test aliases::tests::every_canonical_tool_round_trips_through_alias_and_back ... ok
+test gate::tests::coordination_write_tools_set_matches_legacy_membership ... ok
+test gate::tests::mail_action_gate_honors_write_actions_by_tool ... ok
+test gate::tests::fail_fixture_stale_server_refuses_a_write_tool ... ok
+test gate::tests::hash_incompatible_reason_string_differs_from_plain_stale ... ok
+test gate::tests::read_only_tool_is_never_gated_even_while_stale ... ok
+test aliases::tests::deprecation_window_is_currently_open ... ok
+test gate::tests::pass_fixture_fresh_server_dispatches_the_same_write_tool ... ok
+test gate::tests::repair_dry_run_is_allowed_on_a_stale_server ... ok
+test gate::tests::repair_real_write_is_refused_on_a_stale_server ... ok
+test name::tests::constants_are_non_empty_and_distinct ... ok
+test registry::tests::canonical_tools_list_has_no_duplicates ... ok
+test registry::tests::is_wired_is_honest_about_unwired_backing ... ok
+test registry::tests::check_tool_schema_carries_the_named_check_enum ... ok
+test registry::tests::fail_fixture_an_enum_entry_missing_from_backing_trips_the_gate ... ok
+test registry::tests::named_check_backing_table_is_bidirectionally_equal_to_the_enum ... ok
+test registry::tests::named_checks_enum_matches_legacy_registry_verbatim ... ok
+test router::tests::fail_fixture_malformed_request_unknown_tool_is_rejected ... ok
+test router::tests::stale_server_refuses_a_write_tool_via_the_router ... ok
+test sink::tests::notification_produces_no_reply ... ok
+test sink::tests::fail_fixture_malformed_request_is_rejected_with_a_proper_error_frame ... ok
+test sink::tests::unknown_method_yields_method_not_found_error_frame ... ok
+test transport::tests::chunked_ndjson_across_multiple_pushes_still_frames_correctly ... ok
+test transport::tests::malformed_json_body_is_a_fail_fixture_for_the_router_layer ... ok
+test transport::tests::ndjson_frame_round_trips ... ok
+test transport::tests::two_ndjson_frames_in_one_push_both_drain ... ok
+test transport::tests::notification_detection_matches_legacy_semantics ... ok
+test transport::tests::partial_frame_waits_for_more_bytes ... ok
+test transport::tests::content_length_frame_round_trips ... ok
+test router::tests::pass_fixture_canned_request_yields_expected_tool_result ... ok
+test router::tests::read_only_tool_still_dispatches_while_stale ... ok
+test sink::tests::pass_fixture_canned_request_over_the_transport_yields_expected_tool_result ... ok
+test registry::tests::tool_surface_bytes_is_positive_and_stable_across_calls ... ok
+test router::tests::legacy_alias_resolves_to_the_same_handler_as_canonical ... ok
+test registry::tests::tool_surface_enumeration_is_deterministic ... ok
+test sink::tests::initialize_and_tools_list_round_trip ... ok
+test router::tests::coordination_claim_end_to_end_against_a_real_temp_hub ... ok
+
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src\bin\enforcer-mcp-smoke.rs (target\debug\deps\enforcer_mcp_smoke-f6bc3b8667e3b6e9.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\stdio_smoke.rs (target\debug\deps\stdio_smoke-d96de4a45e30cfc6.exe)
+
+running 2 tests
+test stdio_smoke_legacy_alias_call_resolves_end_to_end ... ok
+test stdio_smoke_initialize_list_tools_and_call_one_tool_end_to_end ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+   Doc-tests enforcer_mcp
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+=== cargo test -p enforcer-mcp --test stdio_smoke ===
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  | 
+  | #[serde(try_from = "Finding", into = "Finding")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests\stdio_smoke.rs (target\debug\deps\stdio_smoke-d96de4a45e30cfc6.exe)
+
+running 2 tests
+test stdio_smoke_initialize_list_tools_and_call_one_tool_end_to_end ... ok
+test stdio_smoke_legacy_alias_call_resolves_end_to_end ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+=== cargo clippy -p enforcer-mcp --all-targets ===
+    Checking enforcer-core v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-ab6ba3803bd67ba20\crates\enforcer-core)
+    Checking enforcer-domain v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-ab6ba3803bd67ba20\crates\enforcer-domain)
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  | 
+  | #[serde(try_from = "Finding", into = "Finding")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+    Checking enforcer-validator v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-ab6ba3803bd67ba20\crates\enforcer-validator)
+    Checking enforcer-config v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-ab6ba3803bd67ba20\crates\enforcer-config)
+    Checking enforcer-literal-scan v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-ab6ba3803bd67ba20\crates\enforcer-literal-scan)
+    Checking enforcer-events v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-ab6ba3803bd67ba20\crates\enforcer-events)
+    Checking enforcer-harness v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-ab6ba3803bd67ba20\crates\enforcer-harness)
+    Checking enforcer-coordination v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-ab6ba3803bd67ba20\crates\enforcer-coordination)
+    Checking enforcer-lang-py v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-ab6ba3803bd67ba20\crates\enforcer-lang-py)
+    Checking enforcer-lang-ts v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-ab6ba3803bd67ba20\crates\enforcer-lang-ts)
+    Checking enforcer-lang-rust v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-ab6ba3803bd67ba20\crates\enforcer-lang-rust)
+    Checking enforcer-lang-iac v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-ab6ba3803bd67ba20\crates\enforcer-lang-iac)
+    Checking enforcer-lang-security v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-ab6ba3803bd67ba20\crates\enforcer-lang-security)
+    Checking enforcer-rules v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-ab6ba3803bd67ba20\crates\enforcer-rules)
+    Checking enforcer-lang-common v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-ab6ba3803bd67ba20\crates\enforcer-lang-common)
+    Checking enforcer-lang-k8s v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-ab6ba3803bd67ba20\crates\enforcer-lang-k8s)
+    Checking enforcer-scan v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-ab6ba3803bd67ba20\crates\enforcer-scan)
+    Checking enforcer-proof v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-ab6ba3803bd67ba20\crates\enforcer-proof)
+    Checking enforcer-mcp v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-ab6ba3803bd67ba20\crates\enforcer-mcp)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.56s
+
+=== cargo fmt -p enforcer-mcp -- --check ===
+fmt: OK (no diff)

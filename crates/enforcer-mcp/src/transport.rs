@@ -75,7 +75,10 @@ fn read_frame(buffer: &[u8]) -> Option<(Frame, usize)> {
 fn is_content_length_prefix(buffer: &[u8]) -> bool {
     let probe_len = buffer.len().min(64);
     let probe = String::from_utf8_lossy(&buffer[..probe_len]);
-    probe.trim_start().to_ascii_lowercase().starts_with("content-length:")
+    probe
+        .trim_start()
+        .to_ascii_lowercase()
+        .starts_with("content-length:")
 }
 
 fn read_ndjson_frame(buffer: &[u8]) -> Option<(Frame, usize)> {
@@ -230,10 +233,7 @@ impl RpcError {
 /// without depending on real I/O.
 pub fn chunk_bytes(bytes: &[u8], chunk_size: usize) -> VecDeque<Vec<u8>> {
     let chunk_size = chunk_size.max(1);
-    bytes
-        .chunks(chunk_size)
-        .map(<[u8]>::to_vec)
-        .collect()
+    bytes.chunks(chunk_size).map(<[u8]>::to_vec).collect()
 }
 
 #[cfg(test)]
@@ -241,20 +241,21 @@ mod tests {
     use super::{encode_frame, FrameReader, Framing, RpcMessage};
 
     #[test]
-    fn ndjson_frame_round_trips() {
+    fn ndjson_frame_round_trips() -> Result<(), Box<dyn std::error::Error>> {
         let mut reader = FrameReader::new();
         let frames = reader.push(b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}\n");
         assert_eq!(frames.len(), 1);
         assert_eq!(frames[0].framing, Framing::Ndjson);
-        let message: RpcMessage = serde_json::from_str(&frames[0].body).expect("valid json");
+        let message: RpcMessage = serde_json::from_str(&frames[0].body)?;
         assert_eq!(message.method, "ping");
 
         let encoded = encode_frame("{\"ok\":true}", Framing::Ndjson);
         assert_eq!(encoded, b"{\"ok\":true}\n");
+        Ok(())
     }
 
     #[test]
-    fn content_length_frame_round_trips() {
+    fn content_length_frame_round_trips() -> Result<(), Box<dyn std::error::Error>> {
         let body = "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}";
         let wire = format!("Content-Length: {}\r\n\r\n{}", body.len(), body);
         let mut reader = FrameReader::new();
@@ -264,23 +265,25 @@ mod tests {
         assert_eq!(frames[0].body, body);
 
         let encoded = encode_frame("{\"ok\":true}", Framing::ContentLength);
-        let encoded_str = String::from_utf8(encoded).expect("utf8");
+        let encoded_str = String::from_utf8(encoded)?;
         assert_eq!(encoded_str, "Content-Length: 11\r\n\r\n{\"ok\":true}");
+        Ok(())
     }
 
     #[test]
     fn partial_frame_waits_for_more_bytes() {
-        // Full body `{"partial":true}` is 17 bytes; declare Content-Length
-        // 17 and split the wire bytes mid-body so the reader must wait for
+        // Full body `{"partial":true}` is 16 bytes; declare Content-Length
+        // 16 and split the wire bytes mid-body so the reader must wait for
         // the remainder before yielding a frame.
         let body = "{\"partial\":true}";
         assert_eq!(body.len(), 16);
         let wire = format!("Content-Length: {}\r\n\r\n{}", body.len(), body);
-        let split_at = wire.len() - 1; // withhold the final `}`
+        let wire_bytes = wire.as_bytes();
+        let split_at = wire_bytes.len() - 1; // withhold the final `}`
         let mut reader = FrameReader::new();
-        let frames = reader.push(wire[..split_at].as_bytes());
+        let frames = reader.push(&wire_bytes[..split_at]);
         assert!(frames.is_empty(), "incomplete body must not yield a frame");
-        let frames = reader.push(wire[split_at..].as_bytes());
+        let frames = reader.push(&wire_bytes[split_at..]);
         assert_eq!(frames.len(), 1);
         assert_eq!(frames[0].body, body);
     }
@@ -318,12 +321,11 @@ mod tests {
     }
 
     #[test]
-    fn notification_detection_matches_legacy_semantics() {
-        let notif: RpcMessage =
-            serde_json::from_str("{\"method\":\"notifications/initialized\"}").expect("valid");
+    fn notification_detection_matches_legacy_semantics() -> Result<(), Box<dyn std::error::Error>> {
+        let notif: RpcMessage = serde_json::from_str("{\"method\":\"notifications/initialized\"}")?;
         assert!(notif.is_notification());
-        let request: RpcMessage =
-            serde_json::from_str("{\"id\":1,\"method\":\"ping\"}").expect("valid");
+        let request: RpcMessage = serde_json::from_str("{\"id\":1,\"method\":\"ping\"}")?;
         assert!(!request.is_notification());
+        Ok(())
     }
 }

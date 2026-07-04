@@ -67,9 +67,7 @@ pub fn dispatch(name: &str, args: &serde_json::Value, ctx: &DispatchContext) -> 
         "ocentra_enforcer_coordination_status" => {
             DispatchOutcome::Result(coordination_status(args))
         }
-        "ocentra_enforcer_coordination_claim" => {
-            DispatchOutcome::Result(coordination_claim(args))
-        }
+        "ocentra_enforcer_coordination_claim" => DispatchOutcome::Result(coordination_claim(args)),
         // Every other registered tool is a real delegate seam owned by a
         // sibling pack's future wiring pass; this skeleton reports it as
         // registered-but-not-yet-wired rather than silently no-op'ing or
@@ -157,10 +155,8 @@ fn coordination_claim(args: &serde_json::Value) -> serde_json::Value {
         .filter_map(|v| v.as_str().map(str::to_owned))
         .collect();
 
-    let (Ok(hub_name), Ok(lane_id)) = (
-        hub_raw.parse::<HubName>(),
-        lane_raw.parse::<LaneId>(),
-    ) else {
+    let (Ok(hub_name), Ok(lane_id)) = (hub_raw.parse::<HubName>(), lane_raw.parse::<LaneId>())
+    else {
         return json_error("hub/lane failed enforcer-domain brand validation");
     };
 
@@ -247,13 +243,11 @@ mod tests {
             &serde_json::json!({}),
             &ctx(Freshness::fresh()),
         );
-        match outcome {
-            DispatchOutcome::Result(value) => {
-                assert_eq!(value["ok"], serde_json::json!(true));
-                assert!(value["toolCount"].as_u64().unwrap_or(0) > 0);
-            }
-            other => panic!("expected a Result outcome, got {other:?}"),
-        }
+        let DispatchOutcome::Result(value) = outcome else {
+            unreachable!("mcp_status must always produce a Result outcome");
+        };
+        assert_eq!(value["ok"], serde_json::json!(true));
+        assert!(value["toolCount"].as_u64().unwrap_or(0) > 0);
     }
 
     #[test]
@@ -279,7 +273,7 @@ mod tests {
             &ctx(Freshness::fresh()),
         );
         let (DispatchOutcome::Result(a), DispatchOutcome::Result(b)) = (canonical, aliased) else {
-            panic!("both calls must produce a Result outcome");
+            unreachable!("both calls must produce a Result outcome");
         };
         assert_eq!(a, b);
     }
@@ -305,8 +299,8 @@ mod tests {
     }
 
     #[test]
-    fn coordination_claim_end_to_end_against_a_real_temp_hub() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn coordination_claim_end_to_end_against_a_real_temp_hub(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         let root = temp.path();
         let file_a = root.join("crate_a.rs");
@@ -327,13 +321,11 @@ mod tests {
             &args,
             &ctx(Freshness::fresh()),
         );
-        match outcome {
-            DispatchOutcome::Result(value) => {
-                assert_eq!(value["ok"], serde_json::json!(true));
-                assert_eq!(value["eventCount"], serde_json::json!(1));
-            }
-            other => panic!("expected a successful claim Result, got {other:?}"),
-        }
+        let DispatchOutcome::Result(value) = outcome else {
+            unreachable!("expected a successful claim Result outcome");
+        };
+        assert_eq!(value["ok"], serde_json::json!(true));
+        assert_eq!(value["eventCount"], serde_json::json!(1));
         Ok(())
     }
 }

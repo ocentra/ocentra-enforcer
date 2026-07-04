@@ -15,7 +15,9 @@ use std::io::{Read, Write};
 
 use crate::gate::Freshness;
 use crate::router::{self, DispatchContext, DispatchOutcome};
-use crate::transport::{encode_frame, Frame, FrameReader, Framing, RpcError, RpcMessage, RpcResult};
+use crate::transport::{
+    encode_frame, Frame, FrameReader, Framing, RpcError, RpcMessage, RpcResult,
+};
 
 /// Run the MCP stdio server loop against real `stdin`/`stdout`, blocking
 /// until stdin closes. `ctx` carries the freshness verdict (a02 seam) and
@@ -94,7 +96,10 @@ fn handle_method(
         "resources/templates/list" => Ok(serde_json::json!({ "resourceTemplates": [] })),
         "prompts/list" => Ok(serde_json::json!({ "prompts": [] })),
         "shutdown" => Ok(serde_json::Value::Null),
-        other => Err((RpcError::METHOD_NOT_FOUND, format!("Unknown method: {other}"))),
+        other => Err((
+            RpcError::METHOD_NOT_FOUND,
+            format!("Unknown method: {other}"),
+        )),
     }
 }
 
@@ -114,7 +119,10 @@ fn initialize_result(params: &serde_json::Value) -> serde_json::Value {
 }
 
 fn handle_tools_call(params: &serde_json::Value, ctx: &DispatchContext) -> serde_json::Value {
-    let name = params.get("name").and_then(serde_json::Value::as_str).unwrap_or_default();
+    let name = params
+        .get("name")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default();
     let empty_args = serde_json::Value::Object(serde_json::Map::new());
     let args = params.get("arguments").unwrap_or(&empty_args);
     match router::dispatch(name, args, ctx) {
@@ -134,8 +142,10 @@ fn write_reply(
     reply: &impl serde::Serialize,
     framing: Framing,
 ) -> std::io::Result<()> {
-    let body = serde_json::to_string(reply)
-        .unwrap_or_else(|_| "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32603,\"message\":\"encode failure\"}}".to_owned());
+    let body = serde_json::to_string(reply).unwrap_or_else(|_| {
+        "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32603,\"message\":\"encode failure\"}}"
+            .to_owned()
+    });
     out.write_all(&encode_frame(&body, framing))?;
     out.flush()
 }
@@ -160,7 +170,7 @@ mod tests {
 
     #[test]
     fn pass_fixture_canned_request_over_the_transport_yields_expected_tool_result(
-    ) -> std::io::Result<()> {
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let ctx = default_dispatch_context("/abs/enforcer");
         let frame = Frame {
             body: serde_json::json!({
@@ -174,17 +184,15 @@ mod tests {
         };
         let mut out = Vec::new();
         handle_frame(&frame, &ctx, &mut out)?;
-        let reply: serde_json::Value = serde_json::from_slice(
-            out.strip_suffix(b"\n").unwrap_or(&out),
-        )
-        .expect("valid json reply");
+        let reply: serde_json::Value =
+            serde_json::from_slice(out.strip_suffix(b"\n").unwrap_or(&out))?;
         assert_eq!(reply["result"]["ok"], serde_json::json!(true));
         Ok(())
     }
 
     #[test]
     fn fail_fixture_malformed_request_is_rejected_with_a_proper_error_frame(
-    ) -> std::io::Result<()> {
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let ctx = default_dispatch_context("/abs/enforcer");
         let frame = Frame {
             body: "{not valid json".to_owned(),
@@ -192,16 +200,15 @@ mod tests {
         };
         let mut out = Vec::new();
         handle_frame(&frame, &ctx, &mut out)?;
-        let reply: serde_json::Value = serde_json::from_slice(
-            out.strip_suffix(b"\n").unwrap_or(&out),
-        )
-        .expect("valid json reply even for a malformed request");
+        let reply: serde_json::Value =
+            serde_json::from_slice(out.strip_suffix(b"\n").unwrap_or(&out))?;
         assert_eq!(reply["error"]["code"], serde_json::json!(-32700));
         Ok(())
     }
 
     #[test]
-    fn unknown_method_yields_method_not_found_error_frame() -> std::io::Result<()> {
+    fn unknown_method_yields_method_not_found_error_frame() -> Result<(), Box<dyn std::error::Error>>
+    {
         let ctx = default_dispatch_context("/abs/enforcer");
         let frame = Frame {
             body: serde_json::json!({
@@ -214,16 +221,15 @@ mod tests {
         };
         let mut out = Vec::new();
         handle_frame(&frame, &ctx, &mut out)?;
-        let text = String::from_utf8(out).expect("utf8");
+        let text = String::from_utf8(out)?;
         let body_start = text.find("\r\n\r\n").map(|at| at + 4).unwrap_or(0);
-        let reply: serde_json::Value =
-            serde_json::from_str(&text[body_start..]).expect("valid json reply");
+        let reply: serde_json::Value = serde_json::from_str(&text[body_start..])?;
         assert_eq!(reply["error"]["code"], serde_json::json!(-32601));
         Ok(())
     }
 
     #[test]
-    fn notification_produces_no_reply() -> std::io::Result<()> {
+    fn notification_produces_no_reply() -> Result<(), Box<dyn std::error::Error>> {
         let ctx = default_dispatch_context("/abs/enforcer");
         let frame = Frame {
             body: serde_json::json!({ "method": "notifications/initialized" }).to_string(),
@@ -231,12 +237,15 @@ mod tests {
         };
         let mut out = Vec::new();
         handle_frame(&frame, &ctx, &mut out)?;
-        assert!(out.is_empty(), "a notification must never produce a reply frame");
+        assert!(
+            out.is_empty(),
+            "a notification must never produce a reply frame"
+        );
         Ok(())
     }
 
     #[test]
-    fn initialize_and_tools_list_round_trip() -> std::io::Result<()> {
+    fn initialize_and_tools_list_round_trip() -> Result<(), Box<dyn std::error::Error>> {
         let ctx = default_dispatch_context("/abs/enforcer");
         let init_frame = Frame {
             body: serde_json::json!({ "jsonrpc": "2.0", "id": 1, "method": "initialize" })
@@ -245,11 +254,12 @@ mod tests {
         };
         let mut out = Vec::new();
         handle_frame(&init_frame, &ctx, &mut out)?;
-        let reply: serde_json::Value = serde_json::from_slice(
-            out.strip_suffix(b"\n").unwrap_or(&out),
-        )
-        .expect("valid json reply");
-        assert_eq!(reply["result"]["serverInfo"]["name"], serde_json::json!(crate::name::SERVER_NAME));
+        let reply: serde_json::Value =
+            serde_json::from_slice(out.strip_suffix(b"\n").unwrap_or(&out))?;
+        assert_eq!(
+            reply["result"]["serverInfo"]["name"],
+            serde_json::json!(crate::name::SERVER_NAME)
+        );
 
         let list_frame = Frame {
             body: serde_json::json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/list" })
@@ -258,11 +268,11 @@ mod tests {
         };
         let mut out2 = Vec::new();
         handle_frame(&list_frame, &ctx, &mut out2)?;
-        let reply2: serde_json::Value = serde_json::from_slice(
-            out2.strip_suffix(b"\n").unwrap_or(&out2),
-        )
-        .expect("valid json reply");
-        let tools = reply2["result"]["tools"].as_array().expect("tools array");
+        let reply2: serde_json::Value =
+            serde_json::from_slice(out2.strip_suffix(b"\n").unwrap_or(&out2))?;
+        let tools = reply2["result"]["tools"]
+            .as_array()
+            .ok_or("tools must be an array")?;
         assert!(!tools.is_empty());
         Ok(())
     }
