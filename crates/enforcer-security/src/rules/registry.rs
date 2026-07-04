@@ -11,6 +11,7 @@
 use enforcer_core::error::DecodeError;
 use enforcer_validator::validator::Validator;
 
+use super::money_critical::{MoneyCriticalAnnotatedValidator, MoneyCriticalClassifyValidator};
 use super::no_bypass::NoBypassValidator;
 
 /// One registry row: the rule id this row proves, paired with the
@@ -27,10 +28,20 @@ pub struct RegistryRow {
 /// malformed entry — a registry that failed to build completely must not
 /// be treated as "loaded".
 pub fn build_all() -> Result<Vec<RegistryRow>, DecodeError> {
-    let rows = vec![RegistryRow {
-        rule_id: "H00-1.1",
-        validator: Box::new(NoBypassValidator::new()?),
-    }];
+    let rows = vec![
+        RegistryRow {
+            rule_id: "H00-1.1",
+            validator: Box::new(NoBypassValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "MONEY-CRIT-CLASSIFY.1",
+            validator: Box::new(MoneyCriticalClassifyValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "MONEY-CRIT-ANNOTATED.1",
+            validator: Box::new(MoneyCriticalAnnotatedValidator::new()?),
+        },
+    ];
 
     Ok(rows)
 }
@@ -42,8 +53,14 @@ mod tests {
     #[test]
     fn registry_builds_cleanly() -> Result<(), Box<dyn std::error::Error>> {
         let rows = build_all()?;
-        assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].rule_id, "H00-1.1");
+        assert_eq!(rows.len(), 3);
+        assert!(rows.iter().any(|row| row.rule_id == "H00-1.1"));
+        assert!(rows
+            .iter()
+            .any(|row| row.rule_id == "MONEY-CRIT-CLASSIFY.1"));
+        assert!(rows
+            .iter()
+            .any(|row| row.rule_id == "MONEY-CRIT-ANNOTATED.1"));
         Ok(())
     }
 }

@@ -353,10 +353,14 @@ version = "0.1.0"
 dependencies = [
  "enforcer-core",
  "enforcer-domain",
+ "enforcer-mechanization",
+ "enforcer-rules",
  "enforcer-validator",
+ "proc-macro2",
  "regex",
  "serde",
  "serde_json",
+ "syn",
 ]
 
 [[package]]

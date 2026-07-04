@@ -1,0 +1,51 @@
+[
+    {
+        "ruleId": "MONEY-CRIT-CLASSIFY.1",
+        "version": 1,
+        "title": "Money-critical scored classifier (T2, §8.2)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::money_critical::MoneyCriticalClassifyValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/money_critical/classify/bad/credit_balance.rs",
+            "pass": "crates/enforcer-security/tests/fixtures/money_critical/classify/good/pure_formatter.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h01-money-critical-classifier.md#MONEY-CRIT-CLASSIFY",
+        "tags": ["security", "money-critical", "track-h", "scored", "generic-value-system"],
+        "params": {
+            "classifyThreshold": 40,
+            "signalFamilies": [
+                "creates/transfers/modifies/destroys value",
+                "performs economic calculation",
+                "applies rewards/credits/balances/cooldowns",
+                "signs or authorizes payments",
+                "executes rollback/compensation",
+                "changes time-based state",
+                "toggles kill-switches"
+            ]
+        }
+    },
+    {
+        "ruleId": "MONEY-CRIT-ANNOTATED.1",
+        "version": 1,
+        "title": "Money-critical annotation/registration gate (T1, §8.2)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::money_critical::MoneyCriticalAnnotatedValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/money_critical/annotated/bad/sign_payment_unannotated.rs",
+            "pass": "crates/enforcer-security/tests/fixtures/money_critical/annotated/good/sign_payment_registered.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h01-money-critical-classifier.md#MONEY-CRIT-ANNOTATED",
+        "tags": ["security", "money-critical", "track-h", "annotation-gate", "unsure-default"],
+        "params": {
+            "registeredAttribute": "#[money_critical(registered)]",
+            "exemptAttribute": "#[money_critical(exempt)]",
+            "doctrine": "silence is not permission; if unsure, treat as money-critical"
+        }
+    }
+]
