@@ -28,4 +28,5 @@ pub mod hashes;
 pub mod ids;
 pub mod paths;
 pub mod records;
+pub mod run_record;
 pub mod severity;

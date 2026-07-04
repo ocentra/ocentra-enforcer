@@ -18,5 +18,12 @@ sha2 = { workspace = true }
 # here directly to avoid an unclaimed root edit. Centralize in a later a01 pass.
 regex = "1"
 
+[dev-dependencies]
+# Dev-only: enforcer-domain (arc-02) depends on enforcer-core, so this edge
+# only exists for the test binary, not the library build graph — no cycle.
+# Used by tests/telemetry.rs to prove the generic sink against the concrete
+# `enforcer-domain::run_record::RunRecord` shape (d04).
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+
 [lints]
 workspace = true

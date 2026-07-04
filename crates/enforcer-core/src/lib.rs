@@ -27,4 +27,5 @@ pub mod hash_chain;
 pub mod ndjson_writer;
 pub mod platform;
 pub mod redaction;
+pub mod telemetry;
 pub mod tracing_setup;
