@@ -5,6 +5,10 @@
   "languages": ["rust", "typescript", "python", "common"],
   "rustRoots": ["src", "crates"],
   "crateRootGlobs": ["crates/*", "."],
+  "rawStringOwnerGlobs": [
+    "crates/enforcer-domain/src/**",
+    "crates/enforcer-lang-rust/src/rules/**"
+  ],
   "requireCargoDeny": false,
   "requireCargoAudit": false,
   "runCargoDoc": false,
