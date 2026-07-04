@@ -57,6 +57,7 @@
 //! x03 `src/migrate_legacy_name.rs`. This crate does NOT create those
 //! files or directories — it only documents the mount points here.
 
+pub mod adapters;
 pub mod backup;
 pub mod cli_contract;
 pub mod core;

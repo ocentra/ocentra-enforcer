@@ -13,6 +13,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+enforcer-mcp = { path = "../enforcer-mcp", version = "0.1.0" }
 
 [dev-dependencies]
 tempfile = "3"

@@ -331,6 +331,7 @@ version = "0.1.0"
 dependencies = [
  "enforcer-core",
  "enforcer-domain",
+ "enforcer-mcp",
  "serde",
  "serde_json",
  "tempfile",

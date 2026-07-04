@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "enforcer": {
+      "command": "PLACEHOLDER_BINARY_PATH",
+      "args": [],
+      "env": {
+        "OCENTRA_LEDGER_HOME": "${HOME}/.enforcer/ledger"
+      }
+    }
+  }
+}

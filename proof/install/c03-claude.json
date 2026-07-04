@@ -1,0 +1,90 @@
+{
+  "workpack": "c03",
+  "hub": "enforcer-selfhost-plan",
+  "tier": "P5 install-proof (T1)",
+  "namedTest": "claude-adapter-install (temp `~/.claude.json`)",
+  "commands": [
+    "cargo test -p enforcer-install",
+    "cargo clippy -p enforcer-install --all-targets -- -D warnings",
+    "cargo fmt -p enforcer-install --check"
+  ],
+  "result": {
+    "testsPassed": 92,
+    "testsFailed": 0,
+    "breakdown": {
+      "unit (src/lib.rs, incl. 22 adapters::claude::tests)": 85,
+      "integration (tests/claude_adapter_fixtures.rs, checked-in fixtures)": 4,
+      "integration (tests/detect_fixtures.rs, c02 fixtures, unaffected regression check)": 3,
+      "doc-tests": 0
+    },
+    "clippy": "clean (no warnings, incl. -D clippy::expect-used from workspace lints)",
+    "fmt": "clean (no diff)",
+    "workspaceRegression": "cargo build --workspace: all crates compile clean post-change"
+  },
+  "seededViolationCases": [
+    {
+      "case": "pass fixture: fresh install (plan+apply) then verify -- all green, unrelated mcpServers entries + top-level keys preserved",
+      "test": "adapters::claude::tests::full_install_apply_then_verify_all_green, claude_adapter_fixtures::pass_fixture_install_then_verify_is_all_green",
+      "fixture": "crates/enforcer-install/tests/fixtures/claude_adapter/pass/.claude.json (pre-seeded with an unrelated `codebase-memory-mcp` mcpServers entry + an unrelated top-level key)",
+      "expectation": "plan proposes 4 changes (mcpServers upsert, skill, agent descriptor, CLAUDE.md block); apply succeeds; verify.all_passed(); ~/.claude.json's pre-existing codebase-memory-mcp entry and unrelated top-level key survive the merge byte-identically; second plan() is a no-op (idempotent re-install)",
+      "status": "PASS"
+    },
+    {
+      "case": "descriptor absent -> verify returns a failed check, not a skip",
+      "test": "adapters::claude::tests::verify_fails_when_descriptor_missing",
+      "expectation": "VerifyReport.all_passed() == false; an `agent-descriptor-present` check is present with passed:false and a non-empty detail (never silently omitted from checks)",
+      "status": "PASS"
+    },
+    {
+      "case": "descriptor hand-corrupted (no frontmatter fence at all) -> verify returns a failed check, not a skip",
+      "test": "adapters::claude::tests::verify_fails_when_descriptor_corrupt, claude_adapter_fixtures::descriptor_fail_fixture_verify_returns_a_failed_check_not_a_skip",
+      "fixture": "crates/enforcer-install/tests/fixtures/claude_adapter/descriptor_fail/.claude/agents/enforcer.md (plain prose, no `---` frontmatter fence)",
+      "expectation": "agent-descriptor-present check present with passed:false; detail names the parse failure (missing opening/closing fence, missing name:, or missing allow_implicit_invocation: true)",
+      "status": "PASS"
+    },
+    {
+      "case": "hand-edited/corrupt ~/.claude.json -> plan AND verify fail closed with a typed InstallError::MalformedConfig, never a silent empty-config fallback",
+      "test": "adapters::claude::tests::malformed_claude_json_is_a_detected_plan_failure, adapters::claude::tests::verify_fails_closed_on_malformed_claude_json, claude_adapter_fixtures::claude_json_fail_fixture_verify_fails_closed_with_typed_error",
+      "fixture": "crates/enforcer-install/tests/fixtures/claude_adapter/claude_json_fail/.claude.json (`{ this is not valid JSON at all`)",
+      "expectation": "both plan() and verify() return Err(InstallError::MalformedConfig) -- never Ok with an empty/default mcpServers map",
+      "status": "PASS"
+    },
+    {
+      "case": "round-trip install->uninstall restores ~/.claude.json byte-for-byte, removes skill + descriptor",
+      "test": "adapters::claude::tests::install_then_uninstall_restores_pre_state_byte_for_byte, claude_adapter_fixtures::pass_fixture_round_trip_install_uninstall_restores_byte_for_byte",
+      "expectation": "after plan_uninstall()+apply_uninstall(), ~/.claude.json deep-equals (and, for the direct adapter unit test, byte-equals under the adapter's own serde_json::to_vec_pretty rendering) its pre-install value; skill_md_path()/agent_descriptor_path() no longer exist",
+      "status": "PASS"
+    },
+    {
+      "case": "RequestContext.binary_path inconsistent with the ClaudeAdapter's own constructed binary_path -> detected error, never silent drift",
+      "test": "adapters::claude::tests::ctx_binary_path_mismatch_is_a_detected_error",
+      "expectation": "plan() (and verify()) return Err(InstallError::MalformedConfig) when ctx.binary_path != the adapter's own binary_path",
+      "status": "PASS"
+    },
+    {
+      "case": "mcpServers value-merge preserves unrelated entries and top-level keys (unit-level, no fixture I/O)",
+      "test": "adapters::claude::tests::merge_preserves_unrelated_mcp_servers_and_top_level_keys, adapters::claude::tests::entry_matches_detects_idempotent_noop",
+      "expectation": "merge_mcp_server() only ever touches mcpServers[SERVER_NAME]; every other key (top-level and inside mcpServers) is untouched; entry_matches() detects true equality for the idempotent-reinstall no-op signal",
+      "status": "PASS"
+    },
+    {
+      "case": "agent descriptor frontmatter validator accepts the adapter's own rendered output and rejects each malformed shape",
+      "test": "adapters::claude::tests::agent_descriptor_renders_valid_frontmatter, validate_agent_descriptor_rejects_missing_fence, validate_agent_descriptor_rejects_unclosed_fence, validate_agent_descriptor_rejects_missing_implicit_invocation",
+      "expectation": "render_agent_descriptor() output passes validate_agent_descriptor(); missing opening fence / missing closing fence / missing allow_implicit_invocation: true are each individually rejected",
+      "status": "PASS"
+    }
+  ],
+  "keptExtendedReplaced": {
+    "src/adapters/mod.rs": "NEW -- module-tree wiring only (pub mod claude;), owned by c03 per lib.rs's mount-point comment.",
+    "src/adapters/claude.rs": "NEW -- ClaudeAdapter implementing c01's HarnessAdapter (plan/apply/verify) against a `home` root + fixed `binary_path`. Registers enforcer_mcp::name::SERVER_NAME (the x01-owned const, never a hardcoded literal) into the top-level mcpServers map of ~/.claude.json via a serde_json::Value merge that preserves every unrelated top-level key AND every unrelated mcpServers entry. Emits .claude/agents/<SERVER_NAME>.md (YAML frontmatter + body, the Claude-native analog of Codex's agents/openai.yaml), ~/.claude/skills/<SERVER_NAME>/SKILL.md, and a CLAUDE.md managed block (crate::managed_block::upsert_block, embedding crate::core::PARALLEL_EXECUTION_DOCTRINE). verify() fails closed (returns the typed InstallError directly, not a passed:false check) on malformed ~/.claude.json; a missing/corrupt descriptor instead renders as a passed:false VerifyCheck (a real, detectable mismatch rather than an unreadable file). Also exposes plan_uninstall/apply_uninstall as inherent methods (kept off the HarnessAdapter trait itself, which core.rs documents as direction-agnostic) for the round-trip proof.",
+    "lib.rs": "EXTENDED (added `pub mod adapters;`)",
+    "Cargo.toml": "EXTENDED (added enforcer-mcp path dependency, for enforcer_mcp::name::SERVER_NAME -- no cycle: enforcer-mcp does not depend on enforcer-install)",
+    "tests/fixtures/claude_adapter/**": "NEW -- pass/.claude.json (pre-seeded unrelated mcpServers entry + top-level key), descriptor_fail/{.claude.json,.claude/agents/enforcer.md} (corrupt descriptor, placeholder binary path substituted per-test), claude_json_fail/.claude.json (malformed JSON) -- checked-in fixtures per the workpack's named Fixtures row, copied into an isolated tempdir per test (never mutated in place, never touching the real ~/.claude.json).",
+    "tests/claude_adapter_fixtures.rs": "NEW -- 4 integration tests exercising the checked-in fixtures end-to-end (install+verify pass, descriptor-fail, claude-json-fail, round-trip uninstall)."
+  },
+  "deviations": [],
+  "dogfoodFindings": [
+    "L29 __COMPAT_LAYER=RunAsInvoker confirmed necessary for this crate's own test binary on Windows: `cargo test -p enforcer-install` produced `error 740 (The requested operation requires elevation)` when invoking the compiled test exe (`enforcer_install-*.exe`) without the env var set -- Windows app-compat heuristics flag executables whose name contains \"install\" for elevation. Setting `__COMPAT_LAYER=RunAsInvoker` in the shell before `cargo test`/`cargo clippy` resolved it with zero code changes required. Documented here since this crate's name (`enforcer-install`) makes every future contributor on Windows hit the identical issue running these exact tests."
+  ],
+  "workspaceRegression": "cargo build --workspace: all crates compile clean post-change (new enforcer-mcp dependency + adapters module addition only touches enforcer-install)"
+}
