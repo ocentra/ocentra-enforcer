@@ -3,6 +3,7 @@
 //! `plan`/`apply`/`verify` each return one of these types so `enforcer-cli`
 //! (arc-22) and the UI (arc-24) render every harness uniformly.
 
+use enforcer_domain::paths::RepoRoot;
 use serde::{Deserialize, Serialize};
 
 /// A single harness adapter's identity, for reporting which harness a
@@ -43,8 +44,12 @@ pub struct PlannedChange {
     pub harness: HarnessKey,
     /// What kind of artifact this change targets.
     pub kind: ArtifactKind,
-    /// Absolute path of the file this change reads/writes.
-    pub path: String,
+    /// Absolute path of the file this change reads/writes. Branded over
+    /// [`RepoRoot`] (parse-at-boundary) rather than a bare `String` — an
+    /// adapter cannot construct a [`PlannedChange`] pointing at a relative
+    /// path, matching the "absolute path, never relative" contract every
+    /// adapter's MCP registration must honor (RUST_ARCHITECTURE.md).
+    pub path: RepoRoot,
     /// Human-readable one-line description of the change (e.g. "add
     /// `enforcer` to `mcpServers`" or "update stale `enforcer` entry").
     pub description: String,
@@ -89,8 +94,9 @@ pub struct AppliedChange {
     /// Whether the write succeeded.
     pub succeeded: bool,
     /// Path to the pre-write backup, if [`crate::backup`] created one for
-    /// this change's target file.
-    pub backup_path: Option<String>,
+    /// this change's target file. Branded over [`RepoRoot`], matching
+    /// [`PlannedChange::path`].
+    pub backup_path: Option<RepoRoot>,
 }
 
 /// The full result a [`crate::core::HarnessAdapter::apply`] call returns.
@@ -141,21 +147,71 @@ impl VerifyReport {
     }
 }
 
+/// One skill asset a [`SkillAssetManifest`] declares. The legacy
+/// `scripts/validate-codex-assets.mjs` hardcoded these paths for the Codex
+/// adapter alone; here an adapter (or a caller building a manifest for
+/// tests) supplies its own asset list, so the check itself stays
+/// harness-neutral (RUST_ARCHITECTURE.md skill-asset fold-in, WAVE 6).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillAsset {
+    /// Short name identifying the skill this asset belongs to (e.g.
+    /// `"ocentra-enforcer"`).
+    pub skill_name: String,
+    /// Absolute or repo-relative path to the declared `SKILL.md` (or other
+    /// skill asset) that must exist on disk.
+    pub asset_path: String,
+}
+
+/// The publish-contract assertion the legacy `.mjs` validator made for
+/// Codex specifically (`plugin.skills === "./skills/"` in
+/// `.codex-plugin/plugin.json`). Kept as an adapter-provided manifest field
+/// rather than a hardcoded literal in the check, so a future adapter with a
+/// different plugin-manifest shape can supply its own expectation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginPublishContract {
+    /// Path to the plugin manifest file (e.g. `.codex-plugin/plugin.json`).
+    pub manifest_path: String,
+    /// The dotted JSON field expected to hold `expected_value` (e.g.
+    /// `"skills"`).
+    pub field: String,
+    /// The value `field` must equal for the publish contract to hold (e.g.
+    /// `"./skills/"`).
+    pub expected_value: String,
+}
+
+/// A caller/adapter-provided manifest of skill assets + the plugin publish
+/// contract to check. This is the harness-neutral replacement for the
+/// hardcoded Codex canonical/legacy skill paths the retired `.mjs` script
+/// baked in: any adapter (or test fixture) builds one of these to describe
+/// ITS assets, and [`crate::core::run_skill_asset_checks`] evaluates it
+/// uniformly.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillAssetManifest {
+    /// Every skill asset that must exist on disk.
+    pub assets: Vec<SkillAsset>,
+    /// Zero or more plugin-manifest field/value contracts that must hold.
+    pub plugin_contracts: Vec<PluginPublishContract>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        AppliedChange, ApplyResult, ArtifactKind, InstallReport, PlannedChange, VerifyCheck,
-        VerifyReport,
+        AppliedChange, ApplyResult, ArtifactKind, InstallReport, PlannedChange,
+        PluginPublishContract, RepoRoot, SkillAsset, SkillAssetManifest, VerifyCheck, VerifyReport,
     };
 
-    fn sample_change(is_update: bool) -> PlannedChange {
-        PlannedChange {
+    fn sample_change(is_update: bool) -> Result<PlannedChange, Box<dyn std::error::Error>> {
+        let path: RepoRoot = "/home/user/.claude.json".to_owned().try_into()?;
+        Ok(PlannedChange {
             harness: "claude".to_owned(),
             kind: ArtifactKind::McpRegistration,
-            path: "/home/user/.claude.json".to_owned(),
+            path,
             description: "add enforcer to mcpServers".to_owned(),
             is_update,
-        }
+        })
     }
 
     #[test]
@@ -164,43 +220,49 @@ mod tests {
     }
 
     #[test]
-    fn report_with_changes_is_not_noop() {
+    fn report_with_changes_is_not_noop() -> Result<(), Box<dyn std::error::Error>> {
         let report = InstallReport {
-            planned_changes: vec![sample_change(false)],
+            planned_changes: vec![sample_change(false)?],
             warnings: vec![],
         };
         assert!(!report.is_noop());
+        Ok(())
     }
 
     #[test]
-    fn apply_result_all_succeeded_true_when_every_change_ok() {
+    fn apply_result_all_succeeded_true_when_every_change_ok(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let result = ApplyResult {
             applied: vec![AppliedChange {
-                change: sample_change(false),
+                change: sample_change(false)?,
                 succeeded: true,
                 backup_path: None,
             }],
         };
         assert!(result.all_succeeded());
+        Ok(())
     }
 
     #[test]
-    fn apply_result_all_succeeded_false_when_any_change_failed() {
+    fn apply_result_all_succeeded_false_when_any_change_failed(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let backup_path: RepoRoot = "/home/user/.claude.json.bak".to_owned().try_into()?;
         let result = ApplyResult {
             applied: vec![
                 AppliedChange {
-                    change: sample_change(false),
+                    change: sample_change(false)?,
                     succeeded: true,
                     backup_path: None,
                 },
                 AppliedChange {
-                    change: sample_change(true),
+                    change: sample_change(true)?,
                     succeeded: false,
-                    backup_path: Some("/home/user/.claude.json.bak".to_owned()),
+                    backup_path: Some(backup_path),
                 },
             ],
         };
         assert!(!result.all_succeeded());
+        Ok(())
     }
 
     #[test]
@@ -228,10 +290,38 @@ mod tests {
 
     #[test]
     fn planned_change_round_trips_through_json() -> Result<(), Box<dyn std::error::Error>> {
-        let change = sample_change(true);
+        let change = sample_change(true)?;
         let wire = serde_json::to_string(&change)?;
         let back: PlannedChange = serde_json::from_str(&wire)?;
         assert_eq!(back, change);
         Ok(())
+    }
+
+    #[test]
+    fn skill_asset_manifest_round_trips_through_json() -> Result<(), Box<dyn std::error::Error>> {
+        let manifest = SkillAssetManifest {
+            assets: vec![SkillAsset {
+                skill_name: "ocentra-enforcer".to_owned(),
+                asset_path: "skills/ocentra-enforcer/SKILL.md".to_owned(),
+            }],
+            plugin_contracts: vec![PluginPublishContract {
+                manifest_path: ".codex-plugin/plugin.json".to_owned(),
+                field: "skills".to_owned(),
+                expected_value: "./skills/".to_owned(),
+            }],
+        };
+        let wire = serde_json::to_string(&manifest)?;
+        assert!(wire.contains("\"skillName\""));
+        assert!(wire.contains("\"expectedValue\""));
+        let back: SkillAssetManifest = serde_json::from_str(&wire)?;
+        assert_eq!(back, manifest);
+        Ok(())
+    }
+
+    #[test]
+    fn empty_skill_asset_manifest_has_no_assets_or_contracts() {
+        let manifest = SkillAssetManifest::default();
+        assert!(manifest.assets.is_empty());
+        assert!(manifest.plugin_contracts.is_empty());
     }
 }

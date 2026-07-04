@@ -1,0 +1,5 @@
+{
+  "name": "ocentra-enforcer",
+  "skills": "./legacy-skills-path/",
+  "mcpServers": "./.mcp.json"
+}

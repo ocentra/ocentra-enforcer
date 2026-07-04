@@ -74,6 +74,35 @@ pub enum InstallError {
     /// a partially-applied change).
     #[error("post-install verification failed: {0}")]
     VerificationFailed(String),
+
+    /// A caller-supplied `--only <harness>` (or manifest) adapter key does
+    /// not match any registered [`crate::core::HarnessAdapter`]. Fail-closed:
+    /// an unrecognized adapter id is a typed error, never a silent skip
+    /// (workpack c01 acceptance row).
+    #[error("unknown harness adapter id `{id}`; known adapters: {known}")]
+    UnknownAdapter {
+        /// The unrecognized adapter key the caller supplied.
+        id: String,
+        /// Comma-joined list of the adapter keys that ARE registered, for
+        /// the terse `Fix:`-style hint surfaced by `enforcer-cli`.
+        known: String,
+    },
+
+    /// A skill-asset doctor/verify check (RUST_ARCHITECTURE "skill-asset
+    /// VALIDATOR fold-in") found a declared asset missing on disk, or the
+    /// `.codex-plugin/plugin.json` publish contract (`plugin.skills ==
+    /// "./skills/"`) broken. Distinct from [`InstallError::VerificationFailed`]
+    /// so callers can pattern-match the skill-asset family specifically.
+    #[error("skill-asset check `{check}` failed for `{path}`: {reason}")]
+    SkillAssetInvalid {
+        /// Which skill-asset check failed (e.g. "skill-md-exists",
+        /// "plugin-skills-path").
+        check: String,
+        /// Path the check was evaluating.
+        path: String,
+        /// Why the check failed.
+        reason: String,
+    },
 }
 
 /// Result alias for `enforcer-install` operations.

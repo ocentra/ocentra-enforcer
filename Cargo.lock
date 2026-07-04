@@ -329,6 +329,8 @@ dependencies = [
 name = "enforcer-install"
 version = "0.1.0"
 dependencies = [
+ "enforcer-core",
+ "enforcer-domain",
  "serde",
  "serde_json",
  "tempfile",

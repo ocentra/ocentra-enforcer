@@ -1,0 +1,5 @@
+{"ts":"2026-07-04T00:00:00Z","lane":"c01","event":"started","model":"claude-sonnet-5","note":"HEAD=77df4ef; auditing arc-23 skeleton core.rs/cli_contract.rs/report.rs against c01 checklist"}
+{"ts":"2026-07-04T00:00:01Z","lane":"c01","event":"claim_attempt","tool":"mcp__ocentra-enforcer__ocentra_enforcer_coordination_claim","result":"stale_mcp_reload_required"}
+{"ts":"2026-07-04T00:00:02Z","lane":"c01","event":"claim_attempt","tool":"scripts/rust-rules.mjs coordination claim","result":"ENOENT .ledger/enforcer-selfhost-plan/identity/node.json"}
+{"ts":"2026-07-04T00:00:03Z","lane":"c01","event":"mail_attempt","subject":"c01 started","result":"stale_mcp_reload_required"}
+{"ts":"2026-07-04T00:00:04Z","lane":"c01","event":"proceeding_without_hub_lock","reason":"protocol v2: known MCP-stale + CLI ENOENT, proceed after logging attempts"}

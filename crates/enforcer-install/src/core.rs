@@ -16,8 +16,42 @@ use crate::cli_contract::{
     DoctorRequest, InstallRequest, RequestContext, UninstallRequest, UpdateRequest,
 };
 use crate::distribution::Downloader;
-use crate::error::InstallResult;
+use crate::error::{InstallError, InstallResult};
 use crate::report::{ApplyResult, InstallReport, VerifyReport};
+
+/// The harness-neutral **parallel-execution doctrine** text every adapter
+/// (c03/c06/c08/c09) embeds into whatever surface its harness reads
+/// doctrine from (a `CLAUDE.md`/`AGENTS.md` managed block, a Cursor rule, a
+/// skill file, ...) — never a Claude-specific file itself. Source: the
+/// live orchestration-lessons ledger
+/// (`docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md`) —
+/// the doctrine IS the lessons, not a paraphrase invented separately from
+/// what the swarm actually learned running this build (L3, L4, L5, L6, L7,
+/// L13, L14, L19, L21 land here).
+pub const PARALLEL_EXECUTION_DOCTRINE: &str = concat!(
+    "Parallel execution doctrine (source: refs/orchestration-lessons.md — ",
+    "the doctrine IS the lessons):\n",
+    "- Spawn one worktree per lane via `enforcer coordination lane new` for any ",
+    "multi-agent parallel work through this coordination hub.\n",
+    "- NEVER share `Cargo.lock`/`target/`/`node_modules`/build cache across ",
+    "lanes — each worktree is isolated end to end.\n",
+    "- Parking or deleting-and-rebuilding a lane's worktree is NORMAL, not a ",
+    "failure; there is no local undo, so commit+push is how a step becomes ",
+    "durable (never trust the working tree as memory).\n",
+    "- Worker mail lifecycle is `started -> progress -> done/blocked`, never ",
+    "final-only silence.\n",
+    "- Step 0 for any worker: fetch + branch/reset from the integration branch ",
+    "— never merge a lane branch without checking `merge-base` first.\n",
+);
+
+/// A stable list of every adapter key an adapter registry is expected to
+/// know about, for rendering the `known: <comma list>` hint on an
+/// [`InstallError::UnknownAdapter`].
+fn known_adapter_keys(adapters: &[&dyn HarnessAdapter]) -> String {
+    let mut keys: Vec<&str> = adapters.iter().map(|a| a.harness_key()).collect();
+    keys.sort_unstable();
+    keys.join(", ")
+}
 
 /// One per-harness adapter. Implemented by each Track C pack (c02 detect
 /// feeds the registry of which adapters are active; c03/c06/c07/c08/c09
@@ -75,7 +109,7 @@ pub fn install(
     adapters: &[&dyn HarnessAdapter],
     request: &InstallRequest,
 ) -> InstallResult<Vec<(&'static str, InstallReport, Option<ApplyResult>)>> {
-    let selected = select_adapters(adapters, &request.only_harnesses);
+    let selected = select_adapters(adapters, &request.only_harnesses)?;
     let mut outcomes = Vec::with_capacity(selected.len());
     for adapter in selected {
         let plan = adapter.plan(&request.context)?;
@@ -103,7 +137,7 @@ pub fn uninstall(
     adapters: &[&dyn HarnessAdapter],
     request: &UninstallRequest,
 ) -> InstallResult<Vec<(&'static str, InstallReport, Option<ApplyResult>)>> {
-    let selected = select_adapters(adapters, &request.only_harnesses);
+    let selected = select_adapters(adapters, &request.only_harnesses)?;
     let mut outcomes = Vec::with_capacity(selected.len());
     for adapter in selected {
         let plan = adapter.plan(&request.context)?;
@@ -162,32 +196,147 @@ pub fn doctor(
     Ok(outcomes)
 }
 
+/// The skill-asset doctor/verify check (RUST_ARCHITECTURE.md skill-asset
+/// VALIDATOR fold-in, WAVE 6 re-home of `scripts/validate-codex-assets.mjs`).
+/// Fail-closed: every declared [`crate::report::SkillAsset`] must exist on
+/// disk AND every [`crate::report::PluginPublishContract`] field must equal
+/// its expected value, or the corresponding [`VerifyCheck`] reports
+/// `passed: false` with the concrete reason — never a silent skip. This is
+/// a shared core check (not a `HarnessAdapter::verify` override) so
+/// `enforcer doctor` can run it once against whatever manifest an adapter
+/// (or the CLI) supplies, independent of any single harness's asset
+/// layout.
+///
+/// # Errors
+/// Returns [`InstallError::SkillAssetInvalid`] only if a check's underlying
+/// I/O itself cannot be performed (e.g. a plugin manifest exists but is not
+/// valid JSON) — a check that runs and finds a real mismatch instead
+/// reports `passed: false` inside the returned [`VerifyReport`], per the
+/// "detected, not silently skipped" contract shared with
+/// [`HarnessAdapter::verify`].
+pub fn run_skill_asset_checks(
+    manifest: &crate::report::SkillAssetManifest,
+    root: &std::path::Path,
+) -> InstallResult<VerifyReport> {
+    use crate::report::VerifyCheck;
+
+    let mut checks = Vec::with_capacity(manifest.assets.len() + manifest.plugin_contracts.len());
+
+    for asset in &manifest.assets {
+        let full_path = root.join(&asset.asset_path);
+        let exists = full_path.is_file();
+        checks.push(VerifyCheck {
+            harness: asset.skill_name.clone(),
+            name: format!("skill-asset-exists:{}", asset.asset_path),
+            passed: exists,
+            detail: if exists {
+                String::new()
+            } else {
+                format!("missing skill asset at `{}`", full_path.display())
+            },
+        });
+    }
+
+    for contract in &manifest.plugin_contracts {
+        let full_path = root.join(&contract.manifest_path);
+        let (passed, detail) = match std::fs::read_to_string(&full_path) {
+            Err(e) => (
+                false,
+                format!(
+                    "cannot read plugin manifest `{}`: {e}",
+                    full_path.display()
+                ),
+            ),
+            Ok(raw) => match serde_json::from_str::<serde_json::Value>(&raw) {
+                Err(e) => (
+                    false,
+                    format!(
+                        "plugin manifest `{}` is not valid JSON: {e}",
+                        full_path.display()
+                    ),
+                ),
+                Ok(value) => {
+                    let actual = value.get(&contract.field).and_then(|v| v.as_str());
+                    match actual {
+                        Some(actual) if actual == contract.expected_value => (true, String::new()),
+                        Some(actual) => (
+                            false,
+                            format!(
+                                "`{}`.{} = \"{actual}\", expected \"{}\"",
+                                full_path.display(),
+                                contract.field,
+                                contract.expected_value
+                            ),
+                        ),
+                        None => (
+                            false,
+                            format!(
+                                "`{}` has no field `{}`",
+                                full_path.display(),
+                                contract.field
+                            ),
+                        ),
+                    }
+                }
+            },
+        };
+        checks.push(VerifyCheck {
+            harness: "plugin-publish-contract".to_owned(),
+            name: format!("plugin-skills-path:{}", contract.manifest_path),
+            passed,
+            detail,
+        });
+    }
+
+    Ok(VerifyReport { checks })
+}
+
 /// Narrow `adapters` down to `only`'s keys when non-empty; otherwise
 /// return every adapter (the "every detected/known harness" default).
+///
+/// # Errors
+/// Returns [`InstallError::UnknownAdapter`] the moment `only` names a key
+/// that matches no registered adapter — an unrecognized `--only <harness>`
+/// value is a typed error, never a silent skip past a name a caller may
+/// have mistyped (workpack c01 acceptance row: "unknown adapter id must
+/// return a typed error, not skip silently").
 fn select_adapters<'a>(
     adapters: &'a [&'a dyn HarnessAdapter],
     only: &[String],
-) -> Vec<&'a dyn HarnessAdapter> {
+) -> InstallResult<Vec<&'a dyn HarnessAdapter>> {
     if only.is_empty() {
-        return adapters.to_vec();
+        return Ok(adapters.to_vec());
     }
-    adapters
+    for key in only {
+        if !adapters.iter().any(|adapter| adapter.harness_key() == key) {
+            return Err(InstallError::UnknownAdapter {
+                id: key.clone(),
+                known: known_adapter_keys(adapters),
+            });
+        }
+    }
+    Ok(adapters
         .iter()
         .copied()
         .filter(|adapter| only.iter().any(|key| key == adapter.harness_key()))
-        .collect()
+        .collect())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{doctor, install, select_adapters, uninstall, update, HarnessAdapter};
+    use super::{
+        doctor, install, run_skill_asset_checks, select_adapters, uninstall, update,
+        HarnessAdapter,
+    };
     use crate::cli_contract::{
         DoctorRequest, InstallRequest, RequestContext, UninstallRequest, UpdateRequest,
     };
     use crate::distribution::{Downloader, ResolvedBinary, TargetPlatform};
     use crate::error::{InstallError, InstallResult};
+    use enforcer_domain::paths::RepoRoot;
     use crate::report::{
-        AppliedChange, ApplyResult, ArtifactKind, InstallReport, PlannedChange, VerifyCheck,
+        AppliedChange, ApplyResult, ArtifactKind, InstallReport, PlannedChange,
+        PluginPublishContract, SkillAsset, SkillAssetManifest, VerifyCheck,
         VerifyReport,
     };
     use std::path::{Path, PathBuf};
@@ -216,10 +365,16 @@ mod tests {
                 });
             }
             let planned_changes = if self.change_pending {
+                let path: RepoRoot = format!("/fixtures/{}.json", self.key)
+                    .try_into()
+                    .map_err(|e: enforcer_core::error::DecodeError| InstallError::MalformedConfig {
+                        path: format!("/fixtures/{}.json", self.key),
+                        reason: e.to_string(),
+                    })?;
                 vec![PlannedChange {
                     harness: self.key.to_owned(),
                     kind: ArtifactKind::McpRegistration,
-                    path: format!("/fixtures/{}.json", self.key),
+                    path,
                     description: "register enforcer".to_owned(),
                     is_update: false,
                 }]
@@ -377,22 +532,54 @@ mod tests {
     }
 
     #[test]
-    fn only_harnesses_filter_narrows_the_adapter_set() {
+    fn only_harnesses_filter_narrows_the_adapter_set() -> Result<(), Box<dyn std::error::Error>> {
         let claude = passing_adapter("claude", true);
         let codex = passing_adapter("codex", true);
         let adapters: Vec<&dyn HarnessAdapter> = vec![&claude, &codex];
-        let selected = select_adapters(&adapters, &["codex".to_owned()]);
+        let selected = select_adapters(&adapters, &["codex".to_owned()])?;
         assert_eq!(selected.len(), 1);
         assert_eq!(selected[0].harness_key(), "codex");
+        Ok(())
     }
 
     #[test]
-    fn empty_only_harnesses_selects_every_adapter() {
+    fn empty_only_harnesses_selects_every_adapter() -> Result<(), Box<dyn std::error::Error>> {
         let claude = passing_adapter("claude", true);
         let codex = passing_adapter("codex", true);
         let adapters: Vec<&dyn HarnessAdapter> = vec![&claude, &codex];
-        let selected = select_adapters(&adapters, &[]);
+        let selected = select_adapters(&adapters, &[])?;
         assert_eq!(selected.len(), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn unknown_adapter_id_is_a_typed_error_not_a_silent_skip() {
+        let claude = passing_adapter("claude", true);
+        let adapters: Vec<&dyn HarnessAdapter> = vec![&claude];
+        let result = select_adapters(&adapters, &["not-a-real-harness".to_owned()]);
+        assert!(matches!(
+            result,
+            Err(InstallError::UnknownAdapter { ref id, .. }) if id == "not-a-real-harness"
+        ));
+    }
+
+    #[test]
+    fn install_rejects_an_unknown_only_harnesses_entry() {
+        let claude = passing_adapter("claude", true);
+        let adapters: Vec<&dyn HarnessAdapter> = vec![&claude];
+        let request = InstallRequest {
+            context: RequestContext::with_defaults(PathBuf::from("/usr/local/bin/enforcer")),
+            only_harnesses: vec!["ghost-harness".to_owned()],
+        };
+        let result = install(&adapters, &request);
+        assert!(matches!(result, Err(InstallError::UnknownAdapter { .. })));
+    }
+
+    #[test]
+    fn parallel_execution_doctrine_cites_the_lessons_ledger_as_its_source() {
+        assert!(super::PARALLEL_EXECUTION_DOCTRINE.contains("refs/orchestration-lessons.md"));
+        assert!(super::PARALLEL_EXECUTION_DOCTRINE.contains("coordination lane new"));
+        assert!(super::PARALLEL_EXECUTION_DOCTRINE.contains("Cargo.lock"));
     }
 
     #[test]
@@ -506,5 +693,222 @@ mod tests {
             result,
             Err(InstallError::DistributionFailed { .. })
         ));
+    }
+
+    /// Root of the checked-in skill-asset fixtures
+    /// (`tests/fixtures/install_core/**`, workpack c01 acceptance row).
+    fn fixture_root(name: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/install_core").join(name)
+    }
+
+    fn ocentra_enforcer_manifest() -> SkillAssetManifest {
+        SkillAssetManifest {
+            assets: vec![SkillAsset {
+                skill_name: "ocentra-enforcer".to_owned(),
+                asset_path: "skills/ocentra-enforcer/SKILL.md".to_owned(),
+            }],
+            plugin_contracts: vec![PluginPublishContract {
+                manifest_path: ".codex-plugin/plugin.json".to_owned(),
+                field: "skills".to_owned(),
+                expected_value: "./skills/".to_owned(),
+            }],
+        }
+    }
+
+    #[test]
+    fn skill_asset_pass_fixture_resolves_clean() -> Result<(), Box<dyn std::error::Error>> {
+        let report = run_skill_asset_checks(&ocentra_enforcer_manifest(), &fixture_root("skill_asset_pass"))?;
+        assert!(
+            report.all_passed(),
+            "expected every check to pass, got {report:?}"
+        );
+        assert_eq!(report.checks.len(), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn skill_asset_fail_fixture_missing_asset_fails_closed(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let report = run_skill_asset_checks(
+            &ocentra_enforcer_manifest(),
+            &fixture_root("skill_asset_fail_missing_asset"),
+        )?;
+        assert!(!report.all_passed());
+        let asset_check = report
+            .checks
+            .iter()
+            .find(|c| c.name.starts_with("skill-asset-exists"))
+            .ok_or("expected a skill-asset-exists check")?;
+        assert!(!asset_check.passed);
+        assert!(asset_check.detail.contains("missing skill asset"));
+        Ok(())
+    }
+
+    #[test]
+    fn skill_asset_fail_fixture_bad_plugin_path_fails_closed(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let report = run_skill_asset_checks(
+            &ocentra_enforcer_manifest(),
+            &fixture_root("skill_asset_fail_bad_plugin_path"),
+        )?;
+        assert!(!report.all_passed());
+        let plugin_check = report
+            .checks
+            .iter()
+            .find(|c| c.name.starts_with("plugin-skills-path"))
+            .ok_or("expected a plugin-skills-path check")?;
+        assert!(!plugin_check.passed);
+        assert!(plugin_check.detail.contains("expected"));
+        Ok(())
+    }
+
+    #[test]
+    fn missing_plugin_manifest_is_a_failed_check_not_a_panic() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let manifest = SkillAssetManifest {
+            assets: vec![],
+            plugin_contracts: vec![PluginPublishContract {
+                manifest_path: "does/not/exist/plugin.json".to_owned(),
+                field: "skills".to_owned(),
+                expected_value: "./skills/".to_owned(),
+            }],
+        };
+        let report = run_skill_asset_checks(&manifest, &fixture_root("skill_asset_pass"))?;
+        assert!(!report.all_passed());
+        Ok(())
+    }
+
+    /// `--dry-run` must write ZERO files: a temp-dir fixture under
+    /// `tests/fixtures/install_core/dry_run_zero_writes` is snapshotted
+    /// before and after a dry-run `install`, and the filesystem diff must
+    /// be empty (workpack c01 acceptance row).
+    #[test]
+    fn dry_run_writes_zero_files_fs_diff_is_empty() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempfile::tempdir()?;
+        let target = dir.path().join("claude.json");
+        std::fs::write(&target, "{\"mcpServers\":{}}")?;
+
+        fn snapshot(path: &std::path::Path) -> InstallResult<(u64, String)> {
+            let meta = std::fs::metadata(path).map_err(|e| InstallError::Io {
+                path: path.display().to_string(),
+                reason: e.to_string(),
+            })?;
+            let content = std::fs::read_to_string(path).map_err(|e| InstallError::Io {
+                path: path.display().to_string(),
+                reason: e.to_string(),
+            })?;
+            Ok((meta.len(), content))
+        }
+
+        let before = snapshot(&target)?;
+
+        struct WriterAdapter {
+            target: PathBuf,
+        }
+        impl HarnessAdapter for WriterAdapter {
+            fn harness_key(&self) -> &'static str {
+                "claude"
+            }
+            fn plan(&self, _ctx: &RequestContext) -> InstallResult<InstallReport> {
+                let path: RepoRoot =
+                    self.target
+                        .display()
+                        .to_string()
+                        .try_into()
+                        .map_err(|e: enforcer_core::error::DecodeError| {
+                            InstallError::MalformedConfig {
+                                path: self.target.display().to_string(),
+                                reason: e.to_string(),
+                            }
+                        })?;
+                Ok(InstallReport {
+                    planned_changes: vec![PlannedChange {
+                        harness: "claude".to_owned(),
+                        kind: ArtifactKind::McpRegistration,
+                        path,
+                        description: "would add enforcer to mcpServers".to_owned(),
+                        is_update: true,
+                    }],
+                    warnings: vec![],
+                })
+            }
+            fn apply(&self, _report: &InstallReport) -> InstallResult<ApplyResult> {
+                // If a dry-run ever reached `apply`, this would actually
+                // write -- the test asserts `applied` stays `None` so this
+                // branch is provably unreached for `--dry-run`.
+                std::fs::write(&self.target, "{\"mcpServers\":{\"enforcer\":{}}}").map_err(|e| {
+                    InstallError::Io {
+                        path: self.target.display().to_string(),
+                        reason: e.to_string(),
+                    }
+                })?;
+                Ok(ApplyResult::default())
+            }
+            fn verify(&self, _ctx: &RequestContext) -> InstallResult<VerifyReport> {
+                Ok(VerifyReport::default())
+            }
+        }
+
+        let adapter = WriterAdapter {
+            target: target.clone(),
+        };
+        let adapters: Vec<&dyn HarnessAdapter> = vec![&adapter];
+        let mut context = RequestContext::with_defaults(PathBuf::from("/usr/local/bin/enforcer"));
+        context.dry_run = true;
+        let request = InstallRequest {
+            context,
+            only_harnesses: vec![],
+        };
+        let outcomes = install(&adapters, &request)?;
+        let (_, plan, applied) = &outcomes[0];
+        assert!(!plan.is_noop());
+        assert!(applied.is_none());
+
+        let after = snapshot(&target)?;
+        assert_eq!(before, after, "dry-run must leave the filesystem byte-identical");
+        Ok(())
+    }
+
+    /// The dry-run report must be byte-identical in SHAPE to the applied
+    /// report minus the `applied` flag -- i.e. the same `InstallReport`
+    /// serde shape is produced whether or not `--dry-run` was set, and only
+    /// the presence of an [`ApplyResult`] differs (workpack c01 acceptance
+    /// row: serde round-trip asserted).
+    #[test]
+    fn dry_run_report_shape_matches_applied_report_shape() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let real_adapter = passing_adapter("claude", true);
+        let dry_adapter = passing_adapter("claude", true);
+        let adapters_real: Vec<&dyn HarnessAdapter> = vec![&real_adapter];
+        let adapters_dry: Vec<&dyn HarnessAdapter> = vec![&dry_adapter];
+
+        let real_request = InstallRequest {
+            context: RequestContext::with_defaults(PathBuf::from("/usr/local/bin/enforcer")),
+            only_harnesses: vec![],
+        };
+        let mut dry_context = RequestContext::with_defaults(PathBuf::from("/usr/local/bin/enforcer"));
+        dry_context.dry_run = true;
+        let dry_request = InstallRequest {
+            context: dry_context,
+            only_harnesses: vec![],
+        };
+
+        let real_outcomes = install(&adapters_real, &real_request)?;
+        let dry_outcomes = install(&adapters_dry, &dry_request)?;
+
+        let (_, real_plan, real_applied) = &real_outcomes[0];
+        let (_, dry_plan, dry_applied) = &dry_outcomes[0];
+
+        // Same plan shape (the report itself is identical either way --
+        // apply never mutates the plan it was handed).
+        assert_eq!(real_plan, dry_plan);
+        let real_wire = serde_json::to_string(real_plan)?;
+        let dry_wire = serde_json::to_string(dry_plan)?;
+        assert_eq!(real_wire, dry_wire);
+
+        // The ONLY difference is the presence of an apply result.
+        assert!(real_applied.is_some());
+        assert!(dry_applied.is_none());
+        Ok(())
     }
 }

@@ -123,9 +123,60 @@ pub struct DoctorRequest {
     pub output: OutputMode,
 }
 
+/// Which `enforcer` verb produced a [`CommandEnvelope`] — the stable
+/// `command` discriminant a non-TTY/JSON caller matches on. Renders as its
+/// lowercase name on the wire (`"install"`, `"uninstall"`, `"update"`,
+/// `"doctor"`) so a scripted caller never has to guess from shape alone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum CommandName {
+    /// `enforcer install`.
+    Install,
+    /// `enforcer uninstall`.
+    Uninstall,
+    /// `enforcer update`.
+    Update,
+    /// `enforcer doctor`.
+    Doctor,
+}
+
+/// The stable non-TTY JSON envelope every `enforcer install|uninstall|
+/// update|doctor` invocation renders (workpack c01 acceptance row: "non-TTY
+/// output deserializes as JSON with a stable `command`/`checks` schema").
+/// `enforcer-cli` (arc-22) is the only caller that decides TTY-vs-not and
+/// serializes this to stdout; this type is the shape it serializes, kept
+/// here so the schema lives next to the request/response types it wraps
+/// instead of being re-invented per call site.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CommandEnvelope {
+    /// Which verb produced this envelope.
+    pub command: CommandName,
+    /// True when every check inside `checks` passed (an empty `checks` is
+    /// vacuously `true` — `install`/`uninstall` with nothing to verify
+    /// yet, e.g. before any adapter has run `verify`).
+    pub ok: bool,
+    /// Every [`crate::report::VerifyCheck`]-shaped health check this
+    /// invocation ran or aggregated. `install`/`uninstall` populate this
+    /// from each adapter's post-apply expectations; `doctor` populates it
+    /// directly from [`crate::core::doctor`].
+    pub checks: Vec<crate::report::VerifyCheck>,
+}
+
+impl CommandEnvelope {
+    /// Build an envelope from a command name and a flattened check list,
+    /// deriving `ok` from whether every check passed.
+    #[must_use]
+    pub fn new(command: CommandName, checks: Vec<crate::report::VerifyCheck>) -> Self {
+        let ok = checks.iter().all(|c| c.passed);
+        Self { command, ok, checks }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{OutputMode, RequestContext, Scope};
+    use super::{CommandEnvelope, CommandName, OutputMode, RequestContext, Scope};
+    use crate::report::VerifyCheck;
     use std::path::PathBuf;
 
     #[test]
@@ -152,6 +203,61 @@ mod tests {
         assert_eq!(wire, "\"user\"");
         let wire = serde_json::to_string(&Scope::Project)?;
         assert_eq!(wire, "\"project\"");
+        Ok(())
+    }
+
+    #[test]
+    fn command_envelope_has_a_stable_command_checks_schema(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let envelope = CommandEnvelope::new(
+            CommandName::Doctor,
+            vec![VerifyCheck {
+                harness: "claude".to_owned(),
+                name: "mcp-registration-present".to_owned(),
+                passed: true,
+                detail: String::new(),
+            }],
+        );
+        let wire = serde_json::to_string(&envelope)?;
+        let value: serde_json::Value = serde_json::from_str(&wire)?;
+        assert_eq!(value["command"], "doctor");
+        assert_eq!(value["ok"], true);
+        assert!(value["checks"].is_array());
+        assert_eq!(value["checks"][0]["harness"], "claude");
+        let back: CommandEnvelope = serde_json::from_str(&wire)?;
+        assert_eq!(back, envelope);
+        Ok(())
+    }
+
+    #[test]
+    fn command_envelope_ok_is_false_when_any_check_fails() {
+        let envelope = CommandEnvelope::new(
+            CommandName::Install,
+            vec![VerifyCheck {
+                harness: "codex".to_owned(),
+                name: "mcp-registration-present".to_owned(),
+                passed: false,
+                detail: "missing registration".to_owned(),
+            }],
+        );
+        assert!(!envelope.ok);
+    }
+
+    #[test]
+    fn command_envelope_ok_is_vacuously_true_for_no_checks() {
+        let envelope = CommandEnvelope::new(CommandName::Update, vec![]);
+        assert!(envelope.ok);
+    }
+
+    #[test]
+    fn command_name_renders_lowercase_on_the_wire() -> Result<(), Box<dyn std::error::Error>> {
+        assert_eq!(serde_json::to_string(&CommandName::Install)?, "\"install\"");
+        assert_eq!(
+            serde_json::to_string(&CommandName::Uninstall)?,
+            "\"uninstall\""
+        );
+        assert_eq!(serde_json::to_string(&CommandName::Update)?, "\"update\"");
+        assert_eq!(serde_json::to_string(&CommandName::Doctor)?, "\"doctor\"");
         Ok(())
     }
 }
