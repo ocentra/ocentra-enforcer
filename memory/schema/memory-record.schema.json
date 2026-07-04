@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ocentra.dev/enforcer/memory-record.schema.json",
+  "title": "EnforcerMemoryRecord",
+  "description": "One append-only memory record (NDJSON line). Transitional capture format: flushes to DuckDB, then to the x06 enforcer-memory graph (+ vector index). camelCase wire, mirrors x05 LessonRecord / x06 MemoryNode vocabulary so import is a mapping, not a rewrite.",
+  "type": "object",
+  "required": ["schemaVersion", "id", "ts", "kind", "domain", "statement", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": {
+      "type": "string",
+      "pattern": "^mem-[a-z0-9-]+-\\d{4}$",
+      "description": "Globally unique, writer-scoped: mem-<writer>-<NNNN>. Never reused, never reset."
+    },
+    "ts": { "type": "string", "format": "date-time" },
+    "kind": {
+      "enum": ["userPref", "lesson", "decision", "observation", "incident"],
+      "description": "userPref = how the user wants the system to behave; lesson = generalized learning (mirrors x05); decision = a ruling taken (by user or orchestrator) that constrains future work; observation = raw signal from usage (scan result, interaction, request pattern); incident = a fault occurrence (graph t0 evidence)."
+    },
+    "domain": { "enum": ["harness", "code", "user"] },
+    "statement": { "type": "string", "minLength": 1, "description": "The fact/preference/lesson itself, standalone-readable." },
+    "why": { "type": "string", "description": "Rationale/context — why this is true or wanted." },
+    "howToApply": { "type": "string", "description": "Operational instruction for an agent acting on this record." },
+    "appliesTo": {
+      "type": "array",
+      "items": { "enum": ["orchestrator", "workers", "product", "planning", "all"] },
+      "default": ["all"]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": { "enum": ["chat", "hubMail", "dogfood", "scan", "transcriptAudit", "proofRun", "gitHistory"] },
+        "ref": { "type": "string", "description": "Pointer: commit sha, hub event id, ledger row id (L-number), file path, mail seq." }
+      }
+    },
+    "routes": {
+      "type": "array",
+      "items": { "enum": ["graphNode", "doctrineBlock", "skill", "ruleCandidate", "forestNode", "planDoc", "userPrefStore"] },
+      "description": "Where this record ships (x05 LessonRoute superset). Every record defaults to graphNode — the x06 import target."
+    },
+    "landedAt": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Durable artifacts this record already landed in (commit sha, doc §, rule id). Empty = pending."
+    },
+    "supersedes": { "type": ["string", "null"], "description": "id of a prior record this replaces (append-only: never edit, supersede)." },
+    "provenance": {
+      "type": "object",
+      "required": ["writer"],
+      "additionalProperties": false,
+      "properties": {
+        "writer": { "type": "string", "description": "Lane/stream owner: primary, arc-04, d15... ONE writer per stream file — no cross-writer appends." },
+        "sessionId": { "type": "string" },
+        "model": { "type": "string" },
+        "user": { "type": "string", "description": "Only when kind=userPref/decision originates from the user; redaction policy applies before any export tier." }
+      }
+    }
+  }
+}
