@@ -34,6 +34,7 @@ export function buildCoordinationContext(input = {}) {
         blockingOwners: input.blockingOwners,
         blockerCount: input.blockerCount,
         releaseEventId: input.releaseEventId,
+        explicitReleaseScope: input.explicitReleaseScope,
         editIntentId: input.editIntentId,
         notificationKind: input.notificationKind,
     };
