@@ -1,0 +1,79 @@
+{
+  "workpack": "c01",
+  "hub": "enforcer-selfhost-plan",
+  "tier": "P1 unit (T1)",
+  "namedTest": "install-core-contract",
+  "commands": [
+    "cargo test -p enforcer-install",
+    "cargo clippy -p enforcer-install --all-targets -- -D warnings",
+    "cargo fmt -p enforcer-install --check"
+  ],
+  "result": {
+    "testsPassed": 58,
+    "testsFailed": 0,
+    "clippy": "clean (no warnings)",
+    "fmt": "clean (no diff)"
+  },
+  "seededViolationCases": [
+    {
+      "case": "--dry-run writes any file",
+      "test": "core::tests::dry_run_writes_zero_files_fs_diff_is_empty",
+      "expectation": "fails/false if any byte differs; fs snapshot before/after a dry-run install is byte-identical",
+      "status": "PASS"
+    },
+    {
+      "case": "unknown adapter id",
+      "test": "core::tests::unknown_adapter_id_is_a_typed_error_not_a_silent_skip, core::tests::install_rejects_an_unknown_only_harnesses_entry",
+      "expectation": "returns InstallError::UnknownAdapter, never a silent skip",
+      "status": "PASS"
+    },
+    {
+      "case": "skill-asset doctor fail fixture (missing SKILL.md)",
+      "test": "core::tests::skill_asset_fail_fixture_missing_asset_fails_closed",
+      "fixture": "crates/enforcer-install/tests/fixtures/install_core/skill_asset_fail_missing_asset",
+      "expectation": "run_skill_asset_checks reports passed=false for the missing asset",
+      "status": "PASS"
+    },
+    {
+      "case": "skill-asset doctor fail fixture (plugin.skills != './skills/')",
+      "test": "core::tests::skill_asset_fail_fixture_bad_plugin_path_fails_closed",
+      "fixture": "crates/enforcer-install/tests/fixtures/install_core/skill_asset_fail_bad_plugin_path",
+      "expectation": "run_skill_asset_checks reports passed=false for the plugin-skills-path check",
+      "status": "PASS"
+    },
+    {
+      "case": "skill-asset doctor pass fixture (intact assets + correct plugin.skills)",
+      "test": "core::tests::skill_asset_pass_fixture_resolves_clean",
+      "fixture": "crates/enforcer-install/tests/fixtures/install_core/skill_asset_pass",
+      "expectation": "run_skill_asset_checks reports all_passed()==true",
+      "status": "PASS"
+    },
+    {
+      "case": "dry-run report shape == applied report shape minus applied flag",
+      "test": "core::tests::dry_run_report_shape_matches_applied_report_shape",
+      "expectation": "serde round-trip of the InstallReport is byte-identical; only the presence of an ApplyResult differs",
+      "status": "PASS"
+    },
+    {
+      "case": "non-TTY JSON output has a stable command/checks schema",
+      "test": "cli_contract::tests::command_envelope_has_a_stable_command_checks_schema, cli_contract::tests::command_name_renders_lowercase_on_the_wire",
+      "expectation": "CommandEnvelope { command, ok, checks } serializes/deserializes with a stable shape",
+      "status": "PASS"
+    },
+    {
+      "case": "HarnessAdapter trait shape via fake in-crate adapter",
+      "test": "core::tests::install_plans_and_applies_a_fresh_registration, core::tests::idempotent_reinstall_yields_a_noop_plan, core::tests::malformed_existing_config_is_a_detected_plan_failure, core::tests::failing_apply_surfaces_the_error_and_stops",
+      "expectation": "FixtureAdapter exercises plan/apply/verify across pass/fail permutations",
+      "status": "PASS"
+    }
+  ],
+  "keptExtendedReplaced": {
+    "core.rs": "EXTENDED (arc-23 skeleton kept; added fail-closed select_adapters unknown-adapter error, PARALLEL_EXECUTION_DOCTRINE constant citing refs/orchestration-lessons.md, run_skill_asset_checks doctor fold-in, dry-run fs-diff + shape-parity tests)",
+    "cli_contract.rs": "EXTENDED (arc-23 skeleton kept; added CommandName + CommandEnvelope stable non-TTY JSON command/checks schema)",
+    "report.rs": "EXTENDED (arc-23 skeleton kept; PlannedChange.path/AppliedChange.backup_path rebranded from bare String to enforcer_domain::paths::RepoRoot; added SkillAsset/PluginPublishContract/SkillAssetManifest)",
+    "error.rs": "EXTENDED (arc-23 skeleton kept; added InstallError::UnknownAdapter and InstallError::SkillAssetInvalid variants)",
+    "managed_block.rs": "KEPT unchanged (already correct per checklist)",
+    "backup.rs": "KEPT unchanged (already correct per checklist)"
+  },
+  "workspaceRegression": "cargo test --workspace: all crates green post-change (no regressions from enforcer-domain/enforcer-core dependency addition)"
+}

@@ -3,3 +3,6 @@
 {"ts":"2026-07-04T00:00:02Z","lane":"c01","event":"claim_attempt","tool":"scripts/rust-rules.mjs coordination claim","result":"ENOENT .ledger/enforcer-selfhost-plan/identity/node.json"}
 {"ts":"2026-07-04T00:00:03Z","lane":"c01","event":"mail_attempt","subject":"c01 started","result":"stale_mcp_reload_required"}
 {"ts":"2026-07-04T00:00:04Z","lane":"c01","event":"proceeding_without_hub_lock","reason":"protocol v2: known MCP-stale + CLI ENOENT, proceed after logging attempts"}
+{"ts":"2026-07-04T00:10:00Z","lane":"c01","event":"checkpoint","commit":"cb89c57","note":"first proof-green: cargo test -p enforcer-install 58/58 passed"}
+{"ts":"2026-07-04T00:20:00Z","lane":"c01","event":"proof_green","tests":58,"failed":0,"clippy":"clean","fmt":"clean","workspace_regression":"none (cargo test --workspace all green)"}
+{"ts":"2026-07-04T00:25:00Z","lane":"c01","event":"done","artifact":"proof/install/c01-contract.json","summary":"arc-23 skeleton audited+extended: fail-closed unknown-adapter, skill-asset doctor fold-in, parallel-execution doctrine snippet citing refs/orchestration-lessons.md, branded RepoRoot paths, stable CommandEnvelope command/checks JSON schema"}

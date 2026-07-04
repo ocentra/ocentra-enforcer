@@ -165,7 +165,7 @@ All P1 unit, T-tier N/A (mechanical Cargo-workspace crate build). Uniform proof:
 
 | Workpack | Proof tier(s) | Named test / oracle | Artifact path | Seeded-violation case | Status |
 |----------|--------------|---------------------|---------------|-----------------------|--------|
-| c01 | P1 unit (T1) | `install-core-contract` | `proof/install/c01-contract.json` | `--dry-run` writes any file -> fails; unknown adapter id -> error not silent skip | PENDING |
+| c01 | P1 unit (T1) | `install-core-contract` | `proof/install/c01-contract.json` | `--dry-run` writes any file -> fails; unknown adapter id -> error not silent skip | GREEN (58/58 `cargo test -p enforcer-install`; clippy/fmt clean) |
 | c02 | P1 unit (T1) | `harness-autodetect` (temp-home fixtures) | `proof/install/c02-detect.json` | empty home -> no false positive; env-override precedence wrong -> fails | PENDING |
 | c02 (capability manifest) | P1 unit | `cargo test -p enforcer-install` (`harness-autodetect` capability-manifest rows over `tests/fixtures/detect/caps-codex/**`, `caps-claude-bare/**`) | `proof/install/c02-detect.json` | Codex-marker fixture (`agents/openai.yaml` with `allow_implicit_invocation`) must emit the six primitives with `implicitInvocation: Yes` + strong `crossSessionMessaging`; a bare-`.claude` fixture must declare unprovable fields as `Unknown`/`Support::Unknown` (fail-closed, never guessed `Yes`); an empty-home fixture emits no manifests; any field guessed `Yes` without a marker -> fail. | PENDING |
 | c03 | P5 install-proof (T1) | `claude-adapter-install` (temp `~/.claude.json`) | `proof/install/c03-claude.json` | corrupt `~/.claude.json` -> `verify` fails; install->uninstall doesn't restore -> fails | PENDING |

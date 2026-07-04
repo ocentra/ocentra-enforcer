@@ -169,7 +169,11 @@ impl CommandEnvelope {
     #[must_use]
     pub fn new(command: CommandName, checks: Vec<crate::report::VerifyCheck>) -> Self {
         let ok = checks.iter().all(|c| c.passed);
-        Self { command, ok, checks }
+        Self {
+            command,
+            ok,
+            checks,
+        }
     }
 }
 

@@ -242,10 +242,7 @@ pub fn run_skill_asset_checks(
         let (passed, detail) = match std::fs::read_to_string(&full_path) {
             Err(e) => (
                 false,
-                format!(
-                    "cannot read plugin manifest `{}`: {e}",
-                    full_path.display()
-                ),
+                format!("cannot read plugin manifest `{}`: {e}", full_path.display()),
             ),
             Ok(raw) => match serde_json::from_str::<serde_json::Value>(&raw) {
                 Err(e) => (
@@ -325,20 +322,18 @@ fn select_adapters<'a>(
 #[cfg(test)]
 mod tests {
     use super::{
-        doctor, install, run_skill_asset_checks, select_adapters, uninstall, update,
-        HarnessAdapter,
+        doctor, install, run_skill_asset_checks, select_adapters, uninstall, update, HarnessAdapter,
     };
     use crate::cli_contract::{
         DoctorRequest, InstallRequest, RequestContext, UninstallRequest, UpdateRequest,
     };
     use crate::distribution::{Downloader, ResolvedBinary, TargetPlatform};
     use crate::error::{InstallError, InstallResult};
-    use enforcer_domain::paths::RepoRoot;
     use crate::report::{
         AppliedChange, ApplyResult, ArtifactKind, InstallReport, PlannedChange,
-        PluginPublishContract, SkillAsset, SkillAssetManifest, VerifyCheck,
-        VerifyReport,
+        PluginPublishContract, SkillAsset, SkillAssetManifest, VerifyCheck, VerifyReport,
     };
+    use enforcer_domain::paths::RepoRoot;
     use std::path::{Path, PathBuf};
 
     /// A fixture adapter whose plan/apply/verify behavior is entirely
@@ -365,12 +360,12 @@ mod tests {
                 });
             }
             let planned_changes = if self.change_pending {
-                let path: RepoRoot = format!("/fixtures/{}.json", self.key)
-                    .try_into()
-                    .map_err(|e: enforcer_core::error::DecodeError| InstallError::MalformedConfig {
+                let path: RepoRoot = format!("/fixtures/{}.json", self.key).try_into().map_err(
+                    |e: enforcer_core::error::DecodeError| InstallError::MalformedConfig {
                         path: format!("/fixtures/{}.json", self.key),
                         reason: e.to_string(),
-                    })?;
+                    },
+                )?;
                 vec![PlannedChange {
                     harness: self.key.to_owned(),
                     kind: ArtifactKind::McpRegistration,
@@ -698,7 +693,9 @@ mod tests {
     /// Root of the checked-in skill-asset fixtures
     /// (`tests/fixtures/install_core/**`, workpack c01 acceptance row).
     fn fixture_root(name: &str) -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/install_core").join(name)
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/install_core")
+            .join(name)
     }
 
     fn ocentra_enforcer_manifest() -> SkillAssetManifest {
@@ -717,7 +714,10 @@ mod tests {
 
     #[test]
     fn skill_asset_pass_fixture_resolves_clean() -> Result<(), Box<dyn std::error::Error>> {
-        let report = run_skill_asset_checks(&ocentra_enforcer_manifest(), &fixture_root("skill_asset_pass"))?;
+        let report = run_skill_asset_checks(
+            &ocentra_enforcer_manifest(),
+            &fixture_root("skill_asset_pass"),
+        )?;
         assert!(
             report.all_passed(),
             "expected every check to pass, got {report:?}"
@@ -763,8 +763,8 @@ mod tests {
     }
 
     #[test]
-    fn missing_plugin_manifest_is_a_failed_check_not_a_panic() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn missing_plugin_manifest_is_a_failed_check_not_a_panic(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let manifest = SkillAssetManifest {
             assets: vec![],
             plugin_contracts: vec![PluginPublishContract {
@@ -810,17 +810,12 @@ mod tests {
                 "claude"
             }
             fn plan(&self, _ctx: &RequestContext) -> InstallResult<InstallReport> {
-                let path: RepoRoot =
-                    self.target
-                        .display()
-                        .to_string()
-                        .try_into()
-                        .map_err(|e: enforcer_core::error::DecodeError| {
-                            InstallError::MalformedConfig {
-                                path: self.target.display().to_string(),
-                                reason: e.to_string(),
-                            }
-                        })?;
+                let path: RepoRoot = self.target.display().to_string().try_into().map_err(
+                    |e: enforcer_core::error::DecodeError| InstallError::MalformedConfig {
+                        path: self.target.display().to_string(),
+                        reason: e.to_string(),
+                    },
+                )?;
                 Ok(InstallReport {
                     planned_changes: vec![PlannedChange {
                         harness: "claude".to_owned(),
@@ -836,12 +831,12 @@ mod tests {
                 // If a dry-run ever reached `apply`, this would actually
                 // write -- the test asserts `applied` stays `None` so this
                 // branch is provably unreached for `--dry-run`.
-                std::fs::write(&self.target, "{\"mcpServers\":{\"enforcer\":{}}}").map_err(|e| {
-                    InstallError::Io {
+                std::fs::write(&self.target, "{\"mcpServers\":{\"enforcer\":{}}}").map_err(
+                    |e| InstallError::Io {
                         path: self.target.display().to_string(),
                         reason: e.to_string(),
-                    }
-                })?;
+                    },
+                )?;
                 Ok(ApplyResult::default())
             }
             fn verify(&self, _ctx: &RequestContext) -> InstallResult<VerifyReport> {
@@ -865,7 +860,10 @@ mod tests {
         assert!(applied.is_none());
 
         let after = snapshot(&target)?;
-        assert_eq!(before, after, "dry-run must leave the filesystem byte-identical");
+        assert_eq!(
+            before, after,
+            "dry-run must leave the filesystem byte-identical"
+        );
         Ok(())
     }
 
@@ -886,7 +884,8 @@ mod tests {
             context: RequestContext::with_defaults(PathBuf::from("/usr/local/bin/enforcer")),
             only_harnesses: vec![],
         };
-        let mut dry_context = RequestContext::with_defaults(PathBuf::from("/usr/local/bin/enforcer"));
+        let mut dry_context =
+            RequestContext::with_defaults(PathBuf::from("/usr/local/bin/enforcer"));
         dry_context.dry_run = true;
         let dry_request = InstallRequest {
             context: dry_context,
