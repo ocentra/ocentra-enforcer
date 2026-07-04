@@ -7,6 +7,9 @@ to be told." Root cause of the gaps: the plan was built by RE-FRAMING existing w
 preserved what existed, never DISCOVERED what was absent, and several arc-* packs are monolithic "port the
 .mjs" catch-alls that name subsystems without decomposing their load-bearing semantics into provable rows.
 
+## FINAL STATUS (2026-07-04): ALL WAVES 1-6 DONE — plan reconciled to **111 workpacks**, verification verdict **CLEAN** (7/7 categories: counts consistent, 111 files=111 rows, all deps resolve incl arc-15/16/17->arc-25, disjoint-owns holds, zero TS-engine residue, zero stale framing, x04/b06 integrated). Pushed to `plan/enforcer-selfhost` (commit 9ebf5df). WAVE 1 counts+framing; WAVE 2 monolith re-scope (arc-16/17/18/03+a08); WAVE 3 all 569 rules enumerated (arc-06..10); WAVE 4 orphaned MCP/CLI/install surfaces homed; WAVE 5 new packs x04+b06 + resume-state/capability-detection/dual-audience; WAVE 6 docs/skills folded in.
+- ONE optional execution-time tightening (verifier-cleared, NOT a defect): `arc-02` owns `crates/enforcer-domain/**` (whole glob) while `a03/a04/a05/a06` own specific files inside it (`src/{rule_id,path,sha256,coordination_ids}.rs`) and dep only `a01`. Sequencing IS documented in the A.1 prose (arc crate lands skeleton, then a0x brand). To make it strictly machine-honest, the arc-02 worker should either carve arc-02's owns to a skeleton list OR add `arc-02` to a03-a06 deps (both frontmatter + WORKPACK_INDEX rows). Left for execution — no runtime risk (hub claims are file-level).
+
 ## STATUS of fixes: [ ] = todo, [x] = done
 - [x] arc-15/16/17 frontmatter now really declare `deps: arc-25` (index claimed it; frontmatter lacked it — execution-critical for frontier computation).
 - [x] arc-15 owns narrowed to skeleton (removed `modes.rs`/f01, `router/**`/f05, `rules/baseline_ratchet.rs`/d02).
