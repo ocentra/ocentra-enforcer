@@ -1,0 +1,21 @@
+# Windows-first EOL policy (lesson L17): committed content is LF; checkout stays LF
+# so `cargo fmt --check` (rustfmt.toml newline_style = "Unix") passes on every OS,
+# regardless of the machine's core.autocrlf. Scripts stay LF for sh compatibility.
+*.rs    text eol=lf
+*.toml  text eol=lf
+*.json  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.md    text eol=lf
+*.mjs   text eol=lf
+*.js    text eol=lf
+*.ts    text eol=lf
+*.sh    text eol=lf
+Cargo.lock text eol=lf
+# Windows-native scripts keep CRLF
+*.bat   text eol=crlf
+*.ps1   text eol=crlf
+# Binaries
+*.png   binary
+*.ico   binary
+*.onnx  binary
