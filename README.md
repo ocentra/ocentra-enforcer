@@ -258,6 +258,12 @@ scripts. Product repos should expose source, generated artifacts, config, and
 domain expectations. Enforcer should own the runner, proof inventory, compact
 diagnostics, retention, and MCP query surface.
 
+## Research Grounding
+
+The Enforcer's design is built on cited research and validated practices, not intuition or hope. Every architectural claim — context budgets [1], AST-over-prose enforcement [2], ratchets [3], deferred-work gates [4], and rules-as-structured-data [5] — is grounded in references and mechanically enforced by validators.
+
+See **[docs/research-grounding.md](docs/research-grounding.md)** for the full citation list, how each principle is applied, and the specific crates and validators that enforce them.
+
 ## Commands
 
 ```bash
