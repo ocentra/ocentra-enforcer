@@ -40,7 +40,11 @@ pub fn git_state(root: &Path) -> GitState {
 }
 
 fn run_git(root: &Path, args: &[&str]) -> Option<String> {
-    let output = Command::new("git").args(args).current_dir(root).output().ok()?;
+    let output = Command::new("git")
+        .args(args)
+        .current_dir(root)
+        .output()
+        .ok()?;
     if !output.status.success() {
         return None;
     }
@@ -240,7 +244,11 @@ pub fn attestation_for(run: &ProofRun) -> Attestation {
         subject: vec![AttestationSubject {
             name: run.proof_id.clone(),
             digest: AttestationDigest {
-                git_commit: run.git.commit.clone().unwrap_or_else(|| "unknown".to_owned()),
+                git_commit: run
+                    .git
+                    .commit
+                    .clone()
+                    .unwrap_or_else(|| "unknown".to_owned()),
             },
         }],
         predicate_type: OCENTRA_PREDICATE_TYPE.to_owned(),
@@ -286,7 +294,11 @@ pub struct ExportBundle {
 /// bundle through `enforcer_core`'s two-layer [`Redactor`] before returning
 /// it. Manifest metadata only — callers must never add artifact bytes to
 /// `runs`.
-pub fn export_bundle(redactor: &Redactor, runs: &[ProofRun], generated_at: &str) -> enforcer_core::error::Result<serde_json::Value> {
+pub fn export_bundle(
+    redactor: &Redactor,
+    runs: &[ProofRun],
+    generated_at: &str,
+) -> enforcer_core::error::Result<serde_json::Value> {
     let bundle = ExportBundle {
         schema_version: 1,
         generated_at: generated_at.to_owned(),
@@ -436,7 +448,11 @@ mod tests {
             sha256: enforcer_core::hash_chain::link_digest(None, b"x").parse::<Sha256>()?,
             byte_length: 42,
         });
-        let value = export_bundle(&redactor, std::slice::from_ref(&run), "2026-07-04T00:00:02Z")?;
+        let value = export_bundle(
+            &redactor,
+            std::slice::from_ref(&run),
+            "2026-07-04T00:00:02Z",
+        )?;
         let bundle: ExportBundle = serde_json::from_value(value.clone())?;
         assert_eq!(bundle.note, EXPORT_NOTE);
         assert_eq!(bundle.runs.len(), 1);

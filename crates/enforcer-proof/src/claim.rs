@@ -294,7 +294,10 @@ mod tests {
             required_path_exists: &|_| true,
         };
         let claim = claim_proof(&args);
-        assert!(claim.violations.iter().any(|v| v.code == ViolationCode::ProofNotPassed));
+        assert!(claim
+            .violations
+            .iter()
+            .any(|v| v.code == ViolationCode::ProofNotPassed));
     }
 
     #[test]
@@ -315,7 +318,10 @@ mod tests {
             required_path_exists: &|_| true,
         };
         let claim = claim_proof(&args);
-        assert!(claim.violations.iter().any(|v| v.code == ViolationCode::StaleCommit));
+        assert!(claim
+            .violations
+            .iter()
+            .any(|v| v.code == ViolationCode::StaleCommit));
     }
 
     #[test]
@@ -337,7 +343,10 @@ mod tests {
             required_path_exists: &|_| true,
         };
         let claim = claim_proof(&args);
-        assert!(claim.violations.iter().any(|v| v.code == ViolationCode::DirtyWorktree));
+        assert!(claim
+            .violations
+            .iter()
+            .any(|v| v.code == ViolationCode::DirtyWorktree));
     }
 
     #[test]
@@ -359,19 +368,24 @@ mod tests {
             required_path_exists: &|_| true,
         };
         let claim = claim_proof(&args);
-        assert!(claim.ok(), "allowDirty must suppress the dirty-worktree violation");
-        assert!(!claim.violations.iter().any(|v| v.code == ViolationCode::DirtyWorktree));
+        assert!(
+            claim.ok(),
+            "allowDirty must suppress the dirty-worktree violation"
+        );
+        assert!(!claim
+            .violations
+            .iter()
+            .any(|v| v.code == ViolationCode::DirtyWorktree));
     }
 
     #[test]
-    fn deleted_artifact_yields_missing_artifact_violation() {
+    fn deleted_artifact_yields_missing_artifact_violation(
+    ) -> Result<(), enforcer_core::error::DecodeError> {
         let mut run = base_run("abc", ProofStatus::Passed);
         run.artifacts.push(ArtifactRecord {
             name: "summary.md".to_owned(),
             path: "gone.md".to_owned(),
-            sha256: enforcer_core::hash_chain::link_digest(None, b"x")
-                .parse()
-                .expect("valid digest"),
+            sha256: enforcer_core::hash_chain::link_digest(None, b"x").parse()?,
             byte_length: 1,
         });
         let args = ClaimArgs {
@@ -389,7 +403,11 @@ mod tests {
             required_path_exists: &|_| true,
         };
         let claim = claim_proof(&args);
-        assert!(claim.violations.iter().any(|v| v.code == ViolationCode::MissingArtifact));
+        assert!(claim
+            .violations
+            .iter()
+            .any(|v| v.code == ViolationCode::MissingArtifact));
+        Ok(())
     }
 
     #[test]

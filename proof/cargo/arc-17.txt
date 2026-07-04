@@ -1,0 +1,236 @@
+=== cargo test -p enforcer-proof ===
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "Finding", into = "Finding")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.18s
+     Running unittests src\lib.rs (target\debug\deps\enforcer_proof-641de8841dbff132.exe)
+
+running 37 tests
+test claim::tests::missing_run_yields_missing_proof_run_violation ... ok
+test claim::tests::dirty_worktree_without_allow_dirty_yields_violation ... ok
+test envelope::tests::attestation_round_trips_the_golden_shape_with_git_commit_key ... ok
+test claim::tests::deleted_artifact_yields_missing_artifact_violation ... ok
+test claim::tests::fresh_clean_present_claim_is_ok_with_no_violations ... ok
+test claim::tests::deleted_required_path_yields_deleted_required_path_violation ... ok
+test claim::tests::stale_commit_yields_stale_commit_violation ... ok
+test envelope::tests::pin_pr_ready_days_is_wired_not_dead ... ok
+test claim::tests::not_passed_run_yields_proof_not_passed_violation ... ok
+test claim::tests::dirty_worktree_with_allow_dirty_suppresses_only_that_violation ... ok
+test envelope::tests::retention_constants_match_legacy_defaults ... ok
+test envelope::tests::attestation_rejects_a_serializer_that_renamed_the_digest_key ... ok
+test harness::tests::capability_filter_excludes_non_matching_proof ... ok
+test harness::tests::capability_resolution_falls_back_through_args_definition_local ... ok
+test harness::tests::more_than_twenty_runs_for_one_proof_id_prunes_to_twenty_keeping_newest ... ok
+test harness::tests::no_command_manual_artifact_proof_is_manual_required ... ok
+test harness::tests::pinned_run_past_pin_pr_ready_days_becomes_prunable ... ok
+test harness::tests::no_command_non_manual_proof_is_unavailable ... ok
+test harness::tests::profile_override_wins_over_same_id_base_entry ... ok
+test harness::tests::rust_file_routes_to_rust_triggered_proof ... ok
+test harness::tests::run_older_than_prune_after_days_is_removed_unless_pinned ... ok
+test harness::tests::workspace_scope_routes_to_claim_integrity_proof ... ok
+test legacy_import::tests::import_with_zero_artifacts_yields_failed_status ... ok
+test legacy_import::tests::migrate_against_missing_scripts_dir_yields_empty_result ... ok
+test legacy_import::tests::migrate_dry_run_writes_nothing ... ok
+test envelope::tests::export_bundle_carries_manifest_rows_and_note_with_no_artifact_bytes ... ok
+test envelope::tests::export_bundle_redacts_secret_bearing_claims ... ok
+test legacy_import::tests::equivalent_and_passed_yields_deletion_ready ... ok
+test envelope::tests::proof_artifact_redacts_secrets_via_shared_crate ... ok
+test legacy_import::tests::hash_mismatch_or_missing_run_yields_weaker_or_not_comparable ... ok
+test journal::tests::intact_chain_verifies_on_open_and_on_replay ... ok
+test legacy_import::tests::import_round_trip_hashes_match_manifest ... ok
+test journal::tests::tampered_record_fails_closed_on_open ... ok
+test journal::tests::reordered_lines_fail_closed ... ok
+test journal::tests::tampered_record_fails_closed_on_replay ... ok
+test legacy_import::tests::migrate_write_emits_registry_and_copies_scripts ... ok
+test harness::tests::real_command_proof_passes_with_no_manual_diagnostic ... ok
+
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests\proof_end_to_end.rs (target\debug\deps\proof_end_to_end-85311f64aaf63988.exe)
+
+running 6 tests
+test git_state_is_queryable_without_erroring ... ok
+test missing_run_claim_fails ... ok
+test intact_journal_verifies_on_open_and_replay ... ok
+test fresh_artifact_claims_green ... ok
+test stale_missing_artifact_claim_fails ... ok
+test tampered_journal_fails_closed_on_open_and_replay ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+   Doc-tests enforcer_proof
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+=== cargo clippy -p enforcer-proof --all-targets -- -D warnings ===
+    Checking enforcer-core v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-a0cab958ac0eaf1f4\crates\enforcer-core)
+    Checking enforcer-domain v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-a0cab958ac0eaf1f4\crates\enforcer-domain)
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "Finding", into = "Finding")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(try_from = "String", into = "String")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+warning: failed to parse serde attribute
+  | 
+  | #[serde(skip_serializing_if = "Option::is_none")]
+  | 
+  = note: ts-rs failed to parse this attribute. It will be ignored.
+    Checking enforcer-validator v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-a0cab958ac0eaf1f4\crates\enforcer-validator)
+    Checking enforcer-config v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-a0cab958ac0eaf1f4\crates\enforcer-config)
+    Checking enforcer-events v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-a0cab958ac0eaf1f4\crates\enforcer-events)
+    Checking enforcer-literal-scan v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-a0cab958ac0eaf1f4\crates\enforcer-literal-scan)
+    Checking enforcer-lang-py v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-a0cab958ac0eaf1f4\crates\enforcer-lang-py)
+    Checking enforcer-lang-ts v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-a0cab958ac0eaf1f4\crates\enforcer-lang-ts)
+    Checking enforcer-lang-security v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-a0cab958ac0eaf1f4\crates\enforcer-lang-security)
+    Checking enforcer-lang-iac v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-a0cab958ac0eaf1f4\crates\enforcer-lang-iac)
+    Checking enforcer-lang-rust v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-a0cab958ac0eaf1f4\crates\enforcer-lang-rust)
+    Checking enforcer-rules v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-a0cab958ac0eaf1f4\crates\enforcer-rules)
+    Checking enforcer-lang-common v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-a0cab958ac0eaf1f4\crates\enforcer-lang-common)
+    Checking enforcer-lang-k8s v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-a0cab958ac0eaf1f4\crates\enforcer-lang-k8s)
+    Checking enforcer-scan v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-a0cab958ac0eaf1f4\crates\enforcer-scan)
+    Checking enforcer-proof v0.1.0 (C:\Projects\ocentra-enforcer\.claude\worktrees\agent-a0cab958ac0eaf1f4\crates\enforcer-proof)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.47s
+
+=== cargo fmt -p enforcer-proof -- --check ===
+
+EXIT: all commands above must show 0 test failures, zero clippy errors, zero fmt diffs.

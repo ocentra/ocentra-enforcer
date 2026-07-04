@@ -111,7 +111,11 @@ fn family_keys_for_file(file: &str) -> Vec<String> {
     if lower.ends_with(".rs") || lower.contains("cargo.toml") {
         keys.push("language:rust".to_owned());
     }
-    if lower.ends_with(".ts") || lower.ends_with(".tsx") || lower.ends_with(".js") || lower.ends_with("package.json") {
+    if lower.ends_with(".ts")
+        || lower.ends_with(".tsx")
+        || lower.ends_with(".js")
+        || lower.ends_with("package.json")
+    {
         keys.push("language:typescript".to_owned());
     }
     if lower.ends_with(".py") || lower.ends_with("pyproject.toml") {
@@ -162,7 +166,12 @@ pub fn proof_matches_route(
     }
     let mut proof_keys: Vec<String> = vec![format!("family:{}", definition.family)];
     proof_keys.extend(definition.languages.iter().map(|l| format!("language:{l}")));
-    proof_keys.extend(definition.capabilities.iter().map(|c| format!("capability:{c}")));
+    proof_keys.extend(
+        definition
+            .capabilities
+            .iter()
+            .map(|c| format!("capability:{c}")),
+    );
     proof_keys.extend(definition.triggers.iter().cloned());
     proof_keys.extend(definition.applies_to.iter().cloned());
     family_keys.iter().any(|k| proof_keys.contains(k))
@@ -170,9 +179,16 @@ pub fn proof_matches_route(
 
 /// [G10] Route: explicit `proofId` selects that one definition (if present);
 /// otherwise every definition whose family keys the request matches.
-pub fn route_proofs<'a>(registry: &'a ProofRegistry, request: &RouteRequest) -> Vec<&'a ProofDefinition> {
+pub fn route_proofs<'a>(
+    registry: &'a ProofRegistry,
+    request: &RouteRequest,
+) -> Vec<&'a ProofDefinition> {
     if let Some(proof_id) = &request.proof_id {
-        return registry.proofs.iter().filter(|p| &p.id == proof_id).collect();
+        return registry
+            .proofs
+            .iter()
+            .filter(|p| &p.id == proof_id)
+            .collect();
     }
     let family_keys = proof_family_keys(request);
     registry
@@ -220,7 +236,10 @@ pub struct RunOutcome {
 
 /// [G11] Resolve the effective capability for a run: `args.capability`,
 /// else the definition's first declared capability, else `"local"`.
-pub fn resolve_capability(args_capability: Option<&str>, definition: Option<&ProofDefinition>) -> String {
+pub fn resolve_capability(
+    args_capability: Option<&str>,
+    definition: Option<&ProofDefinition>,
+) -> String {
     args_capability
         .map(str::to_owned)
         .or_else(|| definition.and_then(|d| d.capabilities.first().cloned()))
@@ -252,7 +271,8 @@ pub fn run_proof(args: &RunProofArgs, definition: Option<&ProofDefinition>) -> R
             proof_id: args.proof_id.clone(),
             severity: if manual_required { "warning" } else { "error" }.to_owned(),
             rule_id: "PROOF-MANUAL".to_owned(),
-            message: "No executable command was provided; proof requires external/manual evidence.".to_owned(),
+            message: "No executable command was provided; proof requires external/manual evidence."
+                .to_owned(),
             file: ".".to_owned(),
             line: 1,
         };
@@ -261,7 +281,9 @@ pub fn run_proof(args: &RunProofArgs, definition: Option<&ProofDefinition>) -> R
             schema_version: 1,
             proof_id: args.proof_id.clone(),
             run_id: args.run_id.clone(),
-            title: definition.map(|d| d.title.clone()).unwrap_or_else(|| args.proof_id.clone()),
+            title: definition
+                .map(|d| d.title.clone())
+                .unwrap_or_else(|| args.proof_id.clone()),
             capability,
             git,
             status,
@@ -288,13 +310,19 @@ pub fn run_proof(args: &RunProofArgs, definition: Option<&ProofDefinition>) -> R
         .output()?;
     let ended_at = now_iso();
     let exit_code = output.status.code().unwrap_or(1);
-    let status = if exit_code == 0 { ProofStatus::Passed } else { ProofStatus::Failed };
+    let status = if exit_code == 0 {
+        ProofStatus::Passed
+    } else {
+        ProofStatus::Failed
+    };
 
     let proof_run = ProofRun {
         schema_version: 1,
         proof_id: args.proof_id.clone(),
         run_id: args.run_id.clone(),
-        title: definition.map(|d| d.title.clone()).unwrap_or_else(|| args.proof_id.clone()),
+        title: definition
+            .map(|d| d.title.clone())
+            .unwrap_or_else(|| args.proof_id.clone()),
         capability,
         git,
         status,
@@ -364,7 +392,12 @@ pub struct ManifestRow {
 /// newest `max_runs_per_proof` runs per proof id; the newest
 /// `max_failed_runs` non-passed runs overall. A run older than
 /// `prune_after_days` is removed UNLESS a keep rule above still applies.
-pub fn prune_runs(runs: &[ManifestRow], policy: RetentionPolicy, now_days_since_epoch: f64, day_of: impl Fn(&str) -> Option<f64>) -> Vec<String> {
+pub fn prune_runs(
+    runs: &[ManifestRow],
+    policy: RetentionPolicy,
+    now_days_since_epoch: f64,
+    day_of: impl Fn(&str) -> Option<f64>,
+) -> Vec<String> {
     let mut sorted: Vec<&ManifestRow> = runs.iter().collect();
     sorted.sort_by(|a, b| b.started_at.cmp(&a.started_at));
 
@@ -420,7 +453,7 @@ pub fn collect_artifact_records(run_dir: &Path, root: &Path) -> Result<Vec<Artif
     ];
     let artifact_root = run_dir.join("artifacts");
     if artifact_root.exists() {
-        let mut stack = vec![artifact_root.clone()];
+        let mut stack = vec![artifact_root];
         while let Some(current) = stack.pop() {
             for entry in std::fs::read_dir(&current)? {
                 let entry = entry?;
@@ -511,9 +544,9 @@ mod tests {
         };
         let merged = merge_proof_definitions(&base, &profile);
         assert_eq!(merged.schema_version, 2);
-        let found = merged.proofs.iter().find(|p| p.id == "shared.proof").unwrap();
-        assert_eq!(found.title, "Profile override");
-        assert_eq!(found.family, "device-manual");
+        let found = merged.proofs.iter().find(|p| p.id == "shared.proof");
+        assert_eq!(found.map(|p| p.title.as_str()), Some("Profile override"));
+        assert_eq!(found.map(|p| p.family.as_str()), Some("device-manual"));
     }
 
     #[test]
@@ -563,7 +596,10 @@ mod tests {
             ..Default::default()
         };
         let routed = route_proofs(&registry, &request);
-        assert!(routed.is_empty(), "non-matching capability must exclude the proof");
+        assert!(
+            routed.is_empty(),
+            "non-matching capability must exclude the proof"
+        );
     }
 
     // --- [G11] manual-required / unavailable + capability model --------
@@ -647,9 +683,7 @@ mod tests {
     fn day_of_iso(value: &str) -> Option<f64> {
         // Trivial fixture clock: encode "day N" as "2026-07-DDT..." so tests
         // can construct ages deterministically without a date-parsing dep.
-        value
-            .get(8..10)
-            .and_then(|d| d.parse::<f64>().ok())
+        value.get(8..10).and_then(|d| d.parse::<f64>().ok())
     }
 
     #[test]

@@ -59,7 +59,9 @@ struct JournalLine {
 /// journal-relative description (which line, what was recorded vs.
 /// expected).
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
-#[error("proof journal tamper detected at line {line_index} (recorded {recorded}, expected {expected})")]
+#[error(
+    "proof journal tamper detected at line {line_index} (recorded {recorded}, expected {expected})"
+)]
 pub struct JournalTamper {
     /// Zero-based line index of the first broken link.
     pub line_index: usize,
@@ -95,7 +97,7 @@ impl ProofJournal {
     pub fn open(path: &Path) -> Result<Self> {
         let last_digest = if path.exists() {
             let lines = read_lines(path)?;
-            verify_lines(&lines).map_err(journal_tamper_to_error)?;
+            verify_lines(&lines).map_err(|e| journal_tamper_to_error(&e))?;
             lines.last().map(|line| line.digest.clone())
         } else {
             None
@@ -112,10 +114,7 @@ impl ProofJournal {
     pub fn append(&mut self, redactor: &Redactor, record: JournalRecord) -> Result<()> {
         let mut payload = record.payload.clone();
         redactor.redact(&mut payload);
-        let redacted_record = JournalRecord {
-            payload,
-            ..record
-        };
+        let redacted_record = JournalRecord { payload, ..record };
         let canonical = serde_json::to_vec(&redacted_record)?;
         let digest = link_digest(self.last_digest.as_deref(), &canonical);
         let line = JournalLine {
@@ -135,7 +134,7 @@ impl ProofJournal {
     /// have appended to since it was opened.
     pub fn verify_on_replay(&self) -> Result<usize> {
         let lines = read_lines(&self.path)?;
-        verify_lines(&lines).map_err(journal_tamper_to_error)
+        verify_lines(&lines).map_err(|e| journal_tamper_to_error(&e))
     }
 
     /// The records currently on disk, in append order (test/inspection
@@ -165,7 +164,7 @@ fn verify_lines(lines: &[JournalLine]) -> std::result::Result<usize, JournalTamp
     verify_chain(links).map_err(JournalTamper::from)
 }
 
-fn journal_tamper_to_error(tamper: JournalTamper) -> Error {
+fn journal_tamper_to_error(tamper: &JournalTamper) -> Error {
     Error::InvalidConfig(tamper.to_string())
 }
 
@@ -268,7 +267,10 @@ mod tests {
         lines.swap(0, 1);
         let swapped = lines.join("\n") + "\n";
         std::fs::write(&path, swapped)?;
-        assert!(ProofJournal::open(&path).is_err(), "reordered lines must fail closed");
+        assert!(
+            ProofJournal::open(&path).is_err(),
+            "reordered lines must fail closed"
+        );
         std::fs::remove_file(&path)?;
         Ok(())
     }

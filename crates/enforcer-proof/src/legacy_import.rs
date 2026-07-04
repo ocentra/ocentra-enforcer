@@ -92,7 +92,12 @@ pub fn migrate_legacy_proofs(
     let selected: Vec<&ClassifiedScript> = scripts.iter().filter(|s| s.is_proof_named).collect();
     let generated_proof_ids: Vec<String> = selected
         .iter()
-        .map(|s| format!("{profile}.{}", normalize_slug(&s.name.trim_end_matches(".mjs"))))
+        .map(|s| {
+            format!(
+                "{profile}.{}",
+                normalize_slug(s.name.trim_end_matches(".mjs"))
+            )
+        })
         .collect();
 
     if dry_run {
@@ -173,9 +178,7 @@ pub struct LegacyBundle {
     pub claims_not_proved: Vec<String>,
 }
 
-const LEGACY_ARTIFACT_EXTENSIONS: &[&str] = &[
-    "json", "md", "txt", "log", "xml", "sarif", "ndjson",
-];
+const LEGACY_ARTIFACT_EXTENSIONS: &[&str] = &["json", "md", "txt", "log", "xml", "sarif", "ndjson"];
 
 /// Collect legacy proof artifacts under `roots` (repo-relative to `root`),
 /// hashing each and inferring a pass/fail status from JSON `status`/`ok`
@@ -199,8 +202,14 @@ pub fn collect_legacy_artifacts(root: &Path, roots: &[&str]) -> Result<LegacyBun
     for file in &files {
         let content = std::fs::read(file)?;
         let digest = enforcer_core::hash_chain::link_digest(None, &content);
-        let sha256: Sha256 = digest.parse().map_err(enforcer_core::error::Error::Decode)?;
-        let rel = file.strip_prefix(root).unwrap_or(file).to_string_lossy().replace('\\', "/");
+        let sha256: Sha256 = digest
+            .parse()
+            .map_err(enforcer_core::error::Error::Decode)?;
+        let rel = file
+            .strip_prefix(root)
+            .unwrap_or(file)
+            .to_string_lossy()
+            .replace('\\', "/");
         let status = infer_status(file, &content);
         if status == "failed" || status == "manual-required" || status == "unavailable" {
             failed_artifacts.push(rel.clone());
@@ -246,7 +255,12 @@ fn collect_files_recursive(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
             if path.is_dir() {
                 let skip = matches!(
                     path.file_name().and_then(|n| n.to_str()),
-                    Some(".git") | Some(".enforce") | Some("node_modules") | Some("target") | Some("dist") | Some("build")
+                    Some(".git")
+                        | Some(".enforce")
+                        | Some("node_modules")
+                        | Some("target")
+                        | Some("dist")
+                        | Some("build")
                 );
                 if !skip {
                     stack.push(path);
@@ -358,7 +372,8 @@ pub enum Coverage {
 /// imported run, classify [`Coverage`], and compute `deletion_ready` — the
 /// gate that says the old script batch may be deleted.
 pub fn proof_parity(bundle: &LegacyBundle, imported: Option<&ProofRun>) -> (Coverage, bool) {
-    let legacy_hashes: BTreeSet<&str> = bundle.artifacts.iter().map(|a| a.sha256.as_str()).collect();
+    let legacy_hashes: BTreeSet<&str> =
+        bundle.artifacts.iter().map(|a| a.sha256.as_str()).collect();
     let imported_hashes: BTreeSet<&str> = imported
         .map(|run| run.artifacts.iter().map(|a| a.sha256.as_str()).collect())
         .unwrap_or_default();
@@ -378,7 +393,8 @@ pub fn proof_parity(bundle: &LegacyBundle, imported: Option<&ProofRun>) -> (Cove
     });
 
     let comparable = !bundle.artifacts.is_empty() && imported.is_some();
-    let equivalent = comparable && !missing_in_imported && !missing_claims_proved && !missing_claims_not_proved;
+    let equivalent =
+        comparable && !missing_in_imported && !missing_claims_proved && !missing_claims_not_proved;
 
     let coverage = if equivalent {
         Coverage::Equivalent
@@ -410,7 +426,7 @@ mod tests {
     use crate::envelope::{GitState, ProofStatus};
     use enforcer_core::error::Result;
 
-    fn temp_dir(name: &str) -> std::path::PathBuf {
+    fn temp_dir(name: &str) -> Result<std::path::PathBuf> {
         let dir = std::env::temp_dir().join(format!(
             "enforcer-proof-legacy-{}-{}-{name}",
             std::process::id(),
@@ -419,15 +435,15 @@ mod tests {
                 .map(|d| d.as_nanos())
                 .unwrap_or_default()
         ));
-        std::fs::create_dir_all(&dir).expect("create temp dir");
-        dir
+        std::fs::create_dir_all(&dir)?;
+        Ok(dir)
     }
 
     // --- [G9a] migrate ----------------------------------------------------
 
     #[test]
     fn migrate_dry_run_writes_nothing() -> Result<()> {
-        let root = temp_dir("migrate-dry");
+        let root = temp_dir("migrate-dry")?;
         let scripts_root = root.join("scripts/test");
         std::fs::create_dir_all(&scripts_root)?;
         std::fs::write(scripts_root.join("some-proof.mjs"), "// proof script")?;
@@ -442,7 +458,7 @@ mod tests {
 
     #[test]
     fn migrate_write_emits_registry_and_copies_scripts() -> Result<()> {
-        let root = temp_dir("migrate-write");
+        let root = temp_dir("migrate-write")?;
         let scripts_root = root.join("scripts/test");
         std::fs::create_dir_all(&scripts_root)?;
         std::fs::write(scripts_root.join("device-proof.mjs"), "// proof script")?;
@@ -460,7 +476,7 @@ mod tests {
 
     #[test]
     fn migrate_against_missing_scripts_dir_yields_empty_result() -> Result<()> {
-        let root = temp_dir("migrate-missing");
+        let root = temp_dir("migrate-missing")?;
         let scripts_root = root.join("scripts/test");
         let profile_root = root.join("profiles/strict");
         let result = migrate_legacy_proofs(&root, &scripts_root, "strict", &profile_root, true)?;
@@ -473,7 +489,7 @@ mod tests {
 
     #[test]
     fn import_round_trip_hashes_match_manifest() -> Result<()> {
-        let root = temp_dir("import-round-trip");
+        let root = temp_dir("import-round-trip")?;
         let proof_dir = root.join("docs/proof");
         std::fs::create_dir_all(&proof_dir)?;
         std::fs::write(proof_dir.join("result.json"), r#"{"ok": true}"#)?;
@@ -503,7 +519,7 @@ mod tests {
 
     #[test]
     fn equivalent_and_passed_yields_deletion_ready() -> Result<()> {
-        let root = temp_dir("parity-equivalent");
+        let root = temp_dir("parity-equivalent")?;
         let proof_dir = root.join("docs/proof");
         std::fs::create_dir_all(&proof_dir)?;
         std::fs::write(proof_dir.join("result.json"), r#"{"ok": true}"#)?;
@@ -518,7 +534,7 @@ mod tests {
 
     #[test]
     fn hash_mismatch_or_missing_run_yields_weaker_or_not_comparable() -> Result<()> {
-        let root = temp_dir("parity-weaker");
+        let root = temp_dir("parity-weaker")?;
         let proof_dir = root.join("docs/proof");
         std::fs::create_dir_all(&proof_dir)?;
         std::fs::write(proof_dir.join("result.json"), r#"{"ok": true}"#)?;
