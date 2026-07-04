@@ -147,6 +147,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "enforcer-lang-rust"
+version = "0.1.0"
+dependencies = [
+ "enforcer-core",
+ "enforcer-domain",
+ "enforcer-rules",
+ "enforcer-validator",
+ "proc-macro2",
+ "syn",
+]
+
+[[package]]
 name = "enforcer-lang-ts"
 version = "0.1.0"
 dependencies = [
