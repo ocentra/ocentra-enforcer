@@ -175,6 +175,61 @@ applied to the swarm.
   workers safe) — per-lane worktree isolation is a SECOND layer on top, and per §2b it is the DEFAULT, not an
   optional extra.
 
+## 3a. Agent / sub-agent / swarm taxonomy — the target agentic model
+This is the vocabulary the orchestration doctrine (§3) and the hub (arc-16) build on. It defines the enforcer's
+TARGET agentic system — the shape §3b then maps onto each harness's real primitives.
+- **Orchestrator (primary lane).** The single high-capability driver session (Fable 5). It is permanently tied
+  to the MAIN tree/branch, acts without claiming (`allowPrimaryWithoutClaims`), and is the ONLY lane that opens
+  PRs (§2d). It reads WORKPACK_INDEX, picks the disjoint-`owns:` dependency-free frontier, and fans out workers.
+  It orchestrates; it does not hand-write crate code beyond trivial glue.
+- **Worker sub-agent.** ONE per workpack. Spawned by the orchestrator onto its OWN lane, bound by default to its
+  OWN worktree (§2b total isolation). It runs `claim`→`guard`→`closeout`, does its local due diligence, and
+  transitions to `pr_ready` + mails the primary lane when it genuinely believes it is done (§2d).
+- **Leaf sub-agent.** An INTRA-workpack helper spawned by a worker to parallelize disjoint sub-units WITHIN a
+  single workpack's scope. Leaves share their parent worker's lane/worktree; intra-lane `claim`/`guard`/`lock`
+  serializes any same-file race between sibling leaves (§2d — locking is intra-lane).
+- **Swarm.** A fan-out SET of workers (or of leaves) running in parallel — not a distinct role, but the
+  collective noun for a wave's worth of concurrent sub-agents. A distributed swarm can span machines via peer
+  sync (§2c).
+- **Lane.** A coordination-hub identity (`<agent>-<wp>`) carrying its own presence row (`worktreeRoot`/`branch`/
+  `commit`). The MAIN lane is special (primary, no-claim); every other lane (A/B/C/D/EA…) is independently
+  bindable to any worktree + branch. **Lane ≠ worktree.**
+- **Worktree.** A physical `git worktree` checkout with its own fully isolated build/run artifacts (§2b). The
+  default is one worktree per lane; the main tree is the orchestrator's home + integration branch, not a work
+  location.
+- **NESTING RULE (3-tier max).** Workflow nesting = **1 level only** — a workflow child cannot itself launch a
+  workflow. Background sub-agents CAN spawn leaf sub-agents. The supported shape is exactly three tiers:
+  **orchestrator → workpack worker → intra-workpack leaf.** No deeper. Harnesses that cannot nest at all are
+  flattened by §3b.
+
+## 3b. Capability detection + adaptive degradation — map the target model onto each harness
+The §3a model is the TARGET. Real harnesses differ in which primitives they actually have. c02
+(harness-autodetect) produces, at install/doctor time, a per-harness **capability manifest** — max concurrent
+agents, sub-agent nesting depth, background-task support, scheduled-task/cron/automation support, cross-session/
+direct messaging, implicit-invocation (Codex strong; others weaker/none). The orchestrator CONSUMES that
+manifest and ADAPTS; it never assumes a primitive exists (see AUDIT_FINDINGS WAVE 5).
+- **Doctrine: map, then degrade — honestly and labeled, never silently.** For each target primitive the
+  orchestrator checks the manifest and either uses the native primitive or drops to a declared fallback. Every
+  degradation is surfaced (logged/reported into the ledger) with WHICH primitive was missing and WHICH fallback
+  was chosen — a degraded run is an honest, labeled run, not a silent pretence of full capability.
+- **Adaptation table (target primitive → fallback when absent):**
+  - concurrency (`maxConcurrentAgents`) → THROTTLE the swarm to the declared cap; queue the rest.
+  - nesting (`subAgentNestingDepth`) → FLATTEN: if the harness cannot nest, run workers directly off the
+    orchestrator with no leaf tier (3-tier collapses to 2- or 1-tier).
+  - scheduled mail-check (`scheduledTasks`) → POLL: if there is no cron/scheduled-task primitive, the lane
+    polls its inbox on a manual cadence instead of a standing scheduled wake (contrast Codex-native scheduling;
+    for Claude, `ScheduleWakeup`/`CronCreate` per §2d when available).
+  - cross-session messaging (`crossSessionMessaging`) → MANUAL / HUMAN-RELAYED handoff: if the harness cannot
+    pass messages between sessions, `pr_ready` and hand-offs fall back to human-relayed relay rather than direct
+    `SendMessage`.
+  - background tasks (`backgroundTasks`) → run foreground / synchronous; no detached background sub-agents.
+  - implicit invocation (`implicitInvocation`) → require EXPLICIT invocation of the enforcer agent.
+- **Unknown ⇒ fail-closed.** A manifest field of `Unknown`/`Support::Unknown` is treated as ABSENT — the
+  orchestrator degrades rather than optimistically assuming the primitive works.
+- **Homes.** This subsection is the adaptation DOCTRINE. The capability manifest is produced by c02; each
+  c-track adapter (c03/c06/c08/c09) may refine its own harness's declared matrix; arc-16 / this taxonomy (§3a)
+  is the target model the manifest is mapped onto. Extends the reference-multiharness-install-matrix.
+
 ## 4. Coordination substrate status (Claude / this harness) — SMOKE-TESTED 2026-07-04
 - **Reads work:** `coordination_health` on an isolated hub returns healthy (`canLockPaths:true`,
   `canWriteClaimedPaths:true`, empty ledger, zero conflicts).
