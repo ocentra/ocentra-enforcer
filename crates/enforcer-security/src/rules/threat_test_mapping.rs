@@ -24,7 +24,7 @@
 //!   concurrency test, and at least one replay test — any missing edge on
 //!   any listed unit is a `Finding`.
 //! - [`ThreatMapNoUnmappedValidator`] (`THREAT-MAP-NO-UNMAPPED.1`): every
-//!   entry in the h01-shaped `moneyCriticalUnits` manifest stub must have a
+//!   entry in the h01-shaped `moneyCriticalUnits` manifest snapshot must have a
 //!   corresponding entry under `units` — an h01-classified unit absent
 //!   from the map entirely is "unmapped logic", flagged regardless of
 //!   whether the units that ARE present are fully mapped.
@@ -62,7 +62,7 @@
 //! }
 //! ```
 //!
-//! `moneyCriticalUnits` is the h01-shaped money-critical manifest STUB this
+//! `moneyCriticalUnits` is the h01-shaped money-critical manifest SNAPSHOT this
 //! fixture format carries inline (a real pipeline wiring would resolve this
 //! list from h01's `#[money_critical(registered)]` scan instead; this
 //! record format lets the mapping-completeness check be exercised
@@ -112,7 +112,7 @@ struct ThreatEntry {
 }
 
 /// The whole THREAT_MAP record: the h01-shaped money-critical manifest
-/// stub (`moneyCriticalUnits`), the per-unit mapping graph (`units`), and
+/// snapshot (`moneyCriticalUnits`), the per-unit mapping graph (`units`), and
 /// the declared-threat completeness ledger (`threats`).
 #[derive(Debug, Clone, serde::Deserialize)]
 struct ThreatMap {
@@ -215,7 +215,7 @@ impl Validator for ThreatMapUnitCoverageValidator {
 
 /// `THREAT-MAP-NO-UNMAPPED.1` — T1 unmapped-logic-forbidden gate (§0.5).
 ///
-/// Any unit named in the h01-shaped `moneyCriticalUnits` manifest stub
+/// Any unit named in the h01-shaped `moneyCriticalUnits` manifest snapshot
 /// that has no corresponding `units` entry is "unmapped logic" and is
 /// flagged, independent of whether the units that ARE present are fully
 /// mapped (that completeness check is
