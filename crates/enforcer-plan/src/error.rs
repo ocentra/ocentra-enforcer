@@ -30,6 +30,27 @@ pub enum PlanError {
         /// Underlying I/O failure description.
         reason: String,
     },
+
+    /// (b01) A caller passed a plan name that fails the `PlanName` brand
+    /// (lowercase kebab-case) before any filesystem I/O ran.
+    #[error("invalid plan name `{raw}`: expected lowercase kebab-case")]
+    InvalidPlanName {
+        // BRAND-INVARIANT: raw display-only string, the rejected input
+        // verbatim, so the error message can show what was rejected; never
+        // reused as a constructed `PlanName`.
+        /// The rejected raw plan-name input.
+        raw: String,
+    },
+
+    /// (b01) `scaffold_plan` refuses to overwrite an existing plan
+    /// directory unless the caller passes `force`.
+    #[error("plan directory already exists at `{path}` (pass `force` to overwrite)")]
+    PlanAlreadyExists {
+        // BRAND-INVARIANT: raw display-only string, verbatim from
+        // `std::path::Path::display()`; error-message text only.
+        /// Plan-directory path that already exists.
+        path: String,
+    },
 }
 
 /// Result alias for `enforcer-plan` fallible operations.

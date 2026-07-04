@@ -54,4 +54,4 @@
 //! modules directly, e.g. `enforcer_plan::validator::PlanParallelSafety`.
 
 pub mod error;
-pub mod validator;
+pub mod scaffolder;
