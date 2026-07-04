@@ -1,0 +1,1 @@
+azure_client_secret_ref = "${AZURE_CLIENT_SECRET}"

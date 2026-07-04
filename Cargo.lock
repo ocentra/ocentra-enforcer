@@ -195,6 +195,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "enforcer-lang-security"
+version = "0.1.0"
+dependencies = [
+ "enforcer-core",
+ "enforcer-domain",
+ "enforcer-validator",
+ "regex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "enforcer-lang-ts"
 version = "0.1.0"
 dependencies = [

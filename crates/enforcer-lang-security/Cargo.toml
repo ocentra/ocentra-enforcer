@@ -1,0 +1,19 @@
+[package]
+name = "enforcer-lang-security"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Per-family Validator implementations for the security source-pattern rule family (SEC-1, SEC-2, 22 rules): secret-scan (inline secrets + sensitive file paths) and the security slice of the shared generic-scanner engine. Built on enforcer-validator's Validator trait and run_fixture_parity harness."
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+regex = "1"
+enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
+
+[lints]
+workspace = true

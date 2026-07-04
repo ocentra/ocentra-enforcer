@@ -1,0 +1,1 @@
+run: ocentra-enforcer scan --gate gitleaks detect --source .
