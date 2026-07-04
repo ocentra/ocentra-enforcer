@@ -58,11 +58,18 @@ pub enum Command {
     /// distinct subcommand name because `enforcer scan` reads naturally
     /// as "just look", matching the legacy CLI's separate verb.
     Scan(ScopeArgs),
-    /// Start the `enforcer-mcp` stdio server. One binary = CLI + MCP.
-    /// Compiled out entirely under `--features lite` (CI never needs an
-    /// MCP round trip; a headless run's exit code is the whole verdict).
+    /// Start the `enforcer-mcp` stdio server (default), or -- with
+    /// `--ui` -- the g01 human-invoked UI serve surface (`enforcer-ui`).
+    /// One binary = CLI + MCP + UI. Compiled out entirely under
+    /// `--features lite` (CI never needs an MCP round trip or a UI
+    /// surface; a headless run's exit code is the whole verdict).
     #[cfg(feature = "full")]
-    Serve,
+    Serve(ServeArgs),
+    /// Alias-shaped synonym for `serve --ui` -- the g01 UI serve surface,
+    /// reached directly without the `--ui` flag. Both spellings resolve
+    /// to the identical surface (`enforcer_ui::serve::ServeAlias`).
+    #[cfg(feature = "full")]
+    Ui(ServeArgs),
     /// Install-time surfaces (harness registration) -- routed to arc-23;
     /// this skeleton only reserves the subcommand name so the grammar is
     /// stable before arc-23 lands its handler.
@@ -113,6 +120,28 @@ pub struct ArchitectureCheckArgs {
     pub language: ArchitectureLanguage,
     #[command(flatten)]
     pub scope: ScopeArgs,
+}
+
+/// Args shared by `serve` and `ui`: `--ui` (only meaningful on `serve`;
+/// `ui` is always the UI surface) plus the g01 host-bind-fail-closed
+/// knobs (`--host`/`--port`/`--token`). Loopback (`127.0.0.1`) is the
+/// default; a non-loopback `--host` REQUIRES `--token` or the surface
+/// refuses to start (see `enforcer_ui::serve::resolve_bind`).
+#[derive(Debug, Args)]
+pub struct ServeArgs {
+    /// Route a bare `serve` to the UI surface instead of the MCP stdio
+    /// server. Ignored (always true) on `enforcer ui`.
+    #[arg(long)]
+    pub ui: bool,
+    /// Bind host. Defaults to loopback (`127.0.0.1`).
+    #[arg(long, default_value = "127.0.0.1")]
+    pub host: String,
+    /// Bind port. `0` (default) picks an ephemeral port.
+    #[arg(long, default_value_t = 0)]
+    pub port: u16,
+    /// Auth token, REQUIRED for any non-loopback `--host`.
+    #[arg(long)]
+    pub token: Option<String>,
 }
 
 #[derive(Debug, Args)]

@@ -68,6 +68,7 @@ pub fn dispatch(name: &str, args: &serde_json::Value, ctx: &DispatchContext) -> 
             DispatchOutcome::Result(coordination_status(args))
         }
         "ocentra_enforcer_coordination_claim" => DispatchOutcome::Result(coordination_claim(args)),
+        "ocentra_enforcer_ui" => DispatchOutcome::Result(ui_tool(args)),
         // Every other registered tool is a real delegate seam owned by a
         // sibling pack's future wiring pass; this skeleton reports it as
         // registered-but-not-yet-wired rather than silently no-op'ing or
@@ -220,6 +221,32 @@ fn coordination_claim(args: &serde_json::Value) -> serde_json::Value {
     }
 }
 
+/// `ocentra_enforcer_ui` — never write-gated (read-only report). Delegates
+/// entirely to `enforcer_ui::serve::ui_tool_response`, which performs no
+/// I/O and never binds a socket -- silent-agent-safe by construction (see
+/// that function's doc comment on the f04 gate not having landed yet).
+/// This handler's only job is JSON<->typed decoding, matching every other
+/// handler's "no business logic here" charter.
+fn ui_tool(args: &serde_json::Value) -> serde_json::Value {
+    let request = enforcer_ui::serve::BindRequest {
+        host: args
+            .get("host")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("127.0.0.1")
+            .to_owned(),
+        port: args
+            .get("port")
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|p| u16::try_from(p).ok())
+            .unwrap_or(0),
+        token: args
+            .get("token")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned),
+    };
+    enforcer_ui::serve::ui_tool_response(&request)
+}
+
 fn json_error(message: &str) -> serde_json::Value {
     serde_json::json!({ "ok": false, "error": message })
 }
@@ -327,5 +354,53 @@ mod tests {
         assert_eq!(value["ok"], serde_json::json!(true));
         assert_eq!(value["eventCount"], serde_json::json!(1));
         Ok(())
+    }
+
+    /// `ocentra_enforcer_ui` on the loopback default: reports the served
+    /// URL, never launches -- proving the g01 workpack's "MCP `ui` tool
+    /// returns the served URL, never auto-launches during silent agent
+    /// runs" requirement at the router boundary (not just in
+    /// `enforcer-ui`'s own unit tests).
+    #[test]
+    fn ui_tool_loopback_default_reports_url_without_launching() {
+        let outcome = dispatch(
+            "ocentra_enforcer_ui",
+            &serde_json::json!({}),
+            &ctx(Freshness::fresh()),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            unreachable!("ui tool must always produce a Result outcome");
+        };
+        assert_eq!(value["ok"], serde_json::json!(true));
+        assert_eq!(value["launched"], serde_json::json!(false));
+    }
+
+    /// `ocentra_enforcer_ui` with a non-loopback host and no token:
+    /// reports the fail-closed refusal as DATA (never panics, never
+    /// binds), still `launched: false`.
+    #[test]
+    fn ui_tool_remote_without_token_reports_refusal_without_launching() {
+        let outcome = dispatch(
+            "ocentra_enforcer_ui",
+            &serde_json::json!({ "host": "0.0.0.0" }),
+            &ctx(Freshness::fresh()),
+        );
+        let DispatchOutcome::Result(value) = outcome else {
+            unreachable!("ui tool must always produce a Result outcome");
+        };
+        assert_eq!(value["ok"], serde_json::json!(false));
+        assert_eq!(value["launched"], serde_json::json!(false));
+    }
+
+    /// `ocentra_enforcer_ui` is read-only/never write-gated: it still
+    /// dispatches while the server is stale.
+    #[test]
+    fn ui_tool_still_dispatches_while_stale() {
+        let outcome = dispatch(
+            "ocentra_enforcer_ui",
+            &serde_json::json!({}),
+            &ctx(Freshness::stale()),
+        );
+        assert!(matches!(outcome, DispatchOutcome::Result(_)));
     }
 }

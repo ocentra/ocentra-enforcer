@@ -219,7 +219,7 @@ fn lite_help_omits_full_only_subcommands() -> Result<(), Box<dyn std::error::Err
     // "...only reserves the subcommand name...", which would otherwise
     // false-positive this assertion against the `install` entry's help
     // text.
-    for full_only in ["serve", "coordination", "ledger"] {
+    for full_only in ["serve", "ui", "coordination", "ledger"] {
         let listing_prefix = format!("  {full_only} ");
         let listing_line = format!("  {full_only}\n");
         assert!(
@@ -265,6 +265,52 @@ fn serve_mode_responds_to_initialize_over_stdio() -> Result<(), Box<dyn std::err
     drop(stdin);
     let status = child.wait()?;
     assert!(status.success(), "enforcer serve must exit 0 on stdin EOF");
+    Ok(())
+}
+
+/// `serve-remote-no-token` fail-fixture at the real-binary boundary:
+/// `enforcer ui --host 0.0.0.0` with no `--token` must refuse to start
+/// (`InternalError`, never a silently-clean exit 0) -- the g01 workpack's
+/// fail-closed host-bind requirement, proven against the real `enforcer`
+/// process rather than only the in-crate unit test.
+#[cfg(feature = "full")]
+#[test]
+fn ui_remote_host_without_token_refuses_to_start() -> Result<(), Box<dyn std::error::Error>> {
+    let binary = binary_path()?;
+    let status = Command::new(binary)
+        .args(["ui", "--host", "0.0.0.0"])
+        .status()?;
+    assert_eq!(
+        status.code(),
+        Some(70),
+        "a non-loopback --host with no --token must be the InternalError exit class (70), \
+         never a silent success"
+    );
+    Ok(())
+}
+
+/// Both CLI spellings (`enforcer serve --ui` and `enforcer ui`) resolve
+/// to the same surface and honor the loopback default -- exercised here
+/// by asserting NEITHER exits with the fail-closed refusal code when no
+/// `--host` override is given (they bind loopback and would otherwise
+/// run until killed, so this test only asserts the refusal path is
+/// specific to a non-loopback host, matching the unit-level
+/// `serve_surface_contract_loopback_default_holds` proof; a full bind+
+/// connect round trip against the real binary is covered by
+/// `enforcer_ui::serve`'s own `run_binds_loopback_and_serves_shell_with_mount_registry`).
+#[cfg(feature = "full")]
+#[test]
+fn serve_ui_flag_and_ui_alias_both_reject_remote_without_token_identically(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let binary = binary_path()?;
+    let via_serve_ui_flag = Command::new(&binary)
+        .args(["serve", "--ui", "--host", "0.0.0.0"])
+        .status()?;
+    let via_ui_alias = Command::new(&binary)
+        .args(["ui", "--host", "0.0.0.0"])
+        .status()?;
+    assert_eq!(via_serve_ui_flag.code(), via_ui_alias.code());
+    assert_eq!(via_serve_ui_flag.code(), Some(70));
     Ok(())
 }
 

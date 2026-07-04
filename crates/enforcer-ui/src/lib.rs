@@ -6,9 +6,18 @@
 //! desktop cockpit is Tauri: a Rust backend (this crate) plus a TS/web
 //! frontend under [`frontend/`](../frontend) — the ONLY TS surface left in
 //! the product, and it is presentation-only. No business logic lives in
-//! TS: the backend calls straight into `enforcer-scan`/`enforcer-mcp` and
-//! renders their `enforcer-domain::findings::Report` output into a UI
-//! payload shape at the Rust boundary; the frontend just displays it.
+//! TS: the backend calls straight into `enforcer-scan` and renders its
+//! `enforcer-domain::findings::Report` output into a UI payload shape at
+//! the Rust boundary; the frontend just displays it.
+//!
+//! # Dependency direction (g01 correction)
+//! This crate depends on [`enforcer_scan`], never on `enforcer-mcp`.
+//! arc-24's original skeleton `Cargo.toml` declared an `enforcer-mcp`
+//! dependency aspirationally (unused by any module); g01 removed it
+//! because the MCP `ui` tool ([`serve::ui_tool_response`]) needs the
+//! OPPOSITE direction — `enforcer-mcp` calls INTO this crate to report the
+//! served URL. Both directions in the dependency graph at once is a
+//! cycle Cargo refuses to build.
 //!
 //! This workpack (arc-24) lays the crate SKELETON only:
 //! - [`payload`] — renders an `enforcer-domain::findings::Report` into the

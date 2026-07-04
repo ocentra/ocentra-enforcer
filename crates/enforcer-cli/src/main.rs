@@ -58,7 +58,15 @@ fn dispatch(command: &Command) -> ExitCode {
     match command {
         Command::Check(scope) | Command::Scan(scope) => commands::run_scoped_check(scope),
         #[cfg(feature = "full")]
-        Command::Serve => run_serve(),
+        Command::Serve(args) => {
+            if args.ui {
+                run_serve_ui(args)
+            } else {
+                run_serve()
+            }
+        }
+        #[cfg(feature = "full")]
+        Command::Ui(args) => run_serve_ui(args),
         Command::Install => {
             output::print_internal_error("install is routed to arc-23; not wired in this skeleton");
             ExitCode::InternalError
@@ -103,6 +111,36 @@ fn run_serve() -> ExitCode {
         Ok(()) => ExitCode::Success,
         Err(err) => {
             output::print_internal_error(&format!("mcp stdio server failed: {err}"));
+            ExitCode::InternalError
+        }
+    }
+}
+
+/// `enforcer serve --ui` / `enforcer ui` -- the g01 human-invoked UI
+/// serve surface. Delegates entirely to `enforcer_ui::serve` (arc-24's
+/// backend + this workpack's transport); this function only bridges
+/// clap args -> `BindRequest` -> exit code, never re-implementing the
+/// bind gate or the transport itself.
+///
+/// # Honest scope note
+/// The shutdown predicate always reports "keep running" -- there is no
+/// in-process Ctrl+C/SIGINT handler wired yet (that is a follow-up, not a
+/// gap this function hides: it never claims to have one). A caller stops
+/// this human-invoked surface the same way any long-running local dev
+/// server is stopped today, by killing the process; the fail-closed bind
+/// gate ([`enforcer_ui::serve::resolve_bind`]) still runs BEFORE any
+/// socket opens regardless.
+#[cfg(feature = "full")]
+fn run_serve_ui(args: &enforcer_cli::cli::ServeArgs) -> ExitCode {
+    let request = enforcer_ui::serve::BindRequest {
+        host: args.host.clone(),
+        port: args.port,
+        token: args.token.clone(),
+    };
+    match enforcer_ui::serve::run(&request, || false) {
+        Ok(_addr) => ExitCode::Success,
+        Err(err) => {
+            output::print_internal_error(&format!("ui serve surface failed: {err}"));
             ExitCode::InternalError
         }
     }

@@ -13,7 +13,7 @@ path = "src/main.rs"
 
 [features]
 default = ["full"]
-full = ["enforcer-coordination"]
+full = ["enforcer-coordination", "enforcer-ui"]
 lite = []
 
 [dependencies]
@@ -29,6 +29,7 @@ enforcer-plan = { path = "../enforcer-plan", version = "0.1.0" }
 enforcer-literal-scan = { path = "../enforcer-literal-scan", version = "0.1.0" }
 enforcer-lang-ts = { path = "../enforcer-lang-ts", version = "0.1.0" }
 enforcer-coordination = { path = "../enforcer-coordination", version = "0.1.0", optional = true }
+enforcer-ui = { path = "../enforcer-ui", version = "0.1.0", optional = true }
 
 [dev-dependencies]
 tempfile = "3"

@@ -21,6 +21,7 @@ enforcer-scan = { path = "../enforcer-scan", version = "0.1.0" }
 enforcer-coordination = { path = "../enforcer-coordination", version = "0.1.0" }
 enforcer-proof = { path = "../enforcer-proof", version = "0.1.0" }
 enforcer-harness = { path = "../enforcer-harness", version = "0.1.0" }
+enforcer-ui = { path = "../enforcer-ui", version = "0.1.0" }
 
 [dev-dependencies]
 tempfile = "3"

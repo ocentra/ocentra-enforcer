@@ -248,6 +248,7 @@ dependencies = [
  "enforcer-plan",
  "enforcer-proof",
  "enforcer-scan",
+ "enforcer-ui",
  "serde_json",
  "tempfile",
 ]
@@ -440,6 +441,7 @@ dependencies = [
  "enforcer-proof",
  "enforcer-rules",
  "enforcer-scan",
+ "enforcer-ui",
  "enforcer-validator",
  "serde",
  "serde_json",
@@ -552,11 +554,11 @@ dependencies = [
  "enforcer-config",
  "enforcer-core",
  "enforcer-domain",
- "enforcer-mcp",
  "enforcer-scan",
  "serde",
  "serde_json",
  "tempfile",
+ "thiserror 1.0.69",
  "tracing",
  "ts-rs",
 ]

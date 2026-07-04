@@ -79,6 +79,11 @@ pub const CANONICAL_TOOLS: &[&str] = &[
     "ocentra_enforcer_coordination_guard",
     // server/meta — never write-gated
     "ocentra_enforcer_mcp_status",
+    // ui family (arc-24/g01 delegate) — read-only report of the served
+    // URL, never write-gated, never auto-launches (see
+    // `enforcer_ui::serve::ui_tool_response`'s silent-agent-safe-by-
+    // construction contract)
+    "ocentra_enforcer_ui",
 ];
 
 /// The fixed enum of named checks `ocentra_enforcer_check` advertises.
@@ -185,6 +190,11 @@ fn canonical_description(name: &str) -> String {
         "ocentra_enforcer_mcp_status" => {
             "Report this MCP server's freshness/fingerprint status; never write-gated.".to_owned()
         }
+        "ocentra_enforcer_ui" => {
+            "Report the g01 UI serve surface's resolved URL and view-mount registry; never \
+             binds a socket or launches the surface itself (silent-agent-safe)."
+                .to_owned()
+        }
         other => format!("Ocentra Enforcer tool: {other}."),
     }
 }
@@ -199,6 +209,17 @@ fn canonical_input_schema(name: &str) -> serde_json::Value {
                 "root": { "type": "string" },
             },
             "required": ["check"],
+        });
+    }
+    if name == "ocentra_enforcer_ui" {
+        return serde_json::json!({
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "host": { "type": "string" },
+                "port": { "type": "integer" },
+                "token": { "type": "string" },
+            },
         });
     }
     serde_json::json!({
