@@ -19,6 +19,14 @@ WITH fixtures or it does not land. Rows L13+ carry an explicit domain tag in the
 L9 and L10 are `code`-domain, the rest `harness`. Learning is PROVABLE: t0 observation → t1 landed artifact →
 t2 recurrence query (x06 `memory evidence`), backed by the tamper-evident proof journal.
 
+**Graph destiny + split policy (L18):** this file is the TRANSITIONAL, human-readable seed of the x06 memory
+graph — every row becomes a lesson NODE (x05 `lesson import`); the ledger is retired as source-of-truth once
+`.enforce/lessons.ndjson` + the graph exist (it stays as a generated VIEW). Until then it must not become a god
+file (the enforcer's own d22 size/shape doctrine applies to doctrine too): at **25 rows or ~200 lines**, split by
+domain into `refs/lessons/harness-NN.md` + `refs/lessons/code-NN.md` (append-only within each shard, NN increments
+per 25 rows) with THIS file reduced to the preamble + a shard index. Ids stay globally unique (L-numbers never
+reset). The x05 importer reads ALL shards.
+
 | id | date | observed | lesson | landed-at | ships-via |
 |---|---|---|---|---|---|
 | L1 | 2026-07-04 | `coordination_init` re-init threw raw `EEXIST` | init must be idempotent (return existing identity, not a filesystem error) | arc-16 finding (this row) | fixed MCP tool behavior (arc-16) |
@@ -44,5 +52,7 @@ t2 recurrence query (x06 `memory evidence`), backed by the tamper-evident proof 
 | L17 | 2026-07-04 | [code] arc-25's fmt gate failed on files from OTHER crates: committed content is LF but git autocrlf smudges Windows checkouts to CRLF, and rustfmt.toml pins `newline_style="Unix"` → every FRESH Windows checkout fails `cargo fmt --check` (arc-01's own worktree passed only because its files were never re-checked-out; Linux CI never sees it) | when a formatter pins an EOL style, the repo MUST pin checkout EOL too — `.gitattributes` (`*.rs text eol=lf` etc.) is part of the toolchain contract, not optional; Windows-first means testing the FRESH-CHECKOUT path, not just the files-you-just-wrote path | `.gitattributes` landed (808a888), fmt verified exit-0 post-re-smudge | a01 toolchain contract (retro) + c01 doctrine payload |
 
 | L16 | 2026-07-04 | [harness] the fix for L14 (watchdog) matured live into a full SELF-DRIVING LOOP: cron tick (5min) + event-driven completion notifications + fallback wakeup, tick = drain-mail/liveness/verify-integrate/respawn/dispatch-frontier/checkpoint/re-arm, terminal = gatekeeper handoff — ran hands-off building this very plan | plan execution is a LOOP, not a dispatch: the orchestrator binding must ship `tick()`-until-done semantics with composed wake signals (event preempts timer, timer survives dead lanes) and a typed error for ending fragile; the `/plan` skill EMITS this loop protocol with every plan it generates, mapped to each harness's real scheduling primitives via the c02 capability manifest | b04 requirement + loop-test acceptance row (this pass); b05 emits it; live practice = cron 868454c7 | b04 orchestrator binding + b05 /plan skill + c02 capability mapping |
+
+| L18 | 2026-07-04 | [harness] owner spotted the ledger itself trending toward a god file — the file documenting our size/shape doctrine was about to violate it; also confirmed the ledger's end-state: rows become x06 graph NODES (seed data via x05 import), the .md is transitional | doctrine artifacts obey the same mechanical caps as code (d22 applies to .md ledgers too): split at 25 rows/~200 lines by domain shard with a stable index, ids globally unique; AND every capture surface must declare its GRAPH DESTINY up front (what node type it becomes, who imports it, when it stops being source-of-truth) so no transitional file quietly becomes a permanent god store | split policy + graph-destiny preamble in this file (this pass); x05 importer reads all shards | x05 import + x06 graph + d22 size/shape rules |
 
 Append below this line as new lessons land. Never edit existing rows except to fill a previously-pending `landed-at`.
