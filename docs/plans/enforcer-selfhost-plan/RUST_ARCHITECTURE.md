@@ -17,6 +17,14 @@ without dynamic bullshit, fast + parallel, a single self-contained binary, nativ
 codebase-memory distribution model (binary + MCP).
 
 ## Doctrine (Rust-native)
+- **The real user of this engine is an AI agent, not a human** (owner directive, 2026-07-04). A human CAN
+  trigger the CLI manually from an IDE/shell — that is incidental, not the design target. Consequences:
+  install is not "one script and done" — it is install (MCP registration) -> inspect the target's real build
+  system -> configure (author a fitting `enforcer-config`) -> wire CI for that specific project -> VERIFY the
+  wiring actually works, and steps 2-5 require judgment an agent (AI or human) must make; this is NOT fully
+  mechanically automatable and is not supposed to be — the product is a SKILL (`c11`) that makes that judgment
+  reliable and repeatable, not a script that eliminates it. Every install/onboard/CI surface (c01-c11) is
+  designed agent-first; a human using it directly is a fully-supported but secondary path.
 - **One binary IS the engine.** A per-platform Rust binary is the MCP stdio server AND the CLI
   (`enforcer scan|check|install|serve|plan|...`). Node/`.mjs` is DROPPED entirely — no shims.
 - **Rules are STRUCTURED DATA, not prose.** Typed rule records (in `enforcer-domain` / `rules.json` / RON),
@@ -34,7 +42,10 @@ FOUNDATION (reused everywhere):
 - `enforcer-core` — Result/Error, tracing, shared primitives.
 - `enforcer-domain` — the SINGLE-SOURCE schema: branded newtypes + serde — RuleId, RepoRoot, RelPath,
   Sha256, HubName, LaneId, Severity, Tier, Finding, Violation, Report, ScanScope, ThreatId (MITRE/OWASP).
-- `enforcer-config` — typed config load, parse-at-boundary.
+- `enforcer-config` — typed config load, parse-at-boundary, **3-layer resolution** (embedded global profiles
+  `strict`/`ocentra-enforcer`/`ocentra-parent`/`default` -> per-project `ocentra-enforcer.config.json` override
+  -> one resolved `EffectiveConfig`; zero-config projects get the `default` profile alone). `.enforce/` per-run
+  OUTPUT is a separate concern owned by arc-17/arc-18, which read `EffectiveConfig` but never live here.
 - `enforcer-events` — LEAN in-process typed event spine (serde/sha2; SYNC-first): `DomainEvent` +
   `EventEnvelope<E>` (stored-decode re-verifies the contract), correlation/causation IDs, panic-isolated
   Sequential/Concurrent dispatch. Consumed ONLY by scan/coordination/proof. Deliberately EXCLUDES
@@ -48,6 +59,12 @@ RULES & VALIDATION:
 ENGINE:
 - `enforcer-scan` — parallel scan engine (rayon) + detect-and-route router (f05) + scan modes (f01).
 - `enforcer-coordination` — hub/lane/claim/guard/ledger/presence/sync (port `src/coordination/vendor/*.js` -> Rust).
+  Ships a **lane-worktree spawn primitive** (`enforcer coordination lane new/park/rm`, also an MCP tool) so
+  ANY harness (Claude Code, Cursor, Codex, Windsurf, ...) gets "one isolated worktree per parallel worker,
+  zero shared build state" for free — see EXECUTION_MODEL.md §2b. The ledger itself is the opposite of
+  isolated: presence/heartbeat is multi-machine + multi-project aware (`byPc`/`byProject`/`byWorktree`), and
+  named peers sync over HTTP or local FS (`pull`/`push`/`both`, append-only, conflict-detected) — a genuinely
+  distributed swarm across machines and projects, not just worktrees on one box. See EXECUTION_MODEL.md §2c.
 - `enforcer-proof` — proof harness (routed proofs, artifacts, freshness, PR-ready claims).
 - `enforcer-harness` — native-tool run-adapters (cargo/tsc/ruff/dart/CFLint...) + compact diagnostics.
 - `enforcer-security` — Track H money-critical & security-testing validators.
@@ -130,6 +147,51 @@ released binaries. `enforcer install` (or npm/winget/curl one-liner) downloads t
 registers it as each harness's MCP server (the binary itself speaks MCP on stdio). No runtime toolchain
 required by consumers. Optional graceful-skip adapters (Python/CLI tools) only where an engine is
 irreplaceable (symbolic-exec/fuzz/network-scan/binary-forensics).
+
+## CI integration for CONSUMER projects (c10 — a different surface from AI-harness install)
+Researched 2026-07-04: `cargo-dist` (axodotdev) is the standard tool for exactly this — it generates its own
+GitHub release pipeline (plan/build/host/publish across the target matrix above) plus portable `install.sh`/
+`install.ps1` scripts and can produce an npm wrapper package. Adopted shape (see [c10](./workpacks/c10-ci-integration-and-binary-bootstrap.md)):
+- **Zero Rust toolchain required in consumer CI.** A curl/iwr-installable `install.sh`/`install.ps1` downloads
+  the matching release binary (checksum-verified) — works identically on GitHub Actions, GitLab CI, CircleCI,
+  Bitbucket, Jenkins, or bare shell. `cargo install` from source is a documented FALLBACK only.
+- **A reusable composite GitHub Action** (`.github/actions/enforcer-scan`) wraps the installer + caches the
+  downloaded binary (`actions/cache`, keyed by version+platform) for GitHub users specifically.
+  Wired by the existing `github-actions` install adapter.
+- **Optional npm wrapper** (thin JS shim + per-platform `optionalDependencies`, the biome/esbuild/swc pattern,
+  glibc/musl runtime-detected on Linux) so consumers ALREADY wired the old Node-centric way (`npm install` +
+  `npx enforcer ...`) keep working unchanged even though the package now ships a compiled binary.
+- **CI always regenerates proof fresh** — never trusts a pre-computed/uploaded artifact as a substitute for
+  running the binary (extends the swarm's own zero-trust/no-upload doctrine, EXECUTION_MODEL.md §2b/§2c, to the
+  consumer-CI boundary). CI MAY separately upload its OWN freshly-generated report as a build artifact for
+  human PR review afterward — a distinct, legitimate act, not a trust shortcut; do not conflate the two.
+- **Fixes a real independent bug found during this research:** `docs/TARGET_REPO_WIRING.md` currently hardcodes
+  a local absolute path (`E:/ocentra-enforcer/rules/INDEX.md`) that cannot resolve on any machine but the
+  original author's, let alone a cloud CI runner. Rules are compiled into the binary (rules-as-data, arc-04);
+  `enforcer explain <ruleId>` replaces "go read a file at a hardcoded path." No doc/adapter/generated CI config
+  may ever reference a literal local absolute path.
+- **This repo's OWN CI builds+publishes the release; every consumer project's CI only ever POINTS AT it.**
+  There is exactly one producer (this repo's release pipeline) and many consumers (any project's CI downloads
+  the published binary). Consumer CI is FULLY MECHANICAL — no Codex/Claude/agent judgment is present there, so
+  the binary's exit code is the entire verdict, and a broken release binary is categorically worse than a
+  broken rule (it can silently fail closed/open for EVERY consumer at once). Hence: a pre-publish cross-platform
+  smoke gate blocks any release where the binary itself is broken on ANY target platform (see c10); the
+  exit-code taxonomy (arc-22) hard-separates "target project failed a check" from "the enforcer crashed"; and
+  version-pinning is the DEFAULT for consumers (an explicit "floating latest" channel is opt-in, not automatic)
+  so an enforcer-side rule change cannot silently break many unrelated projects' CI with zero warning.
+- **`full` vs `lite` binary variants (Cargo feature split, arc-22).** CI never needs the coordination hub
+  (arc-16) or the UI (arc-24) — a headless mechanical CI run has no lanes, no mail, no Tauri surface to serve.
+  `enforcer-cli` ships a `lite` feature profile excluding both from the compiled binary (smaller, faster,
+  smaller attack surface) from the SAME source tree as `full` (DRY — no forked CI-only crate). CI tooling
+  (installer/GH Action/npm wrapper) defaults to `lite`; `full` remains an explicit opt-in.
+- **CI-runner platform coverage is independent of the target project's own build platform.** The win/mac/
+  linux(+musl+apple-silicon) matrix covers every real CI-runner family; a project targeting mobile/embedded/
+  etc. still runs its CI on an ordinary x86/arm mac/linux/windows runner. We do NOT cross-compile the enforcer
+  itself to run "on a phone" — that would be solving a problem that does not exist.
+- **`PORT-1.1` (platform-specific script commands must be guarded) gains a declared-scope relaxation it lacks
+  today** (`enforcer-config`'s `supportedPlatforms` field, arc-03/arc-09): a project that legitimately only
+  targets one platform's CI is not hard-failed for platform-specific code within that declared scope; absence
+  of the field defaults to the current strict all-three-platforms behavior — no silent relaxation by omission.
 
 ## Track re-cast (same tracks, Rust)
 - **A (dogfood):** `.mjs -> Cargo workspace`. The 50-file conversion swarm becomes cohesive CRATE-BUILD

@@ -27,6 +27,7 @@ A deterministic binding in `enforcer-plan` (arc-20): `src/orchestrator.rs` compu
 ## Requirement Checklist
 - [ ] Build the dep DAG from workpack `deps:` fields and compute the ready frontier (deps satisfied), over `enforcer-domain` newtypes.
 - [ ] Assign frontier workpacks to hub lanes so no two concurrent lanes share owns globs (reuse b02's PLAN-PARALLEL-SAFETY predicate, do not reimplement).
+- [ ] **Default each assigned lane to its OWN worktree via arc-16's lane-worktree spawn primitive** (total isolation per EXECUTION_MODEL.md §2b — no shared `Cargo.lock`/`target`/`node_modules` across lanes); do not reuse a single shared tree unless the caller explicitly opts a group of lanes into one (e.g. tightly sequential sub-splits of one workpack).
 - [ ] Bind lane lifecycle to the `enforcer-coordination` (arc-16) claim -> guard -> closeout API.
 - [ ] Intent-queue serializes any residual owns overlap that slips past static checks (fail-closed: refuse concurrent claim on overlapping owns).
 - [ ] Reuse the existing `enforcer-coordination` crate; add no parallel coordination store.
