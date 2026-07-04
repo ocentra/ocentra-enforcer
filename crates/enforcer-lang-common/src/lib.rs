@@ -32,13 +32,19 @@
 //!   its check rather than a fixed marker list.
 //! - [`families`] — one module per `RuleId` prefix (`ARCH-1`, `CI-1`, ...),
 //!   each building its slice of [`pattern::PatternValidator`]s.
+//! - [`rules`] — bespoke non-`PatternValidator` common-family rules that
+//!   need more than a literal-marker scan (e.g. `DEFER-1.1`'s structured
+//!   annotation grammar), one module per rule, mirroring
+//!   [`port_platform`]'s existing bespoke-validator precedent.
 //! - [`registry`] — [`registry::all`], the single entry point returning
 //!   every validator this crate owns.
 //!
 //! No `pub use` barrels (workspace doctrine): consumers path through the
 //! modules directly, e.g. `enforcer_lang_common::registry::all`.
 
+pub mod error;
 pub mod families;
 pub mod pattern;
 pub mod port_platform;
 pub mod registry;
+pub mod rules;

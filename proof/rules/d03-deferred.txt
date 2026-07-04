@@ -1,0 +1,54 @@
+d03 deferred-work-gate proof artifact
+=====================================
+
+Rule: DEFER-1.1 ("Deferred-work markers require a structured DEFERRED annotation")
+Validator: enforcer-lang-common::rules::deferred_work::DeferredWorkValidator
+Rule record: crates/enforcer-rules/rules/deferred-work-gate.json
+Fixtures:
+  fail: crates/enforcer-lang-common/tests/fixtures/deferred_work/bad/fail.rs
+  pass: crates/enforcer-lang-common/tests/fixtures/deferred_work/good/pass.rs
+
+Command: cargo test -p enforcer-lang-common -p enforcer-rules
+
+enforcer-lang-common (src/lib.rs unit tests) — 17 passed; 0 failed
+  including rules::deferred_work::tests:
+    clean_source_with_no_markers_is_silent ... ok
+    fires_on_unmarked_stub_and_silent_on_annotated_stub ... ok      (fixture parity: fail fixture fires, pass fixture silent)
+    malformed_annotation_still_fails ... ok                         (empty #<ref> -> malformed, not unmarked)
+    missing_revisit_still_fails ... ok                               (missing [revisit:...] -> malformed)
+    parser_accepts_well_formed_annotation ... ok
+    parser_rejects_non_deferred_form ... ok
+    parser_rejects_unterminated_ref ... ok
+    well_formed_annotation_is_silent_across_languages ... ok         (Rust/Python/raise NotImplementedError/throw new Error("not implemented"))
+
+enforcer-lang-common (tests/parity.rs) — 3 passed; 0 failed
+  count_parity_against_rules_json_language_common_minus_sec2 ... ok  (249 legacy count-parity UNAFFECTED by DEFER-1.1, which is
+                                                                       registered via enforcer-rules' RuleRecord catalog, not
+                                                                       enforcer-lang-common::registry::all)
+  every_expected_rule_has_both_fixture_files_on_disk ... ok
+  every_registered_validator_fires_on_fail_and_is_silent_on_pass ... ok
+
+enforcer-rules (src/lib.rs unit tests) — 23 passed; 0 failed
+
+enforcer-rules (tests/registry_load.rs) — 12 passed; 0 failed
+  deferred_work_gate_record_loads_and_is_linked_to_lang_common_validator ... ok
+  baseline_catalogs_load_into_one_registry ... ok  (7 records: 1 deny-wall + 1 no-reexports + 4 ocentra-parent-posture + 1 deferred-work-gate)
+
+Doc-tests enforcer_lang_common — 0 passed; 0 failed
+Doc-tests enforcer_rules — 0 passed; 0 failed
+
+TOTAL: 55 tests passed, 0 failed across the two crates.
+
+cargo clippy -p enforcer-lang-common -p enforcer-rules --all-targets: clean (no warnings beyond pre-existing ts-rs serde-attribute
+notices in enforcer-domain, unrelated to this pack).
+cargo fmt -p enforcer-lang-common -p enforcer-rules: applied, no residual diff.
+
+Acceptance checklist (from d03-deferred-work-gate.md):
+  [x] unmarked stub in added lines fails -> bad/fail.rs fixture + fires_on_unmarked_stub_and_silent_on_annotated_stub
+  [x] correctly annotated stub passes -> good/pass.rs fixture (same test)
+  [x] malformed annotation fails -> malformed_annotation_still_fails, missing_revisit_still_fails
+  [x] legacy stub outside the diff passes -> file-level diff scoping composes via ScanScope::Diff at the enforcer-scan layer
+      (this crate's Validator is pure/per-file per the harness contract; only in-diff-scope files reach validate())
+  [x] emitted as a first-class rule record via d01 (record + fixtures + doc-anchor + Validator parity) ->
+      crates/enforcer-rules/rules/deferred-work-gate.json, 5-way linkage proven by registry_load.rs
+  [x] obeys [workspace.lints] (no unwrap/expect/panic/print_*, no inline-disable) -> clippy clean confirms

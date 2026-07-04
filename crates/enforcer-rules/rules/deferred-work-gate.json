@@ -1,0 +1,31 @@
+[
+    {
+        "ruleId": "DEFER-1.1",
+        "version": 1,
+        "title": "Deferred-work markers require a structured DEFERRED annotation",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "rules::deferred_work::DeferredWorkValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/tests/fixtures/deferred_work/bad/fail.rs",
+            "pass": "crates/enforcer-lang-common/tests/fixtures/deferred_work/good/pass.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d03-deferred-work-gate.md#requirement-checklist",
+        "tags": ["common", "cross-language", "deferred-work", "consumer-repo"],
+        "params": {
+            "markerVocabulary": [
+                "TODO",
+                "FIXME",
+                "unimplemented!",
+                "todo!",
+                "raise NotImplementedError",
+                "throw new Error(\"not implemented\")",
+                "pass  # TODO"
+            ],
+            "exemptionGrammar": "DEFERRED(#<ref>)[revisit:<value>]",
+            "diffScoped": true
+        }
+    }
+]

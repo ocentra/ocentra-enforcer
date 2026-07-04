@@ -1,8 +1,9 @@
 //! arc-04 acceptance proof: the shipped baseline rule catalogs
 //! (`rules/deny-wall.json`, `rules/no-reexports.json`,
-//! `rules/ocentra-parent-posture.json`) load into one registry, every
-//! record's linkage resolves, a malformed/duplicate record is rejected,
-//! and a seeded d13 version-drift fails closed.
+//! `rules/ocentra-parent-posture.json`, `rules/deferred-work-gate.json`)
+//! load into one registry, every record's linkage resolves, a
+//! malformed/duplicate record is rejected, and a seeded d13 version-drift
+//! fails closed.
 
 use enforcer_rules::loader::{load_registry_from_records, parse_catalog};
 use enforcer_rules::version_drift::{check_drift, has_drift, DriftOutcome};
@@ -10,6 +11,7 @@ use enforcer_rules::version_drift::{check_drift, has_drift, DriftOutcome};
 const DENY_WALL_JSON: &str = include_str!("../rules/deny-wall.json");
 const NO_REEXPORTS_JSON: &str = include_str!("../rules/no-reexports.json");
 const OCENTRA_PARENT_POSTURE_JSON: &str = include_str!("../rules/ocentra-parent-posture.json");
+const DEFERRED_WORK_GATE_JSON: &str = include_str!("../rules/deferred-work-gate.json");
 
 fn all_baseline_records(
 ) -> Result<Vec<enforcer_rules::registry::RuleRecord>, Box<dyn std::error::Error>> {
@@ -19,6 +21,10 @@ fn all_baseline_records(
         OCENTRA_PARENT_POSTURE_JSON,
         "rules/ocentra-parent-posture.json",
     )?);
+    records.extend(parse_catalog(
+        DEFERRED_WORK_GATE_JSON,
+        "rules/deferred-work-gate.json",
+    )?);
     Ok(records)
 }
 
@@ -26,8 +32,24 @@ fn all_baseline_records(
 fn baseline_catalogs_load_into_one_registry() -> Result<(), Box<dyn std::error::Error>> {
     let records = all_baseline_records()?;
     let registry = load_registry_from_records(records)?;
-    // 1 deny-wall + 1 no-reexports + 4 ocentra-parent posture records.
-    assert_eq!(registry.len(), 6);
+    // 1 deny-wall + 1 no-reexports + 4 ocentra-parent posture + 1
+    // deferred-work-gate records.
+    assert_eq!(registry.len(), 7);
+    Ok(())
+}
+
+#[test]
+fn deferred_work_gate_record_loads_and_is_linked_to_lang_common_validator(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let records = all_baseline_records()?;
+    let registry = load_registry_from_records(records)?;
+    let rule_id = "DEFER-1.1".parse()?;
+    let record = registry.get(&rule_id).ok_or("expected DEFER-1.1 to load")?;
+    assert_eq!(record.validator.crate_name, "enforcer-lang-common");
+    assert!(record.validator.path.contains("DeferredWorkValidator"));
+    assert!(!record.fixtures.fail.is_empty());
+    assert!(!record.fixtures.pass.is_empty());
+    assert!(!record.doc_anchor.is_empty());
     Ok(())
 }
 
