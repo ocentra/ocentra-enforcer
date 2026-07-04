@@ -55,4 +55,5 @@
 
 pub mod error;
 pub mod scaffolder;
+pub mod templates;
 pub mod validator;

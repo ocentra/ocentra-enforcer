@@ -1,0 +1,7 @@
+# enforcer-selfhost-plan Workpack Index
+
+| ID | Short | Status | Assigned | Notes |
+|----|-------|--------|----------|-------|
+| a01 | Workspace | DONE | haiku | Root cargo workspace |
+| b03 | Templates | DONE | haiku | Template fixtures and loader |
+
