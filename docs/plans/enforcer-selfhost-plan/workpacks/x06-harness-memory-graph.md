@@ -40,6 +40,8 @@ KG-only is not enough. Vector-only is not enough. x06 is DONE only when the feat
 
 ## Requirement Checklist
 
+- [ ] **Usage-ingestion seam (owner-set, RESTORED after hardening pass dropped it): every enforcement operation FEEDS the graph automatically** — expose an ingest_observation function contract (finding/fault-class/ruleId/repo-context → Incident node + observedIn edges) that scan/check/run surfaces (arc-15, f01, f05) and coordination closeout (arc-16) CALL on every run; no manual capture step; append-only, redaction-safe; a clean scan still records the clean observation (negative evidence). Usage = learning.
+- [ ] **Learning-evidence query (owner-set, RESTORED): memory evidence <lessonId>** returns the t0→t1→t2 chain (observedIn incidents with provenance → landed artifacts with fixtures green → recurrence count since landing), each element carrying enforcer-proof journal refs; aggregate --all emits the per-domain learning curve. Fail-closed: missing t0 provenance reports evidence:incomplete, never fabricates. This is the falsifiable-learning instrument (RUST_ARCHITECTURE learning thesis).
 - [ ] Implement [MEMORY_RETRIEVAL_KG_RAG_MASTER_PLAN](../MEMORY_RETRIEVAL_KG_RAG_MASTER_PLAN.md) as binding product scope.
 - [ ] Implement [MEMORY_RETRIEVAL_IMPLEMENTATION_PACKS](../MEMORY_RETRIEVAL_IMPLEMENTATION_PACKS.md) as internal x06 lane decomposition.
 - [ ] Implement [MEMORY_RETRIEVAL_PARITY_HARNESS](../MEMORY_RETRIEVAL_PARITY_HARNESS.md): run installed KG baseline and WIP Rust enforcer-memory over same repos, same git revision, same tools, and emit machine-readable diffs.
