@@ -159,6 +159,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "enforcer-plan"
+version = "0.1.0"
+dependencies = [
+ "enforcer-config",
+ "enforcer-core",
+ "enforcer-domain",
+ "enforcer-rules",
+ "enforcer-validator",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "enforcer-rules"
 version = "0.1.0"
 dependencies = [

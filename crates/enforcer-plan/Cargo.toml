@@ -1,0 +1,24 @@
+[package]
+name = "enforcer-plan"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Track B: the plan scaffolder (emits workpack-skeleton documents) and the PLAN-* structure validators (agent-capsule / owns-deps-tier / required-sections / disjoint-owns parallel-safety / resume-state / stale-proof-row checks) that enforce the plan-document contract this workspace's own docs/plans/** are authored under."
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
+enforcer-rules = { path = "../enforcer-rules", version = "0.1.0" }
+enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true
