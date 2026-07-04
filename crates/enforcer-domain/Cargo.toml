@@ -1,0 +1,22 @@
+[package]
+name = "enforcer-domain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Single-source schema crate for the Ocentra Enforcer workspace: branded newtypes + versioned serde records. Owns DTO SHAPE, not behavior."
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
+# ts-rs is not in [workspace.dependencies] (a01-owned root manifest);
+# declared here directly to avoid an unclaimed root edit (same rationale as
+# regex in enforcer-core). Centralize in a later a01 pass.
+ts-rs = "10"
+
+[dev-dependencies]
+serde_json = { workspace = true }
+
+[lints]
+workspace = true
