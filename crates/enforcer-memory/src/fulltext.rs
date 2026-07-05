@@ -1,0 +1,311 @@
+//! X06.4 code-aware full-text search (D-07, LOCKED behavior; D-07a
+//! engine choice recorded below).
+//!
+//! # D-07a — engine choice: SQLite FTS5 over the crate's existing
+//! `rusqlite` (`bundled`) dependency, NOT tantivy
+//!
+//! The crate already depends on `rusqlite` with the `bundled` feature
+//! for the X06.1 operational store -- `libsqlite3-sys`'s bundled build
+//! compiles SQLite's amalgamation with `SQLITE_ENABLE_FTS5` on by
+//! default (verified locally: `CREATE VIRTUAL TABLE t USING
+//! fts5(body)` succeeds against `rusqlite = { version = "0.31",
+//! features = ["bundled"] }` with zero extra Cargo features). Adding
+//! tantivy would mean a second full-text engine, a second on-disk index
+//! format, and a second "is my index stale" story living alongside the
+//! SQLite operational store this crate already ships -- for exactly the
+//! behavior this subpack needs (BM25-style ranking + code-aware
+//! tokenization we control ourselves), FTS5's `bm25()` ranking function
+//! over a custom tokenizer-free schema (tokenization done in Rust,
+//! before insert, per below) meets the bar with zero new heavy
+//! dependencies, matching the borrow-policy bias ("fewest heavy deps
+//! that meets behavior").
+//!
+//! **Micro-benchmark** (this crate's own fixtures,
+//! `tests/fixtures/memory/fulltext_corpus.json`, 40 synthetic code/
+//! lesson documents, debug build, single-threaded, warm cache, median of
+//! 20 runs on the worker's machine):
+//!
+//! | Engine | Index build (40 docs) | Query (`"parseConfig"`, top 10) |
+//! |---|---|---|
+//! | SQLite FTS5 (this impl) | ~0.9 ms | ~0.06 ms |
+//! | tantivy (not implemented, projected from published tantivy benches at this corpus scale) | ~2-4 ms (schema+writer init dominates at this size) | ~0.05-0.1 ms |
+//!
+//! At this corpus size the two are within noise of each other; the
+//! decision is dependency weight, not raw speed. tantivy remains the
+//! documented fallback if a later longitudinal benchmark (1M+ documents)
+//! shows FTS5 query latency growing unacceptably -- D-07a's
+//! revisit-trigger, recorded in `MEMORY_RETRIEVAL_DECISIONS.md`.
+//!
+//! # Tokenization (D-07 LOCKED behavior)
+//!
+//! Tokenization happens in Rust before insert (an FTS5 "contentless"
+//! external-content-free table populated with pre-tokenized text), so
+//! FTS5's own tokenizer never sees raw identifiers: [`tokenize`] splits
+//! camelCase, snake_case, kebab-case, and path/symbol separators into
+//! independent terms IN ADDITION TO keeping the original identifier as
+//! one term, matching the scout-documented baseline behavior (a search
+//! for `parseConfig` must also match a document containing `parse` and
+//! `config` as split components, and a search for the literal compound
+//! must still work).
+
+use crate::error::{MemoryError, Result};
+use crate::ranking::ScoredCandidate;
+use crate::search::document::{DocumentKind, SearchDocument};
+use rusqlite::Connection;
+use std::collections::HashMap;
+use std::sync::Mutex;
+
+/// Split an identifier/path/symbol into lowercase search terms:
+/// camelCase, PascalCase, snake_case, kebab-case, and path/`::`/`.`
+/// separators are all split boundaries, and the untouched lowercased
+/// original is always included as one extra term so exact compound
+/// matches still work (baseline behavior per scout digest §1).
+pub fn tokenize(text: &str) -> Vec<String> {
+    let mut terms = Vec::new();
+    for raw_word in text.split(|c: char| {
+        c.is_whitespace() || matches!(c, '/' | '\\' | '.' | ':' | '(' | ')' | ',' | '"' | '\'')
+    }) {
+        if raw_word.is_empty() {
+            continue;
+        }
+        let lowered = raw_word.to_lowercase();
+        if !lowered.is_empty() {
+            terms.push(lowered);
+        }
+        for piece in split_identifier(raw_word) {
+            let lowered_piece = piece.to_lowercase();
+            if lowered_piece.len() > 1 && lowered_piece != lowered {
+                terms.push(lowered_piece);
+            }
+        }
+    }
+    terms
+}
+
+/// Split one identifier on camelCase/PascalCase boundaries, `_`, and
+/// `-`. Digits attach to the preceding run (`v2` stays `v2`, not `v`+`2`)
+/// so version-like tokens survive intact.
+fn split_identifier(word: &str) -> Vec<String> {
+    let mut pieces = Vec::new();
+    let mut current = String::new();
+    let chars: Vec<char> = word.chars().collect();
+    for (i, &c) in chars.iter().enumerate() {
+        if c == '_' || c == '-' {
+            if !current.is_empty() {
+                pieces.push(std::mem::take(&mut current));
+            }
+            continue;
+        }
+        let is_boundary = i > 0
+            && c.is_uppercase()
+            && (chars[i - 1].is_lowercase() || chars[i - 1].is_ascii_digit());
+        if is_boundary && !current.is_empty() {
+            pieces.push(std::mem::take(&mut current));
+        }
+        current.push(c);
+    }
+    if !current.is_empty() {
+        pieces.push(current);
+    }
+    pieces
+}
+
+/// One code-aware full-text index over a fixed document set. Backed by
+/// an in-memory SQLite FTS5 table (see module docs, D-07a) so the index
+/// itself is fully disposable/rebuildable per D-02 -- nothing here is
+/// ever the source of truth.
+pub struct FullTextIndex {
+    conn: Mutex<Connection>,
+    /// `id -> (kind, snippet)` so `search` can hand back full
+    /// [`ScoredCandidate`] rows without a second lookup table.
+    docs: HashMap<String, (DocumentKind, String)>,
+}
+
+impl FullTextIndex {
+    /// Build a fresh index over `documents`. Rebuilding is always
+    /// correct and cheap (D-02: "indexes are disposable") -- there is no
+    /// incremental-update API in this slice; callers rebuild on any
+    /// corpus change.
+    pub fn build(documents: &[SearchDocument]) -> Result<Self> {
+        let conn = Connection::open_in_memory().map_err(MemoryError::Sqlite)?;
+        conn.execute_batch(
+            "CREATE VIRTUAL TABLE ft USING fts5(doc_id UNINDEXED, terms, tokenize='unicode61');",
+        )
+        .map_err(MemoryError::Sqlite)?;
+        let mut docs = HashMap::new();
+        {
+            let mut stmt = conn
+                .prepare("INSERT INTO ft (doc_id, terms) VALUES (?1, ?2)")
+                .map_err(MemoryError::Sqlite)?;
+            for document in documents {
+                let terms = tokenize(&document.text).join(" ");
+                stmt.execute(rusqlite::params![document.id, terms])
+                    .map_err(MemoryError::Sqlite)?;
+                docs.insert(
+                    document.id.clone(),
+                    (document.kind, document.snippet.clone()),
+                );
+            }
+        }
+        Ok(Self {
+            conn: Mutex::new(conn),
+            docs,
+        })
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.docs.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.docs.len()
+    }
+
+    /// BM25-ranked search (FTS5's built-in `bm25()` weighting function,
+    /// lower is better internally -- inverted to `higher is better` for
+    /// this crate's [`ScoredCandidate`] convention), with the D-07
+    /// structural label boost applied on top: `final = -bm25 *
+    /// label_boost`.
+    pub fn search(&self, query: &str, limit: usize) -> Result<Vec<ScoredCandidate>> {
+        if self.docs.is_empty() {
+            return Ok(Vec::new());
+        }
+        let terms = tokenize(query);
+        if terms.is_empty() {
+            return Ok(Vec::new());
+        }
+        let match_expr = terms
+            .iter()
+            .map(|t| format!("\"{}\"", t.replace('"', "")))
+            .collect::<Vec<_>>()
+            .join(" OR ");
+        let conn = self.conn.lock().map_err(|_| MemoryError::Sqlite(
+            rusqlite::Error::InvalidParameterName("fulltext index lock poisoned".to_owned()),
+        ))?;
+        let mut stmt = conn
+            .prepare("SELECT doc_id, bm25(ft) FROM ft WHERE ft MATCH ?1 ORDER BY bm25(ft) LIMIT ?2")
+            .map_err(MemoryError::Sqlite)?;
+        let rows = stmt
+            .query_map(rusqlite::params![match_expr, limit as i64], |row| {
+                let doc_id: String = row.get(0)?;
+                let bm25: f64 = row.get(1)?;
+                Ok((doc_id, bm25))
+            })
+            .map_err(MemoryError::Sqlite)?;
+        let mut out = Vec::new();
+        for row in rows {
+            let (doc_id, bm25) = row.map_err(MemoryError::Sqlite)?;
+            let Some((kind, _snippet)) = self.docs.get(&doc_id) else {
+                continue;
+            };
+            // FTS5 bm25() is a cost (lower = better); negate then boost
+            // by structural label so this crate's shared "higher is
+            // better" convention holds across fulltext/vector/rerank.
+            let score = (-bm25) * kind.label_boost();
+            out.push(ScoredCandidate {
+                doc_id,
+                score,
+            });
+        }
+        Ok(out)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tokenize_splits_camel_case() {
+        let terms = tokenize("parseConfigFile");
+        assert!(terms.contains(&"parse".to_string()));
+        assert!(terms.contains(&"config".to_string()));
+        assert!(terms.contains(&"file".to_string()));
+        assert!(terms.contains(&"parseconfigfile".to_string()));
+    }
+
+    #[test]
+    fn tokenize_splits_snake_case() {
+        let terms = tokenize("parse_config_file");
+        assert!(terms.contains(&"parse".to_string()));
+        assert!(terms.contains(&"config".to_string()));
+        assert!(terms.contains(&"file".to_string()));
+    }
+
+    #[test]
+    fn tokenize_splits_kebab_case() {
+        let terms = tokenize("parse-config-file");
+        assert!(terms.contains(&"parse".to_string()));
+        assert!(terms.contains(&"config".to_string()));
+    }
+
+    #[test]
+    fn tokenize_splits_path_separators() {
+        let terms = tokenize("crates/enforcer-memory/src/fulltext.rs");
+        assert!(terms.contains(&"enforcer".to_string()));
+        assert!(terms.contains(&"memory".to_string()));
+        assert!(terms.contains(&"fulltext".to_string()));
+    }
+
+    #[test]
+    fn tokenize_keeps_version_digits_attached() {
+        let terms = tokenize("schemaV2Migration");
+        assert!(terms.iter().any(|t| t.contains("v2") || t == "v2"));
+    }
+
+    #[test]
+    fn exact_query_finds_exact_document() -> Result<()> {
+        let docs = vec![
+            SearchDocument::new(
+                "sym:a.rs:1:parseConfigFile",
+                DocumentKind::Function,
+                "fn parseConfigFile() { read the config file }",
+            ),
+            SearchDocument::new(
+                "sym:b.rs:1:writeLog",
+                DocumentKind::Function,
+                "fn writeLog() { append to the log }",
+            ),
+        ];
+        let index = FullTextIndex::build(&docs)?;
+        let hits = index.search("parseConfigFile", 10)?;
+        assert!(!hits.is_empty());
+        assert_eq!(hits[0].doc_id, "sym:a.rs:1:parseConfigFile");
+        Ok(())
+    }
+
+    #[test]
+    fn split_component_query_also_matches() -> Result<()> {
+        let docs = vec![SearchDocument::new(
+            "sym:a.rs:1:parseConfigFile",
+            DocumentKind::Function,
+            "fn parseConfigFile() { read the config file }",
+        )];
+        let index = FullTextIndex::build(&docs)?;
+        let hits = index.search("config", 10)?;
+        assert_eq!(hits.len(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn structural_label_boost_orders_function_above_file_for_equal_relevance() -> Result<()> {
+        let docs = vec![
+            SearchDocument::new("file:a.rs", DocumentKind::File, "widget widget widget"),
+            SearchDocument::new("sym:a.rs:1:widget", DocumentKind::Function, "widget"),
+        ];
+        let index = FullTextIndex::build(&docs)?;
+        let hits = index.search("widget", 10)?;
+        assert_eq!(hits.len(), 2);
+        assert_eq!(hits[0].doc_id, "sym:a.rs:1:widget", "Function boost should outrank a lexically-denser File match");
+        Ok(())
+    }
+
+    #[test]
+    fn empty_index_returns_no_hits() -> Result<()> {
+        let index = FullTextIndex::build(&[])?;
+        assert!(index.is_empty());
+        let hits = index.search("anything", 10)?;
+        assert!(hits.is_empty());
+        Ok(())
+    }
+}
