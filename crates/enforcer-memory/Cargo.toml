@@ -11,6 +11,22 @@ publish = false
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+sha2 = { workspace = true }
+enforcer-core = { path = "../enforcer-core" }
+enforcer-domain = { path = "../enforcer-domain" }
+# SQLite operational graph/read model. `bundled` vendors and statically
+# links SQLite's C sources at build time so the crate has zero system
+# dependency (no "sqlite3.dll not found" on a bare Windows box).
+rusqlite = { version = "0.31", features = ["bundled"] }
+# DuckDB analytics read model, OPT-IN ONLY. The `duckdb` crate's own
+# `bundled` build compiles a large C++ amalgamation and has been
+# unreliable/slow on Windows in this workspace's CI history; the default
+# analytics read model is a deterministic in-process fallback
+# (`store::analytics::InProcessAnalytics`) behind the `AnalyticsReadModel`
+# trait, so `cargo build -p enforcer-memory` never requires a C++
+# toolchain. Real DuckDB rides the same trait behind this feature -- see
+# `src/store/analytics.rs` module docs for the full decision record.
+duckdb = { version = "1", features = ["bundled"], optional = true }
 
 [dev-dependencies]
 
@@ -20,6 +36,9 @@ default = []
 # No implementation ships in this slice -- the trait exists so callers can
 # depend on the seam without pulling in any model runtime or network call.
 embeddings = []
+# Opt-in real DuckDB analytics backend. NOT part of `default` and NOT
+# exercised by the gate in this pass -- see src/store/analytics.rs.
+duckdb-analytics = ["duckdb"]
 
 [lints]
 workspace = true

@@ -44,6 +44,23 @@
 //! to [`retriever::EmbeddingRetriever`] — never a live dependency of the
 //! default ingest/recall path.
 //!
+//! # X06.1 -- core/store/logs
+//!
+//! This slice adds the durable, on-disk foundation the rest of x06 sits
+//! on: append-only observation/graph-event logs with an independently
+//! verifiable SHA-256 hash chain ([`log`]), a SQLite operational
+//! graph/read model rebuilt deterministically by replay
+//! ([`store::sqlite`]), an analytics read model behind a swappable trait
+//! ([`store::analytics`] — see its module docs for the DuckDB decision),
+//! a content-addressed artifact manifest and index-manifest staleness
+//! check ([`store::manifest`]), and the per-project [`store::Store`]
+//! that ties them together with a "no ghost project database" open
+//! contract. [`error::MemoryError`] is the single fail-closed error
+//! surface all of it returns through; [`ids`] holds the store-local
+//! identifier types ([`ids::Seq`], [`ids::ArtifactId`],
+//! [`ids::ProjectId`]); [`schema`] holds the wire shapes these logs and
+//! manifests persist.
+//!
 //! # Modules
 //!
 //! - [`record`] — the `MemoryRecord` wire type mirroring the schema.
@@ -52,10 +69,21 @@
 //! - [`ingest`] — NDJSON parsing + the usage-ingestion seam.
 //! - [`recall`] — the deterministic recall + evidence queries.
 //! - [`retriever`] — the optional, feature-gated embedding seam.
+//! - [`error`] — the crate-wide fail-closed error type.
+//! - [`ids`] — store-local identifier types (`Seq`, `ArtifactId`, `ProjectId`).
+//! - [`schema`] — wire shapes for logs, artifact manifest, index manifest.
+//! - [`log`] — the append-only hash-chained log primitive.
+//! - [`store`] — the per-project store: SQLite read model, analytics
+//!   read model, artifact manifest, index manifests.
 
+pub mod error;
 pub mod graph;
+pub mod ids;
 pub mod ingest;
 pub mod lesson;
+pub mod log;
 pub mod recall;
 pub mod record;
 pub mod retriever;
+pub mod schema;
+pub mod store;
