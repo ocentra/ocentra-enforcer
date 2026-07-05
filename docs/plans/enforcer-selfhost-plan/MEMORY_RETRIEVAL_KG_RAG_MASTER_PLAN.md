@@ -5,13 +5,13 @@
 > Plan: `enforcer-selfhost-plan`
 > Doc: `MEMORY_RETRIEVAL_KG_RAG_MASTER_PLAN`
 > Kind: binding master plan for x06 codebase-memory parity plus enforcer KG+RAG learning.
-> Read when: Implementing or reviewing x06; deciding whether the system is only KG parity or KG+RAG+learning; closing proof.
+> Read when: AFTER [MEMORY_RETRIEVAL_OWNER_INTENT](./MEMORY_RETRIEVAL_OWNER_INTENT.md) — the owner-intent page is read FIRST and outranks this doc. Then: implementing or reviewing x06; deciding whether the system is only KG parity or KG+RAG+learning; closing proof.
 > Stop rule: This doc scopes x06 only. Implementation must still follow the x06 workpack owns globs.
 > Proves: nothing by itself. Proof comes from the parity harness, QA benchmark, test matrix, and cargo/MCP/CLI artifacts.
 > Does not prove: completion, model quality, or product DONE.
 <!-- /agent-capsule -->
 
-Sources: [x06 Harness Memory Graph](./workpacks/x06-harness-memory-graph.md), [MEMORY_RETRIEVAL_ARCHITECTURE](./MEMORY_RETRIEVAL_ARCHITECTURE.md), [MEMORY_RETRIEVAL_IMPLEMENTATION_PACKS](./MEMORY_RETRIEVAL_IMPLEMENTATION_PACKS.md), [MEMORY_RETRIEVAL_PARITY_HARNESS](./MEMORY_RETRIEVAL_PARITY_HARNESS.md), [MEMORY_RETRIEVAL_QA_BENCHMARKS](./MEMORY_RETRIEVAL_QA_BENCHMARKS.md), [MEMORY_RETRIEVAL_TEST_MATRIX](./MEMORY_RETRIEVAL_TEST_MATRIX.md), [Rag-Guide](https://github.com/sujanmishra-simpro/Rag-Guide), [codebase-memory-mcp](https://github.com/DeusData/codebase-memory-mcp), [TabAgentServer MIA](https://github.com/ocentra/TabAgentServer).
+Sources: [MEMORY_RETRIEVAL_OWNER_INTENT](./MEMORY_RETRIEVAL_OWNER_INTENT.md) (READ FIRST — binding vision), [x06 Harness Memory Graph](./workpacks/x06-harness-memory-graph.md), [MEMORY_RETRIEVAL_ARCHITECTURE](./MEMORY_RETRIEVAL_ARCHITECTURE.md), [MEMORY_RETRIEVAL_IMPLEMENTATION_PACKS](./MEMORY_RETRIEVAL_IMPLEMENTATION_PACKS.md), [MEMORY_RETRIEVAL_PARITY_HARNESS](./MEMORY_RETRIEVAL_PARITY_HARNESS.md), [MEMORY_RETRIEVAL_QA_BENCHMARKS](./MEMORY_RETRIEVAL_QA_BENCHMARKS.md), [MEMORY_RETRIEVAL_TEST_MATRIX](./MEMORY_RETRIEVAL_TEST_MATRIX.md), [Rag-Guide](https://github.com/sujanmishra-simpro/Rag-Guide), [codebase-memory-mcp](https://github.com/DeusData/codebase-memory-mcp), [TabAgentServer MIA](https://github.com/ocentra/TabAgentServer).
 
 ---
 
