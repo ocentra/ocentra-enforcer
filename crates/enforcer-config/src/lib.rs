@@ -26,12 +26,15 @@
 
 pub mod error;
 pub mod model;
+pub mod policy;
 pub mod profiles;
+pub mod project_tie;
 pub mod resolve;
 pub mod shape;
 
 pub use error::{ConfigLoadError, ConfigResult};
 pub use model::EffectiveConfig;
+pub use project_tie::{load_project_tie, parse_project_tie, ResolvedProjectTie};
 
 /// Load the effective config for a project: reads `config_path` if it
 /// exists, otherwise resolves the `default` profile alone. This is the one

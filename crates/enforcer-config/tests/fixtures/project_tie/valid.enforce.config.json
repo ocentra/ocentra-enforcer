@@ -1,0 +1,32 @@
+{
+  "native": {
+    "cargo": {
+      "mode": "augment",
+      "scope": "scoped"
+    },
+    "tsc": {
+      "mode": "override"
+    }
+  },
+  "policy": {
+    "ownerGlobs": ["crates/enforcer-config/**"],
+    "exemptGlobs": ["vendor/**"],
+    "allowRegex": ["^// generated:"],
+    "skipCfgTest": true,
+    "testPathGlobs": ["tests/**"],
+    "ruleToggles": {
+      "RR-1.1": {
+        "enabled": true,
+        "severity": "warning"
+      },
+      "SEC-2.2": {
+        "enabled": false,
+        "waiver": {
+          "ruleId": "SEC-2.2",
+          "owner": "platform-team",
+          "reason": "tracked in TICKET-99, migration in progress"
+        }
+      }
+    }
+  }
+}
