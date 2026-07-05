@@ -59,4 +59,5 @@
 //! `enforcer_harness::parsers::missing_tool_skip`) rather than an ad-hoc
 //! shell-out — this crate does not itself shell out to any external tool.
 
+pub mod cyberskills;
 pub mod rules;

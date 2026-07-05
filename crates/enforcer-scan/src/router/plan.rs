@@ -41,6 +41,19 @@ pub enum RulePack {
     /// detected file gets, including [`DetectedLanguage::Other`] and
     /// otherwise-unrouted extensions. Never a T1 blocker on its own.
     LiteralScanFloor,
+    /// The h11 cyberskills-corpus security-audit pack
+    /// (`enforcer-lang-security::rules::cyberskills` +
+    /// `enforcer-security::cyberskills`) — IaC/cloud/manifest/header
+    /// predicates plus the scored WAF-SQLi matcher, harvested from the
+    /// vendored `anthropic-cybersecurity-skills` corpus. Cross-cutting like
+    /// [`RulePack::Security`] (attached alongside every detected
+    /// language's own pack, not language-exclusive): [`build_route_plan`]
+    /// attaches it once, unconditionally, whenever any language is
+    /// detected, exactly like [`RulePack::LiteralScanFloor`]. Additive
+    /// registration only (h11) — this variant does not replace or
+    /// restructure [`RulePack::Security`] or any pre-existing routing
+    /// rule.
+    SecurityAudit,
 }
 
 /// Map a [`DetectedLanguage`] to the [`RulePack`]s it routes to (excluding
@@ -154,6 +167,10 @@ pub fn build_route_plan(
     }
     if !languages.is_empty() {
         rule_packs.insert(RulePack::LiteralScanFloor);
+        // h11: the cyberskills security-audit pack is cross-cutting, like
+        // `RulePack::Security` — attached for any detected repo, not
+        // gated on a specific language.
+        rule_packs.insert(RulePack::SecurityAudit);
     }
 
     let mut native_tools: Vec<NativeToolRoute> = Vec::new();
@@ -252,7 +269,23 @@ mod tests {
         let tie = default_tie()?;
         let plan = build_route_plan(&paths, &RouteScope::Repo, &tie);
         assert_eq!(plan.languages, vec![DetectedLanguage::Other]);
-        assert_eq!(plan.rule_packs, vec![RulePack::LiteralScanFloor]);
+        // Both cross-cutting packs (the universal literal-scan floor and
+        // h11's security-audit pack) attach; no language-exclusive T1
+        // pack (`Rust`/`TypeScript`/`Python`) does.
+        assert_eq!(
+            plan.rule_packs,
+            vec![RulePack::LiteralScanFloor, RulePack::SecurityAudit]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn any_detected_repo_attaches_the_h11_security_audit_pack(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let paths = vec![rel("Cargo.toml")?, rel("src/lib.rs")?];
+        let tie = default_tie()?;
+        let plan = build_route_plan(&paths, &RouteScope::Repo, &tie);
+        assert!(plan.rule_packs.contains(&RulePack::SecurityAudit));
         Ok(())
     }
 

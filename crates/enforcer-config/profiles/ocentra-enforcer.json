@@ -32,7 +32,8 @@
     "tests/rust-rules.test.mjs",
     "tests/enforcer-multilang.test.mjs",
     "tests/fixtures/enforcer/**",
-    "profiles/*/legacy-scripts/**"
+    "profiles/*/legacy-scripts/**",
+    "vendor/*"
   ],
   "rules": {},
   "waivers": [],

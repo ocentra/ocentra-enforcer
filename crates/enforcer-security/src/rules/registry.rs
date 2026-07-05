@@ -11,6 +11,8 @@
 use enforcer_core::error::DecodeError;
 use enforcer_validator::validator::Validator;
 
+use crate::cyberskills::frontmatter_lint::SkillFrontmatterValidValidator;
+
 use super::boundary::BoundaryValidator;
 use super::economic::EconomicValidator;
 use super::economic_invariants::{
@@ -97,6 +99,10 @@ pub fn build_all() -> Result<Vec<RegistryRow>, DecodeError> {
             rule_id: "MCM-ROLLBACK.1",
             validator: Box::new(RollbackValidator::new()?),
         },
+        RegistryRow {
+            rule_id: "CYBER-FRONTMATTER.1",
+            validator: Box::new(SkillFrontmatterValidValidator::new()?),
+        },
     ];
 
     Ok(rows)
@@ -109,7 +115,7 @@ mod tests {
     #[test]
     fn registry_builds_cleanly() -> Result<(), Box<dyn std::error::Error>> {
         let rows = build_all()?;
-        assert_eq!(rows.len(), 14);
+        assert_eq!(rows.len(), 15);
         assert!(rows.iter().any(|row| row.rule_id == "H00-1.1"));
         assert!(rows
             .iter()
@@ -138,6 +144,7 @@ mod tests {
         assert!(rows.iter().any(|row| row.rule_id == "MCM-KILLSWITCH.1"));
         assert!(rows.iter().any(|row| row.rule_id == "MCM-ECONOMIC.1"));
         assert!(rows.iter().any(|row| row.rule_id == "MCM-ROLLBACK.1"));
+        assert!(rows.iter().any(|row| row.rule_id == "CYBER-FRONTMATTER.1"));
         Ok(())
     }
 }

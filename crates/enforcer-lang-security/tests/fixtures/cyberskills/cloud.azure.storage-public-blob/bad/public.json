@@ -1,0 +1,6 @@
+{
+  "name": "mycompanylogs",
+  "allow_blob_public_access": true,
+  "enable_https_traffic_only": true,
+  "minimum_tls_version": "TLS1_2"
+}

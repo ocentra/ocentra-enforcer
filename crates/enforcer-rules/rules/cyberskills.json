@@ -1,0 +1,194 @@
+[
+    {
+        "ruleId": "CYBER-FRONTMATTER.1",
+        "version": 1,
+        "title": "SKILL.md frontmatter must be structurally valid with well-formed, known threat ids",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "cyberskills::frontmatter_lint::SkillFrontmatterValidValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/cyberskills/skill_frontmatter/bad/bad_attack_id.md",
+            "pass": "crates/enforcer-security/tests/fixtures/cyberskills/skill_frontmatter/good/valid.md"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "tags": ["cyberskills", "h11", "frontmatter", "threat-vocab"]
+    },
+    {
+        "ruleId": "CYBER-IAC-S3-SSE.1",
+        "version": 1,
+        "title": "Terraform aws_s3_bucket must have server-side encryption configured",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::iac_terraform::S3EncryptionRequiredValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/iac.tf.s3-encryption-required/bad/no_sse.tf",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/iac.tf.s3-encryption-required/good/sse.tf"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "tags": ["cyberskills", "h11", "iac", "terraform", "aws"]
+    },
+    {
+        "ruleId": "CYBER-IAC-IAM-WILDCARD.1",
+        "version": 1,
+        "title": "Terraform aws_iam_policy must not use wildcard (*) actions with Allow effect",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::iac_terraform::IamNoWildcardActionValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/iac.tf.iam-no-wildcard-action/bad/wildcard.tf",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/iac.tf.iam-no-wildcard-action/good/scoped.tf"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "tags": ["cyberskills", "h11", "iac", "terraform", "aws"]
+    },
+    {
+        "ruleId": "CYBER-IAC-SG-SSH.1",
+        "version": 1,
+        "title": "Terraform security group must not allow public SSH ingress from 0.0.0.0/0",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::iac_terraform::SgNoPublicSshIngressValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/iac.tf.sg-no-public-ssh-ingress/bad/public_ssh.tf",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/iac.tf.sg-no-public-ssh-ingress/good/restricted.tf"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "tags": ["cyberskills", "h11", "iac", "terraform", "aws"]
+    },
+    {
+        "ruleId": "CYBER-AZURE-BLOB-PUBLIC.1",
+        "version": 1,
+        "title": "Azure storage account must not allow public blob access",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::cloud_azure::AzureStoragePublicBlobValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.azure.storage-public-blob/bad/public.json",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.azure.storage-public-blob/good/private.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "tags": ["cyberskills", "h11", "cloud", "azure"]
+    },
+    {
+        "ruleId": "CYBER-AZURE-HTTPS.1",
+        "version": 1,
+        "title": "Azure storage account must require HTTPS-only traffic",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::cloud_azure::AzureStorageRequireHttpsValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.azure.storage-require-https/bad/http.json",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.azure.storage-require-https/good/https.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "tags": ["cyberskills", "h11", "cloud", "azure"]
+    },
+    {
+        "ruleId": "CYBER-AZURE-TLS12.1",
+        "version": 1,
+        "title": "Azure storage account must set minimum TLS version to 1.2",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::cloud_azure::AzureStorageMinTls12Validator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.azure.storage-min-tls12/bad/tls10.json",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.azure.storage-min-tls12/good/tls12.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "tags": ["cyberskills", "h11", "cloud", "azure"]
+    },
+    {
+        "ruleId": "CYBER-HEADERS-HSTS.1",
+        "version": 1,
+        "title": "HTTP response must set a strong Strict-Transport-Security header",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::web_headers::HstsMissingOrWeakValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.headers.hsts-missing-or-weak/bad/missing.json",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.headers.hsts-missing-or-weak/good/strong.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "tags": ["cyberskills", "h11", "web", "headers"]
+    },
+    {
+        "ruleId": "CYBER-HEADERS-CSP.1",
+        "version": 1,
+        "title": "HTTP response must set a Content-Security-Policy without unsafe directives",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::web_headers::CspMissingValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.headers.csp-missing/bad/missing.json",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.headers.csp-missing/good/restrictive.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "tags": ["cyberskills", "h11", "web", "headers"]
+    },
+    {
+        "ruleId": "CYBER-COOKIE-SECURE.1",
+        "version": 1,
+        "title": "Cookies must set Secure, HttpOnly, and an explicit SameSite attribute",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::web_headers::CookieSecureHttponlySamesiteValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.cookie.secure-httponly-samesite/bad/insecure.json",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.cookie.secure-httponly-samesite/good/secure.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "tags": ["cyberskills", "h11", "web", "cookies"]
+    },
+    {
+        "ruleId": "CYBER-DEPCONFUSION.1",
+        "version": 1,
+        "title": "Unscoped dependency names must not look internal-only (dependency-confusion claimable)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::dependency_confusion::DependencyConfusionClaimableValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/supplychain.dependency-confusion-claimable/bad/package.json",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/supplychain.dependency-confusion-claimable/good/package.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "tags": ["cyberskills", "h11", "supplychain", "dependency-confusion"]
+    },
+    {
+        "ruleId": "CYBER-WAF-SQLI.1",
+        "version": 1,
+        "title": "WAF/access log line matches a SQL-injection signature (T2 scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::waf_sqli::WafSqliSignatureValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/detect.waf.sqli-signature/bad/union_select.log.txt",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/detect.waf.sqli-signature/good/benign.log.txt"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "tags": ["cyberskills", "h11", "waf", "sqli", "scored"]
+    }
+]

@@ -1,0 +1,11 @@
+{
+  "headers": {},
+  "cookies": [
+    {
+      "name": "session_id",
+      "secure": false,
+      "httponly": false,
+      "samesite": null
+    }
+  ]
+}

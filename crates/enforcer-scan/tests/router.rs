@@ -147,9 +147,11 @@ fn unknown_extension_yields_literal_scan_floor_only() -> Result<(), Box<dyn std:
     let plan = build_route_plan(&paths, &RouteScope::Repo, &tie);
 
     assert_eq!(plan.languages, vec![DetectedLanguage::Other]);
+    // Both cross-cutting packs (the universal literal-scan floor and h11's
+    // security-audit pack) attach; no T1 language-exclusive pack does.
     assert_eq!(
         plan.rule_packs,
-        vec![RulePack::LiteralScanFloor],
+        vec![RulePack::LiteralScanFloor, RulePack::SecurityAudit],
         "fail-guard: an unrouted extension must never emit a T1 language pack"
     );
     assert!(plan.native_tools.is_empty());

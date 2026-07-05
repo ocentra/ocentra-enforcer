@@ -1,0 +1,115 @@
+//! The cyberskills-cluster `Validator`-registration seam: every rule id
+//! this module owns, paired with its constructed [`Validator`]. Kept
+//! DELIBERATELY SEPARATE from [`super::super::registry::build_all`] (the
+//! `SEC-*` family's count-parity seam, pinned to the workpack's
+//! authoritative count of 22 by `tests/completeness.rs`) — the cyberskills
+//! cluster is a distinct rule family (`CYBER-*` prefix) with its own count,
+//! not a `SEC-*` row, so it must not perturb that completeness assertion.
+
+use enforcer_core::error::DecodeError;
+use enforcer_validator::validator::Validator;
+
+use super::cloud_azure::{
+    AzureStorageMinTls12Validator, AzureStoragePublicBlobValidator,
+    AzureStorageRequireHttpsValidator,
+};
+use super::dependency_confusion::DependencyConfusionClaimableValidator;
+use super::iac_terraform::{
+    IamNoWildcardActionValidator, S3EncryptionRequiredValidator, SgNoPublicSshIngressValidator,
+};
+use super::waf_sqli::WafSqliSignatureValidator;
+use super::web_headers::{
+    CookieSecureHttponlySamesiteValidator, CspMissingValidator, HstsMissingOrWeakValidator,
+};
+
+/// One registry row: the rule id this row proves, paired with the
+/// constructed [`Validator`] trait object.
+pub struct RegistryRow {
+    /// The rule id this row proves, e.g. `CYBER-IAC-S3-SSE.1`.
+    pub rule_id: &'static str,
+    /// The constructed validator for this rule.
+    pub validator: Box<dyn Validator>,
+}
+
+/// Build every cyberskills-cluster row this module owns. Fails closed
+/// (propagates the first construction error) rather than silently
+/// dropping a malformed entry.
+pub fn build_all() -> Result<Vec<RegistryRow>, DecodeError> {
+    Ok(vec![
+        RegistryRow {
+            rule_id: "CYBER-IAC-S3-SSE.1",
+            validator: Box::new(S3EncryptionRequiredValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-IAC-IAM-WILDCARD.1",
+            validator: Box::new(IamNoWildcardActionValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-IAC-SG-SSH.1",
+            validator: Box::new(SgNoPublicSshIngressValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-AZURE-BLOB-PUBLIC.1",
+            validator: Box::new(AzureStoragePublicBlobValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-AZURE-HTTPS.1",
+            validator: Box::new(AzureStorageRequireHttpsValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-AZURE-TLS12.1",
+            validator: Box::new(AzureStorageMinTls12Validator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-HEADERS-HSTS.1",
+            validator: Box::new(HstsMissingOrWeakValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-HEADERS-CSP.1",
+            validator: Box::new(CspMissingValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-COOKIE-SECURE.1",
+            validator: Box::new(CookieSecureHttponlySamesiteValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-DEPCONFUSION.1",
+            validator: Box::new(DependencyConfusionClaimableValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-WAF-SQLI.1",
+            validator: Box::new(WafSqliSignatureValidator::new()?),
+        },
+    ])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_all;
+
+    #[test]
+    fn registry_builds_cleanly() -> Result<(), Box<dyn std::error::Error>> {
+        let rows = build_all()?;
+        assert_eq!(rows.len(), 11);
+        let ids: Vec<&str> = rows.iter().map(|row| row.rule_id).collect();
+        for expected in [
+            "CYBER-IAC-S3-SSE.1",
+            "CYBER-IAC-IAM-WILDCARD.1",
+            "CYBER-IAC-SG-SSH.1",
+            "CYBER-AZURE-BLOB-PUBLIC.1",
+            "CYBER-AZURE-HTTPS.1",
+            "CYBER-AZURE-TLS12.1",
+            "CYBER-HEADERS-HSTS.1",
+            "CYBER-HEADERS-CSP.1",
+            "CYBER-COOKIE-SECURE.1",
+            "CYBER-DEPCONFUSION.1",
+            "CYBER-WAF-SQLI.1",
+        ] {
+            assert!(
+                ids.contains(&expected),
+                "missing registry row for {expected}"
+            );
+        }
+        Ok(())
+    }
+}
