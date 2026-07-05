@@ -2,6 +2,11 @@
 //! (the workspace-canonical representation from
 //! `enforcer_core::platform::normalize_separators`); validation happens at
 //! construction so no illegal path value can exist downstream.
+//!
+//! [`RepoRoot::resolve`] and [`RepoRoot::relativize`] are the only sanctioned
+//! way to combine the two brands: a root joins with a `RelPath` (never two
+//! `RelPath`s, never two `RepoRoot`s), and an absolute string relativizes
+//! against a root back into a validated `RelPath`.
 
 use enforcer_core::error::DecodeError;
 
@@ -50,6 +55,33 @@ impl RepoRoot {
     /// View the normalized inner value.
     pub fn as_str(&self) -> &str {
         &self.0
+    }
+
+    /// Join this root with a repo-relative path, producing the normalized
+    /// absolute string. Typed so the base is always a `RepoRoot` and the
+    /// joined segment is always a validated `RelPath`; there is no method
+    /// that joins two `RelPath`s or two `RepoRoot`s.
+    pub fn resolve(&self, rel: &RelPath) -> String {
+        format!("{}/{}", self.0, rel.0)
+    }
+
+    /// Strip this root's prefix from an absolute path, producing a
+    /// validated `RelPath`. Fails closed when `abs` does not fall under
+    /// this root, or when the remainder is empty or escapes (defense in
+    /// depth: a path already under the root cannot contain a `..` escape,
+    /// but the check is re-run via [`RelPath`]'s own constructor).
+    pub fn relativize(&self, abs: &str) -> Result<RelPath, DecodeError> {
+        let normalized = enforcer_core::platform::normalize_separators(abs);
+        let stripped = normalized
+            .strip_prefix(&self.0)
+            .and_then(|rest| rest.strip_prefix('/'))
+            .ok_or_else(|| {
+                DecodeError::new(
+                    "relPath",
+                    format!("path does not fall under repo root `{}`", self.0),
+                )
+            })?;
+        RelPath::try_from(stripped.to_owned())
     }
 }
 
@@ -209,6 +241,54 @@ mod tests {
         assert_eq!(ok.as_str(), "src/lib.rs");
         assert!(serde_json::from_str::<RelPath>("\"/abs\"").is_err());
         assert!(serde_json::from_str::<RepoRoot>("\"not-absolute\"").is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_joins_root_and_rel_typed_so_only_relpath_is_accepted() -> Result<(), DecodeError> {
+        let root: RepoRoot = r"C:\Projects\enforcer".parse()?;
+        let rel: RelPath = r"crates\enforcer-domain\src\lib.rs".parse()?;
+        assert_eq!(
+            root.resolve(&rel),
+            "C:/Projects/enforcer/crates/enforcer-domain/src/lib.rs"
+        );
+        // NOTE: `RepoRoot::resolve` takes `&RelPath` by type, not `&str`;
+        // there is no overload accepting a second `RepoRoot`, so
+        // `root.resolve(&other_root)` is a compile error, not a runtime
+        // check. See `tests/compile_reject` fixtures for the enforced case.
+        Ok(())
+    }
+
+    #[test]
+    fn relativize_strips_root_and_validates_the_remainder() -> Result<(), DecodeError> {
+        let root: RepoRoot = "/home/user/repo".parse()?;
+        let rel = root.relativize("/home/user/repo/crates/enforcer-domain/src/lib.rs")?;
+        assert_eq!(rel.as_str(), "crates/enforcer-domain/src/lib.rs");
+
+        let win_root: RepoRoot = r"C:\Projects\enforcer".parse()?;
+        let win_rel = win_root.relativize(r"C:\Projects\enforcer\crates\x\src\lib.rs")?;
+        assert_eq!(win_rel.as_str(), "crates/x/src/lib.rs");
+        Ok(())
+    }
+
+    #[test]
+    fn relativize_rejects_paths_outside_the_root_or_equal_to_it() -> Result<(), DecodeError> {
+        let root: RepoRoot = "/home/user/repo".parse()?;
+        assert!(root.relativize("/home/user/other/file.rs").is_err());
+        assert!(root.relativize("/completely/different").is_err());
+        // Equal to the root itself: no `/` remainder to strip -> rejected,
+        // not silently accepted as an empty RelPath.
+        assert!(root.relativize("/home/user/repo").is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_and_relativize_round_trip() -> Result<(), DecodeError> {
+        let root: RepoRoot = "/home/user/repo".parse()?;
+        let rel: RelPath = "crates/enforcer-domain/src/paths.rs".parse()?;
+        let abs = root.resolve(&rel);
+        let round_tripped = root.relativize(&abs)?;
+        assert_eq!(round_tripped, rel);
         Ok(())
     }
 }
