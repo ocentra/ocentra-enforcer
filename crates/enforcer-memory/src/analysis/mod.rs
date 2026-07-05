@@ -112,9 +112,10 @@ pub struct CodeAdjacency {
 }
 
 impl CodeAdjacency {
-    /// Build the adjacency view from a [`CodeGraph`] snapshot. `O(nodes
-    /// + edges)`; callers that need repeated queries against the same
-    /// snapshot should build once and reuse.
+    /// Build the adjacency view from a [`CodeGraph`] snapshot.
+    /// Linear in the graph's node and edge count; callers that need
+    /// repeated queries against the same snapshot should build once
+    /// and reuse.
     pub fn build(graph: &CodeGraph) -> Self {
         let mut g = DiGraph::<String, EdgeKind>::new();
         let mut index_of: HashMap<String, NodeIndex> = HashMap::new();
@@ -140,7 +141,11 @@ impl CodeAdjacency {
         // ending in the same stem.
         let file_ids: Vec<(&str, NodeIndex)> = graph
             .file_nodes()
-            .filter_map(|f| index_of.get(f.id.as_str()).map(|&idx| (f.rel_path.as_str(), idx)))
+            .filter_map(|f| {
+                index_of
+                    .get(f.id.as_str())
+                    .map(|&idx| (f.rel_path.as_str(), idx))
+            })
             .collect();
 
         for import in graph.imports() {
@@ -158,7 +163,11 @@ impl CodeAdjacency {
         // match (best-effort; see struct docs).
         let symbol_ids: Vec<(&str, NodeIndex)> = graph
             .symbol_nodes()
-            .filter_map(|s| index_of.get(s.id.as_str()).map(|&idx| (s.name.as_str(), idx)))
+            .filter_map(|s| {
+                index_of
+                    .get(s.id.as_str())
+                    .map(|&idx| (s.name.as_str(), idx))
+            })
             .collect();
 
         for call in graph.calls() {
@@ -200,24 +209,26 @@ impl CodeAdjacency {
         let Some(&start_idx) = self.index_of.get(start) else {
             return Vec::new();
         };
-        let mut visited: HashSet<NodeIndex> = HashSet::new();
-        visited.insert(start_idx);
-        let mut frontier: VecDeque<(NodeIndex, usize)> = VecDeque::new();
-        frontier.push_back((start_idx, 0));
-        let mut out = Vec::new();
+        let mut state = RelatedWalkState {
+            visited: HashSet::new(),
+            frontier: VecDeque::new(),
+            out: Vec::new(),
+        };
+        state.visited.insert(start_idx);
+        state.frontier.push_back((start_idx, 0));
 
-        while let Some((idx, depth)) = frontier.pop_front() {
+        while let Some((idx, depth)) = state.frontier.pop_front() {
             if depth >= max_depth {
                 continue;
             }
             for edge in self.graph.edges_directed(idx, Direction::Outgoing) {
-                push_related(&self.graph, &mut visited, &mut frontier, &mut out, edge, depth);
+                push_related(&self.graph, &mut state, edge, depth);
             }
             for edge in self.graph.edges_directed(idx, Direction::Incoming) {
-                push_related(&self.graph, &mut visited, &mut frontier, &mut out, edge, depth);
+                push_related(&self.graph, &mut state, edge, depth);
             }
         }
-        out
+        state.out
     }
 
     /// Trace a call/import path from `start` up to `max_depth` hops in
@@ -233,57 +244,13 @@ impl CodeAdjacency {
         let Some(&start_idx) = self.index_of.get(start) else {
             return Vec::new();
         };
-        let mut paths = Vec::new();
-        let mut current = Vec::new();
-        self.dfs_paths(start_idx, direction, max_depth, &mut current, &mut paths, &mut HashSet::new());
-        paths
-    }
-
-    #[allow(clippy::only_used_in_recursion)]
-    fn dfs_paths(
-        &self,
-        idx: NodeIndex,
-        direction: TraceDirection,
-        remaining: usize,
-        current: &mut Vec<PathHop>,
-        paths: &mut Vec<Vec<PathHop>>,
-        on_path: &mut HashSet<NodeIndex>,
-    ) {
-        if remaining == 0 {
-            if !current.is_empty() {
-                paths.push(current.clone());
-            }
-            return;
-        }
-        on_path.insert(idx);
-        let mut extended = false;
-
-        let directions: &[Direction] = match direction {
-            TraceDirection::Out => &[Direction::Outgoing],
-            TraceDirection::In => &[Direction::Incoming],
-            TraceDirection::Both => &[Direction::Outgoing, Direction::Incoming],
+        let mut state = DfsPathState {
+            current: Vec::new(),
+            paths: Vec::new(),
+            on_path: HashSet::new(),
         };
-
-        for &dir in directions {
-            for edge in self.graph.edges_directed(idx, dir) {
-                let target = other_end(dir, &edge);
-                if on_path.contains(&target) {
-                    continue;
-                }
-                extended = true;
-                current.push(PathHop {
-                    node_id: self.graph[target].clone(),
-                    via: *edge.weight(),
-                });
-                self.dfs_paths(target, direction, remaining - 1, current, paths, on_path);
-                current.pop();
-            }
-        }
-
-        if !extended && !current.is_empty() {
-            paths.push(current.clone());
-        }
-        on_path.remove(&idx);
+        dfs_paths(&self.graph, start_idx, direction, max_depth, &mut state);
+        state.paths
     }
 
     /// Reverse dependency traversal: every node that (transitively, up
@@ -330,8 +297,71 @@ impl CodeAdjacency {
     }
 
     fn node_ids(&self) -> impl Iterator<Item = &str> {
-        self.graph.node_indices().map(move |idx| self.graph[idx].as_str())
+        self.graph
+            .node_indices()
+            .map(move |idx| self.graph[idx].as_str())
     }
+}
+
+/// Mutable accumulator threaded through [`dfs_paths`]: the in-progress
+/// hop list, every completed path found so far, and the set of nodes
+/// on the current DFS stack (cycle guard). Bundled into one struct so
+/// the free function below stays under clippy's default
+/// too-many-arguments threshold without an `#[allow]`.
+struct DfsPathState {
+    current: Vec<PathHop>,
+    paths: Vec<Vec<PathHop>>,
+    on_path: HashSet<NodeIndex>,
+}
+
+/// Depth-bounded DFS path enumeration, factored out of
+/// [`CodeAdjacency::trace_calls`] as a free function (rather than an
+/// `&self` method) so it takes the graph by explicit reference on every
+/// recursive call -- avoiding the `only_used_in_recursion` clippy lint
+/// an `&self`-recursing method would otherwise trip (this crate runs
+/// clippy with zero `#[allow(clippy::…)]`, per the workpack gate).
+fn dfs_paths(
+    graph: &DiGraph<String, EdgeKind>,
+    idx: NodeIndex,
+    direction: TraceDirection,
+    remaining: usize,
+    state: &mut DfsPathState,
+) {
+    if remaining == 0 {
+        if !state.current.is_empty() {
+            state.paths.push(state.current.clone());
+        }
+        return;
+    }
+    state.on_path.insert(idx);
+    let mut extended = false;
+
+    let directions: &[Direction] = match direction {
+        TraceDirection::Out => &[Direction::Outgoing],
+        TraceDirection::In => &[Direction::Incoming],
+        TraceDirection::Both => &[Direction::Outgoing, Direction::Incoming],
+    };
+
+    for &dir in directions {
+        for edge in graph.edges_directed(idx, dir) {
+            let target = other_end(dir, &edge);
+            if state.on_path.contains(&target) {
+                continue;
+            }
+            extended = true;
+            state.current.push(PathHop {
+                node_id: graph[target].clone(),
+                via: *edge.weight(),
+            });
+            dfs_paths(graph, target, direction, remaining - 1, state);
+            state.current.pop();
+        }
+    }
+
+    if !extended && !state.current.is_empty() {
+        state.paths.push(state.current.clone());
+    }
+    state.on_path.remove(&idx);
 }
 
 fn other_end(dir: Direction, edge: &petgraph::graph::EdgeReference<'_, EdgeKind>) -> NodeIndex {
@@ -341,11 +371,20 @@ fn other_end(dir: Direction, edge: &petgraph::graph::EdgeReference<'_, EdgeKind>
     }
 }
 
+/// Mutable accumulator threaded through [`push_related`]: the visited
+/// set, the BFS frontier, and the accumulated results. Bundled into
+/// one struct so [`CodeAdjacency::related`]'s per-edge helper stays
+/// under clippy's default too-many-arguments threshold without an
+/// `#[allow]`.
+struct RelatedWalkState {
+    visited: HashSet<NodeIndex>,
+    frontier: VecDeque<(NodeIndex, usize)>,
+    out: Vec<RelatedNode>,
+}
+
 fn push_related(
     graph: &DiGraph<String, EdgeKind>,
-    visited: &mut HashSet<NodeIndex>,
-    frontier: &mut VecDeque<(NodeIndex, usize)>,
-    out: &mut Vec<RelatedNode>,
+    state: &mut RelatedWalkState,
     edge: petgraph::graph::EdgeReference<'_, EdgeKind>,
     depth: usize,
 ) {
@@ -357,15 +396,27 @@ fn push_related(
     // one that is not already visited/self.
     let a = edge.source();
     let b = edge.target();
-    let other = if visited.contains(&a) && a != b { b } else { a };
-    let other = if visited.contains(&other) { if other == a { b } else { a } } else { other };
-    if visited.insert(other) {
-        out.push(RelatedNode {
+    let other = if state.visited.contains(&a) && a != b {
+        b
+    } else {
+        a
+    };
+    let other = if state.visited.contains(&other) {
+        if other == a {
+            b
+        } else {
+            a
+        }
+    } else {
+        other
+    };
+    if state.visited.insert(other) {
+        state.out.push(RelatedNode {
             node_id: graph[other].clone(),
             depth: depth + 1,
             via: *edge.weight(),
         });
-        frontier.push_back((other, depth + 1));
+        state.frontier.push_back((other, depth + 1));
     }
 }
 
@@ -378,7 +429,9 @@ fn resolve_module_path<'a>(
     module_path: &str,
     file_ids: &'a [(&'a str, NodeIndex)],
 ) -> Option<&'a NodeIndex> {
-    let needle = module_path.trim_start_matches("./").trim_start_matches("../");
+    let needle = module_path
+        .trim_start_matches("./")
+        .trim_start_matches("../");
     let last_segment = needle.rsplit(['/', ':', '.']).next().unwrap_or(needle);
     if last_segment.is_empty() {
         return None;
@@ -470,11 +523,7 @@ mod tests {
         commit_all(dir, "first")?;
 
         let mut graph = CodeGraph::new();
-        let files = vec![
-            dir.join("a.rs"),
-            dir.join("b.rs"),
-            dir.join("c.rs"),
-        ];
+        let files = vec![dir.join("a.rs"), dir.join("b.rs"), dir.join("c.rs")];
         graph.index_repository(dir, &files, &Manifest::default())?;
         Ok(graph)
     }
@@ -486,7 +535,10 @@ mod tests {
         let adjacency = CodeAdjacency::build(&graph);
 
         let file_a = "file:a.rs";
-        assert!(adjacency.contains_node(file_a), "expected a.rs file node in adjacency");
+        assert!(
+            adjacency.contains_node(file_a),
+            "expected a.rs file node in adjacency"
+        );
 
         let related = adjacency.related(file_a, 3);
         let ids: HashSet<&str> = related.iter().map(|r| r.node_id.as_str()).collect();

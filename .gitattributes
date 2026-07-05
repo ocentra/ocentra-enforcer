@@ -40,6 +40,7 @@ memory/streams/f05.ndjson text eol=lf
 memory/streams/x06-1.ndjson text eol=lf
 memory/streams/d09.ndjson text eol=lf
 memory/streams/h08.ndjson text eol=lf
+memory/streams/lane-x06-3-graphalgs.ndjson text eol=lf
 husky-pre-commit text eol=lf
 # generated installer artifacts: LF to match their Rust-rendered source-of-truth (overrides *.ps1 eol=crlf)
 install.ps1 text eol=lf

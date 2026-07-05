@@ -178,7 +178,7 @@ pub fn parse(input: &str) -> Result<ParsedQuery, QueryError> {
     let limit = if cursor.peek_keyword("LIMIT") {
         cursor.advance();
         let n = cursor.next_token_string()?;
-        Some(n.parse::<usize>().map_err(|_| QueryError::Parse {
+        Some(n.parse::<usize>().map_err(|_parse_err| QueryError::Parse {
             pos: cursor.pos,
             reason: format!("expected integer LIMIT, got '{n}'"),
         })?)
@@ -210,7 +210,11 @@ pub type ResultRow = std::collections::BTreeMap<String, String>;
 /// Execute an already-parsed query against `graph`. Building the
 /// [`CodeAdjacency`] view is the caller's job (so a caller running
 /// several queries against the same snapshot builds it once).
-pub fn execute(query: &ParsedQuery, adjacency: &CodeAdjacency, graph: &CodeGraph) -> Result<Vec<ResultRow>, QueryError> {
+pub fn execute(
+    query: &ParsedQuery,
+    adjacency: &CodeAdjacency,
+    graph: &CodeGraph,
+) -> Result<Vec<ResultRow>, QueryError> {
     let view = AdjacencyView::new(adjacency, graph);
     let mut rows = collect_matches(query, &view)?;
 
@@ -221,7 +225,8 @@ pub fn execute(query: &ParsedQuery, adjacency: &CodeAdjacency, graph: &CodeGraph
     if query.distinct {
         let mut seen = HashSet::new();
         rows.retain(|row| {
-            let key: Vec<(String, String)> = row.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+            let key: Vec<(String, String)> =
+                row.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
             seen.insert(key)
         });
     }
@@ -249,7 +254,10 @@ pub fn execute(query: &ParsedQuery, adjacency: &CodeAdjacency, graph: &CodeGraph
     Ok(rows)
 }
 
-fn collect_matches(query: &ParsedQuery, view: &AdjacencyView<'_>) -> Result<Vec<ResultRow>, QueryError> {
+fn collect_matches(
+    query: &ParsedQuery,
+    view: &AdjacencyView<'_>,
+) -> Result<Vec<ResultRow>, QueryError> {
     let pattern = &query.pattern;
     let mut rows = Vec::new();
 
@@ -334,13 +342,22 @@ fn eval_predicate(predicate: &Predicate, row: &ResultRow, view: &AdjacencyView<'
         Predicate::And(a, b) => eval_predicate(a, row, view) && eval_predicate(b, row, view),
         Predicate::Or(a, b) => eval_predicate(a, row, view) || eval_predicate(b, row, view),
         Predicate::Not(inner) => !eval_predicate(inner, row, view),
-        Predicate::In { var, property, values } => {
+        Predicate::In {
+            var,
+            property,
+            values,
+        } => {
             let Some(actual) = resolve_property(row, view, var, property) else {
                 return false;
             };
             values.iter().any(|v| literal_matches(v, &actual))
         }
-        Predicate::Compare { var, property, op, value } => {
+        Predicate::Compare {
+            var,
+            property,
+            op,
+            value,
+        } => {
             let Some(actual) = resolve_property(row, view, var, property) else {
                 return false;
             };
@@ -349,7 +366,12 @@ fn eval_predicate(predicate: &Predicate, row: &ResultRow, view: &AdjacencyView<'
     }
 }
 
-fn resolve_property(row: &ResultRow, view: &AdjacencyView<'_>, var: &str, property: &str) -> Option<PropertyValue> {
+fn resolve_property(
+    row: &ResultRow,
+    view: &AdjacencyView<'_>,
+    var: &str,
+    property: &str,
+) -> Option<PropertyValue> {
     let node_id = row.get(var)?;
     let node = view.code_node(node_id)?;
     match property.to_lowercase().as_str() {
@@ -507,14 +529,14 @@ fn parse_match_pattern(cursor: &mut Cursor<'_>) -> Result<MatchPattern, QueryErr
 
 fn parse_depth_range(cursor: &mut Cursor<'_>) -> Result<(usize, usize), QueryError> {
     let first = cursor.next_token_string()?;
-    let first_n: usize = first.parse().map_err(|_| QueryError::Parse {
+    let first_n: usize = first.parse().map_err(|_parse_err| QueryError::Parse {
         pos: cursor.pos,
         reason: format!("expected integer depth, got '{first}'"),
     })?;
     if cursor.peek_token("..") {
         cursor.advance();
         let second = cursor.next_token_string()?;
-        let second_n: usize = second.parse().map_err(|_| QueryError::Parse {
+        let second_n: usize = second.parse().map_err(|_parse_err| QueryError::Parse {
             pos: cursor.pos,
             reason: format!("expected integer depth, got '{second}'"),
         })?;
@@ -582,7 +604,11 @@ fn parse_comparison(cursor: &mut Cursor<'_>) -> Result<Predicate, QueryError> {
             break;
         }
         cursor.expect_token("]")?;
-        return Ok(Predicate::In { var, property, values });
+        return Ok(Predicate::In {
+            var,
+            property,
+            values,
+        });
     }
 
     let op = if cursor.peek_keyword("CONTAINS") {
@@ -684,9 +710,11 @@ fn tokenize(input: &str) -> Result<Vec<Token>, QueryError> {
                 i += 1;
             }
             let s: String = chars[start..i].iter().collect();
-            tokens.push(Token::Int(s.parse().map_err(|_| QueryError::Parse {
-                pos: start,
-                reason: format!("invalid integer '{s}'"),
+            tokens.push(Token::Int(s.parse().map_err(|_parse_err| {
+                QueryError::Parse {
+                    pos: start,
+                    reason: format!("invalid integer '{s}'"),
+                }
             })?));
             continue;
         }
@@ -826,7 +854,7 @@ mod tests {
     use std::path::Path;
     use std::process::Command;
 
-    type TestResult = Result<(), Box<dyn Error>>;
+    type TestResult<T = ()> = Result<T, Box<dyn Error>>;
 
     fn run_git(dir: &Path, args: &[&str]) -> TestResult {
         let status = Command::new("git").args(args).current_dir(dir).status()?;
@@ -921,7 +949,10 @@ mod tests {
 
         let parsed = parse("MATCH (n:File)-[:CONTAINS*1..2]->(m:Function) RETURN n, m")?;
         let rows = execute(&parsed, &adjacency, &graph)?;
-        assert!(!rows.is_empty(), "expected at least one File-CONTAINS->Function row");
+        assert!(
+            !rows.is_empty(),
+            "expected at least one File-CONTAINS->Function row"
+        );
         Ok(())
     }
 

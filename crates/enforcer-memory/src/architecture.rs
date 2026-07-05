@@ -42,16 +42,19 @@ pub struct ArchitectureOverview {
 /// how many top hotspot entries are retained (the workpack does not
 /// mandate a specific number; callers pick per their MCP/CLI surface).
 pub fn build_overview(graph: &CodeGraph, hotspot_limit: usize) -> ArchitectureOverview {
-    let mut sections: std::collections::BTreeMap<String, CrateSection> = std::collections::BTreeMap::new();
+    let mut sections: std::collections::BTreeMap<String, CrateSection> =
+        std::collections::BTreeMap::new();
 
     for file in graph.file_nodes() {
         let crate_name = crate_map_key(&file.rel_path);
-        let section = sections.entry(crate_name.clone()).or_insert_with(|| CrateSection {
-            name: crate_name,
-            file_count: 0,
-            symbol_count: 0,
-            rel_paths: Vec::new(),
-        });
+        let section = sections
+            .entry(crate_name.clone())
+            .or_insert_with(|| CrateSection {
+                name: crate_name,
+                file_count: 0,
+                symbol_count: 0,
+                rel_paths: Vec::new(),
+            });
         section.file_count += 1;
         section.rel_paths.push(file.rel_path.clone());
     }
@@ -59,16 +62,22 @@ pub fn build_overview(graph: &CodeGraph, hotspot_limit: usize) -> ArchitectureOv
     for symbol in graph.symbol_nodes() {
         // symbol.file_id is `file:<rel_path>`; strip the prefix to
         // recover the path this symbol belongs to for section grouping.
-        let rel_path = symbol.file_id.strip_prefix("file:").unwrap_or(&symbol.file_id);
+        let rel_path = symbol
+            .file_id
+            .strip_prefix("file:")
+            .unwrap_or(&symbol.file_id);
         let crate_name = crate_map_key(rel_path);
         if let Some(section) = sections.get_mut(&crate_name) {
             section.symbol_count += 1;
         }
     }
 
-    let mut language_counts: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+    let mut language_counts: std::collections::BTreeMap<String, usize> =
+        std::collections::BTreeMap::new();
     for file in graph.file_nodes() {
-        *language_counts.entry(format!("{:?}", file.language)).or_insert(0) += 1;
+        *language_counts
+            .entry(format!("{:?}", file.language))
+            .or_insert(0) += 1;
     }
 
     let adjacency = CodeAdjacency::build(graph);
@@ -110,7 +119,7 @@ mod tests {
     use std::path::Path;
     use std::process::Command;
 
-    type TestResult = Result<(), Box<dyn Error>>;
+    type TestResult<T = ()> = Result<T, Box<dyn Error>>;
 
     fn run_git(dir: &Path, args: &[&str]) -> TestResult {
         let status = Command::new("git").args(args).current_dir(dir).status()?;
@@ -172,8 +181,14 @@ mod tests {
         graph.index_repository(dir.path(), &files, &Manifest::default())?;
 
         let overview = build_overview(&graph, 5);
-        assert!(overview.language_counts.iter().any(|(lang, count)| lang == "Rust" && *count == 2));
-        assert!(!overview.hotspots.is_empty(), "expected at least one hotspot entry");
+        assert!(overview
+            .language_counts
+            .iter()
+            .any(|(lang, count)| lang == "Rust" && *count == 2));
+        assert!(
+            !overview.hotspots.is_empty(),
+            "expected at least one hotspot entry"
+        );
         Ok(())
     }
 

@@ -84,18 +84,31 @@ impl AdrStore {
     }
 
     pub fn get(&self, id: &str) -> Result<&AdrRecord, AdrError> {
-        self.records.get(id).ok_or_else(|| AdrError::NotFound(id.to_string()))
+        self.records
+            .get(id)
+            .ok_or_else(|| AdrError::NotFound(id.to_string()))
     }
 
     /// Update (or add) one named section's body on an existing ADR.
-    pub fn update_section(&mut self, id: &str, section: &str, body: impl Into<String>) -> Result<(), AdrError> {
-        let record = self.records.get_mut(id).ok_or_else(|| AdrError::NotFound(id.to_string()))?;
+    pub fn update_section(
+        &mut self,
+        id: &str,
+        section: &str,
+        body: impl Into<String>,
+    ) -> Result<(), AdrError> {
+        let record = self
+            .records
+            .get_mut(id)
+            .ok_or_else(|| AdrError::NotFound(id.to_string()))?;
         record.sections.insert(section.to_string(), body.into());
         Ok(())
     }
 
     pub fn link_node(&mut self, id: &str, node_id: impl Into<String>) -> Result<(), AdrError> {
-        let record = self.records.get_mut(id).ok_or_else(|| AdrError::NotFound(id.to_string()))?;
+        let record = self
+            .records
+            .get_mut(id)
+            .ok_or_else(|| AdrError::NotFound(id.to_string()))?;
         let node_id = node_id.into();
         if !record.linked_node_ids.contains(&node_id) {
             record.linked_node_ids.push(node_id);
@@ -128,25 +141,27 @@ impl AdrStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::error::Error;
+
+    type TestResult<T = ()> = Result<T, Box<dyn Error>>;
 
     #[test]
-    fn adr_roundtrip_create_get_update_section() {
+    fn adr_roundtrip_create_get_update_section() -> TestResult {
         let mut store = AdrStore::new();
         let adr = AdrRecord::new("adr-001", "Use SQLite for the operational store")
             .with_section("context", "local-first, zero-install")
             .with_section("decision", "rusqlite bundled");
-        store.create(adr).expect("create should succeed");
+        store.create(adr)?;
 
-        let fetched = store.get("adr-001").expect("adr-001 should exist");
+        let fetched = store.get("adr-001")?;
         assert_eq!(fetched.title, "Use SQLite for the operational store");
         assert_eq!(fetched.sections["decision"], "rusqlite bundled");
 
-        store
-            .update_section("adr-001", "consequences", "no libmdbx, no sled")
-            .expect("update should succeed");
-        let updated = store.get("adr-001").expect("adr-001 should still exist");
+        store.update_section("adr-001", "consequences", "no libmdbx, no sled")?;
+        let updated = store.get("adr-001")?;
         assert_eq!(updated.sections["consequences"], "no libmdbx, no sled");
         assert_eq!(updated.sections.len(), 3, "context+decision+consequences");
+        Ok(())
     }
 
     #[test]
@@ -164,11 +179,12 @@ mod tests {
     }
 
     #[test]
-    fn create_duplicate_id_is_rejected() {
+    fn create_duplicate_id_is_rejected() -> TestResult {
         let mut store = AdrStore::new();
-        store.create(AdrRecord::new("adr-001", "first")).unwrap();
+        store.create(AdrRecord::new("adr-001", "first"))?;
         let result = store.create(AdrRecord::new("adr-001", "second"));
         assert!(matches!(result, Err(AdrError::AlreadyExists(id)) if id == "adr-001"));
+        Ok(())
     }
 
     #[test]
@@ -179,12 +195,12 @@ mod tests {
     }
 
     #[test]
-    fn adr_linked_to_graph_node_is_found_by_node_id() {
+    fn adr_linked_to_graph_node_is_found_by_node_id() -> TestResult {
         let mut store = AdrStore::new();
-        store
-            .create(AdrRecord::new("adr-003", "why file:a.rs exists").with_linked_node("file:a.rs"))
-            .unwrap();
-        store.create(AdrRecord::new("adr-004", "unrelated")).unwrap();
+        store.create(
+            AdrRecord::new("adr-003", "why file:a.rs exists").with_linked_node("file:a.rs"),
+        )?;
+        store.create(AdrRecord::new("adr-004", "unrelated"))?;
 
         let linked = store.adrs_for_node("file:a.rs");
         assert_eq!(linked.len(), 1);
@@ -192,5 +208,6 @@ mod tests {
 
         let none = store.adrs_for_node("file:does-not-exist.rs");
         assert!(none.is_empty());
+        Ok(())
     }
 }

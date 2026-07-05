@@ -57,14 +57,44 @@ pub struct ImpactReport {
 /// forward-slash-normalized, matching [`crate::code_graph::FileNode::rel_path`])
 /// against `graph`. `max_depth` bounds the reverse-dependency walk
 /// (same depth-limit contract as [`CodeAdjacency::related`]).
-pub fn analyze_diff_impact(graph: &CodeGraph, changed_paths: &[String], max_depth: usize) -> ImpactReport {
+pub fn analyze_diff_impact(
+    graph: &CodeGraph,
+    changed_paths: &[String],
+    max_depth: usize,
+) -> ImpactReport {
     let adjacency = CodeAdjacency::build(graph);
     let mut impacted = Vec::new();
     let mut total: BTreeSet<String> = BTreeSet::new();
 
     for rel_path in changed_paths {
         let file_id = format!("file:{rel_path}");
-        let affected = adjacency.reverse_dependents(&file_id, max_depth);
+        // Seed the reverse walk from the file node AND every symbol it
+        // contains -- an upstream caller reaches a changed file via a
+        // CALLS edge into one of *its symbols*, not via any edge
+        // pointing at the bare file id (file->symbol is a Contains
+        // edge in the *outgoing* direction, so `reverse_dependents`
+        // starting at the file id alone can never see a call into a
+        // symbol the file merely contains).
+        let mut seeds: BTreeSet<String> = BTreeSet::new();
+        seeds.insert(file_id.clone());
+        for symbol in graph.symbol_nodes() {
+            if symbol.file_id == file_id {
+                seeds.insert(symbol.id.clone());
+            }
+        }
+
+        let mut affected: BTreeSet<String> = BTreeSet::new();
+        for seed in &seeds {
+            for id in adjacency.reverse_dependents(seed, max_depth) {
+                // Never report the changed file's own nodes as
+                // "affected by itself".
+                if !seeds.contains(&id) {
+                    affected.insert(id);
+                }
+            }
+        }
+
+        let affected: Vec<String> = affected.into_iter().collect();
         for id in &affected {
             total.insert(id.clone());
         }
@@ -92,7 +122,7 @@ mod tests {
     use std::path::Path;
     use std::process::Command;
 
-    type TestResult = Result<(), Box<dyn Error>>;
+    type TestResult<T = ()> = Result<T, Box<dyn Error>>;
 
     fn run_git(dir: &Path, args: &[&str]) -> TestResult {
         let status = Command::new("git").args(args).current_dir(dir).status()?;
@@ -134,7 +164,10 @@ mod tests {
         let impacted_b = &report.impacted[0];
         assert_eq!(impacted_b.rel_path, "b.rs");
         assert!(
-            impacted_b.affected_node_ids.iter().any(|id| id == "file:a.rs"),
+            impacted_b
+                .affected_node_ids
+                .iter()
+                .any(|id| id == "file:a.rs"),
             "expected file:a.rs among impacted nodes for changing b.rs, got {:?}",
             impacted_b.affected_node_ids
         );
