@@ -12,6 +12,7 @@ function createCheckOptions(args, root, config, checkName) {
   return {
     root,
     config,
+    json: args.json,
     rawScope: args.scope,
     checkName,
     configPath: args.configPath,

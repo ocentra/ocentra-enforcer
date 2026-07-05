@@ -179,6 +179,7 @@ export function runArchitectureCli(tokens, deps) {
         root: args.root,
         configPath: args.configPath,
         profile: args.profile,
+        json: args.json,
         rawScope: args.rawScope,
         checkName: "architecture-policy",
       },

@@ -458,6 +458,26 @@ test('check architecture-policy aggregates configured reusable checks', () => {
   assert.equal(report.violations.some((violation) => violation.ruleId === 'TS-1.2'), true);
 });
 
+test('check architecture-policy reports progress for non-json workspace runs', () => {
+  const project = makeProject({
+    'ocentra-enforcer.config.json': JSON.stringify({
+      profileName: 'architecture-progress-test',
+      architecturePolicyChecks: ['no-zod-source'],
+    }),
+    'src/index.ts': 'export const value = 1;\n',
+  });
+  const text = run(project, ['check', 'architecture-policy']);
+  assert.equal(text.status, 0, text.stdout || text.stderr);
+  assert.match(text.stderr, /architecture-policy: 1 check\(s\), scope=workspace/u);
+  assert.match(text.stderr, /start no-zod-source/u);
+  assert.match(text.stderr, /done no-zod-source ok=true/u);
+
+  const json = run(project, ['check', 'architecture-policy', '--json']);
+  assert.equal(json.status, 0, json.stdout || json.stderr);
+  assert.doesNotMatch(json.stderr, /architecture-policy:/u);
+  assert.equal(JSON.parse(json.stdout).ok, true);
+});
+
 test('check architecture-policy keeps file scope when --files is passed as one comma-separated argument', () => {
   const project = makeProject({
     'ocentra-enforcer.config.json': JSON.stringify({

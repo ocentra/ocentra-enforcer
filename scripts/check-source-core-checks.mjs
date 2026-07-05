@@ -145,6 +145,7 @@ function collectNoNakedDomainStringsFindings(root, config, scope = { mode: "all"
     languages: ["rust", "typescript", "python", "common"],
   });
   const allowedRuleIds = new Set(["RR-6.1", "RR-6.5", "RR-18.16", "TS-1.3", "PY-1.3"]);
+  const generatedMirrorPattern = /(?:^|[\\/])generated-[^\\/]+\.(?:ts|tsx|js|jsx|mjs|cjs)$/u;
   return (report.violations ?? []).filter(
     (entry) =>
       allowedRuleIds.has(entry.ruleId) &&
@@ -152,6 +153,7 @@ function collectNoNakedDomainStringsFindings(root, config, scope = { mode: "all"
         const file = String(entry.file ?? "");
         return (
           !isGeneratedArtifactPath(file) &&
+          !generatedMirrorPattern.test(file) &&
           !file.includes("/generated/") &&
           !file.includes("\\generated\\")
         );
