@@ -21,6 +21,11 @@
 
 use enforcer_domain::paths::RelPath;
 
+pub mod detect;
+pub mod native_tie;
+pub mod plan;
+pub mod scope;
+
 /// The language family a path routes to. This is deliberately the same
 /// partition the landed `enforcer-lang-*` crates use (arc-06 rust, arc-07
 /// ts, arc-08 py, arc-09 common/generic-scanner, arc-10 security, arc-11
