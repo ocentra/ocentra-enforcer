@@ -1,0 +1,222 @@
+[
+    {
+        "ruleId": "FE-ARCH-1.3",
+        "version": 1,
+        "title": "Feature boundaries: no cross-feature import",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-ts",
+            "path": "rules::frontend_react::FeatureBoundaryValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/arch-1.3/features/checkout/fail.tsx",
+            "pass": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/arch-1.3/features/checkout/pass.tsx"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-frontend-react.md#Requirement Checklist",
+        "tags": ["frontend", "react", "arch", "e-pack-frontend-react"]
+    },
+    {
+        "ruleId": "FE-ARCH-1.4",
+        "version": 1,
+        "title": "Components -> features layer inversion (scored advisory)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-ts",
+            "path": "rules::frontend_react::ComponentsFeatureInversionValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/arch-1.4/components/fail.tsx",
+            "pass": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/arch-1.4/components/pass.tsx"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-frontend-react.md#Requirement Checklist",
+        "tags": ["frontend", "react", "arch", "scored", "e-pack-frontend-react"],
+        "params": {
+            "fireThreshold": 1.0
+        }
+    },
+    {
+        "ruleId": "FE-STATE-1.1",
+        "version": 1,
+        "title": "No server data in client store",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-ts",
+            "path": "rules::frontend_react::NoServerDataInClientStoreValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/state-1.1/fail.ts",
+            "pass": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/state-1.1/pass.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-frontend-react.md#Requirement Checklist",
+        "tags": ["frontend", "react", "state", "e-pack-frontend-react"]
+    },
+    {
+        "ruleId": "FE-STATE-1.2",
+        "version": 1,
+        "title": "No fetch/axios in useEffect for data-loading",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-ts",
+            "path": "rules::frontend_react::NoFetchInUseEffectValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/state-1.2/fail.tsx",
+            "pass": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/state-1.2/pass.tsx"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-frontend-react.md#Requirement Checklist",
+        "tags": ["frontend", "react", "state", "e-pack-frontend-react"]
+    },
+    {
+        "ruleId": "FE-HOOK-1.2",
+        "version": 1,
+        "title": "useEffect requires a WHY comment",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-ts",
+            "path": "rules::frontend_react::UseEffectWhyCommentValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/hook-1.2/fail.tsx",
+            "pass": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/hook-1.2/pass.tsx"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-frontend-react.md#Requirement Checklist",
+        "tags": ["frontend", "react", "hooks", "e-pack-frontend-react"]
+    },
+    {
+        "ruleId": "FE-PAT-1.4",
+        "version": 1,
+        "title": "Typed errors required in services/",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-ts",
+            "path": "rules::frontend_react::TypedErrorsInServicesValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/pat-1.4/services/fail.ts",
+            "pass": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/pat-1.4/services/pass.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-frontend-react.md#Requirement Checklist",
+        "tags": ["frontend", "react", "pattern", "e-pack-frontend-react"]
+    },
+    {
+        "ruleId": "FE-CMP-1.12",
+        "version": 1,
+        "title": "next/image required + alt text (a11y)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-ts",
+            "path": "rules::frontend_react::ImageAltValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/cmp-1.12/fail.tsx",
+            "pass": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/cmp-1.12/pass.tsx"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-frontend-react.md#Requirement Checklist",
+        "tags": ["frontend", "react", "component", "a11y", "e-pack-frontend-react"],
+        "params": {
+            "legacyIds": ["FE-A11Y-1.2"]
+        }
+    },
+    {
+        "ruleId": "FE-A11Y-1.3",
+        "version": 1,
+        "title": "Input requires label/aria-label association",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-ts",
+            "path": "rules::frontend_react::InputLabelValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/a11y-1.3/fail.tsx",
+            "pass": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/a11y-1.3/pass.tsx"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-frontend-react.md#Requirement Checklist",
+        "tags": ["frontend", "react", "a11y", "e-pack-frontend-react"]
+    },
+    {
+        "ruleId": "FE-CFG-1.1",
+        "version": 1,
+        "title": "import.meta.env / process.env centralization",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-ts",
+            "path": "rules::frontend_react::EnvCentralizationValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/cfg-1.1/other/fail.ts",
+            "pass": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/cfg-1.1/other/pass.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-frontend-react.md#Requirement Checklist",
+        "tags": ["frontend", "react", "config", "e-pack-frontend-react"]
+    },
+    {
+        "ruleId": "FE-TS-1.5",
+        "version": 1,
+        "title": "No explicit any without justifying waiver",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-ts",
+            "path": "rules::frontend_react::NoExplicitAnyValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/ts-1.5/fail.ts",
+            "pass": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/ts-1.5/pass.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-frontend-react.md#Requirement Checklist",
+        "tags": ["frontend", "react", "typescript", "e-pack-frontend-react"]
+    },
+    {
+        "ruleId": "FE-TS-1.14",
+        "version": 1,
+        "title": "Type-only import required",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-ts",
+            "path": "rules::frontend_react::TypeOnlyImportValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/ts-1.14/fail.ts",
+            "pass": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/ts-1.14/pass.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-frontend-react.md#Requirement Checklist",
+        "tags": ["frontend", "react", "typescript", "e-pack-frontend-react"]
+    },
+    {
+        "ruleId": "FE-FSM-1.2",
+        "version": 1,
+        "title": "Explicit FSM transitions (FE-facing rule, via d16)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-ts",
+            "path": "rules::frontend_react::ExplicitFsmTransitionsValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/fsm-1.2/fail.ts",
+            "pass": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/fsm-1.2/pass.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-frontend-react.md#Requirement Checklist",
+        "tags": ["frontend", "react", "fsm", "d16", "e-pack-frontend-react"]
+    },
+    {
+        "ruleId": "FE-EFFECT-1.1",
+        "version": 1,
+        "title": "Effect Schema mandated, Zod forbidden (ADBP divergence)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-ts",
+            "path": "rules::frontend_react::EffectNotZodValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/effect-1.1/fail.ts",
+            "pass": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/effect-1.1/pass.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-frontend-react.md#Requirement Checklist",
+        "tags": ["frontend", "react", "effect", "doctrine-divergence", "e-pack-frontend-react"],
+        "params": {
+            "additionalFixtures": {
+                "fail": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/effect-1.1-form/fail.tsx",
+                "pass": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/effect-1.1-form/pass.tsx"
+            }
+        }
+    }
+]

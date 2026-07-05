@@ -3,6 +3,7 @@
 //! `crate` docs for the per-module rule-id breakdown.
 
 pub mod eslint_json;
+pub mod frontend_react;
 pub mod generic_scanner;
 pub mod import_boundaries;
 pub mod registry;
