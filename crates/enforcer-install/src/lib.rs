@@ -27,6 +27,10 @@
 //!   `enforcer-scan` composite GitHub Action, the portable
 //!   `install.sh`/`install.ps1` scripts, and the optional npm wrapper
 //!   package, so consumer CI never needs a Rust toolchain.
+//! - [`commands`] (b05) — harness-neutral `/`-command emitters (the
+//!   `/plan` command, dispatching to the real `enforcer plan new`/`plan
+//!   check` binary invocation) — a distinct mount point from
+//!   [`adapters`]'s per-harness config writers.
 //!
 //! # Global-install scope contract (binding — RUST_ARCHITECTURE.md)
 //!
@@ -65,6 +69,7 @@ pub mod adapters;
 pub mod backup;
 pub mod ci;
 pub mod cli_contract;
+pub mod commands;
 pub mod core;
 pub mod detect;
 pub mod distribution;

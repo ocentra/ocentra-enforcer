@@ -41,6 +41,24 @@ pub enum ConfigLoadError {
         /// Underlying I/O failure description.
         reason: String,
     },
+
+    /// An `enforcer-config`-owned environment variable was set but its
+    /// value did not decode into the declared typed shape (mirrors the
+    /// file-load fail-closed contract: a bad env override is a typed
+    /// error, never a silent fallback to the default). See
+    /// [`crate::env`].
+    #[error("environment variable `{var}` is set to an invalid value `{value}`: {reason}")]
+    InvalidEnvVar {
+        /// The environment variable name (always one of [`crate::env`]'s
+        /// declared vars).
+        var: &'static str,
+        /// The raw value that failed to decode, verbatim (not
+        /// user-secret-bearing: these are config overrides, not
+        /// credentials).
+        value: String,
+        /// Why the value was rejected.
+        reason: String,
+    },
 }
 
 /// Result alias for `enforcer-config` load operations.

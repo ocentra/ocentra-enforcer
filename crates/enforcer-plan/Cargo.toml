@@ -23,6 +23,11 @@ enforcer-coordination = { path = "../enforcer-coordination", version = "0.1.0" }
 
 [dev-dependencies]
 tempfile = "3"
+# b05's `tests/self_validate.rs` integration test asserts the
+# `commands/plan.rs` `/plan` command emitter dispatches through the real
+# `enforcer` binary invocation (not a stub). Dev-only, test-scoped edge;
+# `enforcer-install` does not depend on `enforcer-plan` (no cycle).
+enforcer-install = { path = "../enforcer-install", version = "0.1.0" }
 
 [lints]
 workspace = true

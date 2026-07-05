@@ -24,6 +24,7 @@
 //! [`model::EffectiveConfig`] — never raw files or environment variables
 //! directly.
 
+pub mod env;
 pub mod error;
 pub mod model;
 pub mod policy;
@@ -32,6 +33,7 @@ pub mod project_tie;
 pub mod resolve;
 pub mod shape;
 
+pub use env::ConfigEnv;
 pub use error::{ConfigLoadError, ConfigResult};
 pub use model::EffectiveConfig;
 pub use project_tie::{load_project_tie, parse_project_tie, ResolvedProjectTie};
@@ -54,6 +56,32 @@ pub fn load_project_config(config_path: &std::path::Path) -> ConfigResult<Effect
         reason: e.to_string(),
     })?;
     resolve::resolve(Some(&raw), &config_path.display().to_string())
+}
+
+/// Load the effective config the same way [`load_project_config`] does, but
+/// first apply [`ConfigEnv`] overrides (a07 boundary requirement: env-var
+/// overrides are decoded once, here, never read ad hoc downstream):
+/// `ENFORCER_CONFIG_PATH` replaces `default_config_path` when set, and
+/// `ENFORCER_PROFILE` forces the profile layer regardless of what the
+/// project config's `profileName` declares.
+///
+/// # Errors
+/// Returns [`ConfigLoadError::InvalidEnvVar`] if `ENFORCER_PROFILE` names an
+/// unknown profile, or any [`load_project_config`] error for the resolved
+/// path.
+pub fn load_project_config_with_env(
+    default_config_path: &std::path::Path,
+) -> ConfigResult<EffectiveConfig> {
+    let config_env = ConfigEnv::read()?;
+    let config_path = config_env
+        .config_path
+        .as_deref()
+        .unwrap_or(default_config_path);
+    let mut effective = load_project_config(config_path)?;
+    if let Some(profile_override) = config_env.profile_name {
+        effective = resolve::resolve_profile_only(&profile_override)?;
+    }
+    Ok(effective)
 }
 
 #[cfg(test)]
@@ -444,5 +472,107 @@ mod proof_fixtures {
         let cfg = resolve_profile_only("ocentra-enforcer")?;
         assert_eq!(cfg.supported_platforms, Platform::all());
         Ok(())
+    }
+
+    // ---- a07: rule ids parse-at-boundary into `RuleId`, not `String` --
+    //
+    // This is already satisfied by arc-03/f03's `policy::Policy::rule_toggles:
+    // BTreeMap<RuleId, RuleToggle>` — `serde` decodes the map's JSON string
+    // keys directly into `RuleId` (which itself validates via
+    // `RuleId::from_str`), so a config carrying a malformed rule id fails to
+    // load rather than smuggling a raw `String` through. Pinned here as an
+    // a07 proof fixture rather than reimplemented, per the reconciliation
+    // note in the a07 workpack.
+    #[test]
+    fn rule_ids_in_project_tie_policy_parse_at_boundary_into_ruleid_not_string(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::project_tie::parse_project_tie;
+        let raw = json!({
+            "policy": {
+                "ruleToggles": {
+                    "RR-1.1": { "enabled": true }
+                }
+            }
+        })
+        .to_string();
+        let resolved = parse_project_tie(&raw, "cfg.json")?;
+        let rule_id: enforcer_domain::ids::RuleId = "RR-1.1".parse()?;
+        assert!(resolved.policy.is_rule_enabled(&rule_id));
+        Ok(())
+    }
+
+    #[test]
+    fn malformed_rule_id_key_fails_closed_at_the_project_tie_boundary() {
+        use crate::project_tie::parse_project_tie;
+        let raw = json!({
+            "policy": {
+                "ruleToggles": {
+                    "not-a-rule-id": { "enabled": true }
+                }
+            }
+        })
+        .to_string();
+        let outcome = parse_project_tie(&raw, "bad.json");
+        assert!(
+            outcome.is_err(),
+            "a malformed rule id key must fail to decode into RuleId, not pass through as String"
+        );
+    }
+}
+
+#[cfg(test)]
+mod env_integration_tests {
+    //! a07 integration coverage for [`crate::load_project_config_with_env`]:
+    //! the composition of [`crate::env::ConfigEnv`] (typed env-var decode)
+    //! with the existing file-load pipeline. Unlike `env::tests` (which use
+    //! a fake [`crate::env::EnvLookup`] to avoid the real process
+    //! environment), these tests exercise the real `std::env` var names to
+    //! prove the end-to-end wiring; each test sets only the var(s) it needs
+    //! and removes them before returning, and the var names
+    //! (`ENFORCER_CONFIG_PATH`, `ENFORCER_PROFILE`) are unique to this
+    //! crate's test suite.
+    use super::load_project_config_with_env;
+    use crate::env::{ENFORCER_CONFIG_PATH_VAR, ENFORCER_PROFILE_VAR};
+    use std::path::Path;
+
+    struct EnvVarGuard(&'static str);
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            std::env::remove_var(self.0);
+        }
+    }
+
+    #[test]
+    fn no_env_overrides_falls_back_to_default_path_behavior(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        std::env::remove_var(ENFORCER_CONFIG_PATH_VAR);
+        std::env::remove_var(ENFORCER_PROFILE_VAR);
+        let cfg = load_project_config_with_env(Path::new("<no such file>.json"))?;
+        assert_eq!(cfg.profile_name, "default");
+        Ok(())
+    }
+
+    #[test]
+    fn profile_env_override_wins_over_default_path_result() -> Result<(), Box<dyn std::error::Error>>
+    {
+        std::env::remove_var(ENFORCER_CONFIG_PATH_VAR);
+        std::env::set_var(ENFORCER_PROFILE_VAR, "strict");
+        let _guard = EnvVarGuard(ENFORCER_PROFILE_VAR);
+        let cfg = load_project_config_with_env(Path::new("<no such file>.json"))?;
+        assert_eq!(cfg.profile_name, "strict");
+        Ok(())
+    }
+
+    #[test]
+    fn invalid_profile_env_override_fails_closed() {
+        std::env::remove_var(ENFORCER_CONFIG_PATH_VAR);
+        std::env::set_var(ENFORCER_PROFILE_VAR, "not-a-real-profile");
+        let _guard = EnvVarGuard(ENFORCER_PROFILE_VAR);
+        let outcome = load_project_config_with_env(Path::new("<no such file>.json"));
+        assert!(
+            outcome.is_err(),
+            "an invalid ENFORCER_PROFILE value must fail closed, not silently fall back"
+        );
     }
 }
