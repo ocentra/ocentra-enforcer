@@ -1,0 +1,20 @@
+# Spec asserting an un-backed rule (ingest fixture)
+
+Same shape as the reference spec, but asserts one rule id with no
+mechanized `Validator` behind it yet — must be flagged for mechanization,
+never silently accepted as enforced.
+
+## Required test categories
+
+- auth-authz
+- replay-idempotency
+
+## Invariants
+
+- idempotent-replay
+- failure-not-reward
+
+## Rules
+
+- MCM-SIGNING.1 (T1)
+- MCM-NOT-YET-MECHANIZED.1 (T2)

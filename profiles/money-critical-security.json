@@ -1,0 +1,52 @@
+{
+  "profileName": "money-critical-security",
+  "requiredTestCategories": [
+    "auth-authz",
+    "cors-origin",
+    "input-validation-schema",
+    "url-path-manipulation",
+    "replay-idempotency",
+    "partial-failure-exploitation",
+    "state-logic-abuse",
+    "ddos-resource-exhaustion",
+    "solana-blockchain-abuse",
+    "request-smuggling-protocol",
+    "api-websocket",
+    "error-handling-info-leak",
+    "key-signing",
+    "time-clock-drift",
+    "economic-exhaustion",
+    "rollback-recovery-abuse",
+    "cross-component-trust",
+    "serialization-encoding",
+    "kill-switch-circuit-breaker",
+    "test-integrity-meta"
+  ],
+  "invariants": [
+    "idempotent-replay",
+    "failure-not-reward",
+    "retry-not-mutation",
+    "partial-failure-not-profit",
+    "order-not-advantage",
+    "attacker-cost-not-below-system-cost",
+    "compensation-idempotent-replay-safe",
+    "time-assumptions-fail-closed",
+    "backend-never-signs-unverifiable",
+    "emergency-reduces-blast"
+  ],
+  "rules": [
+    { "ruleId": "MCM-SIGNING.1", "tier": "T1", "backed": true },
+    { "ruleId": "MCM-TIME.1", "tier": "T1", "backed": true },
+    { "ruleId": "MCM-BOUNDARY.1", "tier": "T1", "backed": true },
+    { "ruleId": "MCM-KILLSWITCH.1", "tier": "T1", "backed": true },
+    { "ruleId": "MCM-ECONOMIC.1", "tier": "T2", "backed": true },
+    { "ruleId": "MCM-ROLLBACK.1", "tier": "T2", "backed": true },
+    { "ruleId": "ECON-INVARIANT-PRESENCE.1", "tier": "T1", "backed": true },
+    { "ruleId": "ECON-INVARIANT-SHAPE.1", "tier": "T1", "backed": true },
+    { "ruleId": "MONEY-CRIT-CLASSIFY.1", "tier": "T2", "backed": true },
+    { "ruleId": "MONEY-CRIT-ANNOTATED.1", "tier": "T1", "backed": true },
+    { "ruleId": "THREAT-MAP-UNIT-COVERAGE.1", "tier": "T1", "backed": true },
+    { "ruleId": "THREAT-MAP-NO-UNMAPPED.1", "tier": "T1", "backed": true },
+    { "ruleId": "THREAT-MAP-THREAT-HAS-TEST.1", "tier": "T1", "backed": true }
+  ]
+}

@@ -1,0 +1,4 @@
+This document has no `## Section` headers at all — just narrative prose
+about a money-critical testing mandate, with no ingestable structure. The
+ingester must reject this with a typed boundary error, not silently
+produce an empty profile.

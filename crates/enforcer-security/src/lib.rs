@@ -60,4 +60,5 @@
 //! shell-out — this crate does not itself shell out to any external tool.
 
 pub mod cyberskills;
+pub mod policy_ingest;
 pub mod rules;
