@@ -1,4 +1,4 @@
-# Windows-first EOL policy (lesson L17): committed content is LF; checkout stays LF
+﻿# Windows-first EOL policy (lesson L17): committed content is LF; checkout stays LF
 # so `cargo fmt --check` (rustfmt.toml newline_style = "Unix") passes on every OS,
 # regardless of the machine's core.autocrlf. Scripts stay LF for sh compatibility.
 *.rs    text eol=lf
@@ -41,6 +41,7 @@ memory/streams/x06-1.ndjson text eol=lf
 memory/streams/d09.ndjson text eol=lf
 memory/streams/h08.ndjson text eol=lf
 memory/streams/lane-x06-3-graphalgs.ndjson text eol=lf
+memory/streams/lane-x06-4-retrieval.ndjson text eol=lf
 husky-pre-commit text eol=lf
 # generated installer artifacts: LF to match their Rust-rendered source-of-truth (overrides *.ps1 eol=crlf)
 install.ps1 text eol=lf

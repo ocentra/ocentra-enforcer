@@ -107,13 +107,27 @@
 //! deterministic recall-pack payload a Claude SessionStart hook (c05,
 //! `crates/enforcer-install/**`, out of this crate) would inject at the
 //! start of a new session.
+//!
+//! # X06.4 -- full-text/vector/rerank retrieval stack
+//!
+//! This slice adds the hybrid retrieval pipeline the workpack's "modern
+//! production RAG" half of the vision (OWNER_INTENT) requires: a
+//! code-aware full-text index ([`fulltext`]), an HNSW dense vector index
+//! ([`vector`]), the embedding/reranking capability seams
+//! ([`embed`]/[`rerank`], deterministic zero-network defaults per D-03),
+//! RRF rank fusion with hard-filter exclusion ([`ranking`]), and the
+//! [`search::HybridSearcher`] that wires all of it together while
+//! extending (not forking) the existing [`retriever::EmbeddingRetriever`]
+//! seam.
 
 pub mod adr;
 pub mod analysis;
 pub mod architecture;
 pub mod code_graph;
+pub mod embed;
 pub mod error;
 pub mod evidence;
+pub mod fulltext;
 pub mod git;
 pub mod graph;
 pub mod ids;
@@ -125,9 +139,13 @@ pub mod lesson;
 pub mod log;
 pub mod observations;
 pub mod parsers;
+pub mod ranking;
 pub mod recall;
 pub mod record;
+pub mod rerank;
 pub mod retriever;
 pub mod schema;
+pub mod search;
 pub mod sessionstart;
 pub mod store;
+pub mod vector;

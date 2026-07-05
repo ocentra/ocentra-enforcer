@@ -70,7 +70,7 @@ pub fn tokenize(text: &str) -> Vec<String> {
         }
         let lowered = raw_word.to_lowercase();
         if !lowered.is_empty() {
-            terms.push(lowered);
+            terms.push(lowered.clone());
         }
         for piece in split_identifier(raw_word) {
             let lowered_piece = piece.to_lowercase();
@@ -179,14 +179,24 @@ impl FullTextIndex {
             .map(|t| format!("\"{}\"", t.replace('"', "")))
             .collect::<Vec<_>>()
             .join(" OR ");
-        let conn = self.conn.lock().map_err(|_| MemoryError::Sqlite(
-            rusqlite::Error::InvalidParameterName("fulltext index lock poisoned".to_owned()),
-        ))?;
+        let conn = self.conn.lock().map_err(|poison_error| {
+            MemoryError::Sqlite(rusqlite::Error::InvalidParameterName(format!(
+                "fulltext index lock poisoned: {poison_error}"
+            )))
+        })?;
+        // Pull a wider raw-bm25 window than `limit` before applying the
+        // structural label boost: SQL's `ORDER BY bm25(ft) LIMIT` ranks
+        // by UNBOOSTED relevance, so a document that scores lower on raw
+        // bm25 but has a large label boost (e.g. Function vs File, D-07)
+        // must still be present in this pre-boost fetch window or the
+        // boost can never surface it. `self.docs.len()` bounds the fetch
+        // to the corpus size so this never turns into an unbounded scan.
+        let fetch_window = (limit.saturating_mul(4).max(limit)).min(self.docs.len().max(1));
         let mut stmt = conn
             .prepare("SELECT doc_id, bm25(ft) FROM ft WHERE ft MATCH ?1 ORDER BY bm25(ft) LIMIT ?2")
             .map_err(MemoryError::Sqlite)?;
         let rows = stmt
-            .query_map(rusqlite::params![match_expr, limit as i64], |row| {
+            .query_map(rusqlite::params![match_expr, fetch_window as i64], |row| {
                 let doc_id: String = row.get(0)?;
                 let bm25: f64 = row.get(1)?;
                 Ok((doc_id, bm25))
@@ -202,11 +212,19 @@ impl FullTextIndex {
             // by structural label so this crate's shared "higher is
             // better" convention holds across fulltext/vector/rerank.
             let score = (-bm25) * kind.label_boost();
-            out.push(ScoredCandidate {
-                doc_id,
-                score,
-            });
+            out.push(ScoredCandidate { doc_id, score });
         }
+        // The SQL fetch above is ordered by UNBOOSTED bm25; re-sort by
+        // the boosted score so the structural label boost actually
+        // determines final ranking, then truncate to the caller's
+        // requested `limit`.
+        out.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| a.doc_id.cmp(&b.doc_id))
+        });
+        out.truncate(limit);
         Ok(out)
     }
 }
@@ -296,7 +314,10 @@ mod tests {
         let index = FullTextIndex::build(&docs)?;
         let hits = index.search("widget", 10)?;
         assert_eq!(hits.len(), 2);
-        assert_eq!(hits[0].doc_id, "sym:a.rs:1:widget", "Function boost should outrank a lexically-denser File match");
+        assert_eq!(
+            hits[0].doc_id, "sym:a.rs:1:widget",
+            "Function boost should outrank a lexically-denser File match"
+        );
         Ok(())
     }
 

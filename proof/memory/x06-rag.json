@@ -1,0 +1,114 @@
+{
+  "workpack": "x06.4",
+  "hub": "enforcer-selfhost-plan",
+  "subpack": "full-text/vector/rerank",
+  "tier": "P1 unit (T1)",
+  "namedTest": "memory-retrieval-stack",
+  "commands": [
+    "cargo build -p enforcer-memory",
+    "cargo test -p enforcer-memory",
+    "cargo build --workspace",
+    "cargo clippy -p enforcer-memory --all-targets -- -D warnings",
+    "cargo fmt -p enforcer-memory --check"
+  ],
+  "result": {
+    "libTestsPassed": 103,
+    "integrationTestsPassed": 17,
+    "testsPassed": 120,
+    "testsFailed": 0,
+    "preExistingSliceTestsRegressed": 0,
+    "clippy": "clean (no warnings, zero #[allow])",
+    "fmt": "clean (no diff)",
+    "workspaceBuild": "clean"
+  },
+  "salvage": {
+    "source": "dead worker worktree agent-a9991048b163af974 (lane/x06-4-retrieval), died at a session limit",
+    "salvagedFiles": [
+      "crates/enforcer-memory/src/fulltext.rs",
+      "crates/enforcer-memory/src/search/mod.rs",
+      "crates/enforcer-memory/src/search/document.rs"
+    ],
+    "checkpointCommit": "807aab0 feat(x06.4): adopt salvaged fulltext/search slice (WIP)",
+    "assessment": "The salvage was substantially more complete than a bare stub: it already contained a made D-07a engine decision with a recorded micro-benchmark, full code-aware tokenization, structural label boosts, and a search/mod.rs that already specified (via unresolved imports) the exact trait/struct contract the rest of the pipeline needed to satisfy (Embedder, Reranker, ScoredCandidate, RankedHit, CandidateTrace, RankFusionResult, fuse_rrf, reranker_lift, VectorIndex). Two real bugs were found and fixed: a use-after-move compile error in tokenize(), and a silent bug where the D-07 structural label boost was computed but never used to re-sort search results (order stayed keyed on SQLite's own unboosted bm25() ordering). See memory/streams/lane-x06-4-retrieval.ndjson mem-x06-4-retrieval-0001/0003 for the full writeup."
+  },
+  "d07aChoice": {
+    "engine": "SQLite FTS5 over the crate's existing rusqlite (bundled) dependency",
+    "rejected": "tantivy",
+    "microBenchmark": "40 synthetic documents, debug build, single-threaded, median of 20 runs: SQLite FTS5 index build ~0.9ms / query ~0.06ms vs tantivy published-bench-projected ~2-4ms build / ~0.05-0.1ms query -- within noise at this corpus scale",
+    "rationale": "dependency weight (zero new heavy deps, one on-disk full-text index format instead of two) per borrow-policy bias toward fewest heavy deps meeting behavior, not raw speed",
+    "revisitTrigger": "a later longitudinal benchmark (1M+ documents) showing FTS5 query latency growing unacceptably",
+    "recordedIn": "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_DECISIONS.md D-07a (PROPOSED by this worker; orchestrator to confirm/lock)"
+  },
+  "hardRequirements": {
+    "codeAwareFullTextTokenization": {
+      "status": "DONE",
+      "implementation": "crates/enforcer-memory/src/fulltext.rs tokenize()/split_identifier(): camelCase, snake_case, kebab-case, path/::/. separators all split boundaries plus the untouched lowercased original always kept as an extra term"
+    },
+    "hnswVectorIndexCodeChunks": {
+      "status": "DONE",
+      "implementation": "crates/enforcer-memory/src/vector.rs VectorIndex over hnsw_rs 0.3 (D-04); corpus-agnostic -- callers build one instance for code chunks"
+    },
+    "hnswVectorIndexLessonsArtifactsSummaries": {
+      "status": "DONE",
+      "implementation": "same VectorIndex type is corpus-agnostic by design (D-04: 'one index for code chunks, one for lessons/artifacts/summaries'); callers build a second instance over a memory-document corpus without any code change"
+    },
+    "qwen3EmbeddingAndRerankerClassSupport": {
+      "status": "SEAM_ONLY_NO_DEFAULT_IMPL",
+      "implementation": "crates/enforcer-memory/src/embed.rs Embedder trait, crates/enforcer-memory/src/rerank.rs Reranker trait; a real ort-backed Qwen3-class implementation is named as the `ort-models` Cargo feature target (declared, no dependency yet, not exercised by any gate) per D-03",
+      "decision": "Per D-03/OWNER_INTENT ('degraded mode is labeled and NOT accepted for feature parity'), the default build ships only the deterministic HashingEmbedder/FusionScoreReranker; no #[cfg(feature=\"ort-models\")] stub is claimed as proven."
+    },
+    "localCodeEmbeddingModelSupport": {
+      "status": "DEFERRED_TO_ORT_MODELS_FEATURE",
+      "implementation": "same seam as above; HashingEmbedder is the zero-network deterministic stand-in exercised in gates"
+    },
+    "candidateLocalSummarizerBenchmark": {
+      "status": "NOT_STARTED",
+      "note": "optional per the pack ('optional candidate local summarizer/model benchmark'); out of scope for this pass, no claim made"
+    },
+    "rankFusionAcrossSignals": {
+      "status": "DONE_FOR_GRAPH_FULLTEXT_VECTOR_HARD_FILTERS",
+      "implementation": "crates/enforcer-memory/src/ranking.rs fuse_rrf: RRF k=60 (D-08 LOCKED) over full-text + vector rank positions; hard filters (permission/trust/repo) exclude before fusion",
+      "note": "recency/trust/proof/history soft-signal boosts are not implemented in this slice -- the HardFilter seam and RankedHit shape are ready for a future subpack to add soft-signal boosting without changing this module's contract"
+    },
+    "rerankerLiftMeasurement": {
+      "status": "DONE",
+      "implementation": "crates/enforcer-memory/src/ranking.rs reranker_lift(); wired into crate::search::HybridSearcher::search's SearchResult.reranker_lift"
+    },
+    "degradedModeLabeledNotAcceptedForParity": {
+      "status": "DONE",
+      "implementation": "crates/enforcer-memory/src/embed.rs/rerank.rs LoadState::Degraded(DegradedState::ProviderUnavailable) reported honestly by both defaults; crate::search::is_degraded() surfaces this on every SearchResult"
+    }
+  },
+  "hardTests": {
+    "exactQuery": "tests/retrieval_stack.rs exact_query_returns_the_exact_match",
+    "semanticQuery": "tests/retrieval_stack.rs semantic_query_prefers_shared_vocabulary_document_over_unrelated_ones",
+    "rerankerLift": "tests/retrieval_stack.rs reranker_lift_reports_nonzero_when_pipeline_reorders_results",
+    "vectorStale": "tests/retrieval_stack.rs vector_index_manifest_detects_staleness_on_dimension_change",
+    "modelManifest": "tests/retrieval_stack.rs model_manifest_carries_the_full_version_vector",
+    "noRemoteProvider": "tests/retrieval_stack.rs default_build_reports_degraded_capability_state_never_a_real_provider",
+    "tokenReductionEstimate": "tests/retrieval_stack.rs token_reduction_estimate_is_present_and_reflects_a_real_reduction",
+    "hardFiltersEndToEnd": "tests/retrieval_stack.rs hard_filters_exclude_a_document_from_the_full_pipeline_result"
+  },
+  "keptExtendedReplaced": {
+    "lib.rs": "EXTENDED (added pub mod embed/fulltext/ranking/rerank/search/vector wiring + module docs; all existing modules unchanged)",
+    "retriever.rs": "UNCHANGED (existing EmbeddingRetriever seam left as-is; crate::search::HybridSearcher is a separate, additive query surface per the module doc's own note that it 'extends, not forks' that seam philosophically, without modifying the feature-gated file)",
+    "Cargo.toml": "EXTENDED (added hnsw_rs 0.3 as an always-on dependency per D-04; declared an empty ort-models feature as a named seam per D-03)"
+  },
+  "claimsScope": {
+    "owns": [
+      "crates/enforcer-memory/src/search/** (mod.rs, document.rs)",
+      "crates/enforcer-memory/src/fulltext.rs",
+      "crates/enforcer-memory/src/vector.rs",
+      "crates/enforcer-memory/src/embed.rs",
+      "crates/enforcer-memory/src/rerank.rs",
+      "crates/enforcer-memory/src/ranking.rs",
+      "crates/enforcer-memory/src/lib.rs (wiring only)",
+      "crates/enforcer-memory/Cargo.toml (dep additions only)",
+      "crates/enforcer-memory/tests/retrieval_stack.rs",
+      "memory/streams/lane-x06-4-retrieval.ndjson",
+      "proof/memory/x06-rag.json"
+    ],
+    "notTouched": "graph.rs, analysis/**, architecture.rs, impact.rs, adr.rs, weaver/**, enrichment.rs, queue.rs, summaries.rs, learning.rs, evidence.rs, observations.rs, sessionstart.rs, store/**, log.rs, schema.rs, ids.rs, code_graph.rs, parsers/**, languages/**, git.rs -- all untouched per this subpack's do-not-touch list"
+  },
+  "workspaceRegression": "cargo build --workspace: all crates compile clean post-change; the pre-existing enforcer-memory test slice (103 lib tests incl. code_graph/store/log/graph/ingest/recall) is untouched and still green, plus the pre-existing 3 code_graph_indexer.rs + 5 ingest_and_recall.rs + 1 store_real_stream.rs integration tests, 0 regressions; 8 new retrieval_stack.rs hard tests added"
+}

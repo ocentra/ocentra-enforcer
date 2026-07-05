@@ -53,6 +53,12 @@ petgraph = "0.6"
 tree-sitter-rust = "0.23"
 tree-sitter-typescript = "0.23"
 tree-sitter-python = "0.23"
+# X06.4 (D-04, DEFAULT): pure-Rust HNSW vector index -- no C++ toolchain,
+# no external vector service (qdrant-client is explicitly rejected, see
+# MEMORY_RETRIEVAL_DECISIONS D-04). Harvested dependency choice from
+# TabAgentServer Rust/indexing (BORROW_POLICY §2: "Cargo dependency
+# CHOICES may be adopted directly").
+hnsw_rs = "0.3"
 
 [dev-dependencies]
 tempfile = "3"
@@ -66,6 +72,15 @@ embeddings = []
 # Opt-in real DuckDB analytics backend. NOT part of `default` and NOT
 # exercised by the gate in this pass -- see src/store/analytics.rs.
 duckdb-analytics = ["duckdb"]
+# X06.4 (D-03, DEFAULT): named seam for a future real `ort`-backed
+# Qwen3-class Embedder/Reranker implementation. NOT part of `default`,
+# NOT exercised by any gate, and has NO implementation in this slice --
+# the default build/test path only ever uses the deterministic
+# HashingEmbedder/FusionScoreReranker (see src/embed.rs, src/rerank.rs).
+# Declared here (with no dependency yet) so downstream crates/CI can see
+# the intended integration point without a real `ort` dependency being
+# pulled into every build.
+ort-models = []
 
 [lints]
 workspace = true

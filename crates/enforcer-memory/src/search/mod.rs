@@ -34,7 +34,7 @@ pub use document::{DocumentKind, SearchDocument};
 use crate::embed::{DegradedState, Embedder, LoadState};
 use crate::error::Result;
 use crate::fulltext::FullTextIndex;
-use crate::ranking::{fuse_rrf, CandidateTrace, HardFilter, RankedHit, RankFusionResult};
+use crate::ranking::{fuse_rrf, CandidateTrace, HardFilter, RankFusionResult, RankedHit};
 use crate::rerank::Reranker;
 use crate::vector::VectorIndex;
 
@@ -116,7 +116,10 @@ pub fn token_reduction_estimate(
     naive_file_count: usize,
     naive_avg_len: usize,
 ) -> TokenReductionEstimate {
-    let context_tokens: usize = context.iter().map(|hit| estimate_tokens(&hit.snippet)).sum();
+    let context_tokens: usize = context
+        .iter()
+        .map(|hit| estimate_tokens(&hit.snippet))
+        .sum();
     let naive_tokens = estimate_tokens(&"x".repeat(naive_avg_len)) * naive_file_count.max(1);
     TokenReductionEstimate {
         naive_tokens,
@@ -164,7 +167,13 @@ impl<'a> HybridSearcher<'a> {
         let query_vec = self.embedder.embed(query);
         let vector_ranked = self.vector.search(&query_vec, pool_size);
 
-        let fused = fuse_rrf(&fulltext_ranked, &vector_ranked, corpus, hard_filters, RRF_K);
+        let fused = fuse_rrf(
+            &fulltext_ranked,
+            &vector_ranked,
+            corpus,
+            hard_filters,
+            RRF_K,
+        );
         let RankFusionResult {
             pre_rerank_pool,
             candidates,
@@ -175,7 +184,9 @@ impl<'a> HybridSearcher<'a> {
         let reranker_state = self.reranker.state();
         let reranked = self.reranker.rerank(query, to_rerank);
 
-        let context_take = CONTEXT_MAX.min(reranked.len()).max(CONTEXT_MIN.min(reranked.len()));
+        let context_take = CONTEXT_MAX
+            .min(reranked.len())
+            .max(CONTEXT_MIN.min(reranked.len()));
         let context: Vec<RankedHit> = reranked.into_iter().take(context_take).collect();
 
         let lift = crate::ranking::reranker_lift(&pre_rerank_pool, &context);
@@ -202,11 +213,12 @@ pub fn is_degraded(result: &SearchResult) -> bool {
         || matches!(result.reranker_state, LoadState::Failed)
 }
 
-/// Convenience: the reason string for a degraded capability state, if
-/// any, for diagnostics/proof-artifact reporting.
-pub fn degraded_reason(state: &LoadState) -> Option<&'static DegradedState> {
+/// Convenience: the reason for a degraded capability state, if any, for
+/// diagnostics/proof-artifact reporting. `DegradedState` is `Copy`, so
+/// this returns an owned value rather than borrowing from `state`.
+pub fn degraded_reason(state: &LoadState) -> Option<DegradedState> {
     match state {
-        LoadState::Degraded(reason) => Some(reason),
+        LoadState::Degraded(reason) => Some(*reason),
         _ => None,
     }
 }
