@@ -75,13 +75,22 @@
 //! - [`log`] — the append-only hash-chained log primitive.
 //! - [`store`] — the per-project store: SQLite read model, analytics
 //!   read model, artifact manifest, index manifests.
+//! - [`code_graph`] — the X06.2 code KG indexer: files, symbols,
+//!   imports, calls, routes, git metadata, incremental reindexing.
+//! - [`parsers`] / [`languages`] — the tree-sitter-backed language
+//!   extraction [`code_graph`] builds nodes/edges from.
+//! - [`git`] — read-only git metadata ([`git2`]) for the indexer.
 
+pub mod code_graph;
 pub mod error;
+pub mod git;
 pub mod graph;
 pub mod ids;
 pub mod ingest;
+pub mod languages;
 pub mod lesson;
 pub mod log;
+pub mod parsers;
 pub mod recall;
 pub mod record;
 pub mod retriever;

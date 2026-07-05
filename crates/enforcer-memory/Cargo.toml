@@ -27,8 +27,27 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 # toolchain. Real DuckDB rides the same trait behind this feature -- see
 # `src/store/analytics.rs` module docs for the full decision record.
 duckdb = { version = "1", features = ["bundled"], optional = true }
+# git2 (libgit2 bindings) over gix: X06.2 only needs read-only HEAD/log/
+# blame-style metadata (last commit touching a path, commit count) --
+# libgit2 is the more battle-tested, synchronous, blocking-call-friendly
+# surface for exactly that, and every consumer in this workspace that
+# will eventually shell into git tooling can treat it the same way. gix
+# is the more "modern pure-Rust" choice but its porcelain surface for
+# per-path history is still less complete than libgit2's revwalk, and we
+# do not need gix's async/pure-Rust selling points for a local,
+# synchronous, read-only indexer.
+git2 = "0.19"
+# tree-sitter core + one grammar per required language (workpack X06.2:
+# Rust, TypeScript/JavaScript, Python). Config/IaC (toml/json/yaml) and
+# any other extension fall back to the TextOnly node path -- no grammar
+# dependency needed for those.
+tree-sitter = "0.24"
+tree-sitter-rust = "0.23"
+tree-sitter-typescript = "0.23"
+tree-sitter-python = "0.23"
 
 [dev-dependencies]
+tempfile = "3"
 
 [features]
 default = []
