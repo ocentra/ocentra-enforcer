@@ -1,0 +1,8 @@
+# PASS fixture for DART-TOOL-1.3: CI runs dart format --set-exit-if-changed.
+name: CI
+jobs:
+  build:
+    steps:
+      - run: dart analyze --fatal-infos
+      - run: dart format --set-exit-if-changed .
+      - run: flutter test

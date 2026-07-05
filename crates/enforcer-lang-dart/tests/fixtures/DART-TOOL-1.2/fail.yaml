@@ -1,0 +1,6 @@
+# FAIL fixture for DART-TOOL-1.2: CI has no static-analysis gate step.
+name: CI
+jobs:
+  build:
+    steps:
+      - run: flutter test

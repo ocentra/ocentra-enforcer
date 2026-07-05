@@ -1,0 +1,5 @@
+# PASS fixture for DART-DEP-1.1: dependency pinned to a caret range.
+dependencies:
+  flutter:
+    sdk: flutter
+  foo: ^1.2.0

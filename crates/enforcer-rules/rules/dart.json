@@ -1,0 +1,586 @@
+[
+    {
+        "ruleId": "DART-ARCH-1.1",
+        "version": 1,
+        "title": "Layer boundary: data must not import presentation; domain must stay pure Dart",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::arch::LayerBoundaryValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-ARCH-1.1/data/order_repo.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-ARCH-1.1/data/order_repo_clean.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "architecture"],
+        "params": {
+            "legacyIds": ["DART-ARCH-1.2", "DART-ARCH-1.3", "DART-ARCH-1.4", "DART-DOMAIN-1.1"]
+        }
+    },
+    {
+        "ruleId": "DART-BANG-1.1",
+        "version": 1,
+        "title": "No unchecked null-assertion `!` / unguarded `as` cast",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::arch::NoUncheckedBangOrCastValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-BANG-1.1/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-BANG-1.1/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "null-safety"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-FREEZED-1.1",
+        "version": 1,
+        "title": "Immutable entities via @freezed",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::arch::FreezedEntityValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-FREEZED-1.1/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-FREEZED-1.1/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "immutability"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-TYPE-1.1",
+        "version": 1,
+        "title": "Typed DTOs: no dynamic / Map<String,dynamic> on public signatures",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::types::TypedDtoValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-TYPE-1.1/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-TYPE-1.1/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "types"],
+        "params": {
+            "legacyIds": ["DART-TYPE-1.2", "DART-TYPE-1.3", "DART-TYPE-1.4", "DART-TYPE-1.5", "DART-TYPE-1.6"]
+        }
+    },
+    {
+        "ruleId": "DART-SEC-1.1",
+        "version": 1,
+        "title": "No hardcoded API key/token literal",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::security::HardcodedSecretValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-SEC-1.1/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-SEC-1.1/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "security"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-SEC-1.2",
+        "version": 1,
+        "title": "Tokens/PII must use flutter_secure_storage, not SharedPreferences",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::security::InsecureStorageValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-SEC-1.2/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-SEC-1.2/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "security"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-SEC-1.3",
+        "version": 1,
+        "title": "HTTPS only: no plaintext http:// endpoint",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::security::PlaintextHttpValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-SEC-1.3/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-SEC-1.3/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "security"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-SEC-1.4",
+        "version": 1,
+        "title": "Never disable SSL certificate verification",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::security::DisabledTlsValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-SEC-1.4/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-SEC-1.4/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "security"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-SEC-1.5",
+        "version": 1,
+        "title": "No bare print() for diagnostics (scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::security::BarePrintValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-SEC-1.5/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-SEC-1.5/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "security", "scored"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-SEC-1.6",
+        "version": 1,
+        "title": "Unguarded debug output must be kDebugMode-guarded (scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::security::UnguardedDebugOutputValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-SEC-1.6/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-SEC-1.6/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "security", "scored"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-STATE-1.1",
+        "version": 1,
+        "title": "No ChangeNotifier in new code",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::state::NoChangeNotifierValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-STATE-1.1/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-STATE-1.1/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "state"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-RIVERPOD-1.1",
+        "version": 1,
+        "title": "Riverpod 2.x NotifierProvider required; ban legacy StateNotifierProvider",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::state::LegacyStateNotifierProviderValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-RIVERPOD-1.1/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-RIVERPOD-1.1/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "state"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-STATE-1.2",
+        "version": 1,
+        "title": "No ref.read in build(); use ref.watch",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::state::RefReadInBuildValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-STATE-1.2/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-STATE-1.2/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "state"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-STATE-1.3",
+        "version": 1,
+        "title": "Detail page must not mutate a list provider directly (scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::state::DetailMutatesListProviderValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-STATE-1.3/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-STATE-1.3/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "state", "scored"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-INITSTATE-1.1",
+        "version": 1,
+        "title": "No data fetch kicked off from initState (scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::state::DataFetchInInitStateValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-INITSTATE-1.1/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-INITSTATE-1.1/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "state", "scored"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-COMP-1.1",
+        "version": 1,
+        "title": "One public widget per file",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::widget::OnePublicWidgetPerFileValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-COMP-1.1/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-COMP-1.1/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "widget"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-COMP-1.2",
+        "version": 1,
+        "title": "{super.key} must be the first widget constructor parameter",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::widget::SuperKeyFirstParamValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-COMP-1.2/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-COMP-1.2/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "widget"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-PERF-1.1",
+        "version": 1,
+        "title": "ListView.builder required for long/dynamic lists",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::widget::ListViewBuilderRequiredValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-PERF-1.1/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-PERF-1.1/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "perf"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-PERF-2.1",
+        "version": 1,
+        "title": "No setState() call inside build()",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::widget::SetStateInBuildValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-PERF-2.1/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-PERF-2.1/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "perf"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-COLOR-1.1",
+        "version": 1,
+        "title": "No hardcoded color literal in widget code (scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::widget::HardcodedColorValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-COLOR-1.1/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-COLOR-1.1/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "style", "scored"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-NAV-2.1",
+        "version": 1,
+        "title": "Prefer declarative GoRouter navigation over imperative Navigator.push (scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::widget::ImperativeNavigationValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-NAV-2.1/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-NAV-2.1/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "navigation", "scored"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-L10N-2.1",
+        "version": 1,
+        "title": "No hardcoded user-facing string; route through l10n (scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::widget::HardcodedUserStringValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-L10N-2.1/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-L10N-2.1/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "l10n", "scored"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-NAME-1.1",
+        "version": 1,
+        "title": "Snake_case filename must match its public widget",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::naming::SnakeCaseFilenameValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-NAME-1.1/OrderCard.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-NAME-1.1/order_card.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "naming"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-IMP-1.1",
+        "version": 1,
+        "title": "Imports must be grouped dart -> package -> relative (scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::naming::UngroupedImportsValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-IMP-1.1/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-IMP-1.1/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "imports", "scored"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-STYLE-2.1",
+        "version": 1,
+        "title": "String interpolation preferred over concatenation (scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::naming::StringConcatenationValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-STYLE-2.1/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-STYLE-2.1/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "style", "scored"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-ERR-1.1",
+        "version": 1,
+        "title": "Typed sealed Failure hierarchy, not raw throw Exception (scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::err::RawExceptionThrowValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-ERR-1.1/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-ERR-1.1/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "errors", "scored"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-ERR-2.1",
+        "version": 1,
+        "title": "Never render a raw exception to the user (scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::err::ExceptionRenderedToUserValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-ERR-2.1/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-ERR-2.1/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "errors", "scored"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-TOOL-1.1",
+        "version": 1,
+        "title": "analysis_options.yaml must be present and strict",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::toolchain::StrictAnalysisOptionsValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-TOOL-1.1/fail.yaml",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-TOOL-1.1/pass.yaml"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "toolchain"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-TOOL-1.2",
+        "version": 1,
+        "title": "CI must run dart analyze --fatal-infos",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::toolchain::CiRunsAnalyzeValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-TOOL-1.2/fail.yaml",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-TOOL-1.2/pass.yaml"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "toolchain"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-TOOL-1.3",
+        "version": 1,
+        "title": "CI must run dart format --set-exit-if-changed",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::toolchain::CiRunsFormatCheckValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-TOOL-1.3/fail.yaml",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-TOOL-1.3/pass.yaml"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "toolchain"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-DEP-1.1",
+        "version": 1,
+        "title": "pubspec.lock committed + pinned ^ deps; ban `foo: any`",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::toolchain::UnpinnedDependencyValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-DEP-1.1/fail.yaml",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-DEP-1.1/pass.yaml"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "dependencies"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-GEN-1.1",
+        "version": 1,
+        "title": "Never hand-edit generated .g.dart/.freezed.dart files",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::toolchain::HandEditedGeneratedFileValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-GEN-1.1/order.g.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-GEN-1.1/order_pass.g.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "codegen"],
+        "params": {}
+    },
+    {
+        "ruleId": "DART-FALLBACK-1.1",
+        "version": 1,
+        "title": "No silent ?? default fallback on a required field; justify bare response.data! (scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::types::SilentFallbackValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-FALLBACK-1.1/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-FALLBACK-1.1/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "types", "scored"],
+        "params": {
+            "legacyIds": ["DART-STYLE-2.2"]
+        }
+    },
+    {
+        "ruleId": "DART-FORMMAP-1.1",
+        "version": 1,
+        "title": "Wizard/form state must be typed, not Map<String,Object?> (scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-dart",
+            "path": "rules::types::FormStateMapValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-dart/tests/fixtures/DART-FORMMAP-1.1/fail.dart",
+            "pass": "crates/enforcer-lang-dart/tests/fixtures/DART-FORMMAP-1.1/pass.dart"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-dart.md#Requirement Checklist",
+        "tags": ["dart", "flutter", "e-pack-dart", "types", "scored"],
+        "params": {}
+    }
+]
