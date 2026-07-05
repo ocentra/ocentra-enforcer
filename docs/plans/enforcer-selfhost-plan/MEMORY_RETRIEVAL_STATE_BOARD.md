@@ -21,7 +21,16 @@ _Last updated: 2026-07-05 by x06 orchestrator (session 36a5fb74). Update discipl
 | X06.2 code KG indexer | LANDED | rust-build 9bca1db (from `lane/x06-2-codegraph` 5d07e33) | `proof/memory/x06-code-graph.json` (NOT yet emitted — follow-up with X06.9 harness) | Gatekeeper PASS: independent gate rerun in clean worktree (49 tests), scope clean, tests behavior-real. Known gaps recorded: `.tsx` parsed with TS grammar not LANGUAGE_TSX (JSX symbols silently missed); TS/JS share one grammar. build.rs deviation (advapi32 link fix) accepted |
 | X06.3 graph algorithms | LANDED | rust-build 4d1d0d5+3592cb5 (lane deleted) | `proof/memory/x06-kg.json` (NOT yet emitted — X06.9) | Gatekeeper PASS: 116 tests independent rerun; Cypher-subset DSL (D-05) with write-verb rejection; salvage-adopted after limit-death; adopter fixed real diff-impact under-reporting bug |
 | X06.4 fulltext/vector/rerank | LANDED | rust-build 8310eed+6a1821f (lane deleted) | `proof/memory/x06-rag.json` (P1-unit tier, honest) | Gatekeeper PASS: 120 tests independent rerun; D-07a=SQLite FTS5 CONFIRMED; known follow-ups: soft-signal boosting seam-only in fuse_rrf, ort-models feature empty per D-03, real Qwen3 path deferred |
-| X06.5 background weaver | GATEKEEPING PAUSED | `lane/x06-5-weaver` @ 83efe9a (pushed, NOT integrated) | `proof/memory/x06-weaver.json` (not yet emitted) | Worker DONE: 95 tests claimed incl. 5 weaver hard tests; fixed real shutdown deadlock in salvage; scope diff + owner-set scan PASSED; independent gate rerun was INTERRUPTED by session stop — rerun gates in clean worktree before cherry-pick. Salvage worktrees may be cleaned; lane branch is the source of truth |
+| X06.5 background weaver | LANDED | rust-build 6666ff1+a0a7a03 (lane deleted) | `proof/memory/x06-weaver.json` (NOT yet emitted — X06.9) | Gatekeeper PASS: 95 tests independent rerun in clean worktree; worker fixed a real WorkerPool::shutdown deadlock in the salvage; owner-set hits were rustdoc citations only |
+
+## Parity push (baseline 14-tool floor) — wave 3, spawned 2026-07-05
+
+| Lane | Status | Scope |
+|---|---|---|
+| `lane/x06-author-schemas` | IN FLIGHT (sonnet) | refs/x06-baseline-tool-schemas.md — exact wire contracts of all 14 baseline tools from the C source; the implementation contract for the MCP surface + X06.9 diff logic |
+| `lane/x06-p1-readtools` | RESPAWNED after BOM abort (L43) | snippet.rs (byte-exact+hash), graph_schema.rs, code_search.rs (graph-augmented grep), projects.rs (list/delete/index_status over Store) |
+| `lane/x06-p2-tracetools` | IN FLIGHT (sonnet) | analysis/trace.rs (data_flow + cross_service modes), traces.rs (ingest_traces, runtime-provenance edges), impact.rs risk classification |
+| X06.7 MCP/CLI surface | QUEUED — spawns when schemas doc lands | mcp.rs, cli.rs, watch.rs, diagnostics.rs wrapping all 14 tools per the schemas doc |
 | X06.6 continuous learning | LANDED | rust-build f8110ce..5994496 (lane deleted) | `proof/memory/x06-learning.json` (NOT yet emitted — X06.9) | Gatekeeper PASS: 101 tests independent rerun; both salvage hunks (graph.rs procedural/route-trace, record.rs Hash) call-site-justified; flagged follow-up: procedural/meta records not yet persisted via Store |
 | X06.7 MCP/CLI/watch/diagnostics | QUEUED | — | `proof/memory/x06-mcp-cli.json` | 14-tool surface per scout digest §1 |
 | X06.8 sharing/federation | QUEUED | — | `proof/memory/x06-federation.json` | zstd artifact per D-11 |
