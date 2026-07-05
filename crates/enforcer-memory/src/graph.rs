@@ -8,6 +8,7 @@
 //! for this pass; see `src/lib.rs` module docs for the seam boundary.
 
 use crate::lesson::LessonRow;
+use crate::observations::{ProceduralRecord, RouteTrace};
 use crate::record::{MemoryRecord, RecordKind};
 
 /// One node in the memory graph: either an ingested memory record, a
@@ -43,9 +44,20 @@ impl MemoryNode {
 /// The in-process graph. Append-only by convention: nodes are added via
 /// [`MemoryGraph::ingest_record`] / [`MemoryGraph::ingest_lesson_row`] /
 /// [`MemoryGraph::ingest_incident`] and never mutated in place.
+///
+/// Procedural-memory ([`ProceduralRecord`]) and meta-memory
+/// ([`RouteTrace`]) entries (X06.6) are kept in their own append-only
+/// vecs rather than folded into the `MemoryNode` enum: they are not
+/// recall-searchable text nodes (nothing in `crate::recall` should ever
+/// match a route-choice trace as if it were a lesson), they are a
+/// separate specialized-memory kind per the owner intent's MIA-derived
+/// hierarchy (D-10) -- kept alongside the node store so a single graph
+/// value is still the one thing callers construct and query.
 #[derive(Debug, Clone, Default)]
 pub struct MemoryGraph {
     nodes: Vec<MemoryNode>,
+    procedural_records: Vec<ProceduralRecord>,
+    route_traces: Vec<RouteTrace>,
 }
 
 impl MemoryGraph {
@@ -63,6 +75,31 @@ impl MemoryGraph {
 
     pub fn ingest_incident(&mut self, incident: crate::ingest::Incident) {
         self.nodes.push(MemoryNode::Incident(incident));
+    }
+
+    /// Record one procedural-memory outcome (X06.6). See
+    /// [`crate::observations::record_procedural`] for the ergonomic
+    /// entry point; this is the raw storage primitive it calls.
+    pub fn ingest_procedural(&mut self, record: ProceduralRecord) {
+        self.procedural_records.push(record);
+    }
+
+    /// Record one meta-memory route-choice trace (X06.6). See
+    /// [`crate::observations::record_route_choice`] for the ergonomic
+    /// entry point; this is the raw storage primitive it calls.
+    pub fn ingest_route_trace(&mut self, trace: RouteTrace) {
+        self.route_traces.push(trace);
+    }
+
+    /// All procedural-memory records recorded so far, in insertion order.
+    pub fn procedural_records(&self) -> &[ProceduralRecord] {
+        &self.procedural_records
+    }
+
+    /// All meta-memory route-choice traces recorded so far, in
+    /// insertion order.
+    pub fn route_traces(&self) -> &[RouteTrace] {
+        &self.route_traces
     }
 
     pub fn nodes(&self) -> &[MemoryNode] {

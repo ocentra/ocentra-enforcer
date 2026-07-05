@@ -80,19 +80,43 @@
 //! - [`parsers`] / [`languages`] — the tree-sitter-backed language
 //!   extraction [`code_graph`] builds nodes/edges from.
 //! - [`git`] — read-only git metadata ([`git2`]) for the indexer.
+//! - [`learning`] — lesson activation, supersede, per-domain learning curves.
+//! - [`evidence`] — t0->t1->t2 chain with proof-ref seam + recurrence curve.
+//! - [`observations`] — procedural memory + meta-memory (route/confidence).
+//! - [`sessionstart`] — the SessionStart recall-pack seam.
+//!
+//! # X06.6 -- continuous learning
+//!
+//! [`learning`] adds lesson activation rules (landed = active,
+//! unlanded/imported = inactive, superseded = never active) and
+//! per-domain aggregate learning-curve emission; [`evidence`] extends
+//! [`recall::evidence`] with enforcer-proof journal refs per chain
+//! element (via a caller-supplied [`evidence::ProofRefLookup`] seam,
+//! never a hard dependency on `enforcer-proof`) and an ordered
+//! recurrence curve; [`observations`] adds procedural memory (fix/
+//! retrieval success AND failure) and meta-memory (route choice +
+//! confidence) as their own append-only record kinds on
+//! [`graph::MemoryGraph`]; [`sessionstart`] computes the bounded,
+//! deterministic recall-pack payload a Claude SessionStart hook (c05,
+//! `crates/enforcer-install/**`, out of this crate) would inject at the
+//! start of a new session.
 
 pub mod code_graph;
 pub mod error;
+pub mod evidence;
 pub mod git;
 pub mod graph;
 pub mod ids;
 pub mod ingest;
 pub mod languages;
+pub mod learning;
 pub mod lesson;
 pub mod log;
+pub mod observations;
 pub mod parsers;
 pub mod recall;
 pub mod record;
 pub mod retriever;
 pub mod schema;
+pub mod sessionstart;
 pub mod store;

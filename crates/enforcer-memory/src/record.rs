@@ -20,7 +20,7 @@ pub enum RecordKind {
 }
 
 /// `domain` enum from the schema.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum RecordDomain {
     Harness,
