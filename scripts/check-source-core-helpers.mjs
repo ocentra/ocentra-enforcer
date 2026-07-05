@@ -669,7 +669,8 @@ function importSpecifier(line) {
 function isGeneratedArtifactPath(rel) {
   return (
     /^(?:output|test-results|playwright-report)\//u.test(rel) ||
-    /(?:^|\/)(?:dist|build|coverage|generated)\//u.test(rel)
+    /(?:^|\/)(?:dist|build|coverage|generated)\//u.test(rel) ||
+    /(?:^|[\\/])generated-[^\\/]+\.(?:ts|tsx|js|jsx|mjs|cjs)$/u.test(rel)
   );
 }
 

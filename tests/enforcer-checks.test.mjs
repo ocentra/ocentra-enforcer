@@ -67,6 +67,23 @@ test('check no-naked-domain-strings ignores generated TypeScript DTO folders', (
   assert.deepEqual(report.violations, []);
 });
 
+test('check no-naked-domain-strings ignores root-level generated TypeScript mirrors', () => {
+  const project = makeProject({
+    'packages/schema-domain/src/generated-contracts.ts': 'export type GeneratedDeviceId = string;\n',
+  });
+  const result = run(project, [
+    'check',
+    'no-naked-domain-strings',
+    '--json',
+    '--files',
+    'packages/schema-domain/src/generated-contracts.ts',
+  ]);
+  assert.equal(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.ok, true);
+  assert.deepEqual(report.violations, []);
+});
+
 test('check source-shape applies project-configured shape policies', () => {
   const project = makeProject({
     'ocentra-enforcer.config.json': JSON.stringify({
