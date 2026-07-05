@@ -24,6 +24,11 @@
 //!   not reimplement fixture I/O or pass/fail assertions, it composes the
 //!   reusable base with the record-shape re-check.
 //!
+//! - [`feedback`] — the d08 harness-feedback pipeline: classifies a parsed
+//!   `enforcer-harness` diagnostic as `prevent` vs `detect` (mechanical
+//!   field matching, never an LLM judgment call) and, for `prevent`,
+//!   drives [`scaffold::scaffold_rule`] to emit a PROPOSED candidate rule.
+//!
 //! This crate does NOT own: the rule registry itself (`enforcer-rules`),
 //! the `Validator` trait or harness (`enforcer-validator`), or any
 //! language-specific detection logic (the `enforcer-lang-*` crates).
@@ -32,6 +37,7 @@
 //! modules directly, e.g. `enforcer_mechanization::oracle::accept_rule`.
 
 pub mod error;
+pub mod feedback;
 pub mod oracle;
 pub mod parity;
 pub mod scaffold;
