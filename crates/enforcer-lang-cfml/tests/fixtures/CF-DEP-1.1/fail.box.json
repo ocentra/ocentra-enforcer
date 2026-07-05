@@ -1,0 +1,7 @@
+{
+    "name": "order-service",
+    "dependencies": {
+        "testbox": "*",
+        "coldbox": "^7.0.0"
+    }
+}

@@ -346,6 +346,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "enforcer-lang-cfml"
+version = "0.1.0"
+dependencies = [
+ "enforcer-core",
+ "enforcer-domain",
+ "enforcer-lang-common",
+ "enforcer-rules",
+ "enforcer-validator",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "enforcer-lang-common"
 version = "0.1.0"
 dependencies = [

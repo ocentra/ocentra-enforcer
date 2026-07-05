@@ -1,0 +1,6 @@
+{
+    "coverage": {
+        "enabled": true,
+        "failFloor": 70
+    }
+}

@@ -1,0 +1,426 @@
+[
+    {
+        "ruleId": "CF-ARCH-1.1",
+        "version": 1,
+        "title": "Layered architecture: handlers/services must not run SQL directly; views must not query/createObject",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::arch::LayeredArchitectureValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CF-ARCH-1.1/fail.cfc",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CF-ARCH-1.1/pass.cfc"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "architecture"],
+        "params": {
+            "legacyIds": ["CF-ARCH-2.1", "CF-ARCH-4.1", "CF-ARCH-5.1", "CFML-LAYER-1.1"]
+        }
+    },
+    {
+        "ruleId": "CF-DI-1.1",
+        "version": 1,
+        "title": "WireBox DI: no manual createObject/new construction of collaborators",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::arch::WireBoxDiValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CF-DI-1.1/fail.cfc",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CF-DI-1.1/pass.cfc"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "di"],
+        "params": {
+            "legacyIds": ["CFML-DI-1.1"]
+        }
+    },
+    {
+        "ruleId": "CF-SEC-1.1",
+        "version": 1,
+        "title": "SQLi: dynamic SQL value must be bound via cfqueryparam/param struct (CWE-89)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::security::SqlInjectionValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CF-SEC-1.1/fail.cfc",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CF-SEC-1.1/pass.cfc"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "security", "cwe-89"],
+        "params": {
+            "legacyIds": ["CFML-SQL-1.1"]
+        }
+    },
+    {
+        "ruleId": "CF-SEC-2.1",
+        "version": 1,
+        "title": "XSS: raw cfoutput of an untrusted value must be encoded via encodeForHTML (CWE-79)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::security::XssOutputValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CF-SEC-2.1/fail.cfm",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CF-SEC-2.1/pass.cfm"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "security", "cwe-79"],
+        "params": {}
+    },
+    {
+        "ruleId": "CF-STYLE-4.1",
+        "version": 1,
+        "title": "Ban evaluate()/iif() dynamic constructs",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::style::BannedDynamicEvalValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CF-STYLE-4.1/fail.cfc",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CF-STYLE-4.1/pass.cfc"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "style"],
+        "params": {
+            "legacyIds": ["CF-STYLE-4.2", "CFML-BAN-1.1"]
+        }
+    },
+    {
+        "ruleId": "CF-SEC-4.1",
+        "version": 1,
+        "title": "Hardcoded secret literal (CWE-798)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::security::HardcodedSecretValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CF-SEC-4.1/fail.cfc",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CF-SEC-4.1/pass.cfc"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "security", "cwe-798"],
+        "params": {}
+    },
+    {
+        "ruleId": "CF-STYLE-1.1",
+        "version": 1,
+        "title": "Every function-local variable must be var/local-scoped (MISSING_VAR)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::style::MissingVarScopeValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CF-STYLE-1.1/fail.cfc",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CF-STYLE-1.1/pass.cfc"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "style"],
+        "params": {
+            "legacyIds": ["CFML-VAR-1.1"]
+        }
+    },
+    {
+        "ruleId": "CFML-VAR-1.2",
+        "version": 1,
+        "title": "Use the arguments scope, not the bare argument name",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::style::ArgumentsScopeValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CFML-VAR-1.2/fail.cfc",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CFML-VAR-1.2/pass.cfc"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "style"],
+        "params": {}
+    },
+    {
+        "ruleId": "CF-STYLE-2.1",
+        "version": 1,
+        "title": "returntype on every public/remote method; type every argument",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::style::TypedSignatureValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CF-STYLE-2.1/fail.cfc",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CF-STYLE-2.1/pass.cfc"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "types"],
+        "params": {
+            "legacyIds": ["CFML-TYPE-1.1"]
+        }
+    },
+    {
+        "ruleId": "CF-ERR-1.1",
+        "version": 1,
+        "title": "Throw typed/namespaced type= errors, not a bare message",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::err::TypedThrowValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CF-ERR-1.1/fail.cfc",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CF-ERR-1.1/pass.cfc"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "errors"],
+        "params": {}
+    },
+    {
+        "ruleId": "CF-ERR-2.1",
+        "version": 1,
+        "title": "Never swallow an exception: no empty catch, no unconditional return true",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::err::EmptyCatchSwallowValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CF-ERR-2.1/fail.cfc",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CF-ERR-2.1/pass.cfc"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "errors"],
+        "params": {}
+    },
+    {
+        "ruleId": "CF-SEC-3.1",
+        "version": 1,
+        "title": "No internal error/stack detail (cfcatch.detail/tagContext, cfdump) to the client (CWE-209)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::security::InfoDisclosureValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CF-SEC-3.1/fail.cfc",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CF-SEC-3.1/pass.cfc"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "security", "cwe-209"],
+        "params": {}
+    },
+    {
+        "ruleId": "CF-TOOL-1.1",
+        "version": 1,
+        "title": ".cflintrc committed with hard-gate rules (MISSING_VAR, QUERYPARAM_REQ) set to ERROR",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::toolchain::CflintrcHardGateValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CF-TOOL-1.1/fail.cflintrc",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CF-TOOL-1.1/pass.cflintrc"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "toolchain"],
+        "params": {
+            "legacyIds": ["CF-CI-1.1"]
+        }
+    },
+    {
+        "ruleId": "CF-DEP-1.1",
+        "version": 1,
+        "title": "Pinned deps in box.json — no */^ wildcard version range",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::toolchain::PinnedDependencyValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CF-DEP-1.1/fail.box.json",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CF-DEP-1.1/pass.box.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "toolchain"],
+        "params": {}
+    },
+    {
+        "ruleId": "CF-TEST-1.1",
+        "version": 1,
+        "title": "One TestBox spec per component, extending testbox.system.BaseSpec",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::toolchain::TestboxBaseSpecValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CF-TEST-1.1/fail/OrderServiceTest.cfc",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CF-TEST-1.1/pass/OrderServiceTest.cfc"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "testing"],
+        "params": {}
+    },
+    {
+        "ruleId": "CF-ARCH-3.1",
+        "version": 1,
+        "title": "Services must not read rc/form/url scopes directly (scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::arch::ServiceScopeReadValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CF-ARCH-3.1/fail/OrderService.cfc",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CF-ARCH-3.1/pass/OrderService.cfc"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "architecture", "scored"],
+        "params": {}
+    },
+    {
+        "ruleId": "CF-DI-1.2",
+        "version": 1,
+        "title": "Lifecycle scope: no application-scope service lookup (scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::arch::ApplicationScopeLookupValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CF-DI-1.2/fail.cfc",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CF-DI-1.2/pass.cfc"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "di", "scored"],
+        "params": {
+            "legacyIds": ["CF-DI-1.3"]
+        }
+    },
+    {
+        "ruleId": "CF-LOG-1.1",
+        "version": 1,
+        "title": "Use LogBox, not writeDump/writeOutput, for diagnostics (scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::style::LogboxNotWriteDumpValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CF-LOG-1.1/fail.cfc",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CF-LOG-1.1/pass.cfc"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "logging", "scored"],
+        "params": {}
+    },
+    {
+        "ruleId": "CFML-DEAD-1.1",
+        "version": 1,
+        "title": "Unused local/arg (UNUSED_LOCAL_VARIABLE/UNUSED_METHOD_ARGUMENT) (scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::style::UnusedLocalValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CFML-DEAD-1.1/fail.cfc",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CFML-DEAD-1.1/pass.cfc"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "dead-code", "scored"],
+        "params": {}
+    },
+    {
+        "ruleId": "CF-STYLE-3.1",
+        "version": 1,
+        "title": "Script-first .cfc: prefer component{} script syntax over cffunction tags (scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::style::ScriptFirstComponentValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CF-STYLE-3.1/fail.cfc",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CF-STYLE-3.1/pass.cfc"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "style", "scored"],
+        "params": {}
+    },
+    {
+        "ruleId": "CF-STYLE-5.1",
+        "version": 1,
+        "title": "PascalCase filename convention for CFML components (scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::style::FilenameConventionValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CF-STYLE-5.1/fail/orderservice.cfc",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CF-STYLE-5.1/pass/OrderService.cfc"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "naming", "scored"],
+        "params": {}
+    },
+    {
+        "ruleId": "CF-STYLE-2.2",
+        "version": 1,
+        "title": "access=\"private\" default for methods with no external API marker (scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::style::PrivateByDefaultValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CF-STYLE-2.2/fail.cfc",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CF-STYLE-2.2/pass.cfc"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "access", "scored"],
+        "params": {}
+    },
+    {
+        "ruleId": "CF-TOOL-2.1",
+        "version": 1,
+        "title": "cfformat format:check step present in CI (scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::toolchain::CfformatCiStepValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CF-TOOL-2.1/fail/.github/workflows/ci.yml",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CF-TOOL-2.1/pass/.github/workflows/ci.yml"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "toolchain", "scored"],
+        "params": {}
+    },
+    {
+        "ruleId": "CF-CI-2.1",
+        "version": 1,
+        "title": "TestBox coverage floor >=70% wired as a failing threshold (scored)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::toolchain::CoverageFloorValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-cfml/tests/fixtures/CF-CI-2.1/fail/testbox.json",
+            "pass": "crates/enforcer-lang-cfml/tests/fixtures/CF-CI-2.1/pass/testbox.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": ["coldfusion", "cfml", "e-pack-cfml", "ci", "scored"],
+        "params": {}
+    }
+]

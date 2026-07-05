@@ -1,0 +1,6 @@
+{
+    "rule": [
+        { "code": "MISSING_VAR", "severity": "ERROR" },
+        { "code": "QUERYPARAM_REQ", "severity": "ERROR" }
+    ]
+}

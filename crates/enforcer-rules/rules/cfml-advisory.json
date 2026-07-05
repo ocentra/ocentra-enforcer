@@ -1,0 +1,50 @@
+[
+    {
+        "ruleId": "CFML-CPLX-2.1",
+        "version": 1,
+        "title": "CFLint shell-out advisory: COMPLEX_BOOLEAN_CHECK/NESTED_CFOUTPUT/UNUSED_*/ARG_HINT_MISSING/COMPONENT_HINT_MISSING (scored; graceful-skip when cflint is absent)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "rules::cflint_adapter::CflintAdvisoryValidator"
+        },
+        "fixtures": {
+            "fail": "n/a (shells out to the cflint binary; proven by rules::cflint_adapter's own unit tests, not the uniform fixture/parity harness)",
+            "pass": "n/a (see rules::cflint_adapter::tests for the graceful-skip + report-mapping proof)"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Where We Want To Be",
+        "tags": [
+            "coldfusion",
+            "cfml",
+            "e-pack-cfml",
+            "cflint",
+            "advisory",
+            "scored",
+            "graceful-skip"
+        ],
+        "params": {}
+    },
+    {
+        "ruleId": "CF-ARCH-6.1",
+        "version": 1,
+        "title": "No catch-all Utils.cfc dumping-ground beyond a size threshold",
+        "tier": "T3",
+        "validator": {
+            "crateName": "enforcer-lang-cfml",
+            "path": "n/a (T3 advisory row: no validator by design)"
+        },
+        "fixtures": {
+            "fail": "n/a",
+            "pass": "n/a"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/e-pack-cfml.md#Requirement Checklist",
+        "tags": [
+            "coldfusion",
+            "cfml",
+            "e-pack-cfml",
+            "architecture",
+            "advisory, no mechanization possible + whether a cohesively-named component is a genuine dumping-ground vs. a legitimate small helper is design judgment the size gate alone cannot decide"
+        ],
+        "params": {}
+    }
+]
