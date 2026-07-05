@@ -53,7 +53,6 @@ petgraph = "0.6"
 tree-sitter-rust = "0.23"
 tree-sitter-typescript = "0.23"
 tree-sitter-python = "0.23"
-<<<<<<< HEAD
 # X06.4 (D-04, DEFAULT): pure-Rust HNSW vector index -- no C++ toolchain,
 # no external vector service (qdrant-client is explicitly rejected, see
 # MEMORY_RETRIEVAL_DECISIONS D-04). Harvested dependency choice from
@@ -71,6 +70,13 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"
 [dev-dependencies]
 tempfile = "3"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "test-util"] }
+# tests/weaver_enrichment.rs hashes real fixture file content (rather
+# than an inline synthetic string) to build realistic
+# `WeaverEvent::{NodeChanged,FileChanged}` content hashes; integration
+# tests are separate compilation units from the crate's own
+# `[dependencies]`, so this must be declared again here even though the
+# library already depends on `sha2`.
+sha2 = { workspace = true }
 
 [features]
 default = []

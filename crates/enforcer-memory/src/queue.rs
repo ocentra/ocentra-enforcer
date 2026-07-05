@@ -188,7 +188,14 @@ impl WeaverQueueHandle {
             Priority::Warm => self.warm_tx.send(task),
             Priority::Cold => self.cold_tx.send(task),
         };
-        result.map_err(|_| QueueClosed)
+        // `SendError<QueuedTask>` carries the un-sent task back, which
+        // is not itself an "original error to preserve as a source" --
+        // the task is already owned by the caller's `Result::Err` path
+        // in the form of the original `event`/`priority` arguments they
+        // still have, and `QueueClosed` is a plain, sourceless marker
+        // (there is exactly one reason a bounded set of senders can
+        // fail to send: every receiver is gone).
+        result.map_err(|_send_error| QueueClosed)
     }
 
     /// Re-enqueue a task that failed and is eligible for another
@@ -199,7 +206,7 @@ impl WeaverQueueHandle {
             Priority::Warm => self.warm_tx.send(task),
             Priority::Cold => self.cold_tx.send(task),
         };
-        result.map_err(|_| QueueClosed)
+        result.map_err(|_send_error| QueueClosed)
     }
 }
 
@@ -238,24 +245,27 @@ impl WeaverQueue {
         // priority requirement. `try_recv` is non-blocking so this
         // never favors warm/cold just because hot happened to be empty
         // at a race-prone instant while a hot sender is mid-`send`.
-        loop {
-            if let Ok(task) = self.hot_rx.try_recv() {
-                return Some(task);
-            }
-            if let Ok(task) = self.warm_rx.try_recv() {
-                return Some(task);
-            }
-            if let Ok(task) = self.cold_rx.try_recv() {
-                return Some(task);
-            }
-            // Nothing ready in any tier right now -- await whichever
-            // channel produces next (or all-closed).
-            tokio::select! {
-                biased;
-                task = self.hot_rx.recv() => return task,
-                task = self.warm_rx.recv() => return task,
-                task = self.cold_rx.recv() => return task,
-            }
+        if let Ok(task) = self.hot_rx.try_recv() {
+            return Some(task);
+        }
+        if let Ok(task) = self.warm_rx.try_recv() {
+            return Some(task);
+        }
+        if let Ok(task) = self.cold_rx.try_recv() {
+            return Some(task);
+        }
+        // Nothing ready in any tier right now -- await whichever
+        // channel produces next (or all-closed). Every branch settles
+        // this call's result directly (there is nothing left to retry
+        // afterward): a task arriving on a lower tier while this await
+        // is pending still loses to a hot task per `biased`, and the
+        // caller's own loop (`WorkerPool::spawn`'s drain loop) is what
+        // calls `recv_next` again for the next task, not this method.
+        tokio::select! {
+            biased;
+            task = self.hot_rx.recv() => task,
+            task = self.warm_rx.recv() => task,
+            task = self.cold_rx.recv() => task,
         }
     }
 }
@@ -308,6 +318,9 @@ impl DeadLetterQueue {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::error::Error;
+
+    type TestResult = Result<(), Box<dyn Error>>;
 
     #[test]
     fn retry_policy_backs_off_and_caps() {
@@ -332,34 +345,28 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn hot_task_is_received_before_previously_queued_warm_and_cold() {
+    async fn hot_task_is_received_before_previously_queued_warm_and_cold() -> TestResult {
         let mut queue = WeaverQueue::new();
         let handle = queue.handle();
 
-        handle
-            .send(
-                WeaverEvent::RelinkRequested {
-                    node_id: "cold-1".to_owned(),
-                },
-                Priority::Cold,
-            )
-            .expect("send cold");
-        handle
-            .send(
-                WeaverEvent::RelinkRequested {
-                    node_id: "warm-1".to_owned(),
-                },
-                Priority::Warm,
-            )
-            .expect("send warm");
-        handle
-            .send(
-                WeaverEvent::RelinkRequested {
-                    node_id: "hot-1".to_owned(),
-                },
-                Priority::Hot,
-            )
-            .expect("send hot");
+        handle.send(
+            WeaverEvent::RelinkRequested {
+                node_id: "cold-1".to_owned(),
+            },
+            Priority::Cold,
+        )?;
+        handle.send(
+            WeaverEvent::RelinkRequested {
+                node_id: "warm-1".to_owned(),
+            },
+            Priority::Warm,
+        )?;
+        handle.send(
+            WeaverEvent::RelinkRequested {
+                node_id: "hot-1".to_owned(),
+            },
+            Priority::Hot,
+        )?;
 
         let first = queue.recv_next().await.map(|t| t.priority);
         assert_eq!(first, Some(Priority::Hot));
@@ -367,6 +374,7 @@ mod tests {
         assert_eq!(second, Some(Priority::Warm));
         let third = queue.recv_next().await.map(|t| t.priority);
         assert_eq!(third, Some(Priority::Cold));
+        Ok(())
     }
 
     #[test]

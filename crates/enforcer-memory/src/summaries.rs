@@ -83,7 +83,10 @@ impl SummaryStore {
     }
 
     pub fn is_stale(&self, rel_path: &str) -> bool {
-        self.summaries.get(rel_path).map(|e| e.stale).unwrap_or(true)
+        self.summaries
+            .get(rel_path)
+            .map(|e| e.stale)
+            .unwrap_or(true)
     }
 
     pub fn get(&self, rel_path: &str) -> Option<&SummaryEntry> {
@@ -136,7 +139,10 @@ mod tests {
         store.invalidate("src/lib.rs");
 
         assert!(store.is_stale("src/lib.rs"));
-        assert_eq!(store.get("src/lib.rs").map(|e| e.text.as_str()), Some("a summary"));
+        assert_eq!(
+            store.get("src/lib.rs").map(|e| e.text.as_str()),
+            Some("a summary")
+        );
     }
 
     #[test]

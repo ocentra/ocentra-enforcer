@@ -53,7 +53,8 @@ pub enum EmbeddingGeneration {
 impl EmbeddingGeneration {
     pub fn active(&self) -> u32 {
         match self {
-            EmbeddingGeneration::Stable { active } | EmbeddingGeneration::Migrating { active, .. } => *active,
+            EmbeddingGeneration::Stable { active }
+            | EmbeddingGeneration::Migrating { active, .. } => *active,
         }
     }
 
@@ -101,6 +102,7 @@ pub struct WeaverBuilder {
     max_concurrency: Option<usize>,
     retry: crate::queue::RetryPolicy,
     embedding_version: u32,
+    on_outcome: Option<tokio::sync::mpsc::UnboundedSender<crate::enrichment::TaskOutcome>>,
 }
 
 impl Default for WeaverBuilder {
@@ -110,6 +112,7 @@ impl Default for WeaverBuilder {
             max_concurrency: None,
             retry: crate::queue::RetryPolicy::bounded_default(),
             embedding_version: 1,
+            on_outcome: None,
         }
     }
 }
@@ -135,6 +138,22 @@ impl WeaverBuilder {
         self
     }
 
+    /// Attach a per-attempt [`crate::enrichment::TaskOutcome`] channel,
+    /// returning the receiver half. Hard tests use this to `.await` a
+    /// specific outcome (e.g. the retry that eventually dead-letters)
+    /// instead of polling `tokio::time::sleep` in a loop -- see
+    /// `tests/weaver_enrichment.rs`.
+    pub fn with_outcome_channel(
+        mut self,
+    ) -> (
+        Self,
+        tokio::sync::mpsc::UnboundedReceiver<crate::enrichment::TaskOutcome>,
+    ) {
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        self.on_outcome = Some(tx);
+        (self, rx)
+    }
+
     /// Build and start the weaver: spawns the worker pool immediately
     /// (background task), returning a ready-to-enqueue handle. This
     /// call itself never blocks on any worker running.
@@ -152,16 +171,18 @@ impl WeaverBuilder {
             embedding_version: self.embedding_version,
         });
 
-        let config = match self.max_concurrency {
+        let mut config = match self.max_concurrency {
             Some(max_concurrency) => WorkerPoolConfig {
                 max_concurrency,
                 retry: self.retry,
                 embedding_version: self.embedding_version,
+                on_outcome: None,
             },
             None => WorkerPoolConfig::with_default_concurrency(self.retry, self.embedding_version),
         };
+        config.on_outcome = self.on_outcome;
 
-        let pool = WorkerPool::spawn(queue, queue_handle.clone(), ctx, config);
+        let pool = WorkerPool::spawn(queue, queue_handle.clone(), ctx, &config);
 
         Weaver {
             queue_handle,
@@ -314,70 +335,90 @@ impl Weaver {
 mod tests {
     use super::*;
     use crate::code_graph::IndexReport;
+    use std::error::Error;
+
+    type TestResult = Result<(), Box<dyn Error>>;
+
+    /// See `enrichment::tests::lock_or_msg` -- `PoisonError`'s embedded
+    /// guard is not `'static`, so it cannot convert into `Box<dyn
+    /// Error>` via a bare `?`.
+    fn lock_or_msg<T>(mutex: &Mutex<T>) -> Result<std::sync::MutexGuard<'_, T>, Box<dyn Error>> {
+        mutex
+            .lock()
+            .map_err(|_poison_error| "mutex poisoned".into())
+    }
 
     #[tokio::test]
-    async fn node_created_event_triggers_embedding_task() {
+    async fn node_created_event_triggers_embedding_task() -> TestResult {
         let embedder = Arc::new(crate::enrichment::NullEmbedder::new());
-        let weaver = Weaver::builder()
+        let (builder, mut outcomes) = Weaver::builder()
             .with_embedder(Arc::clone(&embedder) as Arc<dyn Embedder>)
-            .build();
+            .with_outcome_channel();
+        let weaver = builder.build();
 
-        weaver
-            .enqueue(WeaverEvent::NodeChanged {
-                node_id: "sym:src/lib.rs:1:foo".to_owned(),
-                rel_path: "src/lib.rs".to_owned(),
-                content_hash: "hash-a".to_owned(),
+        weaver.enqueue(WeaverEvent::NodeChanged {
+            node_id: "sym:src/lib.rs:1:foo".to_owned(),
+            rel_path: "src/lib.rs".to_owned(),
+            content_hash: "hash-a".to_owned(),
+        })?;
+
+        // Deterministic synchronization: wait for the task's own
+        // `Succeeded` outcome instead of polling `embedder.calls()` on
+        // a sleep.
+        let outcome = outcomes.recv().await;
+        assert_eq!(
+            outcome,
+            Some(crate::enrichment::TaskOutcome::Succeeded {
+                task_key: "node-changed:sym:src/lib.rs:1:foo".to_owned()
             })
-            .expect("enqueue");
-
-        for _ in 0..200 {
-            if !embedder.calls().is_empty() {
-                break;
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-        }
+        );
 
         let calls = embedder.calls();
         assert_eq!(calls.len(), 1);
         assert_eq!(calls[0].node_id, "sym:src/lib.rs:1:foo");
 
         weaver.shutdown().await;
+        Ok(())
     }
 
     #[tokio::test]
-    async fn file_changed_event_invalidates_cached_summary() {
-        let weaver = Weaver::builder().build();
+    async fn file_changed_event_invalidates_cached_summary() -> TestResult {
+        let (builder, mut outcomes) = Weaver::builder().with_outcome_channel();
+        let weaver = builder.build();
         {
             let summaries = weaver.summaries();
-            let mut store = summaries.lock().expect("lock");
+            let mut store = lock_or_msg(&summaries)?;
             store.set_summary("src/lib.rs", "an old summary");
         }
 
-        weaver
-            .enqueue(WeaverEvent::FileChanged {
-                rel_path: "src/lib.rs".to_owned(),
-                content_hash: "hash-b".to_owned(),
+        weaver.enqueue(WeaverEvent::FileChanged {
+            rel_path: "src/lib.rs".to_owned(),
+            content_hash: "hash-b".to_owned(),
+        })?;
+
+        // Deterministic synchronization: wait for this task's
+        // `Succeeded` outcome instead of polling `is_stale` on a sleep.
+        let outcome = outcomes.recv().await;
+        assert_eq!(
+            outcome,
+            Some(crate::enrichment::TaskOutcome::Succeeded {
+                task_key: "file-changed:src/lib.rs".to_owned()
             })
-            .expect("enqueue");
+        );
 
         let summaries = weaver.summaries();
-        for _ in 0..200 {
-            if summaries.lock().map(|s| s.is_stale("src/lib.rs")).unwrap_or(false) {
-                break;
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-        }
-
-        assert!(summaries.lock().expect("lock").is_stale("src/lib.rs"));
+        assert!(lock_or_msg(&summaries)?.is_stale("src/lib.rs"));
         weaver.shutdown().await;
+        Ok(())
     }
 
     #[tokio::test]
-    async fn index_report_translates_into_file_and_node_events() {
+    async fn index_report_translates_into_file_and_node_events() -> TestResult {
         let embedder = Arc::new(crate::enrichment::NullEmbedder::new());
-        let weaver = Weaver::builder()
+        let (builder, mut outcomes) = Weaver::builder()
             .with_embedder(Arc::clone(&embedder) as Arc<dyn Embedder>)
-            .build();
+            .with_outcome_channel();
+        let weaver = builder.build();
 
         let report = IndexReport {
             unchanged: vec!["src/untouched.rs".to_owned()],
@@ -386,55 +427,70 @@ mod tests {
             deleted: vec!["src/old.rs".to_owned()],
         };
 
-        weaver
-            .enqueue_index_report(
-                &report,
-                |rel_path| format!("hash-of-{rel_path}"),
-                |rel_path| vec![format!("sym:{rel_path}:1:main")],
-            )
-            .expect("enqueue index report");
+        weaver.enqueue_index_report(
+            &report,
+            |rel_path| format!("hash-of-{rel_path}"),
+            |rel_path| vec![format!("sym:{rel_path}:1:main")],
+        )?;
 
-        for _ in 0..200 {
-            if embedder.calls().len() >= 2 {
-                break;
+        // The report yields 5 tasks: 2 `FileChanged` (changed + added)
+        // + 2 `NodeChanged` (one per changed+added file) + 1
+        // `FileDeleted`. Deterministic synchronization: wait for all 5
+        // `Succeeded` outcomes instead of polling on a sleep.
+        let mut succeeded = 0;
+        let mut unexpected = None;
+        while succeeded < 5 {
+            match outcomes.recv().await {
+                Some(crate::enrichment::TaskOutcome::Succeeded { .. }) => succeeded += 1,
+                other => {
+                    unexpected = Some(other);
+                    break;
+                }
             }
-            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
         }
+        assert_eq!(unexpected, None, "expected only Succeeded outcomes");
 
         let calls = embedder.calls();
         assert_eq!(calls.len(), 2, "one NodeChanged per changed+added file");
         let summaries = weaver.summaries();
-        for _ in 0..200 {
-            let removed = summaries.lock().map(|s| s.get("src/old.rs").is_none()).unwrap_or(false);
-            if removed {
-                break;
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-        }
-        assert!(summaries.lock().expect("lock").get("src/old.rs").is_none());
+        assert!(lock_or_msg(&summaries)?.get("src/old.rs").is_none());
 
         weaver.shutdown().await;
+        Ok(())
     }
 
-    #[test]
-    fn migration_cutover_never_mixes_generations() {
+    #[tokio::test]
+    async fn migration_cutover_never_mixes_generations() -> TestResult {
         let weaver = Weaver::builder().with_embedding_version(1).build();
-        assert_eq!(weaver.embedding_generation(), EmbeddingGeneration::Stable { active: 1 });
+        assert_eq!(
+            weaver.embedding_generation(),
+            EmbeddingGeneration::Stable { active: 1 }
+        );
 
-        weaver.begin_embedding_migration(2).expect("begin migration");
+        weaver.begin_embedding_migration(2)?;
         let generation = weaver.embedding_generation();
         assert!(generation.is_migrating());
-        assert_eq!(generation.active(), 1, "active generation stays 1 during migration");
+        assert_eq!(
+            generation.active(),
+            1,
+            "active generation stays 1 during migration"
+        );
         assert_eq!(generation.next(), Some(2));
 
         // Cannot start a second migration while one is in flight.
         assert!(weaver.begin_embedding_migration(3).is_err());
 
-        let cutover = weaver.complete_embedding_migration().expect("complete migration");
+        let cutover = weaver.complete_embedding_migration()?;
         assert_eq!(cutover, 2);
-        assert_eq!(weaver.embedding_generation(), EmbeddingGeneration::Stable { active: 2 });
+        assert_eq!(
+            weaver.embedding_generation(),
+            EmbeddingGeneration::Stable { active: 2 }
+        );
 
         // Cannot complete a migration that is not in flight.
         assert!(weaver.complete_embedding_migration().is_err());
+
+        weaver.shutdown().await;
+        Ok(())
     }
 }
