@@ -16,8 +16,7 @@ use enforcer_config::project_tie::{
 };
 use std::path::Path;
 
-const VALID_FIXTURE: &str =
-    include_str!("fixtures/project_tie/valid.enforce.config.json");
+const VALID_FIXTURE: &str = include_str!("fixtures/project_tie/valid.enforce.config.json");
 const BAD_NATIVE_MODE_FIXTURE: &str =
     include_str!("fixtures/project_tie/invalid_bad_native_mode.enforce.config.json");
 const UNKNOWN_KEY_FIXTURE: &str =
@@ -81,14 +80,27 @@ fn valid_fixture_resolves_and_round_trips_policy_fields() -> Result<(), Box<dyn 
 
     // Owner/exempt glob + allow-regex round-trip through serde.
     assert_eq!(
-        resolved.policy.owner_globs.iter().map(|g| g.as_str()).collect::<Vec<_>>(),
+        resolved
+            .policy
+            .owner_globs
+            .iter()
+            .map(|g| g.as_str())
+            .collect::<Vec<_>>(),
         vec!["crates/enforcer-config/**"]
     );
     assert_eq!(
-        resolved.policy.exempt_globs.iter().map(|g| g.as_str()).collect::<Vec<_>>(),
+        resolved
+            .policy
+            .exempt_globs
+            .iter()
+            .map(|g| g.as_str())
+            .collect::<Vec<_>>(),
         vec!["vendor/**"]
     );
-    assert_eq!(resolved.policy.allow_regex, vec!["^// generated:".to_owned()]);
+    assert_eq!(
+        resolved.policy.allow_regex,
+        vec!["^// generated:".to_owned()]
+    );
     assert!(resolved.policy.skip_cfg_test);
 
     // Per-rule toggle takes effect: severity override for an enabled rule,
@@ -141,8 +153,8 @@ fn absent_config_file_resolves_to_scoped_augment_default_never_whole_repo(
 }
 
 #[test]
-fn inline_disable_attempt_in_a_source_fixture_is_not_honored() -> Result<(), Box<dyn std::error::Error>>
-{
+fn inline_disable_attempt_in_a_source_fixture_is_not_honored(
+) -> Result<(), Box<dyn std::error::Error>> {
     // The inline-disable-shaped comment in this fixture is plain text to
     // the project_tie loader: it is never parsed as `.enforce/config`, so
     // it cannot suppress anything. Only declarative `Policy.rule_toggles`

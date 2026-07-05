@@ -21,7 +21,7 @@ use crate::policy::Policy;
 
 /// How a native tool (`cargo`, `tsc`, `ruff`, `dart`, `CFLint`, ...) relates
 /// to the enforcer's own checks for that tool's language surface.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum NativeMode {
     /// The enforcer replaces the native tool: native does not run, ours
@@ -29,35 +29,25 @@ pub enum NativeMode {
     Override,
     /// The enforcer runs in addition to the native tool: native runs AND
     /// our (scoped) checks also run. This is the default per tool.
+    #[default]
     Augment,
     /// Both native and enforcer run, and both are treated as required
     /// (distinct from `Augment` in that neither is optional/advisory).
     Both,
 }
 
-impl Default for NativeMode {
-    fn default() -> Self {
-        NativeMode::Augment
-    }
-}
-
 /// The scope our own checks run at when [`NativeMode::Augment`] (or
 /// `Both`) is selected. Default is [`EnforcerScope::Scoped`]: crate/file
 /// scope only. `WholeRepo` must be requested explicitly — it is never the
 /// default for any tool.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum EnforcerScope {
     /// Our checks run scoped to the affected crate/file(s) only.
+    #[default]
     Scoped,
     /// Our checks run across the whole repository. Opt-in only.
     WholeRepo,
-}
-
-impl Default for EnforcerScope {
-    fn default() -> Self {
-        EnforcerScope::Scoped
-    }
 }
 
 /// A recognized native tool identity. Closed set: an unrecognized tool
@@ -80,7 +70,7 @@ pub enum NativeTool {
 
 /// Per-tool tie: the [`NativeMode`] plus the [`EnforcerScope`] our checks
 /// run at when not purely `Override`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct NativeTie {
     /// How this tool relates to our own checks.
@@ -92,20 +82,11 @@ pub struct NativeTie {
     pub scope: EnforcerScope,
 }
 
-impl Default for NativeTie {
-    fn default() -> Self {
-        NativeTie {
-            mode: NativeMode::default(),
-            scope: EnforcerScope::default(),
-        }
-    }
-}
-
 /// The raw, on-disk `.enforce/config` shape: per-tool native ties plus the
 /// declarative [`Policy`]. Parsed at the boundary by [`load_project_tie`] /
 /// [`parse_project_tie`] — never constructed by downstream crates from raw
 /// JSON directly.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProjectConfig {
     /// Per-tool native ties. A tool absent from this map resolves to the
@@ -116,15 +97,6 @@ pub struct ProjectConfig {
     /// The declarative policy externalization surface.
     #[serde(default)]
     pub policy: Policy,
-}
-
-impl Default for ProjectConfig {
-    fn default() -> Self {
-        ProjectConfig {
-            native: BTreeMap::new(),
-            policy: Policy::default(),
-        }
-    }
 }
 
 /// One resolved tool entry in a [`ResolvedProjectTie`]: the effective mode
@@ -185,9 +157,10 @@ impl ResolvedProjectTie {
     /// Returns [`ConfigLoadError::Parse`] if [`Policy::validate`] rejects a
     /// disabled rule with no attributable waiver.
     pub fn resolve(config: &ProjectConfig, source_path: &str) -> ConfigResult<Self> {
-        config.policy.validate().map_err(|reason| {
-            ConfigLoadError::Parse(DecodeError::new(source_path, reason))
-        })?;
+        config
+            .policy
+            .validate()
+            .map_err(|reason| ConfigLoadError::Parse(DecodeError::new(source_path, reason)))?;
 
         let mut ties = BTreeMap::new();
         for tool in ALL_NATIVE_TOOLS {
@@ -208,13 +181,16 @@ impl ResolvedProjectTie {
         })
     }
 
-    /// The resolved tie for `tool`. Always present (total map over
-    /// [`ALL_NATIVE_TOOLS`]).
+    /// The resolved tie for `tool`. [`ResolvedProjectTie::resolve`]
+    /// populates every recognized tool, so a lookup miss falls back to the
+    /// scoped-`Augment` default rather than panicking — keeping this a
+    /// total, non-panicking accessor.
     pub fn tie(&self, tool: NativeTool) -> ResolvedNativeTie {
-        self.ties
-            .get(&tool)
-            .copied()
-            .expect("ResolvedProjectTie::resolve populates every recognized tool")
+        self.ties.get(&tool).copied().unwrap_or(ResolvedNativeTie {
+            tool,
+            mode: NativeMode::default(),
+            scope: EnforcerScope::default(),
+        })
     }
 
     /// Iterate every resolved tie in stable tool order.
@@ -253,10 +229,7 @@ pub fn parse_project_tie(raw: &str, source_path: &str) -> ConfigResult<ResolvedP
 /// [`parse_project_tie`]).
 pub fn load_project_tie(config_path: &std::path::Path) -> ConfigResult<ResolvedProjectTie> {
     if !config_path.exists() {
-        return ResolvedProjectTie::resolve(
-            &ProjectConfig::default(),
-            "<no .enforce/config>",
-        );
+        return ResolvedProjectTie::resolve(&ProjectConfig::default(), "<no .enforce/config>");
     }
     let raw = std::fs::read_to_string(config_path).map_err(|e| ConfigLoadError::Io {
         path: config_path.display().to_string(),
@@ -268,14 +241,13 @@ pub fn load_project_tie(config_path: &std::path::Path) -> ConfigResult<ResolvedP
 #[cfg(test)]
 mod tests {
     use super::{
-        parse_project_tie, EnforcerScope, NativeMode, NativeTool, ProjectConfig,
-        ResolvedProjectTie,
+        parse_project_tie, EnforcerScope, NativeMode, NativeTool, ProjectConfig, ResolvedProjectTie,
     };
     use serde_json::json;
 
     #[test]
-    fn absent_config_resolves_to_augment_scoped_for_every_tool() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn absent_config_resolves_to_augment_scoped_for_every_tool(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let resolved = ResolvedProjectTie::resolve(&ProjectConfig::default(), "<none>")?;
         for tool in [
             NativeTool::Cargo,
@@ -326,7 +298,10 @@ mod tests {
         })
         .to_string();
         let outcome = parse_project_tie(&raw, "bad.json");
-        assert!(outcome.is_err(), "unknown native_mode must be rejected, not silently defaulted");
+        assert!(
+            outcome.is_err(),
+            "unknown native_mode must be rejected, not silently defaulted"
+        );
     }
 
     #[test]
@@ -372,8 +347,8 @@ mod tests {
     }
 
     #[test]
-    fn resolved_tie_serializes_ruleid_keyed_policy_round_trip() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn resolved_tie_serializes_ruleid_keyed_policy_round_trip(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let raw = json!({
             "policy": {
                 "ownerGlobs": ["crates/enforcer-config/**"],
