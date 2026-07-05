@@ -1,0 +1,74 @@
+{
+  "workpack": "g06",
+  "hub": "enforcer-selfhost-plan",
+  "tier": "P3",
+  "namedTest": "hub-dashboard-mount",
+  "commands": [
+    "cargo build -p enforcer-ui",
+    "cargo test -p enforcer-ui",
+    "cargo build --workspace",
+    "cargo clippy -p enforcer-ui --all-targets -- -D warnings",
+    "cargo fmt -p enforcer-ui --check"
+  ],
+  "result": {
+    "enforcerUiTestsPassed": 55,
+    "hubModuleTestsPassed": 11,
+    "testsFailed": 0,
+    "clippy": "clean (no warnings, zero #[allow])",
+    "fmt": "clean (no diff)",
+    "workspaceBuild": "clean"
+  },
+  "seededViolationCases": [
+    {
+      "case": "hub-dashboard-mount (fail-fixture: unmaterialized ledger)",
+      "test": "enforcer_ui::hub::tests::empty_stream_renders_empty_payload_not_panic, missing_ledger_root_degrades_to_empty_payload, silent_mode_renders_empty_payload",
+      "expectation": "a missing/unmaterialized coordination view (no streams/ dir, or RunMode::Silent) renders the empty HubViewPayload -- never a panic, never a fabricated placeholder row",
+      "status": "PASS"
+    },
+    {
+      "case": "hub-dashboard-mount (pass-fixture: seeded lane + claim)",
+      "test": "enforcer_ui::hub::tests::seeded_lane_and_claim_render_exact_rows, real_seeded_ledger_round_trips_through_render_hub_from_root",
+      "expectation": "a seeded ledger with one lane + one claim renders those exact rows: the rendered view carries the lane LaneId (\"arc-16\") and the claim's event id (in-memory fixture: \"evt2\") from the arc-16 materialized state, including an end-to-end round trip through a REAL filesystem ledger seeded via arc-16's own api::init/claim_all",
+      "status": "PASS"
+    },
+    {
+      "case": "hub-dashboard-mount (detection test: read-only)",
+      "test": "enforcer_ui::hub::tests::rendering_twice_is_side_effect_free_read_only, mounts_into_g01_view_registry",
+      "expectation": "this module imports only enforcer_coordination::{sync::stream::read_all_streams, ledger::active_claims, events::HubEvent} -- no import path to a mutating arc-16 symbol (api::{claim_all,release,closeout,init}) exists anywhere in crates/enforcer-ui/src/hub/mod.rs; re-rendering the same fixture twice is byte-identical, proving no hidden mutation occurred",
+      "status": "PASS"
+    },
+    {
+      "case": "claim/release live-state fold",
+      "test": "enforcer_ui::hub::tests::released_claim_does_not_render",
+      "expectation": "a claim followed by its release clears the claim row -- the hub reflects LIVE active state (via arc-16's own active_claims projection), not a historical log",
+      "status": "PASS"
+    },
+    {
+      "case": "worker/task presence fold",
+      "test": "enforcer_ui::hub::tests::worker_update_populates_presence_row, task_update_folds_latest_state_and_drives_worker_current_task",
+      "expectation": "worker.update/task.update events fold into presence rows mirroring the vendored materialize.js semantics (state/summary/currentTaskId, active-vs-terminal task-state transitions)",
+      "status": "PASS"
+    },
+    {
+      "case": "mail fold with ack attribution",
+      "test": "enforcer_ui::hub::tests::message_and_ack_fold_into_mail_row",
+      "expectation": "message/handoff events render as mail rows; a subsequent ack event attributes the acking writer by messageId",
+      "status": "PASS"
+    }
+  ],
+  "arc16ApisConsumed": [
+    "enforcer_coordination::sync::stream::read_all_streams (typed ledger reader; AllStreams { events, duplicate_count, warnings })",
+    "enforcer_coordination::ledger::active_claims (typed active-claims projection over &[HubEvent])",
+    "enforcer_coordination::events::HubEvent (read-only field access only; never constructed for a write)"
+  ],
+  "keptExtendedReplaced": {
+    "crates/enforcer-ui/src/hub/mod.rs": "REPLACED (arc-24's empty mount-point seam filled with the full read-only hub dashboard: HubViewPayload + LaneRow/ClaimRow/WorkerRow/TaskRow/MailRow/SyncSummary, RunMode f04 seam, render_hub_view/render_hub_from_root, and 11 unit tests)",
+    "crates/enforcer-ui/Cargo.toml": "EXTENDED (added enforcer-coordination path dependency, the arc-16 typed read surface this module consumes)"
+  },
+  "deferredFollowUps": [
+    "Lane/worker/task/mail materialization is folded locally from the raw HubEvent stream because arc-16 has not yet ported a first-class typed projection for those panels (only active_claims exists today, per enforcer-coordination's own crate-level deviation note) -- this module mirrors the vendored materialize.js semantics faithfully and is designed to swap to a future arc-16 typed API without changing HubViewPayload's shape.",
+    "Live streaming via the enforcer-events (arc-25) event spine (named in the workpack's 'Where We Want To Be' section) is NOT wired -- this pass renders a point-in-time snapshot on each call; arc-25 event-driven push updates are a follow-on, not required by this workpack's acceptance block (which only requires binding to LIVE materialized state via the arc-16 API, not a push transport).",
+    "ts_rs bindings for HubViewPayload/LaneRow/ClaimRow/WorkerRow/TaskRow/MailRow/SyncSummary are NOT wired into crates/enforcer-ui/src/ts_export.rs or tests/ts_drift.rs -- those files are g05's owns: per WORKPACK_INDEX.md; this workpack derives ts_rs::TS on every hub type (ready for that pipeline) but does not edit files outside its own hub/ scope.",
+    "The lease/sync panel named in the acceptance block is represented by SyncSummary (event/duplicate/warning counts from read_all_streams) since arc-16 has not yet ported a distinct lease-vs-claim materialization; when it lands, this is the natural extension point."
+  ]
+}

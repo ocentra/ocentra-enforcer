@@ -25,6 +25,11 @@ enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
 enforcer-scan = { path = "../enforcer-scan", version = "0.1.0" }
 enforcer-rules = { path = "../enforcer-rules", version = "0.1.0" }
+# g06: read-only hub dashboard consumes the arc-16 typed coordination
+# facade (`enforcer_coordination::sync::stream::read_all_streams` +
+# `enforcer_coordination::ledger::active_claims`) -- never raw ledger-file
+# parsing of its own.
+enforcer-coordination = { path = "../enforcer-coordination", version = "0.1.0" }
 # ts-rs is not in [workspace.dependencies] (a01-owned root manifest);
 # declared here directly, same rationale as enforcer-domain's own
 # unclaimed-root-edit avoidance note.

@@ -1074,6 +1074,7 @@ name = "enforcer-ui"
 version = "0.1.0"
 dependencies = [
  "enforcer-config",
+ "enforcer-coordination",
  "enforcer-core",
  "enforcer-domain",
  "enforcer-rules",
