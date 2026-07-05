@@ -63,6 +63,7 @@ pub mod api;
 pub mod domain;
 pub mod error;
 pub mod events;
+pub mod fix_loop;
 pub mod ledger;
 pub mod lock;
 pub mod sync;

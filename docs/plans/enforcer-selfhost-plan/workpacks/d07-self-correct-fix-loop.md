@@ -25,11 +25,11 @@ The enforcer only reports; it cannot attempt guided remediation. ADBP describes 
 A bounded fix loop module in `enforcer-coordination`: dispatch a fix generator for a `Finding`, re-run the relevant `Validator`, keep the change only if the finding count strictly improves and nothing regresses, else revert; hard iteration cap. Deterministic and panic-free (obeys `[workspace.lints]` — `Result`-based, no `unwrap`/`panic`).
 
 ## Requirement Checklist
-- [ ] Loop takes a `Finding` set, dispatches a fix generator (pluggable trait), and re-checks with the same `Validator` (via the `enforcer-validator` harness / `enforcer-scan`).
-- [ ] Accept a change only if total findings strictly decrease and no new `RuleId` appears (measured via re-scan producing a fresh `Report`, not a model claim).
-- [ ] Revert to the prior tree state on non-improvement (deterministic snapshot/restore of the working tree).
-- [ ] Hard bound on iterations; the loop always terminates (bounded counter, no unbounded retry).
-- [ ] Every accept/revert decision emitted as a typed coordination event (`enforcer-events`) and logged as a d04 telemetry record via the `enforcer-core` NDJSON sink.
+- [x] Loop takes a `Finding` set, dispatches a fix generator (pluggable trait), and re-checks with the same `Validator` (via the `enforcer-validator` harness / `enforcer-scan`).
+- [x] Accept a change only if total findings strictly decrease and no new `RuleId` appears (measured via re-scan producing a fresh `Report`, not a model claim).
+- [x] Revert to the prior tree state on non-improvement (deterministic snapshot/restore of the working tree).
+- [x] Hard bound on iterations; the loop always terminates (bounded counter, no unbounded retry).
+- [x] Every accept/revert decision emitted as a typed coordination event (`enforcer-events`); DEVIATION: NOT yet auto-logged to the d04 `enforcer-core` NDJSON sink from inside this module -- emitted via an `on_decision` callback instead, because the workpack's stated caller (`enforcer-cli fix`, d06) has not landed a live oracle entry point on this branch (d06's own proof row documents `fix` as `NotYetWired`/fail-closed). Wiring the callback to `enforcer_core::telemetry::RunTelemetrySink<FixLoopDecisionEvent>` is a one-line addition at that call site once it exists. See `proof/rules/d07-fixloop.txt` for the full deviation note.
 
 ## Acceptance And Proof
 Tier T1 (P1 unit). Prove via `cargo test -p enforcer-coordination` (`crates/enforcer-coordination/tests/fix_loop.rs`) over `crates/enforcer-coordination/tests/fixtures/fix_loop/**`: an improving fix is kept; a neutral/regressing fix is reverted; the loop halts at the iteration cap; final state never has more findings than the start. Mechanism: a re-scan-and-compare gate wrapping snapshot/restore, verified by before/after `Finding` counts on the fixtures.
