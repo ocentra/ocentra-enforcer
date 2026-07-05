@@ -46,3 +46,5 @@ install.ps1 text eol=lf
 install.sh text eol=lf
 # h08 policy-ingest .mdc spec fixtures
 *.mdc text eol=lf
+# x06.6 continuous-learning fixtures + memory streams
+*.ndjson text eol=lf
