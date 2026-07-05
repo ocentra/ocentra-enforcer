@@ -1,23 +1,44 @@
-//! `DomainEvent` — the marker contract typed event payloads implement so
-//! they can travel inside an [`crate::envelope::EventEnvelope`].
+//! `enforcer_events::event::DomainEvent` — a narrow, enforcer-facing
+//! compatibility shim over the vendored bus's own [`crate::envelope::DomainEvent`].
 //!
-//! Kept intentionally minimal: a payload is a `DomainEvent` if it is
-//! serde round-trippable and carries a stable, human-readable `event_kind`
-//! the envelope stamps onto the wire for routing/observability. This is the
-//! ENFORCER's narrow slice of upstream `ocentra-eventing`'s `DomainEvent`
-//! contract (see the `lib.rs` vendoring-attribution note) — no
-//! aggregate-ordering or contract-registry concerns are folded in here.
-
-/// A typed event payload that can be carried inside an
-/// [`crate::envelope::EventEnvelope`].
-///
-/// Implementors must be plain-data, serde round-trippable, and report a
-/// stable `event_kind` string used for wire tagging and log/observability
-/// routing. There is no blanket impl: each payload type opts in explicitly
-/// so the wire `eventKind` stays a deliberate, reviewed surface.
+//! # Why this module exists
+//!
+//! The vendored `ocentra-eventing` crate (see the `lib.rs` attribution note)
+//! ships its OWN `DomainEvent` trait in [`crate::envelope`], with a much
+//! richer contract: `contract()`, `aggregate_key()`, and `idempotency_key()`,
+//! designed for typed payloads that travel inside an
+//! [`crate::envelope::EventEnvelope`] and get dispatched through
+//! [`crate::bus::EventBus`].
+//!
+//! `enforcer-coordination`'s `fix_loop.rs` (the crate's one existing,
+//! out-of-scope consumer) predates that richer contract and only needs a
+//! stable, human-readable event-kind tag for observability — it never
+//! constructs an [`crate::envelope::EventEnvelope`] or touches the bus. It
+//! implements a much smaller marker trait:
+//!
+//! ```rust
+//! use enforcer_events::event::DomainEvent;
+//!
+//! #[derive(serde::Serialize, serde::Deserialize)]
+//! struct FixLoopDecisionEvent;
+//!
+//! impl DomainEvent for FixLoopDecisionEvent {
+//!     fn event_kind(&self) -> &'static str {
+//!         "coordination.fix_loop.decision"
+//!     }
+//! }
+//! ```
+//!
+//! This module keeps that call site compiling with ZERO changes by exposing
+//! a distinct, deliberately minimal `DomainEvent` trait under
+//! `enforcer_events::event`. It is NOT the same trait as
+//! [`crate::envelope::DomainEvent`] and there is no blanket impl bridging
+//! them — a payload that wants BOTH the enforcer's `event_kind` tag and the
+//! vendored bus's full envelope/dispatch machinery implements both traits
+//! explicitly.
 pub trait DomainEvent: serde::Serialize + for<'de> serde::Deserialize<'de> {
-    /// Stable, human-readable event kind stamped onto the envelope
-    /// (e.g. `"scan.completed"`, `"coordination.claim.granted"`).
+    /// Stable, human-readable event kind stamped for observability/logging
+    /// (e.g. `"scan.completed"`, `"coordination.fix_loop.decision"`).
     fn event_kind(&self) -> &'static str;
 }
 

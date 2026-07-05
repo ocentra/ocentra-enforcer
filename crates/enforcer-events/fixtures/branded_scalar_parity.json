@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "valid": {
+    "eventType": "network.domain.observed",
+    "eventNamespace": "network",
+    "eventId": "event-parity-1",
+    "correlationId": "correlation-parity-1",
+    "causationId": "causation-parity-1",
+    "requestId": "request-parity-1",
+    "journalHash": "journal-hash-parity-1",
+    "aggregateKey": "aggregate-parity-1",
+    "idempotencyKey": "idempotency-parity-1",
+    "subscriberId": "subscriber-parity-1",
+    "targetHandler": "target-handler-parity-1",
+    "eventCustody": "local-only",
+    "runtimeRole": "parent",
+    "sourceService": "source-service-parity-1",
+    "sourceComponent": "source-component-parity-1",
+    "runtimeInstanceId": "runtime-instance-parity-1",
+    "recordedAt": "2026-06-04T03:20:00Z",
+    "schemaVersion": 1
+  },
+  "invalidText": [
+    { "field": "eventType", "value": "" },
+    { "field": "eventNamespace", "value": "   " },
+    { "field": "eventId", "value": "" },
+    { "field": "correlationId", "value": "" },
+    { "field": "causationId", "value": "" },
+    { "field": "requestId", "value": "" },
+    { "field": "journalHash", "value": "" },
+    { "field": "aggregateKey", "value": "" },
+    { "field": "idempotencyKey", "value": "" },
+    { "field": "subscriberId", "value": "" },
+    { "field": "targetHandler", "value": "" },
+    { "field": "eventCustody", "value": "" },
+    { "field": "runtimeRole", "value": "" },
+    { "field": "sourceService", "value": "" },
+    { "field": "sourceComponent", "value": "" },
+    { "field": "runtimeInstanceId", "value": "" },
+    { "field": "recordedAt", "value": "" }
+  ],
+  "invalidSchemaVersions": [0]
+}

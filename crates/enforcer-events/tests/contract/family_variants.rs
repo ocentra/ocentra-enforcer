@@ -1,0 +1,238 @@
+use super::support::{test_event_for_type, TestText, OTHER_EVENT_TYPE, TEST_EVENT_TYPE};
+use enforcer_events::bus::subscriber::EventSubscriber;
+use enforcer_events::bus::EventBus;
+use enforcer_events::contract_registry::EventContractRegistry;
+use enforcer_events::envelope::{
+    DomainEvent, EventContract, EventEnvelope, EventMetadata, EventSource,
+};
+use enforcer_events::error::EventingError;
+use enforcer_events::ids::{
+    AggregateKey, CorrelationId, EventCustody, EventType, IdempotencyKey, RecordedAt,
+    RuntimeInstanceId, RuntimeRole, SchemaVersion, SourceComponent, SourceService, SubscriberId,
+    TargetHandler,
+};
+use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex};
+
+const APPROVED_EVENT_TYPE: &str = "eventing.family.decision.approved";
+const REJECTED_EVENT_TYPE: &str = "eventing.family.decision.rejected";
+const APPROVED_LABEL: &str = "approved";
+const REJECTED_LABEL: &str = "rejected";
+const FAMILY_AGGREGATE: &str = "family-decision-aggregate";
+const APPROVED_IDEMPOTENCY: &str = "family-approved-idempotency";
+const REJECTED_IDEMPOTENCY: &str = "family-rejected-idempotency";
+const FAMILY_CORRELATION: &str = "family-correlation";
+const FAMILY_EVENT_ID: &str = "family-event-1";
+const FAMILY_OBSERVED_AT: &str = "2026-06-04T02:45:00Z";
+const FAMILY_SOURCE_SERVICE: &str = "family-service";
+const FAMILY_SOURCE_COMPONENT: &str = "family-component";
+const FAMILY_INSTANCE: &str = "family-instance";
+const FAMILY_CUSTODY: &str = "local-only";
+const FAMILY_RUNTIME_ROLE: &str = "agent";
+const FAMILY_TARGET: &str = "family-target";
+const APPROVED_SUBSCRIBER: &str = "family-approved-subscriber";
+const REJECTED_SUBSCRIBER: &str = "family-rejected-subscriber";
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+struct DecisionPayload {
+    label: String,
+    aggregate_key: AggregateKey,
+    idempotency_key: IdempotencyKey,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "family_variant", content = "payload", rename_all = "kebab-case")]
+enum DecisionFamilyEvent {
+    Approved(DecisionPayload),
+    Rejected(DecisionPayload),
+}
+
+impl DomainEvent for DecisionFamilyEvent {
+    fn contract(&self) -> Result<EventContract, EventingError> {
+        let event_type = match self {
+            Self::Approved(_) => APPROVED_EVENT_TYPE,
+            Self::Rejected(_) => REJECTED_EVENT_TYPE,
+        };
+        Ok(EventContract::new(
+            EventType::parse(event_type)?,
+            SchemaVersion::new(1)?,
+        ))
+    }
+
+    fn aggregate_key(&self) -> Result<AggregateKey, EventingError> {
+        Ok(decision_payload(self).aggregate_key.clone())
+    }
+
+    fn idempotency_key(&self) -> Result<IdempotencyKey, EventingError> {
+        Ok(decision_payload(self).idempotency_key.clone())
+    }
+}
+
+#[tokio::test]
+async fn family_subscriber_receives_typed_enum_variants_without_downcast(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let bus = EventBus::new();
+    let received = Arc::new(Mutex::new(Vec::<TestText>::new()));
+
+    let approved_seen = Arc::clone(&received);
+    bus.subscribe::<DecisionFamilyEvent, _, _>(
+        family_subscriber(
+            TestText(APPROVED_SUBSCRIBER.to_owned()),
+            TestText(APPROVED_EVENT_TYPE.to_owned()),
+        )?,
+        move |context| {
+            let approved_seen = Arc::clone(&approved_seen);
+            async move {
+                let DecisionFamilyEvent::Approved(payload) = context.payload() else {
+                    return Err(EventingError::InvalidValue {
+                        field: "family_variant",
+                        value: String::from(
+                            "approved subscriber received a non-approved variant",
+                        ),
+                    });
+                };
+                record_payload(&approved_seen, payload)
+            }
+        },
+    )
+    .await?;
+
+    let rejected_seen = Arc::clone(&received);
+    bus.subscribe::<DecisionFamilyEvent, _, _>(
+        family_subscriber(
+            TestText(REJECTED_SUBSCRIBER.to_owned()),
+            TestText(REJECTED_EVENT_TYPE.to_owned()),
+        )?,
+        move |context| {
+            let rejected_seen = Arc::clone(&rejected_seen);
+            async move {
+                let DecisionFamilyEvent::Rejected(payload) = context.payload() else {
+                    return Err(EventingError::InvalidValue {
+                        field: "family_variant",
+                        value: String::from(
+                            "rejected subscriber received a non-rejected variant",
+                        ),
+                    });
+                };
+                record_payload(&rejected_seen, payload)
+            }
+        },
+    )
+    .await?;
+
+    bus.publish(approved_event()?, family_metadata()?).await?;
+    bus.publish(rejected_event()?, family_metadata()?).await?;
+
+    let Ok(received_guard) = received.lock() else {
+        return Err("received lock: mutex poisoned".into());
+    };
+    assert_eq!(
+        received_guard.as_slice(),
+        [
+            TestText(APPROVED_LABEL.to_string()),
+            TestText(REJECTED_LABEL.to_string())
+        ]
+    );
+    Ok(())
+}
+
+#[test]
+fn family_variant_stored_decode_rejects_contract_variant_mismatch(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let envelope = EventEnvelope::from_event(approved_event()?, family_metadata()?)?;
+    let mut stored = envelope.store()?;
+    stored.contract = EventContract::new(
+        EventType::parse(REJECTED_EVENT_TYPE)?,
+        SchemaVersion::new(1)?,
+    );
+
+    assert!(matches!(
+        stored.decode::<DecisionFamilyEvent>(),
+        Err(EventingError::ContractMismatch { .. })
+    ));
+    Ok(())
+}
+
+#[test]
+fn family_variants_register_as_distinct_contract_descriptors(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut registry = EventContractRegistry::new();
+    registry.register_event(&approved_event()?)?;
+    registry.register_event(&rejected_event()?)?;
+
+    let event_types = registry
+        .descriptors()
+        .map(|descriptor| descriptor.event_type().as_str().to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        event_types,
+        vec![
+            APPROVED_EVENT_TYPE.to_string(),
+            REJECTED_EVENT_TYPE.to_string()
+        ]
+    );
+    Ok(())
+}
+
+fn approved_event() -> Result<DecisionFamilyEvent, Box<dyn std::error::Error>> {
+    Ok(DecisionFamilyEvent::Approved(DecisionPayload {
+        label: APPROVED_LABEL.to_string(),
+        aggregate_key: AggregateKey::parse(FAMILY_AGGREGATE)?,
+        idempotency_key: IdempotencyKey::parse(APPROVED_IDEMPOTENCY)?,
+    }))
+}
+
+fn rejected_event() -> Result<DecisionFamilyEvent, Box<dyn std::error::Error>> {
+    Ok(DecisionFamilyEvent::Rejected(DecisionPayload {
+        label: REJECTED_LABEL.to_string(),
+        aggregate_key: AggregateKey::parse(FAMILY_AGGREGATE)?,
+        idempotency_key: IdempotencyKey::parse(REJECTED_IDEMPOTENCY)?,
+    }))
+}
+
+fn decision_payload(event: &DecisionFamilyEvent) -> &DecisionPayload {
+    match event {
+        DecisionFamilyEvent::Approved(payload) | DecisionFamilyEvent::Rejected(payload) => payload,
+    }
+}
+
+fn record_payload(
+    received: &Arc<Mutex<Vec<TestText>>>,
+    payload: &DecisionPayload,
+) -> Result<(), EventingError> {
+    let Ok(mut guard) = received.lock() else {
+        return Err(EventingError::InvalidValue {
+            field: "received",
+            value: String::from("mutex poisoned"),
+        });
+    };
+    guard.push(TestText(payload.label.clone()));
+    Ok(())
+}
+
+fn family_metadata() -> Result<EventMetadata, Box<dyn std::error::Error>> {
+    Ok(EventMetadata::from_parts(
+        enforcer_events::ids::EventId::parse(FAMILY_EVENT_ID)?,
+        CorrelationId::parse(FAMILY_CORRELATION)?,
+        EventSource::new(
+            EventCustody::parse(FAMILY_CUSTODY)?,
+            RuntimeRole::parse(FAMILY_RUNTIME_ROLE)?,
+            SourceService::parse(FAMILY_SOURCE_SERVICE)?,
+            SourceComponent::parse(FAMILY_SOURCE_COMPONENT)?,
+            RuntimeInstanceId::parse(FAMILY_INSTANCE)?,
+        ),
+        RecordedAt::parse(FAMILY_OBSERVED_AT)?,
+        Some(TargetHandler::parse(FAMILY_TARGET)?),
+    ))
+}
+
+fn family_subscriber(
+    id: TestText,
+    event_type: TestText,
+) -> Result<EventSubscriber, Box<dyn std::error::Error>> {
+    Ok(EventSubscriber::new(
+        SubscriberId::parse(id.0)?,
+        EventType::parse(event_type.0)?,
+        TargetHandler::parse(FAMILY_TARGET)?,
+    ))
+}

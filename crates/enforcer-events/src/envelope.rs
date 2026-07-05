@@ -1,268 +1,272 @@
-//! `EventEnvelope<E>` — wraps a typed [`crate::event::DomainEvent`] payload
-//! with correlation/causation ids, a schema version, and a SHA-256 payload
-//! digest that DECODING RE-VERIFIES: a version- or digest-drifted envelope
-//! is rejected at decode time rather than silently accepted with stale or
-//! tampered contents.
-//!
-//! See the `lib.rs` module doc for the vendoring-attribution note: this is
-//! an attributed reimplementation of the envelope shape the arc-25 workpack
-//! specifies, built to the same behavioral contract in the absence of the
-//! canonical OcentraParent `ocentra-eventing` source.
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use enforcer_core::error::DecodeError;
-use enforcer_domain::ids::{CausationId, CorrelationId};
+use crate::{
+    AggregateKey, CausationId, CorrelationId, EventClockInstant, EventCustody, EventId, EventType,
+    EventingError, IdempotencyKey, RecordedAt, RuntimeInstanceId, RuntimeRole, SchemaVersion,
+    SourceComponent, SourceService, TargetHandler,
+};
 
-use crate::event::DomainEvent;
+pub trait DomainEvent: Clone + Send + Sync + Serialize + DeserializeOwned + 'static {
+    fn contract(&self) -> Result<EventContract, EventingError>;
+    fn aggregate_key(&self) -> Result<AggregateKey, EventingError>;
+    fn idempotency_key(&self) -> Result<IdempotencyKey, EventingError>;
+}
 
-/// Current envelope schema version. Bumped only on a wire-incompatible
-/// envelope shape change; decode rejects anything else.
-pub const ENVELOPE_SCHEMA_VERSION: u32 = 1;
-
-/// The on-the-wire envelope form: schema version, ids, event kind, the
-/// serialized payload, and its digest. This is what actually gets
-/// (de)serialized; [`EventEnvelope`] wraps it with a decode-time contract
-/// check so callers never observe a digest-drifted instance.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct WireEnvelope {
-    schema_version: u32,
-    correlation_id: CorrelationId,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    causation_id: Option<CausationId>,
-    event_kind: String,
-    payload: serde_json::Value,
-    /// `sha256:<64 lowercase hex>` digest of the canonical JSON payload
-    /// bytes, computed the same way as `enforcer_core::hash_chain`'s digest
-    /// form (`sha256:` prefix + lowercase hex) but kept as a plain string
-    /// here since it addresses payload content, not a hash-chain link.
-    payload_digest: String,
+pub struct EventContract {
+    pub event_type: EventType,
+    pub schema_version: SchemaVersion,
 }
 
-/// A typed, contract-verified event envelope.
-///
-/// Construct with [`EventEnvelope::new`]; serialize with
-/// [`EventEnvelope::to_json`]; deserialize with [`EventEnvelope::from_json`]
-/// — the latter RE-VERIFIES the payload digest and schema version, so a
-/// tampered or drifted envelope is rejected rather than silently accepted.
-#[derive(Debug, Clone, PartialEq, Eq)]
+impl EventContract {
+    pub fn new(event_type: EventType, schema_version: SchemaVersion) -> Self {
+        Self {
+            event_type,
+            schema_version,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum EventPriority {
+    Low,
+    #[default]
+    Normal,
+    High,
+    Critical,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EventSource {
+    pub custody: EventCustody,
+    pub role: RuntimeRole,
+    pub service: SourceService,
+    pub component: SourceComponent,
+    pub instance_id: RuntimeInstanceId,
+}
+
+impl EventSource {
+    pub fn new(
+        custody: EventCustody,
+        role: RuntimeRole,
+        service: SourceService,
+        component: SourceComponent,
+        instance_id: RuntimeInstanceId,
+    ) -> Self {
+        Self {
+            custody,
+            role,
+            service,
+            component,
+            instance_id,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EventMetadata {
+    pub event_id: EventId,
+    pub correlation_id: CorrelationId,
+    #[serde(default)]
+    pub causation_id: Option<CausationId>,
+    pub source: EventSource,
+    pub observed_at: RecordedAt,
+    pub target_handler: Option<TargetHandler>,
+    #[serde(default)]
+    pub priority: EventPriority,
+    #[serde(default)]
+    pub deadline: Option<EventClockInstant>,
+}
+
+impl EventMetadata {
+    pub fn new(correlation_id: CorrelationId, source: EventSource) -> Self {
+        Self {
+            event_id: EventId::generated(),
+            correlation_id,
+            causation_id: None,
+            source,
+            observed_at: RecordedAt::now_utc(),
+            target_handler: None,
+            priority: EventPriority::Normal,
+            deadline: None,
+        }
+    }
+
+    pub fn from_parts(
+        event_id: EventId,
+        correlation_id: CorrelationId,
+        source: EventSource,
+        observed_at: RecordedAt,
+        target_handler: Option<TargetHandler>,
+    ) -> Self {
+        Self {
+            event_id,
+            correlation_id,
+            causation_id: None,
+            source,
+            observed_at,
+            target_handler,
+            priority: EventPriority::Normal,
+            deadline: None,
+        }
+    }
+
+    pub fn with_causation_id(mut self, causation_id: CausationId) -> Self {
+        self.causation_id = Some(causation_id);
+        self
+    }
+
+    pub fn with_priority(mut self, priority: EventPriority) -> Self {
+        self.priority = priority;
+        self
+    }
+
+    pub fn with_deadline(mut self, deadline: EventClockInstant) -> Self {
+        self.deadline = Some(deadline);
+        self
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct EventEnvelope<E> {
-    correlation_id: CorrelationId,
-    causation_id: Option<CausationId>,
-    payload: E,
-}
-
-fn digest_payload(payload_json: &str) -> String {
-    use sha2::{Digest, Sha256};
-    let mut hasher = Sha256::new();
-    hasher.update(payload_json.as_bytes());
-    let hex = hasher
-        .finalize()
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect::<String>();
-    format!("sha256:{hex}")
+    pub contract: EventContract,
+    pub event_id: EventId,
+    pub correlation_id: CorrelationId,
+    pub causation_id: Option<CausationId>,
+    pub aggregate_key: AggregateKey,
+    pub idempotency_key: IdempotencyKey,
+    pub source: EventSource,
+    pub observed_at: RecordedAt,
+    pub target_handler: Option<TargetHandler>,
+    pub priority: EventPriority,
+    #[serde(default)]
+    pub deadline: Option<EventClockInstant>,
+    pub payload: E,
 }
 
 impl<E> EventEnvelope<E>
 where
     E: DomainEvent,
 {
-    /// Build a new envelope around a typed payload.
-    pub fn new(
-        correlation_id: CorrelationId,
-        causation_id: Option<CausationId>,
-        payload: E,
-    ) -> Self {
-        Self {
-            correlation_id,
-            causation_id,
+    pub fn from_event(payload: E, metadata: EventMetadata) -> Result<Self, EventingError> {
+        Ok(Self {
+            contract: payload.contract()?,
+            event_id: metadata.event_id,
+            correlation_id: metadata.correlation_id,
+            causation_id: metadata.causation_id,
+            aggregate_key: payload.aggregate_key()?,
+            idempotency_key: payload.idempotency_key()?,
+            source: metadata.source,
+            observed_at: metadata.observed_at,
+            target_handler: metadata.target_handler,
+            priority: metadata.priority,
+            deadline: metadata.deadline,
             payload,
-        }
+        })
     }
 
-    /// The flow correlation id.
-    pub fn correlation_id(&self) -> &CorrelationId {
-        &self.correlation_id
-    }
-
-    /// The optional causing-event id.
-    pub fn causation_id(&self) -> Option<&CausationId> {
-        self.causation_id.as_ref()
-    }
-
-    /// Borrow the typed payload.
-    pub fn payload(&self) -> &E {
-        &self.payload
-    }
-
-    /// Consume the envelope, returning the typed payload.
-    pub fn into_payload(self) -> E {
-        self.payload
-    }
-
-    /// Serialize to the wire JSON form, stamping the current schema version
-    /// and a digest over the payload's canonical JSON bytes.
-    pub fn to_json(&self) -> Result<String, DecodeError> {
-        let payload_value = serde_json::to_value(&self.payload)
-            .map_err(|e| DecodeError::new("envelope.payload", e.to_string()))?;
-        let payload_json = serde_json::to_string(&payload_value)
-            .map_err(|e| DecodeError::new("envelope.payload", e.to_string()))?;
-        let wire = WireEnvelope {
-            schema_version: ENVELOPE_SCHEMA_VERSION,
+    pub fn store(&self) -> Result<StoredEventEnvelope, EventingError> {
+        Ok(StoredEventEnvelope {
+            contract: self.contract.clone(),
+            event_id: self.event_id.clone(),
             correlation_id: self.correlation_id.clone(),
             causation_id: self.causation_id.clone(),
-            event_kind: self.payload.event_kind().to_owned(),
-            payload: payload_value,
-            payload_digest: digest_payload(&payload_json),
-        };
-        serde_json::to_string(&wire).map_err(|e| DecodeError::new("envelope", e.to_string()))
-    }
-
-    /// Deserialize from the wire JSON form. RE-VERIFIES the schema version
-    /// and the payload digest; a version- or digest-drifted envelope is
-    /// rejected with a [`DecodeError`] rather than silently accepted.
-    pub fn from_json(raw: &str) -> Result<Self, DecodeError> {
-        let wire: WireEnvelope =
-            serde_json::from_str(raw).map_err(|e| DecodeError::new("envelope", e.to_string()))?;
-
-        if wire.schema_version != ENVELOPE_SCHEMA_VERSION {
-            return Err(DecodeError::new(
-                "envelope.schemaVersion",
-                format!(
-                    "expected schema version {ENVELOPE_SCHEMA_VERSION}, found {}",
-                    wire.schema_version
-                ),
-            ));
-        }
-
-        let payload_json = serde_json::to_string(&wire.payload)
-            .map_err(|e| DecodeError::new("envelope.payload", e.to_string()))?;
-        let recomputed = digest_payload(&payload_json);
-        if recomputed != wire.payload_digest {
-            return Err(DecodeError::new(
-                "envelope.payloadDigest",
-                "stored payload digest does not match recomputed digest (drifted or tampered)",
-            ));
-        }
-
-        let payload: E = serde_json::from_value(wire.payload)
-            .map_err(|e| DecodeError::new("envelope.payload", e.to_string()))?;
-
-        if payload.event_kind() != wire.event_kind {
-            return Err(DecodeError::new(
-                "envelope.eventKind",
-                format!(
-                    "stored eventKind `{}` does not match decoded payload kind `{}`",
-                    wire.event_kind,
-                    payload.event_kind()
-                ),
-            ));
-        }
-
-        Ok(Self {
-            correlation_id: wire.correlation_id,
-            causation_id: wire.causation_id,
-            payload,
+            aggregate_key: self.aggregate_key.clone(),
+            idempotency_key: self.idempotency_key.clone(),
+            source: self.source.clone(),
+            observed_at: self.observed_at.clone(),
+            target_handler: self.target_handler.clone(),
+            priority: self.priority,
+            deadline: self.deadline,
+            payload: StoredEventPayload::from_event(&self.payload)?,
         })
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{EventEnvelope, ENVELOPE_SCHEMA_VERSION};
-    use crate::event::DomainEvent;
-    use enforcer_core::error::DecodeError;
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct StoredEventPayload {
+    value: serde_json::Value,
+}
 
-    #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-    struct Ping {
-        n: u32,
+impl StoredEventPayload {
+    fn from_event<E>(payload: &E) -> Result<Self, EventingError>
+    where
+        E: Serialize,
+    {
+        Ok(Self {
+            value: serde_json::to_value(payload)
+                .map_err(|error| EventingError::payload_encode(&error))?,
+        })
     }
 
-    impl DomainEvent for Ping {
-        fn event_kind(&self) -> &'static str {
-            "test.ping"
+    fn decode<E>(&self) -> Result<E, serde_json::Error>
+    where
+        E: DeserializeOwned,
+    {
+        serde_json::from_value(self.value.clone())
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StoredEventEnvelope {
+    pub contract: EventContract,
+    pub event_id: EventId,
+    pub correlation_id: CorrelationId,
+    #[serde(default)]
+    pub causation_id: Option<CausationId>,
+    pub aggregate_key: AggregateKey,
+    pub idempotency_key: IdempotencyKey,
+    pub source: EventSource,
+    pub observed_at: RecordedAt,
+    pub target_handler: Option<TargetHandler>,
+    #[serde(default)]
+    pub priority: EventPriority,
+    #[serde(default)]
+    pub deadline: Option<EventClockInstant>,
+    pub payload: StoredEventPayload,
+}
+
+impl StoredEventEnvelope {
+    pub fn decode<E>(&self) -> Result<EventEnvelope<E>, EventingError>
+    where
+        E: DomainEvent,
+    {
+        let payload: E = self.payload.decode().map_err(|error| {
+            EventingError::payload_decode(self.contract.event_type.clone(), &error)
+        })?;
+        let expected = payload.contract()?;
+        if expected != self.contract {
+            return Err(EventingError::ContractMismatch {
+                expected: expected.event_type,
+                received: self.contract.event_type.clone(),
+                expected_schema_version: expected.schema_version,
+                received_schema_version: self.contract.schema_version,
+            });
         }
+        Ok(EventEnvelope {
+            contract: self.contract.clone(),
+            event_id: self.event_id.clone(),
+            correlation_id: self.correlation_id.clone(),
+            causation_id: self.causation_id.clone(),
+            aggregate_key: self.aggregate_key.clone(),
+            idempotency_key: self.idempotency_key.clone(),
+            source: self.source.clone(),
+            observed_at: self.observed_at.clone(),
+            target_handler: self.target_handler.clone(),
+            priority: self.priority,
+            deadline: self.deadline,
+            payload,
+        })
     }
 
-    #[test]
-    fn envelope_round_trips() -> Result<(), DecodeError> {
-        let envelope = EventEnvelope::new(
-            "run-001".parse()?,
-            Some("cause-001".parse()?),
-            Ping { n: 42 },
-        );
-        let wire = envelope.to_json()?;
-        let back: EventEnvelope<Ping> = EventEnvelope::from_json(&wire)?;
-        assert_eq!(back.correlation_id().as_str(), "run-001");
-        assert_eq!(back.causation_id().map(|c| c.as_str()), Some("cause-001"));
-        assert_eq!(back.payload(), &Ping { n: 42 });
-        Ok(())
-    }
-
-    #[test]
-    fn digest_drifted_envelope_is_rejected_on_decode() -> Result<(), DecodeError> {
-        let envelope = EventEnvelope::new("run-002".parse()?, None, Ping { n: 1 });
-        let wire = envelope.to_json()?;
-        let mut value: serde_json::Value =
-            serde_json::from_str(&wire).map_err(|e| DecodeError::new("test", e.to_string()))?;
-        // Tamper with the payload without updating the stored digest.
-        value["payload"]["n"] = serde_json::json!(999);
-        let tampered = value.to_string();
-        let outcome: Result<EventEnvelope<Ping>, DecodeError> = EventEnvelope::from_json(&tampered);
-        match outcome {
-            Ok(_) => unreachable!("expected digest-drifted envelope to be rejected"),
-            Err(err) => assert!(err.path.contains("payloadDigest")),
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn version_drifted_envelope_is_rejected_on_decode() -> Result<(), DecodeError> {
-        let envelope = EventEnvelope::new("run-003".parse()?, None, Ping { n: 2 });
-        let wire = envelope.to_json()?;
-        let mut value: serde_json::Value =
-            serde_json::from_str(&wire).map_err(|e| DecodeError::new("test", e.to_string()))?;
-        value["schemaVersion"] = serde_json::json!(ENVELOPE_SCHEMA_VERSION + 1);
-        let drifted = value.to_string();
-        let outcome: Result<EventEnvelope<Ping>, DecodeError> = EventEnvelope::from_json(&drifted);
-        match outcome {
-            Ok(_) => unreachable!("expected version-drifted envelope to be rejected"),
-            Err(err) => assert!(err.path.contains("schemaVersion")),
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn event_kind_mismatch_is_rejected_on_decode() -> Result<(), DecodeError> {
-        let envelope = EventEnvelope::new("run-004".parse()?, None, Ping { n: 3 });
-        let wire = envelope.to_json()?;
-        let mut value: serde_json::Value =
-            serde_json::from_str(&wire).map_err(|e| DecodeError::new("test", e.to_string()))?;
-        value["eventKind"] = serde_json::json!("test.mismatch");
-        // Recompute digest so the digest check itself doesn't mask this case.
-        let payload_json = serde_json::to_string(&value["payload"])
-            .map_err(|e| DecodeError::new("test", e.to_string()))?;
-        value["payloadDigest"] = serde_json::json!(super::digest_payload(&payload_json));
-        let tampered = value.to_string();
-        let outcome: Result<EventEnvelope<Ping>, DecodeError> = EventEnvelope::from_json(&tampered);
-        match outcome {
-            Ok(_) => unreachable!("expected eventKind-mismatched envelope to be rejected"),
-            Err(err) => assert!(err.path.contains("eventKind")),
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn wire_casing_is_camel_case() -> Result<(), DecodeError> {
-        let envelope = EventEnvelope::new("run-005".parse()?, None, Ping { n: 4 });
-        let wire = envelope.to_json()?;
-        let value: serde_json::Value =
-            serde_json::from_str(&wire).map_err(|e| DecodeError::new("test", e.to_string()))?;
-        assert!(value.get("schemaVersion").is_some());
-        assert!(value.get("correlationId").is_some());
-        assert!(value.get("eventKind").is_some());
-        assert!(value.get("payloadDigest").is_some());
-        assert!(value.get("schema_version").is_none());
-        Ok(())
+    pub fn is_deadline_expired(&self, now: EventClockInstant) -> bool {
+        self.deadline.is_some_and(|deadline| now >= deadline)
     }
 }
