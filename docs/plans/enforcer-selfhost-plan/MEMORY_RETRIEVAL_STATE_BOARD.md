@@ -21,7 +21,7 @@ _Last updated: 2026-07-05 by x06 orchestrator (session 36a5fb74). Update discipl
 | X06.2 code KG indexer | LANDED | rust-build 9bca1db (from `lane/x06-2-codegraph` 5d07e33) | `proof/memory/x06-code-graph.json` (NOT yet emitted — follow-up with X06.9 harness) | Gatekeeper PASS: independent gate rerun in clean worktree (49 tests), scope clean, tests behavior-real. Known gaps recorded: `.tsx` parsed with TS grammar not LANGUAGE_TSX (JSX symbols silently missed); TS/JS share one grammar. build.rs deviation (advapi32 link fix) accepted |
 | X06.3 graph algorithms | LANDED | rust-build 4d1d0d5+3592cb5 (lane deleted) | `proof/memory/x06-kg.json` (NOT yet emitted — X06.9) | Gatekeeper PASS: 116 tests independent rerun; Cypher-subset DSL (D-05) with write-verb rejection; salvage-adopted after limit-death; adopter fixed real diff-impact under-reporting bug |
 | X06.4 fulltext/vector/rerank | LANDED | rust-build 8310eed+6a1821f (lane deleted) | `proof/memory/x06-rag.json` (P1-unit tier, honest) | Gatekeeper PASS: 120 tests independent rerun; D-07a=SQLite FTS5 CONFIRMED; known follow-ups: soft-signal boosting seam-only in fuse_rrf, ort-models feature empty per D-03, real Qwen3 path deferred |
-| X06.5 background weaver | IN FLIGHT | `lane/x06-5-weaver` (salvage checkpoint pushed) | `proof/memory/x06-weaver.json` | Adoption worker running; D-09 pattern harvest + DLQ/retry/tiers |
+| X06.5 background weaver | GATEKEEPING PAUSED | `lane/x06-5-weaver` @ 83efe9a (pushed, NOT integrated) | `proof/memory/x06-weaver.json` (not yet emitted) | Worker DONE: 95 tests claimed incl. 5 weaver hard tests; fixed real shutdown deadlock in salvage; scope diff + owner-set scan PASSED; independent gate rerun was INTERRUPTED by session stop — rerun gates in clean worktree before cherry-pick. Salvage worktrees may be cleaned; lane branch is the source of truth |
 | X06.6 continuous learning | LANDED | rust-build f8110ce..5994496 (lane deleted) | `proof/memory/x06-learning.json` (NOT yet emitted — X06.9) | Gatekeeper PASS: 101 tests independent rerun; both salvage hunks (graph.rs procedural/route-trace, record.rs Hash) call-site-justified; flagged follow-up: procedural/meta records not yet persisted via Store |
 | X06.7 MCP/CLI/watch/diagnostics | QUEUED | — | `proof/memory/x06-mcp-cli.json` | 14-tool surface per scout digest §1 |
 | X06.8 sharing/federation | QUEUED | — | `proof/memory/x06-federation.json` | zstd artifact per D-11 |
@@ -34,6 +34,15 @@ _Last updated: 2026-07-05 by x06 orchestrator (session 36a5fb74). Update discipl
 | Scout digests | LANDED (b8a37c6) | `refs/x06-source-scout-digests.md` — 4 sources verified; OcentraParent runtime correction |
 | QA-101..QA-250 authoring | LANDED (0b229ff + 898f885) | Gatekeeper PASS after fix pass (6a480c7): 150/150 unique rows recounted independently, zero deletions vs base, no minted owner-set markers (one stream-record mention allowed — provenance, not a marker), all §2 category minimums met, Federation rows re-anchored to X06.8 surfaces |
 | Longitudinal benchmark corpora | NOT STARTED | Deterministic synthetic repos + replayed history (QA_BENCHMARKS §3); belongs with X06.9 |
+
+## HANDOFF — external Codex session (owner-directed, 2026-07-05)
+
+The owner is running a Codex session on a machine with BOTH this repo and OcentraParent/TabAgentServer local, to do the literal copy/adapt harvest that remote scouting could not settle. Contract for that session:
+
+1. **Verify the branch first**: the authoritative OcentraParent branch is `codex/tracking-plan-full-continuation-a` — the remote scout's "no runtime code" finding (DECISIONS D-03 context) MUST be re-verified against that exact local checkout; if runtime crates DO exist there, correct D-03's context in MEMORY_RETRIEVAL_DECISIONS.md (status change only per its stop rule) and prefer DEPEND/VENDOR over rebuild.
+2. **Where the harvest plugs in**: `crates/enforcer-memory/src/embed.rs` + `src/rerank.rs` define the `Embedder`/`Reranker` traits and capability states (D-03); the empty `ort-models` feature in `crates/enforcer-memory/Cargo.toml` is the slot for the real local-model backend; TabAgentServer `execution-providers` (CPU/GPU/NPU detection) and `model-cache` (manifest/quant tracking) are the named harvest targets (digest §2/§3).
+3. **Branch discipline**: push work to a single lane branch `lane/x06-models-harvest` off `origin/rust-build` — do NOT commit to rust-build directly; the x06 orchestrator gatekeeps and integrates on return (playbook §5). Do not touch `lane/x06-5-weaver` (pending integration) or any other x06 surface.
+4. Follow MEMORY_RETRIEVAL_BORROW_POLICY for anything copied (re-type, re-test, provenance trailers) — owner-authorized literal lifting is fine as a STARTING point, but it must end gate-clean (build/test/clippy -D warnings/fmt).
 
 ## Open items requiring owner/orchestrator action
 
