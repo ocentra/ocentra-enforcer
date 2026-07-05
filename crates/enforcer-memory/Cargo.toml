@@ -1,0 +1,25 @@
+[package]
+name = "enforcer-memory"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "x06: the harness memory graph. Ingests append-only NDJSON memory records (memory/schema/memory-record.schema.json) and the orchestration-lessons ledger into an in-process graph, exposes a local-first, zero-network recall/evidence query surface, and defines the usage-ingestion seam (ingest_observation) that scan/check/run/closeout surfaces call on every run. Embedding-backed retrieval is gated behind the optional `embeddings` feature (unimplemented placeholder trait only in this slice) so the crate builds and tests with zero model downloads; the default retriever is a deterministic keyword/domain matcher."
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+
+[features]
+default = []
+# Opt-in seam for a future embedding-backed retriever (e.g. Qwen embeddings).
+# No implementation ships in this slice -- the trait exists so callers can
+# depend on the seam without pulling in any model runtime or network call.
+embeddings = []
+
+[lints]
+workspace = true

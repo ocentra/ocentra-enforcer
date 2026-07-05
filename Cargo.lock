@@ -500,6 +500,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "enforcer-memory"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "enforcer-plan"
 version = "0.1.0"
 dependencies = [
