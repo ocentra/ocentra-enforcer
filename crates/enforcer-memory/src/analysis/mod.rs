@@ -18,7 +18,8 @@
 //!   (betweenness-style degree ranking via petgraph);
 //!
 //! plus the submodules [`query`] (the read-only Cypher-subset DSL,
-//! D-05) that sits on top of the same adjacency.
+//! D-05) and [`trace`] (X06.P2: parity `trace_path` modes
+//! calls/data_flow/cross_service) that sit on top of the same adjacency.
 //!
 //! # Why petgraph
 //!
@@ -34,6 +35,7 @@
 
 pub mod clustering;
 pub mod query;
+pub mod trace;
 
 use crate::code_graph::{CodeGraph, CodeNode};
 use petgraph::graph::{DiGraph, NodeIndex};
@@ -459,6 +461,21 @@ fn resolve_callee<'a>(
         .iter()
         .find(|(name, _)| *name == callee || *name == last_segment)
         .map(|(_, idx)| idx)
+}
+
+/// Every node id in `graph` that is a [`CodeNode::Test`] symbol.
+/// Shared by [`trace`] (`include_tests` filtering) and [`crate::impact`]
+/// (test-coverage risk signal) so both compute "is this a test node"
+/// the same way rather than drifting into two definitions.
+pub(crate) fn test_node_ids(graph: &CodeGraph) -> HashSet<String> {
+    graph
+        .nodes()
+        .iter()
+        .filter_map(|n| match n {
+            CodeNode::Test(sym) => Some(sym.id.clone()),
+            _ => None,
+        })
+        .collect()
 }
 
 /// A minimal read-only iterator surface [`query`] needs to evaluate

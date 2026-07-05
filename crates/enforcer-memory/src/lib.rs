@@ -91,6 +91,10 @@
 //! - [`evidence`] — t0->t1->t2 chain with proof-ref seam + recurrence curve.
 //! - [`observations`] — procedural memory + meta-memory (route/confidence).
 //! - [`sessionstart`] — the SessionStart recall-pack seam.
+//! - [`analysis::trace`] — X06.P2: parity `trace_path` modes
+//!   (calls/data_flow/cross_service) over [`analysis::CodeAdjacency`].
+//! - [`traces`] — X06.P2: `ingest_traces` runtime call-trace merge
+//!   (parsed/inferred/runtime edge provenance).
 //!
 //! # X06.6 -- continuous learning
 //!
@@ -202,5 +206,6 @@ pub mod snippet;
 pub mod store;
 pub mod summaries;
 pub mod streaming_cache;
+pub mod traces;
 pub mod vector;
 pub mod weaver;
