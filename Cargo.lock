@@ -1076,6 +1076,7 @@ dependencies = [
  "enforcer-config",
  "enforcer-core",
  "enforcer-domain",
+ "enforcer-rules",
  "enforcer-scan",
  "serde",
  "serde_json",

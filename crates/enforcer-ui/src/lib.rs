@@ -78,8 +78,8 @@ pub mod hub;
 pub mod security;
 
 /// g08 (rules-&-skills explorer: the human-canonical `.md` browsed by a
-/// human while the AI still reads the structured rule). Mount point
-/// only — g08 fills this module.
+/// human while the AI still reads the structured rule). Filled by g08 —
+/// see [`explorer`] for the dual-audience render contract.
 pub mod explorer;
 
 /// Renders `enforcer-domain::findings::Report` into the UI data model at
