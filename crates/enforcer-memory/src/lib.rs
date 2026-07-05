@@ -80,6 +80,13 @@
 //! - [`parsers`] / [`languages`] — the tree-sitter-backed language
 //!   extraction [`code_graph`] builds nodes/edges from.
 //! - [`git`] — read-only git metadata ([`git2`]) for the indexer.
+//! - [`analysis`] — X06.3: graph algorithms (related walk, call-path
+//!   tracing, reverse dependency traversal, centrality/hotspots) over
+//!   [`code_graph::CodeGraph`], plus [`analysis::query`], the read-only
+//!   Cypher-subset query DSL (D-05).
+//! - [`architecture`] — X06.3: architecture overview / repo mind map.
+//! - [`impact`] — X06.3: impact analysis from a git diff.
+//! - [`adr`] — X06.3: ADR memory linked to graph nodes.
 //! - [`learning`] — lesson activation, supersede, per-domain learning curves.
 //! - [`evidence`] — t0->t1->t2 chain with proof-ref seam + recurrence curve.
 //! - [`observations`] — procedural memory + meta-memory (route/confidence).
@@ -101,12 +108,16 @@
 //! `crates/enforcer-install/**`, out of this crate) would inject at the
 //! start of a new session.
 
+pub mod adr;
+pub mod analysis;
+pub mod architecture;
 pub mod code_graph;
 pub mod error;
 pub mod evidence;
 pub mod git;
 pub mod graph;
 pub mod ids;
+pub mod impact;
 pub mod ingest;
 pub mod languages;
 pub mod learning;

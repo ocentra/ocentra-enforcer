@@ -42,6 +42,14 @@ git2 = "0.19"
 # any other extension fall back to the TextOnly node path -- no grammar
 # dependency needed for those.
 tree-sitter = "0.24"
+# petgraph: X06.3's graph-algorithms layer (related walk, call-path
+# tracing, reverse dependency traversal, centrality/hotspot ranking)
+# over CodeGraph. Approved per MEMORY_RETRIEVAL_BORROW_POLICY §2 (a
+# TabAgentServer Cargo dependency CHOICE adopted directly) and
+# MEMORY_RETRIEVAL_DECISIONS D-04 context ("prefer it for algorithms ...
+# over hand-rolling"). Pure Rust, no C toolchain, matches this crate's
+# zero-system-dependency posture.
+petgraph = "0.6"
 tree-sitter-rust = "0.23"
 tree-sitter-typescript = "0.23"
 tree-sitter-python = "0.23"
