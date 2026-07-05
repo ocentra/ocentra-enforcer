@@ -55,7 +55,10 @@ pub fn recall<'a>(graph: &'a MemoryGraph, query: &str) -> Vec<RecallHit<'a>> {
             .cloned()
             .collect();
         if !matched.is_empty() {
-            hits.push(RecallHit { node, matched_tokens: matched });
+            hits.push(RecallHit {
+                node,
+                matched_tokens: matched,
+            });
         }
     }
     hits
@@ -99,25 +102,25 @@ pub enum EvidenceResult<'a> {
 /// report `evidence:incomplete` rather than treating an empty chain as
 /// "nothing to report".
 pub fn evidence<'a>(graph: &'a MemoryGraph, lesson_id: &str) -> EvidenceResult<'a> {
-    let landed_at = graph
-        .nodes()
-        .iter()
-        .find_map(|node| match node {
-            MemoryNode::Lesson(row) if row.id == lesson_id => Some(row.landed_at.clone()),
-            MemoryNode::Record(record) if record.id == lesson_id => {
-                record.landed_at.first().cloned()
-            }
-            _ => None,
-        });
+    let landed_at = graph.nodes().iter().find_map(|node| match node {
+        MemoryNode::Lesson(row) if row.id == lesson_id => Some(row.landed_at.clone()),
+        MemoryNode::Record(record) if record.id == lesson_id => record.landed_at.first().cloned(),
+        _ => None,
+    });
 
     let incidents = graph.incidents_for_lesson(lesson_id);
 
     if landed_at.is_none() && incidents.is_empty() {
-        return EvidenceResult::Unknown { lesson_id: lesson_id.to_string() };
+        return EvidenceResult::Unknown {
+            lesson_id: lesson_id.to_string(),
+        };
     }
 
     let has_t0_provenance = !incidents.is_empty();
-    let mut steps: Vec<EvidenceStep<'a>> = incidents.iter().map(|inc| EvidenceStep::Observed(inc)).collect();
+    let mut steps: Vec<EvidenceStep<'a>> = incidents
+        .iter()
+        .map(|inc| EvidenceStep::Observed(inc))
+        .collect();
 
     let has_landed = landed_at.as_ref().is_some_and(|value| !value.is_empty());
     if let Some(landed) = landed_at {
@@ -181,7 +184,10 @@ mod tests {
         // and the incident recorded against it (fault_class
         // "non_idempotent_init") legitimately mention "idempotent".
         let ids: Vec<&str> = hits.iter().map(|hit| hit.node.id()).collect();
-        assert!(ids.contains(&"L1"), "expected the lesson row in hits, got {ids:?}");
+        assert!(
+            ids.contains(&"L1"),
+            "expected the lesson row in hits, got {ids:?}"
+        );
     }
 
     #[test]
@@ -202,12 +208,17 @@ mod tests {
     fn evidence_reports_full_chain_with_provenance() {
         let graph = graph_with_lesson_and_incident();
         match evidence(&graph, "L1") {
-            EvidenceResult::Chain { has_t0_provenance, steps, recurrence_since_landing, .. } => {
+            EvidenceResult::Chain {
+                has_t0_provenance,
+                steps,
+                recurrence_since_landing,
+                ..
+            } => {
                 assert!(has_t0_provenance);
                 assert_eq!(steps.len(), 2);
                 assert_eq!(recurrence_since_landing, 1);
             }
-            EvidenceResult::Unknown { .. } => panic!("expected a chain"),
+            EvidenceResult::Unknown { .. } => unreachable!("expected a chain"),
         }
     }
 
@@ -216,7 +227,9 @@ mod tests {
         let graph = graph_with_lesson_and_incident();
         match evidence(&graph, "L-does-not-exist") {
             EvidenceResult::Unknown { lesson_id } => assert_eq!(lesson_id, "L-does-not-exist"),
-            EvidenceResult::Chain { .. } => panic!("must not fabricate a chain for an unknown lesson"),
+            EvidenceResult::Chain { .. } => {
+                unreachable!("must not fabricate a chain for an unknown lesson")
+            }
         }
     }
 
@@ -232,10 +245,15 @@ mod tests {
             ships_via: "docs".to_string(),
         });
         match evidence(&graph, "L2") {
-            EvidenceResult::Chain { has_t0_provenance, .. } => {
-                assert!(!has_t0_provenance, "must report incomplete, not fabricate t0");
+            EvidenceResult::Chain {
+                has_t0_provenance, ..
+            } => {
+                assert!(
+                    !has_t0_provenance,
+                    "must report incomplete, not fabricate t0"
+                );
             }
-            EvidenceResult::Unknown { .. } => panic!("lesson exists, must not be Unknown"),
+            EvidenceResult::Unknown { .. } => unreachable!("lesson exists, must not be Unknown"),
         }
     }
 }

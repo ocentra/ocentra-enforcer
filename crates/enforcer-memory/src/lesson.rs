@@ -25,10 +25,7 @@ pub struct LessonRow {
 impl LessonRow {
     /// Text this row exposes to keyword recall.
     pub fn searchable_text(&self) -> String {
-        format!(
-            "{} \n {} \n {}",
-            self.lesson, self.observed, self.landed_at
-        )
+        format!("{} \n {} \n {}", self.lesson, self.observed, self.landed_at)
     }
 }
 
@@ -40,7 +37,12 @@ fn split_row(line: &str) -> Option<Vec<String>> {
         return None;
     }
     let inner = trimmed.trim_start_matches('|').trim_end_matches('|');
-    Some(inner.split('|').map(|cell| cell.trim().to_string()).collect())
+    Some(
+        inner
+            .split('|')
+            .map(|cell| cell.trim().to_string())
+            .collect(),
+    )
 }
 
 /// A markdown table separator row looks like `|---|---|---|` (dashes and

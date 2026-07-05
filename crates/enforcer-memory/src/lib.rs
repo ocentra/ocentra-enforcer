@@ -59,9 +59,3 @@ pub mod lesson;
 pub mod recall;
 pub mod record;
 pub mod retriever;
-
-pub use graph::{MemoryGraph, MemoryNode};
-pub use ingest::{ingest_observation, ingest_ndjson_into, parse_ndjson, Incident, IngestError, Observation};
-pub use lesson::{parse_ledger, LessonRow};
-pub use recall::{evidence, recall, EvidenceResult, EvidenceStep, RecallHit};
-pub use record::{Evidence, MemoryRecord, Provenance, RecordDomain, RecordKind};

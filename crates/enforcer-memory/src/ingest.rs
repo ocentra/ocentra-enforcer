@@ -36,8 +36,11 @@ pub fn parse_ndjson(text: &str) -> Result<Vec<MemoryRecord>, IngestError> {
         if trimmed.is_empty() {
             continue;
         }
-        let record: MemoryRecord = serde_json::from_str(trimmed)
-            .map_err(|source| IngestError::InvalidJson { line: idx + 1, source })?;
+        let record: MemoryRecord =
+            serde_json::from_str(trimmed).map_err(|source| IngestError::InvalidJson {
+                line: idx + 1,
+                source,
+            })?;
         records.push(record);
     }
     Ok(records)
@@ -136,20 +139,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_multiple_lines_and_skips_blanks() {
+    fn parses_multiple_lines_and_skips_blanks() -> Result<(), Box<dyn std::error::Error>> {
         let text = "\n{\"schemaVersion\":1,\"id\":\"mem-primary-0001\",\"ts\":\"2026-07-04T00:00:00Z\",\"kind\":\"lesson\",\"domain\":\"harness\",\"statement\":\"a\",\"provenance\":{\"writer\":\"primary\"}}\n\n{\"schemaVersion\":1,\"id\":\"mem-primary-0002\",\"ts\":\"2026-07-04T00:00:01Z\",\"kind\":\"decision\",\"domain\":\"code\",\"statement\":\"b\",\"provenance\":{\"writer\":\"primary\"}}\n";
-        let records = parse_ndjson(text).expect("valid ndjson");
+        let records = parse_ndjson(text)?;
         assert_eq!(records.len(), 2);
         assert_eq!(records[0].id, "mem-primary-0001");
         assert_eq!(records[1].id, "mem-primary-0002");
+        Ok(())
     }
 
     #[test]
     fn rejects_malformed_line() {
         let text = "{not json}\n";
-        let err = parse_ndjson(text).expect_err("must reject malformed line");
-        match err {
-            IngestError::InvalidJson { line, .. } => assert_eq!(line, 1),
+        let result = parse_ndjson(text);
+        match result {
+            Err(IngestError::InvalidJson { line, .. }) => assert_eq!(line, 1),
+            Ok(_) => unreachable!("malformed line must not parse as valid ndjson"),
         }
     }
 
