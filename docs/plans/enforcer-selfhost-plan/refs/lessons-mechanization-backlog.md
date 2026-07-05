@@ -84,3 +84,5 @@ rule).
 - **Bare `c01 doctrine payload` references** — the single largest recurring gap (L3, L5, L6, L7, L12, and a component of nine further PARTIAL rows). These are orchestration/worker-protocol lessons that live only as prose in `EXECUTION_MODEL.md` / workpack text, never mechanized as a rule, test, or CI check. Most are judgment-heavy protocol lessons (three-role gate, read discipline, commit-before-done) that may legitimately stay T3-advisory rather than becoming T1 rules — x05 should triage each for "mechanizable check" vs. "durable doctrine label," not assume all of them need code.
 
 x05 should use this table as its intake list: close the recurring-gaps modules first (each closes multiple rows), then triage the remaining bare-doctrine rows individually.
+
+Cross-reference: an independent fresh-context audit with file:line evidence for every row is at [lessons-audit-2026-07-05.md](./lessons-audit-2026-07-05.md) — reconcile verdicts there when closing backlog items (the audit found 35 LANDED/13 PROSE with slightly different splits; where they disagree, verify in code, the stricter verdict wins until proven).
