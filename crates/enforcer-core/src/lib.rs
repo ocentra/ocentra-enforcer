@@ -31,6 +31,7 @@
 //!   (`enforcer_domain::paths::{RepoRoot, RelPath}` branded newtypes for
 //!   path handling; callers pick their own explicit NDJSON path rather
 //!   than a forced scope/stream/date taxonomy). Nothing to port.
+//!
 //! Contract still honored: both redaction layers always run; the NDJSON
 //! sink is append-only; the hash-chain is side-effect-free.
 //!
