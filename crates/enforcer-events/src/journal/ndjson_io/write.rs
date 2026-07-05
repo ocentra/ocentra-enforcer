@@ -1,9 +1,8 @@
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 
-use crate::{EventingError, JournalDispatchPhase, StoredEventEnvelope};
-
-use super::{JournalAppend, JournalFlushPolicy, NdjsonEventJournal};
+use crate::journal::ndjson::{JournalFlushPolicy, NdjsonEventJournal, NdjsonJournalEntry};
+use crate::{EventingError, JournalAppend, JournalDispatchPhase, StoredEventEnvelope};
 
 impl NdjsonEventJournal {
     pub(crate) async fn write_entry(
@@ -12,7 +11,7 @@ impl NdjsonEventJournal {
         envelope: &StoredEventEnvelope,
         phase: JournalDispatchPhase,
     ) -> Result<(), EventingError> {
-        let entry = super::NdjsonJournalEntry {
+        let entry = NdjsonJournalEntry {
             append: append.clone(),
             phase,
             envelope: envelope.clone(),

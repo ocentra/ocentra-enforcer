@@ -48,7 +48,7 @@ impl DomainEvent for EnvelopeBoundaryEvent {
 }
 
 #[test]
-fn event_contract_serde_rejects_zero_schema_version() -> Result<(), Box<dyn std::error::Error>> {
+fn event_contract_serde_rejects_zero_schema_version() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let result = serde_json::from_value::<EventContract>(json!({
         "eventType": TEST_EVENT_TYPE,
         "schemaVersion": 0
@@ -64,7 +64,7 @@ fn event_contract_serde_rejects_zero_schema_version() -> Result<(), Box<dyn std:
 }
 
 #[test]
-fn stored_envelope_serde_uses_canonical_eventing_keys() -> Result<(), Box<dyn std::error::Error>> {
+fn stored_envelope_serde_uses_canonical_eventing_keys() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let live = EventEnvelope::from_event(
         EnvelopeBoundaryEvent {
             label: String::from("typed-boundary"),
@@ -93,7 +93,7 @@ fn stored_envelope_serde_uses_canonical_eventing_keys() -> Result<(), Box<dyn st
 
 #[test]
 fn request_completion_report_serde_uses_canonical_eventing_keys(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let report = RequestCompletionReport {
         request_id: RequestId::parse("request-completion-1")?,
         outcome: RequestCompletionOutcome::Late,
@@ -108,7 +108,7 @@ fn request_completion_report_serde_uses_canonical_eventing_keys(
 
 #[test]
 fn live_and_stored_envelopes_preserve_contract_and_metadata(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let live = EventEnvelope::from_event(
         EnvelopeBoundaryEvent {
             label: String::from("typed-boundary"),
@@ -137,7 +137,7 @@ fn live_and_stored_envelopes_preserve_contract_and_metadata(
 
 #[test]
 fn stored_decode_contract_mismatch_reports_event_type_and_schema_version_context(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let live = EventEnvelope::from_event(
         EnvelopeBoundaryEvent {
             label: String::from("typed-boundary"),
@@ -169,7 +169,7 @@ fn stored_decode_contract_mismatch_reports_event_type_and_schema_version_context
     Ok(())
 }
 
-fn metadata() -> Result<EventMetadata, Box<dyn std::error::Error>> {
+fn metadata() -> Result<EventMetadata, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventMetadata::from_parts(
         EventId::parse(TEST_EVENT_ID)?,
         CorrelationId::parse(TEST_CORRELATION_ID)?,

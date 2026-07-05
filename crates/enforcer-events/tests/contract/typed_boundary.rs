@@ -11,14 +11,14 @@ use tokio::sync::Mutex;
 
 #[tokio::test]
 async fn event_bus_dispatches_typed_envelope_and_stores_serialized_boundary(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
     let handled = Arc::new(Mutex::new(Vec::new()));
     let handled_clone = Arc::clone(&handled);
     bus.subscribe::<TestEvent, _, _>(
         subscriber(
-            TestText(TEST_SUBSCRIBER.to_owned()),
-            TestText(TEST_TARGET.to_owned()),
+            &TestText(TEST_SUBSCRIBER.to_owned()),
+            &TestText(TEST_TARGET.to_owned()),
         )?,
         move |context| {
             let handled = Arc::clone(&handled_clone);
@@ -30,11 +30,11 @@ async fn event_bus_dispatches_typed_envelope_and_stores_serialized_boundary(
     )
     .await?;
 
-    let metadata = metadata(TestText(TEST_TARGET.to_owned()))?
+    let metadata = metadata(&TestText(TEST_TARGET.to_owned()))?
         .with_causation_id(CausationId::parse("causation-test-1")?)
         .with_priority(EventPriority::High);
     let report = bus
-        .publish(test_event(TestText(TEST_LABEL.to_owned()))?, metadata)
+        .publish(test_event(&TestText(TEST_LABEL.to_owned()))?, metadata)
         .await?;
     let journal = bus.journal().await;
     let decoded: EventEnvelope<TestEvent> = journal[0].decode()?;
@@ -58,14 +58,14 @@ async fn event_bus_dispatches_typed_envelope_and_stores_serialized_boundary(
 
 #[tokio::test]
 async fn target_handler_filter_prevents_wrong_handler_delivery(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
     let handled = Arc::new(Mutex::new(0_usize));
     let handled_clone = Arc::clone(&handled);
     bus.subscribe::<TestEvent, _, _>(
         subscriber(
-            TestText(TEST_SUBSCRIBER.to_owned()),
-            TestText(TEST_TARGET.to_owned()),
+            &TestText(TEST_SUBSCRIBER.to_owned()),
+            &TestText(TEST_TARGET.to_owned()),
         )?,
         move |_| {
             let handled = Arc::clone(&handled_clone);
@@ -78,8 +78,8 @@ async fn target_handler_filter_prevents_wrong_handler_delivery(
     .await?;
     bus.subscribe::<TestEvent, _, _>(
         subscriber(
-            TestText(OTHER_SUBSCRIBER.to_owned()),
-            TestText(OTHER_TARGET.to_owned()),
+            &TestText(OTHER_SUBSCRIBER.to_owned()),
+            &TestText(OTHER_TARGET.to_owned()),
         )?,
         |_| async { Ok(()) },
     )
@@ -87,8 +87,8 @@ async fn target_handler_filter_prevents_wrong_handler_delivery(
 
     let report = bus
         .publish(
-            test_event(TestText(TEST_LABEL.to_owned()))?,
-            metadata(TestText(TEST_TARGET.to_owned()))?,
+            test_event(&TestText(TEST_LABEL.to_owned()))?,
+            metadata(&TestText(TEST_TARGET.to_owned()))?,
         )
         .await?;
 
@@ -99,12 +99,12 @@ async fn target_handler_filter_prevents_wrong_handler_delivery(
 
 #[tokio::test]
 async fn concurrent_dispatch_records_handler_dead_letter_without_losing_journal(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
     bus.subscribe::<TestEvent, _, _>(
         subscriber(
-            TestText(TEST_SUBSCRIBER.to_owned()),
-            TestText(TEST_TARGET.to_owned()),
+            &TestText(TEST_SUBSCRIBER.to_owned()),
+            &TestText(TEST_TARGET.to_owned()),
         )?,
         |_| async {
             Err(EventingError::InvalidValue {
@@ -117,8 +117,8 @@ async fn concurrent_dispatch_records_handler_dead_letter_without_losing_journal(
 
     let report = bus
         .publish_with_mode(
-            test_event(TestText(TEST_LABEL.to_owned()))?,
-            metadata(TestText(TEST_TARGET.to_owned()))?,
+            test_event(&TestText(TEST_LABEL.to_owned()))?,
+            metadata(&TestText(TEST_TARGET.to_owned()))?,
             enforcer_events::bus::DispatchMode::Concurrent,
         )
         .await?;
@@ -139,11 +139,11 @@ async fn concurrent_dispatch_records_handler_dead_letter_without_losing_journal(
 }
 
 #[tokio::test]
-async fn duplicate_subscriber_ids_are_rejected() -> Result<(), Box<dyn std::error::Error>> {
+async fn duplicate_subscriber_ids_are_rejected() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
     let duplicate = subscriber(
-        TestText(TEST_SUBSCRIBER.to_owned()),
-        TestText(TEST_TARGET.to_owned()),
+        &TestText(TEST_SUBSCRIBER.to_owned()),
+        &TestText(TEST_TARGET.to_owned()),
     )?;
     bus.subscribe::<TestEvent, _, _>(duplicate.clone(), |_| async { Ok(()) })
         .await?;
@@ -161,22 +161,22 @@ async fn duplicate_subscriber_ids_are_rejected() -> Result<(), Box<dyn std::erro
 
 #[test]
 fn eventing_newtypes_reject_empty_values_and_zero_versions(
-) -> Result<(), Box<dyn std::error::Error>> {
-    assert!(matches!(EventType::parse(""), Err(_)));
-    assert!(matches!(EventType::parse(".leading"), Err(_)));
-    assert!(matches!(EventType::parse("trailing."), Err(_)));
-    assert!(matches!(EventType::parse("empty..segment"), Err(_)));
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    assert!(EventType::parse("").is_err());
+    assert!(EventType::parse(".leading").is_err());
+    assert!(EventType::parse("trailing.").is_err());
+    assert!(EventType::parse("empty..segment").is_err());
     assert_eq!(
         EventType::parse("eventing/slash-taxonomy/observed")?.as_str(),
         "eventing/slash-taxonomy/observed"
     );
-    assert!(matches!(RecordedAt::parse(" "), Err(_)));
-    assert!(matches!(SchemaVersion::new(0), Err(_)));
+    assert!(RecordedAt::parse(" ").is_err());
+    assert!(SchemaVersion::new(0).is_err());
     Ok(())
 }
 
 #[test]
-fn event_namespaces_match_dot_and_slash_event_taxonomy() -> Result<(), Box<dyn std::error::Error>>
+fn event_namespaces_match_dot_and_slash_event_taxonomy() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
 {
     let slash_event = EventType::parse("network/transport/observed")?;
     let dot_event = EventType::parse("network.transport.observed")?;
@@ -192,10 +192,10 @@ fn event_namespaces_match_dot_and_slash_event_taxonomy() -> Result<(), Box<dyn s
 }
 
 #[test]
-fn stored_decode_rejects_contract_mismatch() -> Result<(), Box<dyn std::error::Error>> {
+fn stored_decode_rejects_contract_mismatch() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let envelope = EventEnvelope::from_event(
-        test_event(TestText(TEST_LABEL.to_owned()))?,
-        metadata(TestText(TEST_TARGET.to_owned()))?,
+        test_event(&TestText(TEST_LABEL.to_owned()))?,
+        metadata(&TestText(TEST_TARGET.to_owned()))?,
     )?;
     let mut stored = envelope.store()?;
     stored.contract.event_type = EventType::parse(OTHER_EVENT_TYPE)?;

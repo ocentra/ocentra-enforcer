@@ -23,7 +23,7 @@ pub(super) struct TestText(pub(super) String);
 
 #[test]
 fn local_event_delivery_requires_namespace_filtered_subscriber_and_backpressure(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let proof = decide_event_delivery_route(local_input()?)
         .map_err(|error| format!("local route should decide: {error:?}"))?;
 
@@ -42,7 +42,7 @@ fn local_event_delivery_requires_namespace_filtered_subscriber_and_backpressure(
 
 #[test]
 fn delivery_rejects_empty_or_out_of_namespace_subscriber_filters(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut empty_filter = local_input()?;
     empty_filter.subscriber_filter.accepted_event_types = Vec::new();
     assert_eq!(
@@ -64,7 +64,7 @@ fn delivery_rejects_empty_or_out_of_namespace_subscriber_filters(
 
 #[test]
 fn delivery_rejects_live_external_or_authority_claims_without_artifact_path(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut transport_claim = local_input()?;
     transport_claim.external_transport_delivery_claimed = true;
     assert_eq!(
@@ -83,7 +83,7 @@ fn delivery_rejects_live_external_or_authority_claims_without_artifact_path(
 
 #[test]
 fn delivery_decision_allows_local_first_route_with_filter_and_backpressure(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let proof = decide_event_delivery_route(network_local_input(
         EventDeliveryRouteKind::LocalInProcess,
     )?)
@@ -116,7 +116,7 @@ fn delivery_decision_allows_local_first_route_with_filter_and_backpressure(
 
 #[test]
 fn delivery_decision_marks_external_transport_manual_required_without_required_artifacts(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let proof = decide_event_delivery_route(EventDeliveryDecisionInput {
         route_kind: EventDeliveryRouteKind::ExternalTransport,
         ..network_local_input(EventDeliveryRouteKind::LocalInProcess)?
@@ -157,7 +157,7 @@ fn delivery_decision_marks_external_transport_manual_required_without_required_a
 
 #[test]
 fn delivery_decision_marks_external_relay_manual_required_for_relay_artifacts(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let proof = decide_event_delivery_route(EventDeliveryDecisionInput {
         route_kind: EventDeliveryRouteKind::ExternalRelay,
         custody_proof_ref: network_component(TestText("custody-proof-45".to_owned()))?,
@@ -193,7 +193,7 @@ fn delivery_decision_marks_external_relay_manual_required_for_relay_artifacts(
 
 #[test]
 fn delivery_decision_preserves_satisfied_external_transport_requirements_without_live_transport(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let proof =
         decide_event_delivery_route(network_external_transport_requirements_satisfied_input()?)
             .map_err(|error| {
@@ -223,7 +223,7 @@ fn delivery_decision_preserves_satisfied_external_transport_requirements_without
 
 #[test]
 fn delivery_decision_rejects_live_claims_and_invalid_route_metadata(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     assert_eq!(
         decide_event_delivery_route(EventDeliveryDecisionInput {
             external_transport_delivery_claimed: true,
@@ -278,7 +278,7 @@ fn delivery_decision_rejects_live_claims_and_invalid_route_metadata(
     Ok(())
 }
 
-fn local_input() -> Result<EventDeliveryDecisionInput, Box<dyn std::error::Error>> {
+fn local_input() -> Result<EventDeliveryDecisionInput, Box<dyn std::error::Error + Send + Sync>> {
     let namespace = EventNamespace::parse(TRACKING_NAMESPACE)?;
 
     Ok(EventDeliveryDecisionInput {
@@ -321,7 +321,7 @@ fn local_input() -> Result<EventDeliveryDecisionInput, Box<dyn std::error::Error
 
 fn network_local_input(
     route_kind: EventDeliveryRouteKind,
-) -> Result<EventDeliveryDecisionInput, Box<dyn std::error::Error>> {
+) -> Result<EventDeliveryDecisionInput, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventDeliveryDecisionInput {
         route_kind,
         event_namespace: network_event_namespace()?,
@@ -350,7 +350,7 @@ fn network_local_input(
 }
 
 fn network_external_transport_requirements_satisfied_input(
-) -> Result<EventDeliveryDecisionInput, Box<dyn std::error::Error>> {
+) -> Result<EventDeliveryDecisionInput, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventDeliveryDecisionInput {
         route_kind: EventDeliveryRouteKind::ExternalTransport,
         custody_proof_ref: network_component(TestText("custody-proof-45".to_owned()))?,
@@ -368,7 +368,7 @@ fn network_external_transport_requirements_satisfied_input(
 }
 
 fn network_subscriber_filter(
-) -> Result<EventDeliverySubscriberFilter, Box<dyn std::error::Error>> {
+) -> Result<EventDeliverySubscriberFilter, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventDeliverySubscriberFilter {
         subscriber_id: SubscriberId::parse("network-read-model-subscriber")?,
         target_handler: TargetHandler::parse("network-read-model-projector")?,
@@ -405,18 +405,18 @@ fn network_external_transport_requirements() -> Vec<EventDeliveryRequiredArtifac
     ]
 }
 
-fn network_event_namespace() -> Result<EventNamespace, Box<dyn std::error::Error>> {
+fn network_event_namespace() -> Result<EventNamespace, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventNamespace::parse(NETWORK_NAMESPACE)?)
 }
 
-fn network_event_type(value: TestText) -> Result<EventType, Box<dyn std::error::Error>> {
+fn network_event_type(value: TestText) -> Result<EventType, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventType::parse(value.0)?)
 }
 
 fn event_type_with_suffix(
     namespace: TestText,
     suffix: TestText,
-) -> Result<EventType, Box<dyn std::error::Error>> {
+) -> Result<EventType, Box<dyn std::error::Error + Send + Sync>> {
     let namespace = namespace.0;
     let suffix = suffix.0;
     network_event_type(TestText(format!("{namespace}.{suffix}")))
@@ -424,12 +424,12 @@ fn event_type_with_suffix(
 
 fn network_source_component(
     value: TestText,
-) -> Result<SourceComponent, Box<dyn std::error::Error>> {
+) -> Result<SourceComponent, Box<dyn std::error::Error + Send + Sync>> {
     Ok(SourceComponent::parse(value.0)?)
 }
 
 fn network_component(
     value: TestText,
-) -> Result<Option<SourceComponent>, Box<dyn std::error::Error>> {
+) -> Result<Option<SourceComponent>, Box<dyn std::error::Error + Send + Sync>> {
     Ok(Some(network_source_component(value)?))
 }

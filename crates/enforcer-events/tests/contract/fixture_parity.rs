@@ -63,7 +63,7 @@ struct InvalidTextScalar {
 }
 
 #[test]
-fn rust_newtypes_accept_shared_valid_parity_fixture() -> Result<(), Box<dyn std::error::Error>> {
+fn rust_newtypes_accept_shared_valid_parity_fixture() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let valid = fixture()?.valid;
 
     assert_eq!(
@@ -94,19 +94,19 @@ fn rust_newtypes_accept_shared_valid_parity_fixture() -> Result<(), Box<dyn std:
 }
 
 #[test]
-fn rust_newtypes_reject_shared_invalid_text_fixture_values() -> Result<(), Box<dyn std::error::Error>>
+fn rust_newtypes_reject_shared_invalid_text_fixture_values() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
 {
     for invalid in fixture()?.invalid_text {
         let field = invalid.field;
         let value = invalid.value;
-        let rejected = invalid_text_rejects(FixtureField(field.clone()), FixtureText(value));
+        let rejected = invalid_text_rejects(&FixtureField(field.clone()), FixtureText(value));
         assert!(rejected, "expected Rust newtype rejection for {}", field);
     }
     Ok(())
 }
 
 #[test]
-fn rust_schema_version_rejects_shared_invalid_versions() -> Result<(), Box<dyn std::error::Error>> {
+fn rust_schema_version_rejects_shared_invalid_versions() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     for value in fixture()?.invalid_schema_versions {
         assert_eq!(
             SchemaVersion::new(value),
@@ -116,7 +116,7 @@ fn rust_schema_version_rejects_shared_invalid_versions() -> Result<(), Box<dyn s
     Ok(())
 }
 
-fn fixture() -> Result<ParityFixture, Box<dyn std::error::Error>> {
+fn fixture() -> Result<ParityFixture, Box<dyn std::error::Error + Send + Sync>> {
     Ok(serde_json::from_str(PARITY_FIXTURE)?)
 }
 
@@ -128,7 +128,7 @@ struct FixtureText(String);
 
 type TextParser = fn(FixtureText) -> Result<(), EventingError>;
 
-fn invalid_text_rejects(field: FixtureField, value: FixtureText) -> bool {
+fn invalid_text_rejects(field: &FixtureField, value: FixtureText) -> bool {
     invalid_text_checkers()
         .iter()
         .find(|(candidate, _)| candidate.0.as_str() == field.0.as_str())

@@ -16,7 +16,7 @@ const EXPECTED_IN_MEMORY_RETENTION_LIMIT: usize = 4096;
 
 #[tokio::test]
 async fn metrics_snapshot_reports_queue_dead_letter_journal_and_request_counts(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let policy = EventQueuePolicy::no_subscriber_queue(1)?.with_idempotency_registry();
     let bus = EventBus::with_queue_policy(policy);
     bus.publish(
@@ -89,7 +89,7 @@ async fn metrics_snapshot_reports_queue_dead_letter_journal_and_request_counts(
 
 #[tokio::test]
 async fn metrics_snapshot_reports_bounded_in_memory_event_retention(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
     for index in 0..IN_MEMORY_RETENTION_PROBE_COUNT {
         bus.publish(
@@ -130,7 +130,7 @@ struct SlowMetricsRequest {
 }
 
 impl SlowMetricsRequest {
-    fn new() -> Result<Self, Box<dyn std::error::Error>> {
+    fn new() -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         Ok(Self {
             request_id: crate::RequestId::parse("metrics-request-1")?,
         })

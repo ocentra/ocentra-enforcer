@@ -48,7 +48,7 @@ fn compatibility_matrix_covers_games_lineage_semantics() {
 
 #[test]
 fn compatibility_matrix_marks_deviations_and_manual_required_scope(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let matrix = EventCompatibilityMatrix::ocentra_games_lineage();
 
     assert_eq!(

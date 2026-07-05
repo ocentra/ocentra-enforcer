@@ -45,7 +45,7 @@ impl DomainEvent for VersionedRoundtripEvent {
 
 #[test]
 fn stored_envelope_rejects_newer_schema_version_without_silent_decode(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let live = EventEnvelope::from_event(
         VersionedRoundtripEvent {
             label: String::from("current-contract"),
@@ -83,7 +83,7 @@ fn stored_envelope_rejects_newer_schema_version_without_silent_decode(
 
 #[test]
 fn stored_envelope_rejects_older_schema_version_without_silent_decode(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let live = EventEnvelope::from_event(
         VersionedRoundtripEvent {
             label: String::from("current-contract"),

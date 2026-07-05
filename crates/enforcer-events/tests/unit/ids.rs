@@ -23,7 +23,7 @@ fn event_type_and_namespace_reject_empty_or_malformed_taxonomy() {
 }
 
 #[test]
-fn event_namespace_matches_exact_and_child_event_types_only() -> Result<(), Box<dyn std::error::Error>>
+fn event_namespace_matches_exact_and_child_event_types_only() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
 {
     let namespace = EventNamespace::parse("tracking")?;
     let exact = EventType::parse("tracking")?;
@@ -37,7 +37,7 @@ fn event_namespace_matches_exact_and_child_event_types_only() -> Result<(), Box<
 }
 
 #[test]
-fn schema_version_rejects_zero_and_preserves_nonzero_value() -> Result<(), Box<dyn std::error::Error>>
+fn schema_version_rejects_zero_and_preserves_nonzero_value() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
 {
     assert_eq!(SchemaVersion::new(0), Err(EventingError::InvalidVersion));
     assert_eq!(SchemaVersion::new(3)?.value(), 3);
@@ -54,7 +54,7 @@ fn schema_version_rejects_zero_and_preserves_nonzero_value() -> Result<(), Box<d
 
 #[test]
 fn strong_identifier_wrappers_accept_existing_lineage_and_hash_values(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     assert_eq!(EventId::parse("event-parity-1")?.as_str(), "event-parity-1");
     assert_eq!(
         CorrelationId::parse("correlation-parity-1")?.as_str(),
@@ -89,7 +89,7 @@ fn strong_identifier_wrappers_reject_whitespace_values() {
 }
 
 #[test]
-fn routing_and_source_wrappers_accept_existing_repo_values() -> Result<(), Box<dyn std::error::Error>>
+fn routing_and_source_wrappers_accept_existing_repo_values() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
 {
     assert_eq!(
         SubscriberId::parse("subscriber.app.observer")?.as_str(),

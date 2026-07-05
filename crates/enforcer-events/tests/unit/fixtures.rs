@@ -53,28 +53,28 @@ impl DomainEvent for TestEvent {
     }
 }
 
-pub(super) fn test_event(label: TestText) -> Result<TestEvent, Box<dyn std::error::Error>> {
+pub(super) fn test_event(label: TestText) -> Result<TestEvent, Box<dyn std::error::Error + Send + Sync>> {
     test_event_with_aggregate(label, TestText(TEST_AGGREGATE.to_owned()))
 }
 
 pub(super) fn test_event_with_aggregate(
     label: TestText,
     aggregate_key: TestText,
-) -> Result<TestEvent, Box<dyn std::error::Error>> {
+) -> Result<TestEvent, Box<dyn std::error::Error + Send + Sync>> {
     test_event_for_type_with_aggregate(label, aggregate_key, TestText(TEST_EVENT_TYPE.to_owned()))
 }
 
 pub(super) fn test_event_for_type(
     label: TestText,
     event_type: TestText,
-) -> Result<TestEvent, Box<dyn std::error::Error>> {
+) -> Result<TestEvent, Box<dyn std::error::Error + Send + Sync>> {
     test_event_for_type_with_aggregate(label, TestText(TEST_AGGREGATE.to_owned()), event_type)
 }
 
 pub(super) fn test_event_with_idempotency(
     label: TestText,
     idempotency_key: TestText,
-) -> Result<TestEvent, Box<dyn std::error::Error>> {
+) -> Result<TestEvent, Box<dyn std::error::Error + Send + Sync>> {
     test_event_for_type_with_aggregate_and_idempotency(
         label,
         TestText(TEST_AGGREGATE.to_owned()),
@@ -87,7 +87,7 @@ fn test_event_for_type_with_aggregate(
     label: TestText,
     aggregate_key: TestText,
     event_type: TestText,
-) -> Result<TestEvent, Box<dyn std::error::Error>> {
+) -> Result<TestEvent, Box<dyn std::error::Error + Send + Sync>> {
     test_event_for_type_with_aggregate_and_idempotency(
         label,
         aggregate_key,
@@ -101,7 +101,7 @@ pub(super) fn test_event_for_type_with_aggregate_and_idempotency(
     aggregate_key: TestText,
     event_type: TestText,
     idempotency_key: TestText,
-) -> Result<TestEvent, Box<dyn std::error::Error>> {
+) -> Result<TestEvent, Box<dyn std::error::Error + Send + Sync>> {
     Ok(TestEvent {
         label: label.0,
         aggregate_key: AggregateKey::parse(aggregate_key.0)?,
@@ -110,14 +110,14 @@ pub(super) fn test_event_for_type_with_aggregate_and_idempotency(
     })
 }
 
-pub(super) fn metadata(target: TestText) -> Result<EventMetadata, Box<dyn std::error::Error>> {
+pub(super) fn metadata(target: TestText) -> Result<EventMetadata, Box<dyn std::error::Error + Send + Sync>> {
     metadata_with_event_id(target, TestText(TEST_EVENT_ID.to_owned()))
 }
 
 pub(super) fn metadata_with_event_id(
     target: TestText,
     event_id: TestText,
-) -> Result<EventMetadata, Box<dyn std::error::Error>> {
+) -> Result<EventMetadata, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventMetadata::from_parts(
         crate::EventId::parse(event_id.0)?,
         CorrelationId::parse(TEST_CORRELATION_ID)?,
@@ -127,7 +127,7 @@ pub(super) fn metadata_with_event_id(
     ))
 }
 
-fn source() -> Result<EventSource, Box<dyn std::error::Error>> {
+fn source() -> Result<EventSource, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventSource::new(
         EventCustody::parse(TEST_CUSTODY)?,
         RuntimeRole::parse(TEST_RUNTIME_ROLE)?,
@@ -140,7 +140,7 @@ fn source() -> Result<EventSource, Box<dyn std::error::Error>> {
 pub(super) fn subscriber(
     id: TestText,
     target: TestText,
-) -> Result<EventSubscriber, Box<dyn std::error::Error>> {
+) -> Result<EventSubscriber, Box<dyn std::error::Error + Send + Sync>> {
     subscriber_for_event(id, target, TestText(TEST_EVENT_TYPE.to_owned()))
 }
 
@@ -148,7 +148,7 @@ pub(super) fn subscriber_for_event(
     id: TestText,
     target: TestText,
     event_type: TestText,
-) -> Result<EventSubscriber, Box<dyn std::error::Error>> {
+) -> Result<EventSubscriber, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventSubscriber::new(
         SubscriberId::parse(id.0)?,
         EventType::parse(event_type.0)?,

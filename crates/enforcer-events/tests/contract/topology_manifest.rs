@@ -20,7 +20,7 @@ const FAMILY_ID: &str = "eventing.topology.family";
 
 #[test]
 fn topology_manifest_classifies_covered_orphan_and_accepted_states(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let registry = topology_registry()?;
     let accepted_event = EventType::parse(ACCEPTED_NO_PUBLISHER_EVENT_TYPE)?;
 
@@ -86,7 +86,7 @@ fn topology_manifest_classifies_covered_orphan_and_accepted_states(
 
 #[test]
 fn topology_manifest_records_family_variants_and_sorted_descriptors(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let registry = topology_registry()?;
     let manifest = EventTopologyManifest::from_registry(
         &registry,
@@ -124,7 +124,7 @@ fn topology_manifest_records_family_variants_and_sorted_descriptors(
 }
 
 #[test]
-fn topology_manifest_renders_deterministic_markdown() -> Result<(), Box<dyn std::error::Error>> {
+fn topology_manifest_renders_deterministic_markdown() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let registry = topology_registry()?;
     let manifest = EventTopologyManifest::from_registry(
         &registry,
@@ -159,7 +159,7 @@ fn topology_manifest_renders_deterministic_markdown() -> Result<(), Box<dyn std:
 
 #[test]
 fn topology_manifest_serializes_canonical_eventing_entry_keys(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let registry = topology_registry()?;
     let manifest = EventTopologyManifest::from_registry(
         &registry,
@@ -201,23 +201,23 @@ fn topology_manifest_serializes_canonical_eventing_entry_keys(
     Ok(())
 }
 
-fn topology_registry() -> Result<EventContractRegistry, Box<dyn std::error::Error>> {
+fn topology_registry() -> Result<EventContractRegistry, Box<dyn std::error::Error + Send + Sync>> {
     let mut registry = EventContractRegistry::new();
     registry.register_event(&test_event_for_type(
-        TestText("covered".to_owned()),
-        TestText(TEST_EVENT_TYPE.to_owned()),
+        &TestText("covered".to_owned()),
+        &TestText(TEST_EVENT_TYPE.to_owned()),
     )?)?;
     registry.register_event(&test_event_for_type(
-        TestText("other".to_owned()),
-        TestText(OTHER_EVENT_TYPE.to_owned()),
+        &TestText("other".to_owned()),
+        &TestText(OTHER_EVENT_TYPE.to_owned()),
     )?)?;
     registry.register_event(&test_event_for_type(
-        TestText("accepted".to_owned()),
-        TestText(ACCEPTED_NO_PUBLISHER_EVENT_TYPE.to_owned()),
+        &TestText("accepted".to_owned()),
+        &TestText(ACCEPTED_NO_PUBLISHER_EVENT_TYPE.to_owned()),
     )?)?;
     registry.register_event(&test_event_for_type(
-        TestText("orphan".to_owned()),
-        TestText(NO_SUBSCRIBER_EVENT_TYPE.to_owned()),
+        &TestText("orphan".to_owned()),
+        &TestText(NO_SUBSCRIBER_EVENT_TYPE.to_owned()),
     )?)?;
     Ok(registry)
 }
@@ -225,7 +225,7 @@ fn topology_registry() -> Result<EventContractRegistry, Box<dyn std::error::Erro
 fn publisher(
     event_type: TestText,
     component: TestText,
-) -> Result<EventTopologyPublisher, Box<dyn std::error::Error>> {
+) -> Result<EventTopologyPublisher, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventTopologyPublisher {
         event_type: EventType::parse(event_type.0)?,
         source_component: SourceComponent::parse(component.0)?,
@@ -235,7 +235,7 @@ fn publisher(
 fn subscriber(
     event_type: TestText,
     subscriber_id: TestText,
-) -> Result<EventTopologySubscriber, Box<dyn std::error::Error>> {
+) -> Result<EventTopologySubscriber, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventTopologySubscriber {
         event_type: EventType::parse(event_type.0)?,
         subscriber_id: SubscriberId::parse(subscriber_id.0)?,
@@ -245,17 +245,17 @@ fn subscriber(
 
 fn family_variant(
     event_type: TestText,
-) -> Result<EventTopologyFamilyVariant, Box<dyn std::error::Error>> {
+) -> Result<EventTopologyFamilyVariant, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventTopologyFamilyVariant {
         family: EventNamespace::parse(FAMILY_ID)?,
         event_type: EventType::parse(event_type.0)?,
     })
 }
 
-fn entry<'a>(
-    manifest: &'a EventTopologyManifest,
+fn entry(
+    manifest: &EventTopologyManifest,
     event_type: TestText,
-) -> Result<&'a EventTopologyEntry, Box<dyn std::error::Error>> {
+) -> Result<&EventTopologyEntry, Box<dyn std::error::Error + Send + Sync>> {
     let event_type = event_type.0;
     manifest
         .entries()
@@ -264,10 +264,10 @@ fn entry<'a>(
         .ok_or_else(|| "topology entry exists".into())
 }
 
-fn manifest_entry<'a>(
-    manifest_json: &'a Value,
+fn manifest_entry(
+    manifest_json: &Value,
     event_type: TestText,
-) -> Result<&'a Value, Box<dyn std::error::Error>> {
+) -> Result<&Value, Box<dyn std::error::Error + Send + Sync>> {
     let event_type = event_type.0;
     manifest_json["entries"]
         .as_array()

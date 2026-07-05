@@ -20,7 +20,7 @@ const CLEAR_REQUEST_AGGREGATE: &str = "eventing-lifecycle-clear-aggregate";
 const CLEAR_REQUEST_IDEMPOTENCY: &str = "eventing-lifecycle-clear-idempotency";
 
 #[tokio::test]
-async fn clear_for_test_reports_and_resets_local_bus_state() -> Result<(), Box<dyn std::error::Error>>
+async fn clear_for_test_reports_and_resets_local_bus_state() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
 {
     let queue_policy = EventQueuePolicy::no_subscriber_queue(4)?;
     let bus = EventBus::with_policies(HandlerExecutionPolicy::default(), queue_policy);
@@ -104,7 +104,7 @@ async fn clear_for_test_reports_and_resets_local_bus_state() -> Result<(), Box<d
 }
 
 #[tokio::test]
-async fn clear_for_test_cancels_pending_request_completion() -> Result<(), Box<dyn std::error::Error>>
+async fn clear_for_test_cancels_pending_request_completion() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
 {
     let bus = EventBus::new();
     let handler_seen = Arc::new(Notify::new());
@@ -149,7 +149,7 @@ struct ClearRequestEvent {
 }
 
 impl ClearRequestEvent {
-    fn new() -> Result<Self, Box<dyn std::error::Error>> {
+    fn new() -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         Ok(Self {
             request_id: RequestId::parse(CLEAR_REQUEST_ID)?,
         })

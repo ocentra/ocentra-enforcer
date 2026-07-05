@@ -12,7 +12,7 @@ use enforcer_events::bus::reports::handler::HandlerOutcome;
 
 #[tokio::test]
 async fn ordered_dispatch_serializes_same_aggregate_transitions(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
     let observed = Arc::new(Mutex::new(Vec::new()));
     let observed_clone = Arc::clone(&observed);
@@ -74,7 +74,7 @@ async fn ordered_dispatch_serializes_same_aggregate_transitions(
 
 #[tokio::test]
 async fn ordered_dispatch_allows_different_aggregates_to_run_concurrently(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
     let barrier = Arc::new(Barrier::new(2));
     let barrier_clone = Arc::clone(&barrier);
@@ -129,7 +129,7 @@ async fn ordered_dispatch_allows_different_aggregates_to_run_concurrently(
 
 #[tokio::test]
 async fn nested_publish_uses_context_publisher_without_deadlock(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
     let handled = Arc::new(Mutex::new(Vec::new()));
     let nested_handled = Arc::clone(&handled);
@@ -190,7 +190,7 @@ async fn nested_publish_uses_context_publisher_without_deadlock(
 }
 
 #[tokio::test]
-async fn detached_publish_returns_observable_report() -> Result<(), Box<dyn std::error::Error>> {
+async fn detached_publish_returns_observable_report() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
     bus.subscribe::<TestEvent, _, _>(
         subscriber(
@@ -215,7 +215,7 @@ async fn detached_publish_returns_observable_report() -> Result<(), Box<dyn std:
 }
 
 #[tokio::test]
-async fn sync_subscriber_adapter_uses_typed_dispatch_path() -> Result<(), Box<dyn std::error::Error>>
+async fn sync_subscriber_adapter_uses_typed_dispatch_path() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
 {
     let bus = EventBus::new();
     let handled = Arc::new(StdMutex::new(Vec::new()));
@@ -259,7 +259,7 @@ async fn sync_subscriber_adapter_uses_typed_dispatch_path() -> Result<(), Box<dy
 }
 
 #[tokio::test]
-async fn panicking_handler_isolated_as_dead_letter_report() -> Result<(), Box<dyn std::error::Error>>
+async fn panicking_handler_isolated_as_dead_letter_report() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
 {
     let bus = EventBus::new();
     bus.subscribe::<TestEvent, _, _>(
@@ -296,7 +296,7 @@ async fn panicking_handler_isolated_as_dead_letter_report() -> Result<(), Box<dy
 }
 
 #[tokio::test]
-async fn subscription_handle_drop_unsubscribes_handler() -> Result<(), Box<dyn std::error::Error>> {
+async fn subscription_handle_drop_unsubscribes_handler() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
     let handled = Arc::new(Mutex::new(0_usize));
     let handled_clone = Arc::clone(&handled);
@@ -337,7 +337,7 @@ async fn subscription_handle_drop_unsubscribes_handler() -> Result<(), Box<dyn s
 }
 
 #[tokio::test]
-async fn registrar_dispose_removes_all_owned_subscriptions() -> Result<(), Box<dyn std::error::Error>>
+async fn registrar_dispose_removes_all_owned_subscriptions() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
 {
     let bus = EventBus::new();
     let mut registrar = EventRegistrar::new();

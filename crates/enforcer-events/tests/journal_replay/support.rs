@@ -90,7 +90,7 @@ pub(super) fn bus_with_recording_journal(
 pub(super) async fn subscribe_log_handler(
     bus: &EventBus,
     log: Arc<Mutex<JournalLines>>,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     bus.subscribe::<TestEvent, _, _>(
         subscriber(
             FixtureText(TEST_SUBSCRIBER.to_owned()),
@@ -115,11 +115,11 @@ pub(super) async fn subscribe_log_handler(
 
 pub(super) fn stored_event(
     event: TestEvent,
-) -> Result<StoredEventEnvelope, Box<dyn std::error::Error>> {
+) -> Result<StoredEventEnvelope, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventEnvelope::from_event(event, metadata(FixtureText(TEST_TARGET.to_owned()))?)?.store()?)
 }
 
-pub(super) fn event_type(value: TestText) -> Result<EventType, Box<dyn std::error::Error>> {
+pub(super) fn event_type(value: TestText) -> Result<EventType, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventType::parse(value.0)?)
 }
 
@@ -129,7 +129,7 @@ pub(super) fn shared_log() -> Arc<Mutex<JournalLines>> {
 
 pub(super) fn snapshot(
     log: &Arc<Mutex<JournalLines>>,
-) -> Result<JournalLines, Box<dyn std::error::Error>> {
+) -> Result<JournalLines, Box<dyn std::error::Error + Send + Sync>> {
     Ok(log.lock().map_err(|e| e.to_string())?.clone())
 }
 
@@ -144,7 +144,7 @@ pub(super) fn journal_path(label: TestText) -> JournalPath {
 
 pub(super) async fn read_lines(
     path: JournalPath,
-) -> Result<JournalLines, Box<dyn std::error::Error>> {
+) -> Result<JournalLines, Box<dyn std::error::Error + Send + Sync>> {
     let lines = tokio::fs::read_to_string(path)
         .await?
         .lines()
@@ -156,7 +156,7 @@ pub(super) async fn read_lines(
 pub(super) async fn write_lines(
     path: JournalPath,
     lines: &JournalLines,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut content = lines
         .iter()
         .map(|line| line.as_ref())
@@ -170,7 +170,7 @@ pub(super) async fn write_lines(
 pub(super) async fn tamper_first_journal_payload_label(
     path: JournalPath,
     label: TestText,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let label = label.0;
     let mut lines = read_lines(path.clone()).await?;
     let mut entry: serde_json::Value = serde_json::from_str(&lines[0])?;

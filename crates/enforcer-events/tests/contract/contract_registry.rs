@@ -7,13 +7,13 @@ use enforcer_events::ids::EventType;
 
 #[test]
 fn contract_registry_generates_markdown_in_event_type_order(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut registry = EventContractRegistry::new();
     registry.register_event(&test_event_for_type(
-        SupportText("second".to_owned()),
-        SupportText(OTHER_EVENT_TYPE.to_owned()),
+        &SupportText("second".to_owned()),
+        &SupportText(OTHER_EVENT_TYPE.to_owned()),
     )?)?;
-    registry.register_event(&test_event(SupportText("first".to_owned()))?)?;
+    registry.register_event(&test_event(&SupportText("first".to_owned()))?)?;
 
     let descriptors = registry
         .descriptors()
@@ -49,11 +49,11 @@ fn contract_registry_generates_markdown_in_event_type_order(
 }
 
 #[test]
-fn contract_registry_rejects_duplicate_event_type() -> Result<(), Box<dyn std::error::Error>> {
+fn contract_registry_rejects_duplicate_event_type() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut registry = EventContractRegistry::new();
-    registry.register_event(&test_event(SupportText("first".to_owned()))?)?;
+    registry.register_event(&test_event(&SupportText("first".to_owned()))?)?;
 
-    let duplicate = match registry.register_event(&test_event(SupportText("duplicate".to_owned()))?)
+    let duplicate = match registry.register_event(&test_event(&SupportText("duplicate".to_owned()))?)
     {
         Ok(_) => return Err("duplicate event type registration unexpectedly succeeded".into()),
         Err(error) => error,

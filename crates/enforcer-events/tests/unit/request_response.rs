@@ -16,7 +16,7 @@ const REQUEST_TERMINAL_RETENTION_PROBE_COUNT: usize = 4097;
 
 #[tokio::test]
 async fn publish_request_resolves_associated_response_type(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = crate::EventBus::new();
     bus.subscribe::<TestRequestEvent, _, _>(
         subscriber_for_event(
@@ -47,7 +47,7 @@ async fn publish_request_resolves_associated_response_type(
 
 #[tokio::test]
 async fn request_terminal_retention_uses_completion_order_not_request_id_sort_order(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = crate::EventBus::new();
     let captured_publisher = Arc::new(Mutex::new(None::<EventPublisher>));
     let captured_publisher_clone = Arc::clone(&captured_publisher);
@@ -124,7 +124,7 @@ async fn publish_retention_probe_request(
     label: TestText,
     request_id: TestText,
     event_id: TestText,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let label = label.0;
     let request_id = request_id.0;
     let event_id = event_id.0;
@@ -142,7 +142,7 @@ async fn publish_retention_probe_request(
 
 #[tokio::test]
 async fn invalid_response_validation_does_not_settle_request(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = crate::EventBus::new();
     let invalid_rejected = Arc::new(Mutex::new(false));
     let invalid_rejected_clone = Arc::clone(&invalid_rejected);
@@ -179,7 +179,7 @@ async fn invalid_response_validation_does_not_settle_request(
 
 #[tokio::test]
 async fn request_timeout_reports_late_response_without_mutating_result(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = crate::EventBus::new();
     let outcomes = Arc::new(Mutex::new(Vec::new()));
     let outcomes_clone = Arc::clone(&outcomes);
@@ -222,7 +222,7 @@ async fn request_timeout_reports_late_response_without_mutating_result(
 }
 
 #[tokio::test]
-async fn request_timeout_covers_slow_handler_dispatch() -> Result<(), Box<dyn std::error::Error>> {
+async fn request_timeout_covers_slow_handler_dispatch() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = crate::EventBus::new();
     let outcomes = Arc::new(Mutex::new(Vec::new()));
     let outcomes_clone = Arc::clone(&outcomes);
@@ -264,7 +264,7 @@ async fn request_timeout_covers_slow_handler_dispatch() -> Result<(), Box<dyn st
 
 #[tokio::test]
 async fn request_timeout_aborts_never_completing_publish_and_releases_in_flight(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = crate::EventBus::new();
     bus.subscribe::<TestRequestEvent, _, _>(
         subscriber_for_event(
@@ -297,7 +297,7 @@ async fn request_timeout_aborts_never_completing_publish_and_releases_in_flight(
 
 #[tokio::test]
 async fn publish_request_cancels_registry_entry_when_publish_fails(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = crate::EventBus::new();
     let failed = bus
         .publish_request(
@@ -333,7 +333,7 @@ async fn publish_request_cancels_registry_entry_when_publish_fails(
 }
 
 #[tokio::test]
-async fn double_completion_is_ignored_and_reported() -> Result<(), Box<dyn std::error::Error>> {
+async fn double_completion_is_ignored_and_reported() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = crate::EventBus::new();
     let outcomes = Arc::new(Mutex::new(Vec::new()));
     let outcomes_clone = Arc::clone(&outcomes);
@@ -379,7 +379,7 @@ async fn double_completion_is_ignored_and_reported() -> Result<(), Box<dyn std::
 
 #[tokio::test]
 async fn durable_result_event_pattern_remains_separate_from_local_completion(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = crate::EventBus::new();
     bus.subscribe::<TestRequestEvent, _, _>(
         subscriber_for_event(

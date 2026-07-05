@@ -52,7 +52,7 @@ pub(super) struct InvalidContractRequestEvent {
 }
 
 impl InvalidContractRequestEvent {
-    pub(super) fn new() -> Result<Self, Box<dyn std::error::Error>> {
+    pub(super) fn new() -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         Ok(Self {
             request_id: RequestId::parse(REQUEST_ID)?,
         })
@@ -136,14 +136,14 @@ impl DomainEvent for TestResultEvent {
     }
 }
 
-pub(super) fn test_request(label: TestText) -> Result<TestRequestEvent, Box<dyn std::error::Error>> {
+pub(super) fn test_request(label: TestText) -> Result<TestRequestEvent, Box<dyn std::error::Error + Send + Sync>> {
     test_request_with_id(label, TestText(REQUEST_ID.to_owned()))
 }
 
 pub(super) fn test_request_with_id(
     label: TestText,
     request_id: TestText,
-) -> Result<TestRequestEvent, Box<dyn std::error::Error>> {
+) -> Result<TestRequestEvent, Box<dyn std::error::Error + Send + Sync>> {
     Ok(TestRequestEvent {
         label: label.0,
         request_id: RequestId::parse(request_id.0)?,

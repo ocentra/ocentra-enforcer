@@ -12,34 +12,26 @@ use super::fixtures::{
 use crate::{EventBus, EventRecorder, EventingError, HandlerExecutionPolicy};
 use enforcer_events::bus::reports::handler::HandlerOutcome;
 
-fn retry_attempt(
-    attempts: Arc<AtomicUsize>,
-) -> impl std::future::Future<Output = Result<(), EventingError>> {
-    async move {
-        let previous = attempts.fetch_add(1, Ordering::SeqCst);
-        if previous == 0 {
-            Err(EventingError::EmptyValue {
-                field: "retryable_handler_failure",
-            })
-        } else {
-            Ok(())
-        }
-    }
-}
-
-fn timeout_attempt(
-    attempts: Arc<AtomicUsize>,
-) -> impl std::future::Future<Output = Result<(), EventingError>> {
-    async move {
-        attempts.fetch_add(1, Ordering::SeqCst);
-        tokio::time::sleep(Duration::from_millis(50)).await;
+async fn retry_attempt(attempts: Arc<AtomicUsize>) -> Result<(), EventingError> {
+    let previous = attempts.fetch_add(1, Ordering::SeqCst);
+    if previous == 0 {
+        Err(EventingError::EmptyValue {
+            field: "retryable_handler_failure",
+        })
+    } else {
         Ok(())
     }
 }
 
+async fn timeout_attempt(attempts: Arc<AtomicUsize>) -> Result<(), EventingError> {
+    attempts.fetch_add(1, Ordering::SeqCst);
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    Ok(())
+}
+
 #[tokio::test]
 async fn retry_policy_retries_failed_attempt_and_reports_trace_fields(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::with_handler_policy(HandlerExecutionPolicy::new(None, 2)?);
     let attempts = Arc::new(AtomicUsize::new(0));
     let attempts_clone = Arc::clone(&attempts);
@@ -75,7 +67,7 @@ async fn retry_policy_retries_failed_attempt_and_reports_trace_fields(
 
 #[tokio::test]
 async fn timeout_policy_retries_then_dead_letters_final_timeout(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::with_handler_policy(HandlerExecutionPolicy::new(
         Some(Duration::from_millis(5)),
         2,
@@ -116,7 +108,7 @@ async fn timeout_policy_retries_then_dead_letters_final_timeout(
 
 #[tokio::test]
 async fn event_recorder_uses_real_subscription_and_can_unsubscribe(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
     let recorder = EventRecorder::<TestEvent>::attach(
         &bus,

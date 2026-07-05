@@ -22,7 +22,7 @@ const SHUTDOWN_REQUEST_IDEMPOTENCY: &str = "eventing-shutdown-idempotency";
 
 #[tokio::test]
 async fn production_shutdown_drain_dispatches_queue_and_dead_letters_remaining(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::with_queue_policy(EventQueuePolicy::no_subscriber_queue(4)?);
     bus.publish(
         test_event_with_idempotency(
@@ -106,7 +106,7 @@ async fn production_shutdown_drain_dispatches_queue_and_dead_letters_remaining(
 
 #[tokio::test]
 async fn production_shutdown_dead_letters_queued_without_dispatch(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::with_queue_policy(EventQueuePolicy::no_subscriber_queue(2)?);
     bus.publish(
         test_event_with_idempotency(
@@ -130,7 +130,7 @@ async fn production_shutdown_dead_letters_queued_without_dispatch(
 
 #[tokio::test]
 async fn production_shutdown_waits_for_active_dispatch_before_clearing_state(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
     let handler_started = Arc::new(Notify::new());
     let release_handler = Arc::new(Notify::new());
@@ -188,7 +188,7 @@ async fn production_shutdown_waits_for_active_dispatch_before_clearing_state(
 
 #[tokio::test]
 async fn test_only_shutdown_drop_reports_dropped_queued_work(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::with_queue_policy(EventQueuePolicy::no_subscriber_queue(2)?);
     bus.publish(
         test_event_with_idempotency(
@@ -211,7 +211,7 @@ async fn test_only_shutdown_drop_reports_dropped_queued_work(
 
 #[tokio::test]
 async fn production_shutdown_cancels_pending_request_completion(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
     let handler_seen = Arc::new(Notify::new());
     let handler_seen_clone = Arc::clone(&handler_seen);
@@ -259,7 +259,7 @@ struct ShutdownRequestEvent {
 }
 
 impl ShutdownRequestEvent {
-    fn new() -> Result<Self, Box<dyn std::error::Error>> {
+    fn new() -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         Ok(Self {
             request_id: RequestId::parse(SHUTDOWN_REQUEST_ID)?,
         })

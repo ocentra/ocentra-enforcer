@@ -3,9 +3,8 @@ use tokio::fs::File;
 use tokio::io::{AsyncBufReadExt, BufReader};
 
 use crate::journal::hash_chain::verify_hash_chain_entry;
-use crate::EventingError;
-
-use super::{NdjsonEventJournal, NdjsonJournalEntry};
+use crate::journal::ndjson::NdjsonEventJournal;
+use crate::{EventingError, NdjsonJournalEntry};
 
 impl NdjsonEventJournal {
     pub(crate) async fn recover_state(&self) -> Result<(), EventingError> {

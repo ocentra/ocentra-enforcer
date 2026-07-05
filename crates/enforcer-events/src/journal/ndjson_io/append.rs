@@ -1,9 +1,8 @@
 use std::sync::{Arc, PoisonError};
 
+use crate::journal::ndjson::{JournalHashChain, NdjsonEventJournal, NdjsonJournalOptions};
 use crate::journal::{hash_chain::hash_entry, EventJournal, JournalAppendFuture};
-use crate::{EventingError, JournalDispatchPhase, JournalHash, StoredEventEnvelope};
-
-use super::{JournalAppend, JournalHashChain, NdjsonEventJournal, NdjsonJournalOptions};
+use crate::{EventingError, JournalAppend, JournalDispatchPhase, JournalHash, StoredEventEnvelope};
 
 impl NdjsonEventJournal {
     async fn append_entry(

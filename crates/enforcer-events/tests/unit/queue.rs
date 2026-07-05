@@ -35,7 +35,7 @@ fn failing_journal_result(
 
 #[tokio::test]
 async fn no_subscriber_queue_drains_after_subscriber_registers(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::with_queue_policy(EventQueuePolicy::no_subscriber_queue(2)?);
     let queued_report = bus
         .publish(
@@ -80,7 +80,7 @@ async fn no_subscriber_queue_drains_after_subscriber_registers(
 
 #[tokio::test]
 async fn subscriber_auto_drain_only_drains_matching_event_type(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::with_queue_policy(EventQueuePolicy::no_subscriber_queue(4)?);
     bus.publish(
         test_event_with_idempotency(
@@ -163,7 +163,7 @@ async fn subscriber_auto_drain_only_drains_matching_event_type(
 
 #[tokio::test]
 async fn bounded_queue_overflow_dead_letters_oldest_event_and_keeps_newest(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::with_queue_policy(EventQueuePolicy::no_subscriber_queue(1)?);
     bus.publish(
         test_event_with_idempotency(
@@ -234,7 +234,7 @@ async fn bounded_queue_overflow_dead_letters_oldest_event_and_keeps_newest(
 
 #[tokio::test]
 async fn queued_event_expires_before_dispatch_when_ttl_elapsed(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let policy = EventQueuePolicy::no_subscriber_queue(2)?.with_ttl(Duration::from_millis(5))?;
     let bus = EventBus::with_queue_policy(policy);
     bus.publish(
@@ -263,7 +263,7 @@ async fn queued_event_expires_before_dispatch_when_ttl_elapsed(
 
 #[tokio::test]
 async fn idempotency_registry_rejects_queued_and_completed_duplicates(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let policy = EventQueuePolicy::no_subscriber_queue(2)?.with_idempotency_registry();
     let bus = EventBus::with_queue_policy(policy);
     bus.publish(
@@ -325,7 +325,7 @@ async fn idempotency_registry_rejects_queued_and_completed_duplicates(
 
 #[tokio::test]
 async fn in_flight_duplicate_guard_rejects_concurrent_event_id(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
     let started = Arc::new(Notify::new());
     let started_clone = Arc::clone(&started);
@@ -374,7 +374,7 @@ async fn in_flight_duplicate_guard_rejects_concurrent_event_id(
 
 #[tokio::test]
 async fn failed_subscribe_drain_preserves_queued_event_for_retry(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let policy = EventQueuePolicy::no_subscriber_queue(2)?;
     let journal = Arc::new(FailingJournal::fail_once_on(1));
     let bus = EventBus::with_journal_and_queue_policy(
@@ -431,7 +431,7 @@ async fn failed_subscribe_drain_preserves_queued_event_for_retry(
 
 #[tokio::test]
 async fn after_dispatch_journal_failure_does_not_replay_handler_work(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let policy = EventQueuePolicy::no_subscriber_queue(2)?;
     let journal = Arc::new(FailingJournal::fail_once_on(2));
     let bus = EventBus::with_journal_and_queue_policy(

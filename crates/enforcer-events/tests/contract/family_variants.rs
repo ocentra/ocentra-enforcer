@@ -1,4 +1,4 @@
-use super::support::{test_event_for_type, TestText, OTHER_EVENT_TYPE, TEST_EVENT_TYPE};
+use super::support::TestText;
 use enforcer_events::bus::subscriber::EventSubscriber;
 use enforcer_events::bus::EventBus;
 use enforcer_events::contract_registry::EventContractRegistry;
@@ -70,7 +70,7 @@ impl DomainEvent for DecisionFamilyEvent {
 
 #[tokio::test]
 async fn family_subscriber_receives_typed_enum_variants_without_downcast(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
     let received = Arc::new(Mutex::new(Vec::<TestText>::new()));
 
@@ -138,7 +138,7 @@ async fn family_subscriber_receives_typed_enum_variants_without_downcast(
 
 #[test]
 fn family_variant_stored_decode_rejects_contract_variant_mismatch(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let envelope = EventEnvelope::from_event(approved_event()?, family_metadata()?)?;
     let mut stored = envelope.store()?;
     stored.contract = EventContract::new(
@@ -155,7 +155,7 @@ fn family_variant_stored_decode_rejects_contract_variant_mismatch(
 
 #[test]
 fn family_variants_register_as_distinct_contract_descriptors(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut registry = EventContractRegistry::new();
     registry.register_event(&approved_event()?)?;
     registry.register_event(&rejected_event()?)?;
@@ -174,7 +174,7 @@ fn family_variants_register_as_distinct_contract_descriptors(
     Ok(())
 }
 
-fn approved_event() -> Result<DecisionFamilyEvent, Box<dyn std::error::Error>> {
+fn approved_event() -> Result<DecisionFamilyEvent, Box<dyn std::error::Error + Send + Sync>> {
     Ok(DecisionFamilyEvent::Approved(DecisionPayload {
         label: APPROVED_LABEL.to_string(),
         aggregate_key: AggregateKey::parse(FAMILY_AGGREGATE)?,
@@ -182,7 +182,7 @@ fn approved_event() -> Result<DecisionFamilyEvent, Box<dyn std::error::Error>> {
     }))
 }
 
-fn rejected_event() -> Result<DecisionFamilyEvent, Box<dyn std::error::Error>> {
+fn rejected_event() -> Result<DecisionFamilyEvent, Box<dyn std::error::Error + Send + Sync>> {
     Ok(DecisionFamilyEvent::Rejected(DecisionPayload {
         label: REJECTED_LABEL.to_string(),
         aggregate_key: AggregateKey::parse(FAMILY_AGGREGATE)?,
@@ -210,7 +210,7 @@ fn record_payload(
     Ok(())
 }
 
-fn family_metadata() -> Result<EventMetadata, Box<dyn std::error::Error>> {
+fn family_metadata() -> Result<EventMetadata, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventMetadata::from_parts(
         enforcer_events::ids::EventId::parse(FAMILY_EVENT_ID)?,
         CorrelationId::parse(FAMILY_CORRELATION)?,
@@ -229,7 +229,7 @@ fn family_metadata() -> Result<EventMetadata, Box<dyn std::error::Error>> {
 fn family_subscriber(
     id: TestText,
     event_type: TestText,
-) -> Result<EventSubscriber, Box<dyn std::error::Error>> {
+) -> Result<EventSubscriber, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventSubscriber::new(
         SubscriberId::parse(id.0)?,
         EventType::parse(event_type.0)?,

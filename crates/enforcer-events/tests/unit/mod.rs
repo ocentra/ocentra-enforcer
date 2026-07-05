@@ -1,9 +1,6 @@
 use enforcer_events::bus;
 use enforcer_events::bus::publisher::EventPublisher;
-use enforcer_events::bus::reports::dead_letter::{
-    dead_letter_recorded_event_type, DeadLetterReason,
-};
-use enforcer_events::bus::reports::handler::HandlerOutcome;
+use enforcer_events::bus::reports::dead_letter::dead_letter_recorded_event_type;
 use enforcer_events::bus::subscriber::EventSubscriber;
 use enforcer_events::bus::{DispatchMode, EventBus, ShutdownMode};
 use enforcer_events::clock::{EventClock, ManualEventClock};

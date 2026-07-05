@@ -11,7 +11,7 @@ use super::support::{
 
 #[tokio::test]
 async fn ndjson_journal_appends_one_object_per_line_with_hash_chain(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let path = journal_path(TestText("hash-chain".to_owned()));
     let journal = NdjsonEventJournal::with_options(&path, NdjsonJournalOptions::hash_chain());
     let first = stored_event(test_event(super::fixtures::TestText(
@@ -47,7 +47,7 @@ async fn ndjson_journal_appends_one_object_per_line_with_hash_chain(
 
 #[tokio::test]
 async fn ndjson_journal_reopen_continues_sequence_and_hash_chain(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let path = journal_path(TestText("reopen-hash-chain".to_owned()));
     let first_journal = NdjsonEventJournal::with_options(&path, NdjsonJournalOptions::hash_chain());
     let first = stored_event(test_event(super::fixtures::TestText(
@@ -77,7 +77,7 @@ async fn ndjson_journal_reopen_continues_sequence_and_hash_chain(
 
 #[tokio::test]
 async fn ndjson_journal_reopen_rejects_tampered_hash_chain_payload(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let path = journal_path(TestText("reopen-tampered-hash-chain".to_owned()));
     let first_journal = NdjsonEventJournal::with_options(&path, NdjsonJournalOptions::hash_chain());
     first_journal
@@ -116,7 +116,7 @@ async fn ndjson_journal_reopen_rejects_tampered_hash_chain_payload(
 
 #[tokio::test]
 async fn concurrent_ndjson_appends_do_not_hold_state_lock_across_file_write(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let path = journal_path(TestText("concurrent-hash-chain".to_owned()));
     let journal = NdjsonEventJournal::with_options(&path, NdjsonJournalOptions::hash_chain());
     let handles = (0..4)
@@ -139,7 +139,7 @@ async fn concurrent_ndjson_appends_do_not_hold_state_lock_across_file_write(
 
     for handle in handles {
         let joined: Result<_, String> = handle.await.map_err(|error| error.to_string())?;
-        joined.map_err(|error| -> Box<dyn std::error::Error> { error.into() })?;
+        joined.map_err(|error| -> Box<dyn std::error::Error + Send + Sync> { error.into() })?;
     }
 
     let lines = read_lines(path.clone()).await?;

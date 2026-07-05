@@ -31,7 +31,7 @@ const CLOCK_REQUEST_IDEMPOTENCY: &str = "eventing-clock-idempotency";
 
 #[tokio::test]
 async fn manual_clock_advances_registered_sleepers_without_wall_clock_sleep(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let clock = ManualEventClock::new();
     let sleeper_clock = clock.clone();
     let completed = Arc::new(AtomicUsize::new(0));
@@ -54,7 +54,7 @@ async fn manual_clock_advances_registered_sleepers_without_wall_clock_sleep(
 
 #[tokio::test]
 async fn manual_clock_expires_queued_ttl_without_wall_clock_sleep(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let clock = ManualEventClock::new();
     let policy = EventQueuePolicy::no_subscriber_queue(2)?
         .with_ttl(Duration::from_millis(10))?;
@@ -84,7 +84,7 @@ async fn manual_clock_expires_queued_ttl_without_wall_clock_sleep(
 
 #[tokio::test]
 async fn manual_clock_dead_letters_past_deadline_without_dispatch(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let clock = ManualEventClock::new();
     let bus = EventBus::with_clock(clock.shared());
     let attempts = Arc::new(AtomicUsize::new(0));
@@ -126,7 +126,7 @@ async fn manual_clock_dead_letters_past_deadline_without_dispatch(
 
 #[tokio::test]
 async fn manual_clock_drives_handler_timeout_retries_without_wall_clock_sleep(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let clock = ManualEventClock::new();
     let bus = EventBus::with_handler_policy_and_clock(
         HandlerExecutionPolicy::new(Some(Duration::from_millis(5)), 2)?,
@@ -172,7 +172,7 @@ async fn manual_clock_drives_handler_timeout_retries_without_wall_clock_sleep(
 
 #[tokio::test]
 async fn manual_clock_stops_retry_when_deadline_expires_between_attempts(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let clock = ManualEventClock::new();
     let bus = EventBus::with_handler_policy_and_clock(
         HandlerExecutionPolicy::new(None, 3)?,
@@ -224,7 +224,7 @@ async fn manual_clock_stops_retry_when_deadline_expires_between_attempts(
 
 #[tokio::test]
 async fn manual_clock_drives_request_timeout_and_late_completion_without_wall_clock_sleep(
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let clock = ManualEventClock::new();
     let bus = EventBus::with_clock(clock.shared());
     let outcomes = Arc::new(Mutex::new(Vec::new()));
@@ -292,7 +292,7 @@ struct ClockRequestEvent {
 }
 
 impl ClockRequestEvent {
-    fn new() -> Result<Self, Box<dyn std::error::Error>> {
+    fn new() -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         Ok(Self {
             request_id: RequestId::parse(CLOCK_REQUEST_ID)?,
         })

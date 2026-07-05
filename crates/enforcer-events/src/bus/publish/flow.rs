@@ -5,9 +5,10 @@ use crate::{
     QueueDisposition, StoredEventEnvelope,
 };
 
-use super::{DispatchMode, DispatchStoredError, EventBus, SubscriberRecord};
+use super::{DispatchMode, DispatchStoredError, EventBus};
 use crate::bus::reports::dead_letters_for;
 use crate::bus::reports::handler::{HandlerOutcome, HandlerReport};
+use crate::bus::SubscriberRecord;
 
 mod dispatching;
 
