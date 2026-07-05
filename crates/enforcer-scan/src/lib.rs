@@ -35,12 +35,23 @@
 //! - [`engine`] — the rayon fan-out itself: walks a scope, routes each file
 //!   through the currently-wired family registries, and folds every
 //!   family's findings into one `Report`.
+//! - [`outcome`] — the anti-silent-skip primitive (a09): every dispatch
+//!   decision is an explicit `Outcome::Ran { .. } | Outcome::Skipped {
+//!   reason }` with a guaranteed-non-empty reason, so a validator that ran
+//!   on nothing cannot look identical to one that ran and passed.
+//! - [`coverage`] — the scan-coverage accounting (a09): aggregates
+//!   per-target `Outcome`s into ran/skipped counts + a skip-reason list,
+//!   and hard-fails (`Coverage::require_nonzero_ran`) when the total
+//!   ran-count is zero — a scan that checked nothing is never a clean
+//!   pass.
 //!
 //! No `pub use` barrels (workspace doctrine): consumers path through the
 //! modules directly, e.g. `enforcer_scan::engine::scan`.
 
+pub mod coverage;
 pub mod engine;
 pub mod modes;
+pub mod outcome;
 pub mod router;
 pub mod rules;
 pub mod scope;

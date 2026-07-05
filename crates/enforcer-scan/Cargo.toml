@@ -12,6 +12,9 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 rayon = { workspace = true }
 sha2 = { workspace = true }
+# ts-rs is not in [workspace.dependencies] (a01-owned root manifest);
+# pinned directly here to match enforcer-domain's pin.
+ts-rs = "10"
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
