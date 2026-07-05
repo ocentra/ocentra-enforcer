@@ -6,7 +6,7 @@
 > Doc: `MEMORY_RETRIEVAL_OWNER_INTENT`
 > Kind: OWNER INTENT — the binding vision statement for the entire x06 memory system.
 > Read when: FIRST, before ANY x06 workpack, subpack, architecture doc, or implementation decision. This page outranks every other x06 document. If an implementation satisfies a checklist but moves away from this vision, revise the implementation, not the vision.
-> Stop rule: This doc is judged-against, not executed-from. After reading, go to MEMORY_RETRIEVAL_KG_RAG_MASTER_PLAN then your one subpack.
+> Stop rule: This doc is judged-against, not executed-from. After reading, go to [MEMORY_RETRIEVAL_DESIGN_INPUTS](./MEMORY_RETRIEVAL_DESIGN_INPUTS.md) (the 10 sources), then MEMORY_RETRIEVAL_KG_RAG_MASTER_PLAN, then your one subpack.
 > Proves: nothing mechanical. It is the criterion the mechanical proofs exist to serve.
 > Protection: every line tagged `(owner-set)` is a protected invariant under OWNERSET-1.1 — external rewrites that drop one fail T1.
 <!-- /agent-capsule -->

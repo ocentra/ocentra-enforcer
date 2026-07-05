@@ -1,17 +1,17 @@
-# MEMORY RETRIEVAL QA BENCHMARKS — 100 practical retrieval pass requirements
+# MEMORY RETRIEVAL QA BENCHMARKS — QA-001..QA-250 practical retrieval pass requirements
 
 <!-- agent-capsule -->
 > Agent Capsule
 > Plan: `enforcer-selfhost-plan`
 > Doc: `MEMORY_RETRIEVAL_QA_BENCHMARKS`
-> Kind: QA benchmark set for x06 KG+RAG retrieval.
+> Kind: QA benchmark set for x06 KG+RAG retrieval. TARGET IS QA-250 (owner-set, upgraded 2026-07-04 from the initial 100): 15 categories + longitudinal — one of the most comprehensive public benchmarks for a code-focused KG+RAG memory system.
 > Read when: Implementing or closing x06 retrieval quality, semantic search, graph traversal, source refs, or token-reduction proof.
 > Stop rule: This doc defines benchmark rows only. Implementation remains inside the x06 workpack owns globs.
 > Proves: nothing by itself. Rows prove only when implemented as tests and green in proof/memory/x06-rag-qa.json.
 > Does not prove: feature completion unless all rows are represented in the x06 feature-parity rollup.
 <!-- /agent-capsule -->
 
-Sources: [MEMORY_RETRIEVAL_KG_RAG_MASTER_PLAN](./MEMORY_RETRIEVAL_KG_RAG_MASTER_PLAN.md), [MEMORY_RETRIEVAL_PARITY_HARNESS](./MEMORY_RETRIEVAL_PARITY_HARNESS.md), [Rag-Guide](https://github.com/sujanmishra-simpro/Rag-Guide), [codebase-memory-mcp](https://github.com/DeusData/codebase-memory-mcp), [TabAgentServer MIA](https://github.com/ocentra/TabAgentServer).
+Sources: [MEMORY_RETRIEVAL_OWNER_INTENT](./MEMORY_RETRIEVAL_OWNER_INTENT.md) (READ FIRST), [MEMORY_RETRIEVAL_DESIGN_INPUTS](./MEMORY_RETRIEVAL_DESIGN_INPUTS.md), [MEMORY_RETRIEVAL_KG_RAG_MASTER_PLAN](./MEMORY_RETRIEVAL_KG_RAG_MASTER_PLAN.md), [MEMORY_RETRIEVAL_PARITY_HARNESS](./MEMORY_RETRIEVAL_PARITY_HARNESS.md), [Rag-Guide](https://github.com/sujanmishra-simpro/Rag-Guide), [codebase-memory-mcp](https://github.com/DeusData/codebase-memory-mcp), [TabAgentServer MIA](https://github.com/ocentra/TabAgentServer).
 
 ---
 
@@ -37,7 +37,7 @@ Each row must record: query, route, expected ids, retrieved ids, score families,
 
 ---
 
-## 1. 100 practical Q&A rows
+## 1. Rows QA-001..QA-100 — first tranche (authored)
 
 | ID | User-style query | Required retrieval behavior |
 |---|---|---|
@@ -141,3 +141,44 @@ Each row must record: query, route, expected ids, retrieved ids, score families,
 | QA-098 | Which lesson had no effect? | Lesson with unchanged recurrence. |
 | QA-099 | What should Claude read before this workpack? | Bounded recall pack from KG+RAG. |
 | QA-100 | Prove x06 is not fake green | Return all proof artifacts, matrix coverage, parity diff, QA score report. |
+
+---
+
+## 2. Category expansion spec — QA-101..QA-250 (owner-set, 2026-07-04)
+
+The 100-row target is REPLACED by QA-250 (owner-set). Rows QA-101..QA-250 are authored against these
+categories (counts are minimums; every row executable through the parity harness, no prose-only rows):
+
+| # | Category | Min rows | Representative probes |
+|---|---|---|---|
+| 1 | Symbol traversal | 30 | every caller (direct + indirect), trait impls, unreferenced impls, tests touching a symbol, exported APIs, dead exports, generic instantiations, cyclic deps, ownership chain |
+| 2 | Repository understanding | 30 | explain this crate, crate mind map, module boundaries, architecture violations, event flow, request lifecycle, dependency graph, startup/shutdown/initialization order |
+| 3 | Git / history | 20 | why does this file exist, major changes, summarize last 50 commits, which commit introduced this, which bug fixed this, which lesson came from this, which workpack created this, API evolution |
+| 4 | Architecture reasoning | 30 | which crate should own this, layering violations, duplication, which rule blocks this, which validator covers this, which proof exists, which ADR explains this, what is missing |
+| 5 | Learning memory | 30 | have we solved this before, what strategy worked/failed, which lesson prevented recurrence, obsolete lessons, conflicting lessons, strongest-evidence lesson, stale lessons |
+| 6 | Retrieval quality probes | 30 | expected node in Top-1/3/5/10/20; measured as Recall@k, Precision@k, MRR, nDCG, reranker lift, hallucination rate, wrong-source rate |
+| 7 | Token reduction | 10 | prove `MCP: Top100 -> KG filter -> Top25 -> reranker -> Top5 -> context pack -> agent opens 5 files` vs agent-opens-42-files; measure tokens saved, files avoided, latency, answer quality |
+| 8 | Continuous learning | 10 | run the SAME benchmark before lessons / after 100 / after 1,000 / after 10,000 lessons; plot recall improvement, ranking improvement, token reduction, false-positive reduction, retrieval latency |
+| 9-15 | Code Graph / Experience / Reranking / Performance / Federation / MCP / CLI | 10 each min | per-surface coverage so every shipped tool has benchmark rows (parity floor: every codebase-memory tool benchmarked) |
+
+Grouping key: `Symbol, CodeGraph, Architecture, Repository, GitHistory, Lessons, Experience, Retrieval, Reranking, TokenReduction, Learning, Performance, Federation, MCP, CLI` — every row carries one.
+
+**The retrieval engine must prove it is becoming better over time** (owner-set). Rows in categories 6-8
+are measured, not just pass/fail: each records its metric family into `proof/memory/x06-rag-qa.json`.
+
+---
+
+## 3. Longitudinal benchmarks (owner-set, 2026-07-04)
+
+Not just "does retrieval work today" — the missing category. Tracked over time and scale:
+
+- retrieval quality after 1 day, after 100 lessons, after 10,000 lessons
+- after 1,000,000 graph nodes, after 100,000 git commits, after repeated repository evolution
+- index rebuild time vs incremental update time
+- memory growth vs retrieval latency
+- token-reduction trend over time
+
+**These benchmarks demonstrate the system doesn't just work — it continues to scale and improve**
+(owner-set). Scale tiers use generated corpora (deterministic synthetic repos + replayed git history) so
+they run locally; results append to `proof/memory/x06-longitudinal.json` with a monotonic run index, and a
+REGRESSION relative to the previous run is a failure (the ratchet doctrine applied to retrieval quality).
