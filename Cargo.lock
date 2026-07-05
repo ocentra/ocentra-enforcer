@@ -1101,6 +1101,8 @@ version = "0.1.0"
 dependencies = [
  "enforcer-core",
  "enforcer-domain",
+ "enforcer-rules",
+ "serde_json",
  "thiserror 1.0.69",
 ]
 

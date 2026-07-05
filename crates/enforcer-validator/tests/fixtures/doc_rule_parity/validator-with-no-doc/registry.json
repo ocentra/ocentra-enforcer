@@ -1,0 +1,18 @@
+[
+    {
+        "ruleId": "RR-100.3",
+        "version": 1,
+        "title": "Undocumented rule",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "undocumented::UndocumentedValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/fixtures/undocumented/fail.txt",
+            "pass": "crates/enforcer-lang-common/fixtures/undocumented/pass.txt"
+        },
+        "docAnchor": "docs/agents/common.md#RR-100.3",
+        "tags": ["common"]
+    }
+]

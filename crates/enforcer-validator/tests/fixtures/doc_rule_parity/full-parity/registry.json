@@ -1,0 +1,18 @@
+[
+    {
+        "ruleId": "RR-100.1",
+        "version": 1,
+        "title": "Never commit secrets",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "no_secrets::NoSecretsValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/fixtures/no_secrets/fail.txt",
+            "pass": "crates/enforcer-lang-common/fixtures/no_secrets/pass.txt"
+        },
+        "docAnchor": "docs/agents/common.md#RR-100.1",
+        "tags": ["common", "secrets"]
+    }
+]

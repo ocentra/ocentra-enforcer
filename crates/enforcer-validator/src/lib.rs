@@ -21,7 +21,14 @@
 //! (`enforcer-rules`), filesystem walking or scan orchestration
 //! (`enforcer-scan`), or any language-specific detection logic (the
 //! `enforcer-lang-*` crates depend on this one, never the reverse).
+//!
+//! It additionally owns the doc-rule parity oracle (d09): given per-stack
+//! agent persona prose (`docs/agents/**`, T3, human-canonical) and the
+//! [`enforcer_rules::registry::RuleRegistry`] (d01/arc-04), assert every
+//! `must`/`never` bullet's `[ruleId]` citation resolves to a real,
+//! registered rule — see [`doc_rule_parity`].
 
+pub mod doc_rule_parity;
 pub mod error;
 pub mod harness;
 pub mod validator;
