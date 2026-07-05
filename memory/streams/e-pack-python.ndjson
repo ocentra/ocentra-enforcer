@@ -1,0 +1,2 @@
+{"ts":"2026-07-04T00:00:00Z","lane":"e-pack-python","event":"claim_attempt","result":"hub_stale_reload_required","action":"log_and_proceed_per_protocol_v2","paths":["crates/enforcer-lang-py/src/rules/fastapi_layered.rs","crates/enforcer-lang-py/src/rules/mod.rs","crates/enforcer-lang-py/tests/fixtures/fastapi_layered/"]}
+{"ts":"2026-07-04T00:00:01Z","lane":"e-pack-python","event":"mail_attempt","result":"hub_stale_reload_required","action":"log_and_proceed_per_protocol_v2","subject":"e-pack-python started","model":"claude-sonnet-5"}

@@ -22,6 +22,12 @@
 //!   and the cross-language partition spec belong to arc-09.
 //! - [`tests_required`] -- `python/tests` (3 rules: PY-6.8, PY-6.9,
 //!   PY-6.10).
+//! - [`rules::fastapi_layered`] -- e-pack-python: the FastAPI layered/
+//!   clean-architecture + Python-security rule family (`PYFA-*`,
+//!   legacy-labeled `py-fastapi-*`). Disjoint from `rules/rules.json`'s
+//!   `language == "python"` catalog -- registered via its own
+//!   `crates/enforcer-rules/rules/fastapi-layered.json` catalog, NOT via
+//!   [`all_validators`]/the 61-count registry-coverage test below.
 //!
 //! [`line_marker`] is the shared line-scan engine [`source_scan`] and
 //! [`test_scan`] build their entries on; it exists specifically to dodge
@@ -40,6 +46,7 @@
 
 pub mod generic_scanner_slice;
 pub mod line_marker;
+pub mod rules;
 pub mod source_scan;
 pub mod test_scan;
 pub mod tests_required;
