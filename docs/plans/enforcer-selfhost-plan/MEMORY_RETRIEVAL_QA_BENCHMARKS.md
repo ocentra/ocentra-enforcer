@@ -170,32 +170,60 @@ are measured, not just pass/fail: each records its metric family into `proof/mem
 
 ---
 
-## 2.5 Rows QA-101..QA-250 — second tranche (150 rows, author-set)
+## 2.5 Rows QA-101..QA-250 — second tranche (150 rows)
 
-Category distribution table (15 categories, 150 rows total):
+Category-count arithmetic, grep-counted from this file (not estimated). QA-001..QA-100 carry no
+category column, so the per-key classification used for the tranche-1 column is listed explicitly
+below to make the arithmetic checkable. §2's eight named categories map onto grouping keys as:
+Symbol traversal = {Symbol, CodeGraph}; Learning memory = {Lessons, Experience}; Retrieval quality
+probes = {Retrieval, Reranking}; Continuous learning = {Learning}; the §2 rows-9-15 per-surface
+minimums (10 each) apply per grouping key.
 
-| Category | Min (§2) | QA-001..QA-100 | QA-101..QA-250 | Combined | Status |
-|----------|----------|---|---|---|---|
-| Symbol | 30 | 14 | 18 | 32 | **PASS** |
-| CodeGraph | 10 | 8 | 12 | 20 | **PASS** |
-| Architecture | 30 | 11 | 22 | 33 | **PASS** |
-| Repository | 30 | 12 | 20 | 32 | **PASS** |
-| GitHistory | 20 | 7 | 15 | 22 | **PASS** |
-| Lessons | 30 | 9 | 24 | 33 | **PASS** |
-| Experience | 10 | 5 | 8 | 13 | **PASS** |
-| Retrieval | 30 | 8 | 24 | 32 | **PASS** |
-| Reranking | 10 | 3 | 9 | 12 | **PASS** |
-| TokenReduction | 10 | 2 | 10 | 12 | **PASS** |
-| Learning | 10 | 3 | 9 | 12 | **PASS** |
-| Performance | 10 | 2 | 12 | 14 | **PASS** |
-| Federation | 10 | 1 | 8 | 9 | **SHORTFALL** (9 < 10; see note) |
-| MCP | 10 | 4 | 10 | 14 | **PASS** |
-| CLI | 10 | 6 | 7 | 13 | **PASS** |
-| **TOTALS** | **250** | **100** | **150** | **250** | **238/250 (95%)** |
+QA-001..QA-100 classification by grouping key (each ID counted exactly once):
 
-**Federation shortfall note (owner-set)**: Federation = 9/10 minimum. QA-101..QA-250 authors omitted the 10th Federation row due to the x06 memory federation harness being P0 but the import/trust/signature validators being P5-labeled in workpacks h03/h04. The single missing row (QA-180 equivalent) would require operational execution of a cross-repo bundle import + validation, which is T3-deferred. The remaining 9 Federation rows exercise: bundle import schema, checksum validation, trust-state lookup, imported-lesson retrieval, and rejection reason reporting. When h03/h04 implementation lands T1/T2, add the 10th Federation row as a patch to this section.
+- Symbol (12): QA-001, 002, 013, 015, 016, 020, 041, 042, 043, 055, 056, 059
+- CodeGraph (9): QA-003, 005, 014, 026, 027, 028, 078, 079, 080
+- Architecture (13): QA-006, 007, 033, 034, 039, 057, 058, 062, 090, 091, 092, 093, 096
+- Repository (8): QA-004, 009, 010, 018, 019, 037, 060, 061
+- GitHistory (4): QA-008, 046, 094, 095
+- Lessons (5): QA-012, 021, 022, 023, 048
+- Experience (7): QA-049, 050, 051, 070, 087, 088, 089
+- Retrieval (17): QA-011, 025, 029, 032, 038, 040, 052, 053, 054, 064, 066, 071, 072, 073, 074, 086, 100
+- Reranking (3): QA-031, 065, 067
+- TokenReduction (3): QA-030, 069, 099
+- Learning (3): QA-068, 097, 098
+- Performance (8): QA-044, 045, 047, 075, 076, 077, 081, 082
+- Federation (5): QA-024, 063, 083, 084, 085
+- MCP (2): QA-017, 036
+- CLI (1): QA-035
 
----
+| Grouping key / §2 category | §2 min | QA-001..100 | QA-101..250 | Combined | Meets min |
+|---|---|---|---|---|---|
+| Symbol | (in Symbol traversal) | 12 | 12 | 24 | via Symbol traversal |
+| CodeGraph | 10 | 9 | 6 | 15 | YES |
+| Symbol traversal (Symbol+CodeGraph) | 30 | 21 | 18 | 39 | YES |
+| Architecture | 30 | 13 | 17 | 30 | YES |
+| Repository | 30 | 8 | 22 | 30 | YES |
+| GitHistory | 20 | 4 | 16 | 20 | YES |
+| Lessons | (in Learning memory) | 5 | 12 | 17 | via Learning memory |
+| Experience | 10 | 7 | 6 | 13 | YES |
+| Learning memory (Lessons+Experience) | 30 | 12 | 18 | 30 | YES |
+| Retrieval | (in Retrieval quality) | 17 | 14 | 31 | via Retrieval quality |
+| Reranking | 10 | 3 | 7 | 10 | YES |
+| Retrieval quality (Retrieval+Reranking) | 30 | 20 | 21 | 41 | YES |
+| TokenReduction | 10 | 3 | 7 | 10 | YES |
+| Learning (continuous learning) | 10 | 3 | 7 | 10 | YES |
+| Performance | 10 | 8 | 2 | 10 | YES |
+| Federation | 10 | 5 | 5 | 10 | YES |
+| MCP | 10 | 2 | 8 | 10 | YES |
+| CLI | 10 | 1 | 9 | 10 | YES |
+| **TOTAL** | — | **100** | **150** | **250** | — |
+
+Federation rows QA-229..QA-233 anchor to the X06.8 federation subpack surfaces inside x06 scope
+(`crates/enforcer-memory/src/federation.rs`, `src/share.rs`: signed personal/team bundles,
+zero-trust import, imported-lesson inactive-until-x05-validation, community redaction golden) and
+execute against x06's own fixtures. Rows in Retrieval / Reranking / TokenReduction / Learning state
+their metric family; results record into `proof/memory/x06-rag-qa.json`.
 
 | ID | Category | User-style query | Required retrieval behavior / proof expectation |
 |---|---|---|---|
@@ -203,152 +231,152 @@ Category distribution table (15 categories, 150 rows total):
 | QA-102 | Symbol | Which functions return `DecodeError` from `enforcer-domain`? | Return constructors and error-mapping sites; link to serde boundaries |
 | QA-103 | Symbol | Find trait implementations of `Validator` in the workspace. | Traverse `Validator` trait edges; return each implementing crate/module |
 | QA-104 | Symbol | Which functions are called by `enforcer-scan` engine core? | Traversal from `crates/enforcer-scan/src/engine.rs` callee graph |
-| QA-105 | Symbol | Find tests that directly instantiate `RuleId` newtype. | Return test files and assertion paths; exclude doc-comment examples |
-| QA-106 | Symbol | What modules export `pub` API in `enforcer-mcp`? | Return public function/struct/enum symbols; exclude private items |
+| QA-105 | Symbol | Find tests that directly instantiate the `RuleId` newtype. | Return test files and assertion paths; exclude doc-comment examples |
+| QA-106 | Symbol | What modules export `pub` API in `enforcer-mcp`? | Return public symbols from `router.rs`, `registry.rs`, `tool_surface.rs`; exclude private items |
 | QA-107 | Symbol | Which symbols in `enforcer-rules` have zero callers? | Return candidate dead code; rank by visibility (pub highest) |
-| QA-108 | Symbol | Find all paths where `RepoRoot` is constructed from user input. | Return boundary parse sites; include error handling |
-| QA-109 | Symbol | What are all the generic instantiations of `Result<T>` in rules crates? | Return per-language crate; group by error variant |
-| QA-110 | Symbol | Which workpack first defined the `RuleId` type? | Link file path to workpack anchor (a03-branded-ruleid-and-registry.md) |
-| QA-111 | Symbol | Find every `pub use` statement in core modules. | Return barrel re-exports; report forbidden per workspace doctrine |
-| QA-112 | Symbol | Which functions mutate internal hash state without creating a new node? | Search hash_chain module; return pure functions only |
-| QA-113 | Symbol | Find imports of `serde_json` across all crates. | Return usage count; link to parse-at-boundary enforcer-config |
-| QA-114 | Symbol | Which type implements the `Sha256` branded newtype? | Return struct definition + TryFrom + Display implementations |
-| QA-115 | Symbol | Find all telemetry event record definitions. | Return event types from enforcer-domain/src/records.rs |
-| QA-116 | Symbol | Which enum variants represent permission filters? | Search enforcer-core/src/permission.rs or equivalent; return variant list |
-| QA-117 | Symbol | Find functions that call both `tracing::info!` and `ndjson_writer`. | Return dual-logging sites; identify double-write candidates |
-| QA-118 | Symbol | What symbols does `enforcer-cli` re-export from subcommands? | Return public command types + argument structures |
-| CodeGraph | Find the dependency graph from `enforcer-mcp` to `enforcer-core`. | Multi-hop transitive deps; return path length and intermediate crates |
-| QA-120 | CodeGraph | Which crates have cyclic dependencies? | Return cycle path with nodes; report forbidden per workspace lints |
-| QA-121 | CodeGraph | Build a module dependency tree for `enforcer-scan`. | Return hierarchy: engine -> rules -> validators -> fixtures |
-| QA-122 | CodeGraph | What is the import boundary between `enforcer-harness` and `enforcer-rules`? | Return explicit imports; report violations vs allow-list |
-| QA-123 | CodeGraph | Which modules form the hotpath for scan execution? | Traversal from CLI -> scan main -> engine -> rule dispatch |
-| QA-124 | CodeGraph | Find indirect dependencies on `tokio` across the workspace. | Return crates; rank by depth in dependency tree |
-| QA-125 | CodeGraph | What is the event flow from `enforcer-scan` to `enforcer-proof`? | Return event types + consumer crates in arc-25 event spine |
-| QA-126 | CodeGraph | Find all modules that read from `.enforce/` config. | Return file readers and config consumers; check parse-at-boundary |
-| QA-127 | CodeGraph | Which crates depend on `enforcer-domain` directly vs transitively? | Return direct deps; count transitive; flag unnecessary deps |
-| QA-128 | CodeGraph | What is the startup initialization order for the CLI binary? | Return call sequence from `main()` through config load to scan ready |
-| Architecture | Find every module that violates the rule-owns-fixture invariant. | Scan crates/enforcer-lang-*/src/rules/*.rs for non-rules modules; report ownership anomalies |
-| QA-130 | Architecture | Which rules lack a corresponding validator? | Traverse rule-id -> validator edge; return missing validators |
-| QA-131 | Architecture | Where does `enforcer-coordination` cross into `enforcer-scan` scope? | Return call sites; check intended routing vs accidental coupling |
-| QA-132 | Architecture | What is the contract between `enforcer-mcp` tool_surface and `context_budget`? | Return interface definition + test fixture pairs |
-| QA-133 | Architecture | Which workpack is responsible for the `detect-and-route` router (f05)? | Link function path to workpack document |
-| QA-134 | Architecture | Find code paths that should use the event spine but don't. | Search for direct function calls that bypass arc-25 events |
-| QA-135 | Architecture | Which crate owns the proof-artifact envelope schema? | Return struct definition + JSON fixture + version record |
-| QA-136 | Architecture | What is the intended layering between Track A and Track D? | Return workpack dependency edges; visualize tier hierarchy |
-| QA-137 | Architecture | Find all instances of `enforcer-scan` calling back into `enforcer-cli`. | Return call sites; report as re-entrance anti-pattern |
-| QA-138 | Architecture | Which Track C adapters have the exact same CI fixture shape? | Return adapter pairs; identify code duplication |
-| QA-139 | Architecture | Find the ownership chain from a rule violation back to a workpack. | Given rule RuleId, traverse: rule -> validator -> crate -> workpack |
-| QA-140 | Architecture | What is the decision tree for choosing between graph vs RAG retrieval? | Return query-routing logic from x06 docs; link to implementation |
-| QA-141 | Architecture | Which architecture decision record (ADR) governs the domain newtype pattern? | Return ADR id/title + decision statement + rationale |
-| QA-142 | Architecture | Find all places where a Track D pack mechanizes a Track A runtime. | Return d01 engine + parity oracle + 5-way oracle call sites |
-| Repository | Explain the charter of `enforcer-core` as a shared foundation. | Return library docs + module list + dependency footprint |
-| QA-144 | Repository | What is the public API surface of `enforcer-domain`? | Return exported types/traits/functions; exclude internal modules |
-| QA-145 | Repository | Find all crates that are P0/keystone vs P1+. | Return tier labels from WORKPACK_INDEX.md; group by status |
-| QA-146 | Repository | Summarize the roles of Track A crates (arc-01..arc-25). | Return crate list + charter line + examples from lib.rs |
-| QA-147 | Repository | Which crates are marked as "skeleton only"? | Return crate names + note that feature code lives elsewhere |
-| QA-148 | Repository | Find all crates that vendor code from OcentraParent. | Return vendoring attribution + canonical source paths |
-| QA-149 | Repository | What is the public test fixture directory structure? | Return fixtures/ hierarchy; check that fixtures are per-workpack |
-| QA-150 | Repository | Find the single `enforcer-domain` crate and list its module roots. | Return: ids, hashes, paths, records, run_record, severity, findings |
-| QA-151 | Repository | Which modules in `enforcer-scan` are private vs public? | Return visibility matrix; check that only engine and modes are public |
-| QA-152 | Repository | Find all modules that use `#[cfg(test)]` item gating. | Return test-only modules; verify fixtures are separate files, not inlined |
-| QA-153 | Repository | What is the minimum Rust version required by the workspace? | Return rust-version from workspace Cargo.toml |
-| QA-154 | Repository | Find all crates that re-export via `pub use`. | Report as violations; enforce direct-path imports per doctrine |
-| QA-155 | Repository | Summarize the purpose of each Track D domain pack (a02..a09). | Return branded-type ownership per pack anchor file |
-| QA-156 | Repository | Which crates depend on external HTTP/network libraries? | Return tokio, hyper, etc.; identify network boundaries |
-| QA-157 | Repository | Find all crates that process JSON. | Return serde_json imports; check parse-at-boundary pattern |
-| QA-158 | Repository | What is the event schema version for arc-25 `enforcer-events`? | Return schemaVersion + eventType fields + JSON examples |
-| QA-159 | Repository | Find all crates with `forbid(unsafe_code)`. | Return positive list; identify any unsafe blocks (should be zero) |
-| QA-160 | Repository | Which crates own error types vs delegate to `enforcer-core::error`? | Return per-crate error enum definitions |
-| GitHistory | What is the git history of `enforcer-domain/src/rule_id.rs`? | Return commits touching that file; identify intent/changes |
-| QA-162 | GitHistory | Which commit introduced the first workpack anchor document? | Return commit hash + message + workpack id |
-| QA-163 | GitHistory | Find the commit that last changed the Track A sequence. | Return hash + message + diff against prior blueprint |
-| QA-164 | GitHistory | What changed in `enforcer-scan/src/engine.rs` in the last 50 commits? | Return summary of intent changes (refactor vs feature vs fix) |
-| QA-165 | GitHistory | Which workpack was created by commit `<hash>`? | Given a git hash, link to workpack that lists it as creator |
-| QA-166 | GitHistory | Find the oldest file in the enforcer workspace. | Return file path + creation commit + initial intent |
-| QA-167 | GitHistory | What lessons came from the PR that merged `arc-01`? | Return lesson records with same commit anchor as merge |
-| QA-168 | GitHistory | Find commits that touch both rules AND fixtures for a language crate. | Return parallel change patterns; identify test-driven commits |
-| QA-169 | GitHistory | Which files have not changed since the last index baseline? | Return unchanged manifest rows; recommend skipping from re-index queue |
-| QA-170 | GitHistory | Find the API evolution of `RuleId` type over commits. | Return struct changes + trait impl additions per commit |
-| QA-171 | GitHistory | What was the intent of the commit that introduced parse-at-boundary? | Return commit message + workpack reference (a07) |
-| QA-172 | GitHistory | Find all commits that modified a Track D workpack without running tests. | Return commit hashes; identify risky landings |
-| QA-173 | GitHistory | Which files were created in the last working session? | Return created-after timestamp; link to commit/workpack |
-| QA-174 | GitHistory | Find the commit that first defined the proof artifact schema. | Return commit + schema version + breaking changes since |
-| QA-175 | GitHistory | What branch/workpack created `tests/fixtures/baseline_ratchet/**`? | Return workpack id (d02) from git blame + workpack file |
-| Lessons | Have we solved a domain-type issue before? | Search x05 lessons + incidents for `branded newtype` or `parse-at-boundary` keywords |
-| QA-177 | Lessons | What strategy prevented re-export anti-patterns in prior projects? | Return lesson + evidence chain + outcome (recurrence avoided) |
-| QA-178 | Lessons | Which lessons apply specifically to rule-validator parity? | Return active lessons tagged with `doc-rule-parity` or `parity` |
-| QA-179 | Lessons | Find the lesson with the strongest evidence for error-handling practices. | Return lesson + t0 incidents + t1 landing commit + t2 clean scans count |
-| QA-180 | Lessons | Which lessons were superseded by the x06 memory system? | Return deprecated lessons + successor lesson id (if any) |
-| QA-181 | Lessons | Find lessons that conflict with each other. | Return pairs of lessons with contradictory recommendations |
-| QA-182 | Lessons | What obsole lessons remain in the knowledge base? | Return lessons with `superseded` or `obsolete` status |
-| QA-183 | Lessons | Which lesson prevented the most recurrences over time? | Return lesson id + recurrence-prevention count + confidence |
-| QA-184 | Lessons | Find lessons that have NOT improved recurrence metrics. | Return lesson id + zero-effect evidence + reason |
-| QA-185 | Lessons | What are the active lessons for workspace design? | Return lessons tagged `workspace` or `cargo`; filter by status=ACTIVE |
-| QA-186 | Lessons | Find lessons related to the newtype pattern. | Return lessons + implementation references + proof fixtures |
-| QA-187 | Lessons | Which lessons mention the `enforcer` binary itself? | Return lessons with `dogfood` or `self-enforcement` keywords |
-| QA-188 | Lessons | Find the lesson that explains why parse-at-boundary is required. | Return lesson + rationale + incident chain it was derived from |
-| QA-189 | Lessons | What lessons apply to the redaction double-layer pattern? | Return lessons + security/privacy incident context |
-| QA-190 | Lessons | Find all lessons created in the past 30 days. | Return recent lesson records; identify emerging patterns |
-| QA-191 | Lessons | Which lessons link to specific test fixtures? | Return lesson -> fixture file graph edges |
-| QA-192 | Lessons | Find lessons that contradict workspace lint policy. | Return lessons + policy text + resolution needed |
-| Experience | What fix strategy worked for parse-at-boundary violations? | Return x05 incident + fix applied + outcome (violation resolved) |
-| QA-194 | Experience | Find all previous instances of cyclic dependency issues. | Return incident records + resolution pattern + prevention strategy |
-| QA-195 | Experience | What procedural memory exists for onboarding a new Track X workpack? | Return procedure steps + checklist + common pitfalls |
-| QA-196 | Experience | Which error type change broke downstream code before? | Return incident + error variant change + dependent crates affected |
-| QA-197 | Experience | Find the strategy that worked for implementing a new language crate. | Return prior language implementation + lessons + gotchas |
-| QA-198 | Experience | What failed strategy should be avoided for new validators? | Return failed attempt + reason + recommended pattern instead |
-| QA-199 | Experience | Find all strategies that prevented silent failures. | Return strategy name + incident context + outcome verification method |
-| QA-200 | Experience | What configuration pattern has worked for multi-harness installs? | Return proven pattern + Track C adapter examples + test fixtures |
-| Retrieval | Find rule `TS-1.1` (no re-exports) and retrieve related enforcement code. | Return rule definition + validator name + CLI/MCP mapping |
-| QA-202 | Retrieval | Retrieve `enforcer-lang-ts` crate for fuzzy query "TypeScript rules about exports". | Return crate definition + module list + rule anchors |
-| QA-203 | Retrieval | Search semantically for "how does bounded query context work". | Expected top-k: x06 KG+RAG docs, context_budget.rs, MCP tool_surface.rs |
-| QA-204 | Retrieval | Find code that implements "cannot mutate shared state". | Return modules + function names + test cases |
-| QA-205 | Retrieval | Retrieve all validator implementations for a given rule. | Return list of validator modules + fixture file paths |
-| QA-206 | Retrieval | Search for "what prevents unwrap in Rust code". | Expected: clippy deny-forbid config + tests + error handling examples |
-| QA-207 | Retrieval | Find the MCP tool that executes a given CLI subcommand. | Return tool schema + handler function + mapping proof |
-| QA-208 | Retrieval | Retrieve the error handling pattern used in `enforcer-coordination`. | Return error type + context creation + conversion sites |
-| QA-209 | Retrieval | Search for "state machines and transitions". | Expected top-k: d16 FSM rule, StrEnum patterns, test fixtures |
-| QA-210 | Retrieval | Find all code that reads environment variables at startup. | Return env-var names + parser functions + config crate path |
-| QA-211 | Retrieval | Retrieve fixtures for rule `TS-6.1` (no `any` type). | Return fixture files + fail/pass examples + lint rule mapping |
-| QA-212 | Retrieval | Search for "how redaction works". | Expected top-k: enforcer-core redaction module, double-layer docs, test fixtures |
-| QA-213 | Retrieval | Find code that assembles the fix-loop dispatch prompt. | Return d26 pack reference + assemble_prompt.rs path |
-| QA-214 | Retrieval | Retrieve the current context-budget baseline for MCP tool_surface. | Return JSON fixture + measurement date + per-tool token estimate |
-| QA-215 | Retrieval | Search for "test companion quality metrics". | Expected: d23 test_quality.rs + heuristic docstring + fixtures |
-| QA-216 | Retrieval | Find code that validates workpack proofs. | Return validator functions + proof schema version + test cases |
-| QA-217 | Retrieval | Retrieve examples of the newtype pattern in `enforcer-domain`. | Return type definitions + parse sites + tests |
-| QA-218 | Retrieval | Search for "how do lessons improve over time". | Expected top-k: x06 continuous learning docs, proof curve examples, metric families |
-| QA-219 | Retrieval | Find the schema for federated bundle imports. | Return struct definition + JSON examples + checksum validation |
-| QA-220 | Retrieval | Retrieve test cases that exercise the fail-closed parity oracle. | Return test files + test-case names + assertion patterns |
-| Reranking | Prove that reranker improved ranking for "rule validator mapping" query. | Return before/after nDCG@10 + MRR@10 + reranker lift >= 0.05 |
-| QA-222 | Reranking | Show reranker lift when semantic query mixes keywords + graph signals. | Return candidate set size + reranker candidate subset + ranking improvement |
-| QA-223 | Reranking | Measure reranker precision on exact rule-id lookup. | Expected: exact rule returned at position 1; reranker lift not applicable |
-| QA-224 | Reranking | Find queries where reranking had negative impact (rank worse after). | Return query + nDCG drop % + root cause (over-filtering vs wrong model) |
-| QA-225 | Reranking | Measure reranker performance on cross-crate dependency queries. | Return latency + top-k accuracy + re-ranking vs baseline time ratio |
-| QA-226 | Reranking | Compare reranker output on identical queries across index versions. | Return consistency score + examples of stable/unstable rankings |
-| QA-227 | Reranking | Show how reranker handles queries with no semantic signal (pure graph). | Return nDCG@10 for graph-only + semantic-only + hybrid routing |
-| QA-228 | Reranking | Prove reranker catches false-positive candidates before context pack. | Return candidate id + reranker score + filtering reason + prevented hallucination |
-| QA-229 | Reranking | Measure reranker latency on top-100 candidates. | Return p50/p95/p99 latency + model throughput + batch size analysis |
-| TokenReduction | Prove MCP retrieval saves tokens vs agent opening 42 files. | Return baseline: agent-reads-42-files tokens, MCP: top-5 context tokens, savings >= 10x |
-| QA-231 | TokenReduction | Measure token savings from KG filter (top-100 -> top-25). | Return pre-filter tokens + post-filter tokens + files avoided count |
-| QA-232 | TokenReduction | Calculate token reduction from reranker (top-25 -> top-5). | Return candidate set tokens + final context tokens + reduction % |
-| QA-233 | TokenReduction | Find queries where token reduction was lowest (< 5x). | Return query class + reason (broad domain, poor recall) + reranking opportunity |
-| QA-234 | TokenReduction | Measure latency/token tradeoff for different context budgets. | Return curve: budget_50->time_ms, budget_100->time_ms, ..., budget_500->time_ms |
-| QA-235 | TokenReduction | Compare token usage: MCP exact lookup vs MCP semantic vs agent direct read. | Return per-method token cost + accuracy metrics |
-| QA-236 | TokenReduction | Find the 95th percentile token savings across the workpack query set. | Return tokens distribution histogram + p95 reduction ratio |
-| QA-237 | TokenReduction | Measure token cost of graph filtering (permission + trust filters). | Return filtered-out candidates count + tokens saved + false-negative count |
-| QA-238 | TokenReduction | Calculate cumulative token savings over 1,000 retrieval queries. | Return sum tokens-with-MCP vs sum tokens-without + monthly trend |
-| QA-239 | TokenReduction | Measure file-open avoidance from context packing. | Return agent-would-open files + MCP-avoids files + file count reduction % |
-| QA-240 | TokenReduction | Find queries where semantic search was essential (graph alone failed). | Return query + graph-only recall + semantic recall + token cost of semantic |
-| Learning | Show retrieval quality improvement after 100 lessons. | Return recall@5/MRR@10/nDCG@10 before/after + improvement % per metric |
-| QA-242 | Learning | Measure rank improvement for lesson-related queries after lessons land. | Return query set + baseline ranking + post-lesson ranking + Kendall-tau correlation |
-| QA-243 | Learning | Show false-positive reduction after lessons teach filter rules. | Return hallucination rate before + after + prevented wrong-source cases |
-| QA-244 | Learning | Measure retrieval latency improvement as vector cache warms. | Return cold-start latency + warm latency + cache hit rate over 1000 queries |
-| QA-245 | Learning | Show learning curve: recall@5 vs lesson count (0, 10, 100, 1000, 10000). | Return 5-point curve + interpolation fit + asymptotic saturation point |
-| QA-246 | Learning | Measure how lessons reduce query routing errors. | Return pre-lesson mis-routed queries + post-lesson + routing accuracy improvement % |
-| QA-247 | Learning | Show token reduction improvement as lessons teach filter strategies. | Return median tokens per query before + after lessons + reduction % |
-| QA-248 | Learning | Measure reranker effectiveness improvement with more lessons. | Return reranker lift@10 before + after lessons + model throughput change |
-| QA-249 | Learning | Show query latency improvement over lesson accumulation. | Return p50 latency at 0/100/1000/10000 lessons + trend analysis |
-| QA-250 | Learning | Prove x06 learning curve does not plateau (continuous improvement). | Return regression test: recall@5 latest >= recall@5 prior over 10 consecutive runs |
+| QA-108 | Symbol | Find all paths where `RepoRoot` is constructed from user input. | Return boundary parse sites in `enforcer-domain/src/paths.rs` consumers; include error handling |
+| QA-109 | Symbol | What are all the generic instantiations of `Result<T>` in the lang crates? | Return per-language crate; group by error variant |
+| QA-110 | Symbol | Which workpack first defined the `RuleId` type? | Ownership chain: `enforcer-domain/src/ids.rs` -> workpack anchor a03-branded-ruleid-and-registry.md |
+| QA-111 | Symbol | Find every `pub use` statement in workspace crates. | Return barrel re-exports; report forbidden per workspace no-barrel doctrine |
+| QA-112 | Symbol | Which type implements the `Sha256` branded newtype contract? | Return struct definition in `enforcer-domain/src/hashes.rs` + TryFrom/Display impls |
+| QA-113 | CodeGraph | Find the dependency path from `enforcer-mcp` to `enforcer-core`. | Multi-hop transitive deps; return path length and intermediate crates |
+| QA-114 | CodeGraph | Which crates have cyclic dependencies? | Return cycle path with nodes; expected zero cycles per workspace design |
+| QA-115 | CodeGraph | Build a module dependency tree for `enforcer-scan`. | Return hierarchy: engine -> modes -> scope -> walk -> router |
+| QA-116 | CodeGraph | What is the event flow from `enforcer-scan` to `enforcer-proof`? | Return event types + consumer crates through the arc-25 `enforcer-events` spine |
+| QA-117 | CodeGraph | Which modules form the hot path for scan execution? | Traversal: `enforcer-cli/src/commands.rs` -> scan engine -> rule dispatch |
+| QA-118 | CodeGraph | Find indirect dependencies on `tokio` across the workspace. | Return crates; rank by depth in dependency tree |
+| QA-119 | Architecture | Find every module that violates the rule-owns-fixture invariant. | Scan `crates/enforcer-lang-*/src/rules/*.rs`; each rule must have `tests/fixtures/<rule>/**` |
+| QA-120 | Architecture | Which rules lack a corresponding validator? | Traverse rule-id -> validator edge; return missing validators |
+| QA-121 | Architecture | Where does `enforcer-coordination` cross into `enforcer-scan` scope? | Return call sites; check intended routing vs accidental coupling |
+| QA-122 | Architecture | What is the contract between `enforcer-mcp` `tool_surface.rs` and `enforcer-core::context_budget`? | Return interface definition + test fixture pairs |
+| QA-123 | Architecture | Which workpack is responsible for the detect-and-route router? | Link `crates/enforcer-scan/src/router/**` to workpack f05-detect-and-route.md |
+| QA-124 | Architecture | Find code paths that should use the event spine but do not. | Search for direct cross-crate calls that bypass arc-25 `enforcer-events` |
+| QA-125 | Architecture | Which crate owns the proof-artifact envelope schema? | Return `enforcer-proof/src/envelope.rs` definition + JSON fixture + version record |
+| QA-126 | Architecture | What is the intended layering between Track A and Track D? | Return workpack dependency edges from WORKPACK_INDEX.md; arc crates before domain packs |
+| QA-127 | Architecture | Find all instances of `enforcer-scan` calling back into `enforcer-cli`. | Return call sites; report as re-entrance anti-pattern (expected zero) |
+| QA-128 | Architecture | Which Track C adapters share the same fixture shape? | Return adapter pairs under `crates/enforcer-install/src/adapters/**`; identify duplication |
+| QA-129 | Architecture | Find the ownership chain from a rule violation back to a workpack. | Given `TS-1.1`, traverse: rule -> validator -> crate -> workpack (arc-07 / e-pack-frontend-react) |
+| QA-130 | Architecture | What is the decision tree for choosing graph vs RAG retrieval? | Return query-routing logic from x06 docs; link to `enforcer-memory/src/retriever.rs` |
+| QA-131 | Architecture | Which architecture decision governs the domain newtype pattern? | Return `enforcer-domain` charter (single-source schema, arc-02) + rationale |
+| QA-132 | Architecture | Find all places where a Track D pack mechanizes a Track A runtime. | Return d01 engine + parity oracle call sites in `enforcer-mechanization` |
+| QA-133 | Architecture | Which crate should own a new NDJSON stream reader? | Expected: `enforcer-core` (owns `ndjson_writer.rs`); return charter evidence from its lib.rs |
+| QA-134 | Architecture | Which rule blocks barrel re-export files? | Return `TS-1.1` (TS) + `no_reexports.rs` (`enforcer-lang-rust`) with validators + fixtures |
+| QA-135 | Architecture | What proof exists for the c05 Claude SessionStart hook? | Return `proof/install/c05-claude-hook-wiring.json` + c05 workpack proof row |
+| QA-136 | Repository | Explain the charter of `enforcer-core` as a shared foundation. | Return crate docs + module list (error, telemetry, redaction, hash_chain) + dependency footprint |
+| QA-137 | Repository | What is the public API surface of `enforcer-domain`? | Return exported types across ids/hashes/paths/records/run_record/severity/findings |
+| QA-138 | Repository | Find all crates labeled P0/keystone vs P1+. | Return tier labels from WORKPACK_INDEX.md; group by status |
+| QA-139 | Repository | Summarize the roles of Track A crates (arc-01..arc-25). | Return crate list + charter line per crate lib.rs |
+| QA-140 | Repository | Which crates are marked skeleton-only? | Return crate names + the feature packs that own their feature files |
+| QA-141 | Repository | Find all crates that vendor code from OcentraParent. | Return vendoring attribution comments + canonical source paths (enforcer-core lib.rs) |
+| QA-142 | Repository | What is the test fixture directory convention? | Return `tests/fixtures/<feature>/**` hierarchy; fixtures per workpack |
+| QA-143 | Repository | List the module roots of the single `enforcer-domain` crate. | Return exactly: findings, hashes, ids, paths, records, run_record, severity |
+| QA-144 | Repository | Which modules in `enforcer-scan` are public vs private? | Return visibility matrix; engine/modes/scope/walk/router surface |
+| QA-145 | Repository | Find all modules using `#[cfg(test)]` item gating. | Return test-only modules; verify fixtures live in separate files |
+| QA-146 | Repository | What is the minimum Rust version required by the workspace? | Return `rust-version = "1.82"` from root Cargo.toml |
+| QA-147 | Repository | Which crates re-export via `pub use` barrels? | Report as doctrine violations; expected zero |
+| QA-148 | Repository | Summarize the purpose of each domain pack a02..a09. | Return branded-type ownership per pack anchor file |
+| QA-149 | Repository | Which crates depend on network/async runtime libraries? | Return tokio consumers; identify network boundaries |
+| QA-150 | Repository | Find all crates that parse JSON. | Return serde_json imports; check parse-at-boundary pattern (a07) |
+| QA-151 | Repository | What schema fields do arc-25 `enforcer-events` records carry? | Return schemaVersion + eventType fields + JSON examples |
+| QA-152 | Repository | Which crates forbid unsafe code? | Return workspace lint `unsafe_code = "forbid"`; expected all crates |
+| QA-153 | Repository | Which crates own local error types vs delegate to `enforcer-core::error`? | Return per-crate error enum definitions |
+| QA-154 | Repository | Give a module map of `crates/enforcer-memory`. | Return: graph, ingest, lesson, recall, record, retriever (+ X06.8 federation/share when landed) |
+| QA-155 | Repository | Explain the coverage of `rules/typescript/source.md`. | Return rule list TS-1.1..TS-6.40 + examples + fix recipe sections |
+| QA-156 | Repository | Which clippy lints are denied workspace-wide? | Return unwrap_used, expect_used, panic, todo, print_stdout etc from root Cargo.toml |
+| QA-157 | Repository | What is the startup order of the `enforcer-cli` binary? | Return `main.rs` -> cli.rs parse -> commands.rs dispatch sequence |
+| QA-158 | GitHistory | What is the git history of `enforcer-domain/src/ids.rs`? | Return commits touching that file; identify intent per change |
+| QA-159 | GitHistory | Which commit introduced the first workpack anchor document? | Return commit hash + message + workpack id |
+| QA-160 | GitHistory | Find the commit that last changed the Track A sequence in PLAN_EXECUTION_BLUEPRINT. | Return hash + message + diff vs prior blueprint |
+| QA-161 | GitHistory | What changed in `enforcer-scan/src/engine.rs` over its last 50 commits? | Return intent summary (refactor vs feature vs fix) per commit |
+| QA-162 | GitHistory | Which workpack/lane produced commit `e83fee6`? | Given the hash, return the lane/workpack that lists it (lessons ships-via audit) |
+| QA-163 | GitHistory | Find the oldest file in the enforcer workspace. | Return file path + creation commit + initial intent |
+| QA-164 | GitHistory | What lessons came from the PR that merged `arc-01`? | Return lesson records sharing the merge commit anchor |
+| QA-165 | GitHistory | Find commits that touch both a rule file AND its fixtures. | Return parallel change patterns; identify test-driven commits |
+| QA-166 | GitHistory | Which files have not changed since the last index baseline? | Return unchanged manifest rows; recommend skip from re-index queue |
+| QA-167 | GitHistory | Trace the API evolution of the `RuleId` type across commits. | Return struct changes + trait impl additions per commit |
+| QA-168 | GitHistory | What was the intent of the commit that introduced parse-at-boundary? | Return commit message + workpack reference (a07) |
+| QA-169 | GitHistory | Find commits that modified a Track D workpack file without test changes. | Return commit hashes; identify risky landings |
+| QA-170 | GitHistory | Which files were created in the most recent working session? | Return created-after timestamp; link to commit/lane |
+| QA-171 | GitHistory | Find the commit that first defined the proof artifact schema. | Return commit + schema version + breaking changes since |
+| QA-172 | GitHistory | What branch/workpack created `tests/fixtures/baseline_ratchet/**`? | Return workpack id (d02) from git blame + workpack file |
+| QA-173 | GitHistory | Summarize the last 50 commits touching `crates/enforcer-install`. | Return commit summary tied to c03/c05/c07/c09/c10 workpacks |
+| QA-174 | Lessons | Have we solved a domain-type issue before? | Search x05 lessons + incidents for branded-newtype / parse-at-boundary keywords; return active lessons |
+| QA-175 | Lessons | What lesson prevented re-export anti-patterns? | Return lesson + evidence chain + outcome (recurrence avoided) |
+| QA-176 | Lessons | Which lessons apply to rule-validator parity? | Return active lessons tagged doc-rule-parity; link d09 validator |
+| QA-177 | Lessons | Find the strongest-evidence lesson about error handling. | Return lesson + t0 incidents + t1 landing commit + t2 clean-scan count |
+| QA-178 | Lessons | Which lessons were superseded by the x06 memory system? | Return deprecated lessons + successor lesson id |
+| QA-179 | Lessons | Find lessons that conflict with each other. | Return pairs with contradictory recommendations + resolution state |
+| QA-180 | Lessons | Which lesson prevented the most recurrences? | Return lesson id + recurrence-prevention count + confidence |
+| QA-181 | Lessons | Find lessons with zero measured effect. | Return lesson id + unchanged-recurrence evidence + review flag |
+| QA-182 | Lessons | What are the active lessons about the newtype pattern? | Return lessons + implementation references in `enforcer-domain` + proof fixtures |
+| QA-183 | Lessons | Find the lesson explaining why parse-at-boundary is required. | Return lesson + rationale + originating incident chain |
+| QA-184 | Lessons | Find all lessons created in the past 30 days. | Return recent lesson records from `enforcer-memory/src/lesson.rs` store; identify emerging patterns |
+| QA-185 | Lessons | Find lessons that contradict workspace lint policy. | Return lessons + policy text (root Cargo.toml lints) + resolution needed |
+| QA-186 | Experience | What fix strategy worked for parse-at-boundary violations? | Return x05 incident + fix applied + verified outcome |
+| QA-187 | Experience | Find previous instances of cyclic dependency issues. | Return incident records + resolution pattern + prevention strategy |
+| QA-188 | Experience | Which error type change broke downstream code before? | Return incident + error variant change + dependent crates affected |
+| QA-189 | Experience | What strategy worked for standing up a new language crate? | Return prior lang-crate implementation experience + gotchas |
+| QA-190 | Experience | What failed strategy should be avoided for new validators? | Return failed attempt + reason + recommended pattern instead |
+| QA-191 | Experience | What configuration pattern has worked for multi-harness installs? | Return proven pattern + Track C adapter examples + test fixtures |
+| QA-192 | Retrieval | Find rule `TS-1.1` and its enforcement code. | Expected ids: rule doc anchor + validator + fixtures in top-5. Metrics: Recall@5, MRR@10 |
+| QA-193 | Retrieval | Fuzzy query "TypeScript rules about exports". | Expected `enforcer-lang-ts` + TS-1.1/TS-6.13 anchors in top-5. Metrics: Recall@5, nDCG@10 |
+| QA-194 | Retrieval | Search "how does bounded query context work". | Expected `context_budget.rs` + `tool_surface.rs` top-5. Metrics: Recall@5, MRR@10 |
+| QA-195 | Retrieval | Retrieve all validator implementations for a given rule id. | Exact rule -> validator traversal; no semantic substitution. Metrics: exact-match rate, Recall@5 |
+| QA-196 | Retrieval | Search "what prevents unwrap in Rust code". | Expected clippy deny config (root Cargo.toml) + d17 error_handling top-5. Metrics: Recall@5, nDCG@10 |
+| QA-197 | Retrieval | Retrieve the error handling pattern used in `enforcer-coordination`. | Return error type + conversion sites. Metrics: Recall@5, MRR@10 |
+| QA-198 | Retrieval | Search "state machines and transitions". | Expected d16 `fsm.rs` + fixtures top-5. Metrics: Recall@5, nDCG@10 |
+| QA-199 | Retrieval | Find all code reading environment variables at startup. | Expected `enforcer-config` env boundary top-5. Metrics: Recall@5, precision@5 |
+| QA-200 | Retrieval | Retrieve fixtures for rule `TS-6.1` (no `any`). | Exact fixture files + fail/pass examples. Metrics: exact-match rate, Recall@5 |
+| QA-201 | Retrieval | Search "how redaction works". | Expected `enforcer-core/src/redaction.rs` + double-layer docs top-5. Metrics: Recall@5, MRR@10 |
+| QA-202 | Retrieval | Retrieve the committed context-budget baseline for the MCP tool surface. | Exact artifact `crates/enforcer-mcp/context-budget-baseline.json`. Metrics: exact-match rate |
+| QA-203 | Retrieval | Find code that validates workpack proofs. | Expected `enforcer-proof` harness/claim modules top-5. Metrics: Recall@5, nDCG@10 |
+| QA-204 | Retrieval | Retrieve newtype examples from `enforcer-domain`. | Expected ids/hashes/paths modules + tests top-5. Metrics: Recall@5, MRR@10 |
+| QA-205 | Retrieval | Retrieve tests exercising the fail-closed parity oracle. | Expected `enforcer-mechanization` parity tests top-5. Metrics: Recall@5, nDCG@10 |
+| QA-206 | Reranking | Prove reranker improved ranking for "rule validator mapping". | Before/after nDCG@10 + MRR@10; reranker lift >= 0.05 |
+| QA-207 | Reranking | Show reranker lift when a query mixes keywords + graph signals. | Candidate set size + reranked subset + lift@10 recorded |
+| QA-208 | Reranking | Measure reranker behavior on exact rule-id lookup (`TS-1.1`). | Exact rule at rank 1; reranker must not displace exact matches; lift n/a recorded |
+| QA-209 | Reranking | Find queries where reranking degraded ranking. | Return query + nDCG@10 drop + root cause classification |
+| QA-210 | Reranking | Compare graph-only vs semantic-only vs hybrid routing. | nDCG@10 per route on the same query set; hybrid >= max(single) - epsilon |
+| QA-211 | Reranking | Prove reranker filters false-positive candidates before context pack. | Candidate id + reranker score + filter reason + prevented wrong-source case |
+| QA-212 | Reranking | Measure reranker latency on top-100 candidates. | p50/p95/p99 latency + throughput + lift-per-millisecond recorded |
+| QA-213 | TokenReduction | Prove MCP retrieval beats agent-opens-42-files. | Baseline file-read tokens vs top-5 context tokens; ratio >= 10x median |
+| QA-214 | TokenReduction | Measure token savings from the KG filter (top-100 -> top-25). | Pre/post filter token counts + files avoided. Metric: token ratio |
+| QA-215 | TokenReduction | Measure token savings from reranking (top-25 -> top-5). | Candidate tokens vs final context tokens + reduction %. Metric: token ratio |
+| QA-216 | TokenReduction | Find query classes with lowest token reduction (< 5x). | Return query class + cause + routing fix opportunity. Metric: token ratio distribution |
+| QA-217 | TokenReduction | Report p95 token savings across the workpack query set. | Token-savings histogram + p95 ratio. Metric: token ratio curve |
+| QA-218 | TokenReduction | Report cumulative token savings over 1,000 replayed queries. | Sum with-MCP vs without-MCP + trend. Metric: cumulative token ratio |
+| QA-219 | TokenReduction | Measure file-open avoidance from context packing. | Agent-would-open vs MCP-avoided file counts + %. Metric: files-avoided ratio |
+| QA-220 | Learning | Show retrieval improvement after 100 lessons on the fixed benchmark. | Recall@5/MRR@10/nDCG@10 before vs after; improvement curve recorded |
+| QA-221 | Learning | Show false-positive reduction after lessons teach filter rules. | Hallucination/wrong-source rate before vs after. Metric: rate curve |
+| QA-222 | Learning | Plot recall@5 vs lesson count (0/10/100/1,000/10,000). | 5-point learning curve on the deterministic synthetic corpus. Metric: recall curve |
+| QA-223 | Learning | Measure how lessons reduce query-routing errors. | Mis-routed query rate before vs after. Metric: routing-accuracy lift |
+| QA-224 | Learning | Show token-reduction improvement as lessons accumulate. | Median tokens/query before vs after lessons. Metric: token ratio curve |
+| QA-225 | Learning | Measure reranker-lift improvement with lesson accumulation. | Lift@10 before vs after lessons. Metric: lift curve |
+| QA-226 | Learning | Prove the learning curve does not regress (ratchet). | Recall@5 latest >= previous over 10 consecutive runs in `proof/memory/x06-rag-qa.json`. Metric: monotonic curve |
+| QA-227 | Performance | Compare full index rebuild vs incremental update on the synthetic corpus. | Wall-time ratio recorded to `proof/memory/x06-longitudinal.json`; incremental must win on <5% change sets |
+| QA-228 | Performance | Measure retrieval p50/p95 latency at the large synthetic graph tier vs baseline tier. | Latency per tier with monotonic run index; regression vs prior run fails |
+| QA-229 | Federation | Import a signed personal bundle fixture. | `enforcer-memory/src/federation.rs` (X06.8) accepts bundle; manifest recorded; trust state = imported-untrusted |
+| QA-230 | Federation | Import a bundle with a signature mismatch. | Rejected; rejection reason = signature-mismatch retrievable by bundle id; zero-trust proof |
+| QA-231 | Federation | Query active lessons after importing an unvalidated bundle. | Imported lessons stay INACTIVE until x05 local validation; untrusted_active_count = 0 |
+| QA-232 | Federation | Export a community share bundle. | `enforcer-memory/src/share.rs` (X06.8) output diffs clean against the redaction golden (no private paths/emails) |
+| QA-233 | Federation | Import a checksum-tampered bundle. | Rejected; rejection reason = checksum retrievable by bundle id; no partial import side effects |
+| QA-234 | MCP | Which handler serves `ocentra_enforcer_scan`? | Return `enforcer-mcp/src/router.rs` route + scan engine handler + DTO schema |
+| QA-235 | MCP | Retrieve the tool schema for `ocentra_enforcer_check`. | Return registry entry (`registry.rs`) + CLI parity link |
+| QA-236 | MCP | Ask `ocentra_enforcer_explain` about rule `TS-1.1`. | Returns rule text anchored to `rules/typescript/source.md` |
+| QA-237 | MCP | Get proof rows for a workpack via `ocentra_enforcer_proof_status`. | Exact proof table rows for the given workpack id |
+| QA-238 | MCP | Retrieve the most recent failing run via `ocentra_enforcer_last_failure`. | Exact run record, no similarity substitution |
+| QA-239 | MCP | Request a RoutePlan via `ocentra_enforcer_route` on a mixed TS+Rust fixture. | f05 detect-and-route plan lists both language packs + native tools |
+| QA-240 | MCP | Verify every MCP tool description fits the committed context budget. | Measured surface <= `crates/enforcer-mcp/context-budget-baseline.json` baseline (d05 ratchet) |
+| QA-241 | MCP | Run `ocentra_enforcer_doctor` and retrieve harness wiring status. | Output matches install doctor fixtures; per-harness wiring rows returned |
+| QA-242 | CLI | Run `ocentra-enforcer scan --root <fixture> --languages typescript,common`. | Findings include `TS-1.1` on the barrel-file fixture; exit code per `enforcer-core/src/exit_codes.rs` |
+| QA-243 | CLI | Run `ocentra-enforcer run --root <fixture> --tool tsc`. | Harness captures compact tsc diagnostics; run record persisted |
+| QA-244 | CLI | Run `ocentra-enforcer runs last-failure`. | Returns the exact last failing run record for the fixture repo |
+| QA-245 | CLI | Map the `scan` subcommand to its handler and tests. | clap parser (`enforcer-cli/src/cli.rs`) -> `commands.rs` handler -> tests |
+| QA-246 | CLI | Which lifecycle commands exist and where are they implemented? | Return `enforcer-cli/src/lifecycle.rs` + `lifecycle/` module + d06 workpack link |
+| QA-247 | CLI | Which adapter does `enforcer install` select for Claude Code? | Return `enforcer-install/src/adapters/claude.rs` + detection evidence + fixtures |
+| QA-248 | CLI | Prove CLI/MCP surface parity. | Every CLI subcommand maps to an MCP tool (aliases.rs/name.rs parity table); zero unmapped |
+| QA-249 | CLI | Run `enforcer doctor` and compare against doctor fixtures. | Output matches `enforcer-install/src/doctor.rs` fixture expectations |
+| QA-250 | CLI | Verify the legacy binary-name migration path. | `enforcer-cli/src/name.rs` + install `migrate_legacy_name.rs` retrieval; old name resolves with migration notice |
 
 ---
 
