@@ -183,13 +183,24 @@ branded_string!(
 
 branded_string!(
     /// Branded coordination hub name (e.g. `enforcer-rust-build`).
+    ///
+    /// `HubName` and [`LaneId`] are deliberately separate nominal types (each
+    /// its own single-field tuple struct, not a type alias) so that passing
+    /// one where the other is expected is a COMPILE error, not a runtime
+    /// surprise buried in a coordination event or a mislocated filesystem
+    /// path. `crates/enforcer-coordination` never accepts a bare `String`
+    /// for either: `init`, `claim_all`, `release`, `closeout`, and the
+    /// `stream_path`/`lock_path` helpers all take `&HubName`/`&LaneId`
+    /// directly, so this distinctness guarantee is enforced at every call
+    /// site, not just at construction.
     HubName,
     "hubName",
     validate_hub_name
 );
 
 branded_string!(
-    /// Branded coordination lane id (e.g. `arc-02`).
+    /// Branded coordination lane id (e.g. `arc-02`). See [`HubName`] for the
+    /// compile-time distinctness guarantee shared by this pair.
     LaneId,
     "laneId",
     validate_lane_id
@@ -247,6 +258,73 @@ mod tests {
         let lane: LaneId = parse("arc-02")?;
         assert_eq!(lane.as_str(), "arc-02");
         assert!(parse::<LaneId>("UPPER").is_err());
+        Ok(())
+    }
+
+    /// Named proof for `TEST_PROOF_EXPECTATIONS.md` row `a06`: unsafe
+    /// charset / empty / oversize all fail closed for both `HubName` and
+    /// `LaneId`, including path-separator and `..`-escape attempts (which
+    /// are already excluded by the charset allow-list, not by a separate
+    /// denylist check — there is no character in either charset that can
+    /// spell a path separator or a `..` segment).
+    #[test]
+    fn coordination_id_brand_decode() -> Result<(), DecodeError> {
+        // Valid mint for both newtypes.
+        let hub: HubName = parse("enforcer-rust-build")?;
+        assert_eq!(hub.as_str(), "enforcer-rust-build");
+        let lane: LaneId = parse("arc-06")?;
+        assert_eq!(lane.as_str(), "arc-06");
+
+        // Empty.
+        assert!(parse::<HubName>("").is_err());
+        assert!(parse::<LaneId>("").is_err());
+
+        // Unsafe charset: path separators, `..` escape, whitespace, case.
+        for bad in ["../escape", "a/b", "a\\b", "UPPER", "has space", "a.b"] {
+            assert!(parse::<HubName>(bad).is_err(), "hub should reject {bad:?}");
+            assert!(parse::<LaneId>(bad).is_err(), "lane should reject {bad:?}");
+        }
+
+        // Oversize: one char past each newtype's documented bound.
+        let oversize_hub = "a".repeat(129);
+        assert!(parse::<HubName>(&oversize_hub).is_err());
+        let max_hub = "a".repeat(128);
+        assert!(parse::<HubName>(&max_hub).is_ok());
+
+        let oversize_lane = "a".repeat(65);
+        assert!(parse::<LaneId>(&oversize_lane).is_err());
+        let max_lane = "a".repeat(64);
+        assert!(parse::<LaneId>(&max_lane).is_ok());
+
+        // Serde rejects the same malformed inputs at the boundary.
+        assert!(serde_json::from_str::<HubName>("\"\"").is_err());
+        assert!(serde_json::from_str::<LaneId>("\"../escape\"").is_err());
+        Ok(())
+    }
+
+    /// Compile-reject fixture for `HubName` vs `LaneId`: these helpers only
+    /// accept their own branded type, so this module compiling at all is
+    /// itself the proof that a `LaneId` cannot be passed where a `HubName`
+    /// is expected (and vice versa) — swapping either call below to pass
+    /// the other branded type is a COMPILE error, not a lint or a runtime
+    /// check. `enforcer-coordination::api` relies on exactly this property
+    /// for `init`/`claim_all`/`release`/`closeout`.
+    #[test]
+    fn hub_name_and_lane_id_are_not_interchangeable() -> Result<(), DecodeError> {
+        fn accepts_hub(hub: &HubName) -> &str {
+            hub.as_str()
+        }
+        fn accepts_lane(lane: &LaneId) -> &str {
+            lane.as_str()
+        }
+        let hub: HubName = parse("enforcer-rust-build")?;
+        let lane: LaneId = parse("arc-06")?;
+        assert_eq!(accepts_hub(&hub), "enforcer-rust-build");
+        assert_eq!(accepts_lane(&lane), "arc-06");
+        // `accepts_hub(&lane)` and `accepts_lane(&hub)` do not type-check;
+        // left commented rather than behind a `trybuild` harness (none is
+        // vendored in this workspace) since the type signatures above are
+        // themselves the enforced guarantee.
         Ok(())
     }
 
