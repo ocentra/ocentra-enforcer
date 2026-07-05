@@ -17,12 +17,12 @@ _Last updated: 2026-07-05 by x06 orchestrator (session 36a5fb74). Update discipl
 | Subpack | Status | Lane / landed SHA | Proof artifact | Notes |
 |---|---|---|---|---|
 | First slice (pre-subpack) | LANDED | rust-build b96502e, a0d470b | — | record/lesson/graph/ingest/recall/retriever; 18 tests; `ingest_observation` seam; embeddings feature-gated |
-| X06.1 core/store/logs | IN FLIGHT | `lane/x06-1-store` @ aa20844 (checkpoint) | `proof/memory/x06-store.json` (on lane) | Parent-session worker; scope verified correct (store/**, log.rs, schema.rs, ids.rs, error.rs + tamper test). Integrate on completion or salvage per playbook §6 |
-| X06.2 code KG indexer | IN FLIGHT | `lane/x06-2-codegraph` (spawned, no checkpoint yet) | `proof/memory/x06-code-graph.json` | Sonnet worker; storage via trait seam pending X06.1 |
-| X06.3 graph algorithms | QUEUED | — | `proof/memory/x06-kg.json` | Needs X06.2. Cypher-subset DSL per D-05 |
-| X06.4 fulltext/vector/rerank | QUEUED (spec ready) | — | `proof/memory/x06-rag.json` | Backend per D-03 (ort default, trait seam); D-07a full-text engine choice to be recorded at spawn |
-| X06.5 background weaver | QUEUED | — | `proof/memory/x06-weaver.json` | Pattern harvest per D-09 |
-| X06.6 continuous learning | QUEUED | — | `proof/memory/x06-learning.json` | Builds on first-slice ingest seam |
+| X06.1 core/store/logs | LANDED | rust-build 42324b0 (integrated by parent session pre-restart) | `proof/memory/x06-store.json` | Zero-trust verified by x06 orchestrator via merged gate 2026-07-05: 74 crate tests green incl. store/log/manifest suites, clippy -D warnings, fmt |
+| X06.2 code KG indexer | LANDED | rust-build 9bca1db (from `lane/x06-2-codegraph` 5d07e33) | `proof/memory/x06-code-graph.json` (NOT yet emitted — follow-up with X06.9 harness) | Gatekeeper PASS: independent gate rerun in clean worktree (49 tests), scope clean, tests behavior-real. Known gaps recorded: `.tsx` parsed with TS grammar not LANGUAGE_TSX (JSX symbols silently missed); TS/JS share one grammar. build.rs deviation (advapi32 link fix) accepted |
+| X06.3 graph algorithms | IN FLIGHT | `lane/x06-3-graphalgs` | `proof/memory/x06-kg.json` | Sonnet; Cypher-subset DSL per D-05 |
+| X06.4 fulltext/vector/rerank | IN FLIGHT | `lane/x06-4-retrieval` | `proof/memory/x06-rag.json` | Sonnet; D-03 (ort default behind trait seam, mock in gates), D-04 hnsw_rs, D-07a proposal due, D-08 RRF |
+| X06.5 background weaver | IN FLIGHT | `lane/x06-5-weaver` | `proof/memory/x06-weaver.json` | Sonnet; D-09 pattern harvest + DLQ/retry/tiers |
+| X06.6 continuous learning | IN FLIGHT | `lane/x06-6-learning` | `proof/memory/x06-learning.json` | Sonnet; builds on ingest seam + X06.1 store |
 | X06.7 MCP/CLI/watch/diagnostics | QUEUED | — | `proof/memory/x06-mcp-cli.json` | 14-tool surface per scout digest §1 |
 | X06.8 sharing/federation | QUEUED | — | `proof/memory/x06-federation.json` | zstd artifact per D-11 |
 | X06.9 parity/benchmark harness | QUEUED | — | `proof/memory/x06-feature-parity.json` | Closes the workpack; runs QA gate + parity + longitudinal |
