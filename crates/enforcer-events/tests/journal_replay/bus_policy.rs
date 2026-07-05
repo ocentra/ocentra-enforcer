@@ -2,15 +2,12 @@ use enforcer_events::ids::EventNamespace;
 use enforcer_events::journal::policy::{JournalPolicy, JournalSelector};
 use std::sync::Arc;
 
-use super::{
-    super::fixtures::{
-        metadata, test_event, test_event_for_type, OTHER_EVENT_TYPE, TEST_EVENT_TYPE, TEST_LABEL,
-        TEST_TARGET,
-    },
-    support::{
-        bus_with_recording_journal, event_type, shared_log, snapshot, subscribe_log_handler,
-        TestText,
-    },
+use super::fixtures::{
+    metadata, test_event, test_event_for_type, TestText as FixtureText, OTHER_EVENT_TYPE,
+    TEST_EVENT_TYPE, TEST_LABEL, TEST_TARGET,
+};
+use super::support::{
+    bus_with_recording_journal, event_type, shared_log, snapshot, subscribe_log_handler, TestText,
 };
 
 #[tokio::test]
@@ -33,8 +30,8 @@ async fn assert_before_dispatch_selected_type() -> Result<(), Box<dyn std::error
     subscribe_log_handler(&before_bus, Arc::clone(&before_log)).await?;
     before_bus
         .publish(
-            test_event(TestText(TEST_LABEL.to_owned()))?,
-            metadata(TestText(TEST_TARGET.to_owned()))?,
+            test_event(FixtureText(TEST_LABEL.to_owned()))?,
+            metadata(FixtureText(TEST_TARGET.to_owned()))?,
         )
         .await?;
     assert_eq!(
@@ -58,8 +55,8 @@ async fn assert_after_dispatch_selected_namespace() -> Result<(), Box<dyn std::e
     subscribe_log_handler(&after_bus, Arc::clone(&after_log)).await?;
     after_bus
         .publish(
-            test_event(TestText(TEST_LABEL.to_owned()))?,
-            metadata(TestText(TEST_TARGET.to_owned()))?,
+            test_event(FixtureText(TEST_LABEL.to_owned()))?,
+            metadata(FixtureText(TEST_TARGET.to_owned()))?,
         )
         .await?;
     assert_eq!(
@@ -84,16 +81,16 @@ async fn assert_before_and_after_dispatch_allowlist() -> Result<(), Box<dyn std:
     both_bus
         .publish(
             test_event_for_type(
-                TestText(TEST_LABEL.to_owned()),
-                TestText(OTHER_EVENT_TYPE.to_owned()),
+                FixtureText(TEST_LABEL.to_owned()),
+                FixtureText(OTHER_EVENT_TYPE.to_owned()),
             )?,
-            metadata(TestText(TEST_TARGET.to_owned()))?,
+            metadata(FixtureText(TEST_TARGET.to_owned()))?,
         )
         .await?;
     both_bus
         .publish(
-            test_event(TestText(TEST_LABEL.to_owned()))?,
-            metadata(TestText(TEST_TARGET.to_owned()))?,
+            test_event(FixtureText(TEST_LABEL.to_owned()))?,
+            metadata(FixtureText(TEST_TARGET.to_owned()))?,
         )
         .await?;
     assert_eq!(

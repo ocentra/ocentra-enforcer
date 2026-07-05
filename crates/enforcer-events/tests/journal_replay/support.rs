@@ -12,7 +12,9 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use super::super::fixtures::{metadata, subscriber, TestEvent, TEST_SUBSCRIBER, TEST_TARGET};
+use super::fixtures::{
+    metadata, subscriber, TestEvent, TestText as FixtureText, TEST_SUBSCRIBER, TEST_TARGET,
+};
 
 #[derive(Clone, Debug)]
 pub(super) struct TestText(pub(super) String);
@@ -40,6 +42,17 @@ impl std::ops::Deref for JournalLines {
 
     fn deref(&self) -> &Self::Target {
         self.0.as_slice()
+    }
+}
+
+impl PartialEq<Vec<String>> for JournalLines {
+    fn eq(&self, other: &Vec<String>) -> bool {
+        self.0.len() == other.len()
+            && self
+                .0
+                .iter()
+                .zip(other.iter())
+                .all(|(line, expected)| line.0 == *expected)
     }
 }
 
@@ -80,8 +93,8 @@ pub(super) async fn subscribe_log_handler(
 ) -> Result<(), Box<dyn std::error::Error>> {
     bus.subscribe::<TestEvent, _, _>(
         subscriber(
-            TestText(TEST_SUBSCRIBER.to_owned()),
-            TestText(TEST_TARGET.to_owned()),
+            FixtureText(TEST_SUBSCRIBER.to_owned()),
+            FixtureText(TEST_TARGET.to_owned()),
         )?,
         move |_| {
             let log = Arc::clone(&log);
@@ -103,7 +116,7 @@ pub(super) async fn subscribe_log_handler(
 pub(super) fn stored_event(
     event: TestEvent,
 ) -> Result<StoredEventEnvelope, Box<dyn std::error::Error>> {
-    Ok(EventEnvelope::from_event(event, metadata(TestText(TEST_TARGET.to_owned()))?)?.store()?)
+    Ok(EventEnvelope::from_event(event, metadata(FixtureText(TEST_TARGET.to_owned()))?)?.store()?)
 }
 
 pub(super) fn event_type(value: TestText) -> Result<EventType, Box<dyn std::error::Error>> {

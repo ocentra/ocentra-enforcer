@@ -1,7 +1,7 @@
 use std::io::{self, Write};
 
 use enforcer_events::{
-    bus::reports::{DeadLetterEvent, DeadLetterReason},
+    bus::reports::dead_letter::{DeadLetterEvent, DeadLetterReason},
     contract_registry::EventContractRegistry,
     ids::{CorrelationId, EventId, EventType},
 };

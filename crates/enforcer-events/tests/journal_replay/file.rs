@@ -4,12 +4,9 @@ use enforcer_events::journal::ndjson::{
 };
 use enforcer_events::journal::EventJournal;
 
-use super::{
-    super::fixtures::{test_event, test_event_for_type, OTHER_EVENT_TYPE, TEST_LABEL},
-    support::{
-        cleanup, journal_path, read_lines, stored_event, tamper_first_journal_payload_label,
-        TestText,
-    },
+use super::fixtures::{test_event, test_event_for_type, OTHER_EVENT_TYPE, TEST_LABEL};
+use super::support::{
+    cleanup, journal_path, read_lines, stored_event, tamper_first_journal_payload_label, TestText,
 };
 
 #[tokio::test]
@@ -17,12 +14,12 @@ async fn ndjson_journal_appends_one_object_per_line_with_hash_chain(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let path = journal_path(TestText("hash-chain".to_owned()));
     let journal = NdjsonEventJournal::with_options(&path, NdjsonJournalOptions::hash_chain());
-    let first = stored_event(test_event(super::super::fixtures::TestText(
+    let first = stored_event(test_event(super::fixtures::TestText(
         TEST_LABEL.to_owned(),
     ))?)?;
     let second = stored_event(test_event_for_type(
-        super::super::fixtures::TestText("second event".to_owned()),
-        super::super::fixtures::TestText(OTHER_EVENT_TYPE.to_owned()),
+        super::fixtures::TestText("second event".to_owned()),
+        super::fixtures::TestText(OTHER_EVENT_TYPE.to_owned()),
     )?)?;
 
     let first_append = journal.append(&first).await?;
@@ -53,7 +50,7 @@ async fn ndjson_journal_reopen_continues_sequence_and_hash_chain(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let path = journal_path(TestText("reopen-hash-chain".to_owned()));
     let first_journal = NdjsonEventJournal::with_options(&path, NdjsonJournalOptions::hash_chain());
-    let first = stored_event(test_event(super::super::fixtures::TestText(
+    let first = stored_event(test_event(super::fixtures::TestText(
         TEST_LABEL.to_owned(),
     ))?)?;
     let first_append = first_journal.append(&first).await?;
@@ -61,8 +58,8 @@ async fn ndjson_journal_reopen_continues_sequence_and_hash_chain(
 
     let reopened = NdjsonEventJournal::with_options(&path, NdjsonJournalOptions::hash_chain());
     let second = stored_event(test_event_for_type(
-        super::super::fixtures::TestText("second event".to_owned()),
-        super::super::fixtures::TestText(OTHER_EVENT_TYPE.to_owned()),
+        super::fixtures::TestText("second event".to_owned()),
+        super::fixtures::TestText(OTHER_EVENT_TYPE.to_owned()),
     )?)?;
     let second_append = reopened.append(&second).await?;
     let lines = read_lines(path.clone()).await?;
@@ -84,14 +81,14 @@ async fn ndjson_journal_reopen_rejects_tampered_hash_chain_payload(
     let path = journal_path(TestText("reopen-tampered-hash-chain".to_owned()));
     let first_journal = NdjsonEventJournal::with_options(&path, NdjsonJournalOptions::hash_chain());
     first_journal
-        .append(&stored_event(test_event(super::super::fixtures::TestText(
+        .append(&stored_event(test_event(super::fixtures::TestText(
             TEST_LABEL.to_owned(),
         ))?)?)
         .await?;
     first_journal
         .append(&stored_event(test_event_for_type(
-            super::super::fixtures::TestText("second event".to_owned()),
-            super::super::fixtures::TestText(OTHER_EVENT_TYPE.to_owned()),
+            super::fixtures::TestText("second event".to_owned()),
+            super::fixtures::TestText(OTHER_EVENT_TYPE.to_owned()),
         )?)?)
         .await?;
     drop(first_journal);
@@ -101,8 +98,8 @@ async fn ndjson_journal_reopen_rejects_tampered_hash_chain_payload(
 
     let result = reopened
         .append(&stored_event(test_event_for_type(
-            super::super::fixtures::TestText("third event".to_owned()),
-            super::super::fixtures::TestText(OTHER_EVENT_TYPE.to_owned()),
+            super::fixtures::TestText("third event".to_owned()),
+            super::fixtures::TestText(OTHER_EVENT_TYPE.to_owned()),
         )?)?)
         .await;
 
@@ -127,8 +124,8 @@ async fn concurrent_ndjson_appends_do_not_hold_state_lock_across_file_write(
             let journal = journal.clone();
             tokio::spawn(async move {
                 let event = test_event_for_type(
-                    super::super::fixtures::TestText(format!("parallel event {index}")),
-                    super::super::fixtures::TestText(OTHER_EVENT_TYPE.to_owned()),
+                    super::fixtures::TestText(format!("parallel event {index}")),
+                    super::fixtures::TestText(OTHER_EVENT_TYPE.to_owned()),
                 )
                 .map_err(|error| error.to_string())
                 .and_then(|event| stored_event(event).map_err(|error| error.to_string()))?;

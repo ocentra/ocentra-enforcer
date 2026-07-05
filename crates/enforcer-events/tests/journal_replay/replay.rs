@@ -8,17 +8,14 @@ use enforcer_events::queue::policy::EventQueuePolicy;
 use enforcer_events::replay::{ReplayCursor, ReplayFilter, ReplayMode};
 use std::sync::Arc;
 
-use super::{
-    super::fixtures::{
-        metadata, subscriber, test_event, test_event_for_type, test_event_with_idempotency,
-        TestEvent, OTHER_EVENT_TYPE, TEST_EVENT_TYPE, TEST_LABEL, TEST_SUBSCRIBER, TEST_TARGET,
-    },
-    support::{
-        cleanup, event_type, journal_path, stored_event, tamper_first_journal_payload_label,
-        TestText as SupportText,
-    },
+use super::fixtures::{
+    metadata, subscriber, test_event, test_event_for_type, test_event_with_idempotency, TestEvent,
+    TestText, OTHER_EVENT_TYPE, TEST_EVENT_TYPE, TEST_LABEL, TEST_SUBSCRIBER, TEST_TARGET,
 };
-use super::super::fixtures::TestText;
+use super::support::{
+    cleanup, event_type, journal_path, stored_event, tamper_first_journal_payload_label,
+    TestText as SupportText,
+};
 
 #[tokio::test]
 async fn replay_cursor_and_filters_read_ordered_projection_records(
