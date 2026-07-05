@@ -79,9 +79,7 @@ fn lesson_facts(node: &MemoryNode) -> Option<LessonFacts<'_>> {
             supersedes: None,
             domain: None,
         }),
-        MemoryNode::Record(record)
-            if matches!(record.kind, crate::record::RecordKind::Lesson) =>
-        {
+        MemoryNode::Record(record) if matches!(record.kind, crate::record::RecordKind::Lesson) => {
             Some(LessonFacts {
                 id: &record.id,
                 landed_at: record.landed_at.iter().map(String::as_str).collect(),
@@ -201,22 +199,14 @@ pub fn learning_curve(graph: &MemoryGraph) -> HashMap<RecordDomain, Vec<Learning
         *count += 1;
         let cumulative_incidents: usize = curves
             .get(&domain)
-            .map(|points| {
-                points
-                    .last()
-                    .map(|p| p.cumulative_incidents)
-                    .unwrap_or(0)
-            })
+            .map(|points| points.last().map(|p| p.cumulative_incidents).unwrap_or(0))
             .unwrap_or(0)
             + graph.incidents_for_lesson(facts.id).len();
-        curves
-            .entry(domain)
-            .or_default()
-            .push(LearningCurvePoint {
-                lesson_id: facts.id.to_string(),
-                landed_count: *count,
-                cumulative_incidents,
-            });
+        curves.entry(domain).or_default().push(LearningCurvePoint {
+            lesson_id: facts.id.to_string(),
+            landed_count: *count,
+            cumulative_incidents,
+        });
     }
     curves
 }
@@ -252,7 +242,11 @@ mod tests {
     #[test]
     fn landed_record_is_active_unlanded_is_inactive() {
         let mut graph = MemoryGraph::new();
-        graph.ingest_record(record("mem-a-0001", RecordDomain::Harness, vec!["commit abc"]));
+        graph.ingest_record(record(
+            "mem-a-0001",
+            RecordDomain::Harness,
+            vec!["commit abc"],
+        ));
         graph.ingest_record(record("mem-a-0002", RecordDomain::Harness, vec![]));
         assert_eq!(
             lesson_status(&graph, "mem-a-0001"),
@@ -282,15 +276,25 @@ mod tests {
     #[test]
     fn active_lessons_excludes_inactive_and_superseded() {
         let mut graph = MemoryGraph::new();
-        graph.ingest_record(record("mem-a-0001", RecordDomain::Harness, vec!["commit abc"]));
+        graph.ingest_record(record(
+            "mem-a-0001",
+            RecordDomain::Harness,
+            vec!["commit abc"],
+        ));
         graph.ingest_record(record("mem-a-0002", RecordDomain::Harness, vec![]));
         let mut superseder = record("mem-a-0003", RecordDomain::Harness, vec!["commit def"]);
         superseder.supersedes = Some("mem-a-0001".to_string());
         graph.ingest_record(superseder);
 
         let active = active_lessons(&graph);
-        assert!(!active.contains(&"mem-a-0001"), "superseded, must be excluded");
-        assert!(!active.contains(&"mem-a-0002"), "unlanded, must be excluded");
+        assert!(
+            !active.contains(&"mem-a-0001"),
+            "superseded, must be excluded"
+        );
+        assert!(
+            !active.contains(&"mem-a-0002"),
+            "unlanded, must be excluded"
+        );
         assert!(active.contains(&"mem-a-0003"), "supersedes and is landed");
         assert_eq!(superseded_by(&graph, "mem-a-0001"), Some("mem-a-0003"));
         assert_eq!(superseded_by(&graph, "mem-a-0003"), None);
@@ -299,7 +303,11 @@ mod tests {
     #[test]
     fn learning_curve_tracks_landed_count_and_incidents_per_domain() {
         let mut graph = MemoryGraph::new();
-        graph.ingest_record(record("mem-a-0001", RecordDomain::Harness, vec!["commit abc"]));
+        graph.ingest_record(record(
+            "mem-a-0001",
+            RecordDomain::Harness,
+            vec!["commit abc"],
+        ));
         graph.ingest_record(record("mem-a-0002", RecordDomain::Code, vec!["commit def"]));
         graph.ingest_record(record("mem-a-0003", RecordDomain::Harness, vec![]));
 
@@ -317,18 +325,25 @@ mod tests {
         );
 
         let curves = learning_curve(&graph);
-        let harness = curves
-            .get(&RecordDomain::Harness)
-            .expect("harness domain has one landed lesson");
-        assert_eq!(harness.len(), 1, "unlanded mem-a-0003 must not appear");
-        assert_eq!(harness[0].lesson_id, "mem-a-0001");
-        assert_eq!(harness[0].landed_count, 1);
-        assert_eq!(harness[0].cumulative_incidents, 1);
+        match curves.get(&RecordDomain::Harness) {
+            Some(harness) => {
+                assert_eq!(harness.len(), 1, "unlanded mem-a-0003 must not appear");
+                assert_eq!(harness[0].lesson_id, "mem-a-0001");
+                assert_eq!(harness[0].landed_count, 1);
+                assert_eq!(harness[0].cumulative_incidents, 1);
+            }
+            None => unreachable!("harness domain has one landed lesson"),
+        }
 
-        let code = curves
-            .get(&RecordDomain::Code)
-            .expect("code domain has one landed lesson");
-        assert_eq!(code[0].cumulative_incidents, 0, "no incidents recorded for mem-a-0002");
+        match curves.get(&RecordDomain::Code) {
+            Some(code) => {
+                assert_eq!(
+                    code[0].cumulative_incidents, 0,
+                    "no incidents recorded for mem-a-0002"
+                );
+            }
+            None => unreachable!("code domain has one landed lesson"),
+        }
     }
 
     #[test]
@@ -337,7 +352,7 @@ mod tests {
         graph.ingest_record(record("mem-a-0001", RecordDomain::User, vec![]));
         let curves = learning_curve(&graph);
         assert!(
-            curves.get(&RecordDomain::User).is_none(),
+            !curves.contains_key(&RecordDomain::User),
             "no landed lesson in this domain -- must not fabricate an empty-but-present curve"
         );
     }

@@ -281,7 +281,10 @@ mod tests {
         let graph = graph_with_landed_lesson_and_incident();
         let report = evidence_chain(&graph, "L-missing", &NoProofRefs);
         assert!(matches!(report, EvidenceReport::Unknown { .. }));
-        assert!(!report.is_incomplete(), "Unknown is not the same as incomplete-chain");
+        assert!(
+            !report.is_incomplete(),
+            "Unknown is not the same as incomplete-chain"
+        );
     }
 
     #[test]
