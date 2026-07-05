@@ -993,6 +993,7 @@ dependencies = [
  "enforcer-coordination",
  "enforcer-core",
  "enforcer-domain",
+ "enforcer-install",
  "enforcer-rules",
  "enforcer-validator",
  "serde",
