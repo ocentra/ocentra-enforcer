@@ -1,4 +1,4 @@
-﻿# Windows-first EOL policy (lesson L17): committed content is LF; checkout stays LF
+# Windows-first EOL policy (lesson L17): committed content is LF; checkout stays LF
 # so `cargo fmt --check` (rustfmt.toml newline_style = "Unix") passes on every OS,
 # regardless of the machine's core.autocrlf. Scripts stay LF for sh compatibility.
 *.rs    text eol=lf

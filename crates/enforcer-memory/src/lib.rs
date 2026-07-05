@@ -119,12 +119,27 @@
 //! [`search::HybridSearcher`] that wires all of it together while
 //! extending (not forking) the existing [`retriever::EmbeddingRetriever`]
 //! seam.
+//! - [`queue`] — the X06.5 weaver's event-driven priority queue
+//!   (hot/warm/cold) plus its dead-letter queue and retry/backoff
+//!   policy.
+//! - [`enrichment`] — the X06.5 weaver's worker abstraction: the
+//!   semantic indexer / entity linker / associative linker /
+//!   summarizer dispatch, the bounded-concurrency worker pool, and the
+//!   [`enrichment::Embedder`] seam X06.4's embedder is adapter-wired
+//!   into at integration.
+//! - [`summaries`] — the X06.5 weaver's summary cache and
+//!   entity-link table.
+//! - [`weaver`] — the X06.5 background weaver: wires [`queue`] to
+//!   [`enrichment`], translates [`code_graph::IndexReport`] into
+//!   weaver events, and owns the blue/green embedding-version
+//!   migration cutover.
 
 pub mod adr;
 pub mod analysis;
 pub mod architecture;
 pub mod code_graph;
 pub mod embed;
+pub mod enrichment;
 pub mod error;
 pub mod evidence;
 pub mod fulltext;
@@ -139,6 +154,7 @@ pub mod lesson;
 pub mod log;
 pub mod observations;
 pub mod parsers;
+pub mod queue;
 pub mod ranking;
 pub mod recall;
 pub mod record;
@@ -148,4 +164,6 @@ pub mod schema;
 pub mod search;
 pub mod sessionstart;
 pub mod store;
+pub mod summaries;
 pub mod vector;
+pub mod weaver;

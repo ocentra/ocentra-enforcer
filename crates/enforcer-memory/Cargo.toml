@@ -53,15 +53,24 @@ petgraph = "0.6"
 tree-sitter-rust = "0.23"
 tree-sitter-typescript = "0.23"
 tree-sitter-python = "0.23"
+<<<<<<< HEAD
 # X06.4 (D-04, DEFAULT): pure-Rust HNSW vector index -- no C++ toolchain,
 # no external vector service (qdrant-client is explicitly rejected, see
 # MEMORY_RETRIEVAL_DECISIONS D-04). Harvested dependency choice from
 # TabAgentServer Rust/indexing (BORROW_POLICY §2: "Cargo dependency
 # CHOICES may be adopted directly").
 hnsw_rs = "0.3"
+# X06.5 weaver: event-driven enrichment queue + bounded-concurrency
+# worker pool. The workspace's `tokio` entry only enables
+# `rt-multi-thread`/`macros`; the weaver additionally needs `sync`
+# (mpsc channels, Semaphore) and `time` (backoff sleeps), so this crate
+# declares its own `tokio` with the fuller feature set rather than
+# widening the workspace-wide default for every other crate.
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
 
 [dev-dependencies]
 tempfile = "3"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "test-util"] }
 
 [features]
 default = []
