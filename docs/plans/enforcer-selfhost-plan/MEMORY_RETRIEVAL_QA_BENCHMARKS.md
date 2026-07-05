@@ -39,6 +39,8 @@ Each row must record: query, route, expected ids, retrieved ids, score families,
 
 ## 1. Rows QA-001..QA-100 — first tranche (authored)
 
+**BINDING GATE (owner-set): the REQUIRED form of QA-001..QA-100 — per-row proof fields, minimum-pass thresholds, and canonical row text — is [MEMORY_RETRIEVAL_QA_PROOF_GATE](./MEMORY_RETRIEVAL_QA_PROOF_GATE.md). Where this file and the gate differ, the gate wins.**
+
 | ID | User-style query | Required retrieval behavior |
 |---|---|---|
 | QA-001 | Find all tests connected to function `validate_rule_record` | Return direct tests, fixture files, and graph path from function to tests. |
