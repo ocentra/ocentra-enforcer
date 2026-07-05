@@ -1,0 +1,213 @@
+{
+  "schemaVersion": 1,
+  "runtimeMode": "plan",
+  "allowNetwork": false,
+  "probeExecutionPolicy": {
+    "allowMultiProbe": false,
+    "defaultProbeFilter": "chat",
+    "probeOrder": [
+      "chat-generation-gguf",
+      "qwen-embedding-onnx",
+      "qwen-reranker-onnx",
+      "qwen-embedding-gguf"
+    ],
+    "reason": "one real model probe at a time by default to avoid resource contention or host instability",
+    "requestedProbeFilter": "chat",
+    "selectedProbes": [
+      "chat-generation-gguf"
+    ]
+  },
+  "cacheRoot": "<repo>/model",
+  "cacheRootPolicy": {
+    "mode": "dev-repo-local",
+    "reason": "dev mode keeps downloaded models in the repository-local model directory",
+    "root": "<repo>/model"
+  },
+  "serviceConfig": {
+    "bindHost": "127.0.0.1",
+    "cacheRoot": "<repo>/model",
+    "exposeLlamaServer": false,
+    "port": 8766,
+    "routes": [
+      "health",
+      "models",
+      "load-model",
+      "unload-model",
+      "chat",
+      "embeddings",
+      "rerank"
+    ]
+  },
+  "chatThroughputPolicy": {
+    "minTokensPerSecond": 10.0,
+    "targetTokensPerSecondLow": 40.0,
+    "targetTokensPerSecondHigh": 60.0
+  },
+  "chatModelSelection": {
+    "backendHint": "auto",
+    "deviceReport": null,
+    "enabled": true,
+    "requestedAcceleration": "gpu",
+    "selection": {
+      "candidates": [
+        {
+          "activeParameterCountMillions": 3000,
+          "architecture": "moe",
+          "estimatedSizeBytes": 19500000000,
+          "preferenceRank": 120,
+          "quantization": "Q4_K_M",
+          "requiredFreeVramMib": 22528,
+          "spec": {
+            "acceleration": "auto",
+            "backend": "llama-cpp",
+            "files": [
+              {
+                "kind": "model",
+                "path": "Qwen3-30B-A3B-Q4_K_M.gguf"
+              }
+            ],
+            "modelId": "Qwen/Qwen3-30B-A3B-GGUF:Q4_K_M",
+            "repoId": "Qwen/Qwen3-30B-A3B-GGUF",
+            "revision": "main",
+            "task": "summarization"
+          },
+          "totalParameterCountMillions": 30000
+        },
+        {
+          "activeParameterCountMillions": null,
+          "architecture": "dense",
+          "estimatedSizeBytes": 5629108704,
+          "preferenceRank": 100,
+          "quantization": "Q4_K_M",
+          "requiredFreeVramMib": 12288,
+          "spec": {
+            "acceleration": "auto",
+            "backend": "llama-cpp",
+            "files": [
+              {
+                "kind": "model",
+                "path": "ornith-1.0-9b-Q4_K_M.gguf"
+              }
+            ],
+            "modelId": "deepreinforce-ai/Ornith-1.0-9B-GGUF",
+            "repoId": "deepreinforce-ai/Ornith-1.0-9B-GGUF",
+            "revision": "main",
+            "task": "summarization"
+          },
+          "totalParameterCountMillions": 9000
+        },
+        {
+          "activeParameterCountMillions": null,
+          "architecture": "dense",
+          "estimatedSizeBytes": 4977169568,
+          "preferenceRank": 90,
+          "quantization": "Q4_K_M",
+          "requiredFreeVramMib": 8192,
+          "spec": {
+            "acceleration": "auto",
+            "backend": "llama-cpp",
+            "files": [
+              {
+                "kind": "model",
+                "path": "gemma-4-E4B-it-Q4_K_M.gguf"
+              }
+            ],
+            "modelId": "unsloth/gemma-4-E4B-it-GGUF:Q4_K_M",
+            "repoId": "unsloth/gemma-4-E4B-it-GGUF",
+            "revision": "main",
+            "task": "summarization"
+          },
+          "totalParameterCountMillions": 4000
+        },
+        {
+          "activeParameterCountMillions": null,
+          "architecture": "dense",
+          "estimatedSizeBytes": 2497280256,
+          "preferenceRank": 80,
+          "quantization": "Q4_K_M",
+          "requiredFreeVramMib": 4096,
+          "spec": {
+            "acceleration": "auto",
+            "backend": "llama-cpp",
+            "files": [
+              {
+                "kind": "model",
+                "path": "Qwen3-4B-Q4_K_M.gguf"
+              }
+            ],
+            "modelId": "Qwen/Qwen3-4B-GGUF:Q4_K_M",
+            "repoId": "Qwen/Qwen3-4B-GGUF",
+            "revision": "main",
+            "task": "summarization"
+          },
+          "totalParameterCountMillions": 4000
+        },
+        {
+          "activeParameterCountMillions": null,
+          "architecture": "dense",
+          "estimatedSizeBytes": 2489758112,
+          "preferenceRank": 70,
+          "quantization": "Q4_K_M",
+          "requiredFreeVramMib": 4096,
+          "spec": {
+            "acceleration": "auto",
+            "backend": "llama-cpp",
+            "files": [
+              {
+                "kind": "model",
+                "path": "google_gemma-3-4b-it-Q4_K_M.gguf"
+              }
+            ],
+            "modelId": "bartowski/google_gemma-3-4b-it-GGUF:Q4_K_M",
+            "repoId": "bartowski/google_gemma-3-4b-it-GGUF",
+            "revision": "main",
+            "task": "summarization"
+          },
+          "totalParameterCountMillions": 4000
+        }
+      ],
+      "detectedFreeVramMib": null,
+      "reason": "selected smallest Q4 chat fallback bartowski/google_gemma-3-4b-it-GGUF:Q4_K_M because no llama.cpp GPU memory report was available",
+      "selected": {
+        "acceleration": "auto",
+        "backend": "llama-cpp",
+        "files": [
+          {
+            "kind": "model",
+            "path": "google_gemma-3-4b-it-Q4_K_M.gguf"
+          }
+        ],
+        "modelId": "bartowski/google_gemma-3-4b-it-GGUF:Q4_K_M",
+        "repoId": "bartowski/google_gemma-3-4b-it-GGUF",
+        "revision": "main",
+        "task": "summarization"
+      },
+      "selectedQuantization": "Q4_K_M"
+    }
+  },
+  "chatGenerationGguf": {
+    "ok": false,
+    "operation": "chat-generation-gguf",
+    "reason": "runtime mode plan does not download or load models",
+    "skipped": true
+  },
+  "qwenEmbeddingGguf": {
+    "ok": false,
+    "operation": "qwen-embedding-gguf",
+    "reason": "runtime mode plan does not download or load models",
+    "skipped": true
+  },
+  "qwenEmbeddingOnnx": {
+    "ok": false,
+    "operation": "qwen-embedding-onnx",
+    "reason": "runtime mode plan does not download or load models",
+    "skipped": true
+  },
+  "qwenRerankerOnnx": {
+    "ok": false,
+    "operation": "qwen-reranker-onnx",
+    "reason": "runtime mode plan does not download or load models",
+    "skipped": true
+  },
+  "observations": []
+}

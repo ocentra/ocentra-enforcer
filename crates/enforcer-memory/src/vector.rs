@@ -24,6 +24,7 @@ use hnsw_rs::anndists::dist::DistCosine;
 use hnsw_rs::hnsw::{Hnsw, Neighbour};
 
 use crate::embed::EmbeddingModelInfo;
+use crate::error::Result;
 use crate::ranking::ScoredCandidate;
 
 /// The version-vector manifest one [`VectorIndex`] was built under. Two
@@ -193,13 +194,15 @@ impl VectorIndex {
 pub fn embed_documents(
     embedder: &dyn crate::embed::Embedder,
     documents: &[(String, String)],
-) -> Vec<(String, Vec<f32>)> {
+) -> Result<Vec<(String, Vec<f32>)>> {
     let mut seen: HashMap<&str, ()> = HashMap::new();
-    documents
-        .iter()
-        .filter(|(doc_id, _text)| seen.insert(doc_id.as_str(), ()).is_none())
-        .map(|(doc_id, text)| (doc_id.clone(), embedder.embed(text)))
-        .collect()
+    let mut entries = Vec::new();
+    for (doc_id, text) in documents {
+        if seen.insert(doc_id.as_str(), ()).is_none() {
+            entries.push((doc_id.clone(), embedder.embed(text)?));
+        }
+    }
+    Ok(entries)
 }
 
 #[cfg(test)]
@@ -212,17 +215,18 @@ mod tests {
     }
 
     #[test]
-    fn exact_vector_query_returns_the_matching_document_first() {
+    fn exact_vector_query_returns_the_matching_document_first() -> Result<()> {
         let embedder = HashingEmbedder::new();
         let entries = vec![
-            ("a".to_owned(), embedder.embed("parse config file")),
-            ("b".to_owned(), embedder.embed("write log entry")),
+            ("a".to_owned(), embedder.embed("parse config file")?),
+            ("b".to_owned(), embedder.embed("write log entry")?),
         ];
         let index = VectorIndex::build(&entries, model_info());
-        let query_vec = embedder.embed("parse config file");
+        let query_vec = embedder.embed("parse config file")?;
         let hits = index.search(&query_vec, 2);
         assert!(!hits.is_empty());
         assert_eq!(hits[0].doc_id, "a");
+        Ok(())
     }
 
     #[test]
@@ -273,13 +277,14 @@ mod tests {
     }
 
     #[test]
-    fn embed_documents_dedups_repeated_doc_ids() {
+    fn embed_documents_dedups_repeated_doc_ids() -> Result<()> {
         let embedder = HashingEmbedder::new();
         let docs = vec![
             ("a".to_owned(), "first".to_owned()),
             ("a".to_owned(), "second".to_owned()),
         ];
-        let entries = embed_documents(&embedder, &docs);
+        let entries = embed_documents(&embedder, &docs)?;
         assert_eq!(entries.len(), 1);
+        Ok(())
     }
 }

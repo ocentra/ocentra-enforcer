@@ -164,7 +164,7 @@ impl<'a> HybridSearcher<'a> {
         let pool_size = CANDIDATE_POOL_MAX.min(corpus.len().max(1));
         let fulltext_ranked = self.fulltext.search(query, pool_size)?;
         let embedding_state = self.embedder.state();
-        let query_vec = self.embedder.embed(query);
+        let query_vec = self.embedder.embed(query)?;
         let vector_ranked = self.vector.search(&query_vec, pool_size);
 
         let fused = fuse_rrf(
@@ -182,7 +182,7 @@ impl<'a> HybridSearcher<'a> {
         let rerank_take = RERANK_POOL_MAX.min(candidates.len());
         let to_rerank = &candidates[..rerank_take];
         let reranker_state = self.reranker.state();
-        let reranked = self.reranker.rerank(query, to_rerank);
+        let reranked = self.reranker.rerank(query, to_rerank)?;
 
         let context_take = CONTEXT_MAX
             .min(reranked.len())

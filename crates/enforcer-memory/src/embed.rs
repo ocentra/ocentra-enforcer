@@ -4,15 +4,13 @@
 //! "contracts only", re-typed here as enforcer-native Rust types, no
 //! OcentraParent code exists to copy).
 //!
-//! # D-03 (DEFAULT): `ort` behind a trait seam; deterministic default
-//! ships in this slice
+//! # D-03 (DEFAULT): backend-neutral local runtime; deterministic
+//! default ships in this slice
 //!
-//! D-03 names ONNX Runtime (`ort`) as the default real backend, gated
-//! behind an optional `ort-models` feature this slice does not enable or
-//! exercise in gates (no model download, no network call, ever, in the
-//! default build/test path -- OWNER_INTENT "local models" +
-//! "degraded mode ... never accepted for feature parity"). What ships
-//! here unconditionally is [`Embedder`], the [`HashingEmbedder`]
+//! D-03 makes llama.cpp/GGUF the first-class local runtime shape,
+//! keeps ONNX Runtime (`ort`) as an optional backend behind
+//! `ort-models`, and requires zero-network default behavior. What
+//! ships here unconditionally is [`Embedder`], the [`HashingEmbedder`]
 //! deterministic default implementation, and the capability-state types
 //! every implementation (real or default) reports through so a caller
 //! can always tell whether a result came from a real model or a
@@ -31,14 +29,15 @@
 //! rerank/HNSW machinery end-to-end with zero network and zero model
 //! weights.
 
+use crate::error::Result;
 use crate::fulltext::tokenize;
 
 /// Embedding dimension the default hashing embedder produces. Any real
-/// `ort`-backed embedder behind `ort-models` reports its own model's
-/// native dimension via [`EmbeddingModelInfo::dimension`]; callers must
-/// never assume a fixed dimension across implementations -- the vector
-/// index's manifest (see [`crate::vector`]) records the dimension that
-/// was actually used to build it and rejects mismatched queries.
+/// real embedder reports its own model's native dimension via
+/// [`EmbeddingModelInfo::dimension`]; callers must never assume a fixed
+/// dimension across implementations -- the vector index's manifest (see
+/// [`crate::vector`]) records the dimension that was actually used to
+/// build it and rejects mismatched queries.
 pub const HASHING_EMBEDDER_DIMENSION: usize = 64;
 
 /// Hardware class a capability ran (or would run) on. Adopted from the
@@ -59,6 +58,8 @@ pub enum DegradedState {
     ProviderUnavailable,
     /// A real backend is available but overloaded/unresponsive.
     Overloaded,
+    /// A real backend attempted to load but failed before inference.
+    ModelLoadFailed,
     /// A real backend returned output that failed validation.
     InvalidOutput,
     /// A real backend returned output below an acceptable confidence
@@ -105,12 +106,11 @@ pub struct Embedding {
 }
 
 /// The embedding capability seam. `enforcer-memory`'s default build
-/// ships only [`HashingEmbedder`] (see module docs); a real `ort`-backed
-/// implementation lives behind the `ort-models` feature and satisfies
-/// this same trait without changing any caller.
+/// ships only [`HashingEmbedder`] (see module docs); real local
+/// implementations satisfy this same trait without changing any caller.
 pub trait Embedder: Send + Sync {
     /// Embed `text` into this embedder's vector space.
-    fn embed(&self, text: &str) -> Vec<f32>;
+    fn embed(&self, text: &str) -> Result<Vec<f32>>;
 
     /// Static model info this embedder reports -- part of the vector
     /// index manifest's version vector (D-04).
@@ -168,14 +168,14 @@ fn fnv1a(bytes: &[u8]) -> u64 {
 }
 
 impl Embedder for HashingEmbedder {
-    fn embed(&self, text: &str) -> Vec<f32> {
+    fn embed(&self, text: &str) -> Result<Vec<f32>> {
         let mut vector = vec![0.0f32; HASHING_EMBEDDER_DIMENSION];
         for term in tokenize(text) {
             let (index, sign) = Self::project_term(&term);
             vector[index] += sign;
         }
         l2_normalize(&mut vector);
-        vector
+        Ok(vector)
     }
 
     fn model_info(&self) -> EmbeddingModelInfo {
@@ -230,11 +230,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn hashing_embedder_is_deterministic_across_calls() {
+    fn hashing_embedder_is_deterministic_across_calls() -> Result<()> {
         let embedder = HashingEmbedder::new();
-        let a = embedder.embed("parseConfigFile");
-        let b = embedder.embed("parseConfigFile");
+        let a = embedder.embed("parseConfigFile")?;
+        let b = embedder.embed("parseConfigFile")?;
         assert_eq!(a, b);
+        Ok(())
     }
 
     #[test]
@@ -247,17 +248,18 @@ mod tests {
     }
 
     #[test]
-    fn shared_vocabulary_queries_are_more_similar_than_disjoint_ones() {
+    fn shared_vocabulary_queries_are_more_similar_than_disjoint_ones() -> Result<()> {
         let embedder = HashingEmbedder::new();
-        let a = embedder.embed("parse config file for the widget loader");
-        let b = embedder.embed("parse config file for the widget reader");
-        let c = embedder.embed("unrelated network socket timeout retry logic");
+        let a = embedder.embed("parse config file for the widget loader")?;
+        let b = embedder.embed("parse config file for the widget reader")?;
+        let c = embedder.embed("unrelated network socket timeout retry logic")?;
         let sim_ab = cosine_similarity(&a, &b);
         let sim_ac = cosine_similarity(&a, &c);
         assert!(
             sim_ab > sim_ac,
             "shared-vocabulary texts should be closer than disjoint-vocabulary ones: {sim_ab} vs {sim_ac}"
         );
+        Ok(())
     }
 
     #[test]

@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "artifact": "x06-learning-curve",
+  "workpack": "x06-models-harvest",
+  "generatedAt": "2026-07-05T17:40:08.4830907Z",
+  "status": "contract-only",
+  "learningCurve": {
+    "present": false,
+    "reason": "graph-dependent persistence writer is still a follow-up"
+  },
+  "dogfoodLessons": [
+    {
+      "lessonId": "dogfood-001",
+      "lesson": "The local runtime contract is backend-neutral, but the first-class path is llama-cpp/GGUF, not ONNX-first.",
+      "evidence": [
+        "crates/enforcer-memory/src/local_runtime.rs",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_DECISIONS.md"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-002",
+      "lesson": "Contract proof and execution proof are different things; a degraded/default build is honest, but it is not parity.",
+      "evidence": [
+        "proof/memory/x06-models.json",
+        "proof/memory/x06-feature-parity.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-003",
+      "lesson": "Token reduction can be real even when reranker lift is still zero, so those metrics must be tracked separately.",
+      "evidence": [
+        "proof/memory/x06-retrieval-quality.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-004",
+      "lesson": "Model observations should stay append-only and graph-driven once the persistence writer exists; do not fake that step in the proof file.",
+      "evidence": [
+        "crates/enforcer-memory/src/model_observations.rs",
+        "docs/plans/enforcer-selfhost-plan/workpacks/x06-harness-memory-graph.md"
+      ],
+      "status": "learned"
+    }
+  ],
+  "blockers": [
+    "No graph-dependent persistence writer exists yet for model observations or learning curves.",
+    "No executed llama-cpp/GGUF runtime proof has landed yet.",
+    "The optional ONNX/ORT backend remains a follow-up path behind the feature gate."
+  ],
+  "recurrenceNotes": [
+    "Record recurrence only after the persistence writer exists.",
+    "Until then, treat the learning curve as a contract stub, not a completed signal."
+  ]
+}

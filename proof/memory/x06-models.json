@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "allowNetwork": false,
+  "cacheRoot": "target\\x06-model-cache",
+  "ornithGenerationGguf": {
+    "error": "ENFORCER_X06_ALLOW_NETWORK is not enabled; explicit proof download/cache disabled",
+    "ok": false,
+    "operation": "ornith-generation-cache"
+  },
+  "qwenEmbeddingGguf": {
+    "error": "ENFORCER_X06_ALLOW_NETWORK is not enabled; explicit proof download/cache disabled",
+    "ok": false,
+    "operation": "qwen-embedding-gguf-cache"
+  },
+  "qwenEmbeddingOnnx": {
+    "error": "ENFORCER_X06_ALLOW_NETWORK is not enabled; explicit proof download/cache disabled",
+    "ok": false,
+    "operation": "qwen-embedding-onnx-cache"
+  },
+  "qwenRerankerOnnx": {
+    "error": "ENFORCER_X06_ALLOW_NETWORK is not enabled; explicit proof download/cache disabled",
+    "ok": false,
+    "operation": "qwen-reranker-onnx-cache"
+  },
+  "observations": [
+    {
+      "schemaVersion": 1,
+      "observedAt": "manual-runtime-probe",
+      "source": "x06-model-runtime-probe",
+      "runId": "x06-model-runtime-probe",
+      "candidate": {
+        "observationKind": "model-load-failure",
+        "modelId": "deepreinforce-ai/Ornith-1.0-9B-GGUF",
+        "task": "summarization",
+        "requestedProvider": null,
+        "failureReason": "ENFORCER_X06_ALLOW_NETWORK is not enabled; explicit proof download/cache disabled"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "observedAt": "manual-runtime-probe",
+      "source": "x06-model-runtime-probe",
+      "runId": "x06-model-runtime-probe",
+      "candidate": {
+        "observationKind": "model-load-failure",
+        "modelId": "Qwen/Qwen3-Embedding-0.6B-GGUF",
+        "task": "embedding",
+        "requestedProvider": null,
+        "failureReason": "ENFORCER_X06_ALLOW_NETWORK is not enabled; explicit proof download/cache disabled"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "observedAt": "manual-runtime-probe",
+      "source": "x06-model-runtime-probe",
+      "runId": "x06-model-runtime-probe",
+      "candidate": {
+        "observationKind": "model-load-failure",
+        "modelId": "onnx-community/Qwen3-Embedding-0.6B-ONNX",
+        "task": "embedding",
+        "requestedProvider": "cpu",
+        "failureReason": "ENFORCER_X06_ALLOW_NETWORK is not enabled; explicit proof download/cache disabled"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "observedAt": "manual-runtime-probe",
+      "source": "x06-model-runtime-probe",
+      "runId": "x06-model-runtime-probe",
+      "candidate": {
+        "observationKind": "model-load-failure",
+        "modelId": "onnx-community/Qwen3-Reranker-0.6B-ONNX",
+        "task": "reranking",
+        "requestedProvider": "cpu",
+        "failureReason": "ENFORCER_X06_ALLOW_NETWORK is not enabled; explicit proof download/cache disabled"
+      }
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+//! Local runtime adapter contract tests.
+//!
+//! These are fixture-backed contract tests only. They do not run any
+//! model inference and they never claim parity from the deterministic
+//! fallback.
+
+use enforcer_memory::error::MemoryError;
+use enforcer_memory::local_runtime::{
+    onnx_ort_feature_compiled, provider_order, validate_fixture, BackendReadiness,
+    LocalRuntimeFixture, LocalRuntimeKind,
+};
+
+type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+#[test]
+fn provider_order_prefers_explicit_llama_then_optional_ort_then_fallback() -> TestResult {
+    let fixture = LocalRuntimeFixture {
+        preferred_backend: Some(LocalRuntimeKind::LlamaCpp),
+        llama_cpp: BackendReadiness::new(true, true),
+        onnx_ort: BackendReadiness::new(true, true),
+        output: Some(vec![0.75, 0.25]),
+        parity_claimed: false,
+    };
+
+    let report = validate_fixture(&fixture, 2)?;
+
+    let mut expected = vec![LocalRuntimeKind::LlamaCpp];
+    if onnx_ort_feature_compiled() {
+        expected.push(LocalRuntimeKind::OnnxOrt);
+    }
+    expected.push(LocalRuntimeKind::DeterministicFallback);
+
+    assert_eq!(provider_order(&fixture), expected);
+    assert_eq!(report.ordered_backends, expected);
+    assert_eq!(report.selected_backend, LocalRuntimeKind::LlamaCpp);
+    assert!(report.real_backend_selected);
+    Ok(())
+}
+
+#[test]
+fn feature_gate_truth_matches_compile_configuration() {
+    assert_eq!(onnx_ort_feature_compiled(), cfg!(feature = "ort-models"));
+}
+
+#[test]
+fn invalid_output_is_rejected_by_the_fixture_validator() -> TestResult {
+    let fixture = LocalRuntimeFixture {
+        preferred_backend: Some(LocalRuntimeKind::LlamaCpp),
+        llama_cpp: BackendReadiness::new(true, true),
+        onnx_ort: BackendReadiness::new(false, false),
+        output: Some(vec![0.5]),
+        parity_claimed: false,
+    };
+
+    let err = match validate_fixture(&fixture, 2) {
+        Ok(report) => {
+            return Err(format!("output length mismatch should fail, got {report:?}").into());
+        }
+        Err(err) => err,
+    };
+
+    assert!(matches!(
+        err,
+        MemoryError::ModelRuntime {
+            operation: "validate-local-runtime-output",
+            ..
+        }
+    ));
+    Ok(())
+}
+
+#[test]
+fn deterministic_fallback_cannot_be_claimed_as_parity() -> TestResult {
+    let fixture = LocalRuntimeFixture {
+        preferred_backend: None,
+        llama_cpp: BackendReadiness::new(false, false),
+        onnx_ort: BackendReadiness::new(false, false),
+        output: None,
+        parity_claimed: true,
+    };
+
+    let err = match validate_fixture(&fixture, 1) {
+        Ok(report) => {
+            return Err(format!("fallback parity claim should fail, got {report:?}").into());
+        }
+        Err(err) => err,
+    };
+
+    assert!(matches!(
+        err,
+        MemoryError::ModelRuntime {
+            operation: "validate-local-runtime-fixture",
+            ..
+        }
+    ));
+    Ok(())
+}

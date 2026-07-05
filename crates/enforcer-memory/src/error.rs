@@ -88,6 +88,15 @@ pub enum MemoryError {
         expected: String,
         actual: String,
     },
+
+    /// Local model runtime/cache validation failed. This is deliberately
+    /// a typed crate error, not a logged warning, because x06 must learn
+    /// from model failures and must never silently claim a loaded model.
+    #[error("model runtime {operation} failed: {reason}")]
+    ModelRuntime {
+        operation: &'static str,
+        reason: String,
+    },
 }
 
 fn format_rows(rows: &[QuarantinedRow]) -> String {

@@ -14,6 +14,10 @@ thiserror = { workspace = true }
 sha2 = { workspace = true }
 enforcer-core = { path = "../enforcer-core" }
 enforcer-domain = { path = "../enforcer-domain" }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"], optional = true }
+ndarray = { version = "0.17", default-features = false, optional = true }
+ort = { version = "2.0.0-rc.12", default-features = false, features = ["std", "ndarray", "download-binaries", "copy-dylibs", "tracing", "tls-native", "api-24"], optional = true }
+tokenizers = { version = "0.23.1", default-features = false, features = ["onig"], optional = true }
 # SQLite operational graph/read model. `bundled` vendors and statically
 # links SQLite's C sources at build time so the crate has zero system
 # dependency (no "sqlite3.dll not found" on a bare Windows box).
@@ -95,15 +99,15 @@ embeddings = []
 # Opt-in real DuckDB analytics backend. NOT part of `default` and NOT
 # exercised by the gate in this pass -- see src/store/analytics.rs.
 duckdb-analytics = ["duckdb"]
-# X06.4 (D-03, DEFAULT): named seam for a future real `ort`-backed
-# Qwen3-class Embedder/Reranker implementation. NOT part of `default`,
-# NOT exercised by any gate, and has NO implementation in this slice --
-# the default build/test path only ever uses the deterministic
-# HashingEmbedder/FusionScoreReranker (see src/embed.rs, src/rerank.rs).
-# Declared here (with no dependency yet) so downstream crates/CI can see
-# the intended integration point without a real `ort` dependency being
-# pulled into every build.
-ort-models = []
+# X06.4/X06 harvest: real `ort`-backed Qwen3-class Embedder/Reranker
+# implementation. NOT part of `default`; default gates stay deterministic
+# and zero-network.
+ort-models = ["dep:ndarray", "dep:ort", "dep:tokenizers"]
+# Explicit-network Hugging Face download/cache path. Never enabled by
+# default; proof runners must opt in deliberately.
+model-downloads = ["dep:reqwest"]
+# Real local model proof path: cache/download helpers plus ORT inference.
+real-models = ["model-downloads", "ort-models"]
 
 [[bench]]
 # X06.9 longitudinal benchmark SKELETON hook point

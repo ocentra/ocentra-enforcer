@@ -74,7 +74,7 @@ fn build_stack(
         .iter()
         .map(|doc| (doc.id.clone(), doc.text.clone()))
         .collect();
-    let entries = embed_documents(&embedder, &doc_texts);
+    let entries = embed_documents(&embedder, &doc_texts)?;
     let vector = VectorIndex::build(&entries, embedder.model_info());
     let reranker = FusionScoreReranker::new();
     Ok((fulltext, vector, embedder, reranker))
