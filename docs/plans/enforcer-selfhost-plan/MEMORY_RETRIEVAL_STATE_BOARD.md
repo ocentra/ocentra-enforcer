@@ -32,7 +32,7 @@ _Last updated: 2026-07-05 by x06 orchestrator (session 36a5fb74). Update discipl
 | Lane | Status | Notes |
 |---|---|---|
 | Scout digests | LANDED (b8a37c6) | `refs/x06-source-scout-digests.md` — 4 sources verified; OcentraParent runtime correction |
-| QA-101..QA-250 authoring | FIX PASS in flight | `lane/x06-author-qa250` @ 6d26bce REJECTED by gatekeeper: 140/150 rows (missing 119,129,143,161,176,193,201,221,230,241), worker-minted owner-set marker, invalid federation shortfall. Fix pass dispatched with exact defect list |
+| QA-101..QA-250 authoring | LANDED (0b229ff + 898f885) | Gatekeeper PASS after fix pass (6a480c7): 150/150 unique rows recounted independently, zero deletions vs base, no minted owner-set markers (one stream-record mention allowed — provenance, not a marker), all §2 category minimums met, Federation rows re-anchored to X06.8 surfaces |
 | Longitudinal benchmark corpora | NOT STARTED | Deterministic synthetic repos + replayed history (QA_BENCHMARKS §3); belongs with X06.9 |
 
 ## Open items requiring owner/orchestrator action
