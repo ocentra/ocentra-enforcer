@@ -5,10 +5,11 @@ use tokio::{
 
 use crate::{
     EventingError, JournalHash, NdjsonEventJournal, ReplayCursor, ReplayFilter, ReplayMode,
-    ReplayReadReport, ReplayRecord,
+    ReplayReadReport,
 };
 
 use super::record;
+use record::ReplayAccumulator;
 
 pub(super) async fn read(
     journal: &NdjsonEventJournal,
@@ -27,14 +28,17 @@ pub(super) async fn read(
 
     while let Some(line) = record::next_line(&mut lines, journal).await? {
         line_number += 1;
+        let mut accumulator = ReplayAccumulator {
+            expected_previous_hash: &mut expected_previous_hash,
+            last_sequence: &mut last_sequence,
+            records: &mut records,
+        };
         skipped_count += usize::from(!record::process_record(
             mode,
             &line,
             line_number,
-            &mut expected_previous_hash,
             &filter,
-            &mut last_sequence,
-            &mut records,
+            &mut accumulator,
         )?);
     }
 

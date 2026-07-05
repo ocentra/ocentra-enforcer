@@ -29,9 +29,7 @@ use active_dispatch::ActiveDispatchTracker;
 
 use publisher::{EventContext, EventPublisher};
 use reports::dead_letter::DeadLetter;
-use reports::handler::{
-    EventMetricsSnapshot, HandlerOutcome, HandlerReport, PublishReport, QueueDrainReport,
-};
+use reports::handler::{EventMetricsSnapshot, HandlerReport, PublishReport, QueueDrainReport};
 use subscriber::{EventSubscriber, SubscriptionHandle, SubscriptionReport};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

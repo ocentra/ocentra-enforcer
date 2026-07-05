@@ -6,7 +6,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 use tokio::sync::Semaphore;
 
-use crate::{JournalDispatchPhase, JournalHash, StoredEventEnvelope};
+use crate::{JournalDispatchPhase, StoredEventEnvelope};
 
 use super::{JournalAppend, SharedEventJournal};
 

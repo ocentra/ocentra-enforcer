@@ -1,4 +1,4 @@
-use std::sync::{Arc, PoisonError};
+use std::sync::PoisonError;
 
 use crate::{
     DomainEvent, EventEnvelope, EventMetadata, EventingError, JournalDispatchPhase, PublishReport,
@@ -6,10 +6,20 @@ use crate::{
 };
 
 use super::{DispatchMode, DispatchStoredError, EventBus, SubscriberRecord};
+use crate::bus::reports::dead_letters_for;
 use crate::bus::reports::handler::{HandlerOutcome, HandlerReport};
-use crate::bus::reports::{dead_letters_for, empty_publish_report};
 
 mod dispatching;
+
+/// What to dispatch: the stored envelope, the subscribers it fans out to,
+/// and the mode to dispatch under -- grouped so `dispatch_stored`/
+/// `dispatch_stored_checked` take one cohesive parameter instead of three
+/// independent ones that are always supplied together.
+pub(in crate::bus) struct DispatchRequest {
+    pub(in crate::bus) stored: StoredEventEnvelope,
+    pub(in crate::bus) subscribers: Vec<SubscriberRecord>,
+    pub(in crate::bus) dispatch_mode: DispatchMode,
+}
 
 pub(super) async fn publish_with_mode<E>(
     bus: &EventBus,
@@ -29,44 +39,42 @@ where
     if subscribers.is_empty() {
         return dispatching::publish_without_subscribers(bus, stored, dispatch_mode).await;
     }
+    let queue_report = bus.queue.report(QueueDisposition::Dispatched);
     bus.dispatch_stored(
-        stored,
-        subscribers,
-        dispatch_mode,
-        bus.queue.report(QueueDisposition::Dispatched),
+        DispatchRequest {
+            stored,
+            subscribers,
+            dispatch_mode,
+        },
+        queue_report,
         true,
     )
     .await
 }
 
 impl EventBus {
-    pub(crate) async fn dispatch_stored(
+    pub(in crate::bus) async fn dispatch_stored(
         &self,
-        stored: StoredEventEnvelope,
-        subscribers: Vec<SubscriberRecord>,
-        dispatch_mode: DispatchMode,
+        request: DispatchRequest,
         queue_report: crate::QueueReport,
         write_journal: bool,
     ) -> Result<PublishReport, EventingError> {
-        self.dispatch_stored_checked(
-            stored,
-            subscribers,
-            dispatch_mode,
-            queue_report,
-            write_journal,
-        )
-        .await
-        .map_err(DispatchStoredError::into_error)
+        self.dispatch_stored_checked(request, queue_report, write_journal)
+            .await
+            .map_err(DispatchStoredError::into_error)
     }
 
-    pub(crate) async fn dispatch_stored_checked(
+    pub(in crate::bus) async fn dispatch_stored_checked(
         &self,
-        stored: StoredEventEnvelope,
-        subscribers: Vec<SubscriberRecord>,
-        dispatch_mode: DispatchMode,
+        request: DispatchRequest,
         queue_report: crate::QueueReport,
         write_journal: bool,
     ) -> Result<PublishReport, DispatchStoredError> {
+        let DispatchRequest {
+            stored,
+            subscribers,
+            dispatch_mode,
+        } = request;
         let reservation = self.queue.reserve_dispatch(&stored)?;
         let _active_dispatch = self.active_dispatches.enter();
         if write_journal {
@@ -101,7 +109,7 @@ impl EventBus {
         })
     }
 
-    pub(crate) fn subscribers_for(&self, stored: &StoredEventEnvelope) -> Vec<SubscriberRecord> {
+    pub(in crate::bus) fn subscribers_for(&self, stored: &StoredEventEnvelope) -> Vec<SubscriberRecord> {
         let registry = self.registry.lock().unwrap_or_else(PoisonError::into_inner);
         let subscribers = registry
             .get(&stored.contract.event_type)

@@ -1,13 +1,9 @@
 use std::sync::{Arc, PoisonError};
 
-use tokio::{fs::OpenOptions, io::AsyncWriteExt};
-
 use crate::journal::{hash_chain::hash_entry, EventJournal, JournalAppendFuture};
 use crate::{EventingError, JournalDispatchPhase, JournalHash, StoredEventEnvelope};
 
-use super::{
-    JournalAppend, JournalFlushPolicy, JournalHashChain, NdjsonEventJournal, NdjsonJournalOptions,
-};
+use super::{JournalAppend, JournalHashChain, NdjsonEventJournal, NdjsonJournalOptions};
 
 impl NdjsonEventJournal {
     async fn append_entry(

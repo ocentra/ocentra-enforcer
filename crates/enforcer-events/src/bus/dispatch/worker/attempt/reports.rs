@@ -1,6 +1,6 @@
+use crate::bus::reports::handler::HandlerIdentity;
 use crate::{
-    EventingError, HandlerExecutionPolicy, HandlerOutcome, HandlerReport, StoredEventEnvelope,
-    SubscriberId, TargetHandler,
+    EventingError, HandlerOutcome, HandlerReport, StoredEventEnvelope, SubscriberId, TargetHandler,
 };
 
 use super::SubscriberRecord;
@@ -13,8 +13,10 @@ pub(super) fn deadline_expired_report(
 ) -> HandlerReport {
     HandlerReport::new(
         stored,
-        subscriber_id,
-        target_handler,
+        HandlerIdentity {
+            subscriber_id,
+            target_handler,
+        },
         HandlerOutcome::DeadlineExpired,
         Some(EventingError::EventDeadlineExpired {
             event_type: stored.contract.event_type.clone(),
@@ -30,8 +32,10 @@ pub(super) fn dispatch_exhausted_report(
 ) -> HandlerReport {
     HandlerReport::new(
         stored,
-        subscriber_id,
-        target_handler,
+        HandlerIdentity {
+            subscriber_id,
+            target_handler,
+        },
         HandlerOutcome::Failed,
         Some(EventingError::InvalidHandlerPolicy {
             reason: String::from("handler execution policy produced no attempt"),
@@ -47,8 +51,10 @@ pub(super) fn handled_report(
 ) -> HandlerReport {
     HandlerReport::new(
         stored,
-        subscriber.id.clone(),
-        subscriber.target_handler.clone(),
+        HandlerIdentity {
+            subscriber_id: subscriber.id.clone(),
+            target_handler: subscriber.target_handler.clone(),
+        },
         HandlerOutcome::Handled,
         None,
         attempts,
@@ -63,8 +69,10 @@ pub(super) fn failed_report(
 ) -> HandlerReport {
     HandlerReport::new(
         stored,
-        subscriber.id.clone(),
-        subscriber.target_handler.clone(),
+        HandlerIdentity {
+            subscriber_id: subscriber.id.clone(),
+            target_handler: subscriber.target_handler.clone(),
+        },
         HandlerOutcome::Failed,
         Some(error),
         attempts,
@@ -78,8 +86,10 @@ pub(super) fn timed_out_report(
 ) -> HandlerReport {
     HandlerReport::new(
         stored,
-        subscriber.id.clone(),
-        subscriber.target_handler.clone(),
+        HandlerIdentity {
+            subscriber_id: subscriber.id.clone(),
+            target_handler: subscriber.target_handler.clone(),
+        },
         HandlerOutcome::TimedOut,
         Some(EventingError::HandlerTimedOut {
             subscriber_id: subscriber.id.clone(),
@@ -95,8 +105,10 @@ pub(super) fn panicked_report(
 ) -> HandlerReport {
     HandlerReport::new(
         stored,
-        subscriber.id.clone(),
-        subscriber.target_handler.clone(),
+        HandlerIdentity {
+            subscriber_id: subscriber.id.clone(),
+            target_handler: subscriber.target_handler.clone(),
+        },
         HandlerOutcome::Panicked,
         Some(EventingError::HandlerPanicked {
             subscriber_id: subscriber.id.clone(),

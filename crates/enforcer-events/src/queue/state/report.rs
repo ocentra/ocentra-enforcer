@@ -2,7 +2,7 @@ use std::sync::PoisonError;
 
 use crate::queue::policy::QueueDisposition;
 
-use super::{EventQueue, EventQueueState};
+use super::EventQueue;
 use crate::bus::reports::EventQueueMetrics;
 
 impl EventQueue {

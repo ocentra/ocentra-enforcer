@@ -6,7 +6,7 @@ use crate::{
 
 use tokio::{
     fs::File,
-    io::{AsyncBufReadExt, BufReader, Lines},
+    io::{BufReader, Lines},
 };
 
 pub(super) async fn next_line(
@@ -42,21 +42,37 @@ pub(super) fn read_record(
     Ok(Some(entry))
 }
 
+/// The running state accumulated while scanning a journal for replay
+/// records: the rolling hash-chain expectation, the highest sequence seen
+/// so far, and the accepted records themselves -- grouped so
+/// `process_record` takes one cohesive, mutably-borrowed parameter instead
+/// of three independent ones updated together on every line.
+pub(super) struct ReplayAccumulator<'a> {
+    pub(super) expected_previous_hash: &'a mut Option<JournalHash>,
+    pub(super) last_sequence: &'a mut u64,
+    pub(super) records: &'a mut Vec<ReplayRecord>,
+}
+
 pub(super) fn process_record(
     mode: ReplayMode,
     line: &str,
     line_number: usize,
-    expected_previous_hash: &mut Option<JournalHash>,
     filter: &ReplayFilter,
-    last_sequence: &mut u64,
-    records: &mut Vec<ReplayRecord>,
+    accumulator: &mut ReplayAccumulator<'_>,
 ) -> Result<bool, EventingError> {
-    let Some(record) = read_record(mode, line, line_number, expected_previous_hash, filter)? else {
+    let Some(record) = read_record(
+        mode,
+        line,
+        line_number,
+        accumulator.expected_previous_hash,
+        filter,
+    )?
+    else {
         return Ok(false);
     };
-    *expected_previous_hash = record.append.current_hash.clone();
-    *last_sequence = (*last_sequence).max(record.append.sequence);
-    records.push(ReplayRecord {
+    *accumulator.expected_previous_hash = record.append.current_hash.clone();
+    *accumulator.last_sequence = (*accumulator.last_sequence).max(record.append.sequence);
+    accumulator.records.push(ReplayRecord {
         sequence: record.append.sequence,
         envelope: record.envelope,
     });

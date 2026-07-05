@@ -3,7 +3,7 @@ use crate::{EventMetadata, EventingError, RequestEvent, RequestId, RequestOption
 use super::super::EventBus;
 use super::helpers::{
     abort_request_publish, await_publish_after_response, await_response_after_publish,
-    complete_request, handle_publish_result, handle_receiver_result,
+    complete_request, handle_publish_result, handle_receiver_result, RequestWait,
 };
 
 pub(super) async fn run<E>(
@@ -41,8 +41,10 @@ where
 
     if publish_done {
         await_response_after_publish(
-            bus,
-            &request_id,
+            RequestWait {
+                bus,
+                request_id: &request_id,
+            },
             &mut receiver,
             &mut timeout,
             &mut publish,
@@ -51,8 +53,10 @@ where
         .await?;
     } else {
         await_publish_after_response(
-            bus,
-            &request_id,
+            RequestWait {
+                bus,
+                request_id: &request_id,
+            },
             &mut publish,
             &mut timeout,
             &mut publish_report,

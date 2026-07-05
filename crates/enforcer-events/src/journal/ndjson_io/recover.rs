@@ -1,14 +1,11 @@
 use std::sync::PoisonError;
-use tokio::fs::{File, OpenOptions};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::fs::File;
+use tokio::io::{AsyncBufReadExt, BufReader};
 
 use crate::journal::hash_chain::verify_hash_chain_entry;
-use crate::{EventingError, JournalDispatchPhase, JournalHash, StoredEventEnvelope};
+use crate::EventingError;
 
-use super::{
-    JournalAppend, JournalFlushPolicy, JournalHashChain, NdjsonEventJournal, NdjsonJournalEntry,
-    NdjsonJournalOptions,
-};
+use super::{NdjsonEventJournal, NdjsonJournalEntry};
 
 impl NdjsonEventJournal {
     pub(crate) async fn recover_state(&self) -> Result<(), EventingError> {
@@ -28,7 +25,7 @@ impl NdjsonEventJournal {
         Ok(())
     }
 
-    pub(crate) async fn read_recovered_state(
+    async fn read_recovered_state(
         &self,
     ) -> Result<super::super::ndjson_state::NdjsonJournalState, EventingError> {
         let file = match File::open(&self.path).await {

@@ -1,6 +1,6 @@
 use std::sync::PoisonError;
 
-use crate::{EventId, EventType, IdempotencyKey};
+use crate::EventType;
 
 use super::{EventQueue, QueuedEnvelope};
 

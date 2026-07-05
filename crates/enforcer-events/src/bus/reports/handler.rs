@@ -35,15 +35,26 @@ pub struct HandlerReport {
     pub trace: EventTraceFields,
 }
 
+/// Which subscriber handled (or was asked to handle) an event -- grouped so
+/// `HandlerReport::new` takes one cohesive parameter instead of two
+/// independent ones that are always supplied together.
+pub(crate) struct HandlerIdentity {
+    pub(crate) subscriber_id: SubscriberId,
+    pub(crate) target_handler: TargetHandler,
+}
+
 impl HandlerReport {
     pub(crate) fn new(
         stored: &crate::StoredEventEnvelope,
-        subscriber_id: SubscriberId,
-        target_handler: TargetHandler,
+        identity: HandlerIdentity,
         outcome: HandlerOutcome,
         error: Option<EventingError>,
         attempts: usize,
     ) -> Self {
+        let HandlerIdentity {
+            subscriber_id,
+            target_handler,
+        } = identity;
         let trace = EventTraceFields {
             event_id: stored.event_id.clone(),
             event_type: stored.contract.event_type.clone(),

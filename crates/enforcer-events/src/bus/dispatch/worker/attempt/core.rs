@@ -2,7 +2,7 @@ use std::panic::AssertUnwindSafe;
 
 use futures::FutureExt;
 
-use crate::{EventingError, HandlerExecutionPolicy, SharedEventClock, StoredEventEnvelope};
+use crate::{HandlerExecutionPolicy, SharedEventClock, StoredEventEnvelope};
 
 use super::super::EventPublisher;
 use super::super::SubscriberRecord;

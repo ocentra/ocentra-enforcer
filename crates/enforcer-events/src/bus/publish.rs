@@ -5,14 +5,9 @@ use crate::{
     RequestOptions, RequestReport, StoredEventEnvelope,
 };
 
-use super::{
-    dispatch::{dispatch_concurrent, dispatch_sequential},
-    reports::dead_letter::DeadLetter,
-    reports::{dead_letters_for, empty_publish_report},
-    DispatchMode, EventBus, PublishReport, SubscriberRecord,
-};
+use super::{reports::dead_letter::DeadLetter, DispatchMode, EventBus, PublishReport};
 
-mod flow;
+pub(super) mod flow;
 mod request;
 
 pub(crate) enum DispatchStoredError {

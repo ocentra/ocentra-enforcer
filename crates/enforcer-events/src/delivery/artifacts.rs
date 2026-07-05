@@ -1,5 +1,3 @@
-use crate::SourceComponent;
-
 use super::validation::{
     EventDeliveryDecisionInput, EventDeliveryRequiredArtifact, EventDeliveryRouteKind,
 };

@@ -3,10 +3,10 @@ use std::sync::Arc;
 use crate::bus::dispatch::{dispatch_concurrent, dispatch_sequential};
 use crate::bus::publisher::EventPublisher;
 use crate::bus::reports::dead_letter::{DeadLetter, DeadLetterReason};
-use crate::bus::reports::{dead_letters_for, empty_publish_report};
+use crate::bus::reports::empty_publish_report;
 use crate::bus::{DispatchMode, EventBus, SubscriberRecord};
 use crate::queue::state::NoSubscriberQueueDecision;
-use crate::{EventingError, JournalDispatchPhase, PublishReport, QueueDisposition, StoredEventEnvelope};
+use crate::{EventingError, PublishReport, QueueDisposition, StoredEventEnvelope};
 
 pub(super) async fn publish_without_subscribers(
     bus: &EventBus,

@@ -1,4 +1,4 @@
-use crate::{EventType, EventingError, StoredEventEnvelope};
+use crate::{EventType, EventingError};
 
 use super::{DispatchMode, EventBus, QueueDrainReport};
 

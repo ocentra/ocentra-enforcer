@@ -1,11 +1,9 @@
 use std::sync::PoisonError;
 
 use crate::bus::reports::dead_letter::DeadLetterReason;
-use crate::queue::policy::{
-    NoSubscriberQueuePolicy, QueueDisposition, QueueOverflowPolicy, QueueReport,
-};
+use crate::queue::policy::{NoSubscriberQueuePolicy, QueueDisposition};
 use crate::queue::reservation::DispatchReservation;
-use crate::{EventClockInstant, EventType, EventingError, StoredEventEnvelope};
+use crate::{EventClockInstant, EventingError, StoredEventEnvelope};
 
 use super::{EventQueue, NoSubscriberQueueDecision};
 

@@ -4,6 +4,7 @@ use crate::{
 };
 
 use super::{
+    publish::flow::DispatchRequest,
     reports::{dead_letter::DeadLetter, empty_publish_report, handler::PublishReport},
     EventBus,
 };
@@ -73,9 +74,11 @@ impl EventBus {
             }
             reports.push(
                 self.dispatch_stored(
-                    record.envelope,
-                    subscribers,
-                    dispatch_mode,
+                    DispatchRequest {
+                        stored: record.envelope,
+                        subscribers,
+                        dispatch_mode,
+                    },
                     self.queue.report(QueueDisposition::Dispatched),
                     false,
                 )

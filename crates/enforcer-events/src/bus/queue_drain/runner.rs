@@ -1,6 +1,7 @@
 use crate::{EventClockInstant, EventType, EventingError, QueueDisposition, StoredEventEnvelope};
 
 use crate::bus::{
+    publish::flow::DispatchRequest,
     publish::DispatchStoredError,
     reports::{
         dead_letter::{DeadLetter, DeadLetterReason},
@@ -48,9 +49,11 @@ pub(super) async fn drain_queued_matching_unchecked(
 
         let report = match bus
             .dispatch_stored_checked(
-                queued_envelope.stored.clone(),
-                subscribers,
-                dispatch_mode,
+                DispatchRequest {
+                    stored: queued_envelope.stored.clone(),
+                    subscribers,
+                    dispatch_mode,
+                },
                 bus.queue.report(QueueDisposition::Dispatched),
                 false,
             )

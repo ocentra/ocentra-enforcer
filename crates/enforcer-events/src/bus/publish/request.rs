@@ -1,8 +1,4 @@
-use tokio::task::JoinHandle;
-
-use crate::{
-    EventMetadata, EventingError, PublishReport, RequestEvent, RequestOptions, RequestReport,
-};
+use crate::{EventMetadata, EventingError, RequestEvent, RequestOptions, RequestReport};
 
 use super::EventBus;
 
