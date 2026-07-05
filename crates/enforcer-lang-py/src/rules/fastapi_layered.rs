@@ -33,7 +33,12 @@ struct FindingSpec<'a> {
     title: &'a str,
 }
 
-fn finding(spec: &FindingSpec<'_>, detail: String, input: &ValidationInput<'_>, line: u32) -> Finding {
+fn finding(
+    spec: &FindingSpec<'_>,
+    detail: String,
+    input: &ValidationInput<'_>,
+    line: u32,
+) -> Finding {
     Finding {
         rule_id: spec.rule_id.clone(),
         severity: spec.severity,
@@ -551,7 +556,12 @@ impl Validator for NoSyncHttpValidator {
         if !is_async_context {
             return Vec::new();
         }
-        for marker in ["requests.get(", "requests.post(", "requests.put(", "httpx.Client("] {
+        for marker in [
+            "requests.get(",
+            "requests.post(",
+            "requests.put(",
+            "httpx.Client(",
+        ] {
             if let Some(line) = first_code_line_with(input.source, marker) {
                 return vec![finding(
                     &FindingSpec {

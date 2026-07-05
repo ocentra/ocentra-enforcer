@@ -26,7 +26,9 @@ fn fixture_dir(name: &str) -> String {
 
 /// One (validator, fail-relative, pass-relative) case, mirroring the
 /// catalog's `fixtures.fail`/`fixtures.pass` for the same rule id.
-fn cases() -> Result<Vec<(Box<dyn Validator>, String, String)>, Box<dyn std::error::Error>> {
+type Case = (Box<dyn Validator>, String, String);
+
+fn cases() -> Result<Vec<Case>, Box<dyn std::error::Error>> {
     use enforcer_lang_py::rules::fastapi_layered::*;
 
     let dir = |name: &str, leaf: &str| format!("{}/{leaf}", fixture_dir(name));
@@ -44,13 +46,25 @@ fn cases() -> Result<Vec<(Box<dyn Validator>, String, String)>, Box<dyn std::err
         ),
         (
             Box::new(NoTransactionInServicesValidator::new()?),
-            dir("no-transaction-in-services", "fail/services/payment_service.py"),
-            dir("no-transaction-in-services", "pass/services/payment_service.py"),
+            dir(
+                "no-transaction-in-services",
+                "fail/services/payment_service.py",
+            ),
+            dir(
+                "no-transaction-in-services",
+                "pass/services/payment_service.py",
+            ),
         ),
         (
             Box::new(NoOrmModelsInServicesValidator::new()?),
-            dir("no-orm-models-in-services", "fail/services/order_service.py"),
-            dir("no-orm-models-in-services", "pass/services/order_service.py"),
+            dir(
+                "no-orm-models-in-services",
+                "fail/services/order_service.py",
+            ),
+            dir(
+                "no-orm-models-in-services",
+                "pass/services/order_service.py",
+            ),
         ),
         (
             Box::new(NoSqlalchemyInRoutersValidator::new()?),
@@ -64,8 +78,14 @@ fn cases() -> Result<Vec<(Box<dyn Validator>, String, String)>, Box<dyn std::err
         ),
         (
             Box::new(NoReposInWorkflowsValidator::new()?),
-            dir("no-repos-in-workflows", "fail/workflows/order_fulfillment.py"),
-            dir("no-repos-in-workflows", "pass/workflows/order_fulfillment.py"),
+            dir(
+                "no-repos-in-workflows",
+                "fail/workflows/order_fulfillment.py",
+            ),
+            dir(
+                "no-repos-in-workflows",
+                "pass/workflows/order_fulfillment.py",
+            ),
         ),
         (
             Box::new(ModelsMappedValidator::new()?),
