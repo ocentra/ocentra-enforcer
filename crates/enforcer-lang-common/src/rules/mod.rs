@@ -4,6 +4,7 @@
 //! other existing bespoke validator): each module here owns exactly one
 //! `RuleId` plus its fixtures, per the workpack that introduced it.
 
+pub mod change_discipline;
 pub mod deferred_work;
 pub mod fsm;
 pub mod size_shape;

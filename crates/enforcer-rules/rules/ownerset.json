@@ -1,0 +1,24 @@
+[
+    {
+        "ruleId": "OWNERSET-1.1",
+        "version": 1,
+        "title": "Owner-set marker preservation across an external doc rewrite",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "rules::change_discipline::OwnersetValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/tests/fixtures/change_discipline/ownerset_dropped/bad.md",
+            "pass": "crates/enforcer-lang-common/tests/fixtures/change_discipline/ownerset_reordered/good.md"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md#L39",
+        "tags": ["common", "change-discipline", "owner-set", "d21", "cross-language"],
+        "params": {
+            "marker": "(owner-set",
+            "matchGranularity": "normalized-line-identity",
+            "waiverSurface": "standard waiver, naming the specific marker text",
+            "newMarkersAllowed": true
+        }
+    }
+]
