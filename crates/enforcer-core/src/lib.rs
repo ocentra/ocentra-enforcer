@@ -11,15 +11,28 @@
 //! committed-baseline gate with no knowledge of what surface is measured
 //! (`enforcer-mcp::tool_surface` is its one caller today).
 //!
-//! VENDORING ATTRIBUTION (arc-01 / EXECUTION_MODEL §2): the `redaction`,
-//! `ndjson_writer`, `hash_chain`, and `platform` modules are specified as
-//! VENDORED from OcentraParent `logging-core`. The canonical source
-//! (`E:\OcentraParent`) was unreachable from this build machine (no E:
-//! drive, not indexed in codebase-memory), so these modules implement the
-//! workpack's behavioral contract directly and MUST be diff-reconciled
-//! against the canonical OcentraParent `logging-core` modules when that
-//! source is reachable. Contract honored: both redaction layers always run;
-//! the NDJSON sink is append-only; the hash-chain is side-effect-free.
+//! VENDORING ATTRIBUTION (arc-01 / EXECUTION_MODEL §2) — RECONCILED
+//! 2026-07-05: the `redaction`, `ndjson_writer`, `hash_chain`, and
+//! `platform` modules were originally specified as VENDORED from
+//! OcentraParent `logging-core`, but its canonical source was unreachable
+//! from the build machine at the time (no `E:` drive, not indexed in
+//! codebase-memory; lesson L12), so these modules implemented the
+//! workpack's behavioral contract directly. That source is now reachable
+//! and has been diff-reconciled; the finding is that NONE of the four
+//! required a literal port:
+//! - `redaction`: real upstream is single-layer/flat-only — this module's
+//!   two-layer/nested-JSON design is a deliberate independent extension
+//!   (see the module doc for the comparison).
+//! - `hash_chain`: no upstream counterpart exists at all — this is
+//!   Enforcer-native code, not a vendored module.
+//! - `platform` + `ndjson_writer`: upstream's equivalents (raw-string path
+//!   helpers, a scope/stream/date-partitioned multi-file writer) are
+//!   superseded by Enforcer's own more-rigorous independent designs
+//!   (`enforcer_domain::paths::{RepoRoot, RelPath}` branded newtypes for
+//!   path handling; callers pick their own explicit NDJSON path rather
+//!   than a forced scope/stream/date taxonomy). Nothing to port.
+//! Contract still honored: both redaction layers always run; the NDJSON
+//! sink is append-only; the hash-chain is side-effect-free.
 //!
 //! No `pub use` barrels (workspace doctrine): consumers path through the
 //! modules directly, e.g. `enforcer_core::error::Result`.

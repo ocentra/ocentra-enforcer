@@ -1,5 +1,13 @@
-//! Pure SHA-256 hash-chain primitive (OcentraParent `logging-core` borrow —
-//! see the vendoring attribution note in `lib.rs`).
+//! Pure SHA-256 hash-chain primitive.
+//!
+//! RECONCILED 2026-07-05: this module was originally specified as an
+//! OcentraParent `logging-core` borrow, but the real upstream source
+//! (reachable at vendor time; unreachable when this module was first
+//! written, per lesson L12) contains NO hash-chain logic anywhere —
+//! `logging-core` has no such primitive to port. This is Enforcer-native
+//! code, inspired by the same tamper-evident-chain idea used elsewhere in
+//! the OcentraParent ecosystem, not a vendored module. No reconciliation
+//! is pending; there is nothing upstream to reconcile against.
 //!
 //! Side-effect free: every function here is pure compute over byte slices.
 //! Each link's digest covers its payload AND the previous link's digest, so

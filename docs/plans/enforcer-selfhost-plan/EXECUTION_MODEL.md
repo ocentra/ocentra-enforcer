@@ -192,6 +192,50 @@ a step, not an afterthought:
   tool, a crashed session, or a discarded/rebuilt worktree (§2b) is normal, not a failure. Commit+push is the
   save button the harness doesn't give you.
 
+## 2f. Multi-orchestrator isolation — §2b's principle extends to orchestrator-level sessions (owner-set, 2026-07-05)
+**§2b's TOTAL ISOLATION principle was written assuming exactly ONE orchestrator holds the primary worktree
+(`C:\Projects\enforcer-rust`, checked out to `rust-build`) and spawns many isolated WORKER lanes from it. It
+never anticipated a SECOND long-lived orchestrator-level session (e.g. a dedicated x06 memory-system
+orchestrator, or any future dedicated sub-plan orchestrator) also being handed that SAME physical directory.**
+This gap was hit live on 2026-07-05: the primary orchestrator's `git commit` against the shared worktree
+repeatedly failed on `.git/worktrees/enforcer-rust/index.lock` because a sibling x06 orchestrator session was
+concurrently running its own `git add`/`commit`/`push` in the exact same local directory. Both sessions' actual
+SUBSTANTIVE work already happens on properly isolated lane branches (`lane/x06*`) — the collision was narrower:
+ad hoc orchestrator-level HOUSEKEEPING commits (state-board docs, memory-stream appends) landing directly
+against the shared checkout from two processes at once.
+
+**The fix is not a new lock protocol — reusing a live coordination-hub claim was considered and rejected,
+because the hub MCP surface has been unreliable/disconnected for long stretches this entire session (see §4);
+building safety on top of an already-flaky dependency just relocates the failure, it doesn't remove it.**
+Instead, extend §2b's own principle one level up:
+
+- **Any session that becomes a second (or Nth) long-lived ORCHESTRATOR-level participant — not a short-lived
+  worker lane — MUST get its OWN dedicated local worktree directory tracking the SAME integration branch
+  (e.g. `git worktree add ../enforcer-rust-x06 rust-build`), never the primary orchestrator's physical
+  checkout.** This is the exact same "total isolation" reasoning §2b already applies to worker lanes, just
+  scoped up: two processes sharing one `.git/worktrees/<name>/index` file is the root cause, and separate
+  worktree directories eliminate that root cause by construction — no locking mechanism needs to work
+  correctly for this fix to hold, because there's nothing left to lock.
+- **Both orchestrators still push to the same remote branch (`origin/rust-build`) from their separate local
+  worktrees.** This can still race at the REMOTE ref-update level (git's own atomic compare-and-swap on the
+  remote), which is a well-understood, standard failure mode — a rejected non-fast-forward push — NOT the
+  local index corruption/contention this section fixes. The standard remedy applies: `git fetch origin`,
+  rebase/merge onto the current `origin/rust-build`, retry the push. Every orchestrator session (primary and
+  any secondary) does this defensively before every push to the shared integration branch, exactly as the
+  primary orchestrator has already been doing all session via its cherry-pick-then-push pattern.
+- **Practical remediation for an already-running secondary orchestrator session:** it does not need to be
+  killed or restarted — it needs to stop doing ad hoc git operations directly in the shared checkout going
+  forward and instead either (a) get a fresh dedicated worktree for its own housekeeping commits, or (b) route
+  ALL its output (including doc/state-board updates) through its own lane branches and let the primary
+  orchestrator integrate them via the normal §2d pattern (zero-trust verify, cherry-pick, push) — the same
+  treatment every worker lane already gets. Option (b) requires no new infrastructure and is the default
+  unless a secondary orchestrator's cadence genuinely needs direct-push autonomy.
+- **Follow-up (T2, not blocking):** once `enforcer-coordination`'s `lane new`/`park`/`rm` CLI (arc-16, §2d) is
+  shipped as a product capability, extend it with an `--orchestrator` mode that scaffolds a secondary
+  orchestrator's isolated worktree in one command instead of a manual `git worktree add`, and (once the hub MCP
+  surface is reliably reachable) layer an OPTIONAL courtesy claim on top as defense-in-depth — never as the
+  sole safety mechanism, per the reasoning above.
+
 ## 3. Orchestration — orchestrator + worker swarm
 - A high-capability ORCHESTRATOR model (Fable 5) drives; it does NOT write code itself unless absolutely
   necessary. It reads WORKPACK_INDEX, picks the dependency-free frontier of disjoint-`owns:` workpacks, and

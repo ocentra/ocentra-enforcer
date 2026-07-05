@@ -1,5 +1,15 @@
-//! Two-layer redaction over structured records (OcentraParent `logging-core`
-//! borrow — see the vendoring attribution note in `lib.rs`).
+//! Two-layer redaction over structured records.
+//!
+//! RECONCILED 2026-07-05 against the real OcentraParent `logging-core`
+//! source (reachable at vendor time; unreachable when this module was
+//! first written, per lesson L12): the canonical `redact_fields` there is
+//! SINGLE-layer only (key-name matching over a flat `LogFields` map, no
+//! value-pattern scanning, no recursion into nested structures). This
+//! module is a deliberate, independent EXTENSION beyond that upstream
+//! shape — not a partial or pending port — adding a second value-pattern
+//! layer (regex secret detection in free text) and generalizing from the
+//! flat `LogFields` type to arbitrary nested `serde_json::Value`, so any
+//! structured record can be redacted, not just log lines.
 //!
 //! Layer 1 (key-name): any field whose key matches a sensitive-key fragment
 //! has its entire value replaced.
