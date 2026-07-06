@@ -232,8 +232,8 @@ fn read_marker(project_root: &Path) -> ProjectsResult<Option<StoreMarker>> {
             source,
         })
     })?;
-    let marker: StoreMarker =
-        serde_json::from_str(&raw).map_err(|source| ProjectsError::Memory(MemoryError::Json(source)))?;
+    let marker: StoreMarker = serde_json::from_str(&raw)
+        .map_err(|source| ProjectsError::Memory(MemoryError::Json(source)))?;
     Ok(Some(marker))
 }
 
@@ -319,7 +319,10 @@ fn ndjson_line_count(path: &Path) -> ProjectsResult<u64> {
             source,
         })
     })?;
-    Ok(content.lines().filter(|line| !line.trim().is_empty()).count() as u64)
+    Ok(content
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .count() as u64)
 }
 
 /// Delete project `project_id`'s store directory under `stores_dir`,
@@ -417,7 +420,8 @@ mod tests {
     }
 
     #[test]
-    fn list_projects_reports_every_initialized_project_and_skips_non_projects() -> ProjectsResult<()> {
+    fn list_projects_reports_every_initialized_project_and_skips_non_projects() -> ProjectsResult<()>
+    {
         let stores_dir = temp_dir("list");
         let root_a = init_repo_root("C:/Projects/alpha");
         let root_b = init_repo_root("C:/Projects/beta");
@@ -427,8 +431,12 @@ mod tests {
 
         // An incidental non-project directory (no store.json) must be
         // skipped, not reported and not erroring the whole call.
-        std::fs::create_dir_all(stores_dir.join("not-a-project"))
-            .map_err(|source| MemoryError::Io { path: stores_dir.clone(), source })?;
+        std::fs::create_dir_all(stores_dir.join("not-a-project")).map_err(|source| {
+            MemoryError::Io {
+                path: stores_dir.clone(),
+                source,
+            }
+        })?;
 
         let projects = list_projects(&stores_dir)?;
         assert_eq!(projects.len(), 2);
@@ -436,8 +444,10 @@ mod tests {
         assert!(repo_roots.contains(&"C:/Projects/alpha"));
         assert!(repo_roots.contains(&"C:/Projects/beta"));
 
-        std::fs::remove_dir_all(&stores_dir)
-            .map_err(|source| MemoryError::Io { path: stores_dir, source })?;
+        std::fs::remove_dir_all(&stores_dir).map_err(|source| MemoryError::Io {
+            path: stores_dir,
+            source,
+        })?;
         Ok(())
     }
 
@@ -461,8 +471,10 @@ mod tests {
         assert_eq!(status.edges, 0);
         assert_eq!(status.status, ProjectStatus::Empty);
 
-        std::fs::remove_dir_all(&stores_dir)
-            .map_err(|source| MemoryError::Io { path: stores_dir, source })?;
+        std::fs::remove_dir_all(&stores_dir).map_err(|source| MemoryError::Io {
+            path: stores_dir,
+            source,
+        })?;
         Ok(())
     }
 
@@ -497,8 +509,10 @@ mod tests {
         assert_eq!(status.nodes, 1);
         assert_eq!(status.status, ProjectStatus::Ready);
 
-        std::fs::remove_dir_all(&stores_dir)
-            .map_err(|source| MemoryError::Io { path: stores_dir, source })?;
+        std::fs::remove_dir_all(&stores_dir).map_err(|source| MemoryError::Io {
+            path: stores_dir,
+            source,
+        })?;
         Ok(())
     }
 
@@ -538,16 +552,19 @@ mod tests {
         .map_err(ProjectsError::Memory)?;
 
         let status = index_status(&stores_dir, &project_id)?;
-        let observations = status
+        let observations: Vec<&LogIndexStatus> = status
             .logs
             .iter()
-            .find(|l| l.log_name == "observations")
-            .expect("observations log status present");
-        assert!(matches!(observations.state, FreshnessState::Stale { .. }));
-        assert_eq!(observations.log_length, 1);
+            .filter(|l| l.log_name == "observations")
+            .collect();
+        assert_eq!(observations.len(), 1, "observations log status present");
+        assert!(matches!(observations[0].state, FreshnessState::Stale { .. }));
+        assert_eq!(observations[0].log_length, 1);
 
-        std::fs::remove_dir_all(&stores_dir)
-            .map_err(|source| MemoryError::Io { path: stores_dir, source })?;
+        std::fs::remove_dir_all(&stores_dir).map_err(|source| MemoryError::Io {
+            path: stores_dir,
+            source,
+        })?;
         Ok(())
     }
 
@@ -562,25 +579,34 @@ mod tests {
 
         assert!(store_root.exists());
         delete_project(&stores_dir, &project_id)?;
-        assert!(!store_root.exists(), "the project's own directory must be gone");
+        assert!(
+            !store_root.exists(),
+            "the project's own directory must be gone"
+        );
         assert!(stores_dir.exists(), "stores_dir itself must survive");
 
-        std::fs::remove_dir_all(&stores_dir)
-            .map_err(|source| MemoryError::Io { path: stores_dir, source })?;
+        std::fs::remove_dir_all(&stores_dir).map_err(|source| MemoryError::Io {
+            path: stores_dir,
+            source,
+        })?;
         Ok(())
     }
 
     #[test]
     fn delete_project_rejects_an_unknown_project_id() -> ProjectsResult<()> {
         let stores_dir = temp_dir("delete-unknown");
-        std::fs::create_dir_all(&stores_dir)
-            .map_err(|source| MemoryError::Io { path: stores_dir.clone(), source })?;
+        std::fs::create_dir_all(&stores_dir).map_err(|source| MemoryError::Io {
+            path: stores_dir.clone(),
+            source,
+        })?;
 
         let outcome = delete_project(&stores_dir, "never-initialized");
         assert!(matches!(outcome, Err(ProjectsError::UnknownProject { .. })));
 
-        std::fs::remove_dir_all(&stores_dir)
-            .map_err(|source| MemoryError::Io { path: stores_dir, source })?;
+        std::fs::remove_dir_all(&stores_dir).map_err(|source| MemoryError::Io {
+            path: stores_dir,
+            source,
+        })?;
         Ok(())
     }
 
@@ -588,16 +614,20 @@ mod tests {
     fn delete_project_rejects_path_traversal_via_dotdot_project_id() -> ProjectsResult<()> {
         let parent = temp_dir("traversal-parent");
         let stores_dir = parent.join("stores");
-        std::fs::create_dir_all(&stores_dir)
-            .map_err(|source| MemoryError::Io { path: stores_dir.clone(), source })?;
+        std::fs::create_dir_all(&stores_dir).map_err(|source| MemoryError::Io {
+            path: stores_dir.clone(),
+            source,
+        })?;
 
         // Plant a directory OUTSIDE stores_dir that a `..`-laden
         // project_id could reach, and give it a store.json marker so it
         // would pass the "is this a real store" check if the
         // containment check were missing or buggy.
         let escape_target = parent.join("victim");
-        std::fs::create_dir_all(&escape_target)
-            .map_err(|source| MemoryError::Io { path: escape_target.clone(), source })?;
+        std::fs::create_dir_all(&escape_target).map_err(|source| MemoryError::Io {
+            path: escape_target.clone(),
+            source,
+        })?;
         std::fs::write(
             escape_target.join(STORE_MARKER_FILE),
             r#"{"schema_version":1,"project_id":"victim","repo_root":"C:/victim","initialized_at":"2026-07-05T00:00:00Z"}"#,
@@ -615,16 +645,20 @@ mod tests {
             "the directory outside stores_dir must survive the rejected delete"
         );
 
-        std::fs::remove_dir_all(&parent)
-            .map_err(|source| MemoryError::Io { path: parent, source })?;
+        std::fs::remove_dir_all(&parent).map_err(|source| MemoryError::Io {
+            path: parent,
+            source,
+        })?;
         Ok(())
     }
 
     #[test]
     fn delete_project_rejects_deleting_stores_dir_itself() -> ProjectsResult<()> {
         let stores_dir = temp_dir("delete-self");
-        std::fs::create_dir_all(&stores_dir)
-            .map_err(|source| MemoryError::Io { path: stores_dir.clone(), source })?;
+        std::fs::create_dir_all(&stores_dir).map_err(|source| MemoryError::Io {
+            path: stores_dir.clone(),
+            source,
+        })?;
         std::fs::write(
             stores_dir.join(STORE_MARKER_FILE),
             r#"{"schema_version":1,"project_id":"self","repo_root":"C:/self","initialized_at":"2026-07-05T00:00:00Z"}"#,
@@ -635,8 +669,10 @@ mod tests {
         assert!(matches!(outcome, Err(ProjectsError::PathTraversal { .. })));
         assert!(stores_dir.exists());
 
-        std::fs::remove_dir_all(&stores_dir)
-            .map_err(|source| MemoryError::Io { path: stores_dir, source })?;
+        std::fs::remove_dir_all(&stores_dir).map_err(|source| MemoryError::Io {
+            path: stores_dir,
+            source,
+        })?;
         Ok(())
     }
 }

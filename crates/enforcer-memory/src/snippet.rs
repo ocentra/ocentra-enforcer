@@ -161,7 +161,10 @@ pub enum SnippetError {
     /// the `<rel_path>::<name>` form when a file has two same-named
     /// symbols at different lines).
     #[error("ambiguous symbol: {qualified_name:?} matches {count} symbols; use the sym:<rel_path>:<line>:<name> id form to disambiguate")]
-    AmbiguousSymbol { qualified_name: String, count: usize },
+    AmbiguousSymbol {
+        qualified_name: String,
+        count: usize,
+    },
 
     /// The symbol resolved, but its file could not be read from disk.
     #[error("failed to read source file {path:?} for symbol {qualified_name:?}: {source}")]
@@ -334,7 +337,8 @@ fn build_snippet(graph: &CodeGraph, repo_root: &Path, symbol: &SymbolNode) -> Re
     })?;
 
     let end_line = next_symbol_start_line(graph, symbol).unwrap_or(usize::MAX);
-    let (start_byte, end_byte, end_line) = line_range_to_byte_range(&content, symbol.line, end_line);
+    let (start_byte, end_byte, end_line) =
+        line_range_to_byte_range(&content, symbol.line, end_line);
     let bytes = content[start_byte..end_byte].to_vec();
     let sha256 = hash_hex(&bytes);
 
@@ -368,7 +372,11 @@ fn build_snippet(graph: &CodeGraph, repo_root: &Path, symbol: &SymbolNode) -> Re
 /// `symbol_name` as their callee -- the always-present `callers` count
 /// (see module docs).
 fn inbound_call_degree(graph: &CodeGraph, symbol_name: &str) -> usize {
-    graph.calls().iter().filter(|call| call.callee == symbol_name).count()
+    graph
+        .calls()
+        .iter()
+        .filter(|call| call.callee == symbol_name)
+        .count()
 }
 
 /// The 1-based start line of the next symbol (by line order) declared in
@@ -406,7 +414,9 @@ fn line_range_to_byte_range(
     line_starts.push(content.len());
 
     let total_lines = line_starts.len() - 1; // number of 1-based lines representable
-    let start_idx = start_line.saturating_sub(1).min(total_lines.saturating_sub(1));
+    let start_idx = start_line
+        .saturating_sub(1)
+        .min(total_lines.saturating_sub(1));
     let start_byte = line_starts[start_idx];
 
     let end_idx = end_line_exclusive.saturating_sub(1).min(total_lines);
@@ -460,7 +470,10 @@ mod tests {
         Ok(())
     }
 
-    fn indexed_repo(source: &str, filename: &str) -> std::result::Result<(tempfile::TempDir, CodeGraph), Box<dyn Error>> {
+    fn indexed_repo(
+        source: &str,
+        filename: &str,
+    ) -> std::result::Result<(tempfile::TempDir, CodeGraph), Box<dyn Error>> {
         let dir = tempfile::tempdir()?;
         init_git_repo(dir.path())?;
         let file_path = dir.path().join(filename);
@@ -520,7 +533,8 @@ mod tests {
         let outcome = get_code_snippet(&graph, dir.path(), "lib.rs::helperr", false);
         assert!(matches!(outcome, Err(SnippetError::UnknownSymbol { .. })));
 
-        let outcome_missing_file = get_code_snippet(&graph, dir.path(), "missing.rs::helper", false);
+        let outcome_missing_file =
+            get_code_snippet(&graph, dir.path(), "missing.rs::helper", false);
         assert!(matches!(
             outcome_missing_file,
             Err(SnippetError::UnknownSymbol { .. })

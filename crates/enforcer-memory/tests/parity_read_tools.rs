@@ -7,7 +7,7 @@
 //! disk, so this test does not mock the filesystem or git).
 
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
-use enforcer_memory::code_search::{search_code, SearchError, SearchMode};
+use enforcer_memory::code_search::{search_code, SearchError, SearchMode, SearchQuery};
 use enforcer_memory::graph_schema::get_graph_schema;
 use enforcer_memory::projects::{
     delete_project, index_status, list_projects, FreshnessState, ProjectsError,
@@ -82,6 +82,15 @@ fn hash_hex(bytes: &[u8]) -> String {
     out
 }
 
+fn search_query(pattern: &str, mode: SearchMode) -> SearchQuery<'_> {
+    SearchQuery {
+        pattern,
+        mode,
+        context_lines: 0,
+        limit: 0,
+    }
+}
+
 // -- get_code_snippet ------------------------------------------------
 
 #[test]
@@ -135,10 +144,21 @@ fn graph_schema_counts_labels_and_edge_types_deterministically() -> TestResult {
         graph.imports().len() + graph.calls().len() + graph.routes().len()
     );
 
-    let labels: Vec<&str> = schema.labels.iter().map(|l| l.label.as_str()).collect();
-    let mut sorted = labels.clone();
-    sorted.sort_unstable();
-    assert_eq!(labels, sorted, "labels must be alphabetically ordered");
+    // docs/plans/enforcer-selfhost-plan/refs/x06-baseline-tool-schemas.md
+    // §3.2: the baseline orders node_labels/edge_types by DESCENDING
+    // count, not alphabetically -- verify labels are non-increasing by
+    // count (ties may appear in either alphabetical sub-order, which
+    // src/graph_schema.rs's own unit tests pin precisely; this
+    // integration test only re-confirms the ordering invariant holds
+    // end-to-end against the fixture repo).
+    let counts: Vec<usize> = schema.labels.iter().map(|l| l.count).collect();
+    let mut sorted_desc = counts.clone();
+    sorted_desc.sort_unstable_by(|a, b| b.cmp(a));
+    assert_eq!(
+        counts, sorted_desc,
+        "labels must be ordered by descending count (baseline parity), got {:?}",
+        schema.labels
+    );
 
     assert!(schema
         .edge_types
@@ -148,6 +168,17 @@ fn graph_schema_counts_labels_and_edge_types_deterministically() -> TestResult {
         .edge_types
         .iter()
         .any(|e| e.edge_type == "Calls" && e.count >= 2));
+
+    // edge_types must obey the same descending-by-count ordering as
+    // labels (module docs' "same ordering guarantee").
+    let edge_counts: Vec<usize> = schema.edge_types.iter().map(|e| e.count).collect();
+    let mut edge_sorted_desc = edge_counts.clone();
+    edge_sorted_desc.sort_unstable_by(|a, b| b.cmp(a));
+    assert_eq!(
+        edge_counts, edge_sorted_desc,
+        "edge_types must be ordered by descending count (baseline parity), got {:?}",
+        schema.edge_types
+    );
     Ok(())
 }
 
@@ -157,7 +188,7 @@ fn graph_schema_counts_labels_and_edge_types_deterministically() -> TestResult {
 fn search_code_enriches_hits_with_containing_symbol_and_ranks_by_inbound_degree() -> TestResult {
     let (dir, graph) = indexed_fixture_repo()?;
 
-    let outcome = search_code(&graph, dir.path(), "value", SearchMode::Full, 0, 0)?;
+    let outcome = search_code(&graph, dir.path(), &search_query("value", SearchMode::Full))?;
     assert!(outcome.total_matches >= 1);
     assert!(outcome
         .hits
@@ -170,7 +201,7 @@ fn search_code_enriches_hits_with_containing_symbol_and_ranks_by_inbound_degree(
         .hits
         .iter()
         .find(|h| h.containing_symbol.as_deref() == Some("helper"))
-        .expect("expected a hit inside helper");
+        .ok_or("expected a hit inside helper")?;
     assert!(helper_hit.structural_rank >= 2, "{:?}", helper_hit);
     Ok(())
 }
@@ -179,11 +210,24 @@ fn search_code_enriches_hits_with_containing_symbol_and_ranks_by_inbound_degree(
 fn search_code_modes_compact_full_files_are_distinct() -> TestResult {
     let (dir, graph) = indexed_fixture_repo()?;
 
-    let files_mode = search_code(&graph, dir.path(), "helper", SearchMode::Files, 0, 0)?;
+    let files_mode = search_code(
+        &graph,
+        dir.path(),
+        &search_query("helper", SearchMode::Files),
+    )?;
     assert!(files_mode.hits.is_empty());
     assert!(files_mode.files.contains(&"service.rs".to_string()));
 
-    let full_mode = search_code(&graph, dir.path(), "helper", SearchMode::Full, 1, 0)?;
+    let full_mode = search_code(
+        &graph,
+        dir.path(),
+        &SearchQuery {
+            pattern: "helper",
+            mode: SearchMode::Full,
+            context_lines: 1,
+            limit: 0,
+        },
+    )?;
     assert!(!full_mode.hits.is_empty());
     Ok(())
 }
@@ -193,7 +237,11 @@ fn search_code_reports_unreadable_files_never_silently_skips() -> TestResult {
     let (dir, graph) = indexed_fixture_repo()?;
     fs::remove_file(dir.path().join("service.rs"))?;
 
-    let outcome = search_code(&graph, dir.path(), "helper", SearchMode::Full, 0, 0)?;
+    let outcome = search_code(
+        &graph,
+        dir.path(),
+        &search_query("helper", SearchMode::Full),
+    )?;
     assert!(outcome
         .unreadable_files
         .iter()
@@ -204,7 +252,11 @@ fn search_code_reports_unreadable_files_never_silently_skips() -> TestResult {
 #[test]
 fn search_code_invalid_pattern_is_a_typed_error() -> TestResult {
     let (dir, graph) = indexed_fixture_repo()?;
-    let outcome = search_code(&graph, dir.path(), "(unterminated[", SearchMode::Full, 0, 0);
+    let outcome = search_code(
+        &graph,
+        dir.path(),
+        &search_query("(unterminated[", SearchMode::Full),
+    );
     assert!(matches!(outcome, Err(SearchError::InvalidPattern { .. })));
     Ok(())
 }
@@ -270,7 +322,10 @@ fn projects_delete_rejects_path_traversal() -> TestResult {
 
     let outcome = delete_project(&stores_dir, "../victim");
     assert!(matches!(outcome, Err(ProjectsError::PathTraversal { .. })));
-    assert!(victim.exists(), "path traversal must never delete outside stores_dir");
+    assert!(
+        victim.exists(),
+        "path traversal must never delete outside stores_dir"
+    );
 
     fs::remove_dir_all(&parent)?;
     Ok(())

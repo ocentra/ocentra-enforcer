@@ -247,7 +247,10 @@ mod tests {
         let dir = tempfile::tempdir()?;
         init_git_repo(dir.path())?;
         let file_path = dir.path().join("plain.rs");
-        fs::write(&file_path, "// no symbols, no imports, no calls, no routes\n")?;
+        fs::write(
+            &file_path,
+            "// no symbols, no imports, no calls, no routes\n",
+        )?;
         commit_all(dir.path(), "first")?;
 
         let mut graph = CodeGraph::new();
@@ -271,10 +274,7 @@ mod tests {
         let dir = tempfile::tempdir()?;
         init_git_repo(dir.path())?;
         let file_path = dir.path().join("lib.rs");
-        fs::write(
-            &file_path,
-            "struct Foo;\nfn a() {}\nfn b() {}\nfn c() {}\n",
-        )?;
+        fs::write(&file_path, "struct Foo;\nfn a() {}\nfn b() {}\nfn c() {}\n")?;
         commit_all(dir.path(), "first")?;
 
         let mut graph = CodeGraph::new();
