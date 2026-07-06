@@ -341,15 +341,16 @@ pub struct IndexReport {
 
 /// X06.8: indexing depth, mirroring the baseline doc's `full`/`moderate`/
 /// `fast` mode semantics (see `docs/plans/enforcer-selfhost-plan/refs/
-/// x06-baseline-tool-schemas.md` §9.2). This crate's [`CodeGraph`] has no
-/// SIMILAR_TO/SEMANTICALLY_RELATED edges or macro-extraction pass to gate
-/// (those are out of this slice's scope -- see `src/lib.rs` module
-/// docs), so the one gate [`IndexMode`] currently controls is git-history
-/// computation, exactly matching the baseline's one universally-confirmed
-/// mode distinction: "`full` and `moderate` both compute git history;
-/// only `fast` omits it." Adding a future gated pass (e.g. a real
-/// similarity edge) should extend this enum's match arms, not add a
-/// parallel boolean flag.
+/// x06-baseline-tool-schemas.md` §9.2). [`crate::similarity`]'s
+/// `SIMILAR_TO`/`SEMANTICALLY_RELATED` edges are a caller-invoked
+/// post-index pass over a finished [`CodeGraph`] snapshot (like
+/// [`crate::resolution::resolve`]), not gated by [`IndexMode`] here --
+/// this crate has no macro-extraction pass to gate either, so the one
+/// gate [`IndexMode`] currently controls is git-history computation,
+/// exactly matching the baseline's one universally-confirmed mode
+/// distinction: "`full` and `moderate` both compute git history; only
+/// `fast` omits it." Adding a future gated pass should extend this
+/// enum's match arms, not add a parallel boolean flag.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum IndexMode {
     /// Everything this indexer currently supports, including git

@@ -209,6 +209,21 @@
 //!   future subprocess-isolated index run (env-gated like the
 //!   baseline's `CBM_INDEX_SUPERVISOR`; only an in-process default ships
 //!   here).
+//! - [`data_flow`] — `DATA_FLOWS` edge materialization: links each call
+//!   site's captured argument expressions
+//!   ([`code_graph::CallEdge::arg_texts`]) to its
+//!   [`resolution`]-resolved callee, the argument-granularity half of the
+//!   baseline's route-mediated `DATA_FLOWS` edge this crate's graph model
+//!   can support honestly today (see that module's doc comment for the
+//!   full baseline citation and scope-reduction rationale); wired into
+//!   [`analysis::trace::trace_data_flow`]'s `param_link` field.
+//! - [`similarity`] — `SIMILAR_TO` / `SEMANTICALLY_RELATED` edge
+//!   materialization: an honestly-reduced analog of the baseline's
+//!   MinHash-LSH similarity pass and 11-signal semantic-embedding pass
+//!   (see that module's doc comment for the full baseline citation and
+//!   scope-reduction rationale -- this crate's [`code_graph::SymbolNode`]
+//!   carries no stored source text/signature/pretrained-embedding input
+//!   the baseline's exact algorithm needs).
 
 pub mod adr;
 pub mod analysis;
@@ -219,6 +234,7 @@ pub mod code_graph;
 pub mod code_search;
 pub mod complexity;
 pub mod cross_repo;
+pub mod data_flow;
 pub mod diagnostics;
 pub mod embed;
 pub mod enrichment;
@@ -260,6 +276,7 @@ pub mod schema;
 pub mod search;
 pub mod sessionstart;
 pub mod share;
+pub mod similarity;
 pub mod snippet;
 pub mod store;
 pub mod store_manager;

@@ -8,7 +8,8 @@
 
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use enforcer_memory::languages::java::parse;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_memory::parsers::{ReceiverHint, SymbolKind};
+use enforcer_memory::resolution::{self, ResolutionConfidence};
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -306,6 +307,233 @@ public class WidgetController {
         .map(|r| (r.method.as_str(), r.path.as_str()))
         .collect();
     assert!(routes.contains(&("POST", "/widgets")), "{routes:?}");
+}
+
+#[test]
+fn call_inside_method_records_from_symbol_scope() -> TestResult {
+    let src = r#"
+package widget;
+
+public class Widget {
+    public String render(Widget w) {
+        return w.draw();
+    }
+}
+"#;
+    let parsed = parse(src);
+    let call = parsed
+        .calls
+        .iter()
+        .find(|c| c.callee == "w.draw")
+        .ok_or("expected a w.draw call")?;
+    assert_eq!(call.from_symbol.as_deref(), Some("render"), "{call:?}");
+    assert_eq!(call.from_symbol_line, Some(5), "{call:?}");
+    Ok(())
+}
+
+#[test]
+fn method_call_records_identifier_receiver_and_args() -> TestResult {
+    let src = r#"
+package widget;
+
+public class Widget {
+    public String render(Widget w, String label) {
+        return w.draw(label, 42);
+    }
+}
+"#;
+    let parsed = parse(src);
+    let call = parsed
+        .calls
+        .iter()
+        .find(|c| c.callee == "w.draw")
+        .ok_or("expected a w.draw call")?;
+    assert_eq!(call.receiver_text.as_deref(), Some("w"), "{call:?}");
+    assert_eq!(
+        call.receiver_hint,
+        Some(ReceiverHint::Identifier),
+        "{call:?}"
+    );
+    assert_eq!(
+        call.arg_texts,
+        vec!["label".to_string(), "42".to_string()],
+        "{call:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn this_call_records_self_or_this_hint() -> TestResult {
+    let src = r#"
+package widget;
+
+public class Widget {
+    public void bump() {
+        this.report();
+    }
+    public void report() {}
+}
+"#;
+    let parsed = parse(src);
+    let call = parsed
+        .calls
+        .iter()
+        .find(|c| c.callee == "this.report")
+        .ok_or("expected a this.report call")?;
+    assert_eq!(call.receiver_text.as_deref(), Some("this"), "{call:?}");
+    assert_eq!(
+        call.receiver_hint,
+        Some(ReceiverHint::SelfOrThis),
+        "{call:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn new_expression_receiver_records_new_hint() -> TestResult {
+    let src = r#"
+package widget;
+
+public class Factory {
+    public String make() {
+        return new Widget().draw();
+    }
+}
+"#;
+    let parsed = parse(src);
+    let call = parsed
+        .calls
+        .iter()
+        .find(|c| c.callee.ends_with(".draw"))
+        .ok_or("expected a new Widget().draw call")?;
+    assert_eq!(
+        call.receiver_text.as_deref(),
+        Some("new Widget()"),
+        "{call:?}"
+    );
+    assert_eq!(
+        call.receiver_hint,
+        Some(ReceiverHint::NewExpression),
+        "{call:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn unqualified_call_has_no_receiver() -> TestResult {
+    let src = r#"
+package widget;
+
+public class Widget {
+    public void f() {
+        helper();
+    }
+}
+"#;
+    let parsed = parse(src);
+    let call = parsed
+        .calls
+        .iter()
+        .find(|c| c.callee == "helper")
+        .ok_or("expected a helper call")?;
+    assert_eq!(call.receiver_text, None, "{call:?}");
+    assert_eq!(call.receiver_hint, None, "{call:?}");
+    assert!(call.arg_texts.is_empty(), "{call:?}");
+    Ok(())
+}
+
+#[test]
+fn literal_receiver_records_literal_hint() -> TestResult {
+    let src = r#"
+package widget;
+
+public class Widget {
+    public String f() {
+        return "x".trim();
+    }
+}
+"#;
+    let parsed = parse(src);
+    let call = parsed
+        .calls
+        .iter()
+        .find(|c| c.callee.ends_with(".trim"))
+        .ok_or("expected a literal-receiver call")?;
+    assert_eq!(call.receiver_hint, Some(ReceiverHint::Literal), "{call:?}");
+    Ok(())
+}
+
+/// End-to-end: a Java method call on a typed receiver (`Widget w`
+/// param, `w.draw()`) resolves type-aware through the indexed graph to
+/// the Widget method; a `this.report()` call resolves to the enclosing
+/// class's own method.
+#[test]
+fn typed_receiver_and_this_calls_resolve_type_aware() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    init_repo(dir.path())?;
+    let file = dir.path().join("Widget.java");
+    fs::write(
+        &file,
+        r#"package widget;
+
+public class Widget {
+    public String draw() { return "x"; }
+
+    public String bump() {
+        return this.draw();
+    }
+}
+
+class Renderer {
+    public String render(Widget w) {
+        return w.draw();
+    }
+}
+"#,
+    )?;
+    commit_all(dir.path(), "java resolution fixture")?;
+
+    let mut graph = CodeGraph::new();
+    graph.index_repository(dir.path(), &[file], &Manifest::default())?;
+    let resolved = resolution::resolve(&graph);
+
+    let (_, typed_result) = graph
+        .calls()
+        .iter()
+        .zip(resolved.iter())
+        .find(|(call, _)| call.callee == "w.draw")
+        .ok_or("expected a resolved entry for the w.draw() call")?;
+    assert!(
+        matches!(
+            typed_result.confidence,
+            ResolutionConfidence::Resolved | ResolutionConfidence::Probable
+        ),
+        "{typed_result:?}"
+    );
+    assert_eq!(typed_result.candidates.len(), 1, "{typed_result:?}");
+    assert!(
+        typed_result.candidates[0].contains("draw"),
+        "{typed_result:?}"
+    );
+
+    let (_, this_result) = graph
+        .calls()
+        .iter()
+        .zip(resolved.iter())
+        .find(|(call, _)| call.callee == "this.draw")
+        .ok_or("expected a resolved entry for the this.draw() call")?;
+    assert!(
+        matches!(
+            this_result.confidence,
+            ResolutionConfidence::Resolved | ResolutionConfidence::Probable
+        ),
+        "{this_result:?}"
+    );
+    assert!(
+        this_result.candidates[0].contains("draw"),
+        "{this_result:?}"
+    );
+    Ok(())
 }
 
 #[test]

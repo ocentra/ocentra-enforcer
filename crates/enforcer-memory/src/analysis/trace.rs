@@ -12,18 +12,28 @@
 //!   logic, just the parity-shaped request/response envelope this pack
 //!   requires (`direction`/`depth`/`include_tests`/`edge_types`).
 //! - [`TraceMode::DataFlow`] follows the *same* call-graph edges as
-//!   `calls` mode but is honest about what `code_graph`'s current parser
-//!   layer can support: [`crate::parsers::CallRef`] records only a
-//!   callee name and line, never argument expressions, and
-//!   [`crate::code_graph::SymbolNode`] records no parameter list --
-//!   there is no argument-expression-to-parameter data in this crate to
-//!   link. Every [`DataFlowHop`] therefore carries `param_link: None`
-//!   with [`DataFlowReport::approximation`] fixed at
-//!   [`Approximation::CallGraphOnly`], so a caller can never mistake this
-//!   for real arg->param binding -- rather than fabricating a plausible-
-//!   looking but false linkage. The seam (`param_link: Option<ParamLink>`)
-//!   exists so a future parser upgrade that captures call-argument/
-//!   parameter lists can populate it without a response-shape break.
+//!   `calls` mode (now including [`super::EdgeKind::DataFlows`], the
+//!   symbol-scoped edge [`super::CodeAdjacency::build`] adds alongside
+//!   [`super::EdgeKind::Calls`] for every resolved call that has
+//!   captured argument expressions -- see [`crate::data_flow`]'s module
+//!   doc for the baseline C source this mirrors and exactly why it stops
+//!   short of the baseline's route-mediated closure), and additionally
+//!   populates each [`DataFlowHop`] with a [`ParamLink`] when
+//!   [`crate::data_flow::materialize`] found an argument expression for
+//!   the hop's target. This crate's parser layer still records no
+//!   callee parameter *names* ([`crate::code_graph::SymbolNode`] has no
+//!   parameter list -- see [`crate::data_flow`]'s docs for exactly why),
+//!   so [`ParamLink::parameter_name`] stays `None`: only
+//!   [`ParamLink::argument_expr`] is ever populated, and only for a hop
+//!   whose target has a matching [`crate::data_flow::DataFlowEdge`] (a
+//!   hop with no captured arguments, or whose call was
+//!   [`resolution::ResolutionConfidence::Unresolved`], keeps
+//!   `param_link: None` -- never a fabricated linkage).
+//!   [`DataFlowReport::approximation`] is fixed at
+//!   [`Approximation::CallGraphOnly`] regardless, since even a populated
+//!   `argument_expr` is call-graph-plus-raw-argument-text, not a real
+//!   argument-to-parameter *binding* -- a caller must still not mistake
+//!   this for type-checked dataflow.
 //! - [`TraceMode::CrossService`] traces producer -> route/event mediator
 //!   -> consumer paths using [`crate::code_graph::CodeGraph::routes`]:
 //!   the file declaring a route is the producer; any file reaching the
@@ -223,18 +233,24 @@ pub enum Approximation {
     CallGraphOnly,
 }
 
-/// A resolved argument-expression -> parameter binding. Never populated
-/// by this crate's current parser layer (see module docs) -- the type
-/// exists so a future parser upgrade can fill it in without breaking
-/// [`DataFlowHop`]'s shape.
+/// A call site's captured argument expression, optionally paired with
+/// the parameter name it binds to. `parameter_name` is never populated
+/// by this crate's current parser layer (see module docs and
+/// [`crate::data_flow`]'s docs for exactly why) -- the field exists so a
+/// future parser upgrade that captures callee parameter names can fill
+/// it in without another [`DataFlowHop`] shape break.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParamLink {
     pub argument_expr: String,
-    pub parameter_name: String,
+    pub parameter_name: Option<String>,
 }
 
-/// One hop in a `data_flow`-mode trace: the call-graph hop plus an
-/// (always-absent, for now) parameter link.
+/// One hop in a `data_flow`-mode trace: the call-graph hop plus a
+/// [`ParamLink`] when [`crate::data_flow::materialize`] found a captured
+/// argument expression for a call resolving to this hop's node (`None`
+/// when it did not -- e.g. the hop's target has no argument data, or
+/// this hop is an `Imports`-kind hop rather than a `Calls`-kind one; see
+/// [`trace_data_flow`]).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DataFlowHop {
     pub hop: CallHop,
@@ -249,8 +265,11 @@ pub struct DataFlowPath {
 
 /// The full response for [`trace_data_flow`]. `approximation` is always
 /// present and always [`Approximation::CallGraphOnly`] today -- callers
-/// MUST check it before treating `param_link` as ground truth (it never
-/// is, yet).
+/// MUST check it before treating a hop's [`ParamLink::argument_expr`] as
+/// a real argument-to-parameter *binding* (it never is: it is call-graph
+/// resolution plus raw captured argument text, matching the baseline's
+/// own `caller_args` granularity -- see [`crate::data_flow`]'s module
+/// docs).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DataFlowReport {
     pub paths: Vec<DataFlowPath>,
@@ -259,14 +278,20 @@ pub struct DataFlowReport {
 
 /// `data_flow` mode: follows the same call-graph edges as [`trace_calls`]
 /// (there is no separate data-flow edge kind in [`CodeGraph`] -- see
-/// module docs) and wraps every hop as a [`DataFlowHop`] with
-/// `param_link: None`, honestly labeled via
-/// [`DataFlowReport::approximation`]. Takes the same [`TraceCallsParams`]
-/// bundle as [`trace_calls`] (including `risk_labels`, which is dropped
-/// here -- [`DataFlowHop`] has no risk-label field, since the baseline's
-/// risk-labels concept is specific to its `calls`-shaped BFS response,
-/// not `data_flow`'s; a caller that wants risk labels for a data_flow
-/// walk should call [`trace_calls`] directly with the same params).
+/// module docs), then attaches a [`ParamLink`] to every hop whose node id
+/// [`crate::data_flow::materialize`] recorded at least one argument
+/// expression flowing into it (via
+/// [`crate::data_flow::argument_exprs_by_target`], keyed by resolved
+/// target symbol id -- the same id space [`CallHop::node_id`] uses). A
+/// hop with no matching [`crate::data_flow::DataFlowEdge`] (no captured
+/// arguments for any call resolving to it, or an `Imports`-kind hop that
+/// was never a call at all) keeps `param_link: None`, never a fabricated
+/// link. Takes the same [`TraceCallsParams`] bundle as [`trace_calls`]
+/// (including `risk_labels`, which is dropped here -- [`DataFlowHop`] has
+/// no risk-label field, since the baseline's risk-labels concept is
+/// specific to its `calls`-shaped BFS response, not `data_flow`'s; a
+/// caller that wants risk labels for a data_flow walk should call
+/// [`trace_calls`] directly with the same params).
 pub fn trace_data_flow(
     adjacency: &CodeAdjacency,
     graph: &CodeGraph,
@@ -274,6 +299,8 @@ pub fn trace_data_flow(
     params: &TraceCallsParams<'_>,
 ) -> DataFlowReport {
     let call_report = trace_calls(adjacency, graph, start, params);
+    let data_flow_graph = crate::data_flow::materialize(graph);
+    let args_by_target = crate::data_flow::argument_exprs_by_target(&data_flow_graph);
 
     let paths = call_report
         .paths
@@ -283,9 +310,14 @@ pub fn trace_data_flow(
             hops: path
                 .hops
                 .into_iter()
-                .map(|hop| DataFlowHop {
-                    hop,
-                    param_link: None,
+                .map(|hop| {
+                    let param_link = args_by_target.get(hop.node_id.as_str()).and_then(|exprs| {
+                        exprs.first().map(|expr| ParamLink {
+                            argument_expr: expr.to_string(),
+                            parameter_name: None,
+                        })
+                    });
+                    DataFlowHop { hop, param_link }
                 })
                 .collect(),
         })

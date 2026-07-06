@@ -69,6 +69,18 @@ pub enum EdgeKind {
     TypeRef,
     /// `from` (a container symbol) defines member symbol `to`.
     Defines,
+    /// X06 core parity: `from` (a calling symbol) has a resolved call
+    /// site with at least one captured argument expression flowing into
+    /// `to` (the resolved callee) -- [`crate::data_flow`]'s
+    /// materialization of the baseline's `DATA_FLOWS` edge at the
+    /// argument-expression granularity this crate's parser layer
+    /// supports (see that module's doc comment for the full baseline
+    /// citation). Additive to, never a replacement for, the symbol-
+    /// scoped `Calls` edge [`CodeAdjacency::build`] already adds for the
+    /// same resolved call -- a `DataFlows` edge only ever exists
+    /// alongside a `Calls` edge between the same two nodes, so a
+    /// `calls`-mode trace is unaffected by this variant's existence.
+    DataFlows,
 }
 
 /// One traversal step: the edge kind plus the node id reached.
@@ -262,6 +274,28 @@ impl CodeAdjacency {
         // marker: skipped here (route metadata lives on `CodeGraph`
         // directly; `architecture::route_map` reads it from there).
         let _ = graph.routes();
+
+        // X06 core parity: `DataFlows` edges from `crate::data_flow`'s
+        // post-pass -- one symbol-scoped edge per (resolved call, has
+        // captured arguments) pair, added alongside (never instead of)
+        // the `Calls` edge the loop above already adds for the same
+        // resolved call. A `DataFlowEdge` with no `from_symbol_id` (a
+        // module-scope call site) is skipped here -- `EdgeKind::DataFlows`
+        // is defined only between two symbol nodes in this adjacency, the
+        // same restriction the `Calls` symbol-scoped edge above already
+        // has; the file-scoped `Calls` edge already covers that case for
+        // traversal purposes.
+        for edge in crate::data_flow::materialize(graph).edges() {
+            let Some(from_symbol_id) = edge.from_symbol_id.as_deref() else {
+                continue;
+            };
+            if let (Some(&from), Some(&to)) = (
+                index_of.get(from_symbol_id),
+                index_of.get(edge.to_symbol_id.as_str()),
+            ) {
+                g.add_edge(from, to, EdgeKind::DataFlows);
+            }
+        }
 
         // X06 rich vocabulary (additive): INHERITS/IMPLEMENTS/DECORATES/
         // TYPE_REF resolve their unresolved-by-name target against the

@@ -8,7 +8,8 @@
 
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use enforcer_memory::languages::go::parse;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_memory::parsers::{ReceiverHint, SymbolKind};
+use enforcer_memory::resolution::{self, ResolutionConfidence};
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -299,6 +300,202 @@ func RegisterRoutes(router *Router) {
         .map(|r| (r.method.as_str(), r.path.as_str()))
         .collect();
     assert!(routes.contains(&("GET", "/widgets")), "{routes:?}");
+}
+
+#[test]
+fn call_inside_function_records_from_symbol_scope() -> TestResult {
+    let src = r#"
+package widget
+
+func Render(w Widget) string {
+	return w.Draw()
+}
+"#;
+    let parsed = parse(src, false);
+    let call = parsed
+        .calls
+        .iter()
+        .find(|c| c.callee == "w.Draw")
+        .ok_or("expected a w.Draw call")?;
+    assert_eq!(call.from_symbol.as_deref(), Some("Render"), "{call:?}");
+    assert_eq!(call.from_symbol_line, Some(4), "{call:?}");
+    Ok(())
+}
+
+#[test]
+fn module_scope_call_has_no_from_symbol() -> TestResult {
+    let src = r#"
+package widget
+
+var registry = makeRegistry()
+"#;
+    let parsed = parse(src, false);
+    let call = parsed
+        .calls
+        .iter()
+        .find(|c| c.callee == "makeRegistry")
+        .ok_or("expected a makeRegistry call")?;
+    assert_eq!(call.from_symbol, None, "{call:?}");
+    assert_eq!(call.from_symbol_line, None, "{call:?}");
+    Ok(())
+}
+
+#[test]
+fn method_call_records_identifier_receiver_and_args() -> TestResult {
+    let src = r#"
+package widget
+
+func Render(w Widget, label string) string {
+	return w.Draw(label, 42)
+}
+"#;
+    let parsed = parse(src, false);
+    let call = parsed
+        .calls
+        .iter()
+        .find(|c| c.callee == "w.Draw")
+        .ok_or("expected a w.Draw call")?;
+    assert_eq!(call.receiver_text.as_deref(), Some("w"), "{call:?}");
+    assert_eq!(
+        call.receiver_hint,
+        Some(ReceiverHint::Identifier),
+        "{call:?}"
+    );
+    assert_eq!(
+        call.arg_texts,
+        vec!["label".to_string(), "42".to_string()],
+        "{call:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn unqualified_call_has_no_receiver() -> TestResult {
+    let src = r#"
+package widget
+
+func f() {
+	helper()
+}
+"#;
+    let parsed = parse(src, false);
+    let call = parsed
+        .calls
+        .iter()
+        .find(|c| c.callee == "helper")
+        .ok_or("expected a helper call")?;
+    assert_eq!(call.receiver_text, None, "{call:?}");
+    assert_eq!(call.receiver_hint, None, "{call:?}");
+    assert!(call.arg_texts.is_empty(), "{call:?}");
+    Ok(())
+}
+
+#[test]
+fn constructor_call_receiver_is_new_expression_hint() -> TestResult {
+    // Go convention: NewXxx(...) is the constructor idiom, so a call on
+    // its result gets the NewExpression receiver hint.
+    let src = r#"
+package widget
+
+func f() string {
+	return NewWidget().Draw()
+}
+"#;
+    let parsed = parse(src, false);
+    let call = parsed
+        .calls
+        .iter()
+        .find(|c| c.callee == "NewWidget().Draw")
+        .ok_or("expected a NewWidget().Draw call")?;
+    assert_eq!(
+        call.receiver_text.as_deref(),
+        Some("NewWidget()"),
+        "{call:?}"
+    );
+    assert_eq!(
+        call.receiver_hint,
+        Some(ReceiverHint::NewExpression),
+        "{call:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn literal_receiver_is_literal_hint() -> TestResult {
+    let src = r#"
+package widget
+
+func f() {
+	"x".count()
+}
+"#;
+    let parsed = parse(src, false);
+    let call = parsed
+        .calls
+        .iter()
+        .find(|c| c.callee.ends_with(".count"))
+        .ok_or("expected a literal-receiver call")?;
+    assert_eq!(call.receiver_hint, Some(ReceiverHint::Literal), "{call:?}");
+    Ok(())
+}
+
+/// End-to-end: a Go method call on a typed receiver (`w Widget` param,
+/// `w.Draw()`) resolves type-aware through the indexed graph to the
+/// Widget method, not just any same-name symbol.
+#[test]
+fn typed_receiver_method_call_resolves_type_aware() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    init_repo(dir.path())?;
+    let file = dir.path().join("widget.go");
+    fs::write(
+        &file,
+        r#"package widget
+
+type Widget struct{ Name string }
+
+func (w Widget) Draw() string { return w.Name }
+
+func Render(w Widget) string {
+	return w.Draw()
+}
+"#,
+    )?;
+    commit_all(dir.path(), "go resolution fixture")?;
+
+    let mut graph = CodeGraph::new();
+    graph.index_repository(dir.path(), &[file], &Manifest::default())?;
+    let resolved = resolution::resolve(&graph);
+
+    let (_, resolution_result) = graph
+        .calls()
+        .iter()
+        .zip(resolved.iter())
+        .find(|(call, _)| call.callee == "w.Draw")
+        .ok_or("expected a resolved entry for the w.Draw() call")?;
+    assert!(
+        matches!(
+            resolution_result.confidence,
+            ResolutionConfidence::Resolved | ResolutionConfidence::Probable
+        ),
+        "{resolution_result:?}"
+    );
+    assert_eq!(
+        resolution_result.candidates.len(),
+        1,
+        "{resolution_result:?}"
+    );
+    assert!(
+        resolution_result.candidates[0].contains("Draw"),
+        "{resolution_result:?}"
+    );
+    assert!(
+        resolution_result
+            .from_symbol_id
+            .as_deref()
+            .is_some_and(|id| id.contains("Render")),
+        "{resolution_result:?}"
+    );
+    Ok(())
 }
 
 #[test]

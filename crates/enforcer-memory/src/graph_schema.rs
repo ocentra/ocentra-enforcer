@@ -19,6 +19,13 @@
 //! (ties broken alphabetically by name for determinism, since the
 //! baseline's tie-break was not independently verified and equal counts
 //! must still produce a reproducible order here).
+//!
+//! [`get_graph_schema_with_similarity`] additionally folds in
+//! `SIMILAR_TO`/`SEMANTICALLY_RELATED` row counts from
+//! [`crate::similarity`]'s post-index pass -- kept as a separate
+//! function (not merged into [`get_graph_schema`] itself) because that
+//! pass is O(n²) over callable symbols, not a free introspection over
+//! already-stored edges like every other row here.
 
 use std::collections::BTreeMap;
 
@@ -155,4 +162,39 @@ pub fn get_graph_schema(graph: &CodeGraph) -> GraphSchema {
     });
 
     GraphSchema { labels, edge_types }
+}
+
+/// [`get_graph_schema`] plus `SIMILAR_TO`/`SEMANTICALLY_RELATED` rows,
+/// for callers that have already run [`crate::similarity::similar_to`]/
+/// [`crate::similarity::semantically_related`] (both an O(n²) post-index
+/// pass over callable symbols -- see that module's doc comment -- so
+/// this function takes the results rather than recomputing them itself,
+/// keeping [`get_graph_schema`] itself a cheap O(n) introspection over
+/// [`CodeGraph`]'s already-stored edges). A zero-length edge list omits
+/// its row entirely, matching [`get_graph_schema`]'s "never a zero-count
+/// row" contract.
+pub fn get_graph_schema_with_similarity(
+    graph: &CodeGraph,
+    similar_to_edges: &[crate::similarity::SimilarToEdge],
+    semantically_related_edges: &[crate::similarity::SemanticallyRelatedEdge],
+) -> GraphSchema {
+    let mut schema = get_graph_schema(graph);
+    if !similar_to_edges.is_empty() {
+        schema.edge_types.push(EdgeTypeCount {
+            edge_type: "SIMILAR_TO".to_owned(),
+            count: similar_to_edges.len(),
+        });
+    }
+    if !semantically_related_edges.is_empty() {
+        schema.edge_types.push(EdgeTypeCount {
+            edge_type: "SEMANTICALLY_RELATED".to_owned(),
+            count: semantically_related_edges.len(),
+        });
+    }
+    schema.edge_types.sort_by(|a, b| {
+        b.count
+            .cmp(&a.count)
+            .then_with(|| a.edge_type.cmp(&b.edge_type))
+    });
+    schema
 }

@@ -18,10 +18,20 @@
 //! guessed at.
 
 use crate::parsers::{
-    CallRef, DefinesRef, ImportRef, InheritsRef, ParsedFile, RouteRef, SymbolKind, SymbolRef,
-    TypeRefRef,
+    CallRef, DefinesRef, ImportRef, InheritsRef, ParsedFile, ReceiverHint, RouteRef, SymbolKind,
+    SymbolRef, TypeRefRef,
 };
 use tree_sitter::{Node, Parser};
+
+/// The innermost function/method a call expression is lexically inside
+/// of, if any -- same bundled-scope pattern as `rust.rs`'s `FnScope`
+/// (a call's "from_symbol" is the enclosing function/method, threaded
+/// alongside the walk rather than widening every positional arg).
+#[derive(Debug, Clone, Copy, Default)]
+struct FnScope<'a> {
+    name: Option<&'a str>,
+    line: Option<usize>,
+}
 
 /// HTTP methods this extractor recognizes in `net/http`/mux-style route
 /// registration calls (`mux.HandleFunc("/path", handler)`,
@@ -41,11 +51,23 @@ pub fn parse(source: &str, is_test_file: bool) -> ParsedFile {
     };
 
     let mut out = ParsedFile::default();
-    walk(tree.root_node(), source.as_bytes(), &mut out, is_test_file);
+    walk(
+        tree.root_node(),
+        source.as_bytes(),
+        &mut out,
+        is_test_file,
+        FnScope::default(),
+    );
     out
 }
 
-fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, is_test_file: bool) {
+fn walk(
+    node: Node<'_>,
+    src: &[u8],
+    out: &mut ParsedFile,
+    is_test_file: bool,
+    fn_scope: FnScope<'_>,
+) {
     match node.kind() {
         "package_clause" => {
             if let Some(name) = first_named_child_text(node, src) {
@@ -76,6 +98,19 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, is_test_file: bool) {
                         line,
                     });
                 }
+                if let Some(body) = node.child_by_field_name("body") {
+                    walk_children(
+                        body,
+                        src,
+                        out,
+                        is_test_file,
+                        FnScope {
+                            name: Some(name.as_str()),
+                            line: Some(line),
+                        },
+                    );
+                }
+                return;
             }
         }
         "method_declaration" => {
@@ -101,10 +136,23 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, is_test_file: bool) {
                 if let Some(receiver_type) = receiver_type_name(node, src) {
                     out.defines.push(DefinesRef {
                         container_name: receiver_type,
-                        member_name: name,
+                        member_name: name.clone(),
                         line,
                     });
                 }
+                if let Some(body) = node.child_by_field_name("body") {
+                    walk_children(
+                        body,
+                        src,
+                        out,
+                        is_test_file,
+                        FnScope {
+                            name: Some(name.as_str()),
+                            line: Some(line),
+                        },
+                    );
+                }
+                return;
             }
         }
         "type_declaration" => {
@@ -138,11 +186,19 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, is_test_file: bool) {
         }
         "call_expression" => {
             if let Some(function) = node.child_by_field_name("function") {
-                let callee = function.utf8_text(src).unwrap_or("").to_string();
+                let callee = match function.utf8_text(src) {
+                    Ok(text) => text.to_string(),
+                    Err(_) => String::new(),
+                };
+                let (receiver_text, receiver_hint) = receiver_of_call(function, src);
                 out.calls.push(CallRef {
                     callee: callee.clone(),
                     line: node.start_position().row + 1,
-                    ..CallRef::default()
+                    from_symbol: fn_scope.name.map(str::to_string),
+                    from_symbol_line: fn_scope.line,
+                    receiver_text,
+                    receiver_hint,
+                    arg_texts: call_arg_texts(node, src),
                 });
                 if let Some(route) = route_from_call(&callee, node, src) {
                     out.routes.push(route);
@@ -152,15 +208,97 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, is_test_file: bool) {
         _ => {}
     }
 
-    walk_children(node, src, out, is_test_file);
+    walk_children(node, src, out, is_test_file, fn_scope);
 }
 
-fn walk_children(node: Node<'_>, src: &[u8], out: &mut ParsedFile, is_test_file: bool) {
+fn walk_children(
+    node: Node<'_>,
+    src: &[u8],
+    out: &mut ParsedFile,
+    is_test_file: bool,
+    fn_scope: FnScope<'_>,
+) {
     for i in 0..node.child_count() {
         if let Some(child) = node.child(i) {
-            walk(child, src, out, is_test_file);
+            walk(child, src, out, is_test_file, fn_scope);
         }
     }
+}
+
+/// X06 type-aware resolution: for a `selector_expression`-shaped callee
+/// (`x.Foo`, `w.inner.Foo`), the receiver (`x`/`w.inner`) text plus a
+/// cheap syntactic hint. `None`/`None` for a plain identifier callee
+/// (`foo(...)`) -- there is no receiver to report. Go has no
+/// `self`/`this` keyword (the receiver is an ordinary named parameter),
+/// so [`ReceiverHint::SelfOrThis`] is never emitted here; a bare
+/// identifier receiver is [`ReceiverHint::Identifier`] and resolution
+/// looks its declared type up via the enclosing symbol's TYPE_REFs.
+fn receiver_of_call(function_node: Node<'_>, src: &[u8]) -> (Option<String>, Option<ReceiverHint>) {
+    if function_node.kind() != "selector_expression" {
+        return (None, None);
+    }
+    let Some(receiver) = function_node.child_by_field_name("operand") else {
+        return (None, None);
+    };
+    let Ok(text) = receiver.utf8_text(src) else {
+        return (None, None);
+    };
+    let hint = if receiver.kind() == "call_expression" && is_new_call(receiver, src) {
+        ReceiverHint::NewExpression
+    } else if receiver.kind() == "identifier" {
+        ReceiverHint::Identifier
+    } else if matches!(
+        receiver.kind(),
+        "interpreted_string_literal"
+            | "raw_string_literal"
+            | "int_literal"
+            | "float_literal"
+            | "imaginary_literal"
+            | "rune_literal"
+            | "true"
+            | "false"
+    ) {
+        ReceiverHint::Literal
+    } else {
+        ReceiverHint::Other
+    };
+    (Some(text.to_string()), Some(hint))
+}
+
+/// Whether a `call_expression` is (heuristically) a constructor call:
+/// its callee's final `.`-segment starts with `New` (`NewWidget(...)`,
+/// `pkg.NewClient(...)`) -- Go has no constructor syntax, so this is
+/// the idiomatic name-convention best-effort signal, same rationale as
+/// `rust.rs`'s `Foo::new` heuristic.
+fn is_new_call(call_node: Node<'_>, src: &[u8]) -> bool {
+    let Some(function) = call_node.child_by_field_name("function") else {
+        return false;
+    };
+    let Ok(text) = function.utf8_text(src) else {
+        return false;
+    };
+    text.rsplit('.')
+        .next()
+        .is_some_and(|segment| segment.starts_with("New"))
+}
+
+/// Each argument expression's own source text, in written order.
+fn call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let Some(args) = call_node.child_by_field_name("arguments") else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for i in 0..args.child_count() {
+        if let Some(child) = args.child(i) {
+            if matches!(child.kind(), "(" | ")" | ",") {
+                continue;
+            }
+            if let Ok(text) = child.utf8_text(src) {
+                out.push(text.to_string());
+            }
+        }
+    }
+    out
 }
 
 /// `type X struct { ... }` / `type X interface { ... }` / `type X =
