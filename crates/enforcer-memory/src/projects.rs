@@ -558,7 +558,10 @@ mod tests {
             .filter(|l| l.log_name == "observations")
             .collect();
         assert_eq!(observations.len(), 1, "observations log status present");
-        assert!(matches!(observations[0].state, FreshnessState::Stale { .. }));
+        assert!(matches!(
+            observations[0].state,
+            FreshnessState::Stale { .. }
+        ));
         assert_eq!(observations[0].log_length, 1);
 
         std::fs::remove_dir_all(&stores_dir).map_err(|source| MemoryError::Io {
