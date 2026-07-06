@@ -582,7 +582,7 @@ impl RowRunner for CliRunner {
     }
 }
 
-/// Runs Architecture/Repository-category rows whose query names a real
+/// Parked live-proof runner for Architecture/Repository rows whose query names a real
 /// enforcer-rust crate (by directory name under `crates/`) via
 /// [`architecture::build_report`] over that crate's own `src/` dir,
 /// indexed fresh (kept fast: only the anchor crate's `src/` tree, never
@@ -590,12 +590,16 @@ impl RowRunner for CliRunner {
 /// `enforcer-<name>` crate reference this harness can resolve to a real
 /// `crates/<name>/src` directory that exists on disk -- rows that
 /// reference doc sections, workpack ids, or Cargo.toml-only facts with
-/// no `build_report` aspect answering them stay unrunnable.
+/// no `build_report` aspect answering them stay unrunnable. Symbol and
+/// CodeGraph rows are deliberately excluded: a crate mention alone does
+/// not prove an architecture overview answers a symbol-level query.
+#[allow(dead_code)]
 pub struct ArchitectureRepositoryRunner;
 
 /// Extract `enforcer-<kebab-name>` crate references from `text`,
 /// returning the first that resolves to a real `crates/<name>` dir
 /// under `workspace_root`.
+#[allow(dead_code)]
 fn resolve_crate_reference(text: &str, workspace_root: &Path) -> Option<PathBuf> {
     let lowered = text.to_lowercase();
     let mut idx = 0;
@@ -625,14 +629,12 @@ impl RowRunner for ArchitectureRepositoryRunner {
     }
 
     fn can_run(&self, row: &QaRow) -> bool {
-        matches!(
-            row.category.as_str(),
-            "Architecture" | "Repository" | "Symbol" | "CodeGraph"
-        ) && resolve_crate_reference(
-            &format!("{} {}", row.query, row.expectation),
-            &super::queryset::workspace_root(),
-        )
-        .is_some()
+        matches!(row.category.as_str(), "Architecture" | "Repository")
+            && resolve_crate_reference(
+                &format!("{} {}", row.query, row.expectation),
+                &super::queryset::workspace_root(),
+            )
+            .is_some()
     }
 
     fn run(&self, row: &QaRow, _fixtures: &Fixtures) -> RowResult {
@@ -694,6 +696,7 @@ impl RowRunner for ArchitectureRepositoryRunner {
     }
 }
 
+#[allow(dead_code)]
 fn walk_files(root: &Path) -> std::io::Result<Vec<PathBuf>> {
     let mut out = Vec::new();
     let mut stack = vec![root.to_path_buf()];
@@ -817,7 +820,6 @@ pub fn registry() -> Vec<Box<dyn RowRunner>> {
         Box::new(LessonsRunner),
         Box::new(McpRunner),
         Box::new(CliRunner),
-        Box::new(ArchitectureRepositoryRunner),
         Box::new(GitHistoryRunner),
     ]
 }

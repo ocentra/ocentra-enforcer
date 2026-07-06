@@ -1,8 +1,8 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 49,
+  "rowsGreen": 19,
   "rowsFailed": 0,
-  "rowsUnrunnable": 201,
+  "rowsUnrunnable": 231,
   "rows": [
     {
       "id": "QA-001",
@@ -1220,20 +1220,13 @@
       "id": "QA-102",
       "category": "Symbol",
       "query": "Which functions return `DecodeError` from `enforcer-domain`?",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-domain/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-domain/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-domain\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Symbol"
     },
     {
       "id": "QA-103",
@@ -1251,20 +1244,13 @@
       "id": "QA-104",
       "category": "Symbol",
       "query": "Which functions are called by `enforcer-scan` engine core?",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-scan/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-scan/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-scan\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Symbol"
     },
     {
       "id": "QA-105",
@@ -1282,58 +1268,37 @@
       "id": "QA-106",
       "category": "Symbol",
       "query": "What modules export `pub` API in `enforcer-mcp`?",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-mcp/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-mcp/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-mcp\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Symbol"
     },
     {
       "id": "QA-107",
       "category": "Symbol",
       "query": "Which symbols in `enforcer-rules` have zero callers?",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-rules/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-rules/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-rules\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Symbol"
     },
     {
       "id": "QA-108",
       "category": "Symbol",
       "query": "Find all paths where `RepoRoot` is constructed from user input.",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-domain/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-domain/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-domain\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Symbol"
     },
     {
       "id": "QA-109",
@@ -1351,20 +1316,13 @@
       "id": "QA-110",
       "category": "Symbol",
       "query": "Which workpack first defined the `RuleId` type?",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-domain/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-domain/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-domain\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Symbol"
     },
     {
       "id": "QA-111",
@@ -1382,39 +1340,25 @@
       "id": "QA-112",
       "category": "Symbol",
       "query": "Which type implements the `Sha256` branded newtype contract?",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-domain/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-domain/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-domain\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Symbol"
     },
     {
       "id": "QA-113",
       "category": "CodeGraph",
       "query": "Find the dependency path from `enforcer-mcp` to `enforcer-core`.",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-mcp/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-mcp/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-mcp\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category CodeGraph"
     },
     {
       "id": "QA-114",
@@ -1432,58 +1376,37 @@
       "id": "QA-115",
       "category": "CodeGraph",
       "query": "Build a module dependency tree for `enforcer-scan`.",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-scan/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-scan/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-scan\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category CodeGraph"
     },
     {
       "id": "QA-116",
       "category": "CodeGraph",
       "query": "What is the event flow from `enforcer-scan` to `enforcer-proof`?",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-scan/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-scan/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-scan\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category CodeGraph"
     },
     {
       "id": "QA-117",
       "category": "CodeGraph",
       "query": "Which modules form the hot path for scan execution?",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-cli/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-cli/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-cli\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category CodeGraph"
     },
     {
       "id": "QA-118",
@@ -1525,96 +1448,61 @@
       "id": "QA-121",
       "category": "Architecture",
       "query": "Where does `enforcer-coordination` cross into `enforcer-scan` scope?",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-coordination/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-coordination/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-coordination\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Architecture"
     },
     {
       "id": "QA-122",
       "category": "Architecture",
       "query": "What is the contract between `enforcer-mcp` `tool_surface.rs` and `enforcer-core::context_budget`?",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-mcp/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-mcp/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-mcp\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Architecture"
     },
     {
       "id": "QA-123",
       "category": "Architecture",
       "query": "Which workpack is responsible for the detect-and-route router?",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-scan/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-scan/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-scan\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Architecture"
     },
     {
       "id": "QA-124",
       "category": "Architecture",
       "query": "Find code paths that should use the event spine but do not.",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-events/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-events/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-events\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Architecture"
     },
     {
       "id": "QA-125",
       "category": "Architecture",
       "query": "Which crate owns the proof-artifact envelope schema?",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-proof/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-proof/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-proof\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Architecture"
     },
     {
       "id": "QA-126",
@@ -1632,39 +1520,25 @@
       "id": "QA-127",
       "category": "Architecture",
       "query": "Find all instances of `enforcer-scan` calling back into `enforcer-cli`.",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-scan/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-scan/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-scan\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Architecture"
     },
     {
       "id": "QA-128",
       "category": "Architecture",
       "query": "Which Track C adapters share the same fixture shape?",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-install/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-install/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-install\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Architecture"
     },
     {
       "id": "QA-129",
@@ -1682,96 +1556,61 @@
       "id": "QA-130",
       "category": "Architecture",
       "query": "What is the decision tree for choosing graph vs RAG retrieval?",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-memory/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-memory/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-memory\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Architecture"
     },
     {
       "id": "QA-131",
       "category": "Architecture",
       "query": "Which architecture decision governs the domain newtype pattern?",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-domain/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-domain/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-domain\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Architecture"
     },
     {
       "id": "QA-132",
       "category": "Architecture",
       "query": "Find all places where a Track D pack mechanizes a Track A runtime.",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-mechanization/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-mechanization/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-mechanization\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Architecture"
     },
     {
       "id": "QA-133",
       "category": "Architecture",
       "query": "Which crate should own a new NDJSON stream reader?",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-core/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-core/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-core\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Architecture"
     },
     {
       "id": "QA-134",
       "category": "Architecture",
       "query": "Which rule blocks barrel re-export files?",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-lang-rust/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-lang-rust/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-lang-rust\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Architecture"
     },
     {
       "id": "QA-135",
@@ -1789,39 +1628,25 @@
       "id": "QA-136",
       "category": "Repository",
       "query": "Explain the charter of `enforcer-core` as a shared foundation.",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-core/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-core/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-core\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Repository"
     },
     {
       "id": "QA-137",
       "category": "Repository",
       "query": "What is the public API surface of `enforcer-domain`?",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-domain/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-domain/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-domain\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Repository"
     },
     {
       "id": "QA-138",
@@ -1863,20 +1688,13 @@
       "id": "QA-141",
       "category": "Repository",
       "query": "Find all crates that vendor code from OcentraParent.",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-core/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-core/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-core\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Repository"
     },
     {
       "id": "QA-142",
@@ -1894,39 +1712,25 @@
       "id": "QA-143",
       "category": "Repository",
       "query": "List the module roots of the single `enforcer-domain` crate.",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-domain/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-domain/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-domain\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Repository"
     },
     {
       "id": "QA-144",
       "category": "Repository",
       "query": "Which modules in `enforcer-scan` are public vs private?",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-scan/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-scan/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-scan\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Repository"
     },
     {
       "id": "QA-145",
@@ -2004,20 +1808,13 @@
       "id": "QA-151",
       "category": "Repository",
       "query": "What schema fields do arc-25 `enforcer-events` records carry?",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-events/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-events/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-events\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Repository"
     },
     {
       "id": "QA-152",
@@ -2035,39 +1832,25 @@
       "id": "QA-153",
       "category": "Repository",
       "query": "Which crates own local error types vs delegate to `enforcer-core::error`?",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-core/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-core/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-core\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Repository"
     },
     {
       "id": "QA-154",
       "category": "Repository",
       "query": "Give a module map of `crates/enforcer-memory`.",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-memory/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-memory/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-memory\\src"
-      ],
-      "verdict": "pass"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: no wired runner for category Repository"
     },
     {
       "id": "QA-155",
@@ -2097,32 +1880,31 @@
       "id": "QA-157",
       "category": "Repository",
       "query": "What is the startup order of the `enforcer-cli` binary?",
-      "expectedIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-cli/src"
-      ],
-      "actualIds": [
-        "//?/C:/Projects/enforcer-rust/crates/enforcer-cli/src"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/architecture.rs",
-        "\\\\?\\C:\\Projects\\enforcer-rust\\crates\\enforcer-cli\\src"
-      ],
-      "verdict": "pass"
-    },
-    {
-      "id": "QA-158",
-      "category": "GitHistory",
-      "query": "What is the git history of `enforcer-domain/src/ids.rs`?",
       "expectedIds": [],
       "actualIds": [],
       "recallAt5": 0.0,
       "mrrAt10": 0.0,
       "ndcgAt10": 0.0,
       "sourceRefs": [],
-      "verdict": "unrunnable: crates/enforcer-domain/src/ids.rs has no git history"
+      "verdict": "unrunnable: no wired runner for category Repository"
+    },
+    {
+      "id": "QA-158",
+      "category": "GitHistory",
+      "query": "What is the git history of `enforcer-domain/src/ids.rs`?",
+      "expectedIds": [
+        "crates/enforcer-domain/src/ids.rs"
+      ],
+      "actualIds": [
+        "crates/enforcer-domain/src/ids.rs"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "commit:686846a02714f6c395e0557eed439ea7b680d1cd"
+      ],
+      "verdict": "pass"
     },
     {
       "id": "QA-159",
@@ -2152,13 +1934,19 @@
       "id": "QA-161",
       "category": "GitHistory",
       "query": "What changed in `enforcer-scan/src/engine.rs` over its last 50 commits?",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: crates/enforcer-scan/src/engine.rs has no git history"
+      "expectedIds": [
+        "crates/enforcer-scan/src/engine.rs"
+      ],
+      "actualIds": [
+        "crates/enforcer-scan/src/engine.rs"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "commit:be5558a2564d9d747ee77fa61c90a3c20933081f"
+      ],
+      "verdict": "pass"
     },
     {
       "id": "QA-162",
