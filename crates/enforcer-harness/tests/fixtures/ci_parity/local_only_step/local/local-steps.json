@@ -1,0 +1,6 @@
+[
+  { "name": "cargo fmt --check" },
+  { "name": "cargo clippy -D warnings" },
+  { "name": "cargo test --workspace" },
+  { "name": "cargo local-only-lint" }
+]

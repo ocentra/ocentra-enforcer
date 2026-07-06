@@ -2,7 +2,8 @@
 //!
 //! # Charter
 //!
-//! Two halves, both owned by this crate (per the arc-18 workpack):
+//! Two halves, both owned by this crate (per the arc-18 workpack), plus
+//! feature modules other workpacks plug in ([`ci_parity`] is d11's):
 //!
 //! - **Half A — parsing** ([`parsers`]): shells out to native tools
 //!   (cargo/tsc/ruff/pytest/eslint/pyright/bandit/SARIF-emitting tools...),
@@ -34,6 +35,7 @@
 //! later pass MAY port an optional DuckDB ingestion path behind the same
 //! `duckdb-status.json` contract without breaking this crate's public API.
 
+pub mod ci_parity;
 pub mod config;
 pub mod duckdb_seam;
 pub mod legacy;

@@ -1,0 +1,15 @@
+name: Rust CI
+
+on:
+  pull_request:
+
+jobs:
+  rust-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: cargo fmt --check
+        run: cargo fmt --all --check
+
+      - name: cargo deny check
+        # ci-parity: cargo deny check=0.15.2
+        run: cargo install cargo-deny --locked && cargo deny check
