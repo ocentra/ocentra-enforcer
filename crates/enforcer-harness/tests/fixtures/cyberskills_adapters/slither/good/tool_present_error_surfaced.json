@@ -1,0 +1,8 @@
+{
+  "adapter": "slither",
+  "toolPresent": true,
+  "outcome": "errored",
+  "ran": 0,
+  "errorMessage": "slither exited 2: compilation failed",
+  "findings": []
+}

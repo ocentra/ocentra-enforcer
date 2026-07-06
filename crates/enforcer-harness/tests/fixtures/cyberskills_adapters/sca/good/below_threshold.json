@@ -1,0 +1,16 @@
+{
+  "adapter": "sca",
+  "toolPresent": true,
+  "outcome": "ran",
+  "ran": 1,
+  "findings": [
+    {
+      "ruleId": "CVE-2023-99999",
+      "severity": "Low",
+      "file": "package-lock.json",
+      "line": 1,
+      "message": "some-pkg@1.0.0 has a low-severity advisory (CVSS 2.0).",
+      "threatId": "CWE-1104"
+    }
+  ]
+}

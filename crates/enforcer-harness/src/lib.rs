@@ -35,6 +35,7 @@
 //! later pass MAY port an optional DuckDB ingestion path behind the same
 //! `duckdb-status.json` contract without breaking this crate's public API.
 
+pub mod adapters;
 pub mod ci_parity;
 pub mod config;
 pub mod duckdb_seam;

@@ -1,0 +1,18 @@
+[
+    {
+        "ruleId": "CYBER-ADAPTER-SCA-SEVERITY.1",
+        "version": 1,
+        "title": "Software-composition-analysis adapter finding must stay below the severity threshold",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-harness",
+            "path": "adapters::cyberskills::gate::SeverityThresholdGate"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-harness/tests/fixtures/cyberskills_adapters/sca/bad/high_cve_over_threshold.json",
+            "pass": "crates/enforcer-harness/tests/fixtures/cyberskills_adapters/sca/good/below_threshold.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h12-cyberskills-python-adapters.md#requirement-checklist",
+        "tags": ["cyberskills", "h12", "adapter", "sca", "severity-gate", "scored"]
+    }
+]

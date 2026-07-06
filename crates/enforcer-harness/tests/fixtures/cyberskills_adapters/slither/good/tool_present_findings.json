@@ -1,0 +1,16 @@
+{
+  "adapter": "slither",
+  "toolPresent": true,
+  "outcome": "ran",
+  "ran": 1,
+  "findings": [
+    {
+      "ruleId": "slither.reentrancy-eth",
+      "severity": "High",
+      "file": "contracts/Vault.sol",
+      "line": 42,
+      "message": "Reentrancy in Vault.withdraw(uint256): external call before state update.",
+      "threatId": "CWE-841"
+    }
+  ]
+}

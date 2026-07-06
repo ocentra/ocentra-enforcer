@@ -33,7 +33,8 @@
     "tests/enforcer-multilang.test.mjs",
     "tests/fixtures/enforcer/**",
     "profiles/*/legacy-scripts/**",
-    "vendor/*"
+    "vendor/*",
+    "crates/enforcer-harness/adapters/*"
   ],
   "rules": {},
   "waivers": [],
