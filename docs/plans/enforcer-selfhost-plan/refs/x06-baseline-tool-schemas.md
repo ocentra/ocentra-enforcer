@@ -4,8 +4,9 @@
 > Agent Capsule
 > Plan: `enforcer-selfhost-plan`
 > Doc: `x06-baseline-tool-schemas`
-> Kind: baseline-schema extraction (sonnet-tier, 2026-07-05). Ground-truth wire contracts for the 14 MCP
-> tools codebase-memory-mcp exposes, extracted directly from its pure-C source (shallow clone of
+> Kind: baseline-schema extraction (sonnet-tier, 2026-07-05, completed in a second sonnet-tier pass same
+> day). Ground-truth wire contracts for **all 14 of 14** MCP tools codebase-memory-mcp exposes plus the
+> JSON-RPC envelope/transport, extracted directly from its pure-C source (shallow clone of
 > `DeusData/codebase-memory-mcp`, tag/HEAD `0.8.1` per `server.json`), so enforcer-memory implementers stop
 > guessing param names, defaults, response shapes, and algorithmic constants.
 > Read when: implementing any X06.2-X06.9 MCP tool handler, building the parity harness in
@@ -15,10 +16,15 @@
 > must do — see `MEMORY_RETRIEVAL_OWNER_INTENT.md` / `MEMORY_RETRIEVAL_DECISIONS.md` for binding choices,
 > and `x06-source-scout-digests.md` §1 for the high-level parity floor. Where this doc's fine-grained
 > findings correct or refine that digest (e.g. semantic search DOES use a bundled neural embedding, not
-> pure-lexical; BM25's true default limit is 100 not 200), the correction is called out inline.
+> pure-lexical; BM25's true default limit is 100 not 200; `ingest_traces` is a STUB that never merges into
+> CALLS edges; `detect_changes` has NO risk classification at all, `risk_labels` belongs to `trace_path`
+> only), the correction is called out inline.
 > Proves: nothing by itself — this is a reference extraction, not a proof artifact. Verify at point of
 > copy; every claim below is cited to a `file:line` in the cloned C source. Anything not independently
 > re-derivable from source in the time available is marked **UNVERIFIED**.
+> Status: 14/14 tools verified (§2-§15), envelope/transport verified (§1), CLI form verified (§16), common
+> error shape verified (§17). Remaining UNVERIFIED items are narrow and listed at point of use (see the
+> per-section notes) — none block X06.2-X06.9 implementation.
 <!-- /agent-capsule -->
 
 ## 0. Source and method
@@ -52,16 +58,20 @@ before final enforcer-memory design lock.
 
 ## 1. MCP JSON-RPC envelope, `tools/list`, and stdio framing
 
-- **Transport**: stdio only, JSON-RPC 2.0 framing. Confirmed by `server.json`: `"transport": {"type":
-  "stdio"}` for both npm and PyPI package entries; `docs/llms.txt` and `main.c` confirm `codebase-memory-mcp`
-  with no args runs the MCP server on stdio (`main.c:494`: `"codebase-memory-mcp Run MCP server on
-  stdio"`). Exact byte-framing (newline-delimited JSON vs `Content-Length:` headers) was **UNVERIFIED** —
-  not traced to the low-level stdio read/write loop in this pass; the delegated agents focused on tool
-  schemas/handlers, not the transport loop itself. Given the MCP spec's stdio transport is
-  newline-delimited JSON (no `Content-Length` framing, unlike LSP), and nothing in the traced code
-  referenced a `Content-Length` header, newline-delimited is the working assumption but is marked
-  **UNVERIFIED** pending a direct read of the stdio read loop (likely in `src/mcp/mcp.c` outside the
-  traced line ranges, or in `main.c`).
+- **Transport**: stdio, **dual-framing** — confirmed directly from the event loop `cbm_mcp_server_run`
+  (`src/mcp/mcp.c:6137-6214`). Each iteration reads one line via `cbm_getline` (mcp.c:6182); if that line
+  starts with the literal `Content-Length:` (mcp.c:6196, `strncmp(line, "Content-Length:",
+  SLEN("Content-Length:"))`), the server switches to **LSP-style framing** for that message —
+  `handle_content_length_frame` (mcp.c:6041-6070) skips the blank line(s) between header and body, `fread`s
+  exactly `content_len` bytes as the body, and replies with `Content-Length: %zu\r\n\r\n%s` (mcp.c:6066, no
+  trailing newline after the body). Otherwise — the common case for MCP stdio clients — the line itself
+  **is** the JSON-RPC message (**newline-delimited JSON**, no framing header at all): `cbm_mcp_server_handle`
+  is called directly on the trimmed line (mcp.c:6204), and the reply is written as `"%s\n"` (mcp.c:6206), a
+  bare trailing newline. So: newline-delimited-JSON is the primary/default path (matches the MCP spec's
+  stdio transport), and `Content-Length`-framing is accepted as a secondary, LSP-compatible mode
+  auto-detected per-message by peeking the first line — not a global negotiated setting. A message longer
+  than `MCP_DEFAULT_LIMIT * 1MB` declared in a `Content-Length` header is silently ignored (mcp.c:6198,
+  `content_len > 0 && content_len <= MCP_DEFAULT_LIMIT * CBM_SZ_1K * CBM_SZ_1K` guards the call).
 - **Tool result envelope** (confirmed for every one of the 14 tools via `cbm_mcp_text_result`,
   `src/mcp/mcp.c:248-276`):
   ```json
@@ -73,21 +83,48 @@ before final enforcer-memory design lock.
   ```
   On error, `structuredContent` is omitted entirely — only `content[0].text` (plain string or a small JSON
   error object, tool-dependent) and `"isError": true` are present.
-- **`tools/list` response shape**: **UNVERIFIED** in fine detail (the delegated agents extracted individual
-  tool schema *literals* at their registration sites in `mcp.c`, e.g. lines 339-374 for `search_graph`,
-  376-397 for `query_graph`, 399-418 for `trace_path`, 420-427 for `get_code_snippet`, 429-432 for
-  `get_graph_schema`, 434-449 for `get_architecture`, 451-473 for `search_code` — these are the literal
-  `inputSchema` JSON Schema objects returned when the tool table is serialized for `tools/list`), but the
-  exact wrapping (whether `tools/list` returns `{"tools":[{name,description,inputSchema},...]}` per the
-  standard MCP spec, and which JSON Schema draft version is declared, e.g. `"$schema":
-  "http://json-schema.org/draft-07/schema#"` or none at all) was not independently confirmed by reading the
-  `tools/list` handler itself. Standard MCP servers return `{"tools":[...]}` with no `$schema` field on each
-  tool's `inputSchema` (bare JSON Schema object, draft-07-compatible subset); this is the working assumption
-  but is marked **UNVERIFIED** for this specific server.
-- **`initialize` handshake / server info**: **UNVERIFIED** — not traced. `server.json` gives the
-  registry-level identity (`"name": "io.github.DeusData/codebase-memory-mcp"`, `"version": "0.8.1"`) which
-  is very likely what the `initialize` response's `serverInfo.name`/`serverInfo.version` echoes, but the
-  actual `initialize` handler was not read in this pass.
+- **`tools/list` response shape** — confirmed by direct read of `cbm_mcp_tools_list_range`
+  (mcp.c:534-570) and its caller `cbm_mcp_tools_list_page` (mcp.c:623-626, wired to the `tools/list` method
+  at mcp.c:5970-5971):
+  ```json
+  { "tools": [ { "name": "index_repository", "title": "Index repository", "description": "...", "inputSchema": {...}, "outputSchema": {"type":"object","additionalProperties":true} } ], "nextCursor": "14" }
+  ```
+  - Each tool object has exactly 4 keys: `name`, `title`, `description`, `inputSchema` (mcp_add_tool_def,
+    mcp.c:522-532) plus a **uniform, non-informative** `outputSchema` — every tool gets the same literal
+    `{"type":"object","additionalProperties":true}` (`MCP_TOOL_OUTPUT_SCHEMA`, mcp.c:508), not a per-tool
+    schema. No `"$schema"` draft-version key anywhere in the tool literals (confirmed by inspecting every
+    registration literal in §2-§9 of this doc) — bare JSON-Schema-like objects, no draft pragma.
+  - **Paginated**, not a single flat dump: page size `MCP_TOOLS_PAGE_SIZE` (constant referenced at
+    mcp.c:624; 14 tools total fit in one page in practice for this version's tool count, `TOOL_COUNT =
+    sizeof(TOOLS)/sizeof(TOOLS[0])`, mcp.c:506). `nextCursor` (a stringified integer offset) is included
+    only when more tools remain past the current page (`end < TOOL_COUNT`, mcp.c:561-565); a client resumes
+    by echoing that string back as `params.cursor` on the next `tools/list` call
+    (`mcp_tools_cursor_offset`, mcp.c:591-621 — non-numeric or negative cursors reset to offset 0; a cursor
+    `> TOOL_COUNT` clamps to `TOOL_COUNT`, i.e. an empty final page).
+- **`initialize` handshake / server info** — confirmed, `cbm_mcp_initialize_response` (mcp.c:639-680),
+  wired at mcp.c:5963-5967:
+  ```json
+  {
+    "protocolVersion": "2025-11-25",
+    "serverInfo": { "name": "codebase-memory-mcp", "version": "0.8.1" },
+    "capabilities": { "tools": { "listChanged": false } }
+  }
+  ```
+  - `serverInfo.name` is the **hardcoded literal** `"codebase-memory-mcp"` (mcp.c:667), not the
+    registry-qualified `server.json` name (`io.github.DeusData/codebase-memory-mcp`) — do not conflate the
+    two when porting.
+  - `serverInfo.version` comes from `cbm_cli_get_version()` (mcp.c:668), which returns the binary's compiled
+    `CBM_VERSION` (== `0.8.1` for this clone) — not read from `server.json` at runtime.
+  - **Protocol version negotiation**: server supports 4 versions, newest first (mcp.c:630-637):
+    `2025-11-25`, `2025-06-18`, `2025-03-26`, `2024-11-05`. If the client's requested `protocolVersion`
+    (from `initialize` params) exactly matches one of these, it is echoed back; otherwise the server's
+    newest (`2025-11-25`) is returned regardless of what the client asked for (mcp.c:642-658) — there is no
+    hard rejection/error path for an unsupported version, just a silent fallback to latest.
+  - `capabilities` advertises only `tools` (with `listChanged: false`, i.e. no dynamic tool-list-changed
+    notifications) — no `resources`, `prompts`, or `logging` capability keys are added.
+  - Side effects fired on `initialize` (mcp.c:5963-5967, before the response is even built/returned):
+    `start_update_check(srv)`, `detect_session(srv)`, `maybe_auto_index(srv)` — session-root detection and
+    a possible auto-index kick off as a side effect of the handshake itself, not of any tool call.
 - **stderr logging contract** (directly verified, `src/foundation/log.c` + `log.h`, outside delegated
   agents' scope):
   - stdout is reserved for JSON-RPC; all logs go to stderr via `emit_line` → `fprintf(stderr, "%s\n",
@@ -928,84 +965,587 @@ and grep-launch failures each produce distinct plain-text or `build_project_list
 
 ## 9. `index_repository`
 
-**UNVERIFIED — not covered by this extraction pass.** The delegated research agent assigned to this tool
-cluster (index_repository, list_projects, delete_project, index_status, detect_changes, manage_adr,
-ingest_traces) did not return a report before this document was finalized under the checkpoint discipline
-below (see §0 note on the checkpoint commit). The high-level shape from the prior scout digest
-(`x06-source-scout-digests.md` §1, row 1) is the only grounding available:
+Registration/schema literal: `src/mcp/mcp.c:315-337`. Dispatch: `mcp.c:5632-5634`. Handler
+`handle_index_repository`, `mcp.c:3741-3877`. Cross-repo-intelligence sub-handler `handle_cross_repo_mode`,
+`mcp.c:3201-3258`. Persistence artifact mechanics: `src/pipeline/artifact.c` (756 lines).
 
-- modes `full`/`moderate`/`fast`
-- cross-repo intelligence
-- `persistence` param exports `.codebase-memory/graph.db.zst`
+### 9.1 Params (from the registered `inputSchema` literal, mcp.c:320-337)
 
-None of the exact param names/types/enums, response shape, or error cases have been independently verified
-against `src/mcp/mcp.c` in this pass. **Do not implement against the digest summary alone** — re-run this
-extraction against `src/mcp/mcp.c` (search for the `index_repository` registration site) and
-`src/pipeline/pipeline.c` / `pipeline_incremental.c` / `artifact.c` before writing the Rust handler.
+| Param | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| `repo_path` | string | **yes** | — | canonicalized if it exists (`canonicalize_repo_path_if_exists`, mcp.c:3763); path separators normalized (`cbm_normalize_path_sep`, mcp.c:3755) |
+| `mode` | enum string | no | `"full"` | `"full"` \| `"moderate"` \| `"fast"` \| `"cross-repo-intelligence"` — see §9.2 |
+| `target_projects` | string[] | required **only** for `mode="cross-repo-intelligence"` | — | project names to cross-link against; `["*"]` means all indexed projects (handled inside `cbm_cross_repo_match`, not specially in the MCP layer) |
+| `name` | string | no | derived from `repo_path` (`cbm_pipeline_project_name`) | overrides the derived project name; rejected with `"invalid project name"` if it fails `cbm_pipeline_set_project_name`'s validation (mcp.c:3789-3794) |
+| `persistence` | boolean | no | `false` | see §9.4 |
+
+### 9.2 Mode semantics — exact, from the enum comments and pipeline gating (`src/pipeline/pipeline.h:36-40`)
+
+```c
+CBM_MODE_FULL = 0,     /* Full: everything including SIMILAR_TO + SEMANTICALLY_RELATED */
+CBM_MODE_MODERATE = 1, /* Moderate: fast discovery + SIMILAR_TO + SEMANTICALLY_RELATED */
+CBM_MODE_FAST = 2,     /* Fast: skip non-essential files, no similarity/semantic edges */
+```
+Confirmed gating call sites:
+- `cbm_set_macro_extraction(p->mode == CBM_MODE_FULL)` (pipeline.c:1228) — C/C++ `#define` Macro nodes are
+  extracted **only** in `full` mode (moderate/fast skip them entirely; comment notes macros are ≈49% of
+  nodes on macro-dense repos like the Linux kernel, hence the gate).
+- Git-history computation (`run_githistory`, pipeline.c:1104-1143) is skipped **only** in `fast` mode
+  (`if (p->mode != CBM_MODE_FAST) { ...run githistory... } else { log pass.skip reason=fast_mode }`,
+  pipeline.c:1113-1126) — so `full` and `moderate` both compute git history; only `fast` omits it.
+- `moderate_only` pass flag (`pipeline.c:718`): passes tagged `moderate_only` are skipped **only** when
+  `p->mode == CBM_MODE_FAST` — i.e. `moderate` mode runs the same "moderate-tagged" passes as `full`; only
+  `fast` mode drops them. This matches the tool docstring's "moderate: filtered files + similarity/semantic.
+  fast: filtered files, no similarity/semantic" (mcp.c:325-327) — `full` vs `moderate` differ only in the
+  macro-extraction gate and file-discovery filtering (not independently traced further — file-list filtering
+  itself lives in the discovery pass, not read in this cluster); `fast` is the one that drops
+  similarity/semantic edges and git-history.
+- `mode="cross-repo-intelligence"` **short-circuits before any of the above** — `handle_index_repository`
+  detects it first (mcp.c:3765-3771) and dispatches straight to `handle_cross_repo_mode`, which never
+  touches the extraction pipeline at all; it only matches Routes/Channels across already-indexed projects
+  (`cbm_cross_repo_match`) to create `CROSS_HTTP_CALLS`/`CROSS_ASYNC_CALLS`/`CROSS_CHANNEL`/
+  `CROSS_GRPC_CALLS`/`CROSS_GRAPHQL_CALLS`/`CROSS_TRPC_CALLS` edges — see §9.5 for its response shape.
+  Per the tool description (mcp.c:317-319), target projects must already have "fresh indexes" — this mode
+  does no extraction of its own.
+
+### 9.3 Response shape — normal indexing (`full`/`moderate`/`fast`)
+
+Success (`rc == 0` from `cbm_pipeline_run`, mcp.c:3849-3859, fields assembled by `build_index_success_response`, mcp.c:3379-3469):
+```json
+{
+  "project": "myrepo",
+  "status": "indexed",
+  "nodes": 1204,
+  "edges": 3980,
+  "expected_nodes": 1204,
+  "expected_edges": 3980,
+  "adr_present": false,
+  "adr_hint": "Project indexed. Consider creating an Architecture Decision Record: ...",
+  "artifact_present": false,
+  "excluded": { "dirs": ["node_modules", "vendor"], "count": 2, "truncated": false },
+  "skipped_count": 0
+}
+```
+- `status`: `"indexed"` on a clean run, **`"degraded"`** (still `isError:false`, not a failure) when the
+  persisted node count falls below `cbm_dump_verify_min_ratio()` of the expected count (durability-loss
+  detection after a hard-killed sibling process, mcp.c:3400-3419) — in that case `hint` explains and
+  recommends re-running.
+  On pipeline failure (`rc != 0`): `"status": "error"`, plus a `hint` recommending `mode='fast'` for
+  diagnosis (mcp.c:3860-3865) — **and** the overall tool result is `isError:true` (mcp.c:3874,
+  `rc != 0`).
+- `expected_nodes`/`expected_edges` only present when the pipeline tracked committed counts
+  (`cbm_pipeline_get_committed_counts`, mcp.c:3390); omitted (`exp_nodes < 0`) otherwise.
+- `excluded` object present only when ≥1 subtree was skipped during discovery (dirs like
+  `node_modules`/`vendor`), capped at 25 entries with `count`/`truncated` (`add_excluded_summary`,
+  mcp.c:3278-3295, `INDEX_EXCLUDED_DIR_CAP = 25`).
+- `skipped_count` is **always present** (0 on a clean run); when >0, a `skipped` object
+  (`{files:[{path,reason,phase}] (<=50), count, truncated}`) plus a `logfile` path are added
+  (`add_skipped_summary`, mcp.c:3309-3332, `INDEX_SKIPPED_FILE_CAP = 50`). The FULL uncapped skip list is
+  always written to a per-run logfile (`write_skip_logfile`, mcp.c:3338-3357) at
+  `$CBM_INDEX_LOG` (env override) or `<cache_dir>/logs/<project>-<unix_epoch>.log` — **only when there were
+  skips** (no logfile on a clean run).
+- `adr_present`/`adr_hint`: same semantics as `get_graph_schema`'s (§3.2); `adr_hint` omitted when
+  `degraded` (mcp.c:3452, `!degraded` guards it) or when an ADR already exists.
+- `artifact_present`: whether a persistence artifact (`.codebase-memory/graph.db.zst`) already exists for
+  `repo_path` (`cbm_artifact_exists`, mcp.c:3460) — reflects the artifact's state **after** this run, not
+  whether persistence was requested this call. `artifact_hint` is added only when **both**
+  `persistence=true` on this call **and** the artifact now exists (mcp.c:3462-3466).
+- No `timing`/`elapsed_ms` field anywhere in the normal-mode response (contrast with
+  `cross-repo-intelligence`'s response in §9.5, which does carry `elapsed_ms`).
+
+### 9.4 Persistence artifact — exact mechanics
+
+- Trigger: `persistence=true` → `cbm_pipeline_set_persistence(p, true)` (mcp.c:3796) before
+  `cbm_pipeline_run`; the actual export call site is inside the pipeline's dump-and-persist stage (not
+  re-traced line-by-line in this pass — `dump_and_persist_hashes`, `pipeline.c:1182`, calls into
+  `src/pipeline/artifact.c`'s `cbm_artifact_export`).
+- **Location/filename**: `<repo_path>/.codebase-memory/graph.db.zst` (`CBM_ARTIFACT_FILENAME =
+  "graph.db.zst"`, `artifact.h:21`), plus a sidecar `<repo_path>/.codebase-memory/artifact.json`
+  (`CBM_ARTIFACT_META = "artifact.json"`, `artifact.h:22`) holding metadata (schema version, commit hash —
+  `cbm_artifact_commit` reads `artifact.json`'s `"commit"` key, artifact.c:721-753). Schema version constant
+  `CBM_ARTIFACT_SCHEMA_VERSION = 2` (artifact.h:19); `cbm_artifact_exists` (artifact.c:701-717) requires the
+  `.zst` file to be non-empty **and** the sidecar's version to be `<= 2`.
+- **Export mechanism** (`cbm_artifact_export`, artifact.c:482-… ; doc-comment at artifact.c:1-6): `VACUUM
+  INTO` a temp copy of the live SQLite db, optionally (quality=`CBM_ARTIFACT_BEST`) **drop all indexes**
+  from that temp copy and re-`VACUUM` for better compression, then zstd-compress (`ART_ZSTD_FAST=3` or
+  `ART_ZSTD_BEST=9`, artifact.c:11-12) and write the `.zst` file into a freshly-`mkdir -p`'d
+  `.codebase-memory/` directory (permissions `0755`, `ART_DIR_PERMS`, artifact.c:10,497).
+- **Bootstrap-on-index** (`try_artifact_bootstrap`, mcp.c:3261-3268, called unconditionally at the top of
+  `handle_index_repository` at mcp.c:3801 — independent of the `persistence` param on *this* call): if no
+  local `.db` file exists yet for the derived project name AND an artifact already exists at `repo_path`,
+  the artifact is imported (decompressed + written into the cache dir) **before** the fresh index run,
+  giving teammates a fast-path bootstrap from a committed artifact instead of full re-indexing. This runs
+  regardless of whether `persistence=true` was passed on this specific call — it triggers purely on
+  "artifact exists but no local db yet."
+- Import mechanism (doc-comment, artifact.c:1-6): decompress → write to cache dir → open (SQLite
+  auto-creates missing indexes) → integrity check.
+
+### 9.5 `cross-repo-intelligence` mode response (`handle_cross_repo_mode`, mcp.c:3201-3258)
+
+```json
+{
+  "status": "success",
+  "mode": "cross-repo-intelligence",
+  "project": "myrepo",
+  "projects_scanned": 3,
+  "cross_http_calls": 12,
+  "cross_async_calls": 4,
+  "cross_channel": 0,
+  "cross_grpc_calls": 0,
+  "cross_graphql_calls": 0,
+  "cross_trpc_calls": 0,
+  "total_cross_edges": 16,
+  "elapsed_ms": 842.5
+}
+```
+`total_cross_edges` is the sum of the six typed counts. `elapsed_ms` is a real (float), unlike anything in
+the normal-mode response. Error case (`target_projects` missing/empty/non-array, mcp.c:3211-3218):
+```json
+{ "error": "target_projects is required for cross-repo-intelligence mode. Use [\"*\"] for all projects. Run list_projects to see available." }
+```
+
+### 9.6 Errors
+
+- `repo_path` missing: plain text `"repo_path is required"`, `isError:true` (mcp.c:3757-3761).
+- `name` override invalid: plain text `"invalid project name"` (mcp.c:3789-3794).
+- Pipeline construction failure: `"failed to create pipeline"` (mcp.c:3784-3788).
+- Supervisor-worker crash/hang path (`cbm_index_supervisor_should_wrap`, mcp.c:3745-3750, when the index
+  runs in an isolated worker subprocess and that worker crashes or hangs) produces a **distinct** response
+  shape via `build_worker_failure_response` (mcp.c:3475-3498), `isError:true`:
+  ```json
+  { "status": "error", "outcome": "hang", "hint": "Indexing worker timed out (a file made no progress). The worker was terminated and the server survived. Re-run to retry.", "repo_path": "..." }
+  ```
+  (`outcome` is `"hang"` or the crash variant per `cbm_proc_outcome_str`; exact string values of every
+  `cbm_proc_outcome_t` enum member beyond "hang" were **not independently enumerated in this pass** —
+  UNVERIFIED, would require reading `index_supervisor.c/.h` in full.)
+
+---
 
 ## 10. `list_projects`
 
-**UNVERIFIED — not covered by this extraction pass.** Same caveat as §9. No param/response/ordering
-details were independently confirmed. Likely candidates for follow-up: `src/mcp/mcp.c` (grep
-`"list_projects"`), and whatever project-registry store backs `resolve_store`/`get_project_arg` (referenced
-indirectly by other tools' handlers in §2-§8, e.g. `build_project_list_error`, `mcp.c:1173`).
+Registration: `src/mcp/mcp.c:475-476` (`{"type":"object","properties":{}}` — no params at all, no
+`required`). Dispatch `mcp.c:5606-5608`. Handler `handle_list_projects`, `mcp.c:1369-1424`. Per-entry
+builder `build_project_json_entry`, `mcp.c:1327-1365`.
+
+### 10.1 How projects are discovered — no central registry
+
+Each project **is** a single `.db` file — `list_projects` scans the cache directory
+(`cache_dir`, mcp.c:961-968: `cbm_resolve_cache_dir()`, falling back to `cbm_tmpdir()`) for files matching
+`is_project_db_file` (mcp.c:1256-1263: filename ends in `.db`, length `>= MCP_MIN_DB_NAME`, and is not `_...`
+or the literal `:memory:`). For each candidate file, the project's **name** is read from inside the db
+itself (`db_internal_project_name`, mcp.c:1267-1291 — opens query-mode, requires exactly one row in the
+`projects` table with a non-empty name; ghost/empty/corrupt dbs are silently skipped, not listed) — the
+filename is not trusted as the project name (comment at mcp.c:1334-1338 explains this guards against a
+renamed/copied `.db` file reporting stale node/edge counts under the wrong key).
+
+### 10.2 Response shape
+
+```json
+{
+  "projects": [
+    {
+      "name": "myrepo",
+      "root_path": "/home/user/code/myrepo",
+      "git": { "is_git": true, "is_worktree": false, "is_detached": false, "root_exists": true, "worktree_root": "...", "git_dir": "...", "git_common_dir": "...", "canonical_root": "...", "branch": "main", "branch_slug": "main", "head_sha": "abc123...", "base_sha": "..." },
+      "nodes": 1204,
+      "edges": 3980,
+      "size_bytes": 5242880
+    }
+  ]
+}
+```
+- No ordering guarantee is imposed by the handler itself — order follows `cbm_readdir`'s OS-level directory
+  iteration order (not sorted by name/size/mtime).
+- `git` sub-object is added by the same `add_git_context_json` helper used by `index_status` (§12) —
+  identical shape in both tools (mcp.c:1150-1169).
+- `hint` key (`"No projects indexed. Call index_repository(repo_path=...) first."`) is added only when the
+  `projects` array is empty (mcp.c:1413-1416) — **not an error**, `isError:false`.
+- Cache-directory-unreadable error (`opendir` failure, mcp.c:1383-1391):
+  ```json
+  { "error": "cannot read cache directory: <path>", "hint": "Check directory permissions or run index_repository first." }
+  ```
+  This is the one path in this tool that IS `isError:true`.
+
+---
 
 ## 11. `delete_project`
 
-**UNVERIFIED — not covered by this extraction pass.** Same caveat as §9. Expected to take a `project`
-param and return a confirmation shape; error case for unknown project should follow the same
-`{"error":"project not found or not indexed", ...}` pattern documented in §2.5/§3.3/§7.6, but this was not
-independently confirmed for `delete_project`'s specific handler.
+Registration: `src/mcp/mcp.c:477-479` (`project` string, required). Dispatch `mcp.c:5621-5623`. Handler
+`handle_delete_project`, `mcp.c:2178-2250`.
+
+### 11.1 What's deleted on disk — exact
+
+Only the project's own `.db` file plus its SQLite WAL/SHM sidecars: `<cache_dir>/<project>.db`,
+`<cache_dir>/<project>.db-wal`, `<cache_dir>/<project>.db-shm` (`project_db_path` mcp.c:971-980 +
+`cbm_unlink` calls at mcp.c:2212-2214). **Does not touch**:
+- the persistence artifact (`.codebase-memory/graph.db.zst` inside the *repo*, not the cache dir) — entirely
+  separate storage, untouched by this tool;
+- the ADR content (also stored inside the same `.db` file's `project_summaries` table per §14, so it IS
+  deleted as a side effect of deleting the `.db` — but there's no separate/independent ADR deletion path).
+
+Side effects before the delete (mcp.c:2185-2229):
+1. If the target project is the server's currently-cached open store, it is closed first
+   (`cbm_store_close`) and `srv->current_project` is cleared — avoids deleting a file with an open handle.
+2. `cbm_pipeline_lock()`/`unlock()` wraps the delete so it can't race an in-progress `index_repository` run
+   on the same project.
+3. If a filesystem watcher is active for the project, `cbm_watcher_unwatch(srv->watcher, name)` stops it.
+4. `cbm_mem_collect()` returns freed allocator pages to the OS after closing the database.
+
+### 11.2 Response shape
+
+```json
+{ "project": "myrepo", "status": "deleted" }
+```
+- `status` values: `"deleted"` (unlink succeeded), `"delete_failed"` (unlink failed on an existing file —
+  adds `"error": "<strerror text>"`, `isError:true`), or `"not_found"` (no `.db` file existed for that
+  project name at all — **this is also `isError:true`**, mcp.c:2206-2224: `is_error` is set `true`
+  whenever `exists` was false, distinct from the "delete succeeded" happy path).
+- **Note**: unlike `search_graph`/`get_graph_schema`/etc., the unknown-project error here is a **flat**
+  `{"project":..., "status":"not_found"}` object, NOT the `{"error":"project not found or not
+  indexed",...,"available_projects":[...]}` shape documented in §2.5/§3.3/§7.6 — `delete_project` never
+  calls `build_project_list_error`/`build_no_store_error` at all. This is a real, verified divergence from
+  the other tools' error-shape convention, not an oversight in this doc.
+- Missing `project` argument entirely: plain text `"project is required"`, `isError:true` (mcp.c:2180-2182)
+  — this one IS a plain string, not JSON.
+
+---
 
 ## 12. `index_status`
 
-**UNVERIFIED — not covered by this extraction pass.** Same caveat as §9. Expected to report progress
-state for an in-flight or completed index run (per `src/mcp/index_supervisor.c`/`.h`, which was in the
-delegated file list but not reported on), but no field names were confirmed.
+Registration: `src/mcp/mcp.c:481-483` (`project` string, required). Dispatch `mcp.c:5618-5620`. Handler
+`handle_index_status`, `mcp.c:2134-2175`.
+
+### 12.1 Response shape
+
+```json
+{
+  "project": "myrepo",
+  "nodes": 1204,
+  "edges": 3980,
+  "status": "ready",
+  "root_path": "/home/user/code/myrepo",
+  "git": { "is_git": true, "...": "...same shape as §10.2/§3.2" }
+}
+```
+- `status`: exactly two values — `"ready"` (`nodes > 0`) or `"empty"` (`nodes == 0`, mcp.c:2149). **There is
+  no in-progress/"indexing" status value at all** — this tool has no visibility into an in-flight
+  `index_repository` run; it only reports the current on-disk node/edge counts and a binary
+  ready/empty classification. (The supervised-worker crash/hang machinery in §9.6 is the closest thing to
+  "in-progress" state, and it's not surfaced here — a caller polling `index_status` mid-run would just see
+  whatever partial counts happen to be committed so far, with no explicit "still running" signal.)
+- When `nodes == 0`, a `hint` is added: `"Project is empty. Re-run index_repository(repo_path=...) to
+  populate."` (mcp.c:2159-2163).
+- `root_path`/`git` are populated only if `cbm_store_get_project` succeeds (mcp.c:2151-2158); note this
+  reuses `add_git_context_json`, the exact same helper as §10.2.
+- If `get_project_arg` cannot resolve a `project` at all (missing key, no fallback), response is instead the
+  degenerate `{"status": "no_project"}` (mcp.c:2164-2166) — **not an error**, `isError:false`.
+- Unknown/unindexed project (the store can't even be opened): standard `REQUIRE_STORE` macro fires →
+  `build_no_store_error` → the same `{"error":"project not found or not indexed", "hint":..., ,
+  "available_projects":[...], "count":N}` shape as §2.5/§3.3/§7.6 (mcp.c:2136-2137, the `REQUIRE_STORE`
+  macro at mcp.c:1216-1225).
+
+---
 
 ## 13. `detect_changes`
 
-**UNVERIFIED — not covered by this extraction pass.** Same caveat as §9. The prior scout digest states
-"git diff → affected symbols + risk classification; base_branch/since" as the shape, and relevant source
-files (`src/pipeline/pass_gitdiff.c`, `pass_githistory.c`) were identified for the delegated agent, but no
-exact risk-level enum, thresholds, or response shape were independently confirmed in this pass.
+Registration: `src/mcp/mcp.c:485-491`. Dispatch `mcp.c:5641-5643`. Handler `handle_detect_changes`,
+`mcp.c:5215-5383`. Per-file symbol lookup `detect_add_impacted_symbols`, `mcp.c:5197-5213`.
+
+### 13.1 Params
+
+| Param | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| `project` | string | **yes** | — | |
+| `scope` | string | no | `"symbols"` (implicit — see below) | `"symbols"` or `"impact"` → include `impacted_symbols`; any other value (e.g. `"files"`) → files only |
+| `depth` | integer | no | `2` (`MCP_DEFAULT_BFS_DEPTH`, mcp.c:27) | clamped to `cbm_mcp_max_depth()` (default **15**, override via `CBM_MCP_MAX_DEPTH` env var, `foundation/limits.h:43-44`) via the same `clamp_mcp_depth` helper `trace_path` uses (§5) — **but see the correction below: this param is echoed, not actually used to bound anything** |
+| `base_branch` | string | no | `"main"` | validated against shell-metacharacter injection (`cbm_validate_shell_arg`) before being interpolated into a `git diff`/`git -C` shell command |
+| `since` | string | no | — | if non-empty, **takes precedence over and replaces `base_branch`** entirely (mcp.c:5226-5236) — routed through the identical `<ref>...HEAD` three-dot diff. So `since` is not a separate mechanism, it's a `base_branch` alias with priority. |
+
+**Correction vs. the tool's own registered description** (mcp.c:488-489, `"since": "Git ref or tag to
+compare from ... Diffs <ref>...HEAD"`) — confirmed accurate for the diff semantics, but note `since`
+literally overwrites `base_branch` in the handler rather than being a distinct code path.
+
+### 13.2 Change detection mechanism — three merged git sources
+
+Exact shell command (mcp.c:5278-5293, POSIX and Windows variants), merging three sources so nothing is
+missed:
+1. `git -C <root> diff --name-only <base>...HEAD` — committed changes vs. the merge-base with `base_branch`.
+2. `git -C <root> diff --name-only` — unstaged tracked-file changes.
+3. `git --no-optional-locks -C <root> status --porcelain --untracked-files=normal` — untracked + staged-new
+   files (invisible to `git diff`; comment at mcp.c:5273-5276 notes this was previously missed, causing new
+   files to not appear until a manual re-index, issue #520).
+Porcelain's 2-char status-code prefix (`"?? path"`, `"A  path"`) is stripped; for a rename line
+(`"R  old -> new"`) only the destination path (after ` -> `) is kept (mcp.c:5330-5344).
+
+### 13.3 Risk classification — **VERIFIED ABSENT, not merely unverified**
+
+**This tool has NO risk classification of any kind.** Grepped the full handler and its helpers
+(`mcp.c:5194-5383`) and `src/pipeline/pass_gitdiff.c` for `risk`/`CRITICAL`/`HIGH`/`MEDIUM`/`LOW` — zero
+matches. The prior scout digest's "risk classification" characterization for `detect_changes` is **wrong**
+for this version (`0.8.1`): the CRITICAL/HIGH/MEDIUM/LOW risk-label scheme that exists in this codebase
+belongs exclusively to **`trace_path`'s** `risk_labels` param (§5.3 of this doc — hop-distance-based:
+hop1=CRITICAL, hop2=HIGH, hop3=MEDIUM, else LOW). `detect_changes` only reports raw changed files +
+(optionally) the symbols defined in those files — no severity/impact scoring whatsoever. Implementers should
+not port a risk-level enum for this tool; if that capability is wanted for parity, it does not exist in the
+baseline and must be original design.
+
+### 13.4 The `depth` param is a **dead/cosmetic parameter** here
+
+Traced `detect_add_impacted_symbols` (mcp.c:5197-5213) in full: it calls `cbm_store_find_nodes_by_file`
+for each changed file and adds every non-File/Folder/Project-labeled node defined in that file. **There is
+no BFS/graph-traversal step at all in this handler** — `depth` is read, clamped, and only ever written back
+into the response as `"depth": depth` (mcp.c:5371); it does not bound anything (contrast with `trace_path`,
+where the structurally-identical `clamp_mcp_depth` call genuinely gates a recursive CTE's hop count). This
+mirrors the `search_graph` mode-interaction and `query_graph` ceiling discrepancies already flagged
+elsewhere in this doc as real, cited divergences between docstring/naming and actual behavior — not a
+doc error to "fix."
+
+### 13.5 Response shape
+
+```json
+{
+  "changed_files": ["src/foo.py", "src/bar.py"],
+  "changed_count": 2,
+  "impacted_symbols": [
+    { "name": "process_order", "label": "Function", "file": "src/foo.py" }
+  ],
+  "depth": 2
+}
+```
+- `impacted_symbols` is present (possibly `[]`) regardless of `scope`; it is simply left unpopulated (stays
+  `[]`) when `scope` is anything other than `"symbols"`/`"impact"` (`want_symbols` gate, mcp.c:5224,
+  5352-5354) — the key itself is not omitted.
+- No `total`/`has_more`/pagination fields — this tool has none.
+
+### 13.6 Errors
+
+- `base_branch` contains shell metacharacters: plain text `"base_branch contains invalid characters"`,
+  `isError:true` (mcp.c:5243-5248).
+- Project not found/no store: `build_no_store_error` shape, same as §2.5 (mcp.c:5250-5259, via
+  `get_project_root`).
+- Project path fails validation: `"project path contains invalid characters"` (mcp.c:5261-5267).
+- `git` executable missing / popen failure: `"git diff failed: cannot execute command (<strerror>). Check
+  that git is installed."` (mcp.c:5295-5306).
+- `git diff` exits non-zero AND zero files were found (likely bad `base_branch`/ref):
+  ```json
+  { "changed_files": [], "changed_count": 0, "impacted_symbols": [], "depth": 2, "hint": "git diff exited with status <N>. Check that branch '<base_branch>' exists." }
+  ```
+  `isError:true` in this specific case (mcp.c:5358-5366) — note this is the one error case that still
+  carries the full normal response shape (arrays present, just empty) rather than a bare error string/object.
+
+---
 
 ## 14. `manage_adr`
 
-**UNVERIFIED — not covered by this extraction pass.** Confirmed only indirectly: `get_graph_schema`'s
-response (§3.2) references `manage_adr(mode='update')` in its `adr_hint` text, confirming a `mode` param
-exists with at least an `'update'` value, and that ADR presence is tracked per-project. The full
-get/update/sections action set and their exact param/response shapes were not independently traced.
+Registration: `src/mcp/mcp.c:493-497`. Dispatch `mcp.c:5644-5646`. Handler `handle_manage_adr`,
+`mcp.c:5459-5563`. Section-lister `adr_list_sections_from_content`, `mcp.c:5389-5414`. Legacy-file migration
+`adr_read_legacy_file`, `mcp.c:5419-5449`.
+
+### 14.1 Params
+
+| Param | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| `project` | string | **yes** | — | |
+| `mode` | enum string | no | `"get"` | `"get"` \| `"update"` \| `"sections"` — `mode_str` defaults to `heap_strdup("get")` when absent (mcp.c:5464-5466); the handler ALSO silently accepts the undocumented alias `"store"` as a synonym for `"update"` (mcp.c:5529 — `strcmp(mode_str,"update")==0 \|\| strcmp(mode_str,"store")==0` — not in the registered enum literal, real but hidden extra value) |
+| `content` | string | required for `mode="update"`/`"store"` only | — | the full ADR markdown body — **whole-document replace, not a diff/merge** (see §14.3) |
+| `sections` | string[] | registered in the schema (mcp.c:496) but **never read anywhere in the handler** | — | **dead/unused parameter** — confirmed by grepping the full handler body for `"sections"` as an arg key: absent. `mode="sections"` derives its section list by parsing the *stored* ADR content's markdown headers, not from this input array. |
+
+### 14.2 Storage location — SQLite store, not a file (with legacy-file migration)
+
+ADRs live in the **same SQLite `.db` file** as the rest of the project graph, in a `project_summaries`
+table accessed via `cbm_store_adr_get`/`cbm_store_adr_store` (comment at mcp.c:5468-5470: "the SAME backend
+the UI `/api/adr` endpoints use — so writes via the MCP tool and the UI are visible to each other," issue
+#256). `resolve_store` normally opens projects **read-only**; `manage_adr` is called out as "the only
+`resolve_store` caller that WRITES" (mcp.c:5482-5489) — it explicitly opens a second, dedicated read-write
+handle to the same `.db` file path via `cbm_store_open_path` when the project is file-backed, and uses the
+already-writable handle directly only for the in-memory/embedded case.
+
+**One-time legacy migration** (mcp.c:5506-5522, every call, any mode): if the store has no ADR row yet, the
+handler checks for an old-style file at `<repo_root>/.codebase-memory/adr.md` (`adr_read_legacy_file`,
+mcp.c:5419-5449 — plain `fopen`/`fread`, no special encoding handling) and, if found and non-empty, imports
+its content into the store via `cbm_store_adr_store` before proceeding with the requested mode. This makes
+`manage_adr` implicitly stateful/mutating even on a plain `mode="get"` call for a project with a legacy
+file and no store-backed ADR yet.
+
+### 14.3 Content format
+
+Freeform markdown string — no schema/validation on `content` beyond being present. The `ADR_EMPTY_HINT`
+constant (mcp.c:5451-5457) advertises a **6-section convention** (not enforced): `PURPOSE`, `STACK`,
+`ARCHITECTURE`, `PATTERNS`, `TRADEOFFS`, `PHILOSOPHY`, as `##`-level markdown headers. `mode="update"`/
+`"store"` **replaces the entire stored content wholesale** (`cbm_store_adr_store` — one full-text field, no
+append/merge/diff semantics of any kind).
+
+### 14.4 Response shapes by mode
+
+**`update`/`store`** (content provided):
+```json
+{ "status": "updated" }
+```
+or, on a store-layer write failure: `{ "status": "write_error" }`, `isError:true` (mcp.c:5529-5535).
+
+**`sections`** — parses `#`-prefixed lines (any heading level, not just `##`) out of the *currently stored*
+content (mcp.c:5389-5413, trims trailing `\r`, truncates any single header line at 1023 chars):
+```json
+{ "sections": ["## PURPOSE", "## STACK"] }
+```
+If there is no stored ADR at all, `adr_list_sections_from_content` is called with `content=NULL`, which
+degenerates to `p = NULL` in the walking loop and the function immediately falls through to an empty
+`"sections": []` — **no explicit "no ADR" hint is added in `sections` mode** (contrast with `get` mode
+below, which does add one).
+
+**`get`** (default mode):
+```json
+{ "content": "## PURPOSE\n...full markdown..." }
+```
+or, when no ADR exists (and no legacy file to migrate):
+```json
+{ "content": "", "status": "no_adr", "adr_hint": "No ADR yet. Create one with manage_adr(mode='update', content='## PURPOSE\\n...\\n\\n## STACK\\n...\\n\\n## ARCHITECTURE\\n...\\n\\n## PATTERNS\\n...\\n\\n## TRADEOFFS\\n...\\n\\n## PHILOSOPHY\\n...'). For guided creation: explore the codebase with get_architecture, then draft and store. Sections: PURPOSE, STACK, ARCHITECTURE, PATTERNS, TRADEOFFS, PHILOSOPHY." }
+```
+This is `isError:false` in every mode/branch traced — `manage_adr` has no "ADR not found" error path, only
+the `no_adr`-status success response above.
+
+### 14.5 Errors
+
+Only one error path found: no store resolvable for `project` → `build_no_store_error` shape, same as §2.5
+(mcp.c:5471-5480). No project-argument-missing-specific text was found distinct from that generic path.
+
+---
 
 ## 15. `ingest_traces`
 
-**UNVERIFIED — not covered by this extraction pass.** The prior scout digest states the shape as
-`{caller, callee, count}` merging into `CALLS` edges, but the exact input schema, merge semantics
-(increment vs. overwrite vs. dedupe-then-sum), and response shape were not independently confirmed against
-source in this pass.
+Registration: `src/mcp/mcp.c:499-503`. Dispatch `mcp.c:5647-5649`. Handler `handle_ingest_traces`,
+`mcp.c:5567-5597`.
+
+### 15.1 Params (from the registered schema — validated only at the JSON-Schema level, not semantically)
+
+| Param | Type | Required |
+|---|---|---|
+| `traces` | array of `{caller: string, callee: string, count: integer}` objects (`"additionalProperties":false`) | **yes** |
+| `project` | string | **yes** |
+
+### 15.2 **VERIFIED: this tool is an unimplemented stub — it does NOT merge anything into CALLS edges**
+
+Read the full handler body (mcp.c:5567-5597) line by line. It does exactly this:
+1. Parse `args` as JSON, look up the `"traces"` key.
+2. If present and is a JSON array, record its length as `trace_count`. **The `caller`/`callee`/`count`
+   fields of each element are never read, never validated, never touched.**
+3. `(void)srv;` — the function takes the server handle and **discards it immediately**; no store lookup,
+   no `resolve_store`, no `project` validation despite `project` being a required schema param.
+4. Build and return:
+   ```json
+   { "status": "accepted", "traces_received": 3, "note": "Runtime edge creation from traces not yet implemented" }
+   ```
+   `isError:false` unconditionally, even if `args` fails to parse as JSON at all (in which case
+   `trace_count` simply stays 0 and the same "accepted" shape is returned).
+
+There is **no merge semantics to document** — not sum, not replace, not dedupe — because no CALLS-edge
+write of any kind occurs. `grep`'d `src/traces/traces.c` (142 lines) as a sanity check: it implements OTLP
+*resource-attribute* extraction helpers (`cbm_extract_service_name`, `cbm_extract_path_from_url`) used
+elsewhere for auto-detecting service names from OpenTelemetry data during indexing — an unrelated feature,
+not the backing implementation for this MCP tool. **The prior scout digest's characterization ("merges into
+CALLS edges") describes a feature that does not exist in `0.8.1`** — likely an intended/planned feature
+inferred from the tool's name and schema shape, not from its actual behavior. Implementers targeting true
+baseline parity should replicate the stub (accept + count + advisory note), not invent merge semantics; if
+the product intent is for enforcer-memory to actually implement trace-based edge enrichment, that is new
+design work with no C baseline to port.
+
+### 15.3 Errors
+
+None found — every code path in the handler returns the same `isError:false` "accepted" shape regardless of
+malformed input, missing `project`, or an empty/absent `traces` array (`trace_count` just reports as `0`).
+
+---
 
 ## 16. CLI form (`cli <tool> <json>`)
 
-**Partially verified** — confirmed directly from `main.c` (outside the delegated agents' scope) but not
-cross-checked against `src/cli/cli.c`'s actual per-tool dispatch/output-formatting code, which was in the
-delegated file list for the tool cluster that did not report back:
+Confirmed directly from `src/main.c`'s `run_cli` (main.c:329-487) — the full function was read in this pass
+end-to-end (this lives in `main.c`, not `src/cli/cli.c`; `cli.c`'s 4732 lines implement the flag-parsing
+helpers `run_cli` calls into — `cbm_cli_build_args_json`, `cbm_cli_print_tool_help` — not the top-level
+dispatch loop itself, which is in `main.c`).
 
-- Exact usage line (`main.c:203`, echoed at `main.c:495-496`):
-  ```
-  Usage: codebase-memory-mcp cli [--progress] [--json] <tool_name> [json_args]
-  ```
-- `cbm_cli_set_version(CBM_VERSION)` is called before CLI dispatch (`main.c:611`), and server startup logs
-  `server.start` with the version at `main.c:648` for the MCP-server path — implying the CLI path has its
-  own, separate startup/logging sequence rather than sharing the MCP server's stdio loop.
-- **UNVERIFIED**: exact exit codes per outcome (success / unknown tool / bad JSON / tool-level error), and
-  whether CLI-mode JSON output is identical to the MCP `content[0].text` body or reformatted/unwrapped
-  (e.g. does the CLI print the raw inner JSON directly to stdout without the `content`/`isError` envelope,
-  or does it preserve it?). `src/cli/cli.c` (4732 lines) was assigned to the non-reporting agent and was
-  not independently read in this pass.
-- `--progress` flag routes through `src/cli/progress_sink.c` (progress reporting sink) — not traced further.
-- `--json` flag presumably toggles CLI output between a human-readable format and raw JSON, mirroring the
-  `CBM_LOG_FORMAT` pattern elsewhere in the codebase, but this is an inference, not a confirmed reading —
-  **UNVERIFIED**.
+### 16.1 Usage and argument resolution
+
+```
+Usage: codebase-memory-mcp cli [--progress] [--json] <tool_name> [json_args]
+```
+(`CLI_USAGE`, main.c:203; printed to **stderr** with exit code `1` when `argc < 1` at either check,
+main.c:330-333, 369-372).
+
+Flags `--progress` and `--json` are stripped from argv before tool-name resolution (`cli_strip_flag`,
+main.c:237-249) — order-independent, can appear anywhere in the arg list. `--help`/`-h` anywhere after the
+tool name short-circuits to `cbm_cli_print_tool_help(tool_name)` and returns **0** on success, or prints
+`"error: unknown tool '<name>'"` to stderr and returns **1** if the tool name is unrecognized
+(main.c:380-388) — this happens before any server/store work.
+
+**Argument-source precedence** (main.c:390-444), first match wins:
+1. `--args-file <path>` — slurp the file's bytes as the JSON args string; missing path arg or unreadable
+   file → stderr error, exit **1**.
+2. Raw JSON positional arg (`cli <tool> '{"k":"v"}'`) — detected by the first non-whitespace byte being `{`
+   (`cli_first_nonspace_is_brace`). **Deprecated**: prints a stderr-only warning ("will be removed in a
+   future release; use flags... `--args-file`... or piped stdin") but still works.
+3. Flag form (`cli <tool> --flag value --bare-bool`) — first remaining arg starts with `--` → routed through
+   `cbm_cli_build_args_json` (in `cli.c`, not independently re-traced in this pass beyond its call site) to
+   synthesize the JSON args object from CLI flags. Build failure → stderr `"error: <msg>"`, exit **1**.
+4. Piped stdin (`cli <tool> < args.json`) — only when stdin is not a TTY (`cli_isatty(0)` false) AND none of
+   the above matched; empty stdin falls back to `"{}"`.
+5. Otherwise: bare `"{}"`.
+
+### 16.2 Output format — envelope IS unwrapped by default; `--json` restores it
+
+**This resolves the doc's prior open question**: CLI output is **not** identical to the raw MCP tool result
+by default. `cli_print_mcp_result` (main.c:208-234) parses the tool's `{"content":[...],"isError":...}`
+envelope and prints **only** `content[0].text` — to **stdout** if `isError` is false, to **stderr** if
+`isError` is true (main.c:226-227) — never the surrounding envelope JSON. If the envelope itself fails to
+parse as JSON (defensive fallback), it prints the raw `result` string verbatim to stdout instead
+(main.c:210-212, 229).
+Passing `--json` (main.c:473-474) **bypasses `cli_print_mcp_result` entirely** and prints the full raw
+envelope (`{"content":[{"type":"text","text":"..."}],"isError":...}`, exactly the MCP wire shape) straight
+to stdout — confirming the doc's prior inference about `--json` toggling a raw-vs-formatted mode was
+directionally correct, though the actual mechanism is "skip envelope-unwrapping," not a text-vs-JSON
+log-format toggle analogous to `CBM_LOG_FORMAT`.
+
+### 16.3 Exit codes — exact and complete
+
+| Outcome | Exit code | Source |
+|---|---|---|
+| `argc < 1` (no tool name given at all) | **1** | main.c:330-333 |
+| `--help`/`-h` on a known tool | **0** | main.c:386 |
+| `--help`/`-h` on an unknown tool | **1** | main.c:382-385 |
+| `--args-file` missing its path arg, or file unreadable | **1** | main.c:404-413 |
+| Flag-form arg synthesis fails (`cbm_cli_build_args_json` returns NULL) | **1** | main.c:428-432 |
+| Server construction fails (`cbm_mcp_server_new` returns NULL) | **1** | main.c:451-457 |
+| Tool ran, result `isError:false` (includes an **unknown tool name** reaching `cbm_mcp_handle_tool`, which
+  returns a normal `isError:true` text result — see next row, NOT this one) | **0** | main.c:460, 476 (`cli_print_mcp_result` returns 0 when `!is_error`) |
+| Tool ran, result `isError:true` (covers **every** tool-level error documented in §2-§15 of this doc,
+  INCLUDING an unrecognized tool name — `cbm_mcp_handle_tool`'s fallthrough `"unknown tool: <name>"`,
+  mcp.c:5650-5652, is itself an `isError:true` result) | **1** | main.c:476, via `cli_print_mcp_result`'s
+  `return is_error ? SKIP_ONE : 0` (`SKIP_ONE` = 1) |
+| `--json` flag set (raw envelope printed) | **0** always — the exit code stays its default-initialized
+  `0` (main.c:460) and is **never set from the envelope's `isError`** in this branch (main.c:473-474 just
+  `printf`s and does not touch `exit_code`) | main.c:460, 473-474 |
+
+**Real, citable divergence worth flagging for the Rust port**: passing `--json` silently loses the
+otherwise-correct `isError`→exit-code mapping — a caller scripting against `--json` output must parse the
+envelope's `"isError"` field itself rather than trusting the process exit code, whereas the default
+(non-`--json`) mode DOES thread `isError` through to the exit code correctly.
+
+### 16.4 Supervised-worker interaction
+
+`--index-worker` and `--response-out <path>` flags (main.c:342-344, stripped before tool dispatch, not part
+of the public CLI surface documented in `CLI_USAGE`) mark this CLI invocation as a supervised index worker
+subprocess: `cbm_index_set_worker_role` records the role, and after `cbm_mcp_handle_tool` returns, the full
+result string is additionally written to the `--response-out` file (main.c:465-472) before the normal
+stdout/stderr printing happens — this is the mechanism `handle_index_repository`'s supervisor-wrap path
+(§9.6) uses to get the child's result back to the parent process. Not relevant to a direct CLI user, but
+relevant if the Rust port needs to replicate the crash/hang-isolation architecture.
+
+### 16.5 `--progress`
+
+Routes through `cbm_progress_sink_init(stderr)`/`cbm_progress_sink_fini()` (main.c:446-448, 482-484) — a
+progress-reporting sink initialized on stderr for the duration of the tool call. Internal implementation
+(`src/cli/progress_sink.c`) was not traced in this pass — **UNVERIFIED** what specific progress events it
+emits or their format; only its stderr-attachment and init/fini lifecycle around the single tool call are
+confirmed.
 
 ## 17. Common error response shape (cross-tool)
 
@@ -1027,21 +1567,41 @@ Confirmed by direct observation across every tool traced in §2-§8 (`search_gra
   back to treating it as opaque text on parse failure.
 - `structuredContent` is never present alongside an error (`isError: true`) — only success responses get
   the object-mirror convenience field.
-- Whether an actual JSON-RPC-level *transport* error (as opposed to a tool-level `isError:true` result) is
-  ever used — e.g. for a malformed `tools/call` request itself, versus a tool that ran and failed — was
-  **UNVERIFIED** in this pass; all traced examples are tool-level `isError:true` results, not JSON-RPC
-  protocol-level error objects.
+- **Resolved**: real JSON-RPC-level *protocol* errors ARE used, but only for the request envelope itself,
+  never for tool-call outcomes. Two confirmed sites in the main dispatch loop (`mcp.c:5940-6018`):
+  - Unparseable JSON-RPC request: `cbm_jsonrpc_format_error(0, JSONRPC_PARSE_ERROR, "Parse error")`
+    (mcp.c:5940-5941) — a standard numeric-`code` JSON-RPC error object (`JSONRPC_PARSE_ERROR` is the
+    conventional `-32700`; the exact numeric value was not re-derived from its `#define` site in this pass
+    but the constant name follows the JSON-RPC 2.0 spec's reserved code).
+  - Unknown `method` (e.g. neither `initialize`/`ping`/`tools/list`/`tools/call`): a real
+    `{"code":<JSONRPC_METHOD_NOT_FOUND>,"message":"Method not found"}` error object echoing the original
+    request `id` (mcp.c:6001-6010, comment references issue #253 for the id-echo fix).
+  So the split is: **transport/protocol-level failures** (bad JSON, unknown RPC method) → genuine numeric
+  JSON-RPC error objects; **tool-level failures** (bad args, project not found, etc., i.e. everything in
+  §2-§15 of this doc) → always a normal `isError:true` tool **result**, never promoted to a JSON-RPC error.
+  `notifications/cancelled` (a notification, no `id`) is handled specially and produces no response at all
+  (mcp.c:5945-5956).
 
 ---
 
 ## 18. Checkpoint note
 
-Per the lane's discipline requirement, this document was committed and pushed after 3 of the 4 dispatched
-research passes (covering `query_graph`, `trace_path`/`get_code_snippet`/`get_architecture`/`search_code`,
-and `search_graph`/`get_graph_schema` — 6 of the 14 tools, plus the shared JSON-RPC envelope/logging
-infrastructure) had returned, with the 7th-tool-cluster pass (`index_repository`, `list_projects`,
-`delete_project`, `index_status`, `detect_changes`, `manage_adr`, `ingest_traces`, plus the CLI-form and
-common-error-shape sections) still outstanding. Sections 9-16 above are therefore intentionally marked
-**UNVERIFIED** rather than filled with digest-derived guesses, per the "never guess silently" instruction.
-A follow-up extraction pass should target exactly those sections before this doc is treated as complete
-parity-floor grounding for X06.2-X06.9 implementers working on the lifecycle/administrative tools.
+**Pass 1** (2026-07-05, sonnet-tier) committed and pushed this document after 3 of 4 dispatched research
+passes returned (covering `query_graph`, `trace_path`/`get_code_snippet`/`get_architecture`/`search_code`,
+and `search_graph`/`get_graph_schema` — 6 of 14 tools, plus the shared JSON-RPC envelope/logging
+infrastructure), with the 7th-tool-cluster pass (`index_repository`, `list_projects`, `delete_project`,
+`index_status`, `detect_changes`, `manage_adr`, `ingest_traces`, plus the CLI-form and common-error-shape
+sections) left intentionally **UNVERIFIED** rather than filled with digest-derived guesses.
+
+**Pass 2** (2026-07-05, sonnet-tier, same day — this pass) completed the remaining 7 tools (§9-§15), the
+envelope/transport gaps in §1 (stdio framing, `tools/list` wrapping, `initialize` handshake), the CLI form
+(§16), and the JSON-RPC-vs-tool-error split in §17, all re-cloned from the same `DeusData/codebase-memory-mcp`
+tag `v0.8.1` and cited to `file:line`. Two of the prior scout digest's characterizations were found to be
+**factually wrong for this version** and are called out explicitly rather than silently corrected: (a)
+`ingest_traces` does not merge anything into `CALLS` edges — it is an unimplemented stub that only echoes an
+accepted-count (§15.2); (b) `detect_changes` has no risk-classification scheme at all — the CRITICAL/HIGH/
+MEDIUM/LOW risk-label scheme belongs solely to `trace_path`'s `risk_labels` param (§13.3). A few narrower
+items remain genuinely unverified and are flagged in place rather than gathered here — see §9.6 (exact
+`cbm_proc_outcome_t` string values beyond `"hang"`), §16.5 (`progress_sink.c`'s internal event format), and
+§0's long-standing `token_vectors` population question. None of these block X06.2-X06.9 implementation; all
+14 tools now have complete, cited param/response/error documentation.
