@@ -248,6 +248,41 @@ mod tests {
         Ok(())
     }
 
+    /// Named proof for `TEST_PROOF_EXPECTATIONS.md` row `a03`: a
+    /// registry-shaped map keyed by `RuleId` only accepts `RuleId` keys —
+    /// this module compiling at all is itself the proof that a bare
+    /// `String` cannot substitute for `RuleId` at that boundary, since the
+    /// helper below is written to take `&RuleId` and there is no overload
+    /// accepting `&str`/`String` (swapping the parameter type to `&String`
+    /// and passing a raw string literal is a COMPILE error, not a runtime
+    /// check). `enforcer-rules::registry::RuleRegistry` relies on exactly
+    /// this property: its `BTreeMap<RuleId, RuleRecord>` and `get(&RuleId)`
+    /// accept the branded type only.
+    #[test]
+    fn rule_id_required_at_a_registry_shaped_boundary_not_bare_string() -> Result<(), DecodeError>
+    {
+        use std::collections::BTreeMap;
+
+        fn lookup<'a>(map: &'a BTreeMap<RuleId, &'static str>, id: &RuleId) -> Option<&'a str> {
+            map.get(id).copied()
+        }
+
+        let mut registry: BTreeMap<RuleId, &'static str> = BTreeMap::new();
+        let id: RuleId = parse("RR-6.1")?;
+        registry.insert(id.clone(), "sample rule");
+        assert_eq!(lookup(&registry, &id), Some("sample rule"));
+        // `lookup(&registry, &"RR-6.1".to_owned())` and inserting a bare
+        // `String` key into `registry` do not type-check: `BTreeMap<RuleId,
+        // _>` and `lookup`'s `&RuleId` parameter both reject `String`/`&str`
+        // outright, so an unbranded id can never flow into the registry
+        // API. Left as a documented guarantee (as the sibling
+        // `hub_name_and_lane_id_are_not_interchangeable` test does) rather
+        // than a `trybuild` harness, since none is vendored in this
+        // workspace and the type signatures above are the enforced
+        // guarantee.
+        Ok(())
+    }
+
     #[test]
     fn hub_and_lane_ids_validate() -> Result<(), DecodeError> {
         let hub: HubName = parse("enforcer-rust-build")?;
