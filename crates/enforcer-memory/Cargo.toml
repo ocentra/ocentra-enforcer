@@ -78,6 +78,27 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"
 # it yet; scoped here per this crate's existing pattern of crate-local
 # deps (git2, tree-sitter, hnsw_rs are all declared the same way).
 regex = "1"
+# X06.8 federation: bundle compression for signed personal/team/community
+# memory bundles (D-11's zstd artifact). Zero-C-toolchain concern is not
+# applicable here (this wraps the `zstd` C library via `zstd-sys`, matching
+# the baseline's own `.zst` artifact format so parity fixtures stay
+# byte-comparable in shape); the crate's OWN code stays free of `unsafe`
+# per the workspace's `unsafe_code = "forbid"` lint, which governs this
+# crate's source, not its dependencies' internals.
+zstd = "0.13"
+# X06.8: detached ed25519 signatures over exported bundles -- zero-trust
+# import (X06.8 hard requirement) verifies a bundle's signature against a
+# local trust list before any content is read. Pure Rust, no C toolchain,
+# `std` feature only (no `asm`/`pkcs8`/network extras needed for
+# sign/verify over raw bytes).
+ed25519-dalek = { version = "2", default-features = false, features = ["std", "rand_core"] }
+# Key generation for federation tests/fixtures (trust-list keypairs).
+# `getrandom` (not `std`) is what gates `rand_core::OsRng` in 0.6.x.
+rand_core = { version = "0.6", features = ["getrandom"] }
+# X06.8 community redaction: basic secret-shaped/path/identity pattern
+# matching. Same major version already used elsewhere in this workspace
+# (enforcer-core, enforcer-harness, enforcer-lang-security,
+# enforcer-security) -- no new dependency family introduced.
 
 [dev-dependencies]
 tempfile = "3"
@@ -89,6 +110,12 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"
 # `[dependencies]`, so this must be declared again here even though the
 # library already depends on `sha2`.
 sha2 = { workspace = true }
+# tests/federation_roundtrip.rs generates ed25519 keypairs the same way
+# src/share.rs's and src/federation.rs's own unit tests do; same
+# "integration tests are a separate compilation unit" reason as `sha2`
+# above.
+ed25519-dalek = { version = "2", default-features = false, features = ["std", "rand_core"] }
+rand_core = { version = "0.6", features = ["getrandom"] }
 
 [features]
 default = []

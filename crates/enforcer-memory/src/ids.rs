@@ -36,6 +36,17 @@ impl std::fmt::Display for Seq {
 pub struct ArtifactId(Sha256);
 
 impl ArtifactId {
+    /// Wrap an already-validated [`Sha256`] digest as an [`ArtifactId`]
+    /// without recomputing it from content. For callers (X06.8 exact
+    /// artifact retrieval) that parse a caller-supplied id string into a
+    /// `Sha256` first and need to hand it to
+    /// [`crate::store::manifest::ArtifactManifest`] as a claimed lookup
+    /// key -- this does NOT assert the digest actually matches any real
+    /// content; only [`ArtifactManifest::get`] re-verifies that.
+    pub fn from_digest(digest: Sha256) -> Self {
+        Self(digest)
+    }
+
     /// Compute the content-addressed id for `bytes`.
     pub fn from_content(bytes: &[u8]) -> Self {
         let digest = enforcer_core::hash_chain::link_digest(None, bytes);
@@ -131,6 +142,13 @@ mod tests {
         assert_eq!(a, b);
         assert_ne!(a, c);
         assert!(a.as_str().starts_with("sha256:"));
+    }
+
+    #[test]
+    fn artifact_id_from_digest_wraps_without_recomputing() {
+        let computed = ArtifactId::from_content(b"round trip me");
+        let rewrapped = ArtifactId::from_digest(computed.digest().clone());
+        assert_eq!(computed, rewrapped);
     }
 
     #[test]

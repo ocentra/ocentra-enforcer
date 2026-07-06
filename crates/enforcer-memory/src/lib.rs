@@ -161,16 +161,38 @@
 //!   [`store::Store`] layout: one store per project under a root.
 //!   Delete removes only the derived store and refuses any path outside
 //!   the store root.
+//!
+//! # X06.8 -- sharing/federation/artifacts
+//!
+//! This slice adds the cross-machine/cross-team half of the memory
+//! system: [`artifacts`] (exact, fail-closed content-addressed
+//! artifact/snippet retrieval -- never a "similar" substitute, and
+//! traversal-shaped ids are rejected before any lookup), [`share`]
+//! (signed personal/team/community bundles -- personal-only by default,
+//! export to a wider scope requires an explicit
+//! [`share::ExportConsent::Granted`] in the very call that produces the
+//! bundle; the same bundle format doubles as D-11's team graph bootstrap
+//! artifact), [`federation`] (zero-trust import: signature against a
+//! local [`federation::TrustList`], checksum, and schema-version are all
+//! verified before a bundle's payload is trusted; everything imported
+//! lands [`learning::LessonStatus::Inactive`] until this repo's own x05
+//! validation activates it, and every rejection is recorded with a
+//! typed reason), and [`redaction`] (the community-export sanitization
+//! pass: repo paths, author identities, secret-shaped strings, and
+//! over-length raw source are stripped/truncated before a bundle is
+//! allowed to claim [`share::Scope::Community`]).
 
 pub mod adr;
 pub mod analysis;
 pub mod architecture;
+pub mod artifacts;
 pub mod code_graph;
 pub mod code_search;
 pub mod embed;
 pub mod enrichment;
 pub mod error;
 pub mod evidence;
+pub mod federation;
 pub mod fulltext;
 pub mod git;
 pub mod graph;
@@ -197,10 +219,12 @@ pub mod queue;
 pub mod ranking;
 pub mod recall;
 pub mod record;
+pub mod redaction;
 pub mod rerank;
 pub mod retriever;
 pub mod schema;
 pub mod search;
+pub mod share;
 pub mod sessionstart;
 pub mod snippet;
 pub mod store;
