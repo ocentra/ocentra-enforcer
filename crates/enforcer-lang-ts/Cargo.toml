@@ -14,5 +14,9 @@ enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 
+[dev-dependencies]
+enforcer-mechanization = { path = "../enforcer-mechanization", version = "0.1.0" }
+enforcer-rules = { path = "../enforcer-rules", version = "0.1.0" }
+
 [lints]
 workspace = true

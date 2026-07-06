@@ -6,6 +6,7 @@ pub mod eslint_json;
 pub mod frontend_react;
 pub mod generic_scanner;
 pub mod import_boundaries;
+pub mod layered_frontend;
 pub mod registry;
 pub mod source_scan;
 pub mod spec;

@@ -1,0 +1,82 @@
+[
+    {
+        "ruleId": "LFE-1.1",
+        "version": 1,
+        "title": "No repository/data access inside the router layer (no-repo-in-router)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-ts",
+            "path": "rules::layered_frontend::NoRepoInRouterValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-ts/tests/fixtures/layered_frontend/no_repo_in_router/routers/fail.ts",
+            "pass": "crates/enforcer-lang-ts/tests/fixtures/layered_frontend/no_repo_in_router/routers/pass.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d12-layered-and-frontend-ruleids.md#Requirement Checklist",
+        "tags": ["layered", "frontend", "d12", "front-01"]
+    },
+    {
+        "ruleId": "LFE-1.2",
+        "version": 1,
+        "title": "No data fetching inside useEffect (no-fetch-in-useEffect)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-ts",
+            "path": "rules::layered_frontend::NoFetchInUseEffectValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-ts/tests/fixtures/layered_frontend/no_fetch_in_use_effect/fail.tsx",
+            "pass": "crates/enforcer-lang-ts/tests/fixtures/layered_frontend/no_fetch_in_use_effect/pass.tsx"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d12-layered-and-frontend-ruleids.md#Requirement Checklist",
+        "tags": ["layered", "frontend", "d12", "front-02"]
+    },
+    {
+        "ruleId": "LFE-1.3",
+        "version": 1,
+        "title": "Feature-boundary imports (feature-boundaries)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-ts",
+            "path": "rules::layered_frontend::FeatureBoundariesValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-ts/tests/fixtures/layered_frontend/feature_boundaries/features/checkout/fail.ts",
+            "pass": "crates/enforcer-lang-ts/tests/fixtures/layered_frontend/feature_boundaries/features/checkout/pass.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d12-layered-and-frontend-ruleids.md#Requirement Checklist",
+        "tags": ["layered", "frontend", "d12", "front-03"]
+    },
+    {
+        "ruleId": "LFE-1.4",
+        "version": 1,
+        "title": "String-enum-only enums (str-enum-only)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-ts",
+            "path": "rules::layered_frontend::StrEnumOnlyValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-ts/tests/fixtures/layered_frontend/str_enum_only/fail.ts",
+            "pass": "crates/enforcer-lang-ts/tests/fixtures/layered_frontend/str_enum_only/pass.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d12-layered-and-frontend-ruleids.md#Requirement Checklist",
+        "tags": ["layered", "frontend", "d12", "front-04"]
+    },
+    {
+        "ruleId": "LFE-1.5",
+        "version": 1,
+        "title": "Symbol-level dependency injection (symbol-level-DI)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-ts",
+            "path": "rules::layered_frontend::SymbolLevelDiValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-ts/tests/fixtures/layered_frontend/symbol_level_di/fail.ts",
+            "pass": "crates/enforcer-lang-ts/tests/fixtures/layered_frontend/symbol_level_di/pass.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d12-layered-and-frontend-ruleids.md#Requirement Checklist",
+        "tags": ["layered", "frontend", "d12", "front-05"]
+    }
+]
