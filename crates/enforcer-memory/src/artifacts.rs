@@ -77,9 +77,9 @@ fn reject_traversal(raw: &str) -> Result<(), ArtifactLookupError> {
         || raw.starts_with('/')
         || raw.starts_with('\\')
         || raw.contains('\0')
-        || raw
-            .get(1..2)
-            .is_some_and(|colon| colon == ":" && raw.chars().next().is_some_and(|c| c.is_ascii_alphabetic()));
+        || raw.get(1..2).is_some_and(|colon| {
+            colon == ":" && raw.chars().next().is_some_and(|c| c.is_ascii_alphabetic())
+        });
     if is_traversal {
         return Err(ArtifactLookupError::TraversalRejected {
             raw: raw.to_owned(),
@@ -98,10 +98,9 @@ fn reject_traversal(raw: &str) -> Result<(), ArtifactLookupError> {
 /// silently truncating.
 fn parse_claimed_id(raw: &str) -> Result<ArtifactId, ArtifactLookupError> {
     reject_traversal(raw)?;
-    let sha: enforcer_domain::hashes::Sha256 =
-        raw.parse().map_err(|_| ArtifactLookupError::NotFound {
-            id: raw.to_owned(),
-        })?;
+    let sha: enforcer_domain::hashes::Sha256 = raw
+        .parse()
+        .map_err(|_| ArtifactLookupError::NotFound { id: raw.to_owned() })?;
     Ok(ArtifactId::from_digest(sha))
 }
 
@@ -109,7 +108,10 @@ fn parse_claimed_id(raw: &str) -> Result<ArtifactId, ArtifactLookupError> {
 /// artifact's raw bytes on an exact hit; every other outcome (unknown
 /// id, malformed id, traversal-shaped id, corrupted blob) is a distinct
 /// typed error -- never a substituted "similar" artifact.
-pub fn get_exact(manifest: &ArtifactManifest, raw_id: &str) -> Result<Vec<u8>, ArtifactLookupError> {
+pub fn get_exact(
+    manifest: &ArtifactManifest,
+    raw_id: &str,
+) -> Result<Vec<u8>, ArtifactLookupError> {
     let id = parse_claimed_id(raw_id)?;
     if manifest.entry(&id).is_none() {
         return Err(ArtifactLookupError::NotFound {

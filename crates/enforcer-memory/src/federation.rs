@@ -145,8 +145,8 @@ pub fn import_bundle(
         at: at.to_owned(),
     })?;
 
-    let (decompressed, snapshot) = decode_payload_unchecked(&bundle.compressed_payload)
-        .map_err(|source| RejectedBundle {
+    let (decompressed, snapshot) =
+        decode_payload_unchecked(&bundle.compressed_payload).map_err(|source| RejectedBundle {
             reason: RejectReason::Checksum {
                 expected: bundle.manifest.content_hash.clone(),
                 actual: format!("<undecodable: {source}>"),
@@ -298,7 +298,12 @@ mod tests {
         let empty_trust_list = TrustList::new();
 
         let mut graph = MemoryGraph::new();
-        let outcome = import_bundle(&mut graph, &bundle, &empty_trust_list, "2026-07-05T01:00:00Z");
+        let outcome = import_bundle(
+            &mut graph,
+            &bundle,
+            &empty_trust_list,
+            "2026-07-05T01:00:00Z",
+        );
         match outcome {
             Err(RejectedBundle {
                 reason: RejectReason::Signature(_),

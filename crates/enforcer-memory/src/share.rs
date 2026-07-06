@@ -94,7 +94,9 @@ impl Default for ExportConsent {
 pub enum ShareError {
     /// [`Scope::Team`] or [`Scope::Community`] was requested without
     /// [`ExportConsent::Granted`] in the same call.
-    #[error("export to scope {scope:?} requires explicit consent in the call; consent was not granted")]
+    #[error(
+        "export to scope {scope:?} requires explicit consent in the call; consent was not granted"
+    )]
     ConsentRequired { scope: Scope },
     /// zstd compression of the manifest+payload JSON failed.
     #[error("bundle compression failed: {0}")]
@@ -295,8 +297,7 @@ pub fn export_bundle(
 pub(crate) fn decode_payload_unchecked(
     compressed_payload: &[u8],
 ) -> Result<(Vec<u8>, BundleGraphSnapshot), ShareError> {
-    let decompressed =
-        zstd::decode_all(compressed_payload).map_err(ShareError::Decompression)?;
+    let decompressed = zstd::decode_all(compressed_payload).map_err(ShareError::Decompression)?;
     let snapshot: BundleGraphSnapshot = serde_json::from_slice(&decompressed)?;
     Ok((decompressed, snapshot))
 }
@@ -387,9 +388,7 @@ mod tests {
         );
         assert!(matches!(
             outcome,
-            Err(ShareError::ConsentRequired {
-                scope: Scope::Team
-            })
+            Err(ShareError::ConsentRequired { scope: Scope::Team })
         ));
     }
 

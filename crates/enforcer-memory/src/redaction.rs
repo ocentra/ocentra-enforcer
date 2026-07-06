@@ -74,9 +74,8 @@ fn static_regex(pattern: &str) -> Regex {
 
 // Absolute Windows path: drive letter + `:` + `\` or `/`, e.g.
 // `C:\Projects\enforcer\src\lib.rs` or `C:/Projects/enforcer/src/lib.rs`.
-static WINDOWS_ABS_PATH: LazyLock<Regex> = LazyLock::new(|| {
-    static_regex(r#"[A-Za-z]:[\\/](?:[^\s\\/:*?"<>|]+[\\/])*[^\s\\/:*?"<>|]+"#)
-});
+static WINDOWS_ABS_PATH: LazyLock<Regex> =
+    LazyLock::new(|| static_regex(r#"[A-Za-z]:[\\/](?:[^\s\\/:*?"<>|]+[\\/])*[^\s\\/:*?"<>|]+"#));
 
 // POSIX-style absolute path rooted at `/home/`, `/Users/`, or `/root/`
 // (paths most likely to embed a real username), kept deliberately
@@ -129,9 +128,7 @@ pub fn redact_path(text: &str, repo_root: Option<&str>) -> String {
         out = strip_repo_root_prefix(&out, root);
     }
     out = WINDOWS_ABS_PATH.replace_all(&out, PATH_MARKER).into_owned();
-    out = POSIX_HOME_PATH
-        .replace_all(&out, PATH_MARKER)
-        .into_owned();
+    out = POSIX_HOME_PATH.replace_all(&out, PATH_MARKER).into_owned();
     out
 }
 
@@ -146,8 +143,7 @@ pub fn redact_path(text: &str, repo_root: Option<&str>) -> String {
 fn strip_repo_root_prefix(text: &str, root: &str) -> String {
     let root_escaped_fwd = regex::escape(&root.replace('\\', "/"));
     let root_escaped_back = regex::escape(&root.replace('/', "\\"));
-    let pattern =
-        format!(r#"(?:{root_escaped_fwd}|{root_escaped_back})[\\/]([^\s"'<>|,;)]*)"#);
+    let pattern = format!(r#"(?:{root_escaped_fwd}|{root_escaped_back})[\\/]([^\s"'<>|,;)]*)"#);
     // `regex::escape` guarantees every metacharacter in `root` is
     // escaped, so this pattern -- built entirely from an escaped
     // caller-supplied string plus the fixed, review-checked literal
@@ -257,10 +253,7 @@ pub fn redact_record(
         .map(|l| redact_path(l, repo_root))
         .collect();
     if let Some(evidence) = redacted.evidence.as_mut() {
-        evidence.r#ref = evidence
-            .r#ref
-            .as_ref()
-            .map(|r| redact_path(r, repo_root));
+        evidence.r#ref = evidence.r#ref.as_ref().map(|r| redact_path(r, repo_root));
     }
 
     // Author identity fields: unconditionally cleared, not
@@ -360,8 +353,9 @@ mod tests {
             ts: "2026-07-05T00:00:00Z".to_string(),
             kind: RecordKind::Lesson,
             domain: RecordDomain::Harness,
-            statement: r"fix landed in C:\Projects\enforcer\src\lib.rs, reported by alice@example.com"
-                .to_string(),
+            statement:
+                r"fix landed in C:\Projects\enforcer\src\lib.rs, reported by alice@example.com"
+                    .to_string(),
             why: None,
             how_to_apply: None,
             applies_to: vec![],
@@ -380,7 +374,11 @@ mod tests {
             },
         };
 
-        let redacted = redact_record(&record, Some(r"C:\Projects\enforcer"), RedactionConfig::default());
+        let redacted = redact_record(
+            &record,
+            Some(r"C:\Projects\enforcer"),
+            RedactionConfig::default(),
+        );
         assert!(redacted.provenance.user.is_none());
         assert!(redacted.provenance.session_id.is_none());
         assert!(redacted.provenance.model.is_none());
@@ -416,8 +414,7 @@ mod tests {
             Some(r"C:\Projects\enforcer"),
             RedactionConfig::default(),
         );
-        let actual =
-            serde_json::to_string(&redacted).expect("serialize redacted record") + "\n";
+        let actual = serde_json::to_string(&redacted).expect("serialize redacted record") + "\n";
         assert_eq!(
             actual, expected,
             "community redaction output must be byte-exact against the committed golden fixture"

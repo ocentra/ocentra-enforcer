@@ -345,10 +345,7 @@ fn node_in_scope(graph: &CodeGraph, node_id: &str, scope: ImpactScope) -> bool {
     match scope {
         ImpactScope::All => true,
         ImpactScope::SymbolsOnly => graph.symbol_nodes().any(|s| s.id == node_id),
-        ImpactScope::RoutesOnly => graph
-            .routes()
-            .iter()
-            .any(|r| r.from_file_id == node_id),
+        ImpactScope::RoutesOnly => graph.routes().iter().any(|r| r.from_file_id == node_id),
     }
 }
 
@@ -480,10 +477,7 @@ mod tests {
             has_test_coverage: false,
             has_downstream_route: true,
         };
-        assert_eq!(
-            classify_risk_from_factors(untested_route),
-            RiskLevel::High
-        );
+        assert_eq!(classify_risk_from_factors(untested_route), RiskLevel::High);
     }
 
     #[test]
@@ -493,10 +487,7 @@ mod tests {
             has_test_coverage: true,
             has_downstream_route: true,
         };
-        assert_eq!(
-            classify_risk_from_factors(tested_route),
-            RiskLevel::Medium
-        );
+        assert_eq!(classify_risk_from_factors(tested_route), RiskLevel::Medium);
     }
 
     #[test]
@@ -506,10 +497,7 @@ mod tests {
             has_test_coverage: false,
             has_downstream_route: false,
         };
-        assert_eq!(
-            classify_risk_from_factors(untested_mid),
-            RiskLevel::Medium
-        );
+        assert_eq!(classify_risk_from_factors(untested_mid), RiskLevel::Medium);
     }
 
     // --- X06.P2: scoped impact analysis over a real fixture graph ------

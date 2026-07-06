@@ -216,8 +216,15 @@ impl<'a> KnownTraceRefs<'a> {
     fn from_graph(graph: &'a CodeGraph) -> Self {
         Self {
             node_ids: graph.nodes().iter().map(CodeNode::id).collect(),
-            symbol_names: graph.symbol_nodes().map(|symbol| symbol.name.as_str()).collect(),
-            call_labels: graph.calls().iter().map(|call| call.callee.as_str()).collect(),
+            symbol_names: graph
+                .symbol_nodes()
+                .map(|symbol| symbol.name.as_str())
+                .collect(),
+            call_labels: graph
+                .calls()
+                .iter()
+                .map(|call| call.callee.as_str())
+                .collect(),
         }
     }
 
@@ -459,7 +466,10 @@ mod tests {
             .collect();
         let mut sorted = callers_callees.clone();
         sorted.sort();
-        assert_eq!(callers_callees, sorted, "edges() must be sorted by (caller, callee)");
+        assert_eq!(
+            callers_callees, sorted,
+            "edges() must be sorted by (caller, callee)"
+        );
         Ok(())
     }
 }

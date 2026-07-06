@@ -321,12 +321,7 @@ pub fn trace_cross_service(
 /// `direction`. Used only by [`trace_cross_service`]'s outbound check;
 /// deliberately reuses [`CodeAdjacency::trace_calls`] rather than a
 /// second traversal implementation.
-fn path_exists(
-    adjacency: &CodeAdjacency,
-    from: &str,
-    to: &str,
-    depth: usize,
-) -> bool {
+fn path_exists(adjacency: &CodeAdjacency, from: &str, to: &str, depth: usize) -> bool {
     adjacency
         .trace_calls(from, TraceDirection::Out, depth)
         .iter()
@@ -347,7 +342,11 @@ fn filter_path(
     }
     let filtered: Vec<PathHop> = hops
         .into_iter()
-        .filter(|hop| edge_types.map(|kinds| kinds.contains(&hop.via)).unwrap_or(true))
+        .filter(|hop| {
+            edge_types
+                .map(|kinds| kinds.contains(&hop.via))
+                .unwrap_or(true)
+        })
         .collect();
     if filtered.is_empty() {
         None
@@ -646,11 +645,10 @@ mod tests {
             true,
             None,
         );
-        let reaches_helper = report.paths.iter().any(|p| {
-            p.hops
-                .iter()
-                .any(|h| h.hop.node_id.contains("helper"))
-        });
+        let reaches_helper = report
+            .paths
+            .iter()
+            .any(|p| p.hops.iter().any(|h| h.hop.node_id.contains("helper")));
         let reaches_deep = report
             .paths
             .iter()
@@ -688,7 +686,11 @@ mod tests {
             .paths
             .iter()
             .any(|p| p.mediator.method == "GET" && p.mediator.path == "/a");
-        assert!(has_expected_route, "expected GET /a route among mediators, got {:?}", report.paths);
+        assert!(
+            has_expected_route,
+            "expected GET /a route among mediators, got {:?}",
+            report.paths
+        );
         Ok(())
     }
 
