@@ -785,8 +785,10 @@ pub fn download_hf_model(
         let sha256 = if strict_cache_hash_enabled() {
             sha256_file(&local_path)?
         } else {
-            cached_manifest_sha256(&spec, &cache_root, &file.path)?
-                .unwrap_or_else(|| "unchecked".to_owned())
+            match cached_manifest_sha256(&spec, &cache_root, &file.path)? {
+                Some(hash) if is_sha256_hex(&hash) => hash,
+                _ => sha256_file(&local_path)?,
+            }
         };
         let streaming_manifest_path =
             if streaming_sidecars_enabled() && should_chunk_file(size_bytes) {
@@ -987,10 +989,15 @@ pub fn resolve_cached_hf_model_from_manifest(
                 });
             }
         }
+        let sha256 = if is_sha256_hex(&artifact.sha256) {
+            artifact.sha256
+        } else {
+            sha256_file(&local_path)?
+        };
         downloaded_files.push(HfDownloadedFile {
             source_path: artifact.path,
             local_path,
-            sha256: artifact.sha256,
+            sha256,
             size_bytes,
             streaming_manifest_path,
         });
@@ -1003,6 +1010,10 @@ pub fn resolve_cached_hf_model_from_manifest(
         manifest_path,
         downloaded_files,
     })
+}
+
+fn is_sha256_hex(value: &str) -> bool {
+    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
 pub fn write_cache_manifest(

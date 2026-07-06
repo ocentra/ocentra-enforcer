@@ -216,16 +216,36 @@ fn runtime_proof_surface_does_not_hardcode_machine_absolute_paths() {
 fn checked_in_real_model_proofs_do_not_hardcode_machine_absolute_paths() {
     let proof_files = [
         (
-            "x06-models-qwen3-4b-download.json",
-            include_str!("../../../proof/memory/x06-models-qwen3-4b-download.json"),
+            "x06-models.json",
+            include_str!("../../../proof/memory/x06-models.json"),
         ),
         (
-            "x06-models-qwen3-4b-cpu.json",
-            include_str!("../../../proof/memory/x06-models-qwen3-4b-cpu.json"),
+            "x06-models-qwen3-4b-download-local.json",
+            include_str!("../../../proof/memory/x06-models-qwen3-4b-download-local.json"),
         ),
         (
-            "x06-models-qwen3-4b-vulkan.json",
-            include_str!("../../../proof/memory/x06-models-qwen3-4b-vulkan.json"),
+            "x06-models-qwen3-4b-cpu-windows-local.json",
+            include_str!("../../../proof/memory/x06-models-qwen3-4b-cpu-windows-local.json"),
+        ),
+        (
+            "x06-models-qwen3-4b-vulkan-windows-local.json",
+            include_str!("../../../proof/memory/x06-models-qwen3-4b-vulkan-windows-local.json"),
+        ),
+        (
+            "x06-models-qwen3-embedding-download.json",
+            include_str!("../../../proof/memory/x06-models-qwen3-embedding-download.json"),
+        ),
+        (
+            "x06-models-qwen3-embedding-ort-cpu.json",
+            include_str!("../../../proof/memory/x06-models-qwen3-embedding-ort-cpu.json"),
+        ),
+        (
+            "x06-models-qwen3-reranker-download.json",
+            include_str!("../../../proof/memory/x06-models-qwen3-reranker-download.json"),
+        ),
+        (
+            "x06-models-qwen3-reranker-ort-cpu.json",
+            include_str!("../../../proof/memory/x06-models-qwen3-reranker-ort-cpu.json"),
         ),
     ];
     let banned = [
@@ -246,12 +266,87 @@ fn checked_in_real_model_proofs_do_not_hardcode_machine_absolute_paths() {
 }
 
 #[test]
+fn checked_in_real_model_proofs_are_not_claimed_as_ci_parity() -> TestResult {
+    let proof_files = [
+        include_str!("../../../proof/memory/x06-models.json"),
+        include_str!("../../../proof/memory/x06-models-qwen3-4b-download-local.json"),
+        include_str!("../../../proof/memory/x06-models-qwen3-4b-cpu-windows-local.json"),
+        include_str!("../../../proof/memory/x06-models-qwen3-4b-vulkan-windows-local.json"),
+        include_str!("../../../proof/memory/x06-models-qwen3-embedding-download.json"),
+        include_str!("../../../proof/memory/x06-models-qwen3-embedding-ort-cpu.json"),
+        include_str!("../../../proof/memory/x06-models-qwen3-reranker-download.json"),
+        include_str!("../../../proof/memory/x06-models-qwen3-reranker-ort-cpu.json"),
+    ];
+
+    for body in proof_files {
+        let proof: serde_json::Value = serde_json::from_str(body)?;
+        assert_eq!(proof["proofScope"]["ciParity"], false);
+        assert_ne!(proof["proofScope"]["portability"], "portable-ci-proof");
+    }
+    Ok(())
+}
+
+#[test]
+fn portable_plan_proof_does_not_probe_local_hardware() -> TestResult {
+    let proof: serde_json::Value =
+        serde_json::from_str(include_str!("../../../proof/memory/x06-models.json"))?;
+
+    assert_eq!(proof["runtimeMode"], "plan");
+    assert_eq!(proof["proofScope"]["portability"], "portable-contract");
+    assert_eq!(proof["proofScope"]["ciParity"], false);
+    assert!(proof["chatModelSelection"]["deviceReport"].is_null());
+    assert_eq!(proof["cacheRoot"], "<repo>/model");
+    Ok(())
+}
+
+#[test]
+fn ort_runtime_uses_qwen_causal_lm_reranker_scoring_contract() {
+    let runtime = include_str!("../src/ort_runtime.rs");
+
+    assert!(runtime.contains("Tensor::<f32>::new("));
+    assert!(
+        runtime.contains("Shape::new([1, QWEN3_KV_HEAD_COUNT as i64, 0, QWEN3_HEAD_DIM as i64])")
+    );
+    assert!(runtime.contains("answer can only be \\\"yes\\\" or \\\"no\\\""));
+    assert!(runtime.contains("token_to_id(\"yes\")"));
+    assert!(runtime.contains("token_to_id(\"no\")"));
+    assert!(runtime.contains("let last_token_offset = (active_seq_len - 1) * vocab_size;"));
+    assert!(runtime.contains("let yes_exp = (yes_logit - max_logit).exp();"));
+}
+
+#[test]
+fn checked_in_reranker_runtime_proof_shows_relevance_lift() -> TestResult {
+    let proof: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../proof/memory/x06-models-qwen3-reranker-ort-cpu.json"
+    ))?;
+    let ranked = proof["qwenRerankerOnnx"]["ranked"]
+        .as_array()
+        .ok_or("reranker proof missing ranked rows")?;
+
+    assert_eq!(
+        ranked.first().and_then(|row| row["docId"].as_str()),
+        Some("relevant")
+    );
+    assert_eq!(
+        ranked.get(1).and_then(|row| row["docId"].as_str()),
+        Some("irrelevant")
+    );
+    assert!(
+        ranked[0]["score"].as_f64().unwrap_or_default()
+            > ranked[1]["score"].as_f64().unwrap_or_default(),
+        "reranker proof must show relevant score above irrelevant score"
+    );
+    Ok(())
+}
+
+#[test]
 fn real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in() {
     let probe = include_str!("../examples/x06_model_runtime_probe.rs");
     let script = include_str!("../scripts/x06-real-model-proof.ps1");
 
     assert!(probe.contains("const DEFAULT_PROBE_FILTER: &str = \"chat\";"));
     assert!(probe.contains("ENFORCER_X06_ALLOW_MULTI_PROBE"));
+    assert!(probe.contains("\"reranker\" | \"ranker\" | \"reranker-onnx\""));
     assert!(
         probe.contains("one real model probe at a time by default"),
         "probe proof should explain why broad model launches are disabled by default"
@@ -269,10 +364,12 @@ fn real_model_probe_can_import_external_chat_assets_into_repo_model_cache() {
     assert!(probe.contains("maybe_direct_chat_model_report"));
     assert!(script.contains("[string]$ImportChatModelPath"));
     assert!(script.contains("[string]$ImportLlamaCliPath"));
+    assert!(script.contains("$env:ENFORCER_X06_ORT_TIMEOUT_MS"));
     assert!(script.contains("Filter '*.dll'"));
     assert!(script.contains("model\\local\\chat"));
     assert!(script.contains("model\\bin"));
     assert!(probe.contains("llama_report_proof(repo_root, &report)"));
+    assert!(probe.contains("llama_device_report_proof(repo_root, report)"));
     assert!(probe.contains("repo_relative_display(repo_root, &report.binary_path)"));
     assert!(probe.contains("repo_path_redacted_text(repo_root, &report.stdout_excerpt)"));
     assert!(probe.contains("hf_downloaded_files_proof(repo_root, &report.downloaded_files)"));
@@ -460,6 +557,16 @@ fn preseeded_hf_cache_resolves_without_network() -> TestResult {
     assert_eq!(
         trusted_report.downloaded_files[0].sha256,
         report.downloaded_files[0].sha256
+    );
+
+    let manifest_body = std::fs::read_to_string(&report.manifest_path)?;
+    std::fs::write(
+        &report.manifest_path,
+        manifest_body.replace(&report.downloaded_files[0].sha256, "unchecked"),
+    )?;
+    assert!(
+        resolve_cached_hf_model_from_manifest(&spec, temp.path()).is_err(),
+        "manifest resolver must not pass unchecked hashes into runtime validation"
     );
     Ok(())
 }

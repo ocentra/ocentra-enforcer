@@ -9,6 +9,7 @@ mod real {
     use std::time::Duration;
 
     use ort::{
+        memory::Allocator,
         session::{builder::GraphOptimizationLevel, RunOptions, Session, SessionInputValue},
         value::{Shape, Tensor},
     };
@@ -135,14 +136,28 @@ mod real {
             candidate: &str,
             timeout: Option<Duration>,
         ) -> Result<f32> {
-            let pair = format!("{query}\n{candidate}");
-            let encoding = self.tokenizer.encode(pair, true).map_err(|source| {
+            let prompt = qwen3_reranker_prompt(query, candidate);
+            let encoding = self.tokenizer.encode(prompt, true).map_err(|source| {
                 model_error(
                     "encode-ort-rerank-input",
                     format!("tokenizer encode failed: {source}"),
                 )
             })?;
-            run_score_session(&self.session, encoding.get_ids(), timeout)
+            let yes_token_id = self
+                .tokenizer
+                .token_to_id("yes")
+                .ok_or_else(|| model_error("resolve-ort-rerank-yes-token", "missing yes token"))?;
+            let no_token_id = self
+                .tokenizer
+                .token_to_id("no")
+                .ok_or_else(|| model_error("resolve-ort-rerank-no-token", "missing no token"))?;
+            run_score_session(
+                &self.session,
+                encoding.get_ids(),
+                yes_token_id,
+                no_token_id,
+                timeout,
+            )
         }
     }
 
@@ -330,6 +345,8 @@ mod real {
     fn run_score_session(
         session: &Arc<Mutex<Session>>,
         token_ids: &[u32],
+        yes_token_id: u32,
+        no_token_id: u32,
         timeout: Option<Duration>,
     ) -> Result<f32> {
         let seq_len = token_ids.len();
@@ -353,12 +370,10 @@ mod real {
             .run_with_options(inputs, &run_options)
             .map_err(|source| model_error("run-ort-reranker", source.to_string()))?;
         let output = &outputs[0];
-        let (_shape, data) = output
+        let (shape, data) = output
             .try_extract_tensor::<f32>()
             .map_err(|source| model_error("read-ort-reranker-output", source.to_string()))?;
-        data.first()
-            .copied()
-            .ok_or_else(|| model_error("read-ort-reranker-output", "empty score tensor"))
+        qwen3_reranker_yes_probability(shape, data, seq_len, yes_token_id, no_token_id)
     }
 
     fn run_options_with_optional_terminator(
@@ -401,11 +416,66 @@ mod real {
     }
 
     fn empty_qwen3_past_tensor(operation: &'static str) -> Result<Tensor<f32>> {
-        Tensor::from_array((
-            [1usize, QWEN3_KV_HEAD_COUNT, 0, QWEN3_HEAD_DIM],
-            Vec::<f32>::new(),
-        ))
+        Tensor::<f32>::new(
+            &Allocator::default(),
+            Shape::new([1, QWEN3_KV_HEAD_COUNT as i64, 0, QWEN3_HEAD_DIM as i64]),
+        )
         .map_err(|source| model_error(operation, source.to_string()))
+    }
+
+    fn qwen3_reranker_prompt(query: &str, document: &str) -> String {
+        const SYSTEM_PROMPT: &str =
+            "Judge whether the Document meets the requirements based on the Query and the Instruct provided. \
+             Note that the answer can only be \"yes\" or \"no\".";
+        const INSTRUCTION: &str =
+            "Given a web search query, retrieve relevant passages that answer the query";
+        format!(
+            "<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n\
+             <|im_start|>user\n<Instruct>: {INSTRUCTION}\n\n<Query>: {query}\n\n<Document>: {document}<|im_end|>\n\
+             <|im_start|>assistant\n<think>\n\n</think>\n"
+        )
+    }
+
+    fn qwen3_reranker_yes_probability(
+        shape: &Shape,
+        data: &[f32],
+        requested_seq_len: usize,
+        yes_token_id: u32,
+        no_token_id: u32,
+    ) -> Result<f32> {
+        let shape = shape.as_ref();
+        if shape.len() < 3 {
+            return Err(model_error(
+                "score-ort-reranker-output",
+                format!("expected rank-3 logits, got shape {shape:?}"),
+            ));
+        }
+        let seq_len = usize::try_from(shape[1])
+            .map_err(|source| model_error("score-ort-reranker-output", source.to_string()))?;
+        let vocab_size = usize::try_from(shape[2])
+            .map_err(|source| model_error("score-ort-reranker-output", source.to_string()))?;
+        let active_seq_len = requested_seq_len.min(seq_len).max(1);
+        let yes_index = yes_token_id as usize;
+        let no_index = no_token_id as usize;
+        if yes_index >= vocab_size || no_index >= vocab_size {
+            return Err(model_error(
+                "score-ort-reranker-output",
+                format!(
+                    "yes/no token ids out of vocabulary bounds: yes={yes_index}, no={no_index}, vocab={vocab_size}"
+                ),
+            ));
+        }
+        let last_token_offset = (active_seq_len - 1) * vocab_size;
+        let yes_logit = *data
+            .get(last_token_offset + yes_index)
+            .ok_or_else(|| model_error("score-ort-reranker-output", "missing yes logit"))?;
+        let no_logit = *data
+            .get(last_token_offset + no_index)
+            .ok_or_else(|| model_error("score-ort-reranker-output", "missing no logit"))?;
+        let max_logit = yes_logit.max(no_logit);
+        let yes_exp = (yes_logit - max_logit).exp();
+        let no_exp = (no_logit - max_logit).exp();
+        Ok(yes_exp / (yes_exp + no_exp))
     }
 
     fn mean_pool_embedding(

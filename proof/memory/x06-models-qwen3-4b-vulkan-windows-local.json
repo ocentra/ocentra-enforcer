@@ -1,6 +1,15 @@
 {
   "schemaVersion": 1,
   "runtimeMode": "probe",
+  "proofScope": {
+    "arch": "x86_64",
+    "capability": "windows-x86_64",
+    "ciParity": false,
+    "localHardwareRequired": true,
+    "platform": "windows",
+    "portability": "local-runtime-proof",
+    "reason": "probe mode proves this host runtime only; CI parity requires its own platform proof or zero-network degraded contract"
+  },
   "allowNetwork": true,
   "probeExecutionPolicy": {
     "allowMultiProbe": false,
@@ -67,23 +76,23 @@
     "operation": "chat-generation-gguf",
     "report": {
       "backendHint": "vulkan",
-      "binaryPath": "<repo>/model\\bin\\llama-b9878-win-vulkan-x64\\llama-cli.exe",
-      "durationMs": 6133,
+      "binaryPath": "<repo>/model/bin/llama-b9878-win-vulkan-x64/llama-cli.exe",
+      "durationMs": 4621,
       "exitCode": 0,
       "kind": "generate",
       "loadState": "loaded",
-      "measuredTokensPerSecond": 96.8,
-      "modelPath": "<repo>/model\\hf\\Qwen--Qwen3-4B-GGUF\\main\\Qwen3-4B-Q4_K_M.gguf",
+      "measuredTokensPerSecond": 101.9,
+      "modelPath": "<repo>/model/hf/Qwen--Qwen3-4B-GGUF/main/Qwen3-4B-Q4_K_M.gguf",
       "requestedAcceleration": "gpu",
       "stderrExcerpt": "",
-      "stdoutExcerpt": "\r\nLoading model... \r\n\r\n\r\n▄▄ ▄▄\r\n██ ██\r\n██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄\r\n██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██\r\n██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀\r\n                                    ██    ██\r\n                                    ▀▀    ▀▀\r\n\r\nbuild      : b9878-2da668617\r\nmodel      : <repo>\\model\\hf\\Qwen--Qwen3-4B-GGUF\\main\\Qwen3-4B-Q4_K_M.gguf\r\nftype      : Q4_K - Medium\r\nmodalities : text\r\n\r\navailable commands:\r\n  /exit or Ctrl+C     stop or exit\r\n  /regen              regenerate the last response\r\n  /clear              clear the chat history\r\n  /read <file>        add a text file\r\n  /glob <pattern>     add text files using globbing pattern\r\n\r\n\r\n> Say hello from the local chat model in one short sentence.\r\n\r\n[Start thinking]\r\nOkay, the user wants me to say hello from the local chat model\r\n\r\n[ Prompt: 195.3 t/s | Generation: 96.8 t/s ]\r\n\r\nExiting...\r\n",
+      "stdoutExcerpt": "\r\nLoading model... \r\n\r\n\r\n▄▄ ▄▄\r\n██ ██\r\n██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄\r\n██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██\r\n██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀\r\n                                    ██    ██\r\n                                    ▀▀    ▀▀\r\n\r\nbuild      : b9878-2da668617\r\nmodel      : <repo>/model/hf/Qwen--Qwen3-4B-GGUF/main/Qwen3-4B-Q4_K_M.gguf\r\nftype      : Q4_K - Medium\r\nmodalities : text\r\n\r\navailable commands:\r\n  /exit or Ctrl+C     stop or exit\r\n  /regen              regenerate the last response\r\n  /clear              clear the chat history\r\n  /read <file>        add a text file\r\n  /glob <pattern>     add text files using globbing pattern\r\n\r\n\r\n> Say hello from the local chat model in one short sentence.\r\n\r\n[Start thinking]\r\nOkay, the user wants me to say hello from the local chat model\r\n\r\n[ Prompt: 206.4 t/s | Generation: 101.9 t/s ]\r\n\r\nExiting...\r\n",
       "timedOut": false
     },
     "usability": {
-      "measuredTokensPerSecond": 96.8,
+      "measuredTokensPerSecond": 101.9,
       "minChatTokensPerSecond": 10.0,
       "ok": true,
-      "reason": "chat usable: measured 96.80 tokens/sec >= required 10.00; target 40.00-60.00 tokens/sec",
+      "reason": "chat usable: measured 101.90 tokens/sec >= required 10.00; target 40.00-60.00 tokens/sec",
       "targetChatTokensPerSecondHigh": 60.0,
       "targetChatTokensPerSecondLow": 40.0
     }

@@ -1,6 +1,15 @@
 {
   "schemaVersion": 1,
-  "runtimeMode": "download",
+  "runtimeMode": "probe",
+  "proofScope": {
+    "arch": "x86_64",
+    "capability": "windows-x86_64",
+    "ciParity": false,
+    "localHardwareRequired": true,
+    "platform": "windows",
+    "portability": "local-runtime-proof",
+    "reason": "probe mode proves this host runtime only; CI parity requires its own platform proof or zero-network degraded contract"
+  },
   "allowNetwork": true,
   "probeExecutionPolicy": {
     "allowMultiProbe": false,
@@ -12,9 +21,9 @@
       "qwen-embedding-gguf"
     ],
     "reason": "one real model probe at a time by default to avoid resource contention or host instability",
-    "requestedProbeFilter": "chat",
+    "requestedProbeFilter": "embedding-onnx",
     "selectedProbes": [
-      "chat-generation-gguf"
+      "qwen-embedding-onnx"
     ]
   },
   "cacheRoot": "<repo>/model",
@@ -45,56 +54,68 @@
   },
   "chatModelSelection": {
     "enabled": false,
-    "reason": "explicit ENFORCER_X06_CHAT_MODEL_* override present",
+    "reason": "chat-generation-gguf not selected by ENFORCER_X06_PROBE_FILTER",
     "selected": {
       "acceleration": "auto",
       "backend": "llama-cpp",
       "files": [
         {
           "kind": "model",
-          "path": "Qwen3-4B-Q4_K_M.gguf"
+          "path": "ornith-1.0-9b-Q4_K_M.gguf"
         }
       ],
-      "modelId": "Qwen/Qwen3-4B-GGUF",
-      "repoId": "Qwen/Qwen3-4B-GGUF",
+      "modelId": "deepreinforce-ai/Ornith-1.0-9B-GGUF",
+      "repoId": "deepreinforce-ai/Ornith-1.0-9B-GGUF",
       "revision": "main",
       "task": "summarization"
     }
   },
   "chatGenerationGguf": {
-    "cacheDir": "<repo>/model\\hf\\Qwen--Qwen3-4B-GGUF\\main",
-    "downloadedFiles": [
-      {
-        "localPath": "<repo>/model\\hf\\Qwen--Qwen3-4B-GGUF\\main\\Qwen3-4B-Q4_K_M.gguf",
-        "sha256": "unchecked",
-        "sizeBytes": 2497280256,
-        "sourcePath": "Qwen3-4B-Q4_K_M.gguf",
-        "streamingManifestPath": null
-      }
-    ],
-    "manifestPath": "<repo>/model\\hf\\Qwen--Qwen3-4B-GGUF\\main\\manifest.json",
-    "ok": true,
-    "operation": "chat-generation-cache",
-    "repoId": "Qwen/Qwen3-4B-GGUF",
-    "revision": "main"
+    "ok": false,
+    "operation": "chat-generation-gguf",
+    "reason": "not selected by ENFORCER_X06_PROBE_FILTER",
+    "skipped": true
   },
   "qwenEmbeddingGguf": {
     "ok": false,
-    "operation": "qwen-embedding-gguf-cache",
+    "operation": "qwen-embedding-gguf",
     "reason": "not selected by ENFORCER_X06_PROBE_FILTER",
     "skipped": true
   },
   "qwenEmbeddingOnnx": {
-    "ok": false,
-    "operation": "qwen-embedding-onnx-cache",
-    "reason": "not selected by ENFORCER_X06_PROBE_FILTER",
-    "skipped": true
+    "dimension": 1024,
+    "head": [
+      -0.26558440923690796,
+      -0.7536291480064392,
+      -0.9868749380111694,
+      -7.677463054656982,
+      -1.208500623703003,
+      1.13072669506073,
+      0.4902366101741791,
+      4.636831283569336
+    ],
+    "ok": true,
+    "operation": "qwen-embedding-onnx"
   },
   "qwenRerankerOnnx": {
     "ok": false,
-    "operation": "qwen-reranker-onnx-cache",
+    "operation": "qwen-reranker-onnx",
     "reason": "not selected by ENFORCER_X06_PROBE_FILTER",
     "skipped": true
   },
-  "observations": []
+  "observations": [
+    {
+      "schemaVersion": 1,
+      "observedAt": "manual-runtime-probe",
+      "source": "x06-model-runtime-probe",
+      "runId": "x06-model-runtime-probe",
+      "candidate": {
+        "observationKind": "successful-local-load",
+        "modelId": "Qwen/Qwen3-Embedding-0.6B",
+        "task": "embedding",
+        "provider": "cpu",
+        "loadedFromLocalCache": true
+      }
+    }
+  ]
 }

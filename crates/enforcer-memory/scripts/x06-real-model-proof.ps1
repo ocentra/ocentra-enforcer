@@ -103,6 +103,7 @@ if (-not [string]::IsNullOrWhiteSpace($ChatModelId)) {
 $env:ENFORCER_X06_LLAMA_ACCELERATION = $Acceleration
 $env:ENFORCER_X06_LLAMA_MAX_TOKENS = [string]$MaxTokens
 $env:ENFORCER_X06_LLAMA_TIMEOUT_MS = [string]$TimeoutMs
+$env:ENFORCER_X06_ORT_TIMEOUT_MS = [string]$TimeoutMs
 $env:ENFORCER_X06_MIN_CHAT_TOKENS_PER_SECOND = [string]$MinChatTokensPerSecond
 $env:ENFORCER_X06_TARGET_CHAT_TOKENS_PER_SECOND_LOW = [string]$TargetChatTokensPerSecondLow
 $env:ENFORCER_X06_TARGET_CHAT_TOKENS_PER_SECOND_HIGH = [string]$TargetChatTokensPerSecondHigh

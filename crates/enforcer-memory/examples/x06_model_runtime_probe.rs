@@ -47,6 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     struct RuntimeProbeProof {
         schema_version: u32,
         runtime_mode: String,
+        proof_scope: serde_json::Value,
         allow_network: bool,
         probe_execution_policy: serde_json::Value,
         cache_root: String,
@@ -97,14 +98,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let chat_throughput_policy = chat_throughput_policy_from_env();
 
     let mut lineup = X06ModelLineup::from_env()?;
-    let chat_model_selection =
-        maybe_select_chat_model_for_hardware(&mut lineup, llama_backend_hint, llama_acceleration);
+    let chat_probe_selected = should_run_probe(&probe_filter, "chat-generation-gguf");
+    let chat_model_selection = maybe_select_chat_model_for_hardware(
+        &repo_root,
+        &mut lineup,
+        llama_backend_hint,
+        llama_acceleration,
+        chat_probe_selected,
+        runtime_mode != "plan",
+    );
     let mut observations = Vec::new();
 
     if runtime_mode == "plan" {
         let proof = RuntimeProbeProof {
             schema_version: 1,
             runtime_mode,
+            proof_scope: proof_scope("plan"),
             allow_network,
             probe_execution_policy,
             cache_root: repo_relative_display(&repo_root, &cache_root),
@@ -138,6 +147,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let proof = RuntimeProbeProof {
             schema_version: 1,
             runtime_mode,
+            proof_scope: proof_scope("download"),
             allow_network,
             probe_execution_policy,
             cache_root: repo_relative_display(&repo_root, &cache_root),
@@ -303,6 +313,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let proof = RuntimeProbeProof {
         schema_version: 1,
         runtime_mode,
+        proof_scope: proof_scope("probe"),
         allow_network,
         probe_execution_policy,
         cache_root: repo_relative_display(&repo_root, &cache_root),
@@ -363,8 +374,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     fn repo_relative_display(repo_root: &Path, path: &Path) -> String {
         path.strip_prefix(repo_root)
-            .map(|relative| format!("<repo>/{}", relative.display()))
-            .unwrap_or_else(|_| path.display().to_string())
+            .map(|relative| format!("<repo>/{}", normalize_display_path(relative)))
+            .unwrap_or_else(|_| {
+                let file_name = path
+                    .file_name()
+                    .map(|name| name.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "path-redacted".to_owned());
+                format!("<external>/{file_name}")
+            })
+    }
+
+    fn normalize_display_path(path: &Path) -> String {
+        path.display().to_string().replace('\\', "/")
     }
 
     fn cache_only_probe(
@@ -469,10 +490,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     fn maybe_select_chat_model_for_hardware(
+        repo_root: &Path,
         lineup: &mut X06ModelLineup,
         backend_hint: LlamaCppBackendHint,
         acceleration: LocalRuntimeAcceleration,
+        chat_probe_selected: bool,
+        allow_device_probe: bool,
     ) -> serde_json::Value {
+        if !chat_probe_selected {
+            return serde_json::json!({
+                "enabled": false,
+                "reason": "chat-generation-gguf not selected by ENFORCER_X06_PROBE_FILTER",
+                "selected": lineup.chat_generation
+            });
+        }
         if !env_default_truthy("ENFORCER_X06_AUTO_CHAT_MODEL", true) {
             return serde_json::json!({
                 "enabled": false,
@@ -489,13 +520,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         let binary = env_path("ENFORCER_X06_LLAMA_CLI").or_else(default_llama_cli);
-        let device_report = binary.as_ref().and_then(|binary| {
-            list_llama_cpp_devices(
-                binary,
-                env_u64("ENFORCER_X06_DEVICE_TIMEOUT_MS").unwrap_or(5_000),
-            )
-            .ok()
-        });
+        let device_report = if allow_device_probe {
+            binary.as_ref().and_then(|binary| {
+                list_llama_cpp_devices(
+                    binary,
+                    env_u64("ENFORCER_X06_DEVICE_TIMEOUT_MS").unwrap_or(5_000),
+                )
+                .ok()
+            })
+        } else {
+            None
+        };
         let detected_free_vram_mib = match (backend_hint, acceleration) {
             (LlamaCppBackendHint::OpenVino, LocalRuntimeAcceleration::Npu)
             | (_, LocalRuntimeAcceleration::Npu)
@@ -514,9 +549,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "enabled": true,
             "backendHint": backend_hint,
             "requestedAcceleration": acceleration,
-            "deviceReport": device_report,
+            "deviceReport": device_report.as_ref().map(|report| {
+                llama_device_report_proof(repo_root, report)
+            }),
             "selection": selection
         })
+    }
+
+    fn llama_device_report_proof(
+        repo_root: &Path,
+        report: &enforcer_memory::llama_cpp::LlamaCppDeviceReport,
+    ) -> serde_json::Value {
+        let mut value = serde_json::to_value(report).unwrap_or_else(|error| {
+            serde_json::json!({
+                "serializationError": error.to_string()
+            })
+        });
+        if let Some(object) = value.as_object_mut() {
+            object.insert(
+                "binaryPath".to_owned(),
+                serde_json::json!(repo_relative_display(repo_root, &report.binary_path)),
+            );
+            object.insert(
+                "stderrExcerpt".to_owned(),
+                serde_json::json!(repo_path_redacted_text(repo_root, &report.stderr_excerpt)),
+            );
+        }
+        value
     }
 
     fn run_llama_generation(
@@ -673,6 +732,40 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    fn proof_scope(runtime_mode: &str) -> serde_json::Value {
+        let platform = std::env::consts::OS;
+        let arch = std::env::consts::ARCH;
+        match runtime_mode {
+            "plan" => serde_json::json!({
+                "portability": "portable-contract",
+                "capability": "ci",
+                "ciParity": false,
+                "localHardwareRequired": false,
+                "platform": "any",
+                "arch": "any",
+                "reason": "plan mode proves zero-network contract shape only, not real model parity"
+            }),
+            "download" => serde_json::json!({
+                "portability": "cache-artifact-proof",
+                "capability": "network-local",
+                "ciParity": false,
+                "localHardwareRequired": false,
+                "platform": platform,
+                "arch": arch,
+                "reason": "download mode proves explicit cache acquisition and integrity metadata; default CI must not download models"
+            }),
+            _ => serde_json::json!({
+                "portability": "local-runtime-proof",
+                "capability": format!("{platform}-{arch}"),
+                "ciParity": false,
+                "localHardwareRequired": true,
+                "platform": platform,
+                "arch": arch,
+                "reason": "probe mode proves this host runtime only; CI parity requires its own platform proof or zero-network degraded contract"
+            }),
+        }
+    }
+
     fn llama_report_proof(
         repo_root: &Path,
         report: &enforcer_memory::llama_cpp::LlamaCppProbeReport,
@@ -706,7 +799,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     fn repo_path_redacted_text(repo_root: &Path, text: &str) -> String {
         let native = repo_root.display().to_string();
         let slash = native.replace('\\', "/");
-        text.replace(&native, "<repo>").replace(&slash, "<repo>")
+        text.replace(&native, "<repo>")
+            .replace(&slash, "<repo>")
+            .replace('\\', "/")
     }
 
     fn model_usability(
@@ -1228,7 +1323,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "embedding-gguf" | "qwen-embedding-gguf" => {
                     push_unique_probe(&mut probes, "qwen-embedding-gguf");
                 }
-                "reranker" | "ranker" | "qwen-reranker-onnx" => {
+                "reranker" | "ranker" | "reranker-onnx" | "qwen-reranker-onnx" => {
                     push_unique_probe(&mut probes, "qwen-reranker-onnx");
                 }
                 probe if PROBE_ORDER.contains(&probe) => push_unique_probe(&mut probes, probe),
