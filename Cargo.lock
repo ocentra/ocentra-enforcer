@@ -1084,6 +1084,7 @@ dependencies = [
  "git2",
  "hnsw_rs",
  "petgraph",
+ "regex",
  "rusqlite",
  "serde",
  "serde_json",

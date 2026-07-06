@@ -66,6 +66,14 @@ hnsw_rs = "0.3"
 # declares its own `tokio` with the fuller feature set rather than
 # widening the workspace-wide default for every other crate.
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+# X06.P1 `search_code`: graph-augmented grep needs a real regex engine
+# (the mission's "regex/text over indexed file contents" requirement) --
+# pure Rust, no C toolchain, matches this crate's zero-system-dependency
+# posture (same bar as hnsw_rs/petgraph above). Not promoted to
+# `[workspace.dependencies]` since no other crate in this workspace needs
+# it yet; scoped here per this crate's existing pattern of crate-local
+# deps (git2, tree-sitter, hnsw_rs are all declared the same way).
+regex = "1"
 
 [dev-dependencies]
 tempfile = "3"

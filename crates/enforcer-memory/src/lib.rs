@@ -133,11 +133,36 @@
 //!   [`enrichment`], translates [`code_graph::IndexReport`] into
 //!   weaver events, and owns the blue/green embedding-version
 //!   migration cutover.
+//!
+//! # X06.P1 -- parity read tools
+//!
+//! Library functions underneath 5 of the codebase-memory-mcp parity
+//! baseline's 14 tools (scout digest §1); the MCP/CLI wrapper surface
+//! (X06.7) wires these in at integration, not part of this slice.
+//!
+//! - [`snippet`] — `get_code_snippet`: byte-exact source retrieval by
+//!   qualified symbol name, with SHA-256 verification and an optional
+//!   same-file neighbor listing. Fails closed on an unknown symbol --
+//!   never a similar-name substitute.
+//! - [`graph_schema`] — `get_graph_schema`: node labels and edge types
+//!   present in a [`code_graph::CodeGraph`], with counts, in
+//!   deterministic order.
+//! - [`code_search`] — `search_code`: graph-augmented grep -- a
+//!   regex/text scan over indexed file contents, each hit enriched with
+//!   its containing symbol and ranked by structural importance (inbound
+//!   call-degree). Unreadable files are reported, never silently
+//!   skipped.
+//! - [`projects`] — the project registry (`list_projects`/
+//!   `delete_project`/`index_status`) over the X06.1
+//!   [`store::Store`] layout: one store per project under a root.
+//!   Delete removes only the derived store and refuses any path outside
+//!   the store root.
 
 pub mod adr;
 pub mod analysis;
 pub mod architecture;
 pub mod code_graph;
+pub mod code_search;
 pub mod embed;
 pub mod enrichment;
 pub mod error;
@@ -145,6 +170,7 @@ pub mod evidence;
 pub mod fulltext;
 pub mod git;
 pub mod graph;
+pub mod graph_schema;
 pub mod ids;
 pub mod impact;
 pub mod ingest;
@@ -154,6 +180,7 @@ pub mod lesson;
 pub mod log;
 pub mod observations;
 pub mod parsers;
+pub mod projects;
 pub mod queue;
 pub mod ranking;
 pub mod recall;
@@ -163,6 +190,7 @@ pub mod retriever;
 pub mod schema;
 pub mod search;
 pub mod sessionstart;
+pub mod snippet;
 pub mod store;
 pub mod summaries;
 pub mod vector;
