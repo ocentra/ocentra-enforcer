@@ -42,8 +42,8 @@
 //! same "never silent skip" doctrine [`crate::code_graph`] itself
 //! follows for unsupported file extensions.
 
-use crate::code_graph::{CallEdge, CodeGraph, CodeNode};
-use std::collections::BTreeMap;
+use crate::code_graph::{CodeGraph, CodeNode};
+use std::collections::{BTreeMap, HashSet};
 
 /// One runtime-observed call record, as a caller (e.g. an APM/tracing
 /// exporter) would report it: `caller`/`callee` are graph node ids
@@ -120,10 +120,10 @@ impl TraceStore {
     ///   NOT added to `runtime_counts` (an edge naming an unknown node
     ///   would be a dangling/fabricated edge if merged in).
     pub fn ingest(&mut self, graph: &CodeGraph, records: &[TraceRecord]) {
-        let known_ids = known_node_ids(graph);
+        let known_refs = KnownTraceRefs::from_graph(graph);
         for record in records {
-            let caller_known = known_ids.contains(record.caller.as_str());
-            let callee_known = known_ids.contains(record.callee.as_str());
+            let caller_known = known_refs.contains(&record.caller);
+            let callee_known = known_refs.contains(&record.callee);
             if caller_known && callee_known {
                 let key = (record.caller.clone(), record.callee.clone());
                 *self.runtime_counts.entry(key).or_insert(0) += record.count;
@@ -201,10 +201,31 @@ impl TraceStore {
     }
 }
 
-/// Every node id present in `graph` (files, symbols, tombstones -- any
-/// id a trace record could legitimately reference).
-fn known_node_ids(graph: &CodeGraph) -> std::collections::HashSet<&str> {
-    graph.nodes().iter().map(CodeNode::id).collect()
+/// Trace exporters can report stable graph ids (`file:*`/`sym:*`) or
+/// raw callee labels from parsed call edges (`helper`, `foo.bar`). Treat
+/// all current graph ids, symbol names, and parsed call labels as known
+/// references so runtime overlays can annotate parsed edges without
+/// fabricating dangling graph nodes.
+struct KnownTraceRefs<'a> {
+    node_ids: HashSet<&'a str>,
+    symbol_names: HashSet<&'a str>,
+    call_labels: HashSet<&'a str>,
+}
+
+impl<'a> KnownTraceRefs<'a> {
+    fn from_graph(graph: &'a CodeGraph) -> Self {
+        Self {
+            node_ids: graph.nodes().iter().map(CodeNode::id).collect(),
+            symbol_names: graph.symbol_nodes().map(|symbol| symbol.name.as_str()).collect(),
+            call_labels: graph.calls().iter().map(|call| call.callee.as_str()).collect(),
+        }
+    }
+
+    fn contains(&self, value: &str) -> bool {
+        self.node_ids.contains(value)
+            || self.symbol_names.contains(value)
+            || self.call_labels.contains(value)
+    }
 }
 
 #[cfg(test)]

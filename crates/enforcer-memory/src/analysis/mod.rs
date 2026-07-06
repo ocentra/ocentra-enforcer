@@ -473,6 +473,13 @@ pub(crate) fn test_node_ids(graph: &CodeGraph) -> HashSet<String> {
         .iter()
         .filter_map(|n| match n {
             CodeNode::Test(sym) => Some(sym.id.clone()),
+            CodeNode::File(file) | CodeNode::TextOnly(file)
+                if file.rel_path.contains("_test")
+                    || file.rel_path.contains(".test.")
+                    || file.rel_path.contains("/tests/") =>
+            {
+                Some(file.id.clone())
+            }
             _ => None,
         })
         .collect()

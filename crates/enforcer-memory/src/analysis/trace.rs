@@ -168,11 +168,19 @@ pub fn trace_data_flow(
     include_tests: bool,
     edge_types: Option<&[EdgeKind]>,
 ) -> DataFlowReport {
+    // Current CodeGraph stores calls at file granularity and symbols as
+    // contained children. Data-flow mode follows the same call graph but
+    // allows the containment bridge so a file -> callee-symbol hop can
+    // continue through the callee's declaring file to its next calls.
+    let traversal_direction = match direction {
+        TraceDirection::Out => TraceDirection::Both,
+        other => other,
+    };
     let call_report = trace_calls(
         adjacency,
         graph,
         start,
-        direction,
+        traversal_direction,
         depth,
         include_tests,
         edge_types,
@@ -260,6 +268,14 @@ pub fn trace_cross_service(
             continue;
         }
 
+        if producer_id == start {
+            paths.push(CrossServicePath {
+                mediator: mediator.clone(),
+                consumer_node_id: producer_id.clone(),
+                hops: Vec::new(),
+            });
+        }
+
         // Consumers: every node that reaches the producer via an
         // Imports/Calls edge in the Incoming direction (i.e. every
         // upstream dependent of the producer file), excluding the
@@ -326,9 +342,11 @@ fn filter_path(
     edge_types: Option<&[EdgeKind]>,
     test_ids: &HashSet<String>,
 ) -> Option<Vec<PathHop>> {
+    if !include_tests && hops.iter().any(|hop| test_ids.contains(&hop.node_id)) {
+        return None;
+    }
     let filtered: Vec<PathHop> = hops
         .into_iter()
-        .filter(|hop| include_tests || !test_ids.contains(&hop.node_id))
         .filter(|hop| edge_types.map(|kinds| kinds.contains(&hop.via)).unwrap_or(true))
         .collect();
     if filtered.is_empty() {
