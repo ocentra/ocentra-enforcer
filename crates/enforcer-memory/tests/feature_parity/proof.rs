@@ -49,6 +49,8 @@ pub struct QaProofRow {
     #[serde(rename = "sourceRefs")]
     pub source_refs: Vec<String>,
     pub verdict: String,
+    #[serde(rename = "capabilityState")]
+    pub capability_state: String,
 }
 
 impl From<&RowResult> for QaProofRow {
@@ -66,6 +68,7 @@ impl From<&RowResult> for QaProofRow {
             token_reduction_ratio: result.token_reduction_ratio,
             source_refs: result.source_refs.clone(),
             verdict: result.verdict.clone(),
+            capability_state: result.capability_state.clone(),
         }
     }
 }
@@ -277,6 +280,7 @@ mod tests {
             token_reduction_ratio: None,
             source_refs: Vec::new(),
             verdict: "pass".to_string(),
+            capability_state: "degraded".to_string(),
         }
     }
 

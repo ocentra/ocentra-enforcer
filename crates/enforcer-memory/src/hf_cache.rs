@@ -785,7 +785,7 @@ pub fn download_hf_model(
         let sha256 = if strict_cache_hash_enabled() {
             sha256_file(&local_path)?
         } else {
-            match cached_manifest_sha256(&spec, &cache_root, &file.path)? {
+            match cached_manifest_sha256(&spec, cache_root, &file.path)? {
                 Some(hash) if is_sha256_hex(&hash) => hash,
                 _ => sha256_file(&local_path)?,
             }
@@ -817,7 +817,7 @@ pub fn download_hf_model(
     write_cache_manifest(&spec, &downloaded_files, &manifest_path)?;
     Ok(HfDownloadReport {
         repo_id: spec.repo_id.clone(),
-        revision: spec.revision.clone(),
+        revision: spec.revision,
         cache_dir,
         manifest_path,
         downloaded_files,

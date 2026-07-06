@@ -497,10 +497,10 @@ mod real {
         let active_seq_len = requested_seq_len.min(seq_len).max(1);
         let mut pooled = vec![0.0f32; dim];
         for token_index in 0..active_seq_len {
-            for dim_index in 0..dim {
+            for (dim_index, pooled_value) in pooled.iter_mut().enumerate().take(dim) {
                 let data_index = token_index * dim + dim_index;
                 if let Some(value) = data.get(data_index) {
-                    pooled[dim_index] += *value;
+                    *pooled_value += *value;
                 }
             }
         }

@@ -1,5 +1,23 @@
 pub(crate) fn is_secret_like(text: &str) -> bool {
     let value = text.trim();
+
+    // Explicit token/key-pattern detectors must ALWAYS run, regardless of any
+    // FP-suppression heuristic below. A real secret embedded in something
+    // that merely *looks* like a model id, env-style config name, proof
+    // filename, or cache path is still a real secret. Suppressions below are
+    // only permitted to bypass the generic entropy heuristic
+    // (looks_high_entropy_secret), never these explicit pattern checks.
+    if github_token(value)
+        || aws_key(value)
+        || openai_key(value)
+        || slack_or_package_key(value)
+        || jwt_like_token(value)
+        || pem_private_key(value)
+        || stripe_live_key(value)
+    {
+        return true;
+    }
+
     if is_hf_model_id(value)
         || is_env_style_config_value(value)
         || is_runtime_proof_filename(value)
@@ -8,21 +26,19 @@ pub(crate) fn is_secret_like(text: &str) -> bool {
     {
         return false;
     }
-    github_token(value)
-        || aws_key(value)
-        || openai_key(value)
-        || slack_or_package_key(value)
-        || jwt_like_token(value)
-        || pem_private_key(value)
-        || stripe_live_key(value)
-        || looks_high_entropy_secret(value)
+
+    looks_high_entropy_secret(value)
 }
 
 fn is_env_style_config_value(value: &str) -> bool {
     let uppercase_only = value
         .chars()
         .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_');
-    if uppercase_only && value.contains('_') && value.len() >= 8 {
+    // Require at least two underscore-delimited segments so a bare
+    // high-entropy base32-ish secret (all-uppercase digits/underscore, but a
+    // single opaque blob) does not masquerade as a multi-word env var name.
+    let multi_segment = value.matches('_').count() >= 2;
+    if uppercase_only && multi_segment && value.len() >= 8 {
         return true;
     }
     let known_suffixes = [
@@ -49,7 +65,11 @@ fn is_env_style_config_value(value: &str) -> bool {
     ];
     let ends_with_known_suffix = known_suffixes.iter().any(|suffix| value.ends_with(suffix));
 
-    uppercase_only && value.len() >= 8 && ends_with_known_suffix
+    // Also require an underscore here: a bare opaque token that happens to
+    // end in a short generic suffix like "ID" or "REV" (e.g. a base32-style
+    // secret) must not be suppressed just by coincidence of its trailing
+    // characters. Legitimate env-var names are always underscore-delimited.
+    uppercase_only && multi_segment && value.len() >= 8 && ends_with_known_suffix
 }
 
 fn is_hf_model_id(value: &str) -> bool {
@@ -91,6 +111,14 @@ fn split_model_repo(value: &str) -> bool {
         return false;
     }
     if !is_hf_fragment(owner) || !is_hf_fragment(repo) {
+        return false;
+    }
+    // A real HF owner/repo slug is a short human-chosen name. If either
+    // fragment on its own already looks like a random high-entropy blob
+    // (e.g. a base64-ish secret that happens to contain exactly one '/'),
+    // refuse to classify this as a benign model id so the entropy detector
+    // still gets a chance to flag it.
+    if looks_high_entropy_secret(owner) || looks_high_entropy_secret(repo) {
         return false;
     }
     true
@@ -177,42 +205,63 @@ fn is_hf_cache_path(value: &str) -> bool {
     if !value.starts_with("hf/") {
         return false;
     }
-    value
+    if !value
         .chars()
         .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '/' | '_' | '-' | '.'))
+    {
+        return false;
+    }
+    // Reject if any individual '/'-delimited segment after the "hf/" prefix
+    // looks like a random high-entropy blob rather than a legitimate cache
+    // directory component (e.g. a base64url-style secret smuggled in as
+    // "hf/<secret>").
+    let rest = &value[3..];
+    if rest.split('/').any(looks_high_entropy_secret) {
+        return false;
+    }
+    true
 }
 
+// A real credential can be embedded anywhere inside a larger literal (e.g. a
+// path, URL, or log line string), not only at the very start of it. These
+// detectors therefore scan for the known prefix at any position, not just
+// `starts_with`, so a suppression predicate can never hide a smuggled
+// explicit-pattern secret just by wrapping it in extra path/filename text.
 fn github_token(value: &str) -> bool {
-    (value.starts_with("ghp_")
-        || value.starts_with("gho_")
-        || value.starts_with("ghu_")
-        || value.starts_with("ghs_")
-        || value.starts_with("ghr_"))
-        && value.len() > 24
+    ["ghp_", "gho_", "ghu_", "ghs_", "ghr_"]
+        .iter()
+        .any(|prefix| find_prefixed_run(value, prefix).is_some_and(|run| run.len() > 24))
 }
 
 fn aws_key(value: &str) -> bool {
-    value.starts_with("AKIA")
-        && value.len() >= 20
-        && value
+    // AWS access key ids are strictly uppercase letters and digits, so trim
+    // the matched run down to that charset before measuring length: a
+    // suffix like ".json" appended after a real key body must not defeat
+    // detection just because the generic run-scanner also accepts '.'.
+    find_prefixed_run(value, "AKIA").is_some_and(|run| {
+        let key_body_len = run
             .chars()
-            .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit())
+            .take_while(|c| c.is_ascii_uppercase() || c.is_ascii_digit())
+            .count();
+        key_body_len >= 20
+    })
 }
 
 fn openai_key(value: &str) -> bool {
-    starts_with_parts(value, &["sk", "-", "proj", "-"])
-        || starts_with_parts(value, &["sk", "-"]) && value.len() > 24
+    find_prefixed_run(value, "sk-proj-").is_some()
+        || find_prefixed_run(value, "sk-").is_some_and(|run| run.len() > 24)
 }
 
 fn slack_or_package_key(value: &str) -> bool {
-    starts_with_parts(value, &["xoxb", "-"])
-        || starts_with_parts(value, &["xoxp", "-"])
-        || starts_with_parts(value, &["pypi", "-"])
-        || starts_with_parts(value, &["npm", "_"])
+    find_prefixed_run(value, "xoxb-").is_some()
+        || find_prefixed_run(value, "xoxp-").is_some()
+        || find_prefixed_run(value, "pypi-").is_some()
+        || find_prefixed_run(value, "npm_").is_some()
 }
 
 fn jwt_like_token(value: &str) -> bool {
-    value.starts_with("eyJ") && value.matches('.').count() == 2 && value.len() > 40
+    find_prefixed_run(value, "eyJ")
+        .is_some_and(|run| run.matches('.').count() == 2 && run.len() > 40)
 }
 
 fn pem_private_key(value: &str) -> bool {
@@ -220,15 +269,28 @@ fn pem_private_key(value: &str) -> bool {
 }
 
 fn stripe_live_key(value: &str) -> bool {
-    (value.starts_with("sk_live_") || value.starts_with("pk_live_")) && value.len() > 20
+    find_prefixed_run(value, "sk_live_").is_some_and(|run| run.len() > 20)
+        || find_prefixed_run(value, "pk_live_").is_some_and(|run| run.len() > 20)
 }
 
-fn starts_with_parts(value: &str, parts: &[&str]) -> bool {
-    let mut expected = String::new();
-    for part in parts {
-        expected.push_str(part);
-    }
-    value.starts_with(&expected)
+/// Finds the first occurrence of `prefix` inside `value` and returns the
+/// contiguous "token run" starting at that position: the prefix plus every
+/// following character that is a plausible credential-body character
+/// (alphanumeric, `-`, `_`, `.`, `+`, `/`, `=`). This lets prefix-anchored
+/// detectors match a credential embedded mid-string (e.g. inside a path)
+/// while still measuring length/charset against just the credential body,
+/// not trailing unrelated text such as a `.json` file extension.
+fn find_prefixed_run<'a>(value: &'a str, prefix: &str) -> Option<&'a str> {
+    let start = value.find(prefix)?;
+    let rest = &value[start..];
+    let end = rest
+        .char_indices()
+        .find(|(_, ch)| {
+            !(ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.' | '+' | '/' | '='))
+        })
+        .map(|(idx, _)| idx)
+        .unwrap_or(rest.len());
+    Some(&rest[..end])
 }
 
 #[cfg(test)]
@@ -296,5 +358,112 @@ mod tests {
 
         assert!(is_secret_like(&openai_style));
         assert!(is_secret_like(&jwt_style));
+    }
+
+    // --- Adversarial: explicit-prefix secrets smuggled behind a
+    // suppression-shaped wrapper must still be detected. ---
+
+    #[test]
+    fn github_token_disguised_as_proof_filename_is_still_secret_like() {
+        let value = "proof/memory/ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.json";
+        assert!(value.to_ascii_lowercase().contains("proof"));
+        assert!(is_secret_like(value));
+    }
+
+    #[test]
+    fn aws_key_disguised_as_model_artifact_path_is_still_secret_like() {
+        let value = "AKIAABCDEFGHIJKLMNOP.json";
+        assert!(is_secret_like(value));
+    }
+
+    #[test]
+    fn github_token_disguised_as_model_artifact_path_is_still_secret_like() {
+        let value = "ghp_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.txt";
+        assert!(is_secret_like(value));
+    }
+
+    #[test]
+    fn openai_key_embedded_in_log_line_literal_is_still_secret_like() {
+        // A real "sk-" key embedded inside a larger literal (e.g. a log
+        // message string) must still be detected, not just when the whole
+        // trimmed literal equals the key.
+        let value = "auth header: sk-abcdefghijklmnopqrstuvwxyz sent";
+        assert!(is_secret_like(value));
+    }
+
+    #[test]
+    fn pem_private_key_disguised_as_runtime_proof_filename_is_still_secret_like() {
+        let value = "-----BEGIN RSA PRIVATE KEY----- proof.json";
+        assert!(is_secret_like(value));
+    }
+
+    // --- Adversarial: opaque high-entropy blobs that coincidentally match a
+    // suppression's shape must not be suppressed. ---
+
+    #[test]
+    fn uppercase_underscore_high_entropy_blob_is_not_suppressed_as_env_style() {
+        // All-uppercase/digits/underscore, single opaque segment (no
+        // multi-word env-var structure): must not be treated as a benign
+        // config name.
+        let value = "ABCD1234EFGH5678IJKL9012MNOP_TOKEN";
+        // Only one underscore -> should not qualify as multi-segment env var.
+        assert_eq!(value.matches('_').count(), 1);
+        assert!(is_secret_like(value));
+    }
+
+    #[test]
+    fn opaque_blob_with_generic_short_suffix_is_not_suppressed_as_env_style() {
+        // Single-underscore opaque blob ending in a short generic suffix
+        // ("ID"): must not be suppressed merely because of the trailing
+        // token combined with an all-uppercase charset.
+        let value = "XQ7K2M9PZR4T8VBN3JH6DL1SWY0FGCEA_ID";
+        assert_eq!(value.matches('_').count(), 1);
+        assert!(is_secret_like(value));
+    }
+
+    #[test]
+    fn base64_secret_with_single_slash_is_not_suppressed_as_hf_model_id() {
+        // Exactly one '/', alnum + '-_.' only on each side: shape matches
+        // owner/repo, but each fragment alone is a high-entropy blob.
+        let secret = "aZ3xK9mQ2vT7nR4wY8uL1oJ6hN0bCzA3dF5gH/pS7eI2rT9wQ4uL8oJ1hN6bC";
+        assert_eq!(secret.matches('/').count(), 1);
+        assert!(is_secret_like(secret));
+    }
+
+    #[test]
+    fn base64url_secret_under_hf_prefix_is_not_suppressed_as_cache_path() {
+        let value = "hf/xK3n9dP2mQ7vT1zR8wY5uL0oJ6hN4bC-eA1fG3hJ5kL7";
+        assert!(value.starts_with("hf/"));
+        assert!(is_secret_like(value));
+    }
+
+    #[test]
+    fn base64url_secret_multi_segment_under_hf_prefix_is_not_suppressed() {
+        // Each individual segment (>=32 chars) is independently high-entropy,
+        // so the per-segment guard in is_hf_cache_path must catch it even
+        // though no single segment spans the whole value.
+        let value = "hf/aZ3xK9mQ2vT7nR4wY8uL1oJ6hN0bCzA3d/F5gH9pS7eI2rT4wQ8uL1oJ6hN0bCzA3dF5g";
+        assert!(is_secret_like(value));
+    }
+
+    // --- Regression: legitimate FP-suppression fixtures must stay green
+    // after the reordering/tightening above. ---
+
+    #[test]
+    fn legitimate_suppressions_remain_non_secret_after_hardening() {
+        assert!(!is_secret_like("ENFORCER_X06_CHAT_MODEL_ID"));
+        assert!(!is_secret_like("ENFORCER_X06_CHILD_ARTIFACT_SHA256"));
+        assert!(!is_secret_like(
+            "ENFORCER_X06_TARGET_CHAT_TOKENS_PER_SECOND_HIGH"
+        ));
+        assert!(!is_secret_like("Qwen/Qwen3-4B-GGUF:Q4_K_M"));
+        assert!(!is_secret_like(
+            "bartowski/google_gemma-3-4b-it-GGUF:Q4_K_M"
+        ));
+        assert!(!is_secret_like("hf/Qwen--Qwen3-Embedding-0.6B-GGUF/main"));
+        assert!(!is_secret_like(
+            "proof/memory/x06-model-runtime-proof-qwen-embedding-onnx-cache-3f4e5d8b2a9c1e7f0d2a8b4c6e1f3d5a7b9c0a2e4f6b8d0c1e2a4b6d8f0a2c4e6.json"
+        ));
+        assert!(!is_secret_like("google_gemma-3-4b-it-Q4_K_M.gguf"));
     }
 }

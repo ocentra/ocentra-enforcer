@@ -63,6 +63,16 @@ pub struct RowResult {
     /// fake-green-refusal test key off the literal prefix
     /// `"unrunnable:"` rather than a closed variant set.
     pub verdict: String,
+    /// Which embedder/reranker backend actually produced this row's
+    /// numbers, mirroring [`enforcer_memory::embed::LoadState`]'s own
+    /// vocabulary (`"unavailable"` for unrunnable rows that never ran
+    /// any retrieval backend, `"degraded"` for the deterministic
+    /// zero-network default -- [`HashingEmbedder`]/[`FusionScoreReranker`],
+    /// both of which self-report `LoadState::Degraded` -- and `"loaded"`
+    /// only for a row a real cached local model backend actually
+    /// answered). Never upgraded to `"loaded"` without a real model
+    /// backend behind it (OWNER_INTENT: never silently upgraded).
+    pub capability_state: String,
 }
 
 impl RowResult {
@@ -96,6 +106,7 @@ pub fn unrunnable(row: &QaRow, missing_capability: &str) -> RowResult {
         token_reduction_ratio: None,
         source_refs: Vec::new(),
         verdict: format!("unrunnable: {missing_capability}"),
+        capability_state: "unavailable".to_string(),
     }
 }
 
@@ -112,6 +123,35 @@ pub struct RowEvidence {
     pub reranker_lift: Option<f64>,
     pub token_reduction_ratio: Option<f64>,
     pub source_refs: Vec<String>,
+    /// Which backend produced this evidence -- `"degraded"` for every
+    /// runner still on the deterministic zero-network default,
+    /// `"loaded"` only for the (feature-gated, cache-checked) real-model
+    /// path. Defaults to `"degraded"` via [`RowEvidence::degraded`] so
+    /// existing call sites never have to think about this field to stay
+    /// honest.
+    pub capability_state: String,
+}
+
+impl RowEvidence {
+    /// Construct evidence from the deterministic zero-network default
+    /// backend (every runner in this harness except the feature-gated
+    /// real-model path).
+    pub fn degraded(
+        expected_ids: Vec<String>,
+        actual_ids: Vec<String>,
+        reranker_lift: Option<f64>,
+        token_reduction_ratio: Option<f64>,
+        source_refs: Vec<String>,
+    ) -> Self {
+        Self {
+            expected_ids,
+            actual_ids,
+            reranker_lift,
+            token_reduction_ratio,
+            source_refs,
+            capability_state: "degraded".to_string(),
+        }
+    }
 }
 
 /// Score `evidence.expected_ids` vs `evidence.actual_ids` into the
@@ -125,6 +165,7 @@ fn score_row(row: &QaRow, evidence: RowEvidence) -> RowResult {
         reranker_lift,
         token_reduction_ratio,
         source_refs,
+        capability_state,
     } = evidence;
 
     let recall_at_5 = metrics::recall_at_k(&expected_ids, &actual_ids, 5);
@@ -147,6 +188,7 @@ fn score_row(row: &QaRow, evidence: RowEvidence) -> RowResult {
         token_reduction_ratio,
         source_refs,
         verdict,
+        capability_state,
     }
 }
 
@@ -271,16 +313,16 @@ impl RowRunner for SymbolCodeGraphRunner {
 
         score_row(
             row,
-            RowEvidence {
+            RowEvidence::degraded(
                 expected_ids,
                 actual_ids,
-                reranker_lift: None,
-                token_reduction_ratio: None,
-                source_refs: vec![
+                None,
+                None,
+                vec![
                     "tests/fixtures/memory/feature_parity/repo/lib.rs".to_string(),
                     "tests/fixtures/memory/feature_parity/repo/widget.rs".to_string(),
                 ],
-            },
+            ),
         )
     }
 }
@@ -290,6 +332,16 @@ impl RowRunner for SymbolCodeGraphRunner {
 /// rerank). Claims only the rows whose query text overlaps the fixture
 /// search corpus's known vocabulary (`config`, `widget`) -- same
 /// narrow-claim discipline as [`SymbolCodeGraphRunner`].
+///
+/// Under the `real-models` feature, [`RetrievalRunner::run`] first tries
+/// [`real_models::maybe_run`], which only actually executes when a real
+/// Qwen3 embedder/reranker can be built from an ALREADY-cached local HF
+/// model directory (checked via [`enforcer_memory::hf_cache::resolve_cached_hf_model`],
+/// a pure filesystem probe -- never triggers a network download). When
+/// no cache is present (the default dev/CI state), it returns `None` and
+/// this runner falls back to the same deterministic
+/// [`HashingEmbedder`]/[`FusionScoreReranker`] path it always ran,
+/// honestly reporting `capability_state: "degraded"` either way.
 pub struct RetrievalRunner;
 
 impl RowRunner for RetrievalRunner {
@@ -304,12 +356,6 @@ impl RowRunner for RetrievalRunner {
     }
 
     fn run(&self, row: &QaRow, fixtures: &Fixtures) -> RowResult {
-        let searcher = HybridSearcher::new(
-            &fixtures.fulltext,
-            &fixtures.vector,
-            &fixtures.embedder,
-            &fixtures.reranker,
-        );
         let query = if row.query.to_lowercase().contains("widget") {
             "widget settings"
         } else {
@@ -320,6 +366,20 @@ impl RowRunner for RetrievalRunner {
         } else {
             vec!["sym:lib.rs:1:parse_config_file".to_string()]
         };
+
+        #[cfg(feature = "real-models")]
+        if let Some(real_result) =
+            real_models::maybe_run(row, fixtures, query, expected_ids.clone())
+        {
+            return real_result;
+        }
+
+        let searcher = HybridSearcher::new(
+            &fixtures.fulltext,
+            &fixtures.vector,
+            &fixtures.embedder,
+            &fixtures.reranker,
+        );
 
         let result = match searcher.search(query, &fixtures.search_corpus, &[]) {
             Ok(result) => result,
@@ -342,14 +402,124 @@ impl RowRunner for RetrievalRunner {
 
         score_row(
             row,
+            RowEvidence::degraded(
+                expected_ids,
+                actual_ids,
+                Some(lift),
+                token_ratio,
+                vec!["crates/enforcer-memory/src/search/mod.rs".to_string()],
+            ),
+        )
+    }
+}
+
+/// Real-model retrieval path, compiled only under `real-models`
+/// (`model-downloads` + `ort-models`). Kept in its own submodule so the
+/// default (feature-off) build never even parses the ORT/embedder
+/// wiring -- matching this crate's existing `#[cfg(feature = "ort-models")]`
+/// convention in `src/ort_runtime.rs`.
+#[cfg(feature = "real-models")]
+mod real_models {
+    use super::{score_row, QaRow, RowEvidence, RowResult};
+    use enforcer_memory::hf_cache::{model_cache_dir, resolve_cached_hf_model, HfModelSpec};
+    use enforcer_memory::model_runtime::{sha256_file, ModelSpec, ProviderKind};
+    use enforcer_memory::ort_runtime::{OrtEmbedder, OrtReranker};
+    use enforcer_memory::rerank::Reranker;
+    use enforcer_memory::search::HybridSearcher;
+    use std::path::PathBuf;
+
+    /// Repo-local model cache root this harness checks -- the same
+    /// `<repo>/model` dev cache the real model runtime docs/tests
+    /// (`model_runtime_real_contract.rs::dev_model_cache_is_repo_local`)
+    /// use, never a machine-specific absolute path.
+    fn cache_root() -> PathBuf {
+        super::super::queryset::workspace_root().join("model")
+    }
+
+    /// Build a real [`ModelSpec`] for `hf_spec`'s single artifact file
+    /// plus its `tokenizer.json` sibling, ONLY if both are already
+    /// present in the local HF cache -- [`resolve_cached_hf_model`] is a
+    /// pure filesystem probe (`Path::is_dir`/`Path::is_file`), it never
+    /// makes a network call, so calling it here on every row is safe
+    /// even when nothing is cached (the default dev/CI state: it simply
+    /// returns `Err` and this function returns `None`).
+    fn resolve_real_spec(hf_spec: &HfModelSpec, dimension: usize) -> Option<ModelSpec> {
+        let root = cache_root();
+        let report = resolve_cached_hf_model(hf_spec, &root).ok()?;
+        let artifact = report
+            .downloaded_files
+            .iter()
+            .find(|file| file.source_path == hf_spec.files[0].path)?;
+        let cache_dir = model_cache_dir(&root, &hf_spec.repo_id, &hf_spec.revision);
+        let tokenizer_path = cache_dir.join("tokenizer.json");
+        if !tokenizer_path.is_file() {
+            return None;
+        }
+        let tokenizer_sha256 = sha256_file(&tokenizer_path).ok()?;
+        Some(ModelSpec {
+            model_id: hf_spec.model_id.clone(),
+            revision: hf_spec.revision.clone(),
+            artifact_path: artifact.local_path.clone(),
+            artifact_sha256: artifact.sha256.clone(),
+            tokenizer_path,
+            tokenizer_sha256,
+            dtype: "f32".to_string(),
+            dimension,
+            task: hf_spec.task,
+        })
+    }
+
+    /// Try the real Qwen3 embedder+reranker path for `row`. Returns
+    /// `None` (never a fabricated result) whenever any prerequisite is
+    /// missing -- no cached embedding model, no cached reranker model,
+    /// or a real load/inference failure -- so [`super::RetrievalRunner::run`]
+    /// falls back to the always-available deterministic path rather than
+    /// this harness ever claiming `capability_state: "loaded"` without a
+    /// real model actually behind the numbers.
+    pub(super) fn maybe_run(
+        row: &QaRow,
+        fixtures: &super::Fixtures,
+        query: &str,
+        expected_ids: Vec<String>,
+    ) -> Option<RowResult> {
+        let embedding_spec = resolve_real_spec(&HfModelSpec::qwen3_embedding_onnx(), 1024)?;
+        let reranker_spec = resolve_real_spec(&HfModelSpec::qwen3_reranker_onnx(), 1)?;
+
+        let embedder = OrtEmbedder::load(&embedding_spec, ProviderKind::Cpu).ok()?;
+        let reranker = OrtReranker::load(&reranker_spec, ProviderKind::Cpu).ok()?;
+
+        let searcher =
+            HybridSearcher::new(&fixtures.fulltext, &fixtures.vector, &embedder, &reranker);
+        let result = searcher.search(query, &fixtures.search_corpus, &[]).ok()?;
+        let actual_ids: Vec<String> = result
+            .context
+            .iter()
+            .map(|hit| hit.doc_id.clone())
+            .collect();
+        let pre_rerank_ids: Vec<String> = result
+            .pre_rerank_pool
+            .iter()
+            .map(|candidate| candidate.doc_id.clone())
+            .collect();
+        let lift = super::metrics::reranker_lift(&expected_ids, &pre_rerank_ids, &actual_ids, 10);
+        let token_ratio = Some(result.token_reduction_estimate.ratio());
+        let _ = reranker.state();
+
+        Some(score_row(
+            row,
             RowEvidence {
                 expected_ids,
                 actual_ids,
                 reranker_lift: Some(lift),
                 token_reduction_ratio: token_ratio,
-                source_refs: vec!["crates/enforcer-memory/src/search/mod.rs".to_string()],
+                source_refs: vec![
+                    "crates/enforcer-memory/src/ort_runtime.rs".to_string(),
+                    format!("model:{}", embedding_spec.model_id),
+                    format!("model:{}", reranker_spec.model_id),
+                ],
+                capability_state: "loaded".to_string(),
             },
-        )
+        ))
     }
 }
 
@@ -382,13 +552,7 @@ impl RowRunner for LessonsRunner {
 
         score_row(
             row,
-            RowEvidence {
-                expected_ids,
-                actual_ids,
-                reranker_lift: None,
-                token_reduction_ratio: None,
-                source_refs,
-            },
+            RowEvidence::degraded(expected_ids, actual_ids, None, None, source_refs),
         )
     }
 }
@@ -455,13 +619,13 @@ impl RowRunner for McpRunner {
         // miss).
         score_row(
             row,
-            RowEvidence {
-                expected_ids: vec![tool.to_string()],
-                actual_ids: vec![tool.to_string()],
-                reranker_lift: None,
-                token_reduction_ratio: None,
-                source_refs: vec!["crates/enforcer-memory/src/mcp.rs".to_string()],
-            },
+            RowEvidence::degraded(
+                vec![tool.to_string()],
+                vec![tool.to_string()],
+                None,
+                None,
+                vec!["crates/enforcer-memory/src/mcp.rs".to_string()],
+            ),
         )
     }
 }
@@ -571,13 +735,13 @@ impl RowRunner for CliRunner {
         }
         score_row(
             row,
-            RowEvidence {
-                expected_ids: vec![tool.to_string()],
-                actual_ids: vec![tool.to_string()],
-                reranker_lift: None,
-                token_reduction_ratio: None,
-                source_refs: vec!["crates/enforcer-memory/src/cli.rs".to_string()],
-            },
+            RowEvidence::degraded(
+                vec![tool.to_string()],
+                vec![tool.to_string()],
+                None,
+                None,
+                vec!["crates/enforcer-memory/src/cli.rs".to_string()],
+            ),
         )
     }
 }
@@ -682,16 +846,16 @@ impl RowRunner for ArchitectureRepositoryRunner {
 
         score_row(
             row,
-            RowEvidence {
+            RowEvidence::degraded(
                 expected_ids,
                 actual_ids,
-                reranker_lift: None,
-                token_reduction_ratio: None,
-                source_refs: vec![
+                None,
+                None,
+                vec![
                     "crates/enforcer-memory/src/architecture.rs".to_string(),
                     src_dir.to_string_lossy().to_string(),
                 ],
-            },
+            ),
         )
     }
 }
@@ -799,13 +963,13 @@ impl RowRunner for GitHistoryRunner {
         // semantic matching.
         score_row(
             row,
-            RowEvidence {
-                expected_ids: vec![rel_path.clone()],
-                actual_ids: vec![rel_path],
-                reranker_lift: None,
-                token_reduction_ratio: None,
-                source_refs: vec![format!("commit:{last_commit}")],
-            },
+            RowEvidence::degraded(
+                vec![rel_path.clone()],
+                vec![rel_path],
+                None,
+                None,
+                vec![format!("commit:{last_commit}")],
+            ),
         )
     }
 }
@@ -873,6 +1037,7 @@ mod tests {
         assert_eq!(result.reranker_lift, None);
         assert_eq!(result.token_reduction_ratio, None);
         assert_eq!(result.verdict, "unrunnable: MCP tool surface not wired");
+        assert_eq!(result.capability_state, "unavailable");
     }
 
     #[test]
@@ -881,13 +1046,13 @@ mod tests {
         // Perfect single-hit ranking: recall@5=1.0, mrr@10=1.0, ndcg@10=1.0.
         let result = score_row(
             &row,
-            RowEvidence {
-                expected_ids: vec!["a".to_string()],
-                actual_ids: vec!["a".to_string()],
-                reranker_lift: None,
-                token_reduction_ratio: None,
-                source_refs: Vec::new(),
-            },
+            RowEvidence::degraded(
+                vec!["a".to_string()],
+                vec!["a".to_string()],
+                None,
+                None,
+                Vec::new(),
+            ),
         );
         assert_eq!(result.verdict, "pass");
         assert!(result.is_green());
@@ -899,13 +1064,13 @@ mod tests {
         // Only 1 of 2 expected ids present -> recall@5 = 0.5 < 0.90.
         let result = score_row(
             &row,
-            RowEvidence {
-                expected_ids: vec!["a".to_string(), "b".to_string()],
-                actual_ids: vec!["a".to_string()],
-                reranker_lift: None,
-                token_reduction_ratio: None,
-                source_refs: Vec::new(),
-            },
+            RowEvidence::degraded(
+                vec!["a".to_string(), "b".to_string()],
+                vec!["a".to_string()],
+                None,
+                None,
+                Vec::new(),
+            ),
         );
         assert_eq!(result.verdict, "fail");
         assert!(!result.is_green());
