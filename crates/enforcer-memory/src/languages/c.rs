@@ -15,6 +15,14 @@
 use crate::parsers::{CallRef, DefinesRef, ImportRef, ParsedFile, SymbolKind, SymbolRef};
 use tree_sitter::{Node, Parser};
 
+/// The innermost function a call expression is lexically inside of, if
+/// any -- see `rust.rs`'s identical `FnScope` for the full rationale.
+#[derive(Debug, Clone, Copy, Default)]
+struct FnScope<'a> {
+    name: Option<&'a str>,
+    line: Option<usize>,
+}
+
 /// Parse C `source`. Never panics on malformed input -- same
 /// error-recovery rationale as every other extractor in this crate:
 /// tree-sitter always produces *a* tree, marking unparseable spans as
@@ -41,7 +49,13 @@ pub fn parse(source: &str, is_test_file: bool) -> ParsedFile {
     };
 
     let mut out = ParsedFile::default();
-    walk(tree.root_node(), source.as_bytes(), &mut out, None);
+    walk(
+        tree.root_node(),
+        source.as_bytes(),
+        &mut out,
+        None,
+        FnScope::default(),
+    );
     if is_test_file {
         for symbol in &mut out.symbols {
             if symbol.kind == SymbolKind::Function {
@@ -60,7 +74,14 @@ pub fn parse(source: &str, is_test_file: bool) -> ParsedFile {
 /// `enclosing` is the name of the containing `struct`/`union` (if any)
 /// -- used only to emit a best-effort DEFINES edge from a struct to its
 /// member field names (the workpack's "DEFINES optional" note for C).
-fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, enclosing: Option<&str>) {
+/// `fn_scope` is the innermost function a call expression sits inside.
+fn walk(
+    node: Node<'_>,
+    src: &[u8],
+    out: &mut ParsedFile,
+    enclosing: Option<&str>,
+    fn_scope: FnScope<'_>,
+) {
     match node.kind() {
         "function_definition" => {
             if let Some(name) = function_name(node, src) {
@@ -70,7 +91,24 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, enclosing: Option<&str
                 } else {
                     SymbolKind::Function
                 };
-                out.symbols.push(SymbolRef { name, kind, line });
+                out.symbols.push(SymbolRef {
+                    name: name.clone(),
+                    kind,
+                    line,
+                });
+                if let Some(body) = node.child_by_field_name("body") {
+                    walk_children(
+                        body,
+                        src,
+                        out,
+                        enclosing,
+                        FnScope {
+                            name: Some(name.as_str()),
+                            line: Some(line),
+                        },
+                    );
+                }
+                return;
             }
         }
         "struct_specifier" => {
@@ -90,7 +128,7 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, enclosing: Option<&str
                         });
                     }
                 }
-                walk_children(node, src, out, Some(name.as_str()));
+                walk_children(node, src, out, Some(name.as_str()), fn_scope);
                 return;
             }
         }
@@ -142,21 +180,56 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, enclosing: Option<&str
                 out.calls.push(CallRef {
                     callee: function.utf8_text(src).unwrap_or("").to_string(),
                     line: node.start_position().row + 1,
+                    from_symbol: fn_scope.name.map(str::to_string),
+                    from_symbol_line: fn_scope.line,
+                    // C has no method-call syntax (`x.foo()` is a
+                    // struct field access to a function *pointer*
+                    // value, not a receiver-dispatched call) -- no
+                    // receiver to report, matching this crate's
+                    // "unresolved as-written" posture elsewhere.
+                    receiver_text: None,
+                    receiver_hint: None,
+                    arg_texts: call_arg_texts(node, src),
                 });
             }
         }
         _ => {}
     }
 
-    walk_children(node, src, out, enclosing);
+    walk_children(node, src, out, enclosing, fn_scope);
 }
 
-fn walk_children(node: Node<'_>, src: &[u8], out: &mut ParsedFile, enclosing: Option<&str>) {
+fn walk_children(
+    node: Node<'_>,
+    src: &[u8],
+    out: &mut ParsedFile,
+    enclosing: Option<&str>,
+    fn_scope: FnScope<'_>,
+) {
     for i in 0..node.child_count() {
         if let Some(child) = node.child(i) {
-            walk(child, src, out, enclosing);
+            walk(child, src, out, enclosing, fn_scope);
         }
     }
+}
+
+/// Each argument expression's own source text, in written order.
+fn call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let Some(args) = call_node.child_by_field_name("arguments") else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for i in 0..args.child_count() {
+        if let Some(child) = args.child(i) {
+            if matches!(child.kind(), "(" | ")" | ",") {
+                continue;
+            }
+            if let Ok(text) = child.utf8_text(src) {
+                out.push(text.to_string());
+            }
+        }
+    }
+    out
 }
 
 /// A `function_definition` node's name, unwrapping

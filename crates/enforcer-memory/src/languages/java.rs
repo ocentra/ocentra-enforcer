@@ -215,6 +215,7 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, enclosing: Option<&str
             out.calls.push(CallRef {
                 callee,
                 line: node.start_position().row + 1,
+                ..CallRef::default()
             });
         }
         _ => {}

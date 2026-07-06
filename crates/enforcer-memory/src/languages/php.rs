@@ -33,10 +33,33 @@
 //! stitching with a class-level `#[Route]`).
 
 use crate::parsers::{
-    CallRef, DecoratesRef, DefinesRef, ImplementsRef, ImportRef, InheritsRef, ParsedFile, RouteRef,
-    SymbolKind, SymbolRef, TypeRefRef,
+    CallRef, DecoratesRef, DefinesRef, ImplementsRef, ImportRef, InheritsRef, ParsedFile,
+    ReceiverHint, RouteRef, SymbolKind, SymbolRef, TypeRefRef,
 };
 use tree_sitter::{Node, Parser};
+
+/// The innermost function/method a call expression is lexically inside
+/// of, if any -- see `rust.rs`'s identical `FnScope` for the full
+/// rationale.
+#[derive(Debug, Clone, Copy, Default)]
+struct FnScope<'a> {
+    name: Option<&'a str>,
+    line: Option<usize>,
+}
+
+/// Bundled lexical-walk context: the containing class/interface/trait
+/// name, the PHPUnit "extends TestCase" flag, and the innermost
+/// function/method scope -- grouped into one struct (rather than three
+/// positional params) so `walk`/`walk_children` stay under clippy's
+/// default too-many-arguments threshold without an `#[allow]`, same
+/// "bundle related params" convention as `code_graph.rs`'s
+/// `NewFileParams`.
+#[derive(Debug, Clone, Copy, Default)]
+struct WalkScope<'a> {
+    enclosing: Option<&'a str>,
+    enclosing_extends_test_case: bool,
+    fn_scope: FnScope<'a>,
+}
 
 /// HTTP methods recognized in `Route::get(...)`-style static calls.
 const HTTP_METHODS: &[&str] = &["get", "post", "put", "patch", "delete", "options", "head"];
@@ -54,22 +77,28 @@ pub fn parse(source: &str) -> ParsedFile {
     };
 
     let mut out = ParsedFile::default();
-    walk(tree.root_node(), source.as_bytes(), &mut out, None, false);
+    walk(
+        tree.root_node(),
+        source.as_bytes(),
+        &mut out,
+        WalkScope::default(),
+    );
     out
 }
 
-/// `enclosing` is the name of the containing `class`/`interface`/`trait`
-/// body (if any). `enclosing_extends_test_case` is set while walking a
-/// class body whose own `extends` clause names `TestCase` (any
-/// namespace segment) -- every method in that class is tagged
-/// [`SymbolKind::Test`], matching PHPUnit's "extends TestCase" contract.
-fn walk(
-    node: Node<'_>,
-    src: &[u8],
-    out: &mut ParsedFile,
-    enclosing: Option<&str>,
-    enclosing_extends_test_case: bool,
-) {
+/// `scope.enclosing` is the name of the containing `class`/`interface`/
+/// `trait` body (if any). `scope.enclosing_extends_test_case` is set
+/// while walking a class body whose own `extends` clause names
+/// `TestCase` (any namespace segment) -- every method in that class is
+/// tagged [`SymbolKind::Test`], matching PHPUnit's "extends TestCase"
+/// contract. `scope.fn_scope` is the innermost function/method a call
+/// expression sits inside of.
+fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, scope: WalkScope<'_>) {
+    let WalkScope {
+        enclosing,
+        enclosing_extends_test_case,
+        fn_scope,
+    } = scope;
     match node.kind() {
         "class_declaration" => {
             if let Some(name) = child_text(node, "name", src) {
@@ -95,7 +124,16 @@ fn walk(
                     });
                 }
                 if let Some(body) = node.child_by_field_name("body") {
-                    walk_children(body, src, out, Some(name.as_str()), extends_test_case);
+                    walk_children(
+                        body,
+                        src,
+                        out,
+                        WalkScope {
+                            enclosing: Some(name.as_str()),
+                            enclosing_extends_test_case: extends_test_case,
+                            fn_scope,
+                        },
+                    );
                 }
                 return;
             }
@@ -127,7 +165,16 @@ fn walk(
                     });
                 }
                 if let Some(body) = node.child_by_field_name("body") {
-                    walk_children(body, src, out, Some(name.as_str()), false);
+                    walk_children(
+                        body,
+                        src,
+                        out,
+                        WalkScope {
+                            enclosing: Some(name.as_str()),
+                            enclosing_extends_test_case: false,
+                            fn_scope,
+                        },
+                    );
                 }
                 return;
             }
@@ -140,7 +187,16 @@ fn walk(
                     line: node.start_position().row + 1,
                 });
                 if let Some(body) = node.child_by_field_name("body") {
-                    walk_children(body, src, out, Some(name.as_str()), false);
+                    walk_children(
+                        body,
+                        src,
+                        out,
+                        WalkScope {
+                            enclosing: Some(name.as_str()),
+                            enclosing_extends_test_case: false,
+                            fn_scope,
+                        },
+                    );
                 }
                 return;
             }
@@ -195,10 +251,27 @@ fn walk(
                 if let Some(container) = enclosing {
                     out.defines.push(DefinesRef {
                         container_name: container.to_string(),
-                        member_name: name,
+                        member_name: name.clone(),
                         line,
                     });
                 }
+                let method_scope = FnScope {
+                    name: Some(name.as_str()),
+                    line: Some(line),
+                };
+                if let Some(body) = node.child_by_field_name("body") {
+                    walk_children(
+                        body,
+                        src,
+                        out,
+                        WalkScope {
+                            enclosing,
+                            enclosing_extends_test_case,
+                            fn_scope: method_scope,
+                        },
+                    );
+                }
+                return;
             }
         }
         "const_declaration" => {
@@ -256,6 +329,11 @@ fn walk(
                 out.calls.push(CallRef {
                     callee: callee.clone(),
                     line: node.start_position().row + 1,
+                    from_symbol: fn_scope.name.map(str::to_string),
+                    from_symbol_line: fn_scope.line,
+                    receiver_text: None,
+                    receiver_hint: None,
+                    arg_texts: call_arg_texts(node, src),
                 });
                 if let Some(constant) = constant_from_define_call(&callee, node, src) {
                     out.symbols.push(constant);
@@ -265,9 +343,15 @@ fn walk(
         "member_call_expression" | "nullsafe_member_call_expression" => {
             if let Some(name) = node.child_by_field_name("name") {
                 if let Ok(text) = name.utf8_text(src) {
+                    let (receiver_text, receiver_hint) = receiver_of_member_call(node, src);
                     out.calls.push(CallRef {
                         callee: text.to_string(),
                         line: node.start_position().row + 1,
+                        from_symbol: fn_scope.name.map(str::to_string),
+                        from_symbol_line: fn_scope.line,
+                        receiver_text,
+                        receiver_hint,
+                        arg_texts: call_arg_texts(node, src),
                     });
                 }
             }
@@ -275,9 +359,21 @@ fn walk(
         "scoped_call_expression" => {
             if let Some(name) = node.child_by_field_name("name") {
                 let callee = qualify_scoped_call(node, name, src);
+                let receiver_hint = call_node_scope(node, src).map(|scope| {
+                    if scope.rsplit('.').next() == Some("new") || scope == "new" {
+                        ReceiverHint::NewExpression
+                    } else {
+                        ReceiverHint::Other
+                    }
+                });
                 out.calls.push(CallRef {
                     callee,
                     line: node.start_position().row + 1,
+                    from_symbol: fn_scope.name.map(str::to_string),
+                    from_symbol_line: fn_scope.line,
+                    receiver_text: call_node_scope(node, src),
+                    receiver_hint,
+                    arg_texts: call_arg_texts(node, src),
                 });
                 if let Some(route) = route_from_scoped_call(node, name, src) {
                     out.routes.push(route);
@@ -292,21 +388,73 @@ fn walk(
         _ => {}
     }
 
-    walk_children(node, src, out, enclosing, enclosing_extends_test_case);
+    walk_children(node, src, out, scope);
 }
 
-fn walk_children(
-    node: Node<'_>,
-    src: &[u8],
-    out: &mut ParsedFile,
-    enclosing: Option<&str>,
-    enclosing_extends_test_case: bool,
-) {
+fn walk_children(node: Node<'_>, src: &[u8], out: &mut ParsedFile, scope: WalkScope<'_>) {
     for i in 0..node.child_count() {
         if let Some(child) = node.child(i) {
-            walk(child, src, out, enclosing, enclosing_extends_test_case);
+            walk(child, src, out, scope);
         }
     }
+}
+
+/// The receiver ($this, a variable, or another expression) of a
+/// `member_call_expression`/`nullsafe_member_call_expression`, plus a
+/// cheap syntactic hint.
+fn receiver_of_member_call(
+    call_node: Node<'_>,
+    src: &[u8],
+) -> (Option<String>, Option<ReceiverHint>) {
+    let Some(receiver) = call_node.child_by_field_name("object") else {
+        return (None, None);
+    };
+    let Ok(text) = receiver.utf8_text(src) else {
+        return (None, None);
+    };
+    let hint = if text == "$this" {
+        ReceiverHint::SelfOrThis
+    } else if receiver.kind() == "object_creation_expression" {
+        ReceiverHint::NewExpression
+    } else if receiver.kind() == "variable_name" {
+        ReceiverHint::Identifier
+    } else if matches!(
+        receiver.kind(),
+        "string" | "encapsed_string" | "integer" | "float"
+    ) {
+        ReceiverHint::Literal
+    } else {
+        ReceiverHint::Other
+    };
+    (Some(text.to_string()), Some(hint))
+}
+
+/// A `scoped_call_expression`'s own `scope` field text (`Route` in
+/// `Route::get(...)`, `parent`/`self`/a class name in `Foo::bar()`).
+fn call_node_scope(call_node: Node<'_>, src: &[u8]) -> Option<String> {
+    call_node
+        .child_by_field_name("scope")
+        .and_then(|s| s.utf8_text(src).ok())
+        .map(str::to_string)
+}
+
+/// Each argument expression's own source text, in written order.
+fn call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let Some(args) = call_node.child_by_field_name("arguments") else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for i in 0..args.child_count() {
+        if let Some(child) = args.child(i) {
+            if matches!(child.kind(), "(" | ")" | ",") {
+                continue;
+            }
+            if let Ok(text) = child.utf8_text(src) {
+                out.push(text.to_string());
+            }
+        }
+    }
+    out
 }
 
 fn child_text(node: Node<'_>, field: &str, src: &[u8]) -> Option<String> {

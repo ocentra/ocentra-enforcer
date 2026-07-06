@@ -195,12 +195,65 @@ impl CodeAdjacency {
             })
             .collect();
 
-        for call in graph.calls() {
-            let Some(&from) = index_of.get(&call.from_file_id) else {
+        // X06 type-aware resolution: `graph.resolved_calls()` is
+        // index-aligned with `graph.calls()` (see both types' own
+        // docs) -- when a resolved entry names exactly one candidate
+        // symbol (`Resolved`/`Probable`), ADD a symbol-scoped Calls edge
+        // from the *calling symbol* (not just its file) to that
+        // candidate, in addition to (not instead of) the original
+        // file-scoped best-effort name match below. Keeping both is
+        // deliberate: the file-scoped edge is what every existing
+        // file-rooted trace (this struct's own pre-existing "symbol-
+        // start bridging" note) already depends on for its hop-count
+        // budget, and dropping it would silently add an extra
+        // File--Contains-->Symbol hop to every trace that used to reach
+        // the callee in one hop from the file -- a regression this
+        // pass must not introduce. The symbol-scoped edge is additive:
+        // it gives a symbol-rooted trace a direct, precise hop that
+        // does not need the file-bridging fallback at all.
+        let resolved_calls = graph.resolved_calls();
+        for (i, call) in graph.calls().iter().enumerate() {
+            let Some(&from_file) = index_of.get(&call.from_file_id) else {
                 continue;
             };
+
+            let resolved = resolved_calls.get(i);
+            let single_resolved_candidate = resolved.and_then(|r| {
+                matches!(
+                    r.confidence,
+                    crate::resolution::ResolutionConfidence::Resolved
+                        | crate::resolution::ResolutionConfidence::Probable
+                )
+                .then(|| r.candidates.first())
+                .flatten()
+            });
+
+            if let Some(target_id) = single_resolved_candidate {
+                if let Some(&to) = index_of.get(target_id.as_str()) {
+                    if let Some(from_symbol) = resolved
+                        .and_then(|r| r.from_symbol_id.as_deref())
+                        .and_then(|id| index_of.get(id))
+                        .copied()
+                    {
+                        g.add_edge(from_symbol, to, EdgeKind::Calls);
+                    }
+                }
+            }
+
             if let Some(&to) = resolve_callee(&call.callee, &symbol_ids) {
-                g.add_edge(from, to, EdgeKind::Calls);
+                g.add_edge(from_file, to, EdgeKind::Calls);
+            } else if let Some(target_id) = single_resolved_candidate {
+                // The old name-based `resolve_callee` missed this call
+                // (e.g. the callee text is `self.report` and no symbol
+                // is literally named `self.report`/`report` uniquely by
+                // that heuristic's own rule) but type-aware resolution
+                // still found a target -- keep the file-scoped edge
+                // available too, so a file-rooted trace still reaches
+                // it in one hop same as it would for any other resolved
+                // callee.
+                if let Some(&to) = index_of.get(target_id.as_str()) {
+                    g.add_edge(from_file, to, EdgeKind::Calls);
+                }
             }
         }
 

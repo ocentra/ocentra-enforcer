@@ -216,11 +216,40 @@ pub struct ImportEdge {
 }
 
 /// A call edge: `from_file_id` calls `callee` (as written) at `line`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CallEdge {
     pub from_file_id: String,
     pub callee: String,
     pub line: usize,
+    /// X06 core parity (cross-repo-intelligence): each call argument's
+    /// raw source text, in written order, carried straight through from
+    /// [`crate::parsers::CallRef::arg_texts`] -- additive, defaults to
+    /// empty for any construction site that predates this field (there
+    /// is exactly one, [`CodeGraph::insert_file_and_chunks`], updated
+    /// below). [`crate::cross_repo`] scans this for a URL/path literal
+    /// on an outbound HTTP-client-shaped callee (`fetch`, `axios.get`,
+    /// `requests.get`, `reqwest::get`, ...) to match against another
+    /// project's declared [`RouteEdge`]s -- see that module's doc
+    /// comment for the exact heuristic and its honest limitations.
+    pub arg_texts: Vec<String>,
+    /// X06 type-aware resolution (additive): the name of the function/
+    /// method this call is lexically inside of, carried straight
+    /// through from [`crate::parsers::CallRef::from_symbol`]. `None`
+    /// for any construction site/extractor that predates or does not
+    /// populate this field, or for a module-scope call with no
+    /// enclosing symbol -- [`crate::resolution`] falls back to its
+    /// unique-name matching pass when absent.
+    pub from_symbol: Option<String>,
+    /// The enclosing symbol's own start line, paired with
+    /// [`Self::from_symbol`] -- lets [`crate::resolution`] rebuild that
+    /// symbol's stable `sym:` id without a separate name+line lookup.
+    pub from_symbol_line: Option<usize>,
+    /// The method-call receiver's own text (`x` in `x.foo()`), carried
+    /// through from [`crate::parsers::CallRef::receiver_text`].
+    pub receiver_text: Option<String>,
+    /// Cheap syntactic classification of [`Self::receiver_text`],
+    /// carried through from [`crate::parsers::CallRef::receiver_hint`].
+    pub receiver_hint: Option<crate::parsers::ReceiverHint>,
 }
 
 /// A route/endpoint declared in `from_file_id`.
@@ -423,11 +452,42 @@ pub struct CodeGraph {
     decorates: Vec<DecoratesEdge>,
     type_refs: Vec<TypeRefEdge>,
     defines: Vec<DefinesEdge>,
+    /// X06 type-aware resolution (additive): [`crate::resolution::resolve`]'s
+    /// output over this graph's own [`Self::calls`], recomputed by
+    /// [`Self::index_repository_at_mode`] (and therefore by both public
+    /// entry points) after every index run. Index-aligned with
+    /// [`Self::calls`] -- `resolved_calls()[i]` is the resolution result
+    /// for `calls()[i]`. Empty (not absent) on a freshly `default()`-
+    /// constructed graph that has never been indexed, same "empty, not
+    /// fabricated" convention as every other derived field here.
+    resolved_calls: Vec<crate::resolution::ResolvedCall>,
 }
 
 impl CodeGraph {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Test-only seam: append one [`RouteEdge`] directly, bypassing the
+    /// tree-sitter extraction pipeline entirely. Exists because
+    /// [`crate::cross_repo`]'s matching-algorithm tests need small,
+    /// hand-built graphs (a route on one side, a call site on the
+    /// other) without depending on every language extractor already
+    /// populating [`CallEdge::arg_texts`] end-to-end (as of this writing
+    /// none do -- that plumbing is separate, wider-scoped follow-up
+    /// work, not this constructor's job). `#[cfg(test)]` only: never
+    /// compiled into a non-test build, so it cannot be misused as a
+    /// production graph-mutation API.
+    #[cfg(test)]
+    pub(crate) fn push_route_for_test(&mut self, route: RouteEdge) {
+        self.routes.push(route);
+    }
+
+    /// Test-only seam, symmetric with [`Self::push_route_for_test`]: see
+    /// its doc comment.
+    #[cfg(test)]
+    pub(crate) fn push_call_for_test(&mut self, call: CallEdge) {
+        self.calls.push(call);
     }
 
     pub fn nodes(&self) -> &[CodeNode] {
@@ -464,6 +524,19 @@ impl CodeGraph {
 
     pub fn defines(&self) -> &[DefinesEdge] {
         &self.defines
+    }
+
+    /// X06 type-aware resolution (additive): the resolved form of
+    /// [`Self::calls`], one [`crate::resolution::ResolvedCall`] per
+    /// entry in [`Self::calls`] at the same index -- see
+    /// [`crate::resolution`]'s module docs for the resolution ladder.
+    /// Recomputed on every [`Self::index_repository`]/
+    /// [`Self::index_repository_with_options`] call; empty on a graph
+    /// that has never been indexed (e.g. restored only via
+    /// [`Self::restore_from_snapshot`], which -- like every other
+    /// derived-at-index-time field -- does not recompute this).
+    pub fn resolved_calls(&self) -> &[crate::resolution::ResolvedCall] {
+        &self.resolved_calls
     }
 
     pub fn file_nodes(&self) -> impl Iterator<Item = &FileNode> {
@@ -646,6 +719,16 @@ impl CodeGraph {
                 from_file_id: edge.from_file_id.clone(),
                 callee: edge.callee.clone(),
                 line: edge.line,
+                // A snapshot round-trip carries no argument source text
+                // (same "dropped, not guessed" rationale as the symbol
+                // metrics fields above) -- empty, not fabricated.
+                arg_texts: Vec::new(),
+                // Same "dropped, not guessed" rationale: a snapshot
+                // carries no from_symbol/receiver info either.
+                from_symbol: None,
+                from_symbol_line: None,
+                receiver_text: None,
+                receiver_hint: None,
             });
         }
         for edge in &snapshot.routes {
@@ -744,6 +827,7 @@ impl CodeGraph {
         }
 
         self.propagate_complexity();
+        self.resolved_calls = crate::resolution::resolve(self);
 
         Ok((new_manifest, report))
     }
@@ -962,6 +1046,11 @@ impl CodeGraph {
                     from_file_id: file_id.clone(),
                     callee: call.callee.clone(),
                     line: call.line,
+                    arg_texts: call.arg_texts.clone(),
+                    from_symbol: call.from_symbol.clone(),
+                    from_symbol_line: call.from_symbol_line,
+                    receiver_text: call.receiver_text.clone(),
+                    receiver_hint: call.receiver_hint,
                 });
             }
             for route in &parsed.routes {

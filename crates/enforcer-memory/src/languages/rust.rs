@@ -10,9 +10,23 @@
 
 use crate::parsers::{
     CallRef, DecoratesRef, DefinesRef, ImplementsRef, ImportRef, InheritsRef, ParsedFile,
-    SymbolKind, SymbolRef, TypeRefRef,
+    ReceiverHint, SymbolKind, SymbolRef, TypeRefRef,
 };
 use tree_sitter::{Node, Parser};
+
+/// The innermost function/method a call expression is lexically inside
+/// of, if any -- threaded alongside `enclosing` (the containing
+/// `impl`/`trait`/`mod` *type* name) because a call's "from_symbol" is
+/// the function/method, not the type, while DEFINES/Method-vs-Function
+/// tagging still needs the type name. Kept as a small local struct
+/// (rather than widening `walk`'s own positional args further) per this
+/// crate's "bundle related params" convention (see `code_graph.rs`'s
+/// `NewFileParams`).
+#[derive(Debug, Clone, Copy, Default)]
+struct FnScope<'a> {
+    name: Option<&'a str>,
+    line: Option<usize>,
+}
 
 /// Parse Rust `source`. Never panics on malformed input: a source file
 /// that fails to parse cleanly still yields whatever tree-sitter's
@@ -37,15 +51,28 @@ pub fn parse(source: &str) -> ParsedFile {
     };
 
     let mut out = ParsedFile::default();
-    walk(tree.root_node(), source.as_bytes(), &mut out, None);
+    walk(
+        tree.root_node(),
+        source.as_bytes(),
+        &mut out,
+        None,
+        FnScope::default(),
+    );
     out
 }
 
 /// `enclosing` is the name of the containing `impl`/`trait`/`mod` block
 /// (if any) -- used to tag a `function_item` as [`SymbolKind::Method`]
 /// instead of [`SymbolKind::Function`] and to emit a DEFINES edge from
-/// the container to the member.
-fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, enclosing: Option<&str>) {
+/// the container to the member. `fn_scope` is the innermost
+/// function/method a call expression sits inside of -- see [`FnScope`].
+fn walk(
+    node: Node<'_>,
+    src: &[u8],
+    out: &mut ParsedFile,
+    enclosing: Option<&str>,
+    fn_scope: FnScope<'_>,
+) {
     match node.kind() {
         "function_item" => {
             if let Some(name) = child_text(node, "name", src) {
@@ -79,10 +106,23 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, enclosing: Option<&str
                 if let Some(container) = enclosing {
                     out.defines.push(DefinesRef {
                         container_name: container.to_string(),
-                        member_name: name,
+                        member_name: name.clone(),
                         line,
                     });
                 }
+                if let Some(body) = node.child_by_field_name("body") {
+                    walk_children(
+                        body,
+                        src,
+                        out,
+                        enclosing,
+                        FnScope {
+                            name: Some(name.as_str()),
+                            line: Some(line),
+                        },
+                    );
+                }
+                return;
             }
         }
         "struct_item" => {
@@ -118,7 +158,7 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, enclosing: Option<&str
                         line,
                     });
                 }
-                walk_children(node, src, out, Some(name.as_str()));
+                walk_children(node, src, out, Some(name.as_str()), fn_scope);
                 return;
             }
         }
@@ -174,7 +214,7 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, enclosing: Option<&str
                     line: node.start_position().row + 1,
                 });
             }
-            walk_children(node, src, out, type_name.as_deref());
+            walk_children(node, src, out, type_name.as_deref(), fn_scope);
             return;
         }
         "use_declaration" => {
@@ -187,22 +227,34 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, enclosing: Option<&str
         }
         "call_expression" => {
             if let Some(function) = node.child_by_field_name("function") {
+                let (receiver_text, receiver_hint) = receiver_of_call(function, src);
                 out.calls.push(CallRef {
                     callee: call_callee_text(function, src),
                     line: node.start_position().row + 1,
+                    from_symbol: fn_scope.name.map(str::to_string),
+                    from_symbol_line: fn_scope.line,
+                    receiver_text,
+                    receiver_hint,
+                    arg_texts: call_arg_texts(node, src),
                 });
             }
         }
         _ => {}
     }
 
-    walk_children(node, src, out, enclosing);
+    walk_children(node, src, out, enclosing, fn_scope);
 }
 
-fn walk_children(node: Node<'_>, src: &[u8], out: &mut ParsedFile, enclosing: Option<&str>) {
+fn walk_children(
+    node: Node<'_>,
+    src: &[u8],
+    out: &mut ParsedFile,
+    enclosing: Option<&str>,
+    fn_scope: FnScope<'_>,
+) {
     for i in 0..node.child_count() {
         if let Some(child) = node.child(i) {
-            walk(child, src, out, enclosing);
+            walk(child, src, out, enclosing, fn_scope);
         }
     }
 }
@@ -309,6 +361,71 @@ fn child_text(node: Node<'_>, field: &str, src: &[u8]) -> Option<String> {
 /// and keeping the full `a::b::c` / `self.method` path as written.
 fn call_callee_text(node: Node<'_>, src: &[u8]) -> String {
     node.utf8_text(src).unwrap_or("").to_string()
+}
+
+/// X06 type-aware resolution: for a `field_expression`-shaped callee
+/// (`x.foo`, `self.foo`), the receiver (`x`/`self`) text plus a cheap
+/// syntactic hint. `None`/`None` for a plain path callee (`foo`,
+/// `a::b::foo`) -- there is no receiver to report.
+fn receiver_of_call(function_node: Node<'_>, src: &[u8]) -> (Option<String>, Option<ReceiverHint>) {
+    if function_node.kind() != "field_expression" {
+        return (None, None);
+    }
+    let Some(receiver) = function_node.child_by_field_name("value") else {
+        return (None, None);
+    };
+    let Ok(text) = receiver.utf8_text(src) else {
+        return (None, None);
+    };
+    let hint = if text == "self" {
+        ReceiverHint::SelfOrThis
+    } else if receiver.kind() == "call_expression" && is_new_call(receiver, src) {
+        ReceiverHint::NewExpression
+    } else if receiver.kind() == "identifier" {
+        ReceiverHint::Identifier
+    } else if matches!(
+        receiver.kind(),
+        "integer_literal" | "string_literal" | "boolean_literal" | "float_literal"
+    ) {
+        ReceiverHint::Literal
+    } else {
+        ReceiverHint::Other
+    };
+    (Some(text.to_string()), Some(hint))
+}
+
+/// Whether a `call_expression` node is (heuristically) a constructor
+/// call: its callee's final path segment is `new` (`Foo::new(...)`) --
+/// Rust has no dedicated `new`-expression syntax, so this is a
+/// name-convention best-effort signal, same rationale as every other
+/// "as-written, unresolved" heuristic in this crate.
+fn is_new_call(call_node: Node<'_>, src: &[u8]) -> bool {
+    let Some(function) = call_node.child_by_field_name("function") else {
+        return false;
+    };
+    let Ok(text) = function.utf8_text(src) else {
+        return false;
+    };
+    text.rsplit("::").next() == Some("new")
+}
+
+/// Each argument expression's own source text, in written order.
+fn call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let Some(args) = call_node.child_by_field_name("arguments") else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for i in 0..args.child_count() {
+        if let Some(child) = args.child(i) {
+            if matches!(child.kind(), "(" | ")" | ",") {
+                continue;
+            }
+            if let Ok(text) = child.utf8_text(src) {
+                out.push(text.to_string());
+            }
+        }
+    }
+    out
 }
 
 /// Whether a `function_item` is preceded by a `#[test]`-family

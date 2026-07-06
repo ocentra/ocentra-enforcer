@@ -194,6 +194,21 @@
 //! - [`diagnostics`] — stderr-only structured KV/JSON logging for the
 //!   MCP/CLI/watch surface, with redaction so no raw source text ever
 //!   reaches a log line.
+//!
+//! # X06 core parity -- cross-repo intelligence + operational robustness
+//!
+//! - [`cross_repo`] — `index_repository(mode="cross-repo-intelligence")`'s
+//!   library-layer analog: matches one project's outbound HTTP call
+//!   sites against another's declared routes to produce
+//!   `CROSS_HTTP_CALLS` edges, with an honestly-documented heuristic and
+//!   zero (not omitted, not erroring) counts for the five other
+//!   cross-repo protocols this crate does not yet detect.
+//! - [`store_manager`] — the baseline's idle open-store cache
+//!   (default 60s timeout, injected-clock eviction, never drops a store
+//!   mid-use) plus [`store_manager::IndexSupervisor`], the seam for a
+//!   future subprocess-isolated index run (env-gated like the
+//!   baseline's `CBM_INDEX_SUPERVISOR`; only an in-process default ships
+//!   here).
 
 pub mod adr;
 pub mod analysis;
@@ -203,6 +218,7 @@ pub mod cli;
 pub mod code_graph;
 pub mod code_search;
 pub mod complexity;
+pub mod cross_repo;
 pub mod diagnostics;
 pub mod embed;
 pub mod enrichment;
@@ -238,6 +254,7 @@ pub mod recall;
 pub mod record;
 pub mod redaction;
 pub mod rerank;
+pub mod resolution;
 pub mod retriever;
 pub mod schema;
 pub mod search;
@@ -245,6 +262,7 @@ pub mod sessionstart;
 pub mod share;
 pub mod snippet;
 pub mod store;
+pub mod store_manager;
 pub mod streaming_cache;
 pub mod summaries;
 pub mod traces;

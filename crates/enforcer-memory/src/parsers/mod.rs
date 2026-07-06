@@ -91,10 +91,66 @@ pub struct ImportRef {
 
 /// One function-call expression's callee name, as written (unresolved
 /// -- same rationale as [`ImportRef`]).
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// X06 type-aware resolution (additive): every field below `line` is
+/// new and defaults empty/`None` for any extractor not yet updated to
+/// populate it -- [`crate::resolution`]'s registry+type pass degrades
+/// gracefully (falls through to unique-name matching, same as before)
+/// when a field is absent, never panics or silently mis-resolves.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CallRef {
     pub callee: String,
     pub line: usize,
+    /// The name of the function/method that lexically contains this
+    /// call expression, if any (module-/file-scope calls have no
+    /// enclosing symbol and leave this `None`).
+    pub from_symbol: Option<String>,
+    /// The 1-based start line of `from_symbol`'s own definition --
+    /// paired with the name to build a stable `sym:` id the same way
+    /// [`crate::code_graph`] already does (`sym:<rel_path>:<line>:<name>`),
+    /// without this module needing to know the file path itself.
+    pub from_symbol_line: Option<usize>,
+    /// For a method-call-shaped callee (`x.foo(...)`), the receiver
+    /// expression's own text (`x`, `self.inner`, `Foo::new()`, ...).
+    /// `None` for a plain/unqualified call (`foo(...)`).
+    pub receiver_text: Option<String>,
+    /// A syntactic classification of [`Self::receiver_text`], cheap to
+    /// compute at extraction time (no type information needed) and
+    /// useful to [`crate::resolution`] as a fast first pass before
+    /// falling back to full type lookup.
+    pub receiver_hint: Option<ReceiverHint>,
+    /// Each call argument's own source text, in written order --
+    /// captured now (rather than re-parsing later) so the planned
+    /// DATA_FLOW follow-up does not need a second pass over every
+    /// extractor. Unresolved/unanalyzed here, same rationale as every
+    /// other `*Ref` field in this module.
+    pub arg_texts: Vec<String>,
+}
+
+/// Cheap syntactic classification of a call's receiver expression --
+/// computed by each language extractor from local syntax alone (no
+/// symbol table, no type inference), giving [`crate::resolution`] a
+/// fast, always-available signal before it attempts full type-driven
+/// resolution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReceiverHint {
+    /// `self.foo()` / `this.foo()`.
+    SelfOrThis,
+    /// `Type::new(...)` / `new Type(...)` -- a fresh instance the
+    /// callee is invoked on.
+    NewExpression,
+    /// The receiver is a bare identifier (`x.foo()`) -- most likely a
+    /// local variable or parameter; [`crate::resolution`] looks up its
+    /// declared/inferred type.
+    Identifier,
+    /// A string/number/bool/etc. literal receiver (`"x".foo()`) --
+    /// resolution has no local/param type to look up, so this is
+    /// recorded purely for completeness/debugging.
+    Literal,
+    /// Anything else (a nested call, an index expression, ...) --
+    /// still recorded as *some* receiver text, but not further
+    /// classified.
+    Other,
 }
 
 /// X06 rich vocabulary (additive): one INHERITS edge as written in

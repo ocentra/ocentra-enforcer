@@ -277,7 +277,10 @@ fn tool_input_schema(name: &str) -> Value {
             "required": ["repoPath"],
             "properties": {
                 "repoPath": { "type": "string", "description": "Absolute path to the repository root." },
-                "mode": { "type": "string", "enum": ["full", "moderate", "fast"], "default": "full" }
+                "mode": { "type": "string", "enum": ["full", "moderate", "fast", "cross-repo-intelligence"], "default": "full", "description": "\"cross-repo-intelligence\" short-circuits before any indexing pipeline (baseline §9.2): matches this project's outbound HTTP call sites against target_projects' declared routes. See crate::cross_repo for the exact heuristic." },
+                "targetProjects": { "type": "array", "items": { "type": "string" }, "description": "Required only for mode=\"cross-repo-intelligence\": project ids (resolved via storesDir) or, if storesDir is omitted, literal repo paths to match against. [\"*\"] means every project storesDir knows about." },
+                "storesDir": { "type": "string", "description": "cross-repo-intelligence only: the project registry directory (crate::projects) targetProjects ids are resolved against. Omit to pass targetProjects as literal repo paths instead." },
+                "name": { "type": "string", "description": "cross-repo-intelligence only: the current project's own name as reported in the response's \"project\" field; defaults to repoPath if omitted." }
             }
         }),
         "search_graph" => json!({
@@ -650,6 +653,10 @@ fn require_str<'a>(args: &'a Value, field: &str) -> Result<&'a str, Value> {
 // ---------------------------------------------------------------------
 
 fn handle_index_repository(args: &Value) -> Value {
+    if args.get("mode").and_then(Value::as_str) == Some("cross-repo-intelligence") {
+        return handle_cross_repo_mode(args);
+    }
+
     let repo_path = match require_str(args, "repoPath") {
         Ok(value) => value,
         Err(err) => return err,
@@ -686,6 +693,152 @@ fn handle_index_repository(args: &Value) -> Value {
             "added": report.added,
             "deleted": report.deleted,
         }
+    })
+}
+
+// ---------------------------------------------------------------------
+// index_repository(mode="cross-repo-intelligence") ->
+// crate::cross_repo::match_cross_repo
+//
+// Baseline binding: refs/x06-baseline-tool-schemas.md §9.2/§9.5. Unlike
+// the plain-mode branch above, this never re-extracts a fresh CodeGraph
+// through `insert_file_and_chunks`'s full symbol/edge pipeline for its
+// own sake -- it builds one stateless graph per project (this crate has
+// no persisted graph cache to reuse yet, same "no ghost project
+// database"/stateless-per-call posture `build_graph` already documents
+// above) purely as the input `crate::cross_repo::match_cross_repo` reads
+// routes/calls off of, then matches. `targetProjects: ["*"]` resolves to
+// every project `storesDir` knows about via `crate::projects::list_projects`
+// (its own `repo_root`), exactly matching the baseline's "[\"*\"] means
+// all indexed projects" note (§9.1) -- resolved here in the MCP layer
+// for this lane (the baseline resolves it one level deeper, inside its
+// own matcher; this crate's project registry is a caller-supplied
+// `storesDir`, so this handler is the natural place to read it, still
+// "not specially handled by match_cross_repo itself", which only ever
+// sees an already-resolved name->graph map).
+// ---------------------------------------------------------------------
+
+fn handle_cross_repo_mode(args: &Value) -> Value {
+    let repo_path = match require_str(args, "repoPath") {
+        Ok(value) => value,
+        Err(err) => return err,
+    };
+    let Some(target_projects) = args.get("targetProjects").and_then(Value::as_array) else {
+        return tool_error(
+            "index_repository",
+            "target_projects is required for cross-repo-intelligence mode. Use [\"*\"] for all projects. Run list_projects to see available.",
+        );
+    };
+    let target_names: Vec<String> = target_projects
+        .iter()
+        .filter_map(Value::as_str)
+        .map(str::to_owned)
+        .collect();
+    if target_names.is_empty() {
+        return tool_error(
+            "index_repository",
+            "target_projects is required for cross-repo-intelligence mode. Use [\"*\"] for all projects. Run list_projects to see available.",
+        );
+    }
+
+    let current_project = args
+        .get("name")
+        .and_then(Value::as_str)
+        .unwrap_or(repo_path);
+
+    let current_graph = match build_graph(repo_path) {
+        Ok(graph) => graph,
+        Err(err) => return err,
+    };
+
+    // Resolve target project names (or "*") to (name, repo_root) pairs
+    // via the storesDir registry, same as list_projects/index_status
+    // above -- `storesDir` is optional: a caller with no project
+    // registry at all (every target given as a literal filesystem path
+    // instead of a registered project id) can omit it, in which case
+    // every entry in `target_names` is tried directly as a `repoPath`.
+    let stores_dir = args.get("storesDir").and_then(Value::as_str);
+    let resolved_targets: Vec<(String, String)> = if target_names.iter().any(|n| n == "*") {
+        match stores_dir {
+            Some(dir) => match projects::list_projects(Path::new(dir)) {
+                Ok(list) => list
+                    .into_iter()
+                    .map(|p| (p.project_id, p.repo_root))
+                    .collect(),
+                Err(source) => {
+                    return tool_error("index_repository", format!("{source}"));
+                }
+            },
+            None => Vec::new(),
+        }
+    } else if let Some(dir) = stores_dir {
+        match projects::list_projects(Path::new(dir)) {
+            Ok(list) => {
+                let by_id: std::collections::HashMap<String, String> = list
+                    .into_iter()
+                    .map(|p| (p.project_id, p.repo_root))
+                    .collect();
+                target_names
+                    .iter()
+                    .filter_map(|name| by_id.get(name).map(|root| (name.clone(), root.clone())))
+                    .collect()
+            }
+            Err(source) => {
+                return tool_error("index_repository", format!("{source}"));
+            }
+        }
+    } else {
+        // No storesDir: treat each target name as a literal repo path.
+        target_names
+            .iter()
+            .map(|name| (name.clone(), name.clone()))
+            .collect()
+    };
+
+    let started = std::time::Instant::now();
+
+    let mut target_graphs: std::collections::BTreeMap<String, CodeGraph> =
+        std::collections::BTreeMap::new();
+    for (name, root) in &resolved_targets {
+        match build_graph(root) {
+            Ok(graph) => {
+                target_graphs.insert(name.clone(), graph);
+            }
+            Err(_) => {
+                // A target that fails to build (missing dir, unreadable
+                // files) is skipped, not a hard error for the whole
+                // call -- matches this mode's own "no match -> zero
+                // counts, not errors" contract for every OTHER kind of
+                // miss; a target project that cannot even be opened is
+                // the same kind of honest zero-contribution case, not a
+                // reason to fail projects_scanned entirely.
+                continue;
+            }
+        }
+    }
+
+    let target_refs: std::collections::BTreeMap<String, &CodeGraph> = target_graphs
+        .iter()
+        .map(|(name, graph)| (name.clone(), graph))
+        .collect();
+
+    let report = crate::cross_repo::match_cross_repo(current_project, &current_graph, &target_refs);
+    let elapsed_ms = started.elapsed().as_secs_f64() * 1000.0;
+
+    json!({
+        "ok": true,
+        "status": "success",
+        "mode": "cross-repo-intelligence",
+        "project": report.project,
+        "projects_scanned": report.projects_scanned,
+        "cross_http_calls": report.cross_http_calls.len(),
+        "cross_async_calls": report.cross_async_calls,
+        "cross_channel": report.cross_channel,
+        "cross_grpc_calls": report.cross_grpc_calls,
+        "cross_graphql_calls": report.cross_graphql_calls,
+        "cross_trpc_calls": report.cross_trpc_calls,
+        "total_cross_edges": report.total_cross_edges(),
+        "elapsed_ms": elapsed_ms,
     })
 }
 

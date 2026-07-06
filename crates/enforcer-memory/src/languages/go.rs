@@ -142,6 +142,7 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, is_test_file: bool) {
                 out.calls.push(CallRef {
                     callee: callee.clone(),
                     line: node.start_position().row + 1,
+                    ..CallRef::default()
                 });
                 if let Some(route) = route_from_call(&callee, node, src) {
                     out.routes.push(route);

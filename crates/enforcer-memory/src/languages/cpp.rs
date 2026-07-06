@@ -24,9 +24,18 @@
 //! the baseline-indexing test that *does* apply (C, not C++).
 
 use crate::parsers::{
-    CallRef, DefinesRef, ImportRef, InheritsRef, ParsedFile, SymbolKind, SymbolRef,
+    CallRef, DefinesRef, ImportRef, InheritsRef, ParsedFile, ReceiverHint, SymbolKind, SymbolRef,
 };
 use tree_sitter::{Node, Parser};
+
+/// The innermost function/method a call expression is lexically inside
+/// of, if any -- see `rust.rs`'s identical `FnScope` for the full
+/// rationale.
+#[derive(Debug, Clone, Copy, Default)]
+struct FnScope<'a> {
+    name: Option<&'a str>,
+    line: Option<usize>,
+}
 
 /// Parse C++ `source`. Never panics on malformed input, same
 /// error-recovery rationale as every other extractor in this crate.
@@ -51,7 +60,13 @@ pub fn parse(source: &str, is_test_file: bool) -> ParsedFile {
     };
 
     let mut out = ParsedFile::default();
-    walk(tree.root_node(), source.as_bytes(), &mut out, None);
+    walk(
+        tree.root_node(),
+        source.as_bytes(),
+        &mut out,
+        None,
+        FnScope::default(),
+    );
     if is_test_file {
         for symbol in &mut out.symbols {
             if matches!(symbol.kind, SymbolKind::Function | SymbolKind::Method) {
@@ -66,14 +81,20 @@ pub fn parse(source: &str, is_test_file: bool) -> ParsedFile {
 /// `namespace` (if any) -- distinguishes [`SymbolKind::Method`] from a
 /// free [`SymbolKind::Function`] and feeds DEFINES edges, same role as
 /// `rust.rs`'s/`typescript.rs`'s `enclosing` parameter.
-fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, enclosing: Option<&str>) {
+fn walk(
+    node: Node<'_>,
+    src: &[u8],
+    out: &mut ParsedFile,
+    enclosing: Option<&str>,
+    fn_scope: FnScope<'_>,
+) {
     match node.kind() {
         "function_definition" => {
-            handle_function_definition(node, src, out, enclosing);
+            handle_function_definition(node, src, out, enclosing, fn_scope);
             return; // children (body) already walked by the handler.
         }
         "class_specifier" | "struct_specifier" => {
-            handle_class_or_struct(node, src, out, enclosing);
+            handle_class_or_struct(node, src, out, enclosing, fn_scope);
             return;
         }
         "namespace_definition" => {
@@ -83,7 +104,7 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, enclosing: Option<&str
                     kind: SymbolKind::Module,
                     line: node.start_position().row + 1,
                 });
-                walk_children(node, src, out, Some(name.as_str()));
+                walk_children(node, src, out, Some(name.as_str()), fn_scope);
                 return;
             }
         }
@@ -153,9 +174,15 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, enclosing: Option<&str
                         line: node.start_position().row + 1,
                     });
                 }
+                let (receiver_text, receiver_hint) = receiver_of_call(function, src);
                 out.calls.push(CallRef {
                     callee,
                     line: node.start_position().row + 1,
+                    from_symbol: fn_scope.name.map(str::to_string),
+                    from_symbol_line: fn_scope.line,
+                    receiver_text,
+                    receiver_hint,
+                    arg_texts: call_arg_texts(node, src),
                 });
             }
         }
@@ -186,13 +213,19 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, enclosing: Option<&str
         _ => {}
     }
 
-    walk_children(node, src, out, enclosing);
+    walk_children(node, src, out, enclosing, fn_scope);
 }
 
-fn walk_children(node: Node<'_>, src: &[u8], out: &mut ParsedFile, enclosing: Option<&str>) {
+fn walk_children(
+    node: Node<'_>,
+    src: &[u8],
+    out: &mut ParsedFile,
+    enclosing: Option<&str>,
+    fn_scope: FnScope<'_>,
+) {
     for i in 0..node.child_count() {
         if let Some(child) = node.child(i) {
-            walk(child, src, out, enclosing);
+            walk(child, src, out, enclosing, fn_scope);
         }
     }
 }
@@ -208,9 +241,10 @@ fn handle_class_or_struct(
     src: &[u8],
     out: &mut ParsedFile,
     enclosing: Option<&str>,
+    fn_scope: FnScope<'_>,
 ) {
     let Some(name) = child_text(node, "name", src) else {
-        walk_children(node, src, out, enclosing);
+        walk_children(node, src, out, enclosing, fn_scope);
         return;
     };
     let line = node.start_position().row + 1;
@@ -248,7 +282,7 @@ fn handle_class_or_struct(
         }
     }
 
-    walk_children(node, src, out, Some(name.as_str()));
+    walk_children(node, src, out, Some(name.as_str()), fn_scope);
 }
 
 /// Best-effort "interface" heuristic: a class/struct body whose every
@@ -367,13 +401,14 @@ fn handle_function_definition(
     src: &[u8],
     out: &mut ParsedFile,
     enclosing: Option<&str>,
+    fn_scope: FnScope<'_>,
 ) {
     let Some(declarator) = node.child_by_field_name("declarator") else {
-        walk_children(node, src, out, enclosing);
+        walk_children(node, src, out, enclosing, fn_scope);
         return;
     };
     let Some((name, out_of_line_scope)) = declarator_name_and_scope(declarator, src) else {
-        walk_children(node, src, out, enclosing);
+        walk_children(node, src, out, enclosing, fn_scope);
         return;
     };
     let line = node.start_position().row + 1;
@@ -391,7 +426,7 @@ fn handle_function_definition(
             kind: SymbolKind::Test,
             line,
         });
-        walk_children(node, src, out, enclosing);
+        walk_children(node, src, out, enclosing, fn_scope);
         return;
     }
 
@@ -411,7 +446,7 @@ fn handle_function_definition(
     if let Some(container) = container {
         out.defines.push(DefinesRef {
             container_name: container.to_string(),
-            member_name: name,
+            member_name: name.clone(),
             line,
         });
     }
@@ -420,8 +455,19 @@ fn handle_function_definition(
     // is not itself inside `Class`'s lexical scope, so further nested
     // symbols should not spuriously inherit `Class` as their own
     // `enclosing` (matches how `rust.rs`/`typescript.rs` scope nested
-    // walks to the innermost lexical container only).
-    walk_children(node, src, out, enclosing);
+    // walks to the innermost lexical container only). `fn_scope` DOES
+    // update to this function/method, though -- a call inside its body
+    // is "from" this symbol regardless of lexical-vs-out-of-line scope.
+    walk_children(
+        node,
+        src,
+        out,
+        enclosing,
+        FnScope {
+            name: Some(name.as_str()),
+            line: Some(line),
+        },
+    );
 }
 
 /// The innermost identifier name of a declarator, plus (for a
@@ -662,4 +708,53 @@ fn gtest_macro_test_name(callee: &str, declarator: Node<'_>, src: &[u8]) -> Opti
         return None;
     }
     Some(format!("{}.{}", idents[0], idents[1]))
+}
+
+/// For a `field_expression`-shaped callee (`x.foo()`/`x->foo()`, both
+/// parse as `field_expression` in this grammar), the receiver text plus
+/// a cheap syntactic hint.
+fn receiver_of_call(function_node: Node<'_>, src: &[u8]) -> (Option<String>, Option<ReceiverHint>) {
+    if function_node.kind() != "field_expression" {
+        return (None, None);
+    }
+    let Some(receiver) = function_node.child_by_field_name("argument") else {
+        return (None, None);
+    };
+    let Ok(text) = receiver.utf8_text(src) else {
+        return (None, None);
+    };
+    let hint = if text == "this" {
+        ReceiverHint::SelfOrThis
+    } else if receiver.kind() == "new_expression" {
+        ReceiverHint::NewExpression
+    } else if receiver.kind() == "identifier" {
+        ReceiverHint::Identifier
+    } else if matches!(
+        receiver.kind(),
+        "string_literal" | "number_literal" | "true" | "false"
+    ) {
+        ReceiverHint::Literal
+    } else {
+        ReceiverHint::Other
+    };
+    (Some(text.to_string()), Some(hint))
+}
+
+/// Each argument expression's own source text, in written order.
+fn call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let Some(args) = call_node.child_by_field_name("arguments") else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for i in 0..args.child_count() {
+        if let Some(child) = args.child(i) {
+            if matches!(child.kind(), "(" | ")" | ",") {
+                continue;
+            }
+            if let Ok(text) = child.utf8_text(src) {
+                out.push(text.to_string());
+            }
+        }
+    }
+    out
 }
