@@ -17,6 +17,7 @@
 use git2::Repository;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 /// Everything the indexer knows about the git history of one path.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -32,6 +33,11 @@ pub struct PathHistory {
 /// run and queried per file.
 pub struct GitMetadata {
     repo: Repository,
+    /// The repository's working directory (or, for a linked worktree,
+    /// this worktree's own working directory -- NOT the main repo's).
+    /// Used only by the [`Self::compute_history_via_cli`] fallback,
+    /// which shells into `git log` rooted at this directory.
+    workdir: Option<PathBuf>,
     /// Cache of path -> history, populated by [`GitMetadata::history_for`]
     /// so a full-repo index does not re-walk history for every file
     /// independently more than once per path.
@@ -46,10 +52,14 @@ impl GitMetadata {
     pub fn open(repo_root: &Path) -> Result<Option<Self>, git2::Error> {
         let normalized = strip_extended_length_prefix(repo_root);
         match Repository::discover(&normalized) {
-            Ok(repo) => Ok(Some(Self {
-                repo,
-                cache: HashMap::new(),
-            })),
+            Ok(repo) => {
+                let workdir = repo.workdir().map(Path::to_path_buf);
+                Ok(Some(Self {
+                    repo,
+                    workdir,
+                    cache: HashMap::new(),
+                }))
+            }
             Err(err) if err.code() == git2::ErrorCode::NotFound => Ok(None),
             Err(err) => Err(err),
         }
@@ -70,9 +80,53 @@ impl GitMetadata {
         if let Some(cached) = self.cache.get(rel_path) {
             return cached.clone();
         }
-        let history = self.compute_history(rel_path).unwrap_or_default();
+        let history = match self.compute_history(rel_path) {
+            Ok(history) => history,
+            // git2's revwalk is known to fail with `ObjectNotFound` (libgit2
+            // error code -3) over a LINKED git worktree whose main repo's
+            // object store uses a multi-pack-index (MIDX) -- this is exactly
+            // this workspace's own on-disk layout (see module docs). git2
+            // stays the primary path everywhere it works (including the
+            // tempdir-repo fixtures every other test in this module uses);
+            // this is a narrow, documented CLI fallback for that one known
+            // gap, not a general replacement.
+            Err(_) => self.compute_history_via_cli(rel_path).unwrap_or_default(),
+        };
         self.cache.insert(rel_path.to_string(), history.clone());
         history
+    }
+
+    /// Fallback for [`Self::compute_history`] that shells into the `git`
+    /// CLI instead of walking history through libgit2. Used only when
+    /// git2's revwalk errors (observed with a linked worktree over a
+    /// multi-pack-index object store); `git log`'s own revision walk does
+    /// not share that gap because it goes through git's full odb/midx
+    /// resolution rather than libgit2's.
+    fn compute_history_via_cli(&self, rel_path: &str) -> Result<PathHistory, std::io::Error> {
+        let Some(workdir) = self.workdir.as_deref() else {
+            // A bare repository has no working directory to run `git log`
+            // relative to; nothing more this fallback can do.
+            return Ok(PathHistory::default());
+        };
+
+        let output = Command::new("git")
+            .args(["log", "--format=%H", "--follow", "--", rel_path])
+            .current_dir(workdir)
+            .output()?;
+
+        if !output.status.success() {
+            return Ok(PathHistory::default());
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let mut shas = stdout.lines().filter(|line| !line.is_empty());
+        let last_commit = shas.next().map(str::to_string);
+        let change_count = last_commit.is_some() as usize + shas.count();
+
+        Ok(PathHistory {
+            last_commit,
+            change_count,
+        })
     }
 
     fn compute_history(&self, rel_path: &str) -> Result<PathHistory, git2::Error> {

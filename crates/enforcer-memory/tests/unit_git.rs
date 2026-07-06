@@ -69,6 +69,47 @@ fn open_on_git_repo_reports_head_commit() -> TestResult {
 }
 
 #[test]
+fn open_on_this_repo_linked_worktree_resolves_head_history() -> TestResult {
+    // Regression test for the x06-w5-gitpath finding: `C:\Projects\
+    // enforcer-rust` (this repo's checkout) is a LINKED git worktree
+    // whose main repo (`C:\Projects\ocentra-enforcer`) has a
+    // multi-pack-index (MIDX) in its object store. `git2::Revwalk`
+    // over a linked worktree + MIDX combination was reported to fail
+    // with "object not found" on the very first commit resolution,
+    // which would make every GitHistory QA row honestly unrunnable
+    // against the real repo (not just tempdir fixtures). This test
+    // exercises the real repo path directly -- it is naturally
+    // repo-dependent (skips gracefully if this ever runs somewhere
+    // that is not a linked worktree, e.g. a plain clone in CI) but on
+    // the dev machine this repo lives on, it must pass.
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .ok_or("expected crates/enforcer-memory to have a workspace root two levels up")?
+        .to_path_buf();
+
+    let Some(mut meta) = GitMetadata::open(&repo_root)? else {
+        // Not a git repo in this environment -- nothing to regress.
+        return Ok(());
+    };
+
+    let head = meta
+        .head_commit()
+        .ok_or("expected HEAD to resolve to a commit in the real repo")?;
+    assert_eq!(head.len(), 40);
+
+    // Exercise the revwalk-based path history query, the exact code
+    // path the bug report says fails with "object not found" in a
+    // linked worktree over a MIDX-backed object store.
+    let history = meta.history_for("crates/enforcer-memory/src/git.rs");
+    assert!(
+        history.last_commit.is_some(),
+        "expected git.rs to have at least one commit touching it"
+    );
+    Ok(())
+}
+
+#[test]
 fn history_for_tracks_change_count_across_commits() -> TestResult {
     let dir = tempfile::tempdir()?;
     init_repo(dir.path())?;

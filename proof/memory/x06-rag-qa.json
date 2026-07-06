@@ -1,8 +1,8 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 17,
+  "rowsGreen": 19,
   "rowsFailed": 0,
-  "rowsUnrunnable": 233,
+  "rowsUnrunnable": 231,
   "rows": [
     {
       "id": "QA-001",
@@ -2049,14 +2049,20 @@
       "id": "QA-158",
       "category": "GitHistory",
       "query": "What is the git history of `enforcer-domain/src/ids.rs`?",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: crates/enforcer-domain/src/ids.rs has no git history",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "crates/enforcer-domain/src/ids.rs"
+      ],
+      "actualIds": [
+        "crates/enforcer-domain/src/ids.rs"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "commit:686846a02714f6c395e0557eed439ea7b680d1cd"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-159",
@@ -2088,14 +2094,20 @@
       "id": "QA-161",
       "category": "GitHistory",
       "query": "What changed in `enforcer-scan/src/engine.rs` over its last 50 commits?",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: crates/enforcer-scan/src/engine.rs has no git history",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "crates/enforcer-scan/src/engine.rs"
+      ],
+      "actualIds": [
+        "crates/enforcer-scan/src/engine.rs"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "commit:be5558a2564d9d747ee77fa61c90a3c20933081f"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-162",
