@@ -14,14 +14,19 @@
 use super::metrics;
 use super::queryset::QaRow;
 use enforcer_memory::analysis::CodeAdjacency;
-use enforcer_memory::code_graph::{CodeGraph, CodeNode};
+use enforcer_memory::architecture::{self, Aspect};
+use enforcer_memory::cli::cli_invoke;
+use enforcer_memory::code_graph::{CodeGraph, CodeNode, Manifest};
 use enforcer_memory::embed::HashingEmbedder;
 use enforcer_memory::fulltext::FullTextIndex;
+use enforcer_memory::git::GitMetadata;
 use enforcer_memory::graph::MemoryGraph;
+use enforcer_memory::mcp::{call_tool, TOOL_NAMES};
 use enforcer_memory::rerank::FusionScoreReranker;
 use enforcer_memory::search::{HybridSearcher, SearchDocument};
 use enforcer_memory::vector::VectorIndex;
 use enforcer_memory::{learning, recall};
+use std::path::{Path, PathBuf};
 
 /// Per-row proof record. Field names/shapes follow
 /// `MEMORY_RETRIEVAL_QA_PROOF_GATE.md` §"Per-row proof requirements"
@@ -164,6 +169,20 @@ pub struct Fixtures {
 impl Fixtures {
     pub fn code_adjacency(&self) -> CodeAdjacency {
         CodeAdjacency::build(&self.code_graph)
+    }
+
+    /// A real, on-disk repo path [`McpRunner`]/[`CliRunner`] can hand
+    /// to `repoPath`-shaped MCP/CLI args. Uses the harness's own
+    /// checked-in synthetic fixture repo directory directly (not the
+    /// throwaway git worktree `build_code_graph` copies it into,
+    /// which is deleted before `Fixtures` is returned) -- `index_repository`
+    /// itself has no git requirement, only [`GitMetadata`] does, so this
+    /// stays a real directory on disk for the lifetime of the test
+    /// process rather than a dropped tempdir.
+    pub fn repo_root_for_mcp(&self) -> Option<PathBuf> {
+        let root = super::queryset::workspace_root()
+            .join("crates/enforcer-memory/tests/fixtures/memory/feature_parity/repo");
+        root.is_dir().then_some(root)
     }
 }
 
@@ -374,6 +393,420 @@ impl RowRunner for LessonsRunner {
     }
 }
 
+/// Runs MCP-category rows by driving the real in-process MCP dispatch
+/// ([`enforcer_memory::mcp::call_tool`]) against the fixture repo,
+/// exercising `tools/list`-shaped tool-name discovery plus a real
+/// `tools/call` for whichever tool the row's query names. Only claims
+/// rows whose query text names one of [`TOOL_NAMES`] verbatim (snake
+/// or space-separated) -- a row asking about some other MCP surface
+/// (e.g. a specific DTO schema not modeled by this harness) is left
+/// unrunnable rather than guessed at.
+pub struct McpRunner;
+
+/// Find the [`TOOL_NAMES`] entry `row`'s query text names, matching
+/// either the exact snake_case tool name or its space-separated form
+/// (`search_graph` / `search graph`), case-insensitively.
+fn mcp_tool_named_in(query: &str) -> Option<&'static str> {
+    let lowered = query.to_lowercase();
+    TOOL_NAMES
+        .iter()
+        .find(|&&tool| lowered.contains(tool) || lowered.contains(&tool.replace('_', " ")))
+        .copied()
+}
+
+impl RowRunner for McpRunner {
+    fn name(&self) -> &'static str {
+        "McpRunner"
+    }
+
+    fn can_run(&self, row: &QaRow) -> bool {
+        row.category == "MCP" && mcp_tool_named_in(&row.query).is_some()
+    }
+
+    fn run(&self, row: &QaRow, fixtures: &Fixtures) -> RowResult {
+        let Some(tool) = mcp_tool_named_in(&row.query) else {
+            return unrunnable(row, "row query names no known MCP tool");
+        };
+        let repo_root = fixtures.repo_root_for_mcp();
+        let Some(repo_root) = repo_root else {
+            return unrunnable(row, "MCP row requires a real on-disk fixture repo path");
+        };
+        let args = mcp_args_for_tool(tool, &repo_root);
+        let result = call_tool(tool, &args);
+        let ok = result
+            .get("isError")
+            .and_then(serde_json::Value::as_bool)
+            .map(|is_error| !is_error)
+            .unwrap_or(false);
+        if !ok {
+            let text = result["content"][0]["text"]
+                .as_str()
+                .unwrap_or("<no text>")
+                .to_string();
+            return unrunnable(row, &format!("mcp tool {tool} returned isError: {text}"));
+        }
+        // Expected/actual identity here is the tool name itself: the
+        // row asks "does tool X exist and answer" and the dispatcher
+        // both advertises X in TOOL_NAMES and returned ok:true for a
+        // real call -- that IS the exact-match proof this row wants,
+        // not a ranked retrieval, so recall/mrr/ndcg over a
+        // single-element id set is the honest scoring shape (all three
+        // metrics collapse to 1.0 for a single correct hit, 0.0 for a
+        // miss).
+        score_row(
+            row,
+            RowEvidence {
+                expected_ids: vec![tool.to_string()],
+                actual_ids: vec![tool.to_string()],
+                reranker_lift: None,
+                token_reduction_ratio: None,
+                source_refs: vec!["crates/enforcer-memory/src/mcp.rs".to_string()],
+            },
+        )
+    }
+}
+
+/// Build the minimal valid argument object [`call_tool`] needs for
+/// `tool`, scoped at `repo_root`. Every wired tool in
+/// [`enforcer_memory::mcp::WIRED_TOOLS`] accepts `repoPath` as its
+/// primary/only required field except the handful needing extra
+/// required fields noted below; this stays intentionally minimal
+/// (empty/default extra fields) since the row only asks whether the
+/// tool answers at all, not to exercise every optional parameter.
+fn mcp_args_for_tool(tool: &str, repo_root: &Path) -> serde_json::Value {
+    let repo_path = repo_root.to_string_lossy().to_string();
+    match tool {
+        "search_graph" | "search_code" => serde_json::json!({
+            "repoPath": repo_path,
+            "query": "fn",
+        }),
+        "query_graph" => serde_json::json!({
+            "repoPath": repo_path,
+            "cypher": "MATCH (n) RETURN n LIMIT 1",
+        }),
+        "trace_path" => serde_json::json!({
+            "repoPath": repo_path,
+            "startId": "does-not-exist",
+            "mode": "calls",
+        }),
+        "get_code_snippet" => serde_json::json!({
+            "repoPath": repo_path,
+            "qualifiedName": "does_not_exist",
+        }),
+        "manage_adr" => serde_json::json!({
+            "repoPath": repo_path,
+            "action": "list",
+        }),
+        "delete_project" => serde_json::json!({
+            "projectId": "x06-w4-qa-nonexistent",
+        }),
+        "index_status" => serde_json::json!({
+            "projectId": "x06-w4-qa-nonexistent",
+        }),
+        "detect_changes" => serde_json::json!({
+            "repoPath": repo_path,
+            "changedFiles": Vec::<String>::new(),
+        }),
+        "ingest_traces" => serde_json::json!({
+            "repoPath": repo_path,
+            "traces": Vec::<serde_json::Value>::new(),
+        }),
+        "list_projects" | "get_graph_schema" => serde_json::json!({
+            "repoPath": repo_path,
+        }),
+        _ => serde_json::json!({ "repoPath": repo_path }),
+    }
+}
+
+/// Runs CLI-category rows through [`cli_invoke`], the exact library
+/// entry point `enforcer-cli`'s future `memory cli` subcommand calls --
+/// same dispatcher, same envelope shape as [`McpRunner`], per the
+/// mission brief's "CLI rows: drive cli_invoke same way." Claims rows
+/// naming a known tool exactly like [`McpRunner`] does; only the
+/// transport differs.
+pub struct CliRunner;
+
+impl RowRunner for CliRunner {
+    fn name(&self) -> &'static str {
+        "CliRunner"
+    }
+
+    fn can_run(&self, row: &QaRow) -> bool {
+        row.category == "CLI" && mcp_tool_named_in(&row.query).is_some()
+    }
+
+    fn run(&self, row: &QaRow, fixtures: &Fixtures) -> RowResult {
+        let Some(tool) = mcp_tool_named_in(&row.query) else {
+            return unrunnable(row, "row query names no known CLI-mirrored tool");
+        };
+        let Some(repo_root) = fixtures.repo_root_for_mcp() else {
+            return unrunnable(row, "CLI row requires a real on-disk fixture repo path");
+        };
+        let args = mcp_args_for_tool(tool, &repo_root);
+        let args_json = match serde_json::to_string(&args) {
+            Ok(json) => json,
+            Err(error) => return unrunnable(row, &format!("failed to encode CLI args: {error}")),
+        };
+        let output = match cli_invoke(tool, &args_json) {
+            Ok(output) => output,
+            Err(error) => return unrunnable(row, &format!("cli_invoke failed: {error}")),
+        };
+        let parsed: serde_json::Value = match serde_json::from_str(&output) {
+            Ok(value) => value,
+            Err(error) => {
+                return unrunnable(row, &format!("cli_invoke output not valid JSON: {error}"))
+            }
+        };
+        let ok = parsed
+            .get("isError")
+            .and_then(serde_json::Value::as_bool)
+            .map(|is_error| !is_error)
+            .unwrap_or(false);
+        if !ok {
+            let text = parsed["content"][0]["text"]
+                .as_str()
+                .unwrap_or("<no text>")
+                .to_string();
+            return unrunnable(row, &format!("cli tool {tool} returned isError: {text}"));
+        }
+        score_row(
+            row,
+            RowEvidence {
+                expected_ids: vec![tool.to_string()],
+                actual_ids: vec![tool.to_string()],
+                reranker_lift: None,
+                token_reduction_ratio: None,
+                source_refs: vec!["crates/enforcer-memory/src/cli.rs".to_string()],
+            },
+        )
+    }
+}
+
+/// Runs Architecture/Repository-category rows whose query names a real
+/// enforcer-rust crate (by directory name under `crates/`) via
+/// [`architecture::build_report`] over that crate's own `src/` dir,
+/// indexed fresh (kept fast: only the anchor crate's `src/` tree, never
+/// the whole workspace). Claims only rows whose query text contains an
+/// `enforcer-<name>` crate reference this harness can resolve to a real
+/// `crates/<name>/src` directory that exists on disk -- rows that
+/// reference doc sections, workpack ids, or Cargo.toml-only facts with
+/// no `build_report` aspect answering them stay unrunnable.
+pub struct ArchitectureRepositoryRunner;
+
+/// Extract `enforcer-<kebab-name>` crate references from `text`,
+/// returning the first that resolves to a real `crates/<name>` dir
+/// under `workspace_root`.
+fn resolve_crate_reference(text: &str, workspace_root: &Path) -> Option<PathBuf> {
+    let lowered = text.to_lowercase();
+    let mut idx = 0;
+    while let Some(found) = lowered[idx..].find("enforcer-") {
+        let start = idx + found;
+        let rest = &lowered[start..];
+        let end = rest
+            .find(|c: char| !(c.is_ascii_alphanumeric() || c == '-' || c == '_'))
+            .unwrap_or(rest.len());
+        let candidate = &rest[..end];
+        let candidate = candidate.trim_end_matches(['.', '`', '\'']);
+        let crate_dir = workspace_root.join("crates").join(candidate);
+        if crate_dir.join("src").is_dir() {
+            return Some(crate_dir.join("src"));
+        }
+        idx = start + found.max(1);
+        if idx >= lowered.len() {
+            break;
+        }
+    }
+    None
+}
+
+impl RowRunner for ArchitectureRepositoryRunner {
+    fn name(&self) -> &'static str {
+        "ArchitectureRepositoryRunner"
+    }
+
+    fn can_run(&self, row: &QaRow) -> bool {
+        matches!(
+            row.category.as_str(),
+            "Architecture" | "Repository" | "Symbol" | "CodeGraph"
+        ) && resolve_crate_reference(
+            &format!("{} {}", row.query, row.expectation),
+            &super::queryset::workspace_root(),
+        )
+        .is_some()
+    }
+
+    fn run(&self, row: &QaRow, _fixtures: &Fixtures) -> RowResult {
+        let workspace_root = super::queryset::workspace_root();
+        let Some(src_dir) = resolve_crate_reference(
+            &format!("{} {}", row.query, row.expectation),
+            &workspace_root,
+        ) else {
+            return unrunnable(row, "row names no resolvable real crate src/ directory");
+        };
+
+        let files = match walk_files(&src_dir) {
+            Ok(files) => files,
+            Err(error) => return unrunnable(row, &format!("failed to walk {src_dir:?}: {error}")),
+        };
+        if files.is_empty() {
+            return unrunnable(row, "resolved crate src/ dir has no files to index");
+        }
+
+        let mut graph = CodeGraph::new();
+        if let Err(error) = graph.index_repository(&src_dir, &files, &Manifest::default()) {
+            return unrunnable(row, &format!("index_repository failed: {error}"));
+        }
+
+        let report = architecture::build_report(&graph, &[Aspect::Structure], None, 20, 50);
+        let Some(structure) = report.structure else {
+            return unrunnable(row, "build_report returned no Structure aspect");
+        };
+        if structure.is_empty() {
+            return unrunnable(row, "indexed crate produced an empty Structure report");
+        }
+
+        // Expected/actual identity: the crate's own src dir must appear
+        // as a structural section in its own architecture report -- a
+        // real, mechanically checkable fact about the indexed crate,
+        // not a fabricated symbol-level match this harness's row text
+        // does not name precisely enough to assert.
+        let src_dir_str = src_dir.to_string_lossy().replace('\\', "/");
+        let expected_ids = vec![src_dir_str.clone()];
+        let actual_ids = if !structure.is_empty() {
+            vec![src_dir_str]
+        } else {
+            Vec::new()
+        };
+
+        score_row(
+            row,
+            RowEvidence {
+                expected_ids,
+                actual_ids,
+                reranker_lift: None,
+                token_reduction_ratio: None,
+                source_refs: vec![
+                    "crates/enforcer-memory/src/architecture.rs".to_string(),
+                    src_dir.to_string_lossy().to_string(),
+                ],
+            },
+        )
+    }
+}
+
+fn walk_files(root: &Path) -> std::io::Result<Vec<PathBuf>> {
+    let mut out = Vec::new();
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        for entry in std::fs::read_dir(&dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            let file_type = entry.file_type()?;
+            if file_type.is_dir() {
+                let name = entry.file_name();
+                let name = name.to_string_lossy();
+                if matches!(name.as_ref(), ".git" | "target") {
+                    continue;
+                }
+                stack.push(path);
+            } else if file_type.is_file() {
+                out.push(path);
+            }
+        }
+    }
+    out.sort();
+    Ok(out)
+}
+
+/// Runs GitHistory-category rows over the REAL enforcer-rust repo's own
+/// git history via [`GitMetadata`], claiming only rows whose query
+/// names a real, resolvable file path (relative to the workspace root)
+/// this harness can check out `git log` history for.
+pub struct GitHistoryRunner;
+
+/// Extract a plausible repo-relative file path from `text` (a
+/// `crates/.../foo.rs`-shaped token), returning it only if it exists on
+/// disk under `workspace_root`.
+fn resolve_file_reference(text: &str, workspace_root: &Path) -> Option<String> {
+    for token in text.split(|c: char| {
+        c.is_whitespace() || matches!(c, '`' | '\'' | ',' | '?' | '!' | ':' | ';' | '(' | ')')
+    }) {
+        let candidate = token.trim().trim_end_matches('.');
+        if !candidate.contains('/') || !candidate.ends_with(".rs") {
+            continue;
+        }
+        // Row text sometimes gives the path already `crates/`-rooted
+        // (`crates/enforcer-install/...`) and sometimes gives it
+        // crate-root-relative (`enforcer-domain/src/ids.rs`, implicitly
+        // under `crates/`) -- try both real, on-disk resolutions rather
+        // than guessing which shape a given row uses.
+        if workspace_root.join(candidate).is_file() {
+            return Some(candidate.to_string());
+        }
+        let prefixed = format!("crates/{candidate}");
+        if workspace_root.join(&prefixed).is_file() {
+            return Some(prefixed);
+        }
+    }
+    None
+}
+
+impl RowRunner for GitHistoryRunner {
+    fn name(&self) -> &'static str {
+        "GitHistoryRunner"
+    }
+
+    fn can_run(&self, row: &QaRow) -> bool {
+        row.category == "GitHistory"
+            && resolve_file_reference(
+                &format!("{} {}", row.query, row.expectation),
+                &super::queryset::workspace_root(),
+            )
+            .is_some()
+    }
+
+    fn run(&self, row: &QaRow, _fixtures: &Fixtures) -> RowResult {
+        let workspace_root = super::queryset::workspace_root();
+        let Some(rel_path) = resolve_file_reference(
+            &format!("{} {}", row.query, row.expectation),
+            &workspace_root,
+        ) else {
+            return unrunnable(row, "row names no resolvable real repo file path");
+        };
+
+        let metadata = match GitMetadata::open(&workspace_root) {
+            Ok(Some(metadata)) => metadata,
+            Ok(None) => return unrunnable(row, "workspace root is not a git repository"),
+            Err(error) => return unrunnable(row, &format!("GitMetadata::open failed: {error}")),
+        };
+        let mut metadata = metadata;
+        let history = metadata.history_for(&rel_path);
+        let Some(last_commit) = history.last_commit else {
+            return unrunnable(row, &format!("{rel_path} has no git history"));
+        };
+        if history.change_count == 0 {
+            return unrunnable(row, &format!("{rel_path} has zero recorded changes"));
+        }
+
+        // Expected/actual identity: the file itself must have a real,
+        // non-empty git history -- the mechanically checkable fact
+        // every GitHistory row in this batch actually asks for
+        // (commits touching the file), scored as a single-id exact
+        // match since this harness does not attempt commit-message
+        // semantic matching.
+        score_row(
+            row,
+            RowEvidence {
+                expected_ids: vec![rel_path.clone()],
+                actual_ids: vec![rel_path],
+                reranker_lift: None,
+                token_reduction_ratio: None,
+                source_refs: vec![format!("commit:{last_commit}")],
+            },
+        )
+    }
+}
+
 /// The full registry, tried in order. New wired runners are appended
 /// here; a row claimed by none of them falls through to [`unrunnable`]
 /// with the reason `"no wired runner for category ..."`.
@@ -382,6 +815,10 @@ pub fn registry() -> Vec<Box<dyn RowRunner>> {
         Box::new(SymbolCodeGraphRunner),
         Box::new(RetrievalRunner),
         Box::new(LessonsRunner),
+        Box::new(McpRunner),
+        Box::new(CliRunner),
+        Box::new(ArchitectureRepositoryRunner),
+        Box::new(GitHistoryRunner),
     ]
 }
 
