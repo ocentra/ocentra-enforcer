@@ -1,0 +1,78 @@
+=== cargo build -p enforcer-lang-common ===
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 35.15s
+
+=== cargo test -p enforcer-lang-common ===
+test rules::test_quality::tests::assert_on_variant_not_message ... ok
+test rules::test_quality::tests::assertion_free_test_forbidden ... ok
+test rules::test_quality::tests::behavioral_test_names ... ok
+test rules::test_quality::tests::eight_validators_registered_with_unique_rule_ids ... ok
+test rules::test_quality::tests::coverage_fail_floor ... ok
+test rules::test_quality::tests::coverage_gate_presence ... ok
+test rules::test_quality::tests::no_wallclock_assert ... ok
+test rules::test_quality::tests::test_companion_required ... ok
+test rules::test_quality::tests::test_data_factories ... ok
+test result: ok. 63 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.08s
+(fsm_parity.rs) test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+(parity.rs) test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+(size_shape_parity.rs) test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+test every_test_quality_rule_passes_the_d01_five_way_parity_sweep ... ok
+test seeded_dangling_doc_anchor_fails_the_sweep_closed ... ok
+test seeded_missing_fail_fixture_fails_the_sweep_closed ... ok
+test seeded_missing_validator_fails_the_sweep_closed ... ok
+(test_quality_parity.rs) test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+=== cargo test -p enforcer-rules ===
+(loader/registry/plan/version_drift/cyberskills/frontend_react/fsm/ownerset/size_shape unit+integration suites) all green, 23+2+7+5+4+12+5 = 58 passed; 0 failed
+test test_quality_catalog_loads_into_registry_with_no_duplicates ... ok
+test test_quality_tier_split_matches_workpack_three_t1_five_t2 ... ok
+test test_quality_catalog_has_no_t3_rules ... ok
+test every_test_quality_record_links_to_enforcer_lang_common_with_full_linkage ... ok
+test test_quality_catalog_loads_eight_records ... ok
+(test_quality_registry.rs) test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+=== cargo build --workspace ===
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2m 17s
+(clean; exit 0)
+
+=== cargo clippy -p enforcer-lang-common -p enforcer-rules --all-targets -- -D warnings ===
+    Checking enforcer-lang-common v0.1.0
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 9.72s
+clippy exit: 0
+
+=== zero #[allow] in d23 owns-set ===
+crates/enforcer-lang-common/src/rules/test_quality.rs: 0 matches
+crates/enforcer-lang-common/tests/test_quality_parity.rs: 0 matches
+crates/enforcer-rules/tests/test_quality_registry.rs: 0 matches
+
+=== cargo fmt -p enforcer-lang-common -p enforcer-rules -- --check ===
+No diffs in any d23 owns-set file (test_quality.rs, test_quality_parity.rs,
+test_quality_registry.rs, test-quality.json, fixtures/test_quality/**).
+Pre-existing fmt drift exists elsewhere in these two crates
+(change_discipline.rs, frontend_react_registry.rs, ownerset_registry.rs) —
+confirmed present on a clean `git stash` back to origin/rust-build tip
+73c668f, i.e. NOT introduced by d23 and out of this pack's owns-list.
+
+=== Scope note ===
+Rows covered (ADBP_GAPS.md 95-100, excluding row 50/TEST-FSM-1.1 which is
+owned by d16's fsm.rs and only consumed/referenced here):
+  TEST-COMPANION.1        T1  companion-test-required
+  TEST-ASSERTIONFREE.1    T1  no assertion-free tests
+  TEST-BEHAVIORNAME.1     T2  behavioral test names / query-by-role
+  TEST-VARIANT.1          T2  assert-on-variant-not-message
+  TEST-FACTORY.1          T2  test-data factories, no inline dicts
+  TEST-NOWALLCLOCK.1      T2  injected clock, no wall-clock assertion
+  TEST-COVERAGEGATE.1     T1  coverage failing-gate presence
+  TEST-COVERAGEFLOOR.1    T2  coverage floor value >= 70
+
+8 rule records, 8 validators, 8 fail/pass fixture pairs, 5-way parity
+(ruleId <-> doc-anchor <-> validator <-> {fail,pass fixtures} <->
+registry-record) proven clean plus 3 anti-vacuous seeded-gap negative tests
+(missing validator / dangling doc anchor / missing fixture all fail closed).
+
+Known pre-existing, out-of-scope gate failure (NOT in d23 owns-list,
+confirmed present before any d23 change via git stash to origin/rust-build):
+`cargo clippy --workspace --all-targets -- -D warnings` fails in
+crates/enforcer-lang-cfml/tests/rule_registry.rs (expect_used/panic
+violations at lines 26-30, 76, 103-105). Flagged as a separate background
+task (task_92d4d2f6), not fixed here since it is outside this pack's
+`owns:` set.

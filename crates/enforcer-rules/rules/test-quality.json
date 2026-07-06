@@ -1,0 +1,162 @@
+[
+    {
+        "ruleId": "TEST-COMPANION.1",
+        "version": 1,
+        "title": "Companion test required",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "rules::test_quality::TestCompanionRequiredValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/tests/fixtures/test_quality/companion/bad/services/foo.py",
+            "pass": "crates/enforcer-lang-common/tests/fixtures/test_quality/companion/good/services/foo.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d23-test-companion-and-quality.md#Requirement Checklist",
+        "tags": ["test-quality", "d23", "cross-stack"],
+        "params": {
+            "legacyIds": ["py.tests.companion-required", "TEST-COMPANION-1.1", "COMP-1.1", "RUST-TEST-1.1"],
+            "watchedLayerSegments": ["/services/", "/routers/", "/handlers/"]
+        }
+    },
+    {
+        "ruleId": "TEST-ASSERTIONFREE.1",
+        "version": 1,
+        "title": "No assertion-free tests",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "rules::test_quality::AssertionFreeTestValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/tests/fixtures/test_quality/no_assert/bad.test.ts",
+            "pass": "crates/enforcer-lang-common/tests/fixtures/test_quality/no_assert/good.test.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d23-test-companion-and-quality.md#Requirement Checklist",
+        "tags": ["test-quality", "d23", "cross-stack"],
+        "params": {
+            "legacyIds": ["CF-TEST-1.5", "FE-TEST-1.4"]
+        }
+    },
+    {
+        "ruleId": "TEST-BEHAVIORNAME.1",
+        "version": 1,
+        "title": "Behavioral test names, query by role",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "rules::test_quality::BehavioralTestNameValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/tests/fixtures/test_quality/names/bad.test.ts",
+            "pass": "crates/enforcer-lang-common/tests/fixtures/test_quality/names/good.test.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d23-test-companion-and-quality.md#Requirement Checklist",
+        "tags": ["test-quality", "d23", "cross-stack", "scored"],
+        "params": {
+            "legacyIds": ["py-fastapi-behavioral-test-names", "FE-TEST-1.1"],
+            "fireThreshold": 1.0,
+            "minBehavioralNameSegments": 4
+        }
+    },
+    {
+        "ruleId": "TEST-VARIANT.1",
+        "version": 1,
+        "title": "Assert on error variant/type, not message string",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "rules::test_quality::AssertOnVariantNotMessageValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/tests/fixtures/test_quality/variant/bad.test.ts",
+            "pass": "crates/enforcer-lang-common/tests/fixtures/test_quality/variant/good.test.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d23-test-companion-and-quality.md#Requirement Checklist",
+        "tags": ["test-quality", "d23", "cross-stack", "scored"],
+        "params": {
+            "legacyIds": ["CF-TEST-1.4", "TEST-VARIANT-1.1"],
+            "fireThreshold": 1.0
+        }
+    },
+    {
+        "ruleId": "TEST-FACTORY.1",
+        "version": 1,
+        "title": "Test-data factories, no inline hardcoded dicts",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "rules::test_quality::TestDataFactoryValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/tests/fixtures/test_quality/factories/bad_factory.test.py",
+            "pass": "crates/enforcer-lang-common/tests/fixtures/test_quality/factories/good_factory.test.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d23-test-companion-and-quality.md#Requirement Checklist",
+        "tags": ["test-quality", "d23", "python", "scored"],
+        "params": {
+            "legacyIds": ["py-fastapi-test-data-factories"],
+            "fireThreshold": 1.0
+        }
+    },
+    {
+        "ruleId": "TEST-NOWALLCLOCK.1",
+        "version": 1,
+        "title": "Injected clock required, no wall-clock assertion",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "rules::test_quality::NoWallClockAssertValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/tests/fixtures/test_quality/factories/bad_wallclock.test.py",
+            "pass": "crates/enforcer-lang-common/tests/fixtures/test_quality/factories/good_wallclock.test.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d23-test-companion-and-quality.md#Requirement Checklist",
+        "tags": ["test-quality", "d23", "python", "scored"],
+        "params": {
+            "legacyIds": ["py-fastapi-no-wallclock-assert"],
+            "fireThreshold": 1.0
+        }
+    },
+    {
+        "ruleId": "TEST-COVERAGEGATE.1",
+        "version": 1,
+        "title": "Coverage gate presence required (failing threshold wired)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "rules::test_quality::CoverageGatePresenceValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/tests/fixtures/test_quality/coverage/bad_presence/pyproject.toml",
+            "pass": "crates/enforcer-lang-common/tests/fixtures/test_quality/coverage/good/pyproject.toml"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d23-test-companion-and-quality.md#Requirement Checklist",
+        "tags": ["test-quality", "d23", "cross-stack"],
+        "params": {
+            "legacyIds": ["CIGATE-1.1", "py-fastapi-coverage-fail-under"]
+        }
+    },
+    {
+        "ruleId": "TEST-COVERAGEFLOOR.1",
+        "version": 1,
+        "title": "Coverage floor value must meet the minimum",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "rules::test_quality::CoverageFailFloorValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/tests/fixtures/test_quality/coverage/bad_floor/pyproject.toml",
+            "pass": "crates/enforcer-lang-common/tests/fixtures/test_quality/coverage/good/pyproject.toml"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d23-test-companion-and-quality.md#Requirement Checklist",
+        "tags": ["test-quality", "d23", "cross-stack", "scored"],
+        "params": {
+            "legacyIds": ["CIGATE-1.2", "py-fastapi-coverage-fail-under"],
+            "fireThreshold": 1.0,
+            "coverageFloorMinimum": 70
+        }
+    }
+]

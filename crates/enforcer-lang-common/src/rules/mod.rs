@@ -9,3 +9,4 @@ pub mod deferred_work;
 pub mod fsm;
 pub mod resilience;
 pub mod size_shape;
+pub mod test_quality;
