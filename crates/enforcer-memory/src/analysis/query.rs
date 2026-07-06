@@ -6,7 +6,12 @@
 //! <predicate> RETURN <cols> [ORDER BY ...] [LIMIT n]`, `DISTINCT`, and
 //! the aggregate `COUNT(...)`. Predicates support `=`, `!=`, `<`, `<=`,
 //! `>`, `>=`, `CONTAINS`, `STARTS WITH`, `ENDS WITH`, `IN`, `AND`, `OR`,
-//! `NOT`.
+//! `NOT`. `RETURN` and `ORDER BY` columns accept both a bare pattern
+//! variable (`n`) and a dotted property access on one (`n.name`,
+//! `n.rel_path`, `n.line`, ...) -- the same `var.property` form `WHERE`
+//! already accepted, so `MATCH (f:Function) RETURN f.name ORDER BY
+//! f.name` (the baseline-class query this parser was failing on) parses
+//! and orders by the resolved property value, not the raw node id.
 //!
 //! # Read-only by construction (D-05 hard requirement)
 //!
@@ -105,15 +110,41 @@ pub enum Literal {
     Int(i64),
 }
 
+/// A single `RETURN`/`ORDER BY` column reference: either a bare pattern
+/// variable (`n`) or a dotted property access on one (`n.name`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ColumnRef {
+    pub var: String,
+    pub property: Option<String>,
+}
+
+impl ColumnRef {
+    pub fn bare(var: String) -> Self {
+        ColumnRef {
+            var,
+            property: None,
+        }
+    }
+}
+
+impl fmt::Display for ColumnRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.property {
+            Some(prop) => write!(f, "{}.{}", self.var, prop),
+            None => write!(f, "{}", self.var),
+        }
+    }
+}
+
 /// A fully parsed, not-yet-executed query.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParsedQuery {
     pub pattern: MatchPattern,
     pub predicate: Option<Predicate>,
-    pub return_vars: Vec<String>,
+    pub return_vars: Vec<ColumnRef>,
     pub distinct: bool,
     pub count: bool,
-    pub order_by: Option<(String, bool)>, // (var, descending)
+    pub order_by: Option<(ColumnRef, bool)>, // (column, descending)
     pub limit: Option<usize>,
 }
 
@@ -160,7 +191,7 @@ pub fn parse(input: &str) -> Result<ParsedQuery, QueryError> {
     let order_by = if cursor.peek_keyword("ORDER") {
         cursor.advance();
         cursor.expect_keyword("BY")?;
-        let var = cursor.next_token_string()?;
+        let column = parse_column_ref(&mut cursor)?;
         let desc = if cursor.peek_keyword("DESC") {
             cursor.advance();
             true
@@ -170,7 +201,7 @@ pub fn parse(input: &str) -> Result<ParsedQuery, QueryError> {
             }
             false
         };
-        Some((var, desc))
+        Some((column, desc))
     } else {
         None
     };
@@ -231,14 +262,14 @@ pub fn execute(
         });
     }
 
-    if let Some((var, desc)) = &query.order_by {
+    if let Some((column, desc)) = &query.order_by {
         rows.sort_by(|a, b| {
-            let av = a.get(var).map(String::as_str).unwrap_or_default();
-            let bv = b.get(var).map(String::as_str).unwrap_or_default();
+            let av = order_by_key(column, a, &view);
+            let bv = order_by_key(column, b, &view);
             if *desc {
-                bv.cmp(av)
+                bv.cmp(&av)
             } else {
-                av.cmp(bv)
+                av.cmp(&bv)
             }
         });
     }
@@ -366,6 +397,22 @@ fn eval_predicate(predicate: &Predicate, row: &ResultRow, view: &AdjacencyView<'
     }
 }
 
+/// Resolve a `ColumnRef`'s sort key for a row: a dotted property access
+/// (`n.name`) resolves via [`resolve_property`] (stringified so `Str`
+/// and `Int` property values sort uniformly); a bare variable (`n`)
+/// sorts by its resolved node id, matching pre-D-05-extension behavior.
+fn order_by_key(column: &ColumnRef, row: &ResultRow, view: &AdjacencyView<'_>) -> String {
+    match &column.property {
+        Some(property) => resolve_property(row, view, &column.var, property)
+            .map(|value| match value {
+                PropertyValue::Str(s) => s,
+                PropertyValue::Int(i) => i.to_string(),
+            })
+            .unwrap_or_default(),
+        None => row.get(&column.var).cloned().unwrap_or_default(),
+    }
+}
+
 fn resolve_property(
     row: &ResultRow,
     view: &AdjacencyView<'_>,
@@ -448,7 +495,7 @@ fn compare(value: &PropertyValue, op: CompareOp, literal: &Literal) -> bool {
     }
 }
 
-fn parse_return_list(cursor: &mut Cursor<'_>) -> Result<(Vec<String>, bool), QueryError> {
+fn parse_return_list(cursor: &mut Cursor<'_>) -> Result<(Vec<ColumnRef>, bool), QueryError> {
     let mut vars = Vec::new();
     let mut count = false;
     loop {
@@ -457,10 +504,10 @@ fn parse_return_list(cursor: &mut Cursor<'_>) -> Result<(Vec<String>, bool), Que
             cursor.expect_token("(")?;
             let var = cursor.next_token_string()?;
             cursor.expect_token(")")?;
-            vars.push(var);
+            vars.push(ColumnRef::bare(var));
             count = true;
         } else {
-            vars.push(cursor.next_token_string()?);
+            vars.push(parse_column_ref(cursor)?);
         }
         if cursor.peek_token(",") {
             cursor.advance();
@@ -469,6 +516,25 @@ fn parse_return_list(cursor: &mut Cursor<'_>) -> Result<(Vec<String>, bool), Que
         break;
     }
     Ok((vars, count))
+}
+
+/// Parse a single column reference: a bare pattern variable (`n`) or a
+/// dotted property access on one (`n.name`) -- the same `var.property`
+/// form the `WHERE` clause already accepts, reused here so `RETURN` and
+/// `ORDER BY` can reference computed/derived properties, not just raw
+/// node ids.
+fn parse_column_ref(cursor: &mut Cursor<'_>) -> Result<ColumnRef, QueryError> {
+    let var = cursor.next_token_string()?;
+    if cursor.peek_token(".") {
+        cursor.advance();
+        let property = cursor.next_token_string()?;
+        Ok(ColumnRef {
+            var,
+            property: Some(property),
+        })
+    } else {
+        Ok(ColumnRef::bare(var))
+    }
 }
 
 fn parse_match_pattern(cursor: &mut Cursor<'_>) -> Result<MatchPattern, QueryError> {

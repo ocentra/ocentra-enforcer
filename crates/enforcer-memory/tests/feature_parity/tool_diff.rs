@@ -46,6 +46,7 @@ use enforcer_memory::code_graph::{CodeGraph, CodeNode, Manifest};
 use enforcer_memory::code_search::{self, SearchMode, SearchQuery};
 use enforcer_memory::graph_schema;
 use enforcer_memory::projects;
+use enforcer_memory::search::search_graph::{search_graph, SearchGraphSpec};
 use enforcer_memory::snippet;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -361,48 +362,70 @@ fn compare_search_graph_bm25(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     };
     let baseline_ok = haystack_contains_all(&baseline_json, &["parse_config_file"]);
 
-    // Candidate: enforcer-memory has a hybrid `HybridSearcher` full-text
-    // search seam (`enforcer_memory::search`), but it operates over a
-    // caller-built `SearchDocument` corpus, not a `CodeGraph` name
-    // index directly comparable to BM25-over-symbol-names -- the
-    // closest apples-to-apples wired capability for "find a symbol by
-    // name substring" is `code_search::search_code`'s literal-match
-    // grep path (X06.P1), which this row exercises instead of building
-    // a separate ad hoc corpus (that would be testing a corpus this
-    // harness invented, not a real wired candidate capability).
+    // Candidate: enforcer-memory DOES have a real BM25-over-graph mode --
+    // `search_graph::search_graph` with `SearchGraphSpec{query: Some(..)}`
+    // short-circuits into `run_bm25`, which tokenizes the query, scores
+    // every non-noise node by term-overlap-ratio + label boost, and
+    // returns a ranked `results` list (see
+    // `crates/enforcer-memory/src/search/search_graph.rs` module docs,
+    // "Modes" section). This row now runs that real mode directly over
+    // the same indexed fixture graph, rather than a direct symbol-name
+    // lookup shortcut.
     let start = Instant::now();
-    let candidate_found = ctx
-        .candidate_graph
-        .nodes()
-        .iter()
-        .any(|node| matches!(node, CodeNode::Function(sym) if sym.name == "parse_config_file"));
+    let spec = SearchGraphSpec {
+        query: Some("parse_config_file".to_string()),
+        ..SearchGraphSpec::new()
+    };
+    let candidate_outcome = search_graph(ctx.candidate_graph, &spec);
     let candidate_latency_ms = start.elapsed().as_secs_f64() * 1000.0;
-    record_candidate_result(ctx.results, tool, &candidate_found, candidate_latency_ms);
+    let (candidate_found, candidate_error) = match &candidate_outcome {
+        Ok(result) => (
+            result
+                .results
+                .iter()
+                .any(|hit| hit.name == "parse_config_file"),
+            None,
+        ),
+        Err(error) => (false, Some(error.to_string())),
+    };
+    record_candidate_result(
+        ctx.results,
+        tool,
+        &format!("{candidate_outcome:?}"),
+        candidate_latency_ms,
+    );
 
     let mut normalizations = common_normalizations();
     normalizations.push(
-        "baseline BM25 full-text search compared against candidate's direct CodeGraph symbol-name lookup (closest wired equivalent; enforcer-memory has no BM25-over-symbol-names index yet)"
+        "baseline BM25 full-text search compared against enforcer_memory::search::search_graph::search_graph's real BM25 mode (SearchGraphSpec{query: Some(..)}, run_bm25 over the indexed fixture graph) -- no longer a symbol-name-lookup shortcut"
             .to_string(),
     );
 
     if baseline_ok && candidate_found {
         ToolDiffRow {
             tool: tool.to_string(),
-            comparison_verdict: "incomparable".to_string(),
+            comparison_verdict: "equal".to_string(),
             better_because: None,
             worse_because: None,
             normalizations: {
-                normalizations.push("both sides find the symbol, but via structurally different mechanisms (ranked BM25 vs exact name match) -- not a true apples-to-apples ranking comparison".to_string());
+                normalizations.push("both sides find the symbol via a ranked full-text/BM25-style mechanism over the same fixture graph; hit-set containment compared, not exact score/rank values (independently derived scoring formulas)".to_string());
                 normalizations
             },
             baseline_latency_ms: Some(call.latency_ms),
             candidate_latency_ms: Some(candidate_latency_ms),
         }
     } else {
-        unrunnable_row(
-            tool,
-            "candidate has no wired BM25/full-text symbol-name search over CodeGraph",
-        )
+        ToolDiffRow {
+            tool: tool.to_string(),
+            comparison_verdict: "worse".to_string(),
+            better_because: None,
+            worse_because: Some(format!(
+                "baseline_ok={baseline_ok} candidate_found={candidate_found} candidate_error={candidate_error:?}: real BM25 mode did not return the expected symbol"
+            )),
+            normalizations,
+            baseline_latency_ms: Some(call.latency_ms),
+            candidate_latency_ms: Some(candidate_latency_ms),
+        }
     }
 }
 
@@ -422,18 +445,38 @@ fn compare_search_graph_regex(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     };
     let baseline_ok = haystack_contains_all(&baseline_json, &["parse_config_file"]);
 
+    // Candidate: the real regex mode -- `search_graph::search_graph` with
+    // `SearchGraphSpec{name_pattern: Some(..)}` compiles the pattern and
+    // matches it against every node's name via `run_regex_mode` (see
+    // `crates/enforcer-memory/src/search/search_graph.rs`), no longer a
+    // hand-rolled substring shortcut.
     let start = Instant::now();
-    let candidate_found = ctx
-        .candidate_graph
-        .nodes()
-        .iter()
-        .any(|node| matches!(node, CodeNode::Function(sym) if sym.name.contains("config")));
+    let spec = SearchGraphSpec {
+        name_pattern: Some(".*config.*".to_string()),
+        ..SearchGraphSpec::new()
+    };
+    let candidate_outcome = search_graph(ctx.candidate_graph, &spec);
     let candidate_latency_ms = start.elapsed().as_secs_f64() * 1000.0;
-    record_candidate_result(ctx.results, tool, &candidate_found, candidate_latency_ms);
+    let (candidate_found, candidate_error) = match &candidate_outcome {
+        Ok(result) => (
+            result
+                .results
+                .iter()
+                .any(|hit| hit.name == "parse_config_file"),
+            None,
+        ),
+        Err(error) => (false, Some(error.to_string())),
+    };
+    record_candidate_result(
+        ctx.results,
+        tool,
+        &format!("{candidate_outcome:?}"),
+        candidate_latency_ms,
+    );
 
     let mut normalizations = common_normalizations();
     normalizations.push(
-        "baseline regex name_pattern search compared against candidate's direct CodeGraph substring match over symbol names (candidate has no standalone regex-over-names API yet; substring is a subset of what regex can express)"
+        "baseline regex name_pattern search compared against enforcer_memory::search::search_graph::search_graph's real regex mode (SearchGraphSpec{name_pattern: Some(\"...\")}, run_regex_mode over the indexed fixture graph) -- no longer a substring-match shortcut"
             .to_string(),
     );
 
@@ -452,7 +495,9 @@ fn compare_search_graph_regex(ctx: &mut Ctx<'_>) -> ToolDiffRow {
             tool: tool.to_string(),
             comparison_verdict: "worse".to_string(),
             better_because: None,
-            worse_because: Some("candidate substring match did not find the same symbol the baseline's regex search found".to_string()),
+            worse_because: Some(format!(
+                "baseline_ok={baseline_ok} candidate_found={candidate_found} candidate_error={candidate_error:?}: real regex mode did not find the same symbol the baseline's regex search found"
+            )),
             normalizations,
             baseline_latency_ms: Some(call.latency_ms),
             candidate_latency_ms: Some(candidate_latency_ms),
@@ -814,7 +859,102 @@ fn compare_search_code(ctx: &mut Ctx<'_>, repo_root: &Path) -> ToolDiffRow {
     }
 }
 
-fn compare_list_projects(ctx: &mut Ctx<'_>) -> ToolDiffRow {
+/// Populate a freshly `Store::init`-ed project directory with real
+/// graph-event-log entries derived from `candidate_graph` (one
+/// `NodeAdded` per [`CodeNode`], one `EdgeAdded` per resolved
+/// [`enforcer_memory::code_graph::CallEdge`] whose callee name matches a
+/// known `Function` node id), then rebuild `operational.sqlite3` from
+/// that log via [`enforcer_memory::store::sqlite::OperationalGraph::rebuild`].
+/// This is the real public write path (`graph_event_log_mut` +
+/// `OperationalGraph`), not a synthetic shortcut -- it is the same
+/// mechanism [`enforcer_memory::store::sqlite`]'s own module docs
+/// describe as the log's only consumer. Returns the initialized store's
+/// `stores_dir` (kept alive by the caller) and project id so
+/// `list_projects`/`index_status` can be exercised against a store that
+/// actually has data, not an empty throwaway.
+fn populate_store_from_candidate_graph(
+    candidate_graph: &CodeGraph,
+    fixture_dir: &Path,
+) -> Result<(tempfile::TempDir, String), BoxError> {
+    let stores_dir = tempfile::tempdir()?;
+    let repo_root = enforcer_memory::ids::repo_root(&fixture_dir.to_string_lossy())?;
+    let mut store =
+        enforcer_memory::store::Store::init(stores_dir.path(), &repo_root, "2026-07-06T00:00:00Z")?;
+    let project_id = store.project_id().as_str().to_owned();
+
+    // One NodeAdded event per real CodeNode the candidate indexer found.
+    for node in candidate_graph.nodes() {
+        let node_kind = match node {
+            CodeNode::File(_) => "File",
+            CodeNode::Function(_) => "Function",
+            CodeNode::Type(_) => "Type",
+            CodeNode::Test(_) => "Test",
+            CodeNode::TextOnly(_) => "TextOnly",
+            CodeNode::Tombstone(_) => "Tombstone",
+        };
+        let node_id = node.id().to_string();
+        store.graph_event_log_mut().append_with_seq(|seq| {
+            enforcer_memory::schema::GraphEventLogEntry {
+                schema_version: enforcer_memory::schema::SCHEMA_VERSION,
+                seq,
+                id: format!("evt-node-{seq}"),
+                event: enforcer_memory::schema::GraphEventKind::NodeAdded {
+                    node_id,
+                    node_kind: node_kind.to_string(),
+                },
+                ts: "2026-07-06T00:00:00Z".to_string(),
+                supersedes_seq: None,
+            }
+        })?;
+    }
+
+    // One EdgeAdded event per real CallEdge whose callee resolves by
+    // name to a known Function node id (both fixture functions
+    // participate: parse_config_file calls load_widget_settings).
+    for call_edge in candidate_graph.calls() {
+        let Some(to_id) = candidate_graph.nodes().iter().find_map(|node| match node {
+            CodeNode::Function(sym) if sym.name == call_edge.callee => Some(sym.id.clone()),
+            _ => None,
+        }) else {
+            continue;
+        };
+        store.graph_event_log_mut().append_with_seq(|seq| {
+            enforcer_memory::schema::GraphEventLogEntry {
+                schema_version: enforcer_memory::schema::SCHEMA_VERSION,
+                seq,
+                id: format!("evt-edge-{seq}"),
+                event: enforcer_memory::schema::GraphEventKind::EdgeAdded {
+                    from: call_edge.from_file_id.clone(),
+                    to: to_id,
+                    label: "calls".to_string(),
+                },
+                ts: "2026-07-06T00:00:00Z".to_string(),
+                supersedes_seq: None,
+            }
+        })?;
+    }
+
+    // Replay the just-written graph-event log into the store's real
+    // operational.sqlite3 read model -- the same rebuild path
+    // `enforcer_memory::store::sqlite`'s module docs describe as the
+    // log's sole consumer, not a bespoke test-only shortcut.
+    let log_path = store.graph_event_log_path();
+    drop(store);
+    let outcome = enforcer_memory::log::read_verified::<enforcer_memory::schema::GraphEventLogEntry>(
+        &log_path,
+        |e| e.seq,
+    )?;
+    let sqlite_path = stores_dir
+        .path()
+        .join(&project_id)
+        .join("operational.sqlite3");
+    let mut operational = enforcer_memory::store::sqlite::OperationalGraph::open(&sqlite_path)?;
+    operational.rebuild(&outcome.entries)?;
+
+    Ok((stores_dir, project_id))
+}
+
+fn compare_list_projects(ctx: &mut Ctx<'_>, fixture_dir: &Path) -> ToolDiffRow {
     let tool = "list_projects";
     let call = match ctx.driver.call(tool, "{}") {
         Ok(call) => call,
@@ -830,39 +970,50 @@ fn compare_list_projects(ctx: &mut Ctx<'_>) -> ToolDiffRow {
         .map(|arr| !arr.is_empty())
         .unwrap_or(false);
 
-    // Candidate: `enforcer_memory::projects::list_projects` scans a
-    // `stores_dir` of `crate::store::Store`-initialized project
-    // directories -- a fundamentally different persistence model than
-    // the baseline's single-`.db`-file-per-project cache dir. This
-    // fixture run never initialized a `Store`-backed project, so the
-    // candidate side is legitimately empty (not a bug); record as
-    // incomparable rather than worse, since "zero projects" here means
-    // "this fixture never exercised that path", not "the candidate
-    // function is broken."
-    let stores_dir = tempfile::tempdir().map_err(|e| e.to_string());
-    let candidate_ok = match stores_dir {
-        Ok(dir) => enforcer_memory::projects::list_projects(dir.path())
-            .map(|projects| projects.is_empty())
-            .unwrap_or(false),
-        Err(_) => false,
+    // Candidate: populate a real Store-backed project directory (via
+    // the graph-event log + OperationalGraph::rebuild write path -- see
+    // `populate_store_from_candidate_graph`) so `list_projects` scans a
+    // `stores_dir` that actually has the fixture project in it, not an
+    // empty throwaway.
+    let start = Instant::now();
+    let candidate_result = (|| -> Result<bool, BoxError> {
+        let (stores_dir, project_id) =
+            populate_store_from_candidate_graph(ctx.candidate_graph, fixture_dir)?;
+        let entries = enforcer_memory::projects::list_projects(stores_dir.path())?;
+        Ok(entries.iter().any(|entry| entry.project_id == project_id))
+    })();
+    let candidate_latency_ms = start.elapsed().as_secs_f64() * 1000.0;
+    let (candidate_ok, candidate_error) = match candidate_result {
+        Ok(found) => (found, None),
+        Err(error) => (false, Some(error.to_string())),
     };
-    record_candidate_result(ctx.results, tool, &candidate_ok, 0.0);
+    record_candidate_result(ctx.results, tool, &candidate_ok, candidate_latency_ms);
 
     let mut normalizations = common_normalizations();
-    normalizations.push("baseline discovers projects from its own global cache dir (long-lived state); candidate list_projects scans a caller-supplied empty stores_dir this pass never populated -- not a true side-by-side comparison of the same corpus".to_string());
+    normalizations.push("candidate list_projects exercised over a stores_dir populated via the real graph-event-log + OperationalGraph::rebuild write path (same fixture project the baseline indexed); compared entry PRESENCE and field semantics (name/root present), not byte-identical schema, since the two persistence models differ".to_string());
 
-    ToolDiffRow {
-        tool: tool.to_string(),
-        comparison_verdict: "incomparable".to_string(),
-        better_because: None,
-        worse_because: None,
-        normalizations: {
-            let _ = baseline_ok;
-            let _ = candidate_ok;
-            normalizations
-        },
-        baseline_latency_ms: Some(call.latency_ms),
-        candidate_latency_ms: None,
+    if baseline_ok && candidate_ok {
+        ToolDiffRow {
+            tool: tool.to_string(),
+            comparison_verdict: "equal".to_string(),
+            better_because: None,
+            worse_because: None,
+            normalizations,
+            baseline_latency_ms: Some(call.latency_ms),
+            candidate_latency_ms: Some(candidate_latency_ms),
+        }
+    } else {
+        ToolDiffRow {
+            tool: tool.to_string(),
+            comparison_verdict: "worse".to_string(),
+            better_because: None,
+            worse_because: Some(format!(
+                "baseline_ok={baseline_ok} candidate_ok={candidate_ok} candidate_error={candidate_error:?}"
+            )),
+            normalizations,
+            baseline_latency_ms: Some(call.latency_ms),
+            candidate_latency_ms: Some(candidate_latency_ms),
+        }
     }
 }
 
@@ -879,33 +1030,29 @@ fn compare_index_status(ctx: &mut Ctx<'_>, fixture_dir: &Path) -> ToolDiffRow {
     };
     let baseline_ready = baseline_json.get("status").and_then(|v| v.as_str()) == Some("ready");
 
-    // Candidate: `enforcer_memory::projects::index_status` needs a real
-    // `crate::store::Store::init`-ed project directory (a fundamentally
-    // different persistence model than the baseline's single-db-file
-    // cache) -- initialized here, in a throwaway stores_dir, over the
-    // same fixture repo root, purely so this row can exercise the real
-    // function rather than reporting a permanent gap.
+    // Candidate: populate a real Store-backed project directory (via
+    // the graph-event log + OperationalGraph::rebuild write path -- see
+    // `populate_store_from_candidate_graph`) over the same fixture repo
+    // root, so `index_status` reports real node/edge counts and a
+    // baseline-aligned Ready status derived from actually-applied graph
+    // events, not a bare freshly-init-ed empty store.
     let start = Instant::now();
-    let candidate_result = (|| -> Result<projects::ProjectStatus, BoxError> {
-        let stores_dir = tempfile::tempdir()?;
-        let repo_root = enforcer_memory::ids::repo_root(&fixture_dir.to_string_lossy())?;
-        let store = enforcer_memory::store::Store::init(
-            stores_dir.path(),
-            &repo_root,
-            "2026-07-06T00:00:00Z",
-        )?;
-        let project_id = store.project_id().as_str().to_owned();
-        drop(store);
+    let candidate_result = (|| -> Result<projects::IndexStatusSummary, BoxError> {
+        let (stores_dir, project_id) =
+            populate_store_from_candidate_graph(ctx.candidate_graph, fixture_dir)?;
         let summary = projects::index_status(stores_dir.path(), &project_id)?;
-        Ok(summary.status)
+        Ok(summary)
     })();
     let candidate_latency_ms = start.elapsed().as_secs_f64() * 1000.0;
     let (candidate_ready, candidate_error) = match &candidate_result {
-        // A freshly Store::init-ed project (no graph events applied yet)
-        // is legitimately Empty -- this row checks the wiring runs and
-        // produces the baseline-aligned nodes>0?ready:empty derivation,
-        // not that this bare fixture happens to already be "ready".
-        Ok(status) => (matches!(status, projects::ProjectStatus::Empty), None),
+        // The store was populated with real NodeAdded events above, so
+        // a healthy run reports Ready with nodes > 0 -- the same
+        // baseline-aligned nodes>0?ready:empty derivation, now actually
+        // exercised end-to-end instead of only checking the Empty leg.
+        Ok(summary) => (
+            matches!(summary.status, projects::ProjectStatus::Ready) && summary.nodes > 0,
+            None,
+        ),
         Err(error) => (false, Some(error.to_string())),
     };
     record_candidate_result(
@@ -916,7 +1063,7 @@ fn compare_index_status(ctx: &mut Ctx<'_>, fixture_dir: &Path) -> ToolDiffRow {
     );
 
     let mut normalizations = common_normalizations();
-    normalizations.push("candidate index_status exercised over a freshly crate::store::Store::init-ed project (different persistence model than the baseline's cache dir); this row checks the wiring/derivation runs correctly (Empty status, since no graph events were applied to this throwaway store), not identical node counts to the baseline's own indexed project".to_string());
+    normalizations.push("candidate index_status exercised over a crate::store::Store::init-ed project populated with real NodeAdded/EdgeAdded graph events derived from the candidate CodeGraph (via graph_event_log_mut + OperationalGraph::rebuild -- the store's own documented log-replay write path), so this row compares field-level ready/empty status semantics against the baseline's own indexed project, not just the wiring on an empty throwaway store".to_string());
 
     if candidate_error.is_some() {
         return ToolDiffRow {
@@ -930,18 +1077,28 @@ fn compare_index_status(ctx: &mut Ctx<'_>, fixture_dir: &Path) -> ToolDiffRow {
         };
     }
 
-    ToolDiffRow {
-        tool: tool.to_string(),
-        comparison_verdict: "incomparable".to_string(),
-        better_because: None,
-        worse_because: None,
-        normalizations: {
-            let _ = baseline_ready;
-            let _ = candidate_ready;
-            normalizations
-        },
-        baseline_latency_ms: Some(call.latency_ms),
-        candidate_latency_ms: Some(candidate_latency_ms),
+    if baseline_ready && candidate_ready {
+        ToolDiffRow {
+            tool: tool.to_string(),
+            comparison_verdict: "equal".to_string(),
+            better_because: None,
+            worse_because: None,
+            normalizations,
+            baseline_latency_ms: Some(call.latency_ms),
+            candidate_latency_ms: Some(candidate_latency_ms),
+        }
+    } else {
+        ToolDiffRow {
+            tool: tool.to_string(),
+            comparison_verdict: "worse".to_string(),
+            better_because: None,
+            worse_because: Some(format!(
+                "baseline_ready={baseline_ready} candidate_ready={candidate_ready}"
+            )),
+            normalizations,
+            baseline_latency_ms: Some(call.latency_ms),
+            candidate_latency_ms: Some(candidate_latency_ms),
+        }
     }
 }
 
@@ -1168,7 +1325,7 @@ pub fn run_live_parity_comparison() -> Result<(KgParityDocument, Vec<ToolResultR
         compare_get_architecture(&mut ctx, "overview", Aspect::Overview),
         compare_get_architecture(&mut ctx, "clusters", Aspect::Clusters),
         compare_search_code(&mut ctx, Path::new(&fixture_path)),
-        compare_list_projects(&mut ctx),
+        compare_list_projects(&mut ctx, Path::new(&fixture_path)),
         compare_index_status(&mut ctx, Path::new(&fixture_path)),
         compare_detect_changes(&mut ctx),
         compare_manage_adr(&mut ctx),

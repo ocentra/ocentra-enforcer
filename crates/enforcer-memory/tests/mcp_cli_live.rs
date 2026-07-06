@@ -460,6 +460,87 @@ fn tools_call_ingest_traces_records_unresolved_trace_records_not_silently_droppe
 }
 
 // ---------------------------------------------------------------------
+// tools/call: manage_adr whole-document baseline parity
+// (refs/x06-baseline-tool-schemas.md §14) -- update then get through the
+// live MCP envelope, proving the exact `{"status":"updated"}` and
+// `{"content": ...}` response shapes round-trip end to end (not just via
+// dispatch_tool's own unit tests).
+// ---------------------------------------------------------------------
+
+#[test]
+fn tools_call_manage_adr_update_then_get_roundtrips_through_the_mcp_envelope() -> TestResult {
+    let markdown = "## PURPOSE\nlocal-first store\n\n## STACK\nrust\n";
+
+    let update_reply = send_ndjson(&rpc_request(
+        20,
+        "tools/call",
+        &json!({
+            "name": "manage_adr",
+            "arguments": { "project": "proj-a", "mode": "update", "content": markdown }
+        }),
+    ))?;
+    let update_result = &update_reply["result"];
+    assert_eq!(update_result["isError"], json!(false));
+    assert_eq!(
+        update_result["structuredContent"]["status"],
+        json!("updated")
+    );
+
+    // The caller round-trips the stored document (this lane has no
+    // persistence layer behind manage_adr) by passing it back as
+    // `document` on the next call.
+    let get_reply = send_ndjson(&rpc_request(
+        21,
+        "tools/call",
+        &json!({
+            "name": "manage_adr",
+            "arguments": { "project": "proj-a", "mode": "get", "document": markdown }
+        }),
+    ))?;
+    let get_result = &get_reply["result"];
+    assert_eq!(get_result["isError"], json!(false));
+    assert_eq!(get_result["structuredContent"]["content"], json!(markdown));
+    assert!(get_result["structuredContent"]["status"].is_null());
+
+    let sections_reply = send_ndjson(&rpc_request(
+        22,
+        "tools/call",
+        &json!({
+            "name": "manage_adr",
+            "arguments": { "project": "proj-a", "mode": "sections", "document": markdown }
+        }),
+    ))?;
+    let sections_result = &sections_reply["result"];
+    assert_eq!(sections_result["isError"], json!(false));
+    assert_eq!(
+        sections_result["structuredContent"]["sections"],
+        json!(["## PURPOSE", "## STACK"])
+    );
+    Ok(())
+}
+
+#[test]
+fn tools_call_manage_adr_get_on_never_stored_project_is_no_adr_with_hint() -> TestResult {
+    let reply = send_ndjson(&rpc_request(
+        23,
+        "tools/call",
+        &json!({
+            "name": "manage_adr",
+            "arguments": { "project": "proj-never-stored" }
+        }),
+    ))?;
+    let result = &reply["result"];
+    assert_eq!(result["isError"], json!(false));
+    assert_eq!(result["structuredContent"]["content"], json!(""));
+    assert_eq!(result["structuredContent"]["status"], json!("no_adr"));
+    assert!(result["structuredContent"]["adr_hint"]
+        .as_str()
+        .unwrap_or_default()
+        .starts_with("No ADR yet."));
+    Ok(())
+}
+
+// ---------------------------------------------------------------------
 // tools/call: unknown tool name -> exact binding-spec envelope
 // ---------------------------------------------------------------------
 

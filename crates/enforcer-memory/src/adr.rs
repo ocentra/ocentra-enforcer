@@ -57,6 +57,17 @@ pub enum AdrError {
     AlreadyExists(String),
 }
 
+/// Baseline-compatible whole-document response for `mode="get"`
+/// (`refs/x06-baseline-tool-schemas.md` §14.4). `no_adr` distinguishes
+/// "there genuinely is no stored document yet" from a present-but-empty
+/// document string (the baseline's own `content: "" , status: "no_adr"`
+/// shape when nothing has ever been stored).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AdrDocument {
+    pub content: String,
+    pub no_adr: bool,
+}
+
 /// An in-memory ADR store, keyed by ADR id. Append-only for the ADR
 /// list itself (an ADR is never deleted, only superseded by
 /// convention -- callers wanting a "superseded_by" relationship model
@@ -68,11 +79,64 @@ pub enum AdrError {
 #[derive(Debug, Clone, Default)]
 pub struct AdrStore {
     records: BTreeMap<String, AdrRecord>,
+    /// Whole-document ADR blobs, keyed by the caller's project-ish id.
+    /// This is a SEPARATE address space from `records` (the section-based
+    /// extension API above): baseline `manage_adr` treats the ADR as one
+    /// freeform markdown string per project (`refs/x06-baseline-tool-schemas.md`
+    /// §14.2-§14.3 -- "SQLite store, one full-text field, no append/merge/
+    /// diff semantics"), not a set of named `AdrRecord`s. Absence of a key
+    /// here means "no ADR ever stored for this id", matching the baseline's
+    /// `no_adr` status distinct from a present-but-empty document.
+    documents: BTreeMap<String, String>,
 }
 
 impl AdrStore {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Baseline `mode="get"` (`refs/x06-baseline-tool-schemas.md` §14.4):
+    /// return the whole stored markdown document for `id`, or the
+    /// `no_adr` shape if nothing has ever been stored for it.
+    pub fn get_document(&self, id: &str) -> AdrDocument {
+        match self.documents.get(id) {
+            Some(content) => AdrDocument {
+                content: content.clone(),
+                no_adr: false,
+            },
+            None => AdrDocument {
+                content: String::new(),
+                no_adr: true,
+            },
+        }
+    }
+
+    /// Baseline `mode="update"` (undocumented alias: `"store"`) --
+    /// wholesale replace of the stored document, no merge/diff/append
+    /// (`refs/x06-baseline-tool-schemas.md` §14.3). Returns the previous
+    /// document, if any, purely for caller convenience (the baseline
+    /// itself does not echo the prior content).
+    pub fn update_document(&mut self, id: &str, content: impl Into<String>) -> Option<String> {
+        self.documents.insert(id.to_string(), content.into())
+    }
+
+    /// Baseline `mode="sections"` (`refs/x06-baseline-tool-schemas.md`
+    /// §14.4): the markdown heading lines of the *stored* document,
+    /// verbatim (any `#`-prefixed line, any heading level, trailing `\r`
+    /// trimmed) -- not derived from any caller-supplied section list, and
+    /// not the section-based extension API's section names. Returns an
+    /// empty list (not an error) when there is no stored document, matching
+    /// the baseline's degenerate-to-`[]` behavior for a NULL-content parse.
+    pub fn list_document_headings(&self, id: &str) -> Vec<String> {
+        let Some(content) = self.documents.get(id) else {
+            return Vec::new();
+        };
+        content
+            .lines()
+            .map(|line| line.trim_end_matches('\r'))
+            .filter(|line| line.trim_start().starts_with('#'))
+            .map(|line| line.trim_start().to_string())
+            .collect()
     }
 
     pub fn create(&mut self, record: AdrRecord) -> Result<(), AdrError> {

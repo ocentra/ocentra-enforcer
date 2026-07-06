@@ -122,7 +122,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
-use crate::adr::{AdrRecord, AdrStore};
+use crate::adr::{AdrDocument, AdrRecord, AdrStore};
 use crate::analysis::trace::{
     trace_calls, trace_cross_service, trace_data_flow, TraceCallsParams, TraceCrossServiceParams,
 };
@@ -400,10 +400,22 @@ fn tool_input_schema(name: &str) -> Value {
         }),
         "manage_adr" => json!({
             "type": "object",
-            "required": ["operation", "adrs"],
+            "required": ["project"],
             "properties": {
-                "operation": { "type": "string", "enum": ["get", "update_section", "link_node", "create"] },
-                "adrs": { "type": "array", "description": "Current ADR list the caller persists between calls (round-tripped)." },
+                "project": { "type": "string", "description": "Baseline (refs/x06-baseline-tool-schemas.md §14.1) project id the ADR document is scoped to." },
+                "mode": {
+                    "type": "string",
+                    "enum": ["get", "update", "sections"],
+                    "default": "get",
+                    "description": "Baseline §14.1: defaults to \"get\" when absent; the handler also accepts the undocumented alias \"store\" as a synonym for \"update\" (not in this enum, matching the baseline's hidden extra value)."
+                },
+                "document": {
+                    "type": "string",
+                    "description": "Deviation from baseline: this lane has no persistence layer, so the caller round-trips the whole stored document (the baseline's SQLite-backed blob) across calls the same way manage_adr's section-based extension round-trips \"adrs\" below."
+                },
+                "content": { "type": "string", "description": "Baseline §14.1: the full ADR markdown body, required for mode=\"update\"/\"store\" -- whole-document replace, not a diff/merge." },
+                "operation": { "type": "string", "enum": ["get", "update_section", "link_node", "create"], "description": "Extension mode (not in the baseline): section-based ADR API, reached by passing \"operation\" instead of \"mode\"." },
+                "adrs": { "type": "array", "description": "Extension mode: current ADR list the caller persists between calls (round-tripped)." },
                 "id": { "type": "string" },
                 "title": { "type": "string" },
                 "section": { "type": "string" },
@@ -1456,7 +1468,79 @@ fn adr_store_to_json(store: &AdrStore) -> Value {
         .collect::<Vec<_>>())
 }
 
+/// Baseline whole-document `manage_adr` (`refs/x06-baseline-tool-schemas.md`
+/// §14): `mode` defaults to `"get"`; `"store"` is an undocumented alias for
+/// `"update"`; `mode="update"`/`"store"` with no `content` silently degrades
+/// to a `get`-shaped response (§14.1: `content` is "required for
+/// mode=\"update\"/\"store\" only" but the baseline has no distinct
+/// missing-content error path -- it just falls through as if `get` had been
+/// requested); an empty/never-stored document returns `content:""` with
+/// `status:"no_adr"` plus the baseline's exact hint text.
+///
+/// Deviation from baseline: since this lane has no persistence layer behind
+/// `manage_adr` (recorded honestly in the module doc, matching every other
+/// stateless-per-call tool here), the caller round-trips the current
+/// document via the `document` argument the same way the section-based
+/// extension API round-trips `adrs` -- there is no `project`-keyed database
+/// held across calls in-process.
+fn handle_manage_adr_document(args: &Value, project: &str) -> Value {
+    let mode = args
+        .get("mode")
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("get");
+    let document = args.get("document").and_then(Value::as_str).unwrap_or("");
+
+    let mut store = AdrStore::new();
+    if !document.is_empty() {
+        store.update_document(project, document);
+    }
+
+    match mode {
+        "update" | "store" => match args.get("content").and_then(Value::as_str) {
+            Some(content) => {
+                store.update_document(project, content);
+                json!({ "ok": true, "status": "updated", "document": content })
+            }
+            // Baseline §14.1/§14.4: missing content on update/store has no
+            // distinct error path -- it silently degrades to a get-shaped
+            // response over whatever was already stored.
+            None => adr_document_get_response(&store, project),
+        },
+        "sections" => {
+            let headings = store.list_document_headings(project);
+            json!({ "ok": true, "sections": headings })
+        }
+        _ => adr_document_get_response(&store, project),
+    }
+}
+
+fn adr_document_get_response(store: &AdrStore, project: &str) -> Value {
+    let AdrDocument { content, no_adr } = store.get_document(project);
+    if no_adr {
+        json!({
+            "ok": true,
+            "content": "",
+            "status": "no_adr",
+            "adr_hint": "No ADR yet. Create one with manage_adr(mode='update', content='## PURPOSE\\n...\\n\\n## STACK\\n...\\n\\n## ARCHITECTURE\\n...\\n\\n## PATTERNS\\n...\\n\\n## TRADEOFFS\\n...\\n\\n## PHILOSOPHY\\n...'). For guided creation: explore the codebase with get_architecture, then draft and store. Sections: PURPOSE, STACK, ARCHITECTURE, PATTERNS, TRADEOFFS, PHILOSOPHY."
+        })
+    } else {
+        json!({ "ok": true, "content": content })
+    }
+}
+
 fn handle_manage_adr(args: &Value) -> Value {
+    // Baseline dispatch: a `project` argument selects the whole-document
+    // API (`refs/x06-baseline-tool-schemas.md` §14). The pre-existing
+    // section-based `operation` argument remains reachable as an extension
+    // mode for callers that want richer per-section CRUD than the baseline
+    // exposes.
+    if let Some(project) = args.get("project").and_then(Value::as_str) {
+        if !project.is_empty() {
+            return handle_manage_adr_document(args, project);
+        }
+    }
+
     let operation = match require_str(args, "operation") {
         Ok(value) => value,
         Err(err) => return err,
