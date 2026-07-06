@@ -23,6 +23,10 @@ _Last updated: 2026-07-05 by x06 orchestrator (session 36a5fb74). Update discipl
 | X06.4 fulltext/vector/rerank | LANDED | rust-build 8310eed+6a1821f (lane deleted) | `proof/memory/x06-rag.json` (P1-unit tier, honest) | Gatekeeper PASS: 120 tests independent rerun; D-07a=SQLite FTS5 CONFIRMED; known follow-ups: soft-signal boosting seam-only in fuse_rrf, ort-models feature empty per D-03, real Qwen3 path deferred |
 | X06.5 background weaver | LANDED | rust-build 6666ff1+a0a7a03 (lane deleted) | `proof/memory/x06-weaver.json` (NOT yet emitted — X06.9) | Gatekeeper PASS: 95 tests independent rerun in clean worktree; worker fixed a real WorkerPool::shutdown deadlock in the salvage; owner-set hits were rustdoc citations only |
 
+## ASSEMBLY MILESTONE (2026-07-06, c9f4d13) — Codex RAG runtime merged
+
+The Codex handoff (lane/x06-models-harvest, deleted after ff-merge) landed the real model runtime into the waiting seams: ort + llama.cpp backends, HF streaming model cache, Qwen3 embedding + reranker with real download/inference proof artifacts (proof/memory/x06-models*.json, x06-retrieval-quality.json), all behind opt-in features (ort-models / model-downloads / real-models; default stays deterministic+offline). Companion secret-scanner suppressions in enforcer-literal-scan (security-sensitive — over-breadth review queued). Gatekeeper PASS: both crates' tests green, clippy/fmt clean, real-models stack compiles. x06 = parity-proven graph engine + real RAG runtime on one branch. Follow-ups: integrated QA Retrieval/Reranking re-run, secret-suppression breadth review, git2/MIDX GitHistory fix, D-03 revisit note (llama.cpp backend arrived alongside ort — record actual backend split in DECISIONS).
+
 ## LIVE PARITY MILESTONE (2026-07-06, commits 235c27b + 73f4f60)
 
 Live tool-by-tool diff vs the installed C binary (proof/memory/x06-kg-parity.json):
