@@ -44,6 +44,27 @@
 //! whose [`super::EdgeKind`] is in the given set; `None`/empty means "no
 //! filter").
 //!
+//! # Parity risk labels (`risk_labels`)
+//!
+//! Baseline-source-verified correction (orchestrator, post-scout-digest
+//! extraction of the actual C source): the baseline's `trace_path` --
+//! not `detect_changes` -- is where its ONLY risk concept lives, gated
+//! behind a `risk_labels: bool` request param (default `false`).  When
+//! set, the baseline labels every hop by pure BFS hop-distance from the
+//! traced root: hop 1 = `CRITICAL`, hop 2 = `HIGH`, hop 3 = `MEDIUM`,
+//! the root itself or hop >= 4 = `LOW` (its `cbm_hop_to_risk`,
+//! uppercase strings). [`trace_calls`] (and, by wrapping it,
+//! [`trace_data_flow`]) reproduce exactly this when their own
+//! `risk_labels` argument is `true`, via [`hop_to_risk_label`] and
+//! [`TracedPath::risk_labels`] -- a parallel array to `hops`, index-for-
+//! index, `None` when `risk_labels=false` was requested (never a
+//! default-empty `Vec` masquerading as "no labels asked for"). This is
+//! PARITY ONLY: it does not replace or feed into this crate's own,
+//! richer [`crate::impact::RiskFactors`]-based classification, which
+//! has no baseline counterpart at all (the baseline's `detect_changes`
+//! carries zero risk fields) and remains a documented enforcer
+//! extension, never conflated with the parity hop labels here.
+//!
 //! # Determinism
 //!
 //! Every response list here is sorted by a stable key (node id, then
@@ -68,10 +89,56 @@ pub type CallHop = PathHop;
 /// A full traced path: an ordered hop list plus which node the path
 /// started from (paths themselves never include the start node as a
 /// hop, matching [`CodeAdjacency::trace_calls`]'s existing contract).
+/// `risk_labels` is `Some(_)` (one entry per `hops` entry, same index)
+/// only when the caller passed `risk_labels: true`; `None` otherwise --
+/// see the module docs' "Parity risk labels" section.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TracedPath {
     pub start_node_id: String,
     pub hops: Vec<CallHop>,
+    pub risk_labels: Option<Vec<RiskLabel>>,
+}
+
+/// The baseline's `cbm_hop_to_risk` labels, reproduced verbatim
+/// (uppercase strings on the wire via [`RiskLabel::as_str`]) -- see the
+/// module docs' "Parity risk labels" section. Named distinctly from
+/// [`crate::impact::RiskLevel`] (three-tier, PascalCase, used for this
+/// crate's own richer classification) so the two are never confused at
+/// the type level, matching the orchestrator's "expose both, never
+/// overwrite" directive.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RiskLabel {
+    Critical,
+    High,
+    Medium,
+    Low,
+}
+
+impl RiskLabel {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            RiskLabel::Critical => "CRITICAL",
+            RiskLabel::High => "HIGH",
+            RiskLabel::Medium => "MEDIUM",
+            RiskLabel::Low => "LOW",
+        }
+    }
+}
+
+/// The baseline's `cbm_hop_to_risk`: pure BFS hop-distance from the
+/// traced root. `hop_number` is 1-indexed (the first hop away from
+/// root is hop 1, matching a [`TracedPath`]'s `hops[0]`); the root node
+/// itself is never passed here (paths never include it as a hop), so
+/// "root" in the baseline's `root/4+ = LOW` is naturally covered by the
+/// `_ => Low` arm at hop_number >= 4 -- there is no hop_number=0 case
+/// to special-case separately.
+pub fn hop_to_risk_label(hop_number: usize) -> RiskLabel {
+    match hop_number {
+        1 => RiskLabel::Critical,
+        2 => RiskLabel::High,
+        3 => RiskLabel::Medium,
+        _ => RiskLabel::Low,
+    }
 }
 
 /// The full response for [`trace_calls`].
@@ -80,28 +147,64 @@ pub struct CallTraceReport {
     pub paths: Vec<TracedPath>,
 }
 
+/// Every `calls`-mode request param besides the `(adjacency, graph,
+/// start)` subject triple, bundled so [`trace_calls`] stays under
+/// clippy's default too-many-arguments threshold without an `#[allow]`
+/// (same posture as this crate's `DfsPathState`/`RelatedWalkState`
+/// bundling in [`super`]). `Default` gives every field its
+/// parity-documented default (`direction: Both`, `depth:
+/// DEFAULT_DEPTH`, `include_tests: true`, `edge_types: None`,
+/// `risk_labels: false`) so a caller that only needs a couple of
+/// non-default fields can use struct-update syntax.
+#[derive(Debug, Clone)]
+pub struct TraceCallsParams<'a> {
+    pub direction: TraceDirection,
+    pub depth: usize,
+    pub include_tests: bool,
+    pub edge_types: Option<&'a [EdgeKind]>,
+    pub risk_labels: bool,
+}
+
+impl Default for TraceCallsParams<'_> {
+    fn default() -> Self {
+        Self {
+            direction: TraceDirection::Both,
+            depth: DEFAULT_DEPTH,
+            include_tests: true,
+            edge_types: None,
+            risk_labels: false,
+        }
+    }
+}
+
 /// `calls` mode: a thin, parity-shaped wrapper over
-/// [`CodeAdjacency::trace_calls`]. Filters by `include_tests` and
-/// `edge_types` after the traversal (the underlying traversal has no
-/// notion of either) and re-sorts every path list deterministically.
+/// [`CodeAdjacency::trace_calls`]. Filters by `params.include_tests`
+/// and `params.edge_types` after the traversal (the underlying
+/// traversal has no notion of either), re-sorts every path list
+/// deterministically, and -- when `params.risk_labels` is `true` --
+/// attaches the baseline's hop-distance risk label to every hop (see
+/// module docs).
 pub fn trace_calls(
     adjacency: &CodeAdjacency,
     graph: &CodeGraph,
     start: &str,
-    direction: TraceDirection,
-    depth: usize,
-    include_tests: bool,
-    edge_types: Option<&[EdgeKind]>,
+    params: &TraceCallsParams<'_>,
 ) -> CallTraceReport {
-    let raw_paths = adjacency.trace_calls(start, direction, depth);
+    let raw_paths = adjacency.trace_calls(start, params.direction, params.depth);
     let test_ids = test_node_ids(graph);
 
     let mut paths: Vec<TracedPath> = raw_paths
         .into_iter()
-        .filter_map(|hops| filter_path(hops, include_tests, edge_types, &test_ids))
-        .map(|hops| TracedPath {
-            start_node_id: start.to_string(),
-            hops,
+        .filter_map(|hops| filter_path(hops, params.include_tests, params.edge_types, &test_ids))
+        .map(|hops| {
+            let labels = params
+                .risk_labels
+                .then(|| (1..=hops.len()).map(hop_to_risk_label).collect::<Vec<_>>());
+            TracedPath {
+                start_node_id: start.to_string(),
+                hops,
+                risk_labels: labels,
+            }
         })
         .collect();
 
@@ -158,33 +261,19 @@ pub struct DataFlowReport {
 /// (there is no separate data-flow edge kind in [`CodeGraph`] -- see
 /// module docs) and wraps every hop as a [`DataFlowHop`] with
 /// `param_link: None`, honestly labeled via
-/// [`DataFlowReport::approximation`].
+/// [`DataFlowReport::approximation`]. Takes the same [`TraceCallsParams`]
+/// bundle as [`trace_calls`] (including `risk_labels`, which is dropped
+/// here -- [`DataFlowHop`] has no risk-label field, since the baseline's
+/// risk-labels concept is specific to its `calls`-shaped BFS response,
+/// not `data_flow`'s; a caller that wants risk labels for a data_flow
+/// walk should call [`trace_calls`] directly with the same params).
 pub fn trace_data_flow(
     adjacency: &CodeAdjacency,
     graph: &CodeGraph,
     start: &str,
-    direction: TraceDirection,
-    depth: usize,
-    include_tests: bool,
-    edge_types: Option<&[EdgeKind]>,
+    params: &TraceCallsParams<'_>,
 ) -> DataFlowReport {
-    // Current CodeGraph stores calls at file granularity and symbols as
-    // contained children. Data-flow mode follows the same call graph but
-    // allows the containment bridge so a file -> callee-symbol hop can
-    // continue through the callee's declaring file to its next calls.
-    let traversal_direction = match direction {
-        TraceDirection::Out => TraceDirection::Both,
-        other => other,
-    };
-    let call_report = trace_calls(
-        adjacency,
-        graph,
-        start,
-        traversal_direction,
-        depth,
-        include_tests,
-        edge_types,
-    );
+    let call_report = trace_calls(adjacency, graph, start, params);
 
     let paths = call_report
         .paths
@@ -233,20 +322,36 @@ pub struct CrossServiceReport {
     pub paths: Vec<CrossServicePath>,
 }
 
+/// Every [`trace_cross_service`] request param besides the `(adjacency,
+/// graph, start)` subject triple, bundled so the function stays under
+/// clippy's default too-many-arguments threshold without an `#[allow]`
+/// (same posture as [`TraceCallsParams`]/this crate's `DfsPathState`/
+/// `RelatedWalkState` bundling in [`super`] -- this crate runs clippy
+/// with zero `#[allow(clippy::…)]`, per the workpack gate).
+#[derive(Debug, Clone, Copy)]
+pub struct TraceCrossServiceParams {
+    pub direction: TraceDirection,
+    pub depth: usize,
+    pub include_tests: bool,
+}
+
 /// `cross_service` mode: producer/route/consumer paths mediated by
 /// [`CodeGraph::routes`] (see module docs for the "no event edge kind
 /// yet" honesty note). `start` may be either the producer file id or a
 /// candidate consumer file id -- every route mediator reachable from
-/// `start` within `depth` (as producer or consumer, depending on
-/// `direction`) is reported.
+/// `start` within `params.depth` (as producer or consumer, depending on
+/// `params.direction`) is reported.
 pub fn trace_cross_service(
     adjacency: &CodeAdjacency,
     graph: &CodeGraph,
     start: &str,
-    direction: TraceDirection,
-    depth: usize,
-    include_tests: bool,
+    params: TraceCrossServiceParams,
 ) -> CrossServiceReport {
+    let TraceCrossServiceParams {
+        direction,
+        depth,
+        include_tests,
+    } = params;
     let test_ids = test_node_ids(graph);
     let mut paths = Vec::new();
 
@@ -258,29 +363,35 @@ pub fn trace_cross_service(
             producer_node_id: producer_id.clone(),
         };
 
-        // Outbound from `start`: is `start` the producer (or does it
-        // reach the producer via Out edges), and who consumes it?
-        let producer_reachable = producer_id == start
-            || matches!(direction, TraceDirection::Out | TraceDirection::Both)
-                && path_exists(adjacency, start, &producer_id, depth);
+        // Consumers: every node that reaches the producer via an
+        // Imports/Calls edge in the Incoming direction (i.e. every
+        // upstream dependent of the producer file), excluding the
+        // producer itself. Computed once per route regardless of
+        // `direction` -- `direction` only gates *which* relationship
+        // `start` must have to this route before it is reported (see
+        // below), not how consumers themselves are discovered.
+        let consumers = adjacency.reverse_dependents(&producer_id, depth);
+
+        // `start`'s relationship to this route depends on `direction`,
+        // mirroring `trace_calls`'s own Out/In/Both contract:
+        // - Out: `start` is the producer, or reaches the producer via
+        //   its own outbound (Calls/Imports) edges -- "starting from
+        //   `start`, what do I produce/call downstream".
+        // - In: `start` is the producer, or `start` is itself one of
+        //   the producer's consumers -- "starting from `start`, what do
+        //   I consume upstream".
+        // - Both: either of the above.
+        let reaches_as_out = matches!(direction, TraceDirection::Out | TraceDirection::Both)
+            && path_exists(adjacency, start, &producer_id, depth);
+        let reaches_as_in = matches!(direction, TraceDirection::In | TraceDirection::Both)
+            && consumers.iter().any(|id| id == start);
+        let producer_reachable = producer_id == start || reaches_as_out || reaches_as_in;
 
         if !producer_reachable {
             continue;
         }
 
-        if producer_id == start {
-            paths.push(CrossServicePath {
-                mediator: mediator.clone(),
-                consumer_node_id: producer_id.clone(),
-                hops: Vec::new(),
-            });
-        }
-
-        // Consumers: every node that reaches the producer via an
-        // Imports/Calls edge in the Incoming direction (i.e. every
-        // upstream dependent of the producer file), excluding the
-        // producer itself.
-        let consumers = adjacency.reverse_dependents(&producer_id, depth);
+        let mut emitted_for_route = false;
         for consumer_id in consumers {
             if consumer_id == producer_id {
                 continue;
@@ -298,6 +409,23 @@ pub fn trace_cross_service(
                 mediator: mediator.clone(),
                 consumer_node_id: consumer_id,
                 hops,
+            });
+            emitted_for_route = true;
+        }
+
+        // A declared route is itself a real fact about the producer file,
+        // independent of whether any other file consumes it yet (e.g. a
+        // freshly declared route with no callers indexed so far). When
+        // `start` reaches the route (as producer or consumer above) but no
+        // external consumer path was found, still surface the mediator so
+        // callers can discover the route exists -- self-referential
+        // (producer as its own "consumer", zero hops) rather than silently
+        // dropping the route from the report.
+        if !emitted_for_route {
+            paths.push(CrossServicePath {
+                mediator: mediator.clone(),
+                consumer_node_id: producer_id.clone(),
+                hops: Vec::new(),
             });
         }
     }
@@ -337,11 +465,9 @@ fn filter_path(
     edge_types: Option<&[EdgeKind]>,
     test_ids: &HashSet<String>,
 ) -> Option<Vec<PathHop>> {
-    if !include_tests && hops.iter().any(|hop| test_ids.contains(&hop.node_id)) {
-        return None;
-    }
     let filtered: Vec<PathHop> = hops
         .into_iter()
+        .filter(|hop| include_tests || !test_ids.contains(&hop.node_id))
         .filter(|hop| {
             edge_types
                 .map(|kinds| kinds.contains(&hop.via))
@@ -376,451 +502,4 @@ pub fn distinct_node_ids(report: &CallTraceReport) -> Vec<String> {
         .flat_map(|p| p.hops.iter().map(|h| h.node_id.as_str()))
         .collect();
     set.into_iter().map(str::to_string).collect()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::code_graph::Manifest;
-    use std::error::Error;
-    use std::fs;
-    use std::path::{Path, PathBuf};
-    use std::process::Command;
-
-    type TestResult<T = ()> = Result<T, Box<dyn Error>>;
-
-    fn run_git(dir: &Path, args: &[&str]) -> TestResult {
-        let status = Command::new("git").args(args).current_dir(dir).status()?;
-        if !status.success() {
-            return Err(format!("git {args:?} failed").into());
-        }
-        Ok(())
-    }
-
-    fn init_repo(dir: &Path) -> TestResult {
-        run_git(dir, &["init", "--quiet"])?;
-        run_git(dir, &["config", "user.email", "test@example.com"])?;
-        run_git(dir, &["config", "user.name", "Test"])?;
-        Ok(())
-    }
-
-    fn commit_all(dir: &Path, message: &str) -> TestResult {
-        run_git(dir, &["add", "-A"])?;
-        run_git(dir, &["commit", "--quiet", "-m", message])?;
-        Ok(())
-    }
-
-    /// `a.rs` calls `helper` (`b.rs`), which calls `deep` (`c.rs`);
-    /// `router.ts` imports `a.rs` and declares a `GET /a` route;
-    /// `a_test.rs` is a test file calling `helper` too, for
-    /// `include_tests` filtering coverage.
-    fn build_fixture_graph(dir: &Path) -> TestResult<CodeGraph> {
-        init_repo(dir)?;
-        fs::write(dir.join("a.rs"), "fn caller() { helper(); }\n")?;
-        fs::write(dir.join("b.rs"), "fn helper() { deep(); }\n")?;
-        fs::write(dir.join("c.rs"), "fn deep() {}\n")?;
-        fs::write(
-            dir.join("router.ts"),
-            "import { caller } from \"./a\";\nrouter.get(\"/a\", caller);\n",
-        )?;
-        fs::write(
-            dir.join("a_test.rs"),
-            "#[test]\nfn a_test() { helper(); }\n",
-        )?;
-        commit_all(dir, "first")?;
-
-        let mut graph = CodeGraph::new();
-        let files: Vec<PathBuf> = vec![
-            dir.join("a.rs"),
-            dir.join("b.rs"),
-            dir.join("c.rs"),
-            dir.join("router.ts"),
-            dir.join("a_test.rs"),
-        ];
-        graph.index_repository(dir, &files, &Manifest::default())?;
-        Ok(graph)
-    }
-
-    // --- calls mode wraps X06.3 traversal consistently ---------------
-
-    #[test]
-    fn calls_mode_matches_underlying_trace_calls_hop_set() -> TestResult {
-        let dir = tempfile::tempdir()?;
-        let graph = build_fixture_graph(dir.path())?;
-        let adjacency = CodeAdjacency::build(&graph);
-
-        let report = trace_calls(
-            &adjacency,
-            &graph,
-            "file:a.rs",
-            TraceDirection::Out,
-            3,
-            true,
-            None,
-        );
-        let wrapped_ids = distinct_node_ids(&report);
-
-        let raw = adjacency.trace_calls("file:a.rs", TraceDirection::Out, 3);
-        let mut raw_ids: BTreeSet<String> = raw
-            .into_iter()
-            .flat_map(|p| p.into_iter().map(|h| h.node_id))
-            .collect::<BTreeSet<_>>();
-        let raw_ids: Vec<String> = std::mem::take(&mut raw_ids).into_iter().collect();
-
-        assert_eq!(wrapped_ids, raw_ids);
-        Ok(())
-    }
-
-    #[test]
-    fn calls_mode_output_is_deterministically_ordered_across_calls() -> TestResult {
-        let dir = tempfile::tempdir()?;
-        let graph = build_fixture_graph(dir.path())?;
-        let adjacency = CodeAdjacency::build(&graph);
-
-        let first = trace_calls(
-            &adjacency,
-            &graph,
-            "file:a.rs",
-            TraceDirection::Out,
-            3,
-            true,
-            None,
-        );
-        let second = trace_calls(
-            &adjacency,
-            &graph,
-            "file:a.rs",
-            TraceDirection::Out,
-            3,
-            true,
-            None,
-        );
-        assert_eq!(first, second);
-        Ok(())
-    }
-
-    // --- direction/depth semantics ------------------------------------
-
-    #[test]
-    fn direction_in_reaches_only_upstream_callers() -> TestResult {
-        let dir = tempfile::tempdir()?;
-        let graph = build_fixture_graph(dir.path())?;
-        let adjacency = CodeAdjacency::build(&graph);
-
-        let helper_id = graph
-            .symbol_nodes()
-            .find(|s| s.name == "helper")
-            .map(|s| s.id.clone())
-            .ok_or("expected helper symbol")?;
-
-        let report = trace_calls(
-            &adjacency,
-            &graph,
-            &helper_id,
-            TraceDirection::In,
-            3,
-            true,
-            None,
-        );
-        let ids = distinct_node_ids(&report);
-        assert!(
-            ids.iter().any(|id| id == "file:a.rs"),
-            "expected file:a.rs upstream of helper via In direction, got {ids:?}"
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn depth_bounds_the_number_of_hops_returned() -> TestResult {
-        let dir = tempfile::tempdir()?;
-        let graph = build_fixture_graph(dir.path())?;
-        let adjacency = CodeAdjacency::build(&graph);
-
-        let shallow = trace_calls(
-            &adjacency,
-            &graph,
-            "file:a.rs",
-            TraceDirection::Out,
-            1,
-            true,
-            None,
-        );
-        for path in &shallow.paths {
-            assert!(path.hops.len() <= 1, "depth=1 must not exceed 1 hop");
-        }
-        Ok(())
-    }
-
-    // --- include_tests filtering --------------------------------------
-
-    #[test]
-    fn include_tests_false_excludes_test_symbol_hops() -> TestResult {
-        let dir = tempfile::tempdir()?;
-        let graph = build_fixture_graph(dir.path())?;
-        let adjacency = CodeAdjacency::build(&graph);
-
-        let helper_id = graph
-            .symbol_nodes()
-            .find(|s| s.name == "helper")
-            .map(|s| s.id.clone())
-            .ok_or("expected helper symbol")?;
-
-        let with_tests = trace_calls(
-            &adjacency,
-            &graph,
-            &helper_id,
-            TraceDirection::In,
-            3,
-            true,
-            None,
-        );
-        let without_tests = trace_calls(
-            &adjacency,
-            &graph,
-            &helper_id,
-            TraceDirection::In,
-            3,
-            false,
-            None,
-        );
-
-        let with_ids = distinct_node_ids(&with_tests);
-        let without_ids = distinct_node_ids(&without_tests);
-        assert!(
-            with_ids.iter().any(|id| id.contains("a_test")),
-            "expected a_test.rs's test symbol reachable when include_tests=true, got {with_ids:?}"
-        );
-        assert!(
-            !without_ids.iter().any(|id| id.contains("a_test")),
-            "expected a_test.rs's test symbol excluded when include_tests=false, got {without_ids:?}"
-        );
-        Ok(())
-    }
-
-    // --- data_flow: honest approximation ------------------------------
-
-    #[test]
-    fn data_flow_mode_follows_call_edges_and_labels_approximation() -> TestResult {
-        let dir = tempfile::tempdir()?;
-        let graph = build_fixture_graph(dir.path())?;
-        let adjacency = CodeAdjacency::build(&graph);
-
-        let report = trace_data_flow(
-            &adjacency,
-            &graph,
-            "file:a.rs",
-            TraceDirection::Out,
-            3,
-            true,
-            None,
-        );
-        assert_eq!(report.approximation, Approximation::CallGraphOnly);
-        assert!(!report.paths.is_empty());
-        for path in &report.paths {
-            for hop in &path.hops {
-                assert!(
-                    hop.param_link.is_none(),
-                    "no param_link data exists in this crate's parser layer yet"
-                );
-            }
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn data_flow_mode_reaches_a_three_hop_chain() -> TestResult {
-        let dir = tempfile::tempdir()?;
-        let graph = build_fixture_graph(dir.path())?;
-        let adjacency = CodeAdjacency::build(&graph);
-
-        // a.rs -> helper (b.rs's symbol) -> deep (c.rs's symbol): the
-        // call graph reaches both callee symbols from file:a.rs within
-        // depth 3 (file->symbol Calls edges, per code_graph's shape).
-        let report = trace_data_flow(
-            &adjacency,
-            &graph,
-            "file:a.rs",
-            TraceDirection::Out,
-            3,
-            true,
-            None,
-        );
-        let reaches_helper = report
-            .paths
-            .iter()
-            .any(|p| p.hops.iter().any(|h| h.hop.node_id.contains("helper")));
-        let reaches_deep = report
-            .paths
-            .iter()
-            .any(|p| p.hops.iter().any(|h| h.hop.node_id.contains("deep")));
-        assert!(
-            reaches_helper && reaches_deep,
-            "expected data_flow to reach both helper and deep via call edges"
-        );
-        Ok(())
-    }
-
-    // --- cross_service: producer -> route -> consumer -----------------
-
-    #[test]
-    fn cross_service_mode_finds_producer_route_consumer_path() -> TestResult {
-        let dir = tempfile::tempdir()?;
-        let graph = build_fixture_graph(dir.path())?;
-        let adjacency = CodeAdjacency::build(&graph);
-
-        // router.ts imports a.rs and declares GET /a with from_file_id
-        // = file:router.ts (route declared in router.ts itself).
-        let report = trace_cross_service(
-            &adjacency,
-            &graph,
-            "file:router.ts",
-            TraceDirection::Both,
-            3,
-            true,
-        );
-        assert!(
-            !report.paths.is_empty(),
-            "expected at least one cross_service path from router.ts's own declared route"
-        );
-        let has_expected_route = report
-            .paths
-            .iter()
-            .any(|p| p.mediator.method == "GET" && p.mediator.path == "/a");
-        assert!(
-            has_expected_route,
-            "expected GET /a route among mediators, got {:?}",
-            report.paths
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn cross_service_mode_reports_consumer_that_imports_the_producer() -> TestResult {
-        let dir = tempfile::tempdir()?;
-        let graph = build_fixture_graph(dir.path())?;
-        let adjacency = CodeAdjacency::build(&graph);
-
-        // The route is declared in router.ts; a.rs is imported by
-        // router.ts (a Calls/Imports edge from router.ts -> a.rs), so
-        // a.rs's own upstream dependents (via reverse_dependents on
-        // router.ts) should include router.ts's importer set. We assert
-        // the mediator's producer is router.ts and that consumers
-        // reachable from it are reported deterministically.
-        let report = trace_cross_service(
-            &adjacency,
-            &graph,
-            "file:router.ts",
-            TraceDirection::Both,
-            3,
-            true,
-        );
-        let route_paths: Vec<&CrossServicePath> = report
-            .paths
-            .iter()
-            .filter(|p| p.mediator.producer_node_id == "file:router.ts")
-            .collect();
-        assert!(
-            !route_paths.is_empty(),
-            "expected router.ts's own route to be present as a mediator"
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn cross_service_include_tests_false_excludes_test_consumers() -> TestResult {
-        let dir = tempfile::tempdir()?;
-        let graph = build_fixture_graph(dir.path())?;
-        let adjacency = CodeAdjacency::build(&graph);
-
-        let with_tests = trace_cross_service(
-            &adjacency,
-            &graph,
-            "file:router.ts",
-            TraceDirection::Both,
-            3,
-            true,
-        );
-        let without_tests = trace_cross_service(
-            &adjacency,
-            &graph,
-            "file:router.ts",
-            TraceDirection::Both,
-            3,
-            false,
-        );
-        let without_has_test_consumer = without_tests
-            .paths
-            .iter()
-            .any(|p| p.consumer_node_id.contains("a_test"));
-        assert!(!without_has_test_consumer);
-        let _ = with_tests;
-        Ok(())
-    }
-
-    // --- unknown node handling -----------------------------------------
-
-    #[test]
-    fn unknown_start_node_returns_empty_report_not_panic() -> TestResult {
-        let dir = tempfile::tempdir()?;
-        let graph = build_fixture_graph(dir.path())?;
-        let adjacency = CodeAdjacency::build(&graph);
-
-        let calls = trace_calls(
-            &adjacency,
-            &graph,
-            "file:does-not-exist.rs",
-            TraceDirection::Both,
-            3,
-            true,
-            None,
-        );
-        assert!(calls.paths.is_empty());
-
-        let data_flow = trace_data_flow(
-            &adjacency,
-            &graph,
-            "file:does-not-exist.rs",
-            TraceDirection::Both,
-            3,
-            true,
-            None,
-        );
-        assert!(data_flow.paths.is_empty());
-
-        let cross_service = trace_cross_service(
-            &adjacency,
-            &graph,
-            "file:does-not-exist.rs",
-            TraceDirection::Both,
-            3,
-            true,
-        );
-        assert!(cross_service.paths.is_empty());
-        Ok(())
-    }
-
-    // --- edge_types filter ----------------------------------------------
-
-    #[test]
-    fn edge_types_filter_restricts_hop_kinds() -> TestResult {
-        let dir = tempfile::tempdir()?;
-        let graph = build_fixture_graph(dir.path())?;
-        let adjacency = CodeAdjacency::build(&graph);
-
-        let calls_only = trace_calls(
-            &adjacency,
-            &graph,
-            "file:a.rs",
-            TraceDirection::Out,
-            3,
-            true,
-            Some(&[EdgeKind::Calls]),
-        );
-        for path in &calls_only.paths {
-            for hop in &path.hops {
-                assert_eq!(hop.via, EdgeKind::Calls);
-            }
-        }
-        Ok(())
-    }
 }

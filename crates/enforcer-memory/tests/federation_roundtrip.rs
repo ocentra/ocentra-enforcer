@@ -1,17 +1,19 @@
 //! X06.8 integration test: sharing/federation/artifacts, exercised across
-//! crate boundaries the way a real caller would use them together --
+//! module boundaries the way a real caller would use them together --
 //! `store::manifest::ArtifactManifest` -> `artifacts::get_exact`,
 //! `graph::MemoryGraph` -> `share::export_bundle` ->
-//! `federation::import_bundle`, and `redaction::redact_record` against a
-//! committed golden fixture. The per-module unit tests in
+//! `federation::import_bundle`, `redaction::redact_record` against a
+//! committed golden fixture, and the `.codebase-memory/graph.db.zst`
+//! persistence artifact round trip. Per-module unit tests in
 //! `src/artifacts.rs`/`src/share.rs`/`src/federation.rs`/`src/redaction.rs`
 //! cover each module in isolation; this file is the hard-test list from
-//! the workpack's X06.8 pack, run end to end.
+//! the workpack's spec, run end to end.
 
 use ed25519_dalek::SigningKey;
 use rand_core::OsRng;
 
 use enforcer_memory::artifacts::{get_exact, ArtifactLookupError};
+use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use enforcer_memory::federation::{import_bundle, RejectReason, RejectedBundle, TrustList};
 use enforcer_memory::graph::MemoryGraph;
 use enforcer_memory::learning::{lesson_status, LessonStatus};
@@ -20,6 +22,8 @@ use enforcer_memory::record::{MemoryRecord, Provenance, RecordDomain, RecordKind
 use enforcer_memory::redaction::{redact_record, RedactionConfig};
 use enforcer_memory::share::{export_bundle, BundleGraphSnapshot, ExportConsent, Scope};
 use enforcer_memory::store::manifest::ArtifactManifest;
+
+type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 fn temp_dir(name: &str) -> std::path::PathBuf {
     let unique = format!(
@@ -55,31 +59,55 @@ fn sample_record(id: &str, landed_at: Vec<&str>) -> MemoryRecord {
     }
 }
 
+fn run_git(dir: &std::path::Path, args: &[&str]) -> TestResult {
+    let status = std::process::Command::new("git")
+        .args(args)
+        .current_dir(dir)
+        .status()?;
+    if !status.success() {
+        return Err(format!("git {args:?} failed").into());
+    }
+    Ok(())
+}
+
+fn init_git_repo(dir: &std::path::Path) -> TestResult {
+    run_git(dir, &["init", "--quiet"])?;
+    run_git(dir, &["config", "user.email", "test@example.com"])?;
+    run_git(dir, &["config", "user.name", "Test"])?;
+    Ok(())
+}
+
+fn commit_all(dir: &std::path::Path, message: &str) -> TestResult {
+    run_git(dir, &["add", "-A"])?;
+    run_git(dir, &["commit", "--quiet", "-m", message])?;
+    Ok(())
+}
+
 // ---------------------------------------------------------------------
-// Exact artifact retrieval + wrong-id fail-closed + traversal rejection
+// 1+2+3: exact content-addressed retrieval, wrong-id fail-closed,
+// traversal rejection.
 // ---------------------------------------------------------------------
 
 #[test]
-fn exact_artifact_retrieval_wrong_id_and_traversal_are_all_fail_closed() {
+fn exact_artifact_retrieval_wrong_id_and_traversal_are_all_fail_closed() -> TestResult {
     let root = temp_dir("artifacts");
-    let mut manifest = ArtifactManifest::open(&root).expect("open manifest");
-    let id = manifest
-        .put(b"exact content", Some("a.txt"), "2026-07-05T00:00:00Z")
-        .expect("put");
+    let mut manifest = ArtifactManifest::open(&root)?;
+    let id = manifest.put(b"exact content", Some("a.txt"), "2026-07-05T00:00:00Z")?;
 
-    // Exact hit.
-    let content = get_exact(&manifest, id.as_str()).expect("exact id must resolve");
+    // 1. Exact hit.
+    let content = get_exact(&manifest, id.as_str())?;
     assert_eq!(content, b"exact content");
 
-    // Wrong (well-formed but unknown) id must fail closed, never return
-    // the artifact above as a "close enough" match.
+    // 2. Wrong (well-formed but unknown) id must fail closed, never
+    // return the artifact above as a "close enough" match.
     let wrong_id = format!("sha256:{}", "11".repeat(32));
     assert!(matches!(
         get_exact(&manifest, &wrong_id),
         Err(ArtifactLookupError::NotFound { .. })
     ));
 
-    // Traversal-shaped ids are rejected outright.
+    // 3. Traversal-shaped ids are rejected outright, before any
+    // filesystem access.
     for traversal in ["../../secrets", "..\\..\\secrets", "/etc/passwd"] {
         assert!(matches!(
             get_exact(&manifest, traversal),
@@ -87,15 +115,16 @@ fn exact_artifact_retrieval_wrong_id_and_traversal_are_all_fail_closed() {
         ));
     }
 
-    let _ = std::fs::remove_dir_all(&root);
+    std::fs::remove_dir_all(&root)?;
+    Ok(())
 }
 
 // ---------------------------------------------------------------------
-// Bundle export -> import roundtrip (personal scope, default)
+// 4: personal-scope export -> import roundtrip.
 // ---------------------------------------------------------------------
 
 #[test]
-fn personal_bundle_export_import_roundtrips_without_consent() {
+fn personal_bundle_export_import_roundtrips_exactly() -> TestResult {
     let mut graph = MemoryGraph::new();
     graph.ingest_record(sample_record("mem-primary-1001", vec!["commit aaa"]));
     graph.ingest_lesson_row(LessonRow {
@@ -112,14 +141,15 @@ fn personal_bundle_export_import_roundtrips_without_consent() {
     let key = SigningKey::generate(&mut OsRng);
     let bundle = export_bundle(
         &snapshot,
-        Scope::Personal,
-        ExportConsent::NotGranted,
-        Some("primary".to_string()),
-        Some("deadbeef".to_string()),
-        "2026-07-05T00:00:00Z",
+        enforcer_memory::share::ExportRequest {
+            scope: Scope::Personal,
+            consent: ExportConsent::Granted,
+            creator: Some("primary".to_string()),
+            git_head: Some("deadbeef".to_string()),
+            created_at: "2026-07-05T00:00:00Z".to_string(),
+        },
         &key,
-    )
-    .expect("personal export needs no consent");
+    )?;
 
     let mut trust_list = TrustList::new();
     trust_list.trust(bundle.signer_public_key_hex.clone());
@@ -131,36 +161,43 @@ fn personal_bundle_export_import_roundtrips_without_consent() {
         &trust_list,
         "2026-07-05T01:00:00Z",
     )
-    .expect("trusted personal bundle imports cleanly");
+    .map_err(|rejected| format!("expected success, got {rejected:?}"))?;
 
     assert_eq!(report.total(), 2);
     assert_eq!(imported_graph.len(), 2);
+    Ok(())
 }
 
 // ---------------------------------------------------------------------
-// Signature-mismatch rejection with reason
+// 5: signature-mismatch rejection with typed reason.
 // ---------------------------------------------------------------------
 
 #[test]
-fn bundle_from_an_untrusted_signer_is_rejected_with_a_recorded_reason() {
+fn tampering_the_signature_bytes_is_rejected_with_a_recorded_reason() -> TestResult {
     let mut graph = MemoryGraph::new();
     graph.ingest_record(sample_record("mem-primary-1002", vec!["commit ccc"]));
     let snapshot = BundleGraphSnapshot::from_graph(&graph);
 
-    let untrusted_key = SigningKey::generate(&mut OsRng);
-    let bundle = export_bundle(
+    let key = SigningKey::generate(&mut OsRng);
+    let mut bundle = export_bundle(
         &snapshot,
-        Scope::Personal,
-        ExportConsent::NotGranted,
-        None,
-        None,
-        "2026-07-05T00:00:00Z",
-        &untrusted_key,
-    )
-    .expect("export succeeds even though this signer will not be trusted");
+        enforcer_memory::share::ExportRequest {
+            scope: Scope::Personal,
+            consent: ExportConsent::Granted,
+            creator: None,
+            git_head: None,
+            created_at: "2026-07-05T00:00:00Z".to_string(),
+        },
+        &key,
+    )?;
 
-    // An empty trust list: nobody is trusted.
-    let trust_list = TrustList::new();
+    let mut trust_list = TrustList::new();
+    trust_list.trust(bundle.signer_public_key_hex.clone());
+
+    // Tamper with the signature hex itself (not the payload) -- this
+    // isolates the signature check specifically.
+    bundle.signature_hex = "00".repeat(64);
+
     let mut imported_graph = MemoryGraph::new();
     let outcome = import_bundle(
         &mut imported_graph,
@@ -169,10 +206,13 @@ fn bundle_from_an_untrusted_signer_is_rejected_with_a_recorded_reason() {
         "2026-07-05T01:00:00Z",
     );
 
-    let rejected = outcome.expect_err("untrusted signer must be rejected, not imported");
+    let rejected: RejectedBundle = match outcome {
+        Err(rejected) => rejected,
+        Ok(_) => return Err("tampered signature must be rejected".into()),
+    };
     assert!(
-        matches!(rejected.reason, RejectReason::Signature(_)),
-        "rejection reason must be recorded as Signature, got {:?}",
+        matches!(rejected.reason, RejectReason::UntrustedSigner(_)),
+        "rejection reason must be recorded as UntrustedSigner, got {:?}",
         rejected.reason
     );
     assert_eq!(rejected.at, "2026-07-05T01:00:00Z");
@@ -180,14 +220,16 @@ fn bundle_from_an_untrusted_signer_is_rejected_with_a_recorded_reason() {
         imported_graph.is_empty(),
         "a rejected bundle must never partially populate the graph"
     );
+    Ok(())
 }
 
 // ---------------------------------------------------------------------
-// Checksum-tamper rejection
+// 6: checksum-tamper rejection (payload bytes modified independent of
+// signature).
 // ---------------------------------------------------------------------
 
 #[test]
-fn tampering_with_the_manifests_content_hash_is_rejected_as_a_checksum_failure() {
+fn tampering_with_the_manifests_content_hash_is_rejected_as_a_checksum_failure() -> TestResult {
     let mut graph = MemoryGraph::new();
     graph.ingest_record(sample_record("mem-primary-1003", vec!["commit ddd"]));
     let snapshot = BundleGraphSnapshot::from_graph(&graph);
@@ -195,22 +237,22 @@ fn tampering_with_the_manifests_content_hash_is_rejected_as_a_checksum_failure()
     let key = SigningKey::generate(&mut OsRng);
     let mut bundle = export_bundle(
         &snapshot,
-        Scope::Personal,
-        ExportConsent::NotGranted,
-        None,
-        None,
-        "2026-07-05T00:00:00Z",
+        enforcer_memory::share::ExportRequest {
+            scope: Scope::Personal,
+            consent: ExportConsent::Granted,
+            creator: None,
+            git_head: None,
+            created_at: "2026-07-05T00:00:00Z".to_string(),
+        },
         &key,
-    )
-    .expect("export succeeds");
+    )?;
 
     let mut trust_list = TrustList::new();
     trust_list.trust(bundle.signer_public_key_hex.clone());
 
     // Corrupt the manifest's recorded content hash WITHOUT touching the
-    // signed compressed bytes -- this must fail at the checksum gate,
-    // proving checksum verification is independent of signature
-    // verification (both must hold, neither substitutes for the other).
+    // signed compressed bytes -- must fail at the checksum gate, proving
+    // checksum verification is independent of signature verification.
     bundle.manifest.content_hash = format!("sha256:{}", "00".repeat(32));
 
     let mut imported_graph = MemoryGraph::new();
@@ -220,22 +262,26 @@ fn tampering_with_the_manifests_content_hash_is_rejected_as_a_checksum_failure()
         &trust_list,
         "2026-07-05T01:00:00Z",
     );
-    let rejected: RejectedBundle =
-        outcome.expect_err("checksum-tampered manifest must be rejected");
+    let rejected: RejectedBundle = match outcome {
+        Err(rejected) => rejected,
+        Ok(_) => return Err("checksum-tampered manifest must be rejected".into()),
+    };
     assert!(
-        matches!(rejected.reason, RejectReason::Checksum { .. }),
-        "expected Checksum rejection, got {:?}",
+        matches!(rejected.reason, RejectReason::ChecksumTamper { .. }),
+        "expected ChecksumTamper rejection, got {:?}",
         rejected.reason
     );
     assert!(imported_graph.is_empty());
+    Ok(())
 }
 
 // ---------------------------------------------------------------------
-// Imported lesson inactive until x05 validation; activation flips it
+// 7: imported lesson inactive until x05 landed-evidence path activates
+// it.
 // ---------------------------------------------------------------------
 
 #[test]
-fn imported_content_stays_inactive_until_a_local_landing_activates_it() {
+fn imported_content_stays_inactive_until_a_local_landing_activates_it() -> TestResult {
     let mut exporter_graph = MemoryGraph::new();
     // The EXPORTER's own repo already landed this -- landed_at is
     // non-empty on their side.
@@ -248,14 +294,15 @@ fn imported_content_stays_inactive_until_a_local_landing_activates_it() {
     let key = SigningKey::generate(&mut OsRng);
     let bundle = export_bundle(
         &snapshot,
-        Scope::Team,
-        ExportConsent::Granted,
-        Some("exporter-team".to_string()),
-        None,
-        "2026-07-05T00:00:00Z",
+        enforcer_memory::share::ExportRequest {
+            scope: Scope::Team,
+            consent: ExportConsent::Granted,
+            creator: Some("exporter-team".to_string()),
+            git_head: None,
+            created_at: "2026-07-05T00:00:00Z".to_string(),
+        },
         &key,
-    )
-    .expect("consented team export succeeds");
+    )?;
 
     let mut trust_list = TrustList::new();
     trust_list.trust(bundle.signer_public_key_hex.clone());
@@ -267,10 +314,10 @@ fn imported_content_stays_inactive_until_a_local_landing_activates_it() {
         &trust_list,
         "2026-07-05T01:00:00Z",
     )
-    .expect("trusted team bundle imports");
+    .map_err(|rejected| format!("expected import to succeed, got {rejected:?}"))?;
 
     // Despite the exporter's own landed_at, THIS repo has not validated
-    // it locally yet -- must be inactive.
+    // it locally yet -- must be inactive immediately after import.
     assert_eq!(
         lesson_status(&local_graph, "mem-primary-1004"),
         Some(LessonStatus::Inactive)
@@ -283,12 +330,10 @@ fn imported_content_stays_inactive_until_a_local_landing_activates_it() {
         "inactive imported record must remain recall-searchable"
     );
 
-    // Local x05 validation: `crate::learning::lesson_status` keys a
-    // single id's status off the FIRST node recorded under that id, so
-    // re-ingesting "mem-primary-1004" again would not itself flip
-    // anything. The existing (X06.6) supersede mechanism is how this
-    // repo vouches for what it imported: land a NEW record whose
-    // `supersedes` names the imported id.
+    // The normal x05 landed-evidence path: land a NEW record whose
+    // `supersedes` names the imported id -- this is how the crate's
+    // existing (x06.6) activation model lets a repo vouch for imported
+    // content, rather than re-ingesting the same id.
     local_graph.ingest_record(MemoryRecord {
         supersedes: Some("mem-primary-1004".to_string()),
         landed_at: vec!["local-validation-commit-456".to_string()],
@@ -308,93 +353,129 @@ fn imported_content_stays_inactive_until_a_local_landing_activates_it() {
         !active.contains(&"mem-primary-1004"),
         "the superseded imported id must never be counted as active"
     );
+    Ok(())
 }
 
 // ---------------------------------------------------------------------
-// Redaction golden: byte-exact
+// 8: redaction golden byte-exact.
 // ---------------------------------------------------------------------
 
 #[test]
-fn community_redaction_matches_the_committed_golden_fixture_byte_exact() {
+fn community_redaction_matches_the_committed_golden_fixture_byte_exact() -> TestResult {
     let fixture_dir =
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/memory/redaction");
-    let input = std::fs::read_to_string(fixture_dir.join("community-input.ndjson"))
-        .expect("read golden input fixture");
-    let expected = std::fs::read_to_string(fixture_dir.join("community-expected.ndjson"))
-        .expect("read golden expected fixture");
+    let input = std::fs::read_to_string(fixture_dir.join("community-input.ndjson"))?;
+    let expected = std::fs::read_to_string(fixture_dir.join("community-expected.ndjson"))?;
 
-    let record: MemoryRecord = serde_json::from_str(input.trim_end()).expect("parse fixture");
+    let record: MemoryRecord = serde_json::from_str(input.trim_end())?;
     let redacted = redact_record(
         &record,
         Some(r"C:\Projects\enforcer"),
         RedactionConfig::default(),
     );
-    let actual = serde_json::to_string(&redacted).expect("serialize") + "\n";
+    let actual = serde_json::to_string(&redacted)? + "\n";
     assert_eq!(
         actual, expected,
         "community redaction output must be byte-exact against the committed golden fixture"
     );
+    Ok(())
 }
 
 // ---------------------------------------------------------------------
-// D-11: graph bootstrap artifact import reconstructs graph counts
+// 9: code-graph artifact export -> bootstrap-import reconstructs
+// identical node/edge counts on a fresh CodeGraph.
 // ---------------------------------------------------------------------
 
 #[test]
-fn team_graph_bootstrap_artifact_import_reconstructs_the_exporters_node_count() {
-    let mut exporter_graph = MemoryGraph::new();
-    for n in 0..5 {
-        exporter_graph.ingest_record(sample_record(
-            &format!("mem-primary-2{n:03}"),
-            vec![format!("commit-{n}").as_str()],
-        ));
-    }
-    for n in 0..3 {
-        exporter_graph.ingest_lesson_row(LessonRow {
-            id: format!("L2{n}"),
-            date: "2026-07-05".to_string(),
-            observed: "observed".to_string(),
-            lesson: "learned".to_string(),
-            landed_at: format!("commit-lesson-{n}"),
-            ships_via: "arc-16".to_string(),
-        });
-    }
-    let snapshot = BundleGraphSnapshot::from_graph(&exporter_graph);
-    let expected_count = snapshot.node_count();
-    assert_eq!(expected_count, 8, "5 records + 3 lessons");
+fn code_graph_artifact_export_then_bootstrap_import_reconstructs_identical_counts() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    init_git_repo(dir.path())?;
+    let file_path = dir.path().join("a.rs");
+    std::fs::write(&file_path, "fn a() {}\nfn b() {}\n")?;
+    commit_all(dir.path(), "first")?;
+
+    let mut graph = CodeGraph::new();
+    graph.index_repository_with_options(
+        dir.path(),
+        std::slice::from_ref(&file_path),
+        &Manifest::default(),
+        enforcer_memory::code_graph::IndexOptions {
+            mode: enforcer_memory::code_graph::IndexMode::Full,
+            persistence: true,
+            project_name: Some("demo"),
+            indexed_at: Some("2026-07-05T00:00:00Z"),
+        },
+    )?;
+    let expected_nodes = graph.nodes().len();
+    let expected_edges = graph.imports().len() + graph.calls().len() + graph.routes().len();
+
+    // A fresh CodeGraph, with an empty manifest, bootstraps purely from
+    // the artifact already on disk.
+    let mut bootstrapped = CodeGraph::new();
+    bootstrapped.index_repository_with_options(
+        dir.path(),
+        &[],
+        &Manifest::default(),
+        enforcer_memory::code_graph::IndexOptions::default(),
+    )?;
+
+    assert_eq!(bootstrapped.nodes().len(), expected_nodes);
+    let bootstrapped_edges =
+        bootstrapped.imports().len() + bootstrapped.calls().len() + bootstrapped.routes().len();
+    assert_eq!(bootstrapped_edges, expected_edges);
+    Ok(())
+}
+
+// ---------------------------------------------------------------------
+// 10: artifact.json field-parity assertion.
+// ---------------------------------------------------------------------
+
+#[test]
+fn artifact_json_has_exactly_the_baseline_field_set_and_schema_version_two() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    init_git_repo(dir.path())?;
+    let file_path = dir.path().join("a.rs");
+    std::fs::write(&file_path, "fn a() {}\n")?;
+    commit_all(dir.path(), "first")?;
+
+    let mut graph = CodeGraph::new();
+    graph.index_repository_with_options(
+        dir.path(),
+        std::slice::from_ref(&file_path),
+        &Manifest::default(),
+        enforcer_memory::code_graph::IndexOptions {
+            mode: enforcer_memory::code_graph::IndexMode::Full,
+            persistence: true,
+            project_name: Some("demo"),
+            indexed_at: Some("2026-07-05T00:00:00Z"),
+        },
+    )?;
+
+    let meta_path = dir.path().join(".codebase-memory").join("artifact.json");
+    let raw = std::fs::read_to_string(&meta_path)?;
+    let value: serde_json::Value = serde_json::from_str(&raw)?;
+    let obj = value
+        .as_object()
+        .ok_or("artifact.json must be a JSON object")?;
+
+    let mut keys: Vec<&str> = obj.keys().map(String::as_str).collect();
+    keys.sort_unstable();
+    let mut expected = vec![
+        "schema_version",
+        "commit",
+        "indexed_at",
+        "project",
+        "nodes",
+        "edges",
+        "original_size",
+        "compressed_size",
+        "compression_level",
+    ];
+    expected.sort_unstable();
     assert_eq!(
-        expected_count,
-        exporter_graph.len(),
-        "snapshot node_count must match the exporter's own graph length \
-         (Incident nodes excluded on both sides -- none exist here)"
+        keys, expected,
+        "artifact.json field set must be exactly the baseline's set, no more no fewer"
     );
-
-    let key = SigningKey::generate(&mut OsRng);
-    let bundle = export_bundle(
-        &snapshot,
-        Scope::Team,
-        ExportConsent::Granted,
-        Some("team-bootstrap".to_string()),
-        Some("bootstrap-head-sha".to_string()),
-        "2026-07-05T00:00:00Z",
-        &key,
-    )
-    .expect("team bootstrap export succeeds");
-
-    let mut trust_list = TrustList::new();
-    trust_list.trust(bundle.signer_public_key_hex.clone());
-
-    // A brand-new teammate's empty graph, bootstrapped purely from the
-    // artifact.
-    let mut new_teammate_graph = MemoryGraph::new();
-    let report = import_bundle(
-        &mut new_teammate_graph,
-        &bundle,
-        &trust_list,
-        "2026-07-05T01:00:00Z",
-    )
-    .expect("team bootstrap artifact imports cleanly");
-
-    assert_eq!(report.total(), expected_count);
-    assert_eq!(new_teammate_graph.len(), expected_count);
+    assert_eq!(obj["schema_version"], serde_json::json!(2));
+    Ok(())
 }

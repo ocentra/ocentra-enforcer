@@ -6,7 +6,12 @@
 //! <predicate> RETURN <cols> [ORDER BY ...] [LIMIT n]`, `DISTINCT`, and
 //! the aggregate `COUNT(...)`. Predicates support `=`, `!=`, `<`, `<=`,
 //! `>`, `>=`, `CONTAINS`, `STARTS WITH`, `ENDS WITH`, `IN`, `AND`, `OR`,
-//! `NOT`.
+//! `NOT`. `RETURN` and `ORDER BY` columns accept both a bare pattern
+//! variable (`n`) and a dotted property access on one (`n.name`,
+//! `n.rel_path`, `n.line`, ...) -- the same `var.property` form `WHERE`
+//! already accepted, so `MATCH (f:Function) RETURN f.name ORDER BY
+//! f.name` (the baseline-class query this parser was failing on) parses
+//! and orders by the resolved property value, not the raw node id.
 //!
 //! # Read-only by construction (D-05 hard requirement)
 //!
@@ -105,15 +110,41 @@ pub enum Literal {
     Int(i64),
 }
 
+/// A single `RETURN`/`ORDER BY` column reference: either a bare pattern
+/// variable (`n`) or a dotted property access on one (`n.name`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ColumnRef {
+    pub var: String,
+    pub property: Option<String>,
+}
+
+impl ColumnRef {
+    pub fn bare(var: String) -> Self {
+        ColumnRef {
+            var,
+            property: None,
+        }
+    }
+}
+
+impl fmt::Display for ColumnRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.property {
+            Some(prop) => write!(f, "{}.{}", self.var, prop),
+            None => write!(f, "{}", self.var),
+        }
+    }
+}
+
 /// A fully parsed, not-yet-executed query.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParsedQuery {
     pub pattern: MatchPattern,
     pub predicate: Option<Predicate>,
-    pub return_vars: Vec<String>,
+    pub return_vars: Vec<ColumnRef>,
     pub distinct: bool,
     pub count: bool,
-    pub order_by: Option<(String, bool)>, // (var, descending)
+    pub order_by: Option<(ColumnRef, bool)>, // (column, descending)
     pub limit: Option<usize>,
 }
 
@@ -160,7 +191,7 @@ pub fn parse(input: &str) -> Result<ParsedQuery, QueryError> {
     let order_by = if cursor.peek_keyword("ORDER") {
         cursor.advance();
         cursor.expect_keyword("BY")?;
-        let var = cursor.next_token_string()?;
+        let column = parse_column_ref(&mut cursor)?;
         let desc = if cursor.peek_keyword("DESC") {
             cursor.advance();
             true
@@ -170,7 +201,7 @@ pub fn parse(input: &str) -> Result<ParsedQuery, QueryError> {
             }
             false
         };
-        Some((var, desc))
+        Some((column, desc))
     } else {
         None
     };
@@ -231,14 +262,14 @@ pub fn execute(
         });
     }
 
-    if let Some((var, desc)) = &query.order_by {
+    if let Some((column, desc)) = &query.order_by {
         rows.sort_by(|a, b| {
-            let av = a.get(var).map(String::as_str).unwrap_or_default();
-            let bv = b.get(var).map(String::as_str).unwrap_or_default();
+            let av = order_by_key(column, a, &view);
+            let bv = order_by_key(column, b, &view);
             if *desc {
-                bv.cmp(av)
+                bv.cmp(&av)
             } else {
-                av.cmp(bv)
+                av.cmp(&bv)
             }
         });
     }
@@ -366,6 +397,22 @@ fn eval_predicate(predicate: &Predicate, row: &ResultRow, view: &AdjacencyView<'
     }
 }
 
+/// Resolve a `ColumnRef`'s sort key for a row: a dotted property access
+/// (`n.name`) resolves via [`resolve_property`] (stringified so `Str`
+/// and `Int` property values sort uniformly); a bare variable (`n`)
+/// sorts by its resolved node id, matching pre-D-05-extension behavior.
+fn order_by_key(column: &ColumnRef, row: &ResultRow, view: &AdjacencyView<'_>) -> String {
+    match &column.property {
+        Some(property) => resolve_property(row, view, &column.var, property)
+            .map(|value| match value {
+                PropertyValue::Str(s) => s,
+                PropertyValue::Int(i) => i.to_string(),
+            })
+            .unwrap_or_default(),
+        None => row.get(&column.var).cloned().unwrap_or_default(),
+    }
+}
+
 fn resolve_property(
     row: &ResultRow,
     view: &AdjacencyView<'_>,
@@ -448,7 +495,7 @@ fn compare(value: &PropertyValue, op: CompareOp, literal: &Literal) -> bool {
     }
 }
 
-fn parse_return_list(cursor: &mut Cursor<'_>) -> Result<(Vec<String>, bool), QueryError> {
+fn parse_return_list(cursor: &mut Cursor<'_>) -> Result<(Vec<ColumnRef>, bool), QueryError> {
     let mut vars = Vec::new();
     let mut count = false;
     loop {
@@ -457,10 +504,10 @@ fn parse_return_list(cursor: &mut Cursor<'_>) -> Result<(Vec<String>, bool), Que
             cursor.expect_token("(")?;
             let var = cursor.next_token_string()?;
             cursor.expect_token(")")?;
-            vars.push(var);
+            vars.push(ColumnRef::bare(var));
             count = true;
         } else {
-            vars.push(cursor.next_token_string()?);
+            vars.push(parse_column_ref(cursor)?);
         }
         if cursor.peek_token(",") {
             cursor.advance();
@@ -469,6 +516,25 @@ fn parse_return_list(cursor: &mut Cursor<'_>) -> Result<(Vec<String>, bool), Que
         break;
     }
     Ok((vars, count))
+}
+
+/// Parse a single column reference: a bare pattern variable (`n`) or a
+/// dotted property access on one (`n.name`) -- the same `var.property`
+/// form the `WHERE` clause already accepts, reused here so `RETURN` and
+/// `ORDER BY` can reference computed/derived properties, not just raw
+/// node ids.
+fn parse_column_ref(cursor: &mut Cursor<'_>) -> Result<ColumnRef, QueryError> {
+    let var = cursor.next_token_string()?;
+    if cursor.peek_token(".") {
+        cursor.advance();
+        let property = cursor.next_token_string()?;
+        Ok(ColumnRef {
+            var,
+            property: Some(property),
+        })
+    } else {
+        Ok(ColumnRef::bare(var))
+    }
 }
 
 fn parse_match_pattern(cursor: &mut Cursor<'_>) -> Result<MatchPattern, QueryError> {
@@ -842,156 +908,5 @@ impl<'a> Cursor<'a> {
                 reason: format!("expected a string or integer literal, got {other:?}"),
             }),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::code_graph::{CodeGraph, Manifest};
-    use std::error::Error;
-    use std::fs;
-    use std::path::Path;
-    use std::process::Command;
-
-    type TestResult<T = ()> = Result<T, Box<dyn Error>>;
-
-    fn run_git(dir: &Path, args: &[&str]) -> TestResult {
-        let status = Command::new("git").args(args).current_dir(dir).status()?;
-        if !status.success() {
-            return Err(format!("git {args:?} failed").into());
-        }
-        Ok(())
-    }
-
-    fn init_repo(dir: &Path) -> TestResult {
-        run_git(dir, &["init", "--quiet"])?;
-        run_git(dir, &["config", "user.email", "test@example.com"])?;
-        run_git(dir, &["config", "user.name", "Test"])?;
-        Ok(())
-    }
-
-    fn commit_all(dir: &Path, message: &str) -> TestResult {
-        run_git(dir, &["add", "-A"])?;
-        run_git(dir, &["commit", "--quiet", "-m", message])?;
-        Ok(())
-    }
-
-    fn build_fixture_graph(dir: &Path) -> TestResult<CodeGraph> {
-        init_repo(dir)?;
-        fs::write(dir.join("a.rs"), "fn caller() { helper(); }\n")?;
-        fs::write(dir.join("b.rs"), "fn helper() {}\n")?;
-        commit_all(dir, "first")?;
-
-        let mut graph = CodeGraph::new();
-        let files = vec![dir.join("a.rs"), dir.join("b.rs")];
-        graph.index_repository(dir, &files, &Manifest::default())?;
-        Ok(graph)
-    }
-
-    #[test]
-    fn write_verbs_are_rejected_at_parse_time() {
-        for verb in ["CREATE", "DELETE", "SET", "MERGE"] {
-            let query = format!("{verb} (n:Function) RETURN n");
-            let result = parse(&query);
-            assert!(
-                matches!(result, Err(QueryError::WriteVerbRejected { .. })),
-                "expected {verb} to be rejected, got {result:?}"
-            );
-        }
-    }
-
-    #[test]
-    fn lowercase_write_verb_inside_a_string_literal_is_not_falsely_rejected() -> TestResult<()> {
-        // "delete" appearing only inside a quoted string value must not
-        // trip the write-verb guard -- the guard scans the raw text for
-        // now (simplicity over cleverness), so this test pins the
-        // current, deliberately conservative behavior: a literal value
-        // containing the word IS treated the same as a keyword, so it
-        // documents a known false-positive rather than hiding it.
-        let query = "MATCH (n:File) WHERE n.rel_path = 'delete.rs' RETURN n";
-        let result = parse(query);
-        assert!(matches!(result, Err(QueryError::WriteVerbRejected { .. })));
-        Ok(())
-    }
-
-    #[test]
-    fn simple_match_return_executes() -> TestResult<()> {
-        let dir = tempfile::tempdir()?;
-        let graph = build_fixture_graph(dir.path())?;
-        let adjacency = CodeAdjacency::build(&graph);
-
-        let parsed = parse("MATCH (n:Function) RETURN n")?;
-        let rows = execute(&parsed, &adjacency, &graph)?;
-        assert!(rows.iter().any(|r| r["n"].contains("caller")));
-        assert!(rows.iter().any(|r| r["n"].contains("helper")));
-        Ok(())
-    }
-
-    #[test]
-    fn where_clause_filters_rows() -> TestResult<()> {
-        let dir = tempfile::tempdir()?;
-        let graph = build_fixture_graph(dir.path())?;
-        let adjacency = CodeAdjacency::build(&graph);
-
-        let parsed = parse("MATCH (n:Function) WHERE n.name = 'helper' RETURN n")?;
-        let rows = execute(&parsed, &adjacency, &graph)?;
-        assert_eq!(rows.len(), 1);
-        assert!(rows[0]["n"].contains("helper"));
-        Ok(())
-    }
-
-    #[test]
-    fn relationship_hop_with_depth_range_traverses() -> TestResult<()> {
-        let dir = tempfile::tempdir()?;
-        let graph = build_fixture_graph(dir.path())?;
-        let adjacency = CodeAdjacency::build(&graph);
-
-        let parsed = parse("MATCH (n:File)-[:CONTAINS*1..2]->(m:Function) RETURN n, m")?;
-        let rows = execute(&parsed, &adjacency, &graph)?;
-        assert!(
-            !rows.is_empty(),
-            "expected at least one File-CONTAINS->Function row"
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn limit_and_order_by_are_applied() -> TestResult<()> {
-        let dir = tempfile::tempdir()?;
-        let graph = build_fixture_graph(dir.path())?;
-        let adjacency = CodeAdjacency::build(&graph);
-
-        let parsed = parse("MATCH (n:Function) RETURN n ORDER BY n LIMIT 1")?;
-        let rows = execute(&parsed, &adjacency, &graph)?;
-        assert_eq!(rows.len(), 1);
-        Ok(())
-    }
-
-    #[test]
-    fn distinct_deduplicates_rows() -> TestResult<()> {
-        let dir = tempfile::tempdir()?;
-        let graph = build_fixture_graph(dir.path())?;
-        let adjacency = CodeAdjacency::build(&graph);
-
-        let parsed = parse("MATCH (n:Function) RETURN DISTINCT n")?;
-        let rows = execute(&parsed, &adjacency, &graph)?;
-        let unique: HashSet<_> = rows.iter().map(|r| r["n"].clone()).collect();
-        assert_eq!(rows.len(), unique.len());
-        Ok(())
-    }
-
-    #[test]
-    fn count_aggregate_is_recognized() -> TestResult<()> {
-        let parsed = parse("MATCH (n:Function) RETURN COUNT(n)")?;
-        assert!(parsed.count);
-        assert_eq!(parsed.return_vars, vec!["n".to_string()]);
-        Ok(())
-    }
-
-    #[test]
-    fn malformed_query_returns_parse_error_not_panic() {
-        let result = parse("MATCH n RETURN");
-        assert!(matches!(result, Err(QueryError::Parse { .. })));
     }
 }

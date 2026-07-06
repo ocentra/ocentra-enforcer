@@ -89,7 +89,6 @@ impl Reranker for FusionScoreReranker {
         LoadState::Degraded(DegradedState::ProviderUnavailable)
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,6 +1,6 @@
 //! X06.8: community-export redaction.
 //!
-//! A `community`-[`crate::share::Scope`] bundle is the widest-audience
+//! A [`crate::share::Scope::Community`] bundle is the widest-audience
 //! export tier this crate produces, so it is the one that MUST NOT leak:
 //!
 //! - absolute repo paths (rewritten to a repo-root-relative, then
@@ -28,13 +28,10 @@ use regex::Regex;
 
 /// Default maximum length (in bytes) of any single raw-source/log
 /// snippet surfaced in a community export before it is truncated with a
-/// marker. Kept generous enough to preserve useful context but short
-/// enough that a community bundle can never smuggle out a whole file.
+/// marker.
 pub const DEFAULT_MAX_SNIPPET_LEN: usize = 400;
 
-/// Redaction configuration. `max_snippet_len` is the only tunable knob
-/// (the path/identity/secret passes are not configurable -- they are
-/// safety invariants, not preferences).
+/// Redaction configuration. `max_snippet_len` is the only tunable knob.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RedactionConfig {
     pub max_snippet_len: usize,
@@ -48,10 +45,6 @@ impl Default for RedactionConfig {
     }
 }
 
-/// Marker text substituted for anything this module strips, so a
-/// redacted document still shows readers THAT something was removed
-/// (never silently blank, which would look like the field was simply
-/// empty to begin with).
 const PATH_MARKER: &str = "<repo-path>";
 const IDENTITY_MARKER: &str = "<redacted-identity>";
 const SECRET_MARKER: &str = "<redacted-secret>";
@@ -59,32 +52,23 @@ const TRUNCATION_MARKER: &str = "\n... [truncated for community export]";
 
 /// Compile a `pattern` literal that is fixed and known-valid at review
 /// time (every call site below passes a hand-written, syntax-checked
-/// pattern). Matches the same "defensive fallback keeps the constructor
-/// infallible without `.unwrap()`/`.expect()`" idiom
-/// [`crate::ids::ArtifactId::from_content`] already uses in this crate:
-/// the error path is unreachable in practice (these patterns are fixed
-/// string literals, not user input), so it is spelled as
-/// `unreachable!()` rather than `.expect(...)` -- clippy's
-/// `unwrap_used`/`expect_used` lints (workspace-denied) target exactly
-/// those two calls, not the `unreachable!()` macro.
+/// pattern). The error path is unreachable in practice, so it is spelled
+/// as `unreachable!()` rather than `.expect(...)`/`.unwrap()` (both
+/// denied at workspace lint level).
 fn static_regex(pattern: &str) -> Regex {
     Regex::new(pattern)
         .unwrap_or_else(|_| unreachable!("static regex pattern {pattern:?} is always valid"))
 }
 
-// Absolute Windows path: drive letter + `:` + `\` or `/`, e.g.
-// `C:\Projects\enforcer\src\lib.rs` or `C:/Projects/enforcer/src/lib.rs`.
+// Absolute Windows path: drive letter + `:` + `\` or `/`.
 static WINDOWS_ABS_PATH: LazyLock<Regex> =
     LazyLock::new(|| static_regex(r#"[A-Za-z]:[\\/](?:[^\s\\/:*?"<>|]+[\\/])*[^\s\\/:*?"<>|]+"#));
 
-// POSIX-style absolute path rooted at `/home/`, `/Users/`, or `/root/`
-// (paths most likely to embed a real username), kept deliberately
-// narrower than "any string starting with /" so ordinary repo-relative
-// or URL-path-shaped text is not falsely flagged.
+// POSIX-style absolute path rooted at `/home/`, `/Users/`, or `/root/`.
 static POSIX_HOME_PATH: LazyLock<Regex> =
     LazyLock::new(|| static_regex(r"/(?:home|Users|root)/[^\s]+"));
 
-// `@handle`-shaped mention (chat/VCS-style author mention).
+// `@handle`-shaped mention.
 static AT_HANDLE: LazyLock<Regex> = LazyLock::new(|| static_regex(r"@[A-Za-z0-9_-]+"));
 
 // Email address.
@@ -93,25 +77,17 @@ static EMAIL: LazyLock<Regex> =
 
 /// Secret-shaped patterns: common API-key/token prefixes, generic
 /// long-hex/base64-ish assignment patterns, and PEM private-key headers.
-/// Deliberately basic/allowlist-style (per the mission's "basic
-/// patterns" scope) rather than a full entropy-based secret scanner --
-/// this is a redaction safety net for a community export, not a
-/// standalone secret-scanning product.
+/// Deliberately basic/allowlist-style rather than a full entropy-based
+/// secret scanner -- this is a redaction safety net for a community
+/// export, not a standalone secret-scanning product.
 static SECRET_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
     vec![
-        // Common vendor-prefixed API keys/tokens (GitHub, Slack, AWS,
-        // Anthropic/OpenAI-style, generic `sk-`/`ghp_`/`xox` families).
         static_regex(
             r"\b(?:sk-[A-Za-z0-9]{16,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16})\b",
         ),
-        // `key = "..."` / `token: '...'` / `password="..."` style
-        // assignments with a long opaque value.
         static_regex(
             r#"(?i)\b(api[_-]?key|secret|token|password|passwd)\b\s*[:=]\s*['"][^'"\s]{8,}['"]"#,
         ),
-        // PEM private-key block headers (the header line alone is
-        // enough to redact -- catching the whole block is the caller's
-        // responsibility if it appears across multiple lines).
         static_regex(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
     ]
 });
@@ -119,9 +95,8 @@ static SECRET_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
 /// Rewrite absolute filesystem paths to a repo-relative, anonymized
 /// form. A path under `repo_root` is rewritten relative to that root
 /// (forward-slash normalized, root prefix + separator stripped); any
-/// OTHER absolute path (outside the known repo root, or matched by the
-/// generic absolute-path patterns when no repo root is known) is
-/// replaced with [`PATH_MARKER`] rather than guessed at.
+/// OTHER absolute path is replaced with [`PATH_MARKER`] rather than
+/// guessed at.
 pub fn redact_path(text: &str, repo_root: Option<&str>) -> String {
     let mut out = text.to_owned();
     if let Some(root) = repo_root {
@@ -135,21 +110,16 @@ pub fn redact_path(text: &str, repo_root: Option<&str>) -> String {
 /// Find every occurrence of `root` (in either `\`- or `/`-separated
 /// form) followed by a path separator and a run of non-whitespace path
 /// characters, and rewrite it to the forward-slash-normalized relative
-/// remainder (root + separator stripped). Matching is done on the raw
-/// bytes of `text` rather than via a single blind string-replace of the
-/// root prefix so that ONLY the remainder after the root is
-/// separator-normalized -- text before/after the matched span is left
-/// exactly as written.
+/// remainder (root + separator stripped).
 fn strip_repo_root_prefix(text: &str, root: &str) -> String {
     let root_escaped_fwd = regex::escape(&root.replace('\\', "/"));
     let root_escaped_back = regex::escape(&root.replace('/', "\\"));
     let pattern = format!(r#"(?:{root_escaped_fwd}|{root_escaped_back})[\\/]([^\s"'<>|,;)]*)"#);
     // `regex::escape` guarantees every metacharacter in `root` is
     // escaped, so this pattern -- built entirely from an escaped
-    // caller-supplied string plus the fixed, review-checked literal
-    // syntax around it -- is always well-formed regardless of what
-    // `root` contains; same infallible-by-construction idiom as
-    // `static_regex` above.
+    // caller-supplied string plus fixed, review-checked literal syntax
+    // around it -- is always well-formed regardless of what `root`
+    // contains; same infallible-by-construction idiom as `static_regex`.
     let re = Regex::new(&pattern)
         .unwrap_or_else(|_| unreachable!("escaped repo-root pattern is always valid"));
     re.replace_all(text, |caps: &regex::Captures<'_>| {
@@ -160,10 +130,8 @@ fn strip_repo_root_prefix(text: &str, root: &str) -> String {
 
 /// Strip author-identity-shaped text: email addresses and `@handle`
 /// mentions. `explicit_identities` is a caller-supplied list of exact
-/// identity strings known from structured fields (e.g.
-/// `provenance.user`, `provenance.session_id`) that must be redacted
-/// even when they do not match the generic patterns (a bare username
-/// with no `@`/domain, for example).
+/// identity strings known from structured fields that must be redacted
+/// even when they do not match the generic patterns.
 pub fn redact_identity(text: &str, explicit_identities: &[&str]) -> String {
     let mut out = EMAIL.replace_all(text, IDENTITY_MARKER).into_owned();
     out = AT_HANDLE.replace_all(&out, IDENTITY_MARKER).into_owned();
@@ -187,8 +155,6 @@ pub fn redact_secrets(text: &str) -> String {
 
 /// Truncate `text` to at most `max_len` bytes at a UTF-8-safe boundary,
 /// appending [`TRUNCATION_MARKER`] when truncation actually occurred.
-/// Text at or under the limit is returned unchanged (no marker appended
-/// -- the marker's presence itself signals "this was cut").
 pub fn truncate_snippet(text: &str, max_len: usize) -> String {
     if text.len() <= max_len {
         return text.to_owned();
@@ -197,14 +163,17 @@ pub fn truncate_snippet(text: &str, max_len: usize) -> String {
     while cut > 0 && !text.is_char_boundary(cut) {
         cut -= 1;
     }
-    let mut out = text[..cut].to_owned();
+    let Some(head) = text.get(..cut) else {
+        return text.to_owned();
+    };
+    let mut out = head.to_owned();
     out.push_str(TRUNCATION_MARKER);
     out
 }
 
 /// Run the full community-export redaction pipeline over `text` in the
-/// fixed order the module docs specify: secrets, then paths, then
-/// identities, then length truncation.
+/// fixed order: secrets, then paths, then identities, then length
+/// truncation.
 pub fn redact_text(
     text: &str,
     repo_root: Option<&str>,
@@ -220,10 +189,8 @@ pub fn redact_text(
 /// Redact one [`crate::record::MemoryRecord`] for community export:
 /// `statement`/`why`/`how_to_apply` run through [`redact_text`];
 /// `provenance.user`/`provenance.session_id`/`provenance.model` are
-/// unconditionally cleared (author identity has no legitimate reason to
-/// survive into a community-tier bundle, so this is not merely pattern
-/// redaction -- the fields are dropped outright); `landed_at`/`evidence`
-/// path-shaped refs are path-redacted too.
+/// unconditionally cleared; `landed_at`/`evidence` path-shaped refs are
+/// path-redacted too.
 pub fn redact_record(
     record: &crate::record::MemoryRecord,
     repo_root: Option<&str>,
@@ -257,10 +224,8 @@ pub fn redact_record(
     }
 
     // Author identity fields: unconditionally cleared, not
-    // pattern-matched -- a community export carries no writer identity
-    // at all. `writer` (the lane/stream name, e.g. "arc-05") is kept: it
-    // identifies a WORK STREAM, not a person, and the workpack's own
-    // schema treats it as non-identity metadata.
+    // pattern-matched. `writer` (the lane/stream name) is kept: it
+    // identifies a WORK STREAM, not a person.
     redacted.provenance.user = None;
     redacted.provenance.session_id = None;
     redacted.provenance.model = None;
@@ -393,31 +358,24 @@ mod tests {
     }
 
     /// GOLDEN: fixture bundle in -> byte-exact expected redacted output.
-    /// The input and expected-output fixtures are committed under
-    /// `tests/fixtures/memory/redaction/` so a future change to the
-    /// redaction pipeline that alters output shape is caught as a diff
-    /// against a committed, reviewable fixture rather than an inline
-    /// string only visible in this test file.
     #[test]
-    fn golden_community_export_redaction_is_byte_exact() {
+    fn golden_community_export_redaction_is_byte_exact() -> Result<(), Box<dyn std::error::Error>> {
         let fixture_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("tests/fixtures/memory/redaction");
-        let input = std::fs::read_to_string(fixture_dir.join("community-input.ndjson"))
-            .expect("read golden input fixture");
-        let expected = std::fs::read_to_string(fixture_dir.join("community-expected.ndjson"))
-            .expect("read golden expected fixture");
+        let input = std::fs::read_to_string(fixture_dir.join("community-input.ndjson"))?;
+        let expected = std::fs::read_to_string(fixture_dir.join("community-expected.ndjson"))?;
 
-        let record: MemoryRecord =
-            serde_json::from_str(input.trim_end()).expect("parse golden input record");
+        let record: MemoryRecord = serde_json::from_str(input.trim_end())?;
         let redacted = redact_record(
             &record,
             Some(r"C:\Projects\enforcer"),
             RedactionConfig::default(),
         );
-        let actual = serde_json::to_string(&redacted).expect("serialize redacted record") + "\n";
+        let actual = serde_json::to_string(&redacted)? + "\n";
         assert_eq!(
             actual, expected,
             "community redaction output must be byte-exact against the committed golden fixture"
         );
+        Ok(())
     }
 }

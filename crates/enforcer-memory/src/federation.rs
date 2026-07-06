@@ -25,12 +25,11 @@
 //! crate-wide "searchable but inactive" rule -- it is simply not counted
 //! as proven yet.
 //!
-//! Activating an imported id is done through
-//! [`crate::learning`]'s EXISTING supersede mechanism (X06.6, not owned
-//! by this subpack), not by re-ingesting the same id: `lesson_status`
-//! keys a single id's status off the FIRST node recorded under that id,
-//! so this repo's own x05 validation lands a NEW record whose
-//! `supersedes` names the imported id -- the new record is what
+//! Activating an imported id is done through [`crate::learning`]'s
+//! EXISTING supersede mechanism (not forked here): `lesson_status` keys
+//! a single id's status off the FIRST node recorded under that id, so
+//! this repo's own x05 validation lands a NEW record whose `supersedes`
+//! names the imported id -- the new record is what
 //! [`crate::learning::active_lessons`] reports as active, and
 //! [`crate::learning::superseded_by`] keeps the audit trail from the
 //! imported id to whatever locally validated it.
@@ -45,7 +44,8 @@ use crate::share::{
 /// carried in [`SignedBundle::signer_public_key_hex`]) this instance
 /// accepts bundles from. Deliberately the simplest possible
 /// representation (no expiry/revocation/rotation) -- callers needing
-/// those layer them on top of `trusted_keys_hex`.
+/// those layer them on top of `trusted_keys_hex`. This is a purely
+/// local, injectable abstraction -- no network call, no PKI.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TrustList {
     trusted_keys_hex: Vec<String>,
@@ -80,25 +80,29 @@ impl TrustList {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RejectReason {
     /// The signer's public key is not in the local [`TrustList`] (or the
-    /// key/signature hex could not even be parsed).
-    Signature(String),
+    /// key/signature hex could not even be parsed, or the signature
+    /// itself does not verify).
+    UntrustedSigner(String),
     /// The manifest's recorded content hash does not match the actual
     /// decompressed payload bytes.
-    Checksum { expected: String, actual: String },
+    ChecksumTamper { expected: String, actual: String },
     /// The manifest's `schema_version` is not
     /// [`crate::share::BUNDLE_SCHEMA_VERSION`].
-    SchemaVersion { found: u32, expected: u32 },
+    SchemaVersionIncompatible { found: u32, expected: u32 },
 }
 
 impl std::fmt::Display for RejectReason {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RejectReason::Signature(detail) => write!(f, "signature: {detail}"),
-            RejectReason::Checksum { expected, actual } => {
-                write!(f, "checksum: expected {expected}, got {actual}")
+            RejectReason::UntrustedSigner(detail) => write!(f, "untrusted-signer: {detail}"),
+            RejectReason::ChecksumTamper { expected, actual } => {
+                write!(f, "checksum-tamper: expected {expected}, got {actual}")
             }
-            RejectReason::SchemaVersion { found, expected } => {
-                write!(f, "schema-version: found {found}, expected {expected}")
+            RejectReason::SchemaVersionIncompatible { found, expected } => {
+                write!(
+                    f,
+                    "schema-version-incompatible: found {found}, expected {expected}"
+                )
             }
         }
     }
@@ -127,6 +131,31 @@ impl ImportReport {
     }
 }
 
+/// An in-memory, append-only log of every rejected import attempt --
+/// "rejections are recorded" per the zero-trust import contract. Callers
+/// wire this alongside [`import_bundle`] (it is not threaded through
+/// automatically, since import is a pure function over its inputs); see
+/// [`import_bundle_logged`] for the convenience wrapper that does both in
+/// one call.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RejectionLog {
+    entries: Vec<RejectedBundle>,
+}
+
+impl RejectionLog {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn record(&mut self, rejected: RejectedBundle) {
+        self.entries.push(rejected);
+    }
+
+    pub fn entries(&self) -> &[RejectedBundle] {
+        &self.entries
+    }
+}
+
 /// Verify `bundle` against `trust_list` (signature, then checksum, then
 /// schema version) and, on success, ingest its snapshot into `graph`
 /// with every record/lesson forced inactive (`landed_at` cleared).
@@ -147,7 +176,7 @@ pub fn import_bundle(
 
     let (decompressed, snapshot) =
         decode_payload_unchecked(&bundle.compressed_payload).map_err(|source| RejectedBundle {
-            reason: RejectReason::Checksum {
+            reason: RejectReason::ChecksumTamper {
                 expected: bundle.manifest.content_hash.clone(),
                 actual: format!("<undecodable: {source}>"),
             },
@@ -169,26 +198,45 @@ pub fn import_bundle(
     Ok(ingest_inactive(graph, snapshot))
 }
 
+/// Same as [`import_bundle`], but on rejection also appends the
+/// [`RejectedBundle`] to `log` before returning it -- the convenience
+/// entry point for callers that want every rejection recorded without
+/// duplicating the `match`/`log.record(...)` boilerplate at every call
+/// site.
+pub fn import_bundle_logged(
+    graph: &mut MemoryGraph,
+    bundle: &SignedBundle,
+    trust_list: &TrustList,
+    at: &str,
+    log: &mut RejectionLog,
+) -> Result<ImportReport, RejectedBundle> {
+    let outcome = import_bundle(graph, bundle, trust_list, at);
+    if let Err(rejected) = &outcome {
+        log.record(rejected.clone());
+    }
+    outcome
+}
+
 fn verify_signature(bundle: &SignedBundle, trust_list: &TrustList) -> Result<(), RejectReason> {
     if !trust_list.is_trusted(&bundle.signer_public_key_hex) {
-        return Err(RejectReason::Signature(format!(
+        return Err(RejectReason::UntrustedSigner(format!(
             "signer key {} is not in the local trust list",
             bundle.signer_public_key_hex
         )));
     }
     let verifying_key = parse_verifying_key(&bundle.signer_public_key_hex)
-        .ok_or_else(|| RejectReason::Signature("unparseable public key".to_owned()))?;
+        .ok_or_else(|| RejectReason::UntrustedSigner("unparseable public key".to_owned()))?;
     let signature = parse_signature(&bundle.signature_hex)
-        .ok_or_else(|| RejectReason::Signature("unparseable signature".to_owned()))?;
+        .ok_or_else(|| RejectReason::UntrustedSigner("unparseable signature".to_owned()))?;
     verifying_key
         .verify_strict(&bundle.compressed_payload, &signature)
-        .map_err(|source| RejectReason::Signature(format!("verification failed: {source}")))
+        .map_err(|source| RejectReason::UntrustedSigner(format!("verification failed: {source}")))
 }
 
 fn verify_checksum(expected_hash: &str, decompressed_payload: &[u8]) -> Result<(), RejectReason> {
     let actual = enforcer_core::hash_chain::link_digest(None, decompressed_payload);
     if actual != expected_hash {
-        return Err(RejectReason::Checksum {
+        return Err(RejectReason::ChecksumTamper {
             expected: expected_hash.to_owned(),
             actual,
         });
@@ -198,7 +246,7 @@ fn verify_checksum(expected_hash: &str, decompressed_payload: &[u8]) -> Result<(
 
 fn verify_schema_version(found: u32) -> Result<(), RejectReason> {
     if found != BUNDLE_SCHEMA_VERSION {
-        return Err(RejectReason::SchemaVersion {
+        return Err(RejectReason::SchemaVersionIncompatible {
             found,
             expected: BUNDLE_SCHEMA_VERSION,
         });
@@ -263,88 +311,98 @@ mod tests {
         BundleGraphSnapshot::from_graph(&graph)
     }
 
-    fn signed_personal_bundle(key: &SigningKey) -> SignedBundle {
+    fn signed_personal_bundle(key: &SigningKey) -> Result<SignedBundle, crate::share::ShareError> {
         export_bundle(
             &sample_snapshot(),
-            Scope::Personal,
-            ExportConsent::NotGranted,
-            None,
-            None,
-            "2026-07-05T00:00:00Z",
+            crate::share::ExportRequest {
+                scope: Scope::Personal,
+                consent: ExportConsent::Granted,
+                creator: None,
+                git_head: None,
+                created_at: "2026-07-05T00:00:00Z".to_string(),
+            },
             key,
         )
-        .expect("export succeeds")
     }
 
     #[test]
-    fn roundtrip_import_from_a_trusted_signer_succeeds() {
+    fn roundtrip_import_from_a_trusted_signer_succeeds() -> Result<(), Box<dyn std::error::Error>> {
         let key = SigningKey::generate(&mut OsRng);
-        let bundle = signed_personal_bundle(&key);
+        let bundle = signed_personal_bundle(&key)?;
         let mut trust_list = TrustList::new();
         trust_list.trust(bundle.signer_public_key_hex.clone());
 
         let mut graph = MemoryGraph::new();
         let report = import_bundle(&mut graph, &bundle, &trust_list, "2026-07-05T01:00:00Z")
-            .expect("trusted, unmodified bundle imports cleanly");
+            .map_err(|rejected| format!("expected success, got {rejected:?}"))?;
         assert_eq!(report.records_imported, 1);
         assert_eq!(report.lessons_imported, 1);
         assert_eq!(graph.len(), 2);
+        Ok(())
     }
 
     #[test]
-    fn untrusted_signer_is_rejected_with_signature_reason() {
+    fn untrusted_signer_is_rejected_with_signature_reason() -> Result<(), Box<dyn std::error::Error>>
+    {
         let key = SigningKey::generate(&mut OsRng);
-        let bundle = signed_personal_bundle(&key);
+        let bundle = signed_personal_bundle(&key)?;
         let empty_trust_list = TrustList::new();
 
         let mut graph = MemoryGraph::new();
-        let outcome = import_bundle(
+        let mut log = RejectionLog::new();
+        let outcome = import_bundle_logged(
             &mut graph,
             &bundle,
             &empty_trust_list,
             "2026-07-05T01:00:00Z",
+            &mut log,
         );
         match outcome {
             Err(RejectedBundle {
-                reason: RejectReason::Signature(_),
+                reason: RejectReason::UntrustedSigner(_),
                 ..
             }) => {}
-            other => panic!("expected Signature rejection, got {other:?}"),
+            other => {
+                return Err(format!("expected UntrustedSigner rejection, got {other:?}").into())
+            }
         }
         assert!(graph.is_empty(), "rejected import must not touch the graph");
+        assert_eq!(log.entries().len(), 1, "rejection must be recorded");
+        Ok(())
     }
 
     #[test]
-    fn tampered_payload_is_rejected_with_checksum_reason() {
+    fn tampered_payload_is_rejected_with_checksum_reason() -> Result<(), Box<dyn std::error::Error>>
+    {
         let key = SigningKey::generate(&mut OsRng);
-        let mut bundle = signed_personal_bundle(&key);
+        let mut bundle = signed_personal_bundle(&key)?;
         let mut trust_list = TrustList::new();
         trust_list.trust(bundle.signer_public_key_hex.clone());
 
-        // Tamper with the manifest's recorded content hash so it no
-        // longer matches the real decompressed payload -- simulating a
-        // bundle whose payload was swapped after signing (the signature
-        // still verifies because we did not touch `compressed_payload`,
-        // so this specifically exercises the checksum gate, not the
-        // signature gate).
+        // Corrupt the manifest's recorded content hash WITHOUT touching
+        // the signed compressed bytes -- this must fail at the checksum
+        // gate, proving checksum verification is independent of
+        // signature verification.
         bundle.manifest.content_hash = format!("sha256:{}", "0".repeat(64));
 
         let mut graph = MemoryGraph::new();
         let outcome = import_bundle(&mut graph, &bundle, &trust_list, "2026-07-05T01:00:00Z");
         match outcome {
             Err(RejectedBundle {
-                reason: RejectReason::Checksum { .. },
+                reason: RejectReason::ChecksumTamper { .. },
                 ..
             }) => {}
-            other => panic!("expected Checksum rejection, got {other:?}"),
+            other => return Err(format!("expected ChecksumTamper rejection, got {other:?}").into()),
         }
         assert!(graph.is_empty());
+        Ok(())
     }
 
     #[test]
-    fn tampered_signed_bytes_are_rejected_with_signature_reason() {
+    fn tampered_signed_bytes_are_rejected_with_signature_reason(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let key = SigningKey::generate(&mut OsRng);
-        let mut bundle = signed_personal_bundle(&key);
+        let mut bundle = signed_personal_bundle(&key)?;
         let mut trust_list = TrustList::new();
         trust_list.trust(bundle.signer_public_key_hex.clone());
 
@@ -359,23 +417,21 @@ mod tests {
         let outcome = import_bundle(&mut graph, &bundle, &trust_list, "2026-07-05T01:00:00Z");
         match outcome {
             Err(RejectedBundle {
-                reason: RejectReason::Signature(_),
+                reason: RejectReason::UntrustedSigner(_),
                 ..
             }) => {}
-            other => panic!("expected Signature rejection, got {other:?}"),
+            other => {
+                return Err(format!("expected UntrustedSigner rejection, got {other:?}").into())
+            }
         }
         assert!(graph.is_empty());
+        Ok(())
     }
 
     #[test]
-    fn wrong_schema_version_is_rejected() {
+    fn wrong_schema_version_is_rejected() -> Result<(), Box<dyn std::error::Error>> {
         let key = SigningKey::generate(&mut OsRng);
-        let mut bundle = signed_personal_bundle(&key);
-        // Re-sign is not needed to exercise this path: schema-version is
-        // checked in the manifest, which is not itself signature-covered
-        // (only compressed_payload is) -- see module docs on signing
-        // scope. This directly demonstrates why checksum+schema are
-        // separate gates from signature.
+        let mut bundle = signed_personal_bundle(&key)?;
         bundle.manifest.schema_version = 999;
         let mut trust_list = TrustList::new();
         trust_list.trust(bundle.signer_public_key_hex.clone());
@@ -384,28 +440,33 @@ mod tests {
         let outcome = import_bundle(&mut graph, &bundle, &trust_list, "2026-07-05T01:00:00Z");
         match outcome {
             Err(RejectedBundle {
-                reason: RejectReason::SchemaVersion { found: 999, .. },
+                reason: RejectReason::SchemaVersionIncompatible { found: 999, .. },
                 ..
             }) => {}
-            other => panic!("expected SchemaVersion rejection, got {other:?}"),
+            other => {
+                return Err(
+                    format!("expected SchemaVersionIncompatible rejection, got {other:?}").into(),
+                )
+            }
         }
+        Ok(())
     }
 
     #[test]
-    fn imported_lesson_is_inactive_until_local_validation_activates_it() {
+    fn imported_lesson_is_inactive_until_local_validation_activates_it(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let key = SigningKey::generate(&mut OsRng);
-        let bundle = signed_personal_bundle(&key);
+        let bundle = signed_personal_bundle(&key)?;
         let mut trust_list = TrustList::new();
         trust_list.trust(bundle.signer_public_key_hex.clone());
 
         let mut graph = MemoryGraph::new();
         import_bundle(&mut graph, &bundle, &trust_list, "2026-07-05T01:00:00Z")
-            .expect("import succeeds");
+            .map_err(|rejected| format!("expected import to succeed, got {rejected:?}"))?;
 
         // The exporter's own graph had `landed_at = ["commit abc"]` for
         // mem-primary-0001 and landed_at = "commit def" for lesson L1 --
-        // both must land INACTIVE here despite that, because this repo
-        // has not locally validated them.
+        // both must land INACTIVE here despite that.
         assert_eq!(
             crate::learning::lesson_status(&graph, "mem-primary-0001"),
             Some(crate::learning::LessonStatus::Inactive),
@@ -417,23 +478,15 @@ mod tests {
             "imported lesson row must be inactive even though the exporter had landed it"
         );
 
-        // Still searchable despite being inactive (crate-wide rule:
-        // recall never filters by activation).
+        // Still searchable despite being inactive.
         let hits = crate::recall::recall(&graph, "sample statement");
         assert!(
             !hits.is_empty(),
             "inactive imported record must remain recall-searchable"
         );
 
-        // Local x05 validation: `crate::learning`'s activation model
-        // (X06.6, not owned by this subpack) keys a single id's status
-        // off the FIRST node recorded under that id
-        // (`lesson_status`'s `.find()`) -- re-ingesting the SAME id a
-        // second time does not retroactively change its status. The
-        // documented mechanism for "this repo now vouches for what it
-        // imported" is `supersedes`: a NEW locally-landed record whose
-        // `supersedes` names the imported id. That is exactly what
-        // activates it here.
+        // Local x05 validation: land a NEW record whose `supersedes`
+        // names the imported id.
         graph.ingest_record(crate::record::MemoryRecord {
             schema_version: 1,
             id: "mem-primary-0001-validated".to_string(),
@@ -464,42 +517,42 @@ mod tests {
         );
         assert!(
             !crate::learning::active_lessons(&graph).contains(&"mem-primary-0001"),
-            "the superseded imported id must never be counted as active, \
-             even though it now has a superseder that landed"
+            "the superseded imported id must never be counted as active"
         );
         assert_eq!(
             crate::learning::superseded_by(&graph, "mem-primary-0001"),
             Some("mem-primary-0001-validated"),
             "the audit trail must record what superseded the imported id"
         );
+        Ok(())
     }
 
     #[test]
-    fn graph_bootstrap_artifact_import_reconstructs_graph_counts() {
-        // D-11: the team graph bootstrap artifact is this same bundle
-        // format carrying the compressed graph -- importing it must
-        // reconstruct the same node count the exporter's snapshot had.
+    fn graph_bootstrap_artifact_import_reconstructs_graph_counts(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let key = SigningKey::generate(&mut OsRng);
         let snapshot = sample_snapshot();
         let expected_count = snapshot.node_count();
         let bundle = export_bundle(
             &snapshot,
-            Scope::Team,
-            ExportConsent::Granted,
-            Some("team-bootstrap".to_string()),
-            Some("deadbeef".to_string()),
-            "2026-07-05T00:00:00Z",
+            crate::share::ExportRequest {
+                scope: Scope::Team,
+                consent: ExportConsent::Granted,
+                creator: Some("team-bootstrap".to_string()),
+                git_head: Some("deadbeef".to_string()),
+                created_at: "2026-07-05T00:00:00Z".to_string(),
+            },
             &key,
-        )
-        .expect("team bootstrap export succeeds");
+        )?;
 
         let mut trust_list = TrustList::new();
         trust_list.trust(bundle.signer_public_key_hex.clone());
         let mut graph = MemoryGraph::new();
         let report = import_bundle(&mut graph, &bundle, &trust_list, "2026-07-05T01:00:00Z")
-            .expect("team bootstrap import succeeds");
+            .map_err(|rejected| format!("expected import to succeed, got {rejected:?}"))?;
 
         assert_eq!(report.total(), expected_count);
         assert_eq!(graph.len(), expected_count);
+        Ok(())
     }
 }

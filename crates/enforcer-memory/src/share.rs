@@ -3,35 +3,34 @@
 //!
 //! A bundle is a zstd-compressed archive of exactly one JSON payload
 //! (the [`BundleManifest`] plus a [`BundleGraphSnapshot`]) plus a
-//! detached ed25519 signature over the COMPRESSED bytes -- signing the
-//! compressed form (not the pre-compression JSON) means verification
-//! never has to decompress untrusted bytes before it can even check
-//! whether they came from a trusted key (see [`crate::federation`],
-//! which verifies signature and checksum before touching the payload at
-//! all).
+//! DETACHED ed25519 signature over the COMPRESSED bytes -- signing the
+//! compressed form (not the pre-compression JSON) means a verifier can
+//! check the signature without first decompressing/trusting the payload
+//! (see [`crate::federation`], which verifies signature and checksum
+//! before touching the decompressed payload at all).
 //!
 //! # Scope and default
 //!
-//! [`Scope::Personal`] is this crate's DEFAULT and the only scope
-//! [`export_bundle`] will produce WITHOUT the caller passing an explicit
-//! [`ExportConsent`] -- [`Scope::Team`] and [`Scope::Community`] both
-//! REQUIRE `ExportConsent::Granted` in the call, matching the workpack's
-//! "export requires explicit consent flag in the call" hard requirement.
-//! There is no ambient/global consent setting this module reads from
-//! disk or the environment: consent is a value the caller must construct
-//! and pass on every single export call, so a bundle can never be
-//! produced by a code path that "forgot" to ask.
+//! [`Scope::Personal`] is this crate's DEFAULT scope. Every export --
+//! including [`Scope::Personal`] -- REQUIRES [`ExportConsent::Granted`]
+//! in the call: a bundle leaves the local machine the moment it exists
+//! as a value the caller can write/transmit, so even a personal-scope
+//! export must be an explicit, per-call opt-in. There is no ambient/
+//! global consent setting this module reads from disk or the
+//! environment.
 //!
 //! # D-11 -- the team graph bootstrap artifact
 //!
-//! The same bundle format IS the "compressed graph artifact" D-11
-//! describes for team bootstrap: a [`Scope::Team`] bundle whose
+//! The same bundle format IS the "compressed graph artifact" a team
+//! bootstrap would use: a [`Scope::Team`] bundle whose
 //! [`BundleGraphSnapshot`] carries the exporting project's full memory
 //! graph (every record + lesson row) is exactly the artifact a new
 //! teammate's `enforcer-memory` import would bootstrap from. There is
-//! deliberately no second "graph artifact" format -- see
-//! [`crate::federation::import_bundle`]'s "graph bootstrap artifact
-//! import reconstructs graph counts" hard test.
+//! deliberately no second "graph artifact" format for records/lessons --
+//! see [`crate::federation::import_bundle`]'s bootstrap-reconstruction
+//! test. (The `.codebase-memory/graph.db.zst` code-graph artifact is a
+//! SEPARATE format owned by [`crate::artifacts`] -- that one persists
+//! [`crate::code_graph::CodeGraph`], not [`crate::graph::MemoryGraph`].)
 
 use ed25519_dalek::{Signature, Signer, SigningKey, VerifyingKey};
 use serde::{Deserialize, Serialize};
@@ -45,57 +44,46 @@ use crate::record::MemoryRecord;
 /// [`crate::federation::import_bundle`] rather than guessed at.
 pub const BUNDLE_SCHEMA_VERSION: u32 = 1;
 
-/// Sharing scope. Determines both the default consent posture
-/// ([`Scope::Personal`] needs none; [`Scope::Team`]/[`Scope::Community`]
-/// require [`ExportConsent::Granted`]) and, for [`Scope::Community`],
-/// that the payload MUST have already been through
-/// [`crate::redaction::redact_record`] (checked by [`export_bundle`],
-/// not merely documented).
+/// Sharing scope. [`Scope::Community`] additionally requires the payload
+/// to have already been through [`crate::redaction::redact_record`] --
+/// checked by [`export_bundle`] via the creator-field drop, not merely
+/// documented.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Scope {
-    /// Default. Stays on the exporting machine/user; no consent gate.
+    /// Default. Stays on the exporting machine/user until the caller
+    /// transmits it -- still requires [`ExportConsent::Granted`].
     Personal,
-    /// Shared with a bounded team/org. Requires explicit consent.
+    /// Shared with a bounded team/org.
     Team,
-    /// Shared publicly / with the broader community. Requires explicit
-    /// consent AND redaction (enforced by [`export_bundle`]).
+    /// Shared publicly / with the broader community.
     Community,
 }
 
-impl Scope {
-    /// Whether this scope requires [`ExportConsent::Granted`] to export.
-    pub fn requires_consent(self) -> bool {
-        !matches!(self, Scope::Personal)
-    }
-}
-
-/// Explicit, per-call consent to export beyond [`Scope::Personal`]. This
-/// is a value the caller constructs and passes into [`export_bundle`]
-/// on every call -- there is no persisted/ambient consent flag this
-/// module reads instead.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Explicit, per-call consent to export. This is a value the caller
+/// constructs and passes into [`export_bundle`] on every call -- there
+/// is no persisted/ambient consent flag this module reads instead. Every
+/// scope (including [`Scope::Personal`]) requires
+/// [`ExportConsent::Granted`]: an export always produces a value that
+/// can leave the local machine, so "personal" narrows WHO it is meant
+/// for, not whether the caller had to opt in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ExportConsent {
-    /// No consent given. The only value [`ExportConsent::default`]
-    /// produces, so a caller that does not explicitly opt in gets this.
+    /// No consent given. The default value, so a caller that does not
+    /// explicitly opt in gets this.
+    #[default]
     NotGranted,
     /// Consent explicitly granted for this specific export call.
     Granted,
 }
 
-impl Default for ExportConsent {
-    fn default() -> Self {
-        ExportConsent::NotGranted
-    }
-}
-
 /// Export-time failures.
 #[derive(Debug, thiserror::Error)]
 pub enum ShareError {
-    /// [`Scope::Team`] or [`Scope::Community`] was requested without
-    /// [`ExportConsent::Granted`] in the same call.
+    /// Export was requested without [`ExportConsent::Granted`] in the
+    /// same call, for any scope.
     #[error(
-        "export to scope {scope:?} requires explicit consent in the call; consent was not granted"
+        "export at scope {scope:?} requires explicit consent in the call; consent was not granted"
     )]
     ConsentRequired { scope: Scope },
     /// zstd compression of the manifest+payload JSON failed.
@@ -109,13 +97,12 @@ pub enum ShareError {
     Json(#[from] serde_json::Error),
 }
 
-/// The bundle manifest: everything a caller needs to know about a
-/// bundle BEFORE trusting its content -- schema version, the git head
-/// the exporting repo was at, a content hash of the (uncompressed)
-/// payload, the scope, and the creator. Carried inside the bundle
-/// alongside the payload (not just in the detached signature) so a
-/// caller inspecting an already-verified bundle does not need to
-/// re-derive any of this.
+/// The bundle manifest: everything a caller needs to know about a bundle
+/// BEFORE trusting its content -- schema version, the git head the
+/// exporting repo was at, a content hash of the (uncompressed) payload,
+/// the scope, and the creator. Carried inside the bundle alongside the
+/// payload (not just in the detached signature) so a caller inspecting
+/// an already-verified bundle does not need to re-derive any of this.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BundleManifest {
@@ -133,7 +120,7 @@ pub struct BundleManifest {
     pub content_hash: String,
     pub scope: Scope,
     /// Free-text creator identity for [`Scope::Personal`]/[`Scope::Team`]
-    /// bundles (e.g. a writer/lane name). MUST be absent/anonymized for
+    /// bundles (e.g. a writer/lane name). MUST be absent for
     /// [`Scope::Community`] bundles -- [`export_bundle`] enforces this by
     /// construction rather than trusting the caller to have redacted it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -144,8 +131,7 @@ pub struct BundleManifest {
 /// The exportable graph content: every `Record`/`Lesson` node from a
 /// [`MemoryGraph`], flattened into the two wire-serializable shapes this
 /// crate already defines. `Incident` nodes (raw local usage telemetry,
-/// not shareable knowledge) are intentionally excluded -- see this
-/// module's docs.
+/// not shareable knowledge) are intentionally excluded.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BundleGraphSnapshot {
@@ -177,12 +163,7 @@ impl BundleGraphSnapshot {
 }
 
 /// A fully-assembled bundle: the manifest, the compressed payload bytes,
-/// and the detached signature over those compressed bytes. This is the
-/// value [`export_bundle`] produces and
-/// [`crate::federation::import_bundle`] consumes; (de)serializing it to
-/// disk is the caller's responsibility (e.g. one JSON envelope, or three
-/// sibling files) -- this crate defines the shape, not a fixed
-/// container file format.
+/// and the detached signature over those compressed bytes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SignedBundle {
@@ -194,9 +175,8 @@ pub struct SignedBundle {
     pub signature_hex: String,
     /// Hex-encoded ed25519 public key the signature verifies against --
     /// carried alongside the bundle so [`crate::federation::import_bundle`]
-    /// can look it up in the caller's trust list without a separate
-    /// side-channel; the trust list (not this field's mere presence) is
-    /// what makes the key trusted.
+    /// can look it up in the caller's trust list; the trust list (not
+    /// this field's mere presence) is what makes the key trusted.
     pub signer_public_key_hex: String,
 }
 
@@ -223,38 +203,59 @@ pub(crate) fn hex_encode(bytes: &[u8]) -> String {
 
 /// Minimal hex decode, fail-closed on odd length or non-hex chars.
 pub(crate) fn hex_decode(raw: &str) -> Result<Vec<u8>, String> {
-    if raw.len() % 2 != 0 {
+    if !raw.len().is_multiple_of(2) {
         return Err(format!("odd-length hex string ({} chars)", raw.len()));
     }
     (0..raw.len())
         .step_by(2)
         .map(|i| {
-            u8::from_str_radix(&raw[i..i + 2], 16)
-                .map_err(|source| format!("invalid hex byte at offset {i}: {source}"))
+            raw.get(i..i + 2)
+                .ok_or_else(|| format!("truncated hex at offset {i}"))
+                .and_then(|byte_str| {
+                    u8::from_str_radix(byte_str, 16)
+                        .map_err(|source| format!("invalid hex byte at offset {i}: {source}"))
+                })
         })
         .collect()
 }
 
-/// Export `graph` as a signed bundle at `scope`. `consent` must be
-/// [`ExportConsent::Granted`] for any scope other than
-/// [`Scope::Personal`] (checked BEFORE any compression/signing work
-/// happens). `creator` is dropped unconditionally for
-/// [`Scope::Community`] regardless of what the caller passes, since a
-/// community bundle carries no personal creator identity by
-/// construction (defense in depth alongside
+/// Bundled arguments for [`export_bundle`] -- grouped into one struct
+/// (rather than passed positionally) both to keep the function under
+/// clippy's `too_many_arguments` threshold and so a future field (e.g. a
+/// bundle description) does not require touching every call site's
+/// argument order.
+#[derive(Debug, Clone)]
+pub struct ExportRequest {
+    pub scope: Scope,
+    pub consent: ExportConsent,
+    pub creator: Option<String>,
+    pub git_head: Option<String>,
+    pub created_at: String,
+}
+
+/// Export `graph` as a signed bundle per `request`. `request.consent`
+/// must be [`ExportConsent::Granted`] for EVERY scope (checked before
+/// any compression/signing work happens). `request.creator` is dropped
+/// unconditionally for [`Scope::Community`] regardless of what the
+/// caller passes, since a community bundle carries no personal creator
+/// identity by construction (defense in depth alongside
 /// [`crate::redaction::redact_record`], which the caller is still
 /// responsible for having applied to the snapshot's records before
 /// calling this for a community export).
 pub fn export_bundle(
     snapshot: &BundleGraphSnapshot,
-    scope: Scope,
-    consent: ExportConsent,
-    creator: Option<String>,
-    git_head: Option<String>,
-    now: &str,
+    request: ExportRequest,
     signing_key: &SigningKey,
 ) -> Result<SignedBundle, ShareError> {
-    if scope.requires_consent() && consent != ExportConsent::Granted {
+    let ExportRequest {
+        scope,
+        consent,
+        creator,
+        git_head,
+        created_at,
+    } = request;
+
+    if consent != ExportConsent::Granted {
         return Err(ShareError::ConsentRequired { scope });
     }
 
@@ -274,7 +275,7 @@ pub fn export_bundle(
         } else {
             creator
         },
-        created_at: now.to_owned(),
+        created_at,
     };
 
     let signature: Signature = signing_key.sign(&compressed_payload);
@@ -292,8 +293,7 @@ pub fn export_bundle(
 /// [`crate::federation::import_bundle`], which performs those checks
 /// first and only calls this after they pass. Exposed at crate
 /// visibility (not `pub`) so it can never be mistaken for a safe
-/// standalone entry point: reading a bundle's payload without the
-/// zero-trust checks defeats the entire point of X06.8.
+/// standalone entry point.
 pub(crate) fn decode_payload_unchecked(
     compressed_payload: &[u8],
 ) -> Result<(Vec<u8>, BundleGraphSnapshot), ShareError> {
@@ -355,22 +355,53 @@ mod tests {
         BundleGraphSnapshot::from_graph(&graph)
     }
 
+    fn request(scope: Scope, consent: ExportConsent, creator: Option<String>) -> ExportRequest {
+        ExportRequest {
+            scope,
+            consent,
+            creator,
+            git_head: None,
+            created_at: "2026-07-05T00:00:00Z".to_string(),
+        }
+    }
+
     #[test]
-    fn personal_export_needs_no_consent() {
+    fn personal_export_still_requires_consent() {
+        let key = SigningKey::generate(&mut OsRng);
+        let snapshot = sample_snapshot();
+        let outcome = export_bundle(
+            &snapshot,
+            request(
+                Scope::Personal,
+                ExportConsent::NotGranted,
+                Some("primary".to_string()),
+            ),
+            &key,
+        );
+        assert!(matches!(
+            outcome,
+            Err(ShareError::ConsentRequired {
+                scope: Scope::Personal
+            })
+        ));
+    }
+
+    #[test]
+    fn personal_export_with_consent_succeeds() -> Result<(), ShareError> {
         let key = SigningKey::generate(&mut OsRng);
         let snapshot = sample_snapshot();
         let bundle = export_bundle(
             &snapshot,
-            Scope::Personal,
-            ExportConsent::NotGranted,
-            Some("primary".to_string()),
-            None,
-            "2026-07-05T00:00:00Z",
+            request(
+                Scope::Personal,
+                ExportConsent::Granted,
+                Some("primary".to_string()),
+            ),
             &key,
-        )
-        .expect("personal export needs no consent");
+        )?;
         assert_eq!(bundle.manifest.scope, Scope::Personal);
         assert_eq!(bundle.manifest.creator, Some("primary".to_string()));
+        Ok(())
     }
 
     #[test]
@@ -379,11 +410,7 @@ mod tests {
         let snapshot = sample_snapshot();
         let outcome = export_bundle(
             &snapshot,
-            Scope::Team,
-            ExportConsent::NotGranted,
-            None,
-            None,
-            "2026-07-05T00:00:00Z",
+            request(Scope::Team, ExportConsent::NotGranted, None),
             &key,
         );
         assert!(matches!(
@@ -393,63 +420,57 @@ mod tests {
     }
 
     #[test]
-    fn team_export_with_consent_succeeds() {
+    fn team_export_with_consent_succeeds() -> Result<(), ShareError> {
         let key = SigningKey::generate(&mut OsRng);
         let snapshot = sample_snapshot();
-        let bundle = export_bundle(
-            &snapshot,
+        let mut req = request(
             Scope::Team,
             ExportConsent::Granted,
             Some("team-lead".to_string()),
-            Some("abc123".to_string()),
-            "2026-07-05T00:00:00Z",
-            &key,
-        )
-        .expect("consented team export succeeds");
+        );
+        req.git_head = Some("abc123".to_string());
+        let bundle = export_bundle(&snapshot, req, &key)?;
         assert_eq!(bundle.manifest.git_head, Some("abc123".to_string()));
+        Ok(())
     }
 
     #[test]
-    fn community_export_drops_creator_even_if_supplied() {
+    fn community_export_drops_creator_even_if_supplied() -> Result<(), ShareError> {
         let key = SigningKey::generate(&mut OsRng);
         let snapshot = sample_snapshot();
         let bundle = export_bundle(
             &snapshot,
-            Scope::Community,
-            ExportConsent::Granted,
-            Some("should-be-dropped".to_string()),
-            None,
-            "2026-07-05T00:00:00Z",
+            request(
+                Scope::Community,
+                ExportConsent::Granted,
+                Some("should-be-dropped".to_string()),
+            ),
             &key,
-        )
-        .expect("consented community export succeeds");
+        )?;
         assert!(bundle.manifest.creator.is_none());
+        Ok(())
     }
 
     #[test]
-    fn compressed_payload_round_trips_to_the_same_snapshot() {
+    fn compressed_payload_round_trips_to_the_same_snapshot() -> Result<(), ShareError> {
         let key = SigningKey::generate(&mut OsRng);
         let snapshot = sample_snapshot();
         let bundle = export_bundle(
             &snapshot,
-            Scope::Personal,
-            ExportConsent::NotGranted,
-            None,
-            None,
-            "2026-07-05T00:00:00Z",
+            request(Scope::Personal, ExportConsent::Granted, None),
             &key,
-        )
-        .expect("export succeeds");
-        let (_, decoded) =
-            decode_payload_unchecked(&bundle.compressed_payload).expect("decode succeeds");
+        )?;
+        let (_, decoded) = decode_payload_unchecked(&bundle.compressed_payload)?;
         assert_eq!(decoded, snapshot);
+        Ok(())
     }
 
     #[test]
-    fn hex_round_trip() {
+    fn hex_round_trip() -> Result<(), String> {
         let bytes = vec![0u8, 1, 2, 255, 128, 17];
         let hex = hex_encode(&bytes);
-        let back = hex_decode(&hex).expect("valid hex decodes");
+        let back = hex_decode(&hex)?;
         assert_eq!(back, bytes);
+        Ok(())
     }
 }

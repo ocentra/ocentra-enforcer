@@ -42,7 +42,8 @@ impl ArtifactId {
     /// `Sha256` first and need to hand it to
     /// [`crate::store::manifest::ArtifactManifest`] as a claimed lookup
     /// key -- this does NOT assert the digest actually matches any real
-    /// content; only [`ArtifactManifest::get`] re-verifies that.
+    /// content; only [`crate::store::manifest::ArtifactManifest::get`]
+    /// re-verifies that.
     pub fn from_digest(digest: Sha256) -> Self {
         Self(digest)
     }

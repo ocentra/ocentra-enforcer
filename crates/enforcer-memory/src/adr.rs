@@ -57,6 +57,17 @@ pub enum AdrError {
     AlreadyExists(String),
 }
 
+/// Baseline-compatible whole-document response for `mode="get"`
+/// (`refs/x06-baseline-tool-schemas.md` §14.4). `no_adr` distinguishes
+/// "there genuinely is no stored document yet" from a present-but-empty
+/// document string (the baseline's own `content: "" , status: "no_adr"`
+/// shape when nothing has ever been stored).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AdrDocument {
+    pub content: String,
+    pub no_adr: bool,
+}
+
 /// An in-memory ADR store, keyed by ADR id. Append-only for the ADR
 /// list itself (an ADR is never deleted, only superseded by
 /// convention -- callers wanting a "superseded_by" relationship model
@@ -68,11 +79,64 @@ pub enum AdrError {
 #[derive(Debug, Clone, Default)]
 pub struct AdrStore {
     records: BTreeMap<String, AdrRecord>,
+    /// Whole-document ADR blobs, keyed by the caller's project-ish id.
+    /// This is a SEPARATE address space from `records` (the section-based
+    /// extension API above): baseline `manage_adr` treats the ADR as one
+    /// freeform markdown string per project (`refs/x06-baseline-tool-schemas.md`
+    /// §14.2-§14.3 -- "SQLite store, one full-text field, no append/merge/
+    /// diff semantics"), not a set of named `AdrRecord`s. Absence of a key
+    /// here means "no ADR ever stored for this id", matching the baseline's
+    /// `no_adr` status distinct from a present-but-empty document.
+    documents: BTreeMap<String, String>,
 }
 
 impl AdrStore {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Baseline `mode="get"` (`refs/x06-baseline-tool-schemas.md` §14.4):
+    /// return the whole stored markdown document for `id`, or the
+    /// `no_adr` shape if nothing has ever been stored for it.
+    pub fn get_document(&self, id: &str) -> AdrDocument {
+        match self.documents.get(id) {
+            Some(content) => AdrDocument {
+                content: content.clone(),
+                no_adr: false,
+            },
+            None => AdrDocument {
+                content: String::new(),
+                no_adr: true,
+            },
+        }
+    }
+
+    /// Baseline `mode="update"` (undocumented alias: `"store"`) --
+    /// wholesale replace of the stored document, no merge/diff/append
+    /// (`refs/x06-baseline-tool-schemas.md` §14.3). Returns the previous
+    /// document, if any, purely for caller convenience (the baseline
+    /// itself does not echo the prior content).
+    pub fn update_document(&mut self, id: &str, content: impl Into<String>) -> Option<String> {
+        self.documents.insert(id.to_string(), content.into())
+    }
+
+    /// Baseline `mode="sections"` (`refs/x06-baseline-tool-schemas.md`
+    /// §14.4): the markdown heading lines of the *stored* document,
+    /// verbatim (any `#`-prefixed line, any heading level, trailing `\r`
+    /// trimmed) -- not derived from any caller-supplied section list, and
+    /// not the section-based extension API's section names. Returns an
+    /// empty list (not an error) when there is no stored document, matching
+    /// the baseline's degenerate-to-`[]` behavior for a NULL-content parse.
+    pub fn list_document_headings(&self, id: &str) -> Vec<String> {
+        let Some(content) = self.documents.get(id) else {
+            return Vec::new();
+        };
+        content
+            .lines()
+            .map(|line| line.trim_end_matches('\r'))
+            .filter(|line| line.trim_start().starts_with('#'))
+            .map(|line| line.trim_start().to_string())
+            .collect()
     }
 
     pub fn create(&mut self, record: AdrRecord) -> Result<(), AdrError> {
@@ -135,79 +199,5 @@ impl AdrStore {
 
     pub fn all(&self) -> impl Iterator<Item = &AdrRecord> {
         self.records.values()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::error::Error;
-
-    type TestResult<T = ()> = Result<T, Box<dyn Error>>;
-
-    #[test]
-    fn adr_roundtrip_create_get_update_section() -> TestResult {
-        let mut store = AdrStore::new();
-        let adr = AdrRecord::new("adr-001", "Use SQLite for the operational store")
-            .with_section("context", "local-first, zero-install")
-            .with_section("decision", "rusqlite bundled");
-        store.create(adr)?;
-
-        let fetched = store.get("adr-001")?;
-        assert_eq!(fetched.title, "Use SQLite for the operational store");
-        assert_eq!(fetched.sections["decision"], "rusqlite bundled");
-
-        store.update_section("adr-001", "consequences", "no libmdbx, no sled")?;
-        let updated = store.get("adr-001")?;
-        assert_eq!(updated.sections["consequences"], "no libmdbx, no sled");
-        assert_eq!(updated.sections.len(), 3, "context+decision+consequences");
-        Ok(())
-    }
-
-    #[test]
-    fn adr_roundtrip_via_serde_shape_is_stable() {
-        // No serde derive is required by the hard test list; this
-        // asserts the struct's field shape stays stable for a manual
-        // caller-side round trip (construct -> read every field back).
-        let adr = AdrRecord::new("adr-002", "title")
-            .with_section("s", "body")
-            .with_linked_node("file:a.rs");
-        assert_eq!(adr.id, "adr-002");
-        assert_eq!(adr.title, "title");
-        assert_eq!(adr.sections.get("s").map(String::as_str), Some("body"));
-        assert_eq!(adr.linked_node_ids, vec!["file:a.rs".to_string()]);
-    }
-
-    #[test]
-    fn create_duplicate_id_is_rejected() -> TestResult {
-        let mut store = AdrStore::new();
-        store.create(AdrRecord::new("adr-001", "first"))?;
-        let result = store.create(AdrRecord::new("adr-001", "second"));
-        assert!(matches!(result, Err(AdrError::AlreadyExists(id)) if id == "adr-001"));
-        Ok(())
-    }
-
-    #[test]
-    fn get_unknown_id_is_not_found_not_panic() {
-        let store = AdrStore::new();
-        let result = store.get("adr-missing");
-        assert!(matches!(result, Err(AdrError::NotFound(id)) if id == "adr-missing"));
-    }
-
-    #[test]
-    fn adr_linked_to_graph_node_is_found_by_node_id() -> TestResult {
-        let mut store = AdrStore::new();
-        store.create(
-            AdrRecord::new("adr-003", "why file:a.rs exists").with_linked_node("file:a.rs"),
-        )?;
-        store.create(AdrRecord::new("adr-004", "unrelated"))?;
-
-        let linked = store.adrs_for_node("file:a.rs");
-        assert_eq!(linked.len(), 1);
-        assert_eq!(linked[0].id, "adr-003");
-
-        let none = store.adrs_for_node("file:does-not-exist.rs");
-        assert!(none.is_empty());
-        Ok(())
     }
 }

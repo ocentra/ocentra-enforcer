@@ -23,6 +23,11 @@ _Last updated: 2026-07-05 by x06 orchestrator (session 36a5fb74). Update discipl
 | X06.4 fulltext/vector/rerank | LANDED | rust-build 8310eed+6a1821f (lane deleted) | `proof/memory/x06-rag.json` (P1-unit tier, honest) | Gatekeeper PASS: 120 tests independent rerun; D-07a=SQLite FTS5 CONFIRMED; known follow-ups: soft-signal boosting seam-only in fuse_rrf, ort-models feature empty per D-03, real Qwen3 path deferred |
 | X06.5 background weaver | LANDED | rust-build 6666ff1+a0a7a03 (lane deleted) | `proof/memory/x06-weaver.json` (NOT yet emitted — X06.9) | Gatekeeper PASS: 95 tests independent rerun in clean worktree; worker fixed a real WorkerPool::shutdown deadlock in the salvage; owner-set hits were rustdoc citations only |
 
+## LIVE PARITY MILESTONE (2026-07-06, commits 235c27b + 73f4f60)
+
+Live tool-by-tool diff vs the installed C binary (proof/memory/x06-kg-parity.json):
+**11 equal · 1 better (snippet sha256) · 0 worse · 0 unrunnable · 1 incomparable (manage_adr storage-model, behavior-level roundtrip passes both sides)** — candidate 10-1000x faster on every row. 14/14 MCP tools + CLI mirror wired and live-tested; all trace modes; search_graph 3-mode parity; federation slice; ~510 crate tests green; clippy -D warnings + fmt clean. Known follow-ups: ADR harness row flip post-W3d compat; verdict rows for index_repository/delete_project/ingest_traces; RR branded-type conformance (workspace-wide, awaiting owner decision — even enforcer-domain fails the full profile today).
+
 ## Parity push (baseline 14-tool floor) — wave 3, spawned 2026-07-05
 
 | Lane | Status | Scope |

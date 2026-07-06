@@ -204,7 +204,6 @@ pub fn embed_documents(
     }
     Ok(entries)
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;

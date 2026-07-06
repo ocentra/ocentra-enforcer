@@ -78,27 +78,40 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"
 # it yet; scoped here per this crate's existing pattern of crate-local
 # deps (git2, tree-sitter, hnsw_rs are all declared the same way).
 regex = "1"
-# X06.8 federation: bundle compression for signed personal/team/community
-# memory bundles (D-11's zstd artifact). Zero-C-toolchain concern is not
-# applicable here (this wraps the `zstd` C library via `zstd-sys`, matching
-# the baseline's own `.zst` artifact format so parity fixtures stay
-# byte-comparable in shape); the crate's OWN code stays free of `unsafe`
-# per the workspace's `unsafe_code = "forbid"` lint, which governs this
+# X06.7 MCP/CLI surface: reuses the arc-21 enforcer-mcp skeleton's pure
+# I/O-free transport module (dual Content-Length/NDJSON framing +
+# JSON-RPC message types) rather than re-implementing framing here --
+# that module carries no business logic and does not pull this crate
+# into arc-21's tool surface, stdio sink, or stale-write gate.
+enforcer-mcp = { path = "../enforcer-mcp" }
+# X06.7 (D-12, DEFAULT) filesystem watcher: native OS filesystem events
+# (inotify/FSEvents/ReadDirectoryChangesW) as the primary signal, with an
+# adaptive-polling fallback (src/watch.rs) for environments where native
+# events are unreliable. Pure Rust, cross-platform, no C toolchain --
+# matches this crate's zero-system-dependency posture.
+notify = "6"
+# X06.8 federation: bundle + graph-artifact compression for signed
+# personal/team/community memory bundles and the D-11 `.codebase-memory/
+# graph.db.zst` bootstrap artifact. Wraps the zstd C library via
+# `zstd-sys` (matching the baseline's own `.zst` artifact format so
+# parity fixtures stay byte-comparable in shape); this crate's OWN code
+# stays free of `unsafe` per the workspace lints, which govern this
 # crate's source, not its dependencies' internals.
 zstd = "0.13"
 # X06.8: detached ed25519 signatures over exported bundles -- zero-trust
-# import (X06.8 hard requirement) verifies a bundle's signature against a
-# local trust list before any content is read. Pure Rust, no C toolchain,
-# `std` feature only (no `asm`/`pkcs8`/network extras needed for
-# sign/verify over raw bytes).
+# import verifies a bundle's signature against a local trust list before
+# any content is read. Pure Rust, no C toolchain, `std` feature only (no
+# `asm`/`pkcs8`/network extras needed for sign/verify over raw bytes;
+# tests use fixed-seed `SigningKey::from_bytes`, so no RNG feature and
+# no `rand_core` dependency either).
 ed25519-dalek = { version = "2", default-features = false, features = ["std", "rand_core"] }
-# Key generation for federation tests/fixtures (trust-list keypairs).
-# `getrandom` (not `std`) is what gates `rand_core::OsRng` in 0.6.x.
+# Key generation for federation tests/fixtures (trust-list keypairs) --
+# `getrandom` (not `std`) is what gates `rand_core::OsRng` in 0.6.x. Only
+# used by `#[cfg(test)]` code and `tests/federation_roundtrip.rs`, but
+# declared as a normal (not dev) dependency because `src/share.rs`'s and
+# `src/federation.rs`'s own `#[cfg(test)]` modules are part of this
+# crate's own compilation unit and need it too.
 rand_core = { version = "0.6", features = ["getrandom"] }
-# X06.8 community redaction: basic secret-shaped/path/identity pattern
-# matching. Same major version already used elsewhere in this workspace
-# (enforcer-core, enforcer-harness, enforcer-lang-security,
-# enforcer-security) -- no new dependency family introduced.
 
 [dev-dependencies]
 tempfile = "3"
@@ -126,9 +139,9 @@ embeddings = []
 # Opt-in real DuckDB analytics backend. NOT part of `default` and NOT
 # exercised by the gate in this pass -- see src/store/analytics.rs.
 duckdb-analytics = ["duckdb"]
-# X06.4/X06 harvest: real `ort`-backed Qwen3-class Embedder/Reranker
-# implementation. NOT part of `default`; default gates stay deterministic
-# and zero-network.
+# X06 model-runtime harvest: real ORT-backed Qwen-class embedder/reranker
+# contracts. NOT part of `default`; default gates stay deterministic,
+# zero-network, and provider-unavailable unless explicitly enabled.
 ort-models = ["dep:ndarray", "dep:ort", "dep:tokenizers"]
 # Explicit-network Hugging Face download/cache path. Never enabled by
 # default; proof runners must opt in deliberately.

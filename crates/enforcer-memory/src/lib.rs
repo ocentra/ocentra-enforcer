@@ -36,13 +36,21 @@
 //! embedding seam, which is feature-gated and unimplemented here on
 //! purpose so no test or default build ever needs a model runtime).
 //!
-//! # Federation
+//! # Federation (X06.8)
 //!
-//! Federation (sharing memory across machines/agents) is not
-//! implemented in this slice. Per the crate's local-first mandate, any
-//! future federation surface must be an explicit opt-in seam analogous
-//! to [`retriever::EmbeddingRetriever`] — never a live dependency of the
-//! default ingest/recall path.
+//! Federation (sharing memory across machines/agents) is an explicit
+//! opt-in surface, never a live dependency of the default ingest/recall
+//! path (the crate's local-first mandate): [`share`] exports signed,
+//! zstd-compressed bundles (personal DEFAULT / team / community scopes,
+//! explicit per-call consent required beyond personal); [`federation`]
+//! is the zero-trust import gate (signature vs a local trust list,
+//! checksum, schema version — typed rejection reasons, imported lessons
+//! forced inactive until local x05 validation supersedes them);
+//! [`redaction`] is the community-scope redaction pipeline (paths,
+//! identities, secret-shaped strings, bounded snippets — golden
+//! byte-exact fixture-tested); [`artifacts`] is exact fail-closed
+//! content-addressed retrieval plus the D-11 `.codebase-memory/
+//! graph.db.zst` + `artifact.json` code-graph bootstrap artifact.
 //!
 //! # X06.1 -- core/store/logs
 //!
@@ -91,10 +99,6 @@
 //! - [`evidence`] — t0->t1->t2 chain with proof-ref seam + recurrence curve.
 //! - [`observations`] — procedural memory + meta-memory (route/confidence).
 //! - [`sessionstart`] — the SessionStart recall-pack seam.
-//! - [`analysis::trace`] — X06.P2: parity `trace_path` modes
-//!   (calls/data_flow/cross_service) over [`analysis::CodeAdjacency`].
-//! - [`traces`] — X06.P2: `ingest_traces` runtime call-trace merge
-//!   (parsed/inferred/runtime edge provenance).
 //!
 //! # X06.6 -- continuous learning
 //!
@@ -162,32 +166,43 @@
 //!   Delete removes only the derived store and refuses any path outside
 //!   the store root.
 //!
-//! # X06.8 -- sharing/federation/artifacts
+//! # X06.P2 -- trace_path / ingest_traces / detect_changes parity
 //!
-//! This slice adds the cross-machine/cross-team half of the memory
-//! system: [`artifacts`] (exact, fail-closed content-addressed
-//! artifact/snippet retrieval -- never a "similar" substitute, and
-//! traversal-shaped ids are rejected before any lookup), [`share`]
-//! (signed personal/team/community bundles -- personal-only by default,
-//! export to a wider scope requires an explicit
-//! [`share::ExportConsent::Granted`] in the very call that produces the
-//! bundle; the same bundle format doubles as D-11's team graph bootstrap
-//! artifact), [`federation`] (zero-trust import: signature against a
-//! local [`federation::TrustList`], checksum, and schema-version are all
-//! verified before a bundle's payload is trusted; everything imported
-//! lands [`learning::LessonStatus::Inactive`] until this repo's own x05
-//! validation activates it, and every rejection is recorded with a
-//! typed reason), and [`redaction`] (the community-export sanitization
-//! pass: repo paths, author identities, secret-shaped strings, and
-//! over-length raw source are stripped/truncated before a bundle is
-//! allowed to claim [`share::Scope::Community`]).
+//! - [`analysis::trace`] — `trace_path`'s three modes (calls/data_flow/
+//!   cross_service) plus its baseline-verified `risk_labels` hop-distance
+//!   scheme, layered over [`analysis::CodeAdjacency`].
+//! - [`traces`] — `ingest_traces`: an additive runtime-call-trace overlay
+//!   over [`code_graph::CodeGraph`] (the baseline's own `ingest_traces`
+//!   is an unimplemented stub, so this module's merge/idempotency/
+//!   provenance semantics are this crate's own documented design).
+//! - [`impact::detect_changes_view`] — the baseline-parity `detect_changes`
+//!   response shape (file-level `impacted_symbols`, no risk field);
+//!   [`impact::analyze_diff_impact_scoped`] is a separate, richer,
+//!   non-parity risk-classification extension layered alongside it.
+//!
+//! # X06.7 -- MCP/CLI wrapper, filesystem watcher, diagnostics
+//!
+//! - [`mcp`] — the MCP stdio JSON-RPC server exposing the
+//!   codebase-memory-mcp 14-tool parity floor (`tools/list`/`tools/call`,
+//!   dual framing via [`enforcer_mcp::transport`], honest `not_wired`
+//!   results for genuinely unlanded tools/modes).
+//! - [`cli`] — the CLI mirror of [`mcp`]'s tool surface: same registry,
+//!   same dispatch, same envelope, so CLI and MCP are call-for-call
+//!   identical.
+//! - [`watch`] — the D-12 filesystem watcher: native OS events (`notify`)
+//!   with debounce, plus an adaptive-polling + git-HEAD-diff fallback.
+//! - [`diagnostics`] — stderr-only structured KV/JSON logging for the
+//!   MCP/CLI/watch surface, with redaction so no raw source text ever
+//!   reaches a log line.
 
 pub mod adr;
 pub mod analysis;
 pub mod architecture;
 pub mod artifacts;
+pub mod cli;
 pub mod code_graph;
 pub mod code_search;
+pub mod diagnostics;
 pub mod embed;
 pub mod enrichment;
 pub mod error;
@@ -207,6 +222,7 @@ pub mod lesson;
 pub mod llama_cpp;
 pub mod local_runtime;
 pub mod log;
+pub mod mcp;
 pub mod model_cache;
 pub mod model_observations;
 pub mod model_runtime;
@@ -232,4 +248,5 @@ pub mod streaming_cache;
 pub mod summaries;
 pub mod traces;
 pub mod vector;
+pub mod watch;
 pub mod weaver;

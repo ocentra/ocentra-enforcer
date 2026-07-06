@@ -112,6 +112,15 @@ pub enum TraceDirection {
 pub struct CodeAdjacency {
     graph: DiGraph<String, EdgeKind>,
     index_of: HashMap<String, NodeIndex>,
+    /// Every function/type/test symbol's containing file id, keyed by
+    /// symbol id. [`CallEdge`](crate::code_graph::CallEdge)/
+    /// [`ImportEdge`](crate::code_graph::ImportEdge) are recorded at
+    /// file granularity only (`code_graph`'s own module docs: no
+    /// enclosing-symbol data in the parser layer), so a `Calls`/`Imports`
+    /// edge's source is always a *file* node, never a symbol node --
+    /// see [`CodeAdjacency::trace_calls`]'s "symbol start bridging" note
+    /// for why this map exists.
+    symbol_file_of: HashMap<String, String>,
 }
 
 impl CodeAdjacency {
@@ -130,7 +139,9 @@ impl CodeAdjacency {
 
         // File -> symbol containment edges (a symbol's file_id is
         // always a node already inserted above).
+        let mut symbol_file_of: HashMap<String, String> = HashMap::new();
         for symbol in graph.symbol_nodes() {
+            symbol_file_of.insert(symbol.id.clone(), symbol.file_id.clone());
             if let (Some(&from), Some(&to)) =
                 (index_of.get(&symbol.file_id), index_of.get(&symbol.id))
             {
@@ -188,7 +199,11 @@ impl CodeAdjacency {
         // directly; `architecture::route_map` reads it from there).
         let _ = graph.routes();
 
-        Self { graph: g, index_of }
+        Self {
+            graph: g,
+            index_of,
+            symbol_file_of,
+        }
     }
 
     pub fn contains_node(&self, node_id: &str) -> bool {
@@ -247,11 +262,37 @@ impl CodeAdjacency {
         let Some(&start_idx) = self.index_of.get(start) else {
             return Vec::new();
         };
+        // Symbol-start bridging: `Calls`/`Imports` edges are recorded at
+        // file granularity only (`CallEdge`/`ImportEdge` carry
+        // `from_file_id`, never an enclosing-symbol id -- see
+        // `symbol_file_of`'s docs), so a symbol node's own outgoing
+        // edges in `self.graph` are just its `Contains` edge FROM its
+        // file, never a `Calls`/`Imports` edge itself. Tracing `Out`
+        // from a symbol id (as every baseline-parity caller does --
+        // `trace_path`'s root is always a resolved function/symbol, per
+        // the baseline spec) would therefore always dead-end at hop 0
+        // without this bridge: also seed the walk from the symbol's
+        // containing file node so its file-level Calls/Imports edges are
+        // reachable, while still reporting/keying the walk under the
+        // original symbol `start` id (the file node is never itself
+        // emitted as a spurious extra hop -- see `dfs_paths`' `extra_roots`
+        // handling).
+        let file_idx = self
+            .symbol_file_of
+            .get(start)
+            .and_then(|file_id| self.index_of.get(file_id))
+            .copied();
+
         let mut state = DfsPathState {
             current: Vec::new(),
             paths: Vec::new(),
             on_path: HashSet::new(),
         };
+        state.on_path.insert(start_idx);
+        if let Some(file_idx) = file_idx {
+            dfs_paths(&self.graph, file_idx, direction, max_depth, &mut state);
+        }
+        state.on_path.remove(&start_idx);
         dfs_paths(&self.graph, start_idx, direction, max_depth, &mut state);
         state.paths
     }
@@ -463,26 +504,27 @@ fn resolve_callee<'a>(
         .map(|(_, idx)| idx)
 }
 
-/// Every node id in `graph` that is a [`CodeNode::Test`] symbol.
-/// Shared by [`trace`] (`include_tests` filtering) and [`crate::impact`]
-/// (test-coverage risk signal) so both compute "is this a test node"
-/// the same way rather than drifting into two definitions.
+/// Every node id in `graph` that is a [`CodeNode::Test`] symbol, PLUS
+/// the `file:`-id of every file that contains one. The file-id half
+/// matters because [`crate::code_graph::CallEdge`] (and therefore every
+/// `Calls`-kind [`PathHop`]/reverse-dependent id) records only the
+/// *file* a call was written in, never the enclosing symbol (see
+/// `code_graph`'s own module docs) -- so a test function calling
+/// something produces a hop/dependent whose id is `file:<test file>`,
+/// not the test symbol's own `sym:` id. Without including the file id
+/// here, `include_tests=false` (in [`trace`]) and the test-coverage
+/// signal (in [`crate::impact`]) would both silently fail to exclude a
+/// call that only reaches a test through its containing file's Calls
+/// edge -- the exact gap this function closes for both callers.
 pub(crate) fn test_node_ids(graph: &CodeGraph) -> HashSet<String> {
-    graph
-        .nodes()
-        .iter()
-        .filter_map(|n| match n {
-            CodeNode::Test(sym) => Some(sym.id.clone()),
-            CodeNode::File(file) | CodeNode::TextOnly(file)
-                if file.rel_path.contains("_test")
-                    || file.rel_path.contains(".test.")
-                    || file.rel_path.contains("/tests/") =>
-            {
-                Some(file.id.clone())
-            }
-            _ => None,
-        })
-        .collect()
+    let mut ids = HashSet::new();
+    for node in graph.nodes() {
+        if let CodeNode::Test(sym) = node {
+            ids.insert(sym.id.clone());
+            ids.insert(sym.file_id.clone());
+        }
+    }
+    ids
 }
 
 /// A minimal read-only iterator surface [`query`] needs to evaluate

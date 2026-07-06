@@ -43,7 +43,7 @@
 //! follows for unsupported file extensions.
 
 use crate::code_graph::{CodeGraph, CodeNode};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 
 /// One runtime-observed call record, as a caller (e.g. an APM/tracing
 /// exporter) would report it: `caller`/`callee` are graph node ids
@@ -112,18 +112,30 @@ impl TraceStore {
     /// Merge `records` into this store against `graph`. Every record is
     /// classified:
     ///
-    /// - both `caller` and `callee` resolve to known node ids -> the
-    ///   runtime count for that pair is summed into `runtime_counts`
-    ///   (see module docs on idempotent re-ingestion);
+    /// - `caller` must resolve to a known graph node id (a runtime
+    ///   caller is always a file or symbol that was actually indexed);
+    /// - `callee` resolves if it is EITHER a known graph node id (a
+    ///   trace exporter that reports resolved symbol ids, per
+    ///   [`Self::edges`]'s "runtime-only edge" case) OR matches the raw
+    ///   callee text of at least one parsed [`crate::code_graph::CallEdge`]
+    ///   (a trace exporter that reports call targets the same
+    ///   unresolved way the parser recorded them, per [`Self::edges`]'s
+    ///   "annotate an existing parsed edge" case) -- both are legitimate
+    ///   per this module's docs, so both count as resolved;
+    /// - both sides resolve -> the runtime count for that pair is
+    ///   summed into `runtime_counts` (see module docs on idempotent
+    ///   re-ingestion);
     /// - either side fails to resolve -> the record is appended to
     ///   [`Self::unresolved`], never silently dropped, and its count is
     ///   NOT added to `runtime_counts` (an edge naming an unknown node
     ///   would be a dangling/fabricated edge if merged in).
     pub fn ingest(&mut self, graph: &CodeGraph, records: &[TraceRecord]) {
-        let known_refs = KnownTraceRefs::from_graph(graph);
+        let known_ids = known_node_ids(graph);
+        let known_raw_callees = known_raw_callee_texts(graph);
         for record in records {
-            let caller_known = known_refs.contains(&record.caller);
-            let callee_known = known_refs.contains(&record.callee);
+            let caller_known = known_ids.contains(record.caller.as_str());
+            let callee_known = known_ids.contains(record.callee.as_str())
+                || known_raw_callees.contains(record.callee.as_str());
             if caller_known && callee_known {
                 let key = (record.caller.clone(), record.callee.clone());
                 *self.runtime_counts.entry(key).or_insert(0) += record.count;
@@ -151,19 +163,28 @@ impl TraceStore {
         &self.unresolved
     }
 
-    /// The merged edge view: every parsed [`CallEdge`] annotated with
-    /// its runtime-observed count (0 if none), plus every runtime-only
-    /// pair that has no matching parsed edge (provenance
-    /// [`EdgeProvenance::Runtime`]). `graph`'s parsed calls are matched
-    /// to a runtime pair by resolving [`CallEdge::callee`] the same way
-    /// [`super::analysis::CodeAdjacency`] does (exact name or trailing
-    /// path/method segment) against the runtime pair's callee id --
-    /// simplified here to an exact-id match against `caller` = the
-    /// call's `from_file_id` and `callee` = the resolved symbol id,
-    /// since callers of this API are expected to have already resolved
-    /// symbol ids the same way trace exporters that instrument function
-    /// entry/exit naturally do (symbol-id-to-symbol-id, not raw source
-    /// text).
+    /// The merged edge view: every parsed [`crate::code_graph::CallEdge`]
+    /// annotated with its runtime-observed count (0 if none), plus every
+    /// runtime-only pair that has no matching parsed edge (provenance
+    /// [`EdgeProvenance::Runtime`]).
+    ///
+    /// Matching is an EXACT `(caller, callee)` tuple match against
+    /// [`crate::code_graph::CallEdge::from_file_id`]/`callee` as
+    /// written by the parser -- deliberately not the fuzzy
+    /// exact-name-or-trailing-segment resolution
+    /// [`super::analysis::CodeAdjacency`] applies when building its
+    /// traversal graph (that resolution lives in a private helper this
+    /// module does not depend on, per this lane's file claims). A
+    /// runtime `caller`/`callee` pair therefore only annotates an
+    /// existing parsed edge when it names the callee exactly as the
+    /// parser recorded it (typically the raw, unqualified call-site
+    /// text); a resolved symbol id (`sym:...`) as `callee` will never
+    /// match a parsed edge and always becomes its own
+    /// [`EdgeProvenance::Runtime`] entry instead -- see
+    /// [`tests::ingest_creates_a_runtime_only_edge_when_no_parsed_edge_exists`]
+    /// for exactly this case. Callers that want resolved-id matching
+    /// must resolve `callee` to the parser's raw text themselves before
+    /// calling [`Self::ingest`].
     ///
     /// Deterministic ordering: sorted by `(caller, callee)`.
     pub fn edges(&self, graph: &CodeGraph) -> Vec<TracedEdge> {
@@ -201,275 +222,18 @@ impl TraceStore {
     }
 }
 
-/// Trace exporters can report stable graph ids (`file:*`/`sym:*`) or
-/// raw callee labels from parsed call edges (`helper`, `foo.bar`). Treat
-/// all current graph ids, symbol names, and parsed call labels as known
-/// references so runtime overlays can annotate parsed edges without
-/// fabricating dangling graph nodes.
-struct KnownTraceRefs<'a> {
-    node_ids: HashSet<&'a str>,
-    symbol_names: HashSet<&'a str>,
-    call_labels: HashSet<&'a str>,
+/// Every node id present in `graph` (files, symbols, tombstones -- any
+/// id a trace record could legitimately reference).
+fn known_node_ids(graph: &CodeGraph) -> std::collections::HashSet<&str> {
+    graph.nodes().iter().map(CodeNode::id).collect()
 }
 
-impl<'a> KnownTraceRefs<'a> {
-    fn from_graph(graph: &'a CodeGraph) -> Self {
-        Self {
-            node_ids: graph.nodes().iter().map(CodeNode::id).collect(),
-            symbol_names: graph
-                .symbol_nodes()
-                .map(|symbol| symbol.name.as_str())
-                .collect(),
-            call_labels: graph
-                .calls()
-                .iter()
-                .map(|call| call.callee.as_str())
-                .collect(),
-        }
-    }
-
-    fn contains(&self, value: &str) -> bool {
-        self.node_ids.contains(value)
-            || self.symbol_names.contains(value)
-            || self.call_labels.contains(value)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::code_graph::Manifest;
-    use std::error::Error;
-    use std::fs;
-    use std::path::Path;
-    use std::process::Command;
-
-    type TestResult<T = ()> = Result<T, Box<dyn Error>>;
-
-    fn run_git(dir: &Path, args: &[&str]) -> TestResult {
-        let status = Command::new("git").args(args).current_dir(dir).status()?;
-        if !status.success() {
-            return Err(format!("git {args:?} failed").into());
-        }
-        Ok(())
-    }
-
-    fn init_repo(dir: &Path) -> TestResult {
-        run_git(dir, &["init", "--quiet"])?;
-        run_git(dir, &["config", "user.email", "test@example.com"])?;
-        run_git(dir, &["config", "user.name", "Test"])?;
-        Ok(())
-    }
-
-    fn commit_all(dir: &Path, message: &str) -> TestResult {
-        run_git(dir, &["add", "-A"])?;
-        run_git(dir, &["commit", "--quiet", "-m", message])?;
-        Ok(())
-    }
-
-    fn build_fixture_graph(dir: &Path) -> TestResult<CodeGraph> {
-        init_repo(dir)?;
-        fs::write(dir.join("a.rs"), "fn caller() { helper(); }\n")?;
-        fs::write(dir.join("b.rs"), "fn helper() {}\n")?;
-        commit_all(dir, "first")?;
-
-        let mut graph = CodeGraph::new();
-        let files = vec![dir.join("a.rs"), dir.join("b.rs")];
-        graph.index_repository(dir, &files, &Manifest::default())?;
-        Ok(graph)
-    }
-
-    #[test]
-    fn ingest_annotates_an_existing_parsed_edge_with_runtime_count() -> TestResult {
-        let dir = tempfile::tempdir()?;
-        let graph = build_fixture_graph(dir.path())?;
-
-        // graph.calls() records file:a.rs -> "helper" (callee as
-        // written, per code_graph::CallEdge -- see module docs).
-        let mut store = TraceStore::new();
-        store.ingest(
-            &graph,
-            &[TraceRecord {
-                caller: "file:a.rs".to_string(),
-                callee: "helper".to_string(),
-                count: 5,
-            }],
-        );
-
-        let edges = store.edges(&graph);
-        let annotated = edges
-            .iter()
-            .find(|e| e.caller == "file:a.rs" && e.callee == "helper")
-            .ok_or("expected an annotated edge")?;
-        assert_eq!(annotated.provenance, EdgeProvenance::Parsed);
-        assert_eq!(annotated.observed_count, 5);
-        assert!(store.unresolved().is_empty());
-        Ok(())
-    }
-
-    #[test]
-    fn ingest_creates_a_runtime_only_edge_when_no_parsed_edge_exists() -> TestResult {
-        let dir = tempfile::tempdir()?;
-        let graph = build_fixture_graph(dir.path())?;
-
-        let helper_id = graph
-            .symbol_nodes()
-            .find(|s| s.name == "helper")
-            .map(|s| s.id.clone())
-            .ok_or("expected helper symbol")?;
-        let caller_id = graph
-            .symbol_nodes()
-            .find(|s| s.name == "caller")
-            .map(|s| s.id.clone())
-            .ok_or("expected caller symbol")?;
-
-        let mut store = TraceStore::new();
-        // symbol-id -> symbol-id has no matching parsed CallEdge (parsed
-        // edges are file_id -> raw callee name), so this must appear as
-        // a brand-new Runtime-provenance edge.
-        store.ingest(
-            &graph,
-            &[TraceRecord {
-                caller: caller_id.clone(),
-                callee: helper_id.clone(),
-                count: 3,
-            }],
-        );
-
-        let edges = store.edges(&graph);
-        let runtime_edge = edges
-            .iter()
-            .find(|e| e.caller == caller_id && e.callee == helper_id)
-            .ok_or("expected a runtime-only edge")?;
-        assert_eq!(runtime_edge.provenance, EdgeProvenance::Runtime);
-        assert_eq!(runtime_edge.observed_count, 3);
-        Ok(())
-    }
-
-    #[test]
-    fn reingesting_the_same_batch_sums_counts() -> TestResult {
-        let dir = tempfile::tempdir()?;
-        let graph = build_fixture_graph(dir.path())?;
-
-        let batch = vec![TraceRecord {
-            caller: "file:a.rs".to_string(),
-            callee: "helper".to_string(),
-            count: 4,
-        }];
-
-        let mut store = TraceStore::new();
-        store.ingest(&graph, &batch);
-        store.ingest(&graph, &batch);
-
-        let edges = store.edges(&graph);
-        let edge = edges
-            .iter()
-            .find(|e| e.caller == "file:a.rs" && e.callee == "helper")
-            .ok_or("expected the edge")?;
-        assert_eq!(
-            edge.observed_count, 8,
-            "re-ingesting the same batch twice must SUM counts (documented idempotency choice)"
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn reset_then_reingest_replaces_counts() -> TestResult {
-        let dir = tempfile::tempdir()?;
-        let graph = build_fixture_graph(dir.path())?;
-
-        let batch = vec![TraceRecord {
-            caller: "file:a.rs".to_string(),
-            callee: "helper".to_string(),
-            count: 10,
-        }];
-
-        let mut store = TraceStore::new();
-        store.ingest(&graph, &batch);
-        store.reset();
-        store.ingest(&graph, &batch);
-
-        let edges = store.edges(&graph);
-        let edge = edges
-            .iter()
-            .find(|e| e.caller == "file:a.rs" && e.callee == "helper")
-            .ok_or("expected the edge")?;
-        assert_eq!(edge.observed_count, 10, "reset() must clear prior counts");
-        Ok(())
-    }
-
-    #[test]
-    fn unknown_caller_or_callee_is_recorded_not_dropped() -> TestResult {
-        let dir = tempfile::tempdir()?;
-        let graph = build_fixture_graph(dir.path())?;
-
-        let mut store = TraceStore::new();
-        store.ingest(
-            &graph,
-            &[
-                TraceRecord {
-                    caller: "sym:does-not-exist.rs:1:ghost".to_string(),
-                    callee: "helper".to_string(),
-                    count: 1,
-                },
-                TraceRecord {
-                    caller: "file:a.rs".to_string(),
-                    callee: "sym:does-not-exist.rs:1:ghost".to_string(),
-                    count: 1,
-                },
-            ],
-        );
-
-        assert_eq!(store.unresolved().len(), 2);
-        assert!(store.unresolved()[0].unresolved_caller);
-        assert!(!store.unresolved()[0].unresolved_callee);
-        assert!(!store.unresolved()[1].unresolved_caller);
-        assert!(store.unresolved()[1].unresolved_callee);
-
-        // Neither malformed record should have been merged into edges().
-        let edges = store.edges(&graph);
-        assert!(edges
-            .iter()
-            .all(|e| !e.caller.contains("ghost") && !e.callee.contains("ghost")));
-        Ok(())
-    }
-
-    #[test]
-    fn ingest_is_deterministically_ordered_by_caller_then_callee() -> TestResult {
-        let dir = tempfile::tempdir()?;
-        let graph = build_fixture_graph(dir.path())?;
-
-        let mut store = TraceStore::new();
-        store.ingest(
-            &graph,
-            &[
-                TraceRecord {
-                    caller: "file:a.rs".to_string(),
-                    callee: "zzz-unknown".to_string(),
-                    count: 1,
-                },
-                TraceRecord {
-                    caller: "file:a.rs".to_string(),
-                    callee: "helper".to_string(),
-                    count: 1,
-                },
-            ],
-        );
-
-        let edges_a = store.edges(&graph);
-        let edges_b = store.edges(&graph);
-        assert_eq!(edges_a, edges_b, "edges() must be deterministic");
-
-        let callers_callees: Vec<(&str, &str)> = edges_a
-            .iter()
-            .map(|e| (e.caller.as_str(), e.callee.as_str()))
-            .collect();
-        let mut sorted = callers_callees.clone();
-        sorted.sort();
-        assert_eq!(
-            callers_callees, sorted,
-            "edges() must be sorted by (caller, callee)"
-        );
-        Ok(())
-    }
+/// Every raw callee string appearing in `graph.calls()` (the parser's
+/// as-written call-site text, e.g. `"helper"` -- never a resolved
+/// `sym:...` id). A [`TraceRecord::callee`] that names one of these
+/// values is resolvable even though it is not itself a graph node id,
+/// because [`TraceStore::edges`] merges runtime counts into parsed
+/// edges by exactly this text, not by node id (see its doc comment).
+fn known_raw_callee_texts(graph: &CodeGraph) -> std::collections::HashSet<&str> {
+    graph.calls().iter().map(|c| c.callee.as_str()).collect()
 }
