@@ -213,6 +213,288 @@ impl NodeKindTable {
             if_alternative_field: "alternative",
         }
     }
+
+    pub fn go() -> Self {
+        Self {
+            decision_points: &[
+                "if_statement",
+                "expression_case",
+                "type_case",
+                "for_statement",
+                "&&",
+                "||",
+            ],
+            loops: &["for_statement"],
+            nesting: &[
+                "if_statement",
+                "expression_switch_statement",
+                "type_switch_statement",
+                "for_statement",
+                "func_literal",
+            ],
+            function_defs: &["function_declaration", "method_declaration", "func_literal"],
+            calls: &["call_expression"],
+            call_function_field: "function",
+            member_access: &["selector_expression"],
+            member_access_object_field: "operand",
+            parameters: &["parameter_list"],
+            parameters_field: "parameters",
+            name_field: "name",
+            body_field: "body",
+            if_statements: &["if_statement"],
+            if_alternative_field: "alternative",
+        }
+    }
+
+    pub fn java() -> Self {
+        Self {
+            decision_points: &[
+                "if_statement",
+                "switch_label",
+                "while_statement",
+                "do_statement",
+                // Java's for-each (`for (T x : xs)`) shares the plain
+                // `for_statement` node kind with the classic C-style
+                // for-loop -- there is no separate `for_each_statement`
+                // kind in this grammar.
+                "for_statement",
+                "catch_clause",
+                "&&",
+                "||",
+                "ternary_expression",
+            ],
+            loops: &["while_statement", "do_statement", "for_statement"],
+            nesting: &[
+                "if_statement",
+                "switch_expression",
+                "while_statement",
+                "do_statement",
+                "for_statement",
+                "catch_clause",
+                "lambda_expression",
+            ],
+            function_defs: &[
+                "method_declaration",
+                "constructor_declaration",
+                "lambda_expression",
+            ],
+            calls: &["method_invocation"],
+            call_function_field: "name",
+            member_access: &["field_access"],
+            member_access_object_field: "object",
+            parameters: &["formal_parameters"],
+            parameters_field: "parameters",
+            name_field: "name",
+            body_field: "body",
+            if_statements: &["if_statement"],
+            if_alternative_field: "alternative",
+        }
+    }
+
+    /// C: `switch`/`case_statement` (matching the workpack's "decisions
+    /// incl. switch cases" instruction -- each `case`/`default` arm adds
+    /// 1, not the `switch_statement` itself), `for`/`while`/`do` loops,
+    /// `->`/`.`-chained [`field_expression`] access, and pointer/`new`-
+    /// style allocation callees (`malloc`/`calloc`/`realloc`, matched
+    /// via [`ALLOC_CALLEES`] plus C's own idioms below).
+    pub fn c() -> Self {
+        Self {
+            decision_points: &[
+                "if_statement",
+                "case_statement",
+                "while_statement",
+                "do_statement",
+                "for_statement",
+                "&&",
+                "||",
+            ],
+            loops: &["while_statement", "do_statement", "for_statement"],
+            nesting: &[
+                "if_statement",
+                "switch_statement",
+                "while_statement",
+                "do_statement",
+                "for_statement",
+            ],
+            function_defs: &["function_definition"],
+            calls: &["call_expression"],
+            call_function_field: "function",
+            member_access: &["field_expression"],
+            member_access_object_field: "argument",
+            parameters: &["parameter_list"],
+            parameters_field: "parameters",
+            name_field: "declarator",
+            body_field: "body",
+            if_statements: &["if_statement"],
+            if_alternative_field: "alternative",
+        }
+    }
+
+    /// C++: `languages::cpp`'s superset of `c()` -- adds `switch_statement`/
+    /// `case_statement`, range-`for`, `catch_clause`, and lambda
+    /// expressions to the nesting/function-boundary sets (matching the
+    /// workpack's "decisions incl. switch cases, loops, param lists,
+    /// field/arrow access chains, malloc/new/push_back-style allocs"
+    /// instruction -- `new`/`push_back` ride the shared
+    /// [`ALLOC_CALLEES`] table, matched on the callee's last path
+    /// segment the same way `find`/`push`/etc already are for every
+    /// other language).
+    pub fn cpp() -> Self {
+        Self {
+            decision_points: &[
+                "if_statement",
+                "case_statement",
+                "while_statement",
+                "do_statement",
+                "for_statement",
+                "for_range_loop",
+                "catch_clause",
+                "&&",
+                "||",
+                "conditional_expression",
+            ],
+            loops: &[
+                "while_statement",
+                "do_statement",
+                "for_statement",
+                "for_range_loop",
+            ],
+            nesting: &[
+                "if_statement",
+                "switch_statement",
+                "while_statement",
+                "do_statement",
+                "for_statement",
+                "for_range_loop",
+                "catch_clause",
+                "lambda_expression",
+            ],
+            function_defs: &["function_definition", "lambda_expression"],
+            calls: &["call_expression"],
+            call_function_field: "function",
+            member_access: &["field_expression"],
+            member_access_object_field: "argument",
+            parameters: &["parameter_list"],
+            parameters_field: "parameters",
+            name_field: "declarator",
+            body_field: "body",
+            if_statements: &["if_statement"],
+            if_alternative_field: "alternative",
+        }
+    }
+
+    /// C#: `switch_expression_arm`/`switch_section` count as decision
+    /// points (one per arm/case, matching `switch_case`'s treatment
+    /// elsewhere), `foreach_statement` joins `for`/`while`/`do` as a
+    /// loop, and lambdas/local functions extend the nesting/function-
+    /// boundary sets the same way closures do for every other language.
+    pub fn csharp() -> Self {
+        Self {
+            decision_points: &[
+                "if_statement",
+                "switch_section",
+                "switch_expression_arm",
+                "while_statement",
+                "do_statement",
+                "for_statement",
+                "foreach_statement",
+                "catch_clause",
+                "&&",
+                "||",
+                "conditional_expression",
+            ],
+            loops: &[
+                "while_statement",
+                "do_statement",
+                "for_statement",
+                "foreach_statement",
+            ],
+            nesting: &[
+                "if_statement",
+                "switch_statement",
+                "switch_expression",
+                "while_statement",
+                "do_statement",
+                "for_statement",
+                "foreach_statement",
+                "catch_clause",
+                "lambda_expression",
+                "anonymous_method_expression",
+                "local_function_statement",
+            ],
+            function_defs: &[
+                "method_declaration",
+                "constructor_declaration",
+                "lambda_expression",
+                "anonymous_method_expression",
+                "local_function_statement",
+            ],
+            calls: &["invocation_expression"],
+            call_function_field: "function",
+            member_access: &["member_access_expression"],
+            member_access_object_field: "expression",
+            parameters: &["parameter_list"],
+            parameters_field: "parameters",
+            name_field: "name",
+            body_field: "body",
+            if_statements: &["if_statement"],
+            if_alternative_field: "alternative",
+        }
+    }
+
+    /// PHP: `switch` `case_statement`s, `foreach`/`for`/`while`/`do`
+    /// loops, `->`/`?->`-chained [`member_access_expression`] access,
+    /// and closures/arrow-functions extend the nesting/function-
+    /// boundary sets.
+    pub fn php() -> Self {
+        Self {
+            decision_points: &[
+                "if_statement",
+                "case_statement",
+                "while_statement",
+                "do_statement",
+                "for_statement",
+                "foreach_statement",
+                "catch_clause",
+                "&&",
+                "||",
+                "conditional_expression",
+            ],
+            loops: &[
+                "while_statement",
+                "do_statement",
+                "for_statement",
+                "foreach_statement",
+            ],
+            nesting: &[
+                "if_statement",
+                "switch_statement",
+                "while_statement",
+                "do_statement",
+                "for_statement",
+                "foreach_statement",
+                "catch_clause",
+                "anonymous_function",
+                "arrow_function",
+            ],
+            function_defs: &[
+                "function_definition",
+                "method_declaration",
+                "anonymous_function",
+                "arrow_function",
+            ],
+            calls: &["function_call_expression", "member_call_expression"],
+            call_function_field: "function",
+            member_access: &["member_access_expression"],
+            member_access_object_field: "object",
+            parameters: &["formal_parameters"],
+            parameters_field: "parameters",
+            name_field: "name",
+            body_field: "body",
+            if_statements: &["if_statement"],
+            if_alternative_field: "alternative",
+        }
+    }
 }
 
 /// Linear-scan-style callee names ("bottleneck candidate" signal --
@@ -237,6 +519,14 @@ const ALLOC_CALLEES: &[&str] = &[
     "clone",
     "insert",
     "collect",
+    // C/C++ (lane x06-b2-ccpp): heap allocation and vector-append
+    // idioms -- `malloc`/`calloc`/`realloc` (C), `push_back`/
+    // `emplace_back` (C++ std::vector-style containers).
+    "malloc",
+    "calloc",
+    "realloc",
+    "push_back",
+    "emplace_back",
 ];
 
 /// Tier A metrics for one function/method, additive on [`crate::code_graph::SymbolNode`]
@@ -333,8 +623,26 @@ pub fn find_definition_node<'tree>(
     while let Some(node) = stack.pop() {
         if table.function_defs.contains(&node.kind()) && node.start_position().row + 1 == line {
             if let Some(name_node) = node.child_by_field_name(table.name_field) {
+                // Exact-field text match (every wave-A/B language table
+                // so far: `name_field` names a leaf identifier node
+                // directly, e.g. Rust/TS/Python/Go/Java's own `name`
+                // field). Kept as the primary, unchanged path so no
+                // existing language's behavior shifts by even one
+                // node.
                 if name_node.utf8_text(src).ok() == Some(name) {
                     return Some(node);
+                }
+                // C/C++ fallback: `name_field` (`"declarator"`) names a
+                // *nested* declarator subtree (`function_declarator`,
+                // possibly wrapped in `pointer_declarator`s for a
+                // pointer-returning function) whose own `.utf8_text()`
+                // is the whole declarator (`"foo(int x)"`), not the
+                // bare name -- so this walks that subtree's innermost
+                // identifier instead of comparing the field's own text.
+                if let Some(inner_name) = innermost_identifier_text(name_node, src) {
+                    if inner_name == name {
+                        return Some(node);
+                    }
                 }
             }
         }
@@ -347,9 +655,50 @@ pub fn find_definition_node<'tree>(
     None
 }
 
+/// Walk a declarator subtree (`function_declarator` /
+/// `pointer_declarator` / `parenthesized_declarator` / `qualified_identifier`,
+/// the C/C++ grammar shapes [`find_definition_node`]'s fallback needs)
+/// down to its innermost bare identifier's text. Returns `None` for any
+/// node shape this does not recognize (every other language's
+/// `name_field` already resolves directly and never reaches this
+/// fallback at all).
+fn innermost_identifier_text<'a>(node: Node<'_>, src: &'a [u8]) -> Option<&'a str> {
+    match node.kind() {
+        "identifier" | "field_identifier" | "type_identifier" | "destructor_name"
+        | "operator_name" => node.utf8_text(src).ok(),
+        "function_declarator"
+        | "pointer_declarator"
+        | "reference_declarator"
+        | "parenthesized_declarator" => node
+            .child_by_field_name("declarator")
+            .and_then(|inner| innermost_identifier_text(inner, src)),
+        "qualified_identifier" => node
+            .child_by_field_name("name")
+            .and_then(|inner| innermost_identifier_text(inner, src)),
+        _ => None,
+    }
+}
+
 fn param_count(def_node: Node<'_>, table: &NodeKindTable) -> u32 {
-    let Some(params) = def_node.child_by_field_name(table.parameters_field) else {
-        return 0;
+    let direct = def_node.child_by_field_name(table.parameters_field);
+    // C/C++ fallback: `function_definition`'s own fields are
+    // `type`/`declarator`/`body` -- the parameter list lives one level
+    // deeper, on the `declarator` (`function_declarator`)'s own
+    // `parameters` field, not directly on `def_node`. Every other
+    // language's table already resolves `parameters_field` directly on
+    // `def_node` (this `direct` lookup succeeds and the fallback is
+    // never reached for them).
+    let params = match direct {
+        Some(params) if table.parameters.contains(&params.kind()) => params,
+        _ => {
+            let Some(nested) = def_node
+                .child_by_field_name(table.name_field)
+                .and_then(|declarator| declarator.child_by_field_name(table.parameters_field))
+            else {
+                return 0;
+            };
+            nested
+        }
     };
     if !table.parameters.contains(&params.kind()) {
         return 0;
@@ -708,6 +1057,12 @@ pub enum ComplexityLanguage {
     Rust,
     TypeScriptOrJavaScript,
     Python,
+    Go,
+    Java,
+    C,
+    Cpp,
+    CSharp,
+    Php,
 }
 
 impl ComplexityLanguage {
@@ -716,6 +1071,12 @@ impl ComplexityLanguage {
             ComplexityLanguage::Rust => NodeKindTable::rust(),
             ComplexityLanguage::TypeScriptOrJavaScript => NodeKindTable::typescript_javascript(),
             ComplexityLanguage::Python => NodeKindTable::python(),
+            ComplexityLanguage::Go => NodeKindTable::go(),
+            ComplexityLanguage::Java => NodeKindTable::java(),
+            ComplexityLanguage::C => NodeKindTable::c(),
+            ComplexityLanguage::Cpp => NodeKindTable::cpp(),
+            ComplexityLanguage::CSharp => NodeKindTable::csharp(),
+            ComplexityLanguage::Php => NodeKindTable::php(),
         }
     }
 
@@ -726,6 +1087,12 @@ impl ComplexityLanguage {
                 tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into()
             }
             ComplexityLanguage::Python => tree_sitter_python::LANGUAGE.into(),
+            ComplexityLanguage::Go => tree_sitter_go::LANGUAGE.into(),
+            ComplexityLanguage::Java => tree_sitter_java::LANGUAGE.into(),
+            ComplexityLanguage::C => tree_sitter_c::LANGUAGE.into(),
+            ComplexityLanguage::Cpp => tree_sitter_cpp::LANGUAGE.into(),
+            ComplexityLanguage::CSharp => tree_sitter_c_sharp::LANGUAGE.into(),
+            ComplexityLanguage::Php => tree_sitter_php::LANGUAGE_PHP.into(),
         }
     }
 }

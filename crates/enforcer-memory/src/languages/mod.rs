@@ -6,6 +6,12 @@
 //! [`crate::parsers::parse_file`] -- [`crate::code_graph`] itself never
 //! needs to know which grammar produced a [`crate::parsers::ParsedFile`].
 
+pub mod c;
+pub mod cpp;
+pub mod csharp;
+pub mod go;
+pub mod java;
+pub mod php;
 pub mod python;
 pub mod rust;
 pub mod typescript;

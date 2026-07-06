@@ -7,7 +7,7 @@
 //! change fully contained to `languages/` + the one dispatch arm in
 //! [`parse_file`] below.
 
-use crate::languages::{python, rust, typescript};
+use crate::languages::{c, cpp, csharp, go, java, php, python, rust, typescript};
 
 /// One extracted symbol: a function, type, or test found in a source
 /// file. Route/import/call extraction is intentionally modeled
@@ -172,6 +172,12 @@ pub enum Language {
     TypeScript,
     JavaScript,
     Python,
+    Go,
+    Java,
+    C,
+    Cpp,
+    CSharp,
+    Php,
     ConfigToml,
     ConfigJson,
     ConfigYaml,
@@ -194,6 +200,23 @@ pub fn classify(rel_path: &str) -> Language {
         "ts" | "tsx" | "mts" | "cts" => Language::TypeScript,
         "js" | "jsx" | "mjs" | "cjs" => Language::JavaScript,
         "py" | "pyi" => Language::Python,
+        "go" => Language::Go,
+        "java" => Language::Java,
+        "c" => Language::C,
+        // ".h" ambiguity (C vs C++ header): default to C++'s grammar.
+        // tree-sitter-cpp's grammar is a syntactic superset of C for
+        // every construct this crate's extractor matches (function/
+        // struct/enum/typedef/#define/#include/call), so a plain-C
+        // header still extracts every symbol/edge a C-specific grammar
+        // would; the reverse is not true (a C grammar cannot parse
+        // `class`/`namespace`/templates), so routing ".h" through C++
+        // strictly dominates routing it through C -- see this module's
+        // doc and the workpack's "route .h by content heuristic or
+        // default to C++ ... -- document the choice" instruction.
+        "h" | "hh" | "hpp" | "hxx" | "h++" => Language::Cpp,
+        "cpp" | "cc" | "cxx" | "c++" => Language::Cpp,
+        "cs" => Language::CSharp,
+        "php" => Language::Php,
         "toml" => Language::ConfigToml,
         "json" => Language::ConfigJson,
         "yml" | "yaml" => Language::ConfigYaml,
@@ -207,13 +230,46 @@ pub fn classify(rel_path: &str) -> Language {
 /// [`Language::TextOnly`]) -- callers must still create a file node for
 /// those, just with no symbols/routes/imports/calls attached (the
 /// `TextOnly`-node fallback).
-pub fn parse_file(language: Language, source: &str) -> Option<ParsedFile> {
+///
+/// `rel_path` additionally lets the Go extractor recognize `_test.go`
+/// files (Go test detection is filename-gated, not annotation-gated,
+/// per Go convention -- see `languages/go.rs`'s module doc).
+pub fn parse_file(language: Language, source: &str, rel_path: &str) -> Option<ParsedFile> {
     match language {
         Language::Rust => Some(rust::parse(source)),
         Language::TypeScript | Language::JavaScript => Some(typescript::parse(source, language)),
         Language::Python => Some(python::parse(source)),
+        Language::Go => {
+            let is_test_file = rel_path.to_lowercase().ends_with("_test.go");
+            Some(go::parse(source, is_test_file))
+        }
+        Language::Java => Some(java::parse(source)),
+        Language::C => {
+            let is_test_file = is_c_family_test_path(rel_path, &["_test.c"]);
+            Some(c::parse(source, is_test_file))
+        }
+        Language::Cpp => {
+            let is_test_file =
+                is_c_family_test_path(rel_path, &["_test.cpp", "_test.cc", "_test.cxx"]);
+            Some(cpp::parse(source, is_test_file))
+        }
+        Language::CSharp => Some(csharp::parse(source)),
+        Language::Php => Some(php::parse(source)),
         Language::ConfigToml | Language::ConfigJson | Language::ConfigYaml | Language::TextOnly => {
             None
         }
     }
+}
+
+/// C/C++ file-level test signal (workpack: "files under test/ or
+/// *_test.c(pp)"): a path with any `test`-named path segment (`test/`,
+/// `tests/`, case-insensitive) OR whose filename ends with one of
+/// `suffixes` (e.g. `_test.c`, `_test.cpp`).
+fn is_c_family_test_path(rel_path: &str, suffixes: &[&str]) -> bool {
+    let lower = rel_path.to_lowercase().replace('\\', "/");
+    let under_test_dir = lower
+        .split('/')
+        .any(|segment| segment == "test" || segment == "tests");
+    let matches_suffix = suffixes.iter().any(|suffix| lower.ends_with(suffix));
+    under_test_dir || matches_suffix
 }

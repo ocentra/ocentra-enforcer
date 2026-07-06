@@ -45,7 +45,20 @@ git2 = "0.19"
 # Rust, TypeScript/JavaScript, Python). Config/IaC (toml/json/yaml) and
 # any other extension fall back to the TextOnly node path -- no grammar
 # dependency needed for those.
-tree-sitter = "0.24"
+#
+# Bumped 0.24 -> 0.25 (lane x06-b3-csphp): the only crates.io release of
+# tree-sitter-c-sharp (0.23.5) and tree-sitter-php (0.24.2) both ship a
+# grammar ABI of 15 (regenerated with a newer tree-sitter-cli than their
+# own crate version number suggests). `tree-sitter` core 0.24.x's
+# `TREE_SITTER_LANGUAGE_VERSION` ceiling is 14, so `set_language` fails
+# with `LanguageError { version: 15 }` for both grammars under 0.24.
+# `tree-sitter` 0.25.x raises that ceiling to 15 while keeping
+# `MIN_COMPATIBLE_LANGUAGE_VERSION` at 13, so every existing ABI-14
+# grammar in this crate (rust/typescript/python/go/java, all pinned
+# "0.23") keeps parsing unchanged -- this is a strict widening, not a
+# breaking bump, verified by `cargo test -p enforcer-memory` (all
+# pre-existing language unit tests green) after the bump.
+tree-sitter = "0.25"
 # petgraph: X06.3's graph-algorithms layer (related walk, call-path
 # tracing, reverse dependency traversal, centrality/hotspot ranking)
 # over CodeGraph. Approved per MEMORY_RETRIEVAL_BORROW_POLICY §2 (a
@@ -57,6 +70,31 @@ petgraph = "0.6"
 tree-sitter-rust = "0.23"
 tree-sitter-typescript = "0.23"
 tree-sitter-python = "0.23"
+# X06 wave-B core parity: Go/Java structural extractors (see
+# languages/go.rs, languages/java.rs). Pinned to the same 0.23.x grammar
+# ABI line as the wave-A grammars above (tree-sitter core "0.24").
+tree-sitter-go = "0.23"
+tree-sitter-java = "0.23"
+# X06 wave-B core parity: C#/PHP structural extractors (see
+# languages/csharp.rs, languages/php.rs). tree-sitter-c-sharp 0.23.x
+# matches the same 0.23.x grammar ABI line as the other wave grammars
+# above. tree-sitter-php 0.24.x exposes two grammar entry points --
+# `LANGUAGE_PHP` (PHP-only, no leading `<?php` tag required) and
+# `LANGUAGE_PHP_ONLY` is not a real symbol; the crate's actual exports
+# are `LANGUAGE_PHP` (accepts inline HTML + `<?php ... ?>` tags, the
+# real-world `.php` file shape) and `LANGUAGE_PHP_ONLY` (grammar rooted
+# at `program` with no HTML/tag handling, for embedding PHP inside
+# another host document). This extractor parses whole `.php` files as
+# they exist on disk (inline HTML preamble/epilogue is common), so it
+# uses `LANGUAGE_PHP` -- see `languages/php.rs` module doc.
+tree-sitter-c-sharp = "0.23"
+tree-sitter-php = "0.24"
+# X06 wave-B core parity (lane x06-b2-ccpp): C/C++ structural extractors
+# (see languages/c.rs, languages/cpp.rs). tree-sitter-c 0.24.x and
+# tree-sitter-cpp 0.23.x are each the newest crates.io release that
+# builds against this workspace's `tree-sitter = "0.24"` core.
+tree-sitter-c = "0.24"
+tree-sitter-cpp = "0.23"
 # X06.4 (D-04, DEFAULT): pure-Rust HNSW vector index -- no C++ toolchain,
 # no external vector service (qdrant-client is explicitly rejected, see
 # MEMORY_RETRIEVAL_DECISIONS D-04). Harvested dependency choice from

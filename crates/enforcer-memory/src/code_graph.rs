@@ -170,6 +170,12 @@ pub enum LanguageTag {
     TypeScript,
     JavaScript,
     Python,
+    Go,
+    Java,
+    C,
+    Cpp,
+    CSharp,
+    Php,
     ConfigToml,
     ConfigJson,
     ConfigYaml,
@@ -183,6 +189,12 @@ impl From<Language> for LanguageTag {
             Language::TypeScript => LanguageTag::TypeScript,
             Language::JavaScript => LanguageTag::JavaScript,
             Language::Python => LanguageTag::Python,
+            Language::Go => LanguageTag::Go,
+            Language::Java => LanguageTag::Java,
+            Language::C => LanguageTag::C,
+            Language::Cpp => LanguageTag::Cpp,
+            Language::CSharp => LanguageTag::CSharp,
+            Language::Php => LanguageTag::Php,
             Language::ConfigToml => LanguageTag::ConfigToml,
             Language::ConfigJson => LanguageTag::ConfigJson,
             Language::ConfigYaml => LanguageTag::ConfigYaml,
@@ -689,7 +701,7 @@ impl CodeGraph {
             };
             let text = String::from_utf8_lossy(&content).into_owned();
             let language = parsers::classify(&rel_path);
-            let parsed = parsers::parse_file(language, &text);
+            let parsed = parsers::parse_file(language, &text, &rel_path);
 
             let (file_id, chunk_ids) = self.insert_file_and_chunks(NewFileParams {
                 rel_path: &rel_path,
@@ -1073,6 +1085,12 @@ fn complexity_language(language: Language) -> Option<crate::complexity::Complexi
             Some(crate::complexity::ComplexityLanguage::TypeScriptOrJavaScript)
         }
         Language::Python => Some(crate::complexity::ComplexityLanguage::Python),
+        Language::Go => Some(crate::complexity::ComplexityLanguage::Go),
+        Language::Java => Some(crate::complexity::ComplexityLanguage::Java),
+        Language::C => Some(crate::complexity::ComplexityLanguage::C),
+        Language::Cpp => Some(crate::complexity::ComplexityLanguage::Cpp),
+        Language::CSharp => Some(crate::complexity::ComplexityLanguage::CSharp),
+        Language::Php => Some(crate::complexity::ComplexityLanguage::Php),
         Language::ConfigToml | Language::ConfigJson | Language::ConfigYaml | Language::TextOnly => {
             None
         }
