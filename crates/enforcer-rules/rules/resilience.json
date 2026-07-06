@@ -1,0 +1,63 @@
+[
+    {
+        "ruleId": "RESIL-FAILURE-MODE-TEST.1",
+        "version": 1,
+        "title": "Trust-boundary change requires a failure-mode test obligation",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "rules::resilience::FailureModeTestValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/tests/fixtures/resilience/failure_mode/bad/handler.rs",
+            "pass": "crates/enforcer-lang-common/tests/fixtures/resilience/failure_mode/good/handler.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d10-resilience-auditor.md#Requirement Checklist",
+        "tags": ["resilience", "d10", "cross-stack", "required-test-obligation"],
+        "params": {
+            "legacyIds": ["RESIL-FAILURE-MODE-TEST"]
+        }
+    },
+    {
+        "ruleId": "RESIL-ATOMIC-WRITE.1",
+        "version": 1,
+        "title": "Atomic write + rollback smell",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "rules::resilience::AtomicWriteValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/tests/fixtures/resilience/atomic_write/bad/writer.rs",
+            "pass": "crates/enforcer-lang-common/tests/fixtures/resilience/atomic_write/good/writer.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d10-resilience-auditor.md#Requirement Checklist",
+        "tags": ["resilience", "d10", "cross-stack", "scored", "smell"],
+        "params": {
+            "legacyIds": ["RESIL-ATOMIC-WRITE"],
+            "fireThreshold": 1.0,
+            "confidence": 0.7
+        }
+    },
+    {
+        "ruleId": "RESIL-IO-TIMEOUT.1",
+        "version": 1,
+        "title": "I/O timeout/retry smell",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-common",
+            "path": "rules::resilience::IoTimeoutValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-common/tests/fixtures/resilience/io_timeout/bad/client.rs",
+            "pass": "crates/enforcer-lang-common/tests/fixtures/resilience/io_timeout/good/client.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/d10-resilience-auditor.md#Requirement Checklist",
+        "tags": ["resilience", "d10", "cross-stack", "scored", "smell"],
+        "params": {
+            "legacyIds": ["RESIL-IO-TIMEOUT"],
+            "fireThreshold": 1.0,
+            "confidence": 0.6
+        }
+    }
+]

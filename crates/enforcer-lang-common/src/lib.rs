@@ -41,10 +41,12 @@
 //! - [`rules`] — NEW-mechanism rule families scaffolded via d01 that sit
 //!   OUTSIDE the legacy `rules.json` `language==common` count-parity set:
 //!   [`rules::fsm`] (d16, FSM transition validity — ADBP_GAPS.md rows
-//!   41-50) and [`rules::size_shape`] (d22, size/shape caps — ADBP_GAPS.md
-//!   rows 91-94). Disjoint files/tests/fixtures from [`families`]/
-//!   [`registry`]; not included in [`registry::all`]'s count and not part
-//!   of `tests/parity.rs`'s legacy-catalog assertion.
+//!   41-50), [`rules::size_shape`] (d22, size/shape caps — ADBP_GAPS.md
+//!   rows 91-94), and [`rules::resilience`] (d10, resilience auditor —
+//!   ADBP_GAPS.md rows 82-85, `d20-resilience-obligations` folded in).
+//!   Disjoint files/tests/fixtures from [`families`]/[`registry`]; not
+//!   included in [`registry::all`]'s count and not part of
+//!   `tests/parity.rs`'s legacy-catalog assertion.
 //!
 //! No `pub use` barrels (workspace doctrine): consumers path through the
 //! modules directly, e.g. `enforcer_lang_common::registry::all`.

@@ -7,4 +7,5 @@
 pub mod change_discipline;
 pub mod deferred_work;
 pub mod fsm;
+pub mod resilience;
 pub mod size_shape;
