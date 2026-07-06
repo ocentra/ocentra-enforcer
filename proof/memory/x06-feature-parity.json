@@ -1,9 +1,4 @@
 {
-  "schemaVersion": 1,
-  "artifact": "x06-feature-parity",
-  "workpack": "x06-models-harvest",
-  "generatedAt": "2026-07-06T05:45:00Z",
-  "status": "partial",
   "prefixes": [
     {
       "prefix": "STO",
@@ -82,7 +77,7 @@
       "status": "red",
       "testName": "qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split",
       "artifactPath": "proof/memory/x06-rag-qa.json",
-      "failureReason": "233 of 250 rows unrunnable, 0 failed; see x06-rag-qa.json"
+      "failureReason": "233 of 250 rows unrunnable, 0 failed -- see x06-rag-qa.json"
     },
     {
       "prefix": "LRN",
@@ -137,54 +132,5 @@
   "retrievalImprovementCurvePresent": false,
   "tokenReductionMedianAtLeast10x": false,
   "exactArtifactMismatchCount": 0,
-  "externalModelProviderUsed": false,
-  "proofSemantics": {
-    "noFakeGreen": true,
-    "contractOnlyUntilBackendRun": true,
-    "graphDependentPersistenceFollowUp": true,
-    "backendNeutralLocalRuntime": true
-  },
-  "featureParity": {
-    "llamaCppFirstClass": true,
-    "ggufPrimaryArtifact": true,
-    "onnxOrtOptional": true,
-    "ortModelsFeatureCompiledInDefaultBuild": false,
-    "localCacheFirst": true,
-    "zeroNetworkDefault": true,
-    "retrievalQualityFixturePresent": true,
-    "rerankerLiftPositive": false,
-    "tokenReductionAtLeast10xOnCurrentFixture": true,
-    "learningEvidenceCurvePresent": false,
-    "graphDependentPersistencePresent": false
-  },
-  "dogfoodLessons": [
-    "State the local runtime policy separately from execution evidence; the code can prove contracts before it can prove a live backend.",
-    "Do not use the deterministic fallback as a parity proxy; it is the safety net, not the target runtime.",
-    "Keep model-observation persistence out of the backend proof until the graph-dependent writer exists.",
-    "Record reranker lift independently from token reduction; the current retrieval fixture shows token savings without a positive lift."
-  ],
-  "blockers": [
-    "A real llama-cpp/GGUF execution path still needs a measurable end-to-end proof.",
-    "The graph-dependent persistence writer for model observations and learning curves is still missing.",
-    "The optional ONNX/ORT path is contract-shaped but not yet claimed in the default build.",
-    "The current retrieval fixture proves token reduction, but reranker lift is still zero."
-  ],
-  "evidence": {
-    "proofFiles": [
-      "proof/memory/x06-models.json",
-      "proof/memory/x06-retrieval-quality.json",
-      "proof/memory/x06-rag.json",
-      "proof/memory/x06-store.json"
-    ],
-    "runtimeCode": [
-      "crates/enforcer-memory/src/local_runtime.rs",
-      "crates/enforcer-memory/src/model_runtime.rs",
-      "crates/enforcer-memory/src/model_observations.rs"
-    ]
-  },
-  "nextSteps": [
-    "Add a real local llama-cpp/GGUF run proof.",
-    "Wire the graph-dependent persistence writer for model observations.",
-    "Refresh the parity rollup after the runtime and writer proofs land."
-  ]
+  "externalModelProviderUsed": false
 }
