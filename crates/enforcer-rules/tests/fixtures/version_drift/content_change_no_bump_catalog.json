@@ -1,0 +1,28 @@
+[
+    {
+        "ruleId": "T1-VDRIFT.1",
+        "version": 1,
+        "title": "Sample drift-fixture rule one",
+        "tier": "T1",
+        "validator": { "crateName": "enforcer-lang-rust", "path": "sample::DriftFixtureValidatorOne" },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/vdrift-one/fail.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/vdrift-one/pass.rs"
+        },
+        "docAnchor": "docs/rules/VDRIFT.md#VDRIFT-1",
+        "tags": ["fixture", "version-drift"]
+    },
+    {
+        "ruleId": "T1-VDRIFT.2",
+        "version": 1,
+        "title": "Sample drift-fixture rule two",
+        "tier": "T1",
+        "validator": { "crateName": "enforcer-lang-rust", "path": "sample::DriftFixtureValidatorTwoRenamed" },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-rust/fixtures/vdrift-two/fail.rs",
+            "pass": "crates/enforcer-lang-rust/fixtures/vdrift-two/pass.rs"
+        },
+        "docAnchor": "docs/rules/VDRIFT.md#VDRIFT-2",
+        "tags": ["fixture", "version-drift"]
+    }
+]

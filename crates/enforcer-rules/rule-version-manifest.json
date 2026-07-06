@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "entries": {
+    "DEFER-1.1": {
+      "version": 1,
+      "hash": "sha256:5c9d73b245349f8abded644a98d7936d5a188f199d4b370ea687d5f24224e0ee"
+    },
+    "T1-DENYWALL.1": {
+      "version": 1,
+      "hash": "sha256:06503fed001eb0f0d1b7ec04eb97ea69e32278200146a8940b657ed6baed1f6f"
+    },
+    "T1-NOREEXPORT.1": {
+      "version": 1,
+      "hash": "sha256:eeb7ff714894eda2590b661d22b8fda5cf707eb8e85451af07b274e43e30317f"
+    },
+    "T1-PARENTPOSTURE.1": {
+      "version": 1,
+      "hash": "sha256:85aadf00b82a7ebf735ca7f067e01e588fe841cac79681cc414938174de4a82e"
+    },
+    "T1-PARENTPOSTURE.2": {
+      "version": 1,
+      "hash": "sha256:e0158041d607199585bb62274d57b5c702917c4a0292eb2fa554bd9391ce8132"
+    },
+    "T1-PARENTPOSTURE.3": {
+      "version": 1,
+      "hash": "sha256:71b1e21a298d193e1b93246a7e9400706e5f81b57cb5e671b371c2da49ac0ed6"
+    },
+    "T1-PARENTPOSTURE.4": {
+      "version": 1,
+      "hash": "sha256:ba6e88cfb90cc7138e8de6e51c6cb1acbaf27d6146211cce4b22cf0181ce587d"
+    }
+  }
+}
