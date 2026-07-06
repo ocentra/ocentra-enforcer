@@ -32,6 +32,7 @@
 //! MEMORY_RETRIEVAL_BORROW_POLICY §2 TabAgentServer row: "Cargo
 //! dependency CHOICES may be adopted directly").
 
+pub mod clustering;
 pub mod query;
 
 use crate::code_graph::{CodeGraph, CodeNode};
