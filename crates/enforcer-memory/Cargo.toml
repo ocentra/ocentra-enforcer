@@ -97,5 +97,14 @@ duckdb-analytics = ["duckdb"]
 # pulled into every build.
 ort-models = []
 
+[[bench]]
+# X06.9 longitudinal benchmark SKELETON hook point
+# (MEMORY_RETRIEVAL_QA_BENCHMARKS.md §3): index+query timing over a
+# deterministic synthetic fixture repo. Plain `harness = false` bench
+# (no criterion dev-dependency added in this pass -- see
+# benches/x06_9_longitudinal.rs module docs for why).
+name = "x06_9_longitudinal"
+harness = false
+
 [lints]
 workspace = true

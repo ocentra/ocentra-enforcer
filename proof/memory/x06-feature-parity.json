@@ -1,0 +1,136 @@
+{
+  "prefixes": [
+    {
+      "prefix": "STO",
+      "status": "pending",
+      "artifactPath": "proof/memory/x06-store.json",
+      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+    },
+    {
+      "prefix": "IDX",
+      "status": "pending",
+      "artifactPath": "proof/memory/x06-indexing.json",
+      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+    },
+    {
+      "prefix": "COD",
+      "status": "pending",
+      "artifactPath": "proof/memory/x06-code-graph.json",
+      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+    },
+    {
+      "prefix": "GPH",
+      "status": "pending",
+      "artifactPath": "proof/memory/x06-kg.json",
+      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+    },
+    {
+      "prefix": "TXT",
+      "status": "pending",
+      "artifactPath": "proof/memory/x06-fulltext.json",
+      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+    },
+    {
+      "prefix": "VEC",
+      "status": "pending",
+      "artifactPath": "proof/memory/x06-vector.json",
+      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+    },
+    {
+      "prefix": "RRK",
+      "status": "pending",
+      "artifactPath": "proof/memory/x06-reranker.json",
+      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+    },
+    {
+      "prefix": "SUM",
+      "status": "pending",
+      "artifactPath": "proof/memory/x06-summaries.json",
+      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+    },
+    {
+      "prefix": "WVR",
+      "status": "pending",
+      "artifactPath": "proof/memory/x06-weaver.json",
+      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+    },
+    {
+      "prefix": "MCP",
+      "status": "pending",
+      "artifactPath": "proof/memory/x06-mcp.json",
+      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+    },
+    {
+      "prefix": "CLI",
+      "status": "pending",
+      "artifactPath": "proof/memory/x06-cli.json",
+      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+    },
+    {
+      "prefix": "PAR",
+      "status": "pending",
+      "artifactPath": "proof/memory/x06-kg-parity.json",
+      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+    },
+    {
+      "prefix": "QA",
+      "status": "red",
+      "testName": "qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split",
+      "artifactPath": "proof/memory/x06-rag-qa.json",
+      "failureReason": "233 of 250 rows unrunnable, 0 failed -- see x06-rag-qa.json"
+    },
+    {
+      "prefix": "LRN",
+      "status": "pending",
+      "artifactPath": "proof/memory/x06-learning-curve.json",
+      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+    },
+    {
+      "prefix": "FED",
+      "status": "pending",
+      "artifactPath": "proof/memory/x06-federation.json",
+      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+    },
+    {
+      "prefix": "DIA",
+      "status": "pending",
+      "artifactPath": "proof/memory/x06-diagnostics.json",
+      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+    },
+    {
+      "prefix": "SEC",
+      "status": "pending",
+      "artifactPath": "proof/memory/x06-policy.json",
+      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+    },
+    {
+      "prefix": "TOK",
+      "status": "pending",
+      "artifactPath": "proof/memory/x06-token-reduction.json",
+      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+    },
+    {
+      "prefix": "MOD",
+      "status": "pending",
+      "artifactPath": "proof/memory/x06-models.json",
+      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+    },
+    {
+      "prefix": "DOG",
+      "status": "pending",
+      "artifactPath": "proof/memory/x06-dogfood.json",
+      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+    }
+  ],
+  "allMatrixPrefixesGreen": false,
+  "qaRowsTotal": 250,
+  "qaRowsGreen": 17,
+  "kgParityComparedAgainstBaseline": false,
+  "mcpCliParity": false,
+  "localDenseRetrievalPresent": true,
+  "localRerankerPresent": true,
+  "retrievalImprovementCurvePresent": false,
+  "tokenReductionMedianAtLeast10x": false,
+  "exactArtifactMismatchCount": 0,
+  "externalModelProviderUsed": false
+}
