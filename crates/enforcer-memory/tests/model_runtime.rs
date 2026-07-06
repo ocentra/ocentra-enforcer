@@ -199,11 +199,16 @@ fn enum_serialization_matches_parent_style_kebab_case() -> TestResult {
             serde_json::to_value(LoadStateReport::DegradedProviderUnavailable)?,
             "degraded-provider-unavailable",
         ),
+        (serde_json::to_value(ProviderKind::Vulkan)?, "vulkan"),
     ];
 
     for (actual, expected) in cases {
         assert_eq!(actual, expected);
     }
+    assert_eq!(
+        ProviderKind::Vulkan.resource_class(),
+        enforcer_memory::embed::ResourceClass::Gpu
+    );
     Ok(())
 }
 

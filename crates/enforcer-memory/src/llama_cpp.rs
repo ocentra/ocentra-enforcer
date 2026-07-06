@@ -26,6 +26,7 @@ pub enum LlamaCppProbeKind {
 pub enum LlamaCppBackendHint {
     Auto,
     Native,
+    Vulkan,
     OpenVino,
 }
 
@@ -219,8 +220,11 @@ pub fn run_llama_cpp_probe(config: &LlamaCppProbeConfig) -> Result<LlamaCppProbe
     let stdout_excerpt = excerpt(&String::from_utf8_lossy(&output.stdout), 4096);
     let stderr_excerpt = excerpt_tail(&String::from_utf8_lossy(&output.stderr), 4096);
     let exit_code = output.status.code();
-    let measured_tokens_per_second =
-        measured_tokens_per_second(config, &stdout_excerpt, &stderr_excerpt, duration_ms);
+    let measured_tokens_per_second = if output.status.success() {
+        measured_tokens_per_second(config, &stdout_excerpt, &stderr_excerpt, duration_ms)
+    } else {
+        None
+    };
     let load_state = if output.status.success() {
         "loaded"
     } else if timed_out {
@@ -262,6 +266,8 @@ pub fn llama_cpp_command_plan(config: &LlamaCppProbeConfig) -> LlamaCppCommandPl
             args.push("-n".to_owned());
             args.push(config.max_tokens.to_string());
             args.push("--no-display-prompt".to_owned());
+            args.push("-st".to_owned());
+            args.push("--simple-io".to_owned());
         }
         LlamaCppProbeKind::Embedding => {
             args.push("--embedding".to_owned());
@@ -416,8 +422,11 @@ fn conservative_token_rate(config: &LlamaCppProbeConfig, duration_ms: u128) -> O
 
 fn parse_token_rate(text: &str) -> Option<f64> {
     for line in text.lines().rev() {
-        if !line.contains("tokens per second") && !line.contains("tok/s") {
+        if !line.contains("tokens per second") && !line.contains("tok/s") && !line.contains("t/s") {
             continue;
+        }
+        if let Some(value) = parse_generation_rate(line) {
+            return Some(value);
         }
         let tokens = line
             .split(|ch: char| !(ch.is_ascii_digit() || ch == '.'))
@@ -433,9 +442,61 @@ fn parse_token_rate(text: &str) -> Option<f64> {
     None
 }
 
+fn parse_generation_rate(line: &str) -> Option<f64> {
+    let (_, after_generation) = line.split_once("Generation:")?;
+    let token = after_generation
+        .split(|ch: char| !(ch.is_ascii_digit() || ch == '.'))
+        .find(|part| !part.is_empty())?;
+    token.parse::<f64>().ok().filter(|value| {
+        value.is_finite()
+            && *value > 0.0
+            && (after_generation.contains("t/s") || after_generation.contains("tok/s"))
+    })
+}
+
 fn model_error(operation: &'static str, reason: impl Into<String>) -> MemoryError {
     MemoryError::ModelRuntime {
         operation,
         reason: reason.into(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn generation_plan_is_single_turn_and_subprocess_safe() {
+        let config = LlamaCppProbeConfig {
+            binary_path: "llama-cli.exe".into(),
+            model_path: "model.gguf".into(),
+            model_sha256: None,
+            prompt: "hello".to_owned(),
+            kind: LlamaCppProbeKind::Generate,
+            backend_hint: LlamaCppBackendHint::Native,
+            acceleration: LocalRuntimeAcceleration::Cpu,
+            gpu_layers: None,
+            device: None,
+            main_gpu: None,
+            split_mode: None,
+            tensor_split: None,
+            fit: None,
+            context_size: None,
+            max_tokens: 8,
+            timeout_ms: 1_000,
+        };
+
+        let plan = llama_cpp_command_plan(&config);
+
+        assert!(plan.args.iter().any(|arg| arg == "-st"));
+        assert!(plan.args.iter().any(|arg| arg == "--simple-io"));
+        assert!(plan.args.iter().any(|arg| arg == "--no-display-prompt"));
+    }
+
+    #[test]
+    fn current_llama_generation_rate_line_is_parsed() {
+        let line = "[ Prompt: 18.9 t/s | Generation: 6.4 t/s ]";
+
+        assert_eq!(parse_generation_rate(line), Some(6.4));
     }
 }

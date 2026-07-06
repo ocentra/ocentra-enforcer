@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "runtimeMode": "download",
+  "allowNetwork": true,
+  "probeExecutionPolicy": {
+    "allowMultiProbe": false,
+    "defaultProbeFilter": "chat",
+    "probeOrder": [
+      "chat-generation-gguf",
+      "qwen-embedding-onnx",
+      "qwen-reranker-onnx",
+      "qwen-embedding-gguf"
+    ],
+    "reason": "one real model probe at a time by default to avoid resource contention or host instability",
+    "requestedProbeFilter": "chat",
+    "selectedProbes": [
+      "chat-generation-gguf"
+    ]
+  },
+  "cacheRoot": "<repo>/model",
+  "cacheRootPolicy": {
+    "mode": "dev-repo-local",
+    "reason": "dev mode keeps downloaded models in the repository-local model directory",
+    "root": "<repo>/model"
+  },
+  "serviceConfig": {
+    "bindHost": "127.0.0.1",
+    "cacheRoot": "<repo>/model",
+    "exposeLlamaServer": false,
+    "port": 8766,
+    "routes": [
+      "health",
+      "models",
+      "load-model",
+      "unload-model",
+      "chat",
+      "embeddings",
+      "rerank"
+    ]
+  },
+  "chatThroughputPolicy": {
+    "minTokensPerSecond": 10.0,
+    "targetTokensPerSecondLow": 40.0,
+    "targetTokensPerSecondHigh": 60.0
+  },
+  "chatModelSelection": {
+    "enabled": false,
+    "reason": "explicit ENFORCER_X06_CHAT_MODEL_* override present",
+    "selected": {
+      "acceleration": "auto",
+      "backend": "llama-cpp",
+      "files": [
+        {
+          "kind": "model",
+          "path": "Qwen3-4B-Q4_K_M.gguf"
+        }
+      ],
+      "modelId": "Qwen/Qwen3-4B-GGUF",
+      "repoId": "Qwen/Qwen3-4B-GGUF",
+      "revision": "main",
+      "task": "summarization"
+    }
+  },
+  "chatGenerationGguf": {
+    "cacheDir": "<repo>/model\\hf\\Qwen--Qwen3-4B-GGUF\\main",
+    "downloadedFiles": [
+      {
+        "localPath": "<repo>/model\\hf\\Qwen--Qwen3-4B-GGUF\\main\\Qwen3-4B-Q4_K_M.gguf",
+        "sha256": "unchecked",
+        "sizeBytes": 2497280256,
+        "sourcePath": "Qwen3-4B-Q4_K_M.gguf",
+        "streamingManifestPath": null
+      }
+    ],
+    "manifestPath": "<repo>/model\\hf\\Qwen--Qwen3-4B-GGUF\\main\\manifest.json",
+    "ok": true,
+    "operation": "chat-generation-cache",
+    "repoId": "Qwen/Qwen3-4B-GGUF",
+    "revision": "main"
+  },
+  "qwenEmbeddingGguf": {
+    "ok": false,
+    "operation": "qwen-embedding-gguf-cache",
+    "reason": "not selected by ENFORCER_X06_PROBE_FILTER",
+    "skipped": true
+  },
+  "qwenEmbeddingOnnx": {
+    "ok": false,
+    "operation": "qwen-embedding-onnx-cache",
+    "reason": "not selected by ENFORCER_X06_PROBE_FILTER",
+    "skipped": true
+  },
+  "qwenRerankerOnnx": {
+    "ok": false,
+    "operation": "qwen-reranker-onnx-cache",
+    "reason": "not selected by ENFORCER_X06_PROBE_FILTER",
+    "skipped": true
+  },
+  "observations": []
+}

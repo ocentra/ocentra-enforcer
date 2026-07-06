@@ -165,6 +165,7 @@ fn non_chat_model_loads_do_not_use_chat_throughput_floor() {
 #[test]
 fn dev_model_cache_is_repo_local_and_service_does_not_expose_llama_server() {
     let repo = std::path::Path::new("repo-root");
+    let gitignore = include_str!("../../../.gitignore");
 
     let cache_root = dev_model_cache_root(repo);
     let policy = resolve_model_cache_root(repo, ModelCacheRootMode::DevRepoLocal, None);
@@ -175,6 +176,10 @@ fn dev_model_cache_is_repo_local_and_service_does_not_expose_llama_server() {
     assert!(!service.expose_llama_server);
     assert_eq!(service.cache_root, repo.join(DEFAULT_MODEL_CACHE_DIR_NAME));
     assert_eq!(service.bind_addr(), "127.0.0.1:8766");
+    assert!(
+        gitignore.lines().any(|line| line.trim() == "model/"),
+        "repo-local model cache must never be staged"
+    );
 }
 
 #[test]
@@ -208,6 +213,39 @@ fn runtime_proof_surface_does_not_hardcode_machine_absolute_paths() {
 }
 
 #[test]
+fn checked_in_real_model_proofs_do_not_hardcode_machine_absolute_paths() {
+    let proof_files = [
+        (
+            "x06-models-qwen3-4b-download.json",
+            include_str!("../../../proof/memory/x06-models-qwen3-4b-download.json"),
+        ),
+        (
+            "x06-models-qwen3-4b-cpu.json",
+            include_str!("../../../proof/memory/x06-models-qwen3-4b-cpu.json"),
+        ),
+        (
+            "x06-models-qwen3-4b-vulkan.json",
+            include_str!("../../../proof/memory/x06-models-qwen3-4b-vulkan.json"),
+        ),
+    ];
+    let banned = [
+        concat!("E", ":\\"),
+        concat!("C", ":\\", "Users"),
+        concat!("Desktop", "\\", "TabAgent"),
+        concat!("ocentra", "-", "enforcer", "-", "rust", "-", "build"),
+    ];
+
+    for (name, body) in proof_files {
+        for pattern in banned {
+            assert!(
+                !body.contains(pattern),
+                "{name} contains hardcoded machine path pattern {pattern}"
+            );
+        }
+    }
+}
+
+#[test]
 fn real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in() {
     let probe = include_str!("../examples/x06_model_runtime_probe.rs");
     let script = include_str!("../scripts/x06-real-model-proof.ps1");
@@ -220,6 +258,24 @@ fn real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in() {
     );
     assert!(script.contains("[switch]$AllowMultiProbe"));
     assert!(script.contains("$env:ENFORCER_X06_ALLOW_MULTI_PROBE"));
+}
+
+#[test]
+fn real_model_probe_can_import_external_chat_assets_into_repo_model_cache() {
+    let probe = include_str!("../examples/x06_model_runtime_probe.rs");
+    let script = include_str!("../scripts/x06-real-model-proof.ps1");
+
+    assert!(probe.contains("ENFORCER_X06_CHAT_MODEL_PATH"));
+    assert!(probe.contains("maybe_direct_chat_model_report"));
+    assert!(script.contains("[string]$ImportChatModelPath"));
+    assert!(script.contains("[string]$ImportLlamaCliPath"));
+    assert!(script.contains("Filter '*.dll'"));
+    assert!(script.contains("model\\local\\chat"));
+    assert!(script.contains("model\\bin"));
+    assert!(probe.contains("llama_report_proof(repo_root, &report)"));
+    assert!(probe.contains("repo_relative_display(repo_root, &report.binary_path)"));
+    assert!(probe.contains("repo_path_redacted_text(repo_root, &report.stdout_excerpt)"));
+    assert!(probe.contains("hf_downloaded_files_proof(repo_root, &report.downloaded_files)"));
 }
 
 #[test]

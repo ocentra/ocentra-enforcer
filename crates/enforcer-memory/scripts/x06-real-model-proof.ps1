@@ -5,6 +5,10 @@ param(
     [string]$RepoRoot = '',
     [string]$ModelCache = '',
     [string]$LlamaCli = '',
+    [string]$ImportLlamaCliPath = '',
+    [string]$ChatModelPath = '',
+    [string]$ImportChatModelPath = '',
+    [string]$ChatModelId = '',
     [string]$ProbeFilter = 'chat',
     [string]$ProofOut = 'proof/memory/x06-models-chat-auto-gpu.json',
 
@@ -32,6 +36,36 @@ if (-not (Test-Path -LiteralPath $RepoRoot)) {
 Set-Location -LiteralPath $RepoRoot
 
 if ([string]::IsNullOrWhiteSpace($LlamaCli)) {
+    if (-not [string]::IsNullOrWhiteSpace($ImportLlamaCliPath)) {
+        if (-not (Test-Path -LiteralPath $ImportLlamaCliPath)) {
+            throw "Import llama-cli path does not exist: $ImportLlamaCliPath"
+        }
+        $binDir = Join-Path $RepoRoot 'model\bin'
+        New-Item -ItemType Directory -Force -Path $binDir | Out-Null
+        $LlamaCli = Join-Path $binDir 'llama-cli.exe'
+        Copy-Item -LiteralPath $ImportLlamaCliPath -Destination $LlamaCli -Force
+        Get-ChildItem -LiteralPath (Split-Path $ImportLlamaCliPath) -Filter '*.dll' -File -ErrorAction SilentlyContinue |
+            ForEach-Object {
+                Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $binDir $_.Name) -Force
+            }
+    }
+}
+
+if ([string]::IsNullOrWhiteSpace($ChatModelPath)) {
+    if (-not [string]::IsNullOrWhiteSpace($ImportChatModelPath)) {
+        if (-not (Test-Path -LiteralPath $ImportChatModelPath)) {
+            throw "Import chat model path does not exist: $ImportChatModelPath"
+        }
+        $chatDir = Join-Path $RepoRoot 'model\local\chat'
+        New-Item -ItemType Directory -Force -Path $chatDir | Out-Null
+        $ChatModelPath = Join-Path $chatDir ([System.IO.Path]::GetFileName($ImportChatModelPath))
+        if (-not (Test-Path -LiteralPath $ChatModelPath)) {
+            Copy-Item -LiteralPath $ImportChatModelPath -Destination $ChatModelPath
+        }
+    }
+}
+
+if ([string]::IsNullOrWhiteSpace($LlamaCli)) {
     $candidate = Get-ChildItem -LiteralPath (Join-Path $RepoRoot 'model\bin') -Recurse -Filter 'llama-cli.exe' -ErrorAction SilentlyContinue |
         Select-Object -First 1
     if ($null -ne $candidate) {
@@ -55,6 +89,16 @@ if (-not [string]::IsNullOrWhiteSpace($LlamaCli)) {
     $env:ENFORCER_X06_LLAMA_CLI = $LlamaCli
 } else {
     Remove-Item Env:\ENFORCER_X06_LLAMA_CLI -ErrorAction SilentlyContinue
+}
+if (-not [string]::IsNullOrWhiteSpace($ChatModelPath)) {
+    $env:ENFORCER_X06_CHAT_MODEL_PATH = $ChatModelPath
+} else {
+    Remove-Item Env:\ENFORCER_X06_CHAT_MODEL_PATH -ErrorAction SilentlyContinue
+}
+if (-not [string]::IsNullOrWhiteSpace($ChatModelId)) {
+    $env:ENFORCER_X06_CHAT_MODEL_ID = $ChatModelId
+} else {
+    Remove-Item Env:\ENFORCER_X06_CHAT_MODEL_ID -ErrorAction SilentlyContinue
 }
 $env:ENFORCER_X06_LLAMA_ACCELERATION = $Acceleration
 $env:ENFORCER_X06_LLAMA_MAX_TOKENS = [string]$MaxTokens

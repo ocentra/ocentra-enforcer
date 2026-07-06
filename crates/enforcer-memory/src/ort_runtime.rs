@@ -284,6 +284,7 @@ mod real {
             ProviderKind::Cuda => {
                 providers.push(ort::execution_providers::CUDAExecutionProvider::default().build());
             }
+            ProviderKind::Vulkan => {}
             ProviderKind::CoreMl => {
                 #[cfg(target_os = "macos")]
                 providers

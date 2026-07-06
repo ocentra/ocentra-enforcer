@@ -18,7 +18,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     use enforcer_memory::hf_cache::{
         download_hf_model, resolve_cached_hf_model, resolve_cached_hf_model_from_manifest,
-        select_x06_chat_model_for_hardware, HfDownloadReport, HfModelSpec, X06ModelLineup,
+        select_x06_chat_model_for_hardware, HfDownloadReport, HfDownloadedFile, HfModelSpec,
+        X06ModelLineup,
     };
     use enforcer_memory::llama_cpp::{
         list_llama_cpp_devices, run_llama_cpp_probe, LlamaCppBackendHint, LlamaCppProbeConfig,
@@ -30,7 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ModelRuntimeObservationRecord,
     };
     use enforcer_memory::model_runtime::{
-        evaluate_chat_usability, loaded_non_chat_usability, resolve_model_cache_root,
+        evaluate_chat_usability, loaded_non_chat_usability, resolve_model_cache_root, sha256_file,
         ChatThroughputPolicy, ModelCacheRootMode, ModelRuntimeServiceConfig, ModelSpec, ModelTask,
         ModelUsabilityReport, ProviderKind, DEFAULT_EMBEDDING_MODEL_ID,
         DEFAULT_MIN_CHAT_TOKENS_PER_SECOND, DEFAULT_RERANKER_MODEL_ID,
@@ -146,6 +147,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             chat_model_selection,
             chat_generation_gguf: if should_run_probe(&probe_filter, "chat-generation-gguf") {
                 cache_only_probe(
+                    &repo_root,
                     &lineup.chat_generation,
                     &cache_root,
                     allow_network,
@@ -156,6 +158,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             },
             qwen_embedding_gguf: if should_run_probe(&probe_filter, "qwen-embedding-gguf") {
                 cache_only_probe(
+                    &repo_root,
                     &lineup.embedding_gguf,
                     &cache_root,
                     allow_network,
@@ -166,6 +169,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             },
             qwen_embedding_onnx: if should_run_probe(&probe_filter, "qwen-embedding-onnx") {
                 cache_only_probe(
+                    &repo_root,
                     &lineup.embedding_onnx,
                     &cache_root,
                     allow_network,
@@ -176,6 +180,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             },
             qwen_reranker_onnx: if should_run_probe(&probe_filter, "qwen-reranker-onnx") {
                 cache_only_probe(
+                    &repo_root,
                     &lineup.reranker_onnx,
                     &cache_root,
                     allow_network,
@@ -191,8 +196,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let chat_generation_gguf = if should_run_probe(&probe_filter, "chat-generation-gguf") {
-        match maybe_download(&lineup.chat_generation, &cache_root, allow_network) {
-            Ok(report) => run_llama_generation(
+        match maybe_direct_chat_model_report(&cache_root)
+            .or_else(|| maybe_download(&lineup.chat_generation, &cache_root, allow_network).ok())
+        {
+            Some(report) => run_llama_generation(
+                &repo_root,
                 &report,
                 llama_backend_hint,
                 llama_acceleration,
@@ -200,17 +208,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &observed_at,
                 &run_id,
             ),
-            Err(error) => {
-                observations.push(load_failure_observation(
+            None => match maybe_download(&lineup.chat_generation, &cache_root, allow_network) {
+                Ok(report) => run_llama_generation(
+                    &repo_root,
+                    &report,
+                    llama_backend_hint,
+                    llama_acceleration,
+                    &mut observations,
                     &observed_at,
                     &run_id,
-                    lineup.chat_generation.model_id.clone(),
-                    lineup.chat_generation.task,
-                    None,
-                    error.clone(),
-                ));
-                proof_error("chat-generation-cache", error)
-            }
+                ),
+                Err(error) => {
+                    observations.push(load_failure_observation(
+                        &observed_at,
+                        &run_id,
+                        lineup.chat_generation.model_id.clone(),
+                        lineup.chat_generation.task,
+                        None,
+                        error.clone(),
+                    ));
+                    proof_error("chat-generation-cache", error)
+                }
+            },
         }
     } else {
         proof_skipped("chat-generation-gguf")
@@ -219,6 +238,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let qwen_embedding_gguf_proof = if should_run_probe(&probe_filter, "qwen-embedding-gguf") {
         match maybe_download(&lineup.embedding_gguf, &cache_root, allow_network) {
             Ok(report) => run_llama_embedding(
+                &repo_root,
                 &report,
                 llama_backend_hint,
                 llama_acceleration,
@@ -348,6 +368,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     fn cache_only_probe(
+        repo_root: &Path,
         spec: &HfModelSpec,
         cache_root: &Path,
         allow_network: bool,
@@ -359,11 +380,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "ok": true,
                 "repoId": report.repo_id,
                 "revision": report.revision,
-                "manifestPath": report.manifest_path,
-                "downloadedFiles": report.downloaded_files
+                "manifestPath": repo_relative_display(repo_root, &report.manifest_path),
+                "cacheDir": repo_relative_display(repo_root, &report.cache_dir),
+                "downloadedFiles": hf_downloaded_files_proof(repo_root, &report.downloaded_files)
             }),
             Err(error) => proof_error(operation, error),
         }
+    }
+
+    fn hf_downloaded_files_proof(
+        repo_root: &Path,
+        files: &[HfDownloadedFile],
+    ) -> Vec<serde_json::Value> {
+        files
+            .iter()
+            .map(|file| {
+                serde_json::json!({
+                    "sourcePath": file.source_path,
+                    "localPath": repo_relative_display(repo_root, &file.local_path),
+                    "sha256": file.sha256,
+                    "sizeBytes": file.size_bytes,
+                    "streamingManifestPath": file.streaming_manifest_path.as_ref().map(|path| {
+                        repo_relative_display(repo_root, path)
+                    })
+                })
+            })
+            .collect()
     }
 
     fn maybe_download(
@@ -387,6 +429,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .to_owned(),
             )
         }
+    }
+
+    fn maybe_direct_chat_model_report(cache_root: &Path) -> Option<HfDownloadReport> {
+        let model_path = std::env::var("ENFORCER_X06_CHAT_MODEL_PATH")
+            .ok()
+            .map(PathBuf::from)
+            .filter(|path| path.is_file())?;
+        let file_name = model_path.file_name()?.to_string_lossy().to_string();
+        let metadata = std::fs::metadata(&model_path).ok()?;
+        let sha256 = sha256_file(&model_path).ok()?;
+        let model_id = std::env::var("ENFORCER_X06_CHAT_MODEL_ID")
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| "local/direct-chat-gguf".to_owned());
+        let revision = std::env::var("ENFORCER_X06_CHAT_MODEL_REVISION")
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| "local".to_owned());
+        Some(HfDownloadReport {
+            repo_id: model_id,
+            revision,
+            cache_dir: model_path
+                .parent()
+                .map(PathBuf::from)
+                .unwrap_or_else(|| cache_root.join("local").join("chat")),
+            manifest_path: cache_root
+                .join("local")
+                .join("chat")
+                .join("direct-chat-model.manifest.json"),
+            downloaded_files: vec![HfDownloadedFile {
+                source_path: file_name,
+                local_path: model_path,
+                sha256,
+                size_bytes: metadata.len(),
+                streaming_manifest_path: None,
+            }],
+        })
     }
 
     fn maybe_select_chat_model_for_hardware(
@@ -441,6 +520,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     fn run_llama_generation(
+        repo_root: &Path,
         report: &HfDownloadReport,
         backend_hint: LlamaCppBackendHint,
         acceleration: LocalRuntimeAcceleration,
@@ -485,10 +565,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             observations,
             observed_at,
             run_id,
+            repo_root,
         )
     }
 
     fn run_llama_embedding(
+        repo_root: &Path,
         report: &HfDownloadReport,
         backend_hint: LlamaCppBackendHint,
         acceleration: LocalRuntimeAcceleration,
@@ -533,6 +615,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             observations,
             observed_at,
             run_id,
+            repo_root,
         )
     }
 
@@ -545,6 +628,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         observations: &mut Vec<ModelRuntimeObservationRecord>,
         observed_at: &str,
         run_id: &str,
+        repo_root: &Path,
     ) -> serde_json::Value {
         match result {
             Ok(report) => {
@@ -572,7 +656,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "ok": usability.ok,
                     "loaded": report.loaded(),
                     "usability": usability,
-                    "report": report
+                    "report": llama_report_proof(repo_root, &report)
                 })
             }
             Err(error) => {
@@ -587,6 +671,42 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 proof_error(operation, error)
             }
         }
+    }
+
+    fn llama_report_proof(
+        repo_root: &Path,
+        report: &enforcer_memory::llama_cpp::LlamaCppProbeReport,
+    ) -> serde_json::Value {
+        let mut value = serde_json::to_value(report).unwrap_or_else(|error| {
+            serde_json::json!({
+                "serializationError": error.to_string()
+            })
+        });
+        if let Some(object) = value.as_object_mut() {
+            object.insert(
+                "binaryPath".to_owned(),
+                serde_json::json!(repo_relative_display(repo_root, &report.binary_path)),
+            );
+            object.insert(
+                "modelPath".to_owned(),
+                serde_json::json!(repo_relative_display(repo_root, &report.model_path)),
+            );
+            object.insert(
+                "stdoutExcerpt".to_owned(),
+                serde_json::json!(repo_path_redacted_text(repo_root, &report.stdout_excerpt)),
+            );
+            object.insert(
+                "stderrExcerpt".to_owned(),
+                serde_json::json!(repo_path_redacted_text(repo_root, &report.stderr_excerpt)),
+            );
+        }
+        value
+    }
+
+    fn repo_path_redacted_text(repo_root: &Path, text: &str) -> String {
+        let native = repo_root.display().to_string();
+        let slash = native.replace('\\', "/");
+        text.replace(&native, "<repo>").replace(&slash, "<repo>")
     }
 
     fn model_usability(
@@ -996,6 +1116,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .as_str()
         {
             "native" => LlamaCppBackendHint::Native,
+            "vulkan" => LlamaCppBackendHint::Vulkan,
             "openvino" => LlamaCppBackendHint::OpenVino,
             _ => LlamaCppBackendHint::Auto,
         }
@@ -1045,6 +1166,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             | (LlamaCppBackendHint::OpenVino, LocalRuntimeAcceleration::Gpu) => {
                 ProviderKind::OpenVino
             }
+            (LlamaCppBackendHint::Vulkan, LocalRuntimeAcceleration::Gpu) => ProviderKind::Vulkan,
             (_, LocalRuntimeAcceleration::Npu) => ProviderKind::Npu,
             (_, LocalRuntimeAcceleration::Gpu) => ProviderKind::Cuda,
             (_, LocalRuntimeAcceleration::Auto | LocalRuntimeAcceleration::Cpu) => {

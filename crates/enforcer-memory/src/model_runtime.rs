@@ -140,6 +140,7 @@ pub enum ProviderKind {
     Cpu,
     DirectMl,
     OpenVino,
+    Vulkan,
     Cuda,
     CoreMl,
     Npu,
@@ -151,6 +152,7 @@ impl ProviderKind {
             ProviderKind::Cpu => ResourceClass::Cpu,
             ProviderKind::DirectMl
             | ProviderKind::OpenVino
+            | ProviderKind::Vulkan
             | ProviderKind::Cuda
             | ProviderKind::CoreMl => ResourceClass::Gpu,
             ProviderKind::Npu => ResourceClass::Npu,
