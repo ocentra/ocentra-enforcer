@@ -2,6 +2,7 @@
 //! form: `sha256:` prefix + 64 lowercase hex characters.
 
 use enforcer_core::error::DecodeError;
+use sha2::Digest as _;
 
 /// Branded SHA-256 digest (`sha256:<64 lowercase hex>`).
 #[derive(
@@ -31,6 +32,27 @@ impl Sha256 {
         self.0
             .get(enforcer_core::hash_chain::DIGEST_PREFIX.len()..)
             .unwrap_or_default()
+    }
+
+    /// Hash `bytes` and mint the branded digest directly (`sha256:<64 lowercase
+    /// hex>`). This is the constructor for callers that hold raw content and
+    /// need its digest, as opposed to [`Sha256::try_from`]/[`FromStr::from_str`]
+    /// which parse an already-computed digest string. Infallible: SHA-256
+    /// always produces exactly 64 lowercase hex chars, so the output always
+    /// satisfies [`Sha256::try_from`]'s own validation.
+    pub fn of(bytes: &[u8]) -> Self {
+        let mut hasher = sha2::Sha256::new();
+        hasher.update(bytes);
+        let raw = hasher.finalize();
+        let prefix_len = enforcer_core::hash_chain::DIGEST_PREFIX.len();
+        let mut hex = String::with_capacity(prefix_len + raw.len() * 2);
+        hex.push_str(enforcer_core::hash_chain::DIGEST_PREFIX);
+        for byte in raw {
+            use std::fmt::Write as _;
+            // Writing to a String cannot fail; ignore the Infallible result.
+            let _ = write!(hex, "{byte:02x}");
+        }
+        Self(hex)
     }
 }
 
@@ -118,4 +140,72 @@ mod tests {
         assert_eq!(serde_json::to_string(&parsed)?, wire);
         Ok(())
     }
+
+    /// Named oracle for `proof/schema/a05-sha256.txt`: `Sha256::of` hashes
+    /// content and mints a value that is itself accepted by `Sha256::parse`
+    /// (`of()`+`parse()` round-trip), and length/case/charset violations are
+    /// rejected both via `FromStr`/`TryFrom` and via serde at the boundary.
+    #[test]
+    fn sha256_brand_decode() -> Result<(), DecodeError> {
+        // `of()` mints a digest that round-trips through `parse()`.
+        let minted = Sha256::of(b"hello world");
+        let reparsed: Sha256 = minted.as_str().parse()?;
+        assert_eq!(minted, reparsed);
+        assert_eq!(minted.hex().len(), 64);
+        assert!(minted.hex().chars().all(|c| c.is_ascii_hexdigit()));
+        assert!(minted.hex().chars().all(|c| !c.is_ascii_uppercase()));
+
+        // Deterministic: same bytes -> same digest; different bytes -> different digest.
+        assert_eq!(Sha256::of(b"hello world"), Sha256::of(b"hello world"));
+        assert_ne!(Sha256::of(b"hello world"), Sha256::of(b"hello world!"));
+
+        // Empty input is a valid (well-known) SHA-256 preimage, not a special case.
+        let empty = Sha256::of(b"");
+        assert_eq!(
+            empty.hex(),
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+
+        // Wrong length / case / charset all fail closed via FromStr/TryFrom.
+        for bad in [
+            "sha256:short",
+            &format!("sha256:{}", "A".repeat(64)), // uppercase
+            &format!("sha256:{}", "g".repeat(64)), // non-hex
+            &format!("sha256:{}", "a".repeat(63)), // too short
+            &format!("sha256:{}", "a".repeat(65)), // too long
+        ] {
+            let outcome: Result<Sha256, DecodeError> = bad.parse();
+            assert!(outcome.is_err(), "should reject {bad:?}");
+        }
+
+        // Same violations fail closed through the serde boundary too.
+        for bad_json in [
+            "\"sha256:short\"",
+            &format!("\"sha256:{}\"", "A".repeat(64)),
+            &format!("\"sha256:{}\"", "g".repeat(64)),
+        ] {
+            let outcome: Result<Sha256, _> = serde_json::from_str(bad_json);
+            assert!(outcome.is_err(), "serde should reject {bad_json:?}");
+        }
+
+        Ok(())
+    }
+
+    // Compile-reject fixture (acceptance criterion: "the private field makes
+    // a bare `String` populating a `Sha256` field a compile error"). This is
+    // proved at review/proof time, not by a runtime test -- Sha256's only
+    // field is private (`Sha256(String)` with no public tuple-index/ctor), so
+    // the snippet below does not compile if uncommented:
+    //
+    //     struct Holder {
+    //         digest: Sha256,
+    //     }
+    //     fn bad(raw: String) -> Holder {
+    //         Holder { digest: raw } // expected `Sha256`, found `String`
+    //     }
+    //
+    // fails with E0308 (mismatched types): there is no `From<String> for
+    // Sha256`/`Into<Sha256> for String` impl (only the reverse, fallible
+    // `TryFrom<String>`), so a bare `String` never satisfies a `Sha256`-typed
+    // field or parameter.
 }

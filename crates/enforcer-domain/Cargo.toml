@@ -9,6 +9,7 @@ publish = false
 
 [dependencies]
 serde = { workspace = true }
+sha2 = { workspace = true }
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 # ts-rs is not in [workspace.dependencies] (a01-owned root manifest);
 # declared here directly to avoid an unclaimed root edit (same rationale as
