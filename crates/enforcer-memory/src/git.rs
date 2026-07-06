@@ -16,7 +16,7 @@
 
 use git2::Repository;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Everything the indexer knows about the git history of one path.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -44,7 +44,8 @@ impl GitMetadata {
     /// indexer must still be able to run over a non-git directory (e.g.
     /// a test fixture) and simply omit git-derived fields.
     pub fn open(repo_root: &Path) -> Result<Option<Self>, git2::Error> {
-        match Repository::discover(repo_root) {
+        let normalized = strip_extended_length_prefix(repo_root);
+        match Repository::discover(&normalized) {
             Ok(repo) => Ok(Some(Self {
                 repo,
                 cache: HashMap::new(),
@@ -111,6 +112,37 @@ impl GitMetadata {
             change_count,
         })
     }
+}
+
+/// Strip the Windows extended-length path prefix (`\\?\` and the UNC
+/// variant `\\?\UNC\`) that [`Path::canonicalize`] adds on Windows.
+/// `git2::Repository::discover` fails to resolve repos through that
+/// verbatim prefix, so callers that hand it a canonicalized path (e.g.
+/// the feature-parity test harness's `workspace_root()`) need this
+/// normalization first. On non-Windows platforms `canonicalize` never
+/// produces this prefix, so this is a no-op there.
+///
+/// Pure string/OsStr handling -- no new dependency, and safe to run on
+/// a path that was never prefixed in the first place (returned as-is).
+fn strip_extended_length_prefix(path: &Path) -> PathBuf {
+    const UNC_PREFIX: &str = r"\\?\UNC\";
+    const VERBATIM_PREFIX: &str = r"\\?\";
+
+    let Some(text) = path.to_str() else {
+        // Not valid UTF-8; extended-length prefixes are always ASCII,
+        // so a non-UTF8 path was never prefixed. Hand it through
+        // unchanged rather than lossily rewriting it.
+        return path.to_path_buf();
+    };
+
+    if let Some(rest) = text.strip_prefix(UNC_PREFIX) {
+        // `\\?\UNC\server\share\...` -> `\\server\share\...`
+        return PathBuf::from(format!(r"\\{rest}"));
+    }
+    if let Some(rest) = text.strip_prefix(VERBATIM_PREFIX) {
+        return PathBuf::from(rest);
+    }
+    path.to_path_buf()
 }
 
 fn diff_touches_path(diff: &git2::Diff<'_>, rel_path: &str) -> bool {

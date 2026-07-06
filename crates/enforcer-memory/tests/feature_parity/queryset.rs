@@ -274,10 +274,36 @@ pub fn parse_all(repo_root: &Path) -> Result<Vec<QaRow>, QaParseError> {
 /// Cargo manifest dir is `crates/enforcer-memory`, two levels below the
 /// workspace root.
 pub fn workspace_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
+    let canonical = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .canonicalize()
-        .unwrap_or_else(|_| Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."))
+        .unwrap_or_else(|_| Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."));
+    strip_extended_length_prefix(&canonical)
+}
+
+/// Strip the Windows extended-length path prefix (`\\?\`, and the UNC
+/// variant `\\?\UNC\`) that [`Path::canonicalize`] adds on Windows.
+/// Downstream consumers of this path -- notably
+/// [`enforcer_memory::git::GitMetadata::open`] via
+/// [`super::runners::GitHistoryRunner`] -- resolve real on-disk repo
+/// paths and file paths built from this root; a `\\?\`-prefixed root
+/// is otherwise a no-op on non-git-touching code but breaks
+/// `git2::Repository::discover`. Kept a no-op on non-Windows, where
+/// `canonicalize` never emits this prefix.
+fn strip_extended_length_prefix(path: &Path) -> PathBuf {
+    const UNC_PREFIX: &str = r"\\?\UNC\";
+    const VERBATIM_PREFIX: &str = r"\\?\";
+
+    let Some(text) = path.to_str() else {
+        return path.to_path_buf();
+    };
+    if let Some(rest) = text.strip_prefix(UNC_PREFIX) {
+        return PathBuf::from(format!(r"\\{rest}"));
+    }
+    if let Some(rest) = text.strip_prefix(VERBATIM_PREFIX) {
+        return PathBuf::from(rest);
+    }
+    path.to_path_buf()
 }
 
 #[cfg(test)]
