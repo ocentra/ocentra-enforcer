@@ -14,6 +14,19 @@ use crate::languages::{python, rust, typescript};
 /// separately ([`RouteRef`], [`ImportRef`], [`CallRef`]) because those
 /// are edges (relationships to other nodes), not nodes in their own
 /// right.
+///
+/// X06 core parity note: this type deliberately does NOT carry Tier A
+/// complexity metrics ([`crate::complexity::ComplexityMetrics`]) --
+/// `rust.rs`/`typescript.rs`/`python.rs` are high-churn shared files
+/// under concurrent lane edits, so threading a new field through every
+/// `SymbolRef { .. }` construction site there would be a wide,
+/// collision-prone diff for a metrics-only concern. Instead
+/// [`crate::code_graph::CodeGraph::insert_file_and_chunks`] independently
+/// locates each function/method's definition node (by name + start
+/// line, which [`SymbolRef::line`] already gives it) via
+/// [`crate::complexity::find_definition_node`] and calls
+/// [`crate::complexity::compute`] directly -- metrics land on
+/// [`crate::code_graph::SymbolNode`], never on this type.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SymbolRef {
     pub name: String,
@@ -28,6 +41,34 @@ pub enum SymbolKind {
     Function,
     Type,
     Test,
+    /// X06 rich vocabulary (additive): a function defined inside an
+    /// `impl`/class body -- as opposed to a free-standing [`Function`].
+    Method,
+    /// A `class`/`struct` product type.
+    Class,
+    /// A Rust `struct` specifically (a [`Class`]-shaped product type in
+    /// languages that distinguish the two; kept as its own variant so a
+    /// caller can still query "give me all Structs" without also
+    /// matching TS/Python classes).
+    Struct,
+    /// An interface/trait declaration (Rust `trait`, TS `interface`).
+    Interface,
+    /// An enum declaration.
+    Enum,
+    /// A type alias (`type X = ...`, Rust `type X = ...`).
+    TypeAlias,
+    /// A module/namespace container (Rust `mod`, TS `namespace`/module
+    /// file, Python module).
+    Module,
+    /// A named, assigned lambda/closure (`let f = |x| ...`, `const f =
+    /// () => ...`, `f = lambda x: ...`).
+    Lambda,
+    /// A top-level variable binding (mutable or otherwise non-const).
+    Variable,
+    /// A top-level constant binding (`const`/`static` in Rust,
+    /// `UPPER_CASE` module-level assignment convention in Python, `const`
+    /// in TS/JS).
+    Constant,
 }
 
 /// An HTTP-style route/endpoint declaration found in source (e.g. an
@@ -56,6 +97,55 @@ pub struct CallRef {
     pub line: usize,
 }
 
+/// X06 rich vocabulary (additive): one INHERITS edge as written in
+/// source (`class Sub extends Base`, `trait Sub: Base`) -- the
+/// subtype's own name (the containing symbol) plus the supertype name
+/// as written (unresolved, same rationale as [`ImportRef`]/[`CallRef`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InheritsRef {
+    pub sub_name: String,
+    pub super_name: String,
+    pub line: usize,
+}
+
+/// One IMPLEMENTS edge as written in source (`impl Trait for Type`,
+/// `class C implements I`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImplementsRef {
+    pub type_name: String,
+    pub trait_name: String,
+    pub line: usize,
+}
+
+/// One DECORATES edge: a decorator/attribute-macro applied to a
+/// symbol (`@decorator` in Python/TS, `#[attribute]` in Rust,
+/// best-effort).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DecoratesRef {
+    pub target_name: String,
+    pub decorator_name: String,
+    pub line: usize,
+}
+
+/// One TYPE_REF edge: a type usage in a signature (parameter type,
+/// return type, field type), as written (unresolved).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeRefRef {
+    pub from_name: String,
+    pub type_name: String,
+    pub line: usize,
+}
+
+/// One DEFINES edge: a container symbol (class/struct/module/impl)
+/// defines a member symbol (method/field/nested type), both by name as
+/// written, resolved lazily like every other edge here.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DefinesRef {
+    pub container_name: String,
+    pub member_name: String,
+    pub line: usize,
+}
+
 /// The language-agnostic result of parsing one source file.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ParsedFile {
@@ -63,6 +153,13 @@ pub struct ParsedFile {
     pub routes: Vec<RouteRef>,
     pub imports: Vec<ImportRef>,
     pub calls: Vec<CallRef>,
+    /// X06 rich vocabulary (additive, defaults empty for any extractor
+    /// that has not been updated yet -- never a breaking field).
+    pub inherits: Vec<InheritsRef>,
+    pub implements: Vec<ImplementsRef>,
+    pub decorates: Vec<DecoratesRef>,
+    pub type_refs: Vec<TypeRefRef>,
+    pub defines: Vec<DefinesRef>,
 }
 
 /// Which extractor produced (or would produce) a [`ParsedFile`] for a

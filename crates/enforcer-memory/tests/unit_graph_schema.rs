@@ -76,7 +76,10 @@ fn schema_counts_match_a_mixed_repository_exactly() -> TestResult {
     assert_eq!(label("File"), 2);
     assert_eq!(label("TextOnly"), 1);
     assert_eq!(label("Function"), 1, "helper");
-    assert_eq!(label("Type"), 1, "Foo");
+    // X06 rich vocabulary: `struct Foo;` is now a Struct node, not a
+    // generic Type.
+    assert_eq!(label("Struct"), 1, "Foo");
+    assert_eq!(label("Type"), 0, "no generic Type nodes in this fixture");
     assert_eq!(label("Test"), 1, "a_test");
     assert_eq!(label("Tombstone"), 0, "omitted at zero count");
 
@@ -132,9 +135,10 @@ fn output_ordering_matches_the_baseline_descending_by_count() -> TestResult {
     // docs/plans/enforcer-selfhost-plan/refs/x06-baseline-tool-schemas.md
     // §3.2: the baseline's get_schema_impl orders node_labels/
     // edge_types by descending row count, not alphabetically. Three
-    // functions, one type, one file -- Function (3) must sort
-    // before both File (1) and Type (1), and the two count-1 labels
-    // must tie-break alphabetically (File < Type).
+    // functions, one struct (X06 rich vocabulary: `struct Foo;` is a
+    // Struct node, not a generic Type), one file -- Function (3) must
+    // sort before both File (1) and Struct (1), and the two count-1
+    // labels must tie-break alphabetically (File < Struct).
     let dir = tempfile::tempdir()?;
     init_git_repo(dir.path())?;
     let file_path = dir.path().join("lib.rs");
@@ -152,8 +156,8 @@ fn output_ordering_matches_the_baseline_descending_by_count() -> TestResult {
         .collect();
     assert_eq!(
         labels,
-        vec![("Function", 3), ("File", 1), ("Type", 1)],
-        "Function (highest count) must sort first; File/Type (tied at 1) tie-break alphabetically"
+        vec![("Function", 3), ("File", 1), ("Struct", 1)],
+        "Function (highest count) must sort first; File/Struct (tied at 1) tie-break alphabetically"
     );
     Ok(())
 }

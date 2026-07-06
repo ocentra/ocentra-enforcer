@@ -259,6 +259,35 @@ impl GraphSnapshot {
                         .symbols
                         .push(symbol_snapshot(s, GraphSymbolKindSnapshot::Test));
                 }
+                // X06 rich vocabulary (additive CodeNode variants): this
+                // wire snapshot's `GraphSymbolKindSnapshot` has not yet
+                // been extended to carry the new label set -- best-effort
+                // fold to the nearest existing snapshot kind so
+                // persistence round-trips (node/edge counts) rather than
+                // silently dropping the node. Extending the wire schema
+                // itself is a follow-up, not this lane's claimed scope.
+                CodeNode::Method(s) => {
+                    snapshot
+                        .symbols
+                        .push(symbol_snapshot(s, GraphSymbolKindSnapshot::Function));
+                }
+                CodeNode::Class(s)
+                | CodeNode::Struct(s)
+                | CodeNode::Interface(s)
+                | CodeNode::Enum(s)
+                | CodeNode::TypeAlias(s)
+                | CodeNode::Module(s)
+                | CodeNode::Variable(s)
+                | CodeNode::Constant(s) => {
+                    snapshot
+                        .symbols
+                        .push(symbol_snapshot(s, GraphSymbolKindSnapshot::Type));
+                }
+                CodeNode::Lambda(s) => {
+                    snapshot
+                        .symbols
+                        .push(symbol_snapshot(s, GraphSymbolKindSnapshot::Function));
+                }
                 CodeNode::Tombstone(t) => snapshot.tombstones.push(GraphTombstoneSnapshot {
                     id: t.id.clone(),
                     rel_path: t.rel_path.clone(),

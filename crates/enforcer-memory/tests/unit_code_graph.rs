@@ -126,10 +126,12 @@ fn symbol_extraction_produces_function_type_test_nodes() -> TestResult {
     let mut graph = CodeGraph::new();
     graph.index_repository(dir.path(), &[file_path], &Manifest::default())?;
 
-    let has_type = graph
+    // X06 rich vocabulary: a Rust `struct` is now its own Struct node,
+    // not folded into the generic Type.
+    let has_struct = graph
         .nodes()
         .iter()
-        .any(|n| matches!(n, CodeNode::Type(s) if s.name == "Foo"));
+        .any(|n| matches!(n, CodeNode::Struct(s) if s.name == "Foo"));
     let has_function = graph
         .nodes()
         .iter()
@@ -138,7 +140,7 @@ fn symbol_extraction_produces_function_type_test_nodes() -> TestResult {
         .nodes()
         .iter()
         .any(|n| matches!(n, CodeNode::Test(s) if s.name == "a_test"));
-    assert!(has_type, "expected a Type node for Foo");
+    assert!(has_struct, "expected a Struct node for Foo");
     assert!(has_function, "expected a Function node for helper");
     assert!(has_test, "expected a Test node for a_test");
     Ok(())

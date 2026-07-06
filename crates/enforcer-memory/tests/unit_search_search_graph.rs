@@ -74,15 +74,17 @@ fn qn_pattern_hits() -> TestResult {
 
 #[test]
 fn label_filter_selects_only_that_label() -> TestResult {
+    // X06 rich vocabulary: the fixture's `struct Widget;` is now a
+    // Struct node, not a generic Type -- assert against its real label.
     let (_dir, graph) = fixture_graph()?;
     let spec = SearchGraphSpec {
         name_pattern: Some(".*".to_owned()),
-        label: Some(NodeLabel::Type),
+        label: Some(NodeLabel::Struct),
         ..Default::default()
     };
     let result = search_graph(&graph, &spec)?;
     assert!(!result.results.is_empty());
-    assert!(result.results.iter().all(|h| h.label == "Type"));
+    assert!(result.results.iter().all(|h| h.label == "Struct"));
     Ok(())
 }
 

@@ -70,6 +70,18 @@ pub enum NodeLabel {
     Test,
     File,
     TextOnly,
+    /// X06 rich vocabulary (additive): now reachable from [`CodeGraph`]
+    /// via [`crate::code_graph::CodeNode::Method`]/etc.
+    Method,
+    Class,
+    Struct,
+    Interface,
+    Enum,
+    TypeAlias,
+    Module,
+    Lambda,
+    Variable,
+    Constant,
 }
 
 impl NodeLabel {
@@ -80,29 +92,50 @@ impl NodeLabel {
             NodeLabel::Test => "Test",
             NodeLabel::File => "File",
             NodeLabel::TextOnly => "TextOnly",
+            NodeLabel::Method => "Method",
+            NodeLabel::Class => "Class",
+            NodeLabel::Struct => "Struct",
+            NodeLabel::Interface => "Interface",
+            NodeLabel::Enum => "Enum",
+            NodeLabel::TypeAlias => "TypeAlias",
+            NodeLabel::Module => "Module",
+            NodeLabel::Lambda => "Lambda",
+            NodeLabel::Variable => "Variable",
+            NodeLabel::Constant => "Constant",
         }
     }
 
     /// Baseline §2.2 label-boost table, corrected per the doc's
-    /// erratum: the +5.0 tier covers Class/Interface/Type/Enum (four
-    /// labels). This crate's node set has no separate
-    /// Class/Interface/Enum labels, so [`NodeLabel::Type`] alone
-    /// occupies that tier; [`NodeLabel::Function`]/[`NodeLabel::Test`]
-    /// occupy the +10.0 tier (baseline: Function, Method).
+    /// erratum: the +5.0 tier covers Class/Interface/Type/Enum; the
+    /// +10.0 tier covers Function/Method/Test. Every other new label
+    /// (Struct/TypeAlias/Module/Lambda/Variable/Constant) has no
+    /// baseline analogue in the boost table, so it defaults to the
+    /// 0.0 tier alongside File/TextOnly.
     fn bm25_boost(&self) -> f64 {
         match self {
-            NodeLabel::Function | NodeLabel::Test => 10.0,
-            NodeLabel::Type => 5.0,
-            NodeLabel::File | NodeLabel::TextOnly => 0.0,
+            NodeLabel::Function | NodeLabel::Test | NodeLabel::Method | NodeLabel::Lambda => 10.0,
+            NodeLabel::Type | NodeLabel::Class | NodeLabel::Interface | NodeLabel::Enum => 5.0,
+            NodeLabel::File
+            | NodeLabel::TextOnly
+            | NodeLabel::Struct
+            | NodeLabel::TypeAlias
+            | NodeLabel::Module
+            | NodeLabel::Variable
+            | NodeLabel::Constant => 0.0,
         }
     }
 
     /// Baseline §2.2: BM25 path excludes a fixed noise-label set
     /// (`File`,`Folder`,`Module`,`Section`,`Variable`,`Project`)
     /// independent of the `label` filter. This crate's analogue:
-    /// `File`/`TextOnly` nodes are noise for BM25 purposes.
+    /// `File`/`TextOnly`/`Module`/`Variable` nodes are noise for BM25
+    /// purposes (matching the baseline's own noise set now that this
+    /// crate produces `Module`/`Variable` labels).
     fn is_bm25_noise(&self) -> bool {
-        matches!(self, NodeLabel::File | NodeLabel::TextOnly)
+        matches!(
+            self,
+            NodeLabel::File | NodeLabel::TextOnly | NodeLabel::Module | NodeLabel::Variable
+        )
     }
 }
 
@@ -321,6 +354,16 @@ fn flatten_nodes(graph: &CodeGraph) -> Vec<FlatNode<'_>> {
             CodeNode::Test(sym) => Some(flat_symbol(sym, NodeLabel::Test)),
             CodeNode::File(file) => Some(flat_file(file, NodeLabel::File)),
             CodeNode::TextOnly(file) => Some(flat_file(file, NodeLabel::TextOnly)),
+            CodeNode::Method(sym) => Some(flat_symbol(sym, NodeLabel::Method)),
+            CodeNode::Class(sym) => Some(flat_symbol(sym, NodeLabel::Class)),
+            CodeNode::Struct(sym) => Some(flat_symbol(sym, NodeLabel::Struct)),
+            CodeNode::Interface(sym) => Some(flat_symbol(sym, NodeLabel::Interface)),
+            CodeNode::Enum(sym) => Some(flat_symbol(sym, NodeLabel::Enum)),
+            CodeNode::TypeAlias(sym) => Some(flat_symbol(sym, NodeLabel::TypeAlias)),
+            CodeNode::Module(sym) => Some(flat_symbol(sym, NodeLabel::Module)),
+            CodeNode::Lambda(sym) => Some(flat_symbol(sym, NodeLabel::Lambda)),
+            CodeNode::Variable(sym) => Some(flat_symbol(sym, NodeLabel::Variable)),
+            CodeNode::Constant(sym) => Some(flat_symbol(sym, NodeLabel::Constant)),
             CodeNode::Tombstone(_) => None,
         })
         .collect()
@@ -656,11 +699,17 @@ fn run_semantic(
 
     // Baseline §2.3: hardcoded to Function/Method/Class regardless of
     // the `label` param, unless the caller opts into the divergence.
+    // Now that Method/Class are their own reachable labels (X06 rich
+    // vocabulary), this matches the baseline's literal three-label set
+    // instead of folding Method/Class into Function/Type.
     let allowed = |label: NodeLabel| -> bool {
         if spec.label_affects_semantic {
             spec.label.map(|l| l == label).unwrap_or(true)
         } else {
-            matches!(label, NodeLabel::Function | NodeLabel::Type)
+            matches!(
+                label,
+                NodeLabel::Function | NodeLabel::Method | NodeLabel::Class | NodeLabel::Type
+            )
         }
     };
 

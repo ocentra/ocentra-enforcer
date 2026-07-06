@@ -57,13 +57,46 @@ pub enum CodeNode {
     /// Retains the file-history summary the workpack requires callers
     /// keep even after deletion.
     Tombstone(TombstoneNode),
+    /// X06 rich vocabulary (additive): a function defined inside an
+    /// `impl`/class body, as opposed to a free-standing [`Function`].
+    Method(SymbolNode),
+    /// A `class` product type (TS/Python).
+    Class(SymbolNode),
+    /// A Rust `struct` specifically.
+    Struct(SymbolNode),
+    /// An interface/trait declaration.
+    Interface(SymbolNode),
+    /// An enum declaration.
+    Enum(SymbolNode),
+    /// A type alias declaration.
+    TypeAlias(SymbolNode),
+    /// A module/namespace container.
+    Module(SymbolNode),
+    /// A named, assigned lambda/closure.
+    Lambda(SymbolNode),
+    /// A top-level variable binding.
+    Variable(SymbolNode),
+    /// A top-level constant binding.
+    Constant(SymbolNode),
 }
 
 impl CodeNode {
     pub fn id(&self) -> &str {
         match self {
             CodeNode::File(node) | CodeNode::TextOnly(node) => &node.id,
-            CodeNode::Function(node) | CodeNode::Type(node) | CodeNode::Test(node) => &node.id,
+            CodeNode::Function(node)
+            | CodeNode::Type(node)
+            | CodeNode::Test(node)
+            | CodeNode::Method(node)
+            | CodeNode::Class(node)
+            | CodeNode::Struct(node)
+            | CodeNode::Interface(node)
+            | CodeNode::Enum(node)
+            | CodeNode::TypeAlias(node)
+            | CodeNode::Module(node)
+            | CodeNode::Lambda(node)
+            | CodeNode::Variable(node)
+            | CodeNode::Constant(node) => &node.id,
             CodeNode::Tombstone(node) => &node.id,
         }
     }
@@ -98,6 +131,21 @@ pub struct SymbolNode {
     pub name: String,
     pub file_id: String,
     pub line: usize,
+    /// X06 core parity: Tier A complexity metrics
+    /// ([`crate::complexity::compute`]) -- `Some` for callable symbols
+    /// ([`CodeNode::Function`]/[`CodeNode::Method`]/[`CodeNode::Test`]/
+    /// [`CodeNode::Lambda`]), matching the baseline's "Function/Method
+    /// only" property scope (`docs/plans/enforcer-selfhost-plan/refs/
+    /// x06-baseline-tool-schemas.md` §4.5); `None` on every other
+    /// [`CodeNode`] variant. Additive field -- every existing
+    /// `SymbolNode { .. }` literal in this crate needed exactly one
+    /// more field, no signature change.
+    pub metrics: Option<crate::complexity::ComplexityMetrics>,
+    /// X06 core parity Tier B: interprocedural metrics
+    /// ([`crate::complexity::propagate_transitive_loop_depth`]),
+    /// populated by a post-index pass over the whole repo's call graph
+    /// once every symbol id is known. `None` until that pass runs.
+    pub transitive_metrics: Option<crate::complexity::TransitiveMetrics>,
 }
 
 /// A file that was indexed in a previous run and is no longer present.
@@ -169,6 +217,53 @@ pub struct RouteEdge {
     pub from_file_id: String,
     pub method: String,
     pub path: String,
+    pub line: usize,
+}
+
+/// X06 rich vocabulary (additive): an INHERITS edge -- `sub_id` extends
+/// or is a subtrait of a symbol named `super_name` (unresolved to a
+/// node id; best-effort name resolution is [`crate::analysis`]'s job,
+/// matching every other edge kind here).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InheritsEdge {
+    pub sub_id: String,
+    pub super_name: String,
+    pub line: usize,
+}
+
+/// An IMPLEMENTS edge -- `type_id` implements a trait/interface named
+/// `trait_name`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImplementsEdge {
+    pub type_id: String,
+    pub trait_name: String,
+    pub line: usize,
+}
+
+/// A DECORATES edge -- `target_id` is decorated by `decorator_name`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DecoratesEdge {
+    pub target_id: String,
+    pub decorator_name: String,
+    pub line: usize,
+}
+
+/// A TYPE_REF edge -- `from_id`'s signature references a type named
+/// `type_name`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeRefEdge {
+    pub from_id: String,
+    pub type_name: String,
+    pub line: usize,
+}
+
+/// A DEFINES edge -- `container_id` defines member symbol `member_id`
+/// (both already-resolved node ids, since both ends are symbols
+/// extracted from the same file in the same pass).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DefinesEdge {
+    pub container_id: String,
+    pub member_id: String,
     pub line: usize,
 }
 
@@ -291,6 +386,13 @@ struct NewFileParams<'a> {
     content_hash: &'a str,
     history: &'a crate::git::PathHistory,
     parsed: Option<ParsedFile>,
+    /// X06 core parity: the file's source text, re-parsed into a
+    /// tree-sitter AST here (independent of [`Self::parsed`]'s own
+    /// walk) purely to compute Tier A complexity metrics per callable
+    /// symbol via [`crate::complexity::find_definition_node`] +
+    /// [`crate::complexity::compute`]. `None` for [`Language::TextOnly`]/
+    /// config languages, matching `parsed`'s own `None` case.
+    text: Option<&'a str>,
 }
 
 /// The code graph: a flat node store plus typed edge lists, exactly
@@ -304,6 +406,11 @@ pub struct CodeGraph {
     imports: Vec<ImportEdge>,
     calls: Vec<CallEdge>,
     routes: Vec<RouteEdge>,
+    inherits: Vec<InheritsEdge>,
+    implements: Vec<ImplementsEdge>,
+    decorates: Vec<DecoratesEdge>,
+    type_refs: Vec<TypeRefEdge>,
+    defines: Vec<DefinesEdge>,
 }
 
 impl CodeGraph {
@@ -327,6 +434,26 @@ impl CodeGraph {
         &self.routes
     }
 
+    pub fn inherits(&self) -> &[InheritsEdge] {
+        &self.inherits
+    }
+
+    pub fn implements(&self) -> &[ImplementsEdge] {
+        &self.implements
+    }
+
+    pub fn decorates(&self) -> &[DecoratesEdge] {
+        &self.decorates
+    }
+
+    pub fn type_refs(&self) -> &[TypeRefEdge] {
+        &self.type_refs
+    }
+
+    pub fn defines(&self) -> &[DefinesEdge] {
+        &self.defines
+    }
+
     pub fn file_nodes(&self) -> impl Iterator<Item = &FileNode> {
         self.nodes.iter().filter_map(|n| match n {
             CodeNode::File(f) | CodeNode::TextOnly(f) => Some(f),
@@ -343,7 +470,19 @@ impl CodeGraph {
 
     pub fn symbol_nodes(&self) -> impl Iterator<Item = &SymbolNode> {
         self.nodes.iter().filter_map(|n| match n {
-            CodeNode::Function(s) | CodeNode::Type(s) | CodeNode::Test(s) => Some(s),
+            CodeNode::Function(s)
+            | CodeNode::Type(s)
+            | CodeNode::Test(s)
+            | CodeNode::Method(s)
+            | CodeNode::Class(s)
+            | CodeNode::Struct(s)
+            | CodeNode::Interface(s)
+            | CodeNode::Enum(s)
+            | CodeNode::TypeAlias(s)
+            | CodeNode::Module(s)
+            | CodeNode::Lambda(s)
+            | CodeNode::Variable(s)
+            | CodeNode::Constant(s) => Some(s),
             _ => None,
         })
     }
@@ -459,6 +598,14 @@ impl CodeGraph {
                 name: symbol.name.clone(),
                 file_id: symbol.file_id.clone(),
                 line: symbol.line,
+                // A snapshot round-trip carries no source text to
+                // recompute complexity metrics from -- they are
+                // deliberately dropped here (`None`) rather than
+                // guessed. A caller needing them after a restore should
+                // re-run `index_repository` against the working tree,
+                // which recomputes them fresh (see `insert_file_and_chunks`).
+                metrics: None,
+                transitive_metrics: None,
             };
             self.nodes.push(match symbol.kind {
                 crate::artifacts::GraphSymbolKindSnapshot::Function => CodeNode::Function(node),
@@ -550,6 +697,7 @@ impl CodeGraph {
                 content_hash: &content_hash,
                 history: &history,
                 parsed,
+                text: Some(&text),
             });
 
             new_manifest.entries.insert(
@@ -583,7 +731,116 @@ impl CodeGraph {
             }
         }
 
+        self.propagate_complexity();
+
         Ok((new_manifest, report))
+    }
+
+    /// X06 core parity Tier B: run [`crate::complexity::propagate_transitive_loop_depth`]
+    /// over every callable symbol in this graph and write the result
+    /// back onto each [`SymbolNode::transitive_metrics`].
+    ///
+    /// # Call-graph resolution caveat
+    ///
+    /// [`CallEdge`] is file-scoped (`from_file_id` + callee text), not
+    /// symbol-scoped -- this crate's extractors do not currently track
+    /// *which function* a call expression sits inside, only which
+    /// *file*. Building a precise per-function call graph would need
+    /// that extra field threaded through every language extractor.
+    /// Absent it, this pass resolves a call edge to a callee by
+    /// matching the callee's last name segment against every callable
+    /// symbol name in the graph (any file, not just the caller's own)
+    /// and, from every file that both calls something AND defines a
+    /// same-named symbol, treats every callable symbol in the calling
+    /// file as a potential caller of every matching callee -- an
+    /// over-approximation (a false-positive CALLS edge is possible when
+    /// two unrelated functions in the same file happen to share a
+    /// callee name with a same-file symbol) that is safe for this
+    /// metric's stated purpose: `transitive_loop_depth` is documented
+    /// as "a bottleneck *candidate* signal, not a proof" (see this
+    /// module's `complexity.rs` sibling's doc comment and the baseline
+    /// doc's own "upper-bound heuristic, not a proof" wording) --
+    /// over-approximating candidates is the correct failure direction
+    /// for a signal callers use to decide where to *look*, not a
+    /// compiler-grade call graph.
+    fn propagate_complexity(&mut self) {
+        use crate::complexity::CallGraphNode;
+
+        let callable_ids: Vec<(String, usize)> = self
+            .nodes
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, node)| callable_symbol(node).map(|s| (s.id.clone(), idx)))
+            .collect();
+
+        // file_id -> callee names as written in that file's CallEdges.
+        let mut callees_by_file: HashMap<&str, Vec<&str>> = HashMap::new();
+        for call in &self.calls {
+            callees_by_file
+                .entry(call.from_file_id.as_str())
+                .or_default()
+                .push(call.callee.as_str());
+        }
+
+        // callee last-name-segment -> ids of callable symbols with that name.
+        let mut ids_by_name: HashMap<&str, Vec<&str>> = HashMap::new();
+        for (id, idx) in &callable_ids {
+            if let Some(s) = callable_symbol(&self.nodes[*idx]) {
+                ids_by_name
+                    .entry(s.name.as_str())
+                    .or_default()
+                    .push(id.as_str());
+            }
+        }
+
+        let mut graph_nodes = Vec::with_capacity(callable_ids.len());
+        for (id, idx) in &callable_ids {
+            // `callable_ids` was built from `callable_symbol(..).is_some()`
+            // above, so this is never `None` in practice -- but rather
+            // than `.expect()` (no unwrap/expect/panic in this crate's
+            // style), a resolution miss simply skips the node: it is
+            // still safe (just conservatively drops one node's Tier B
+            // metrics) if that invariant is ever violated by a future
+            // edit.
+            let Some(symbol) = callable_symbol(&self.nodes[*idx]) else {
+                continue;
+            };
+            let loop_depth = symbol.metrics.map(|m| m.loop_depth).unwrap_or(0);
+            let self_recursive = symbol.metrics.map(|m| m.self_recursive).unwrap_or(false);
+
+            let mut callees = Vec::new();
+            if let Some(names) = callees_by_file.get(symbol.file_id.as_str()) {
+                for callee_text in names {
+                    let last = callee_text
+                        .rsplit(['.', ':'])
+                        .next()
+                        .unwrap_or(callee_text)
+                        .trim_end_matches(['(', ')']);
+                    if let Some(matches) = ids_by_name.get(last) {
+                        for candidate in matches {
+                            callees.push((*candidate).to_string());
+                        }
+                    }
+                }
+            }
+
+            graph_nodes.push(CallGraphNode {
+                id: id.clone(),
+                loop_depth,
+                self_recursive,
+                callees,
+            });
+        }
+
+        let results = crate::complexity::propagate_transitive_loop_depth(&graph_nodes);
+
+        for (id, idx) in &callable_ids {
+            if let Some(metrics) = results.get(id) {
+                if let Some(symbol) = callable_symbol_mut(&mut self.nodes[*idx]) {
+                    symbol.transitive_metrics = Some(*metrics);
+                }
+            }
+        }
     }
 
     /// An unchanged file still needs a live [`FileNode`] in the fresh
@@ -617,23 +874,67 @@ impl CodeGraph {
             content_hash,
             history,
             parsed,
+            text,
         } = params;
         let file_id = file_id_for(rel_path);
         let mut chunk_ids = Vec::new();
 
         if let Some(parsed) = parsed {
+            // name -> sym id, for this file's own symbols only -- used
+            // to resolve the new rich-vocabulary edges (INHERITS/
+            // IMPLEMENTS/DECORATES/TYPE_REF/DEFINES all reference a
+            // container/member/decorated symbol by name as written)
+            // on a best-effort last-write-wins basis, matching every
+            // other best-effort name resolution in this crate.
+            let mut sym_id_by_name: HashMap<String, String> = HashMap::new();
+
+            // X06 core parity: Tier A complexity metrics, computed once
+            // per file for every callable symbol name/line pair, keyed
+            // by `(name, line)` so each symbol below can look its own
+            // metrics up without re-parsing per-symbol. `None` (empty
+            // map) for languages [`crate::complexity::ComplexityLanguage`]
+            // has no mapping for -- those symbols simply keep
+            // `metrics: None`, same as any resolution miss.
+            let metrics_by_symbol = text
+                .zip(complexity_language(language))
+                .map(|(text, lang)| {
+                    let names: Vec<(String, usize)> = parsed
+                        .symbols
+                        .iter()
+                        .map(|s| (s.name.clone(), s.line))
+                        .collect();
+                    crate::complexity::metrics_for_symbols(lang, text, &names)
+                })
+                .unwrap_or_default();
+
             for symbol in &parsed.symbols {
                 let sym_id = format!("sym:{rel_path}:{}:{}", symbol.line, symbol.name);
+                let metrics = metrics_by_symbol
+                    .get(&(symbol.name.clone(), symbol.line))
+                    .copied();
                 let node = SymbolNode {
                     id: sym_id.clone(),
                     name: symbol.name.clone(),
                     file_id: file_id.clone(),
                     line: symbol.line,
+                    metrics,
+                    transitive_metrics: None,
                 };
+                sym_id_by_name.insert(symbol.name.clone(), sym_id.clone());
                 self.nodes.push(match symbol.kind {
                     parsers::SymbolKind::Function => CodeNode::Function(node),
                     parsers::SymbolKind::Type => CodeNode::Type(node),
                     parsers::SymbolKind::Test => CodeNode::Test(node),
+                    parsers::SymbolKind::Method => CodeNode::Method(node),
+                    parsers::SymbolKind::Class => CodeNode::Class(node),
+                    parsers::SymbolKind::Struct => CodeNode::Struct(node),
+                    parsers::SymbolKind::Interface => CodeNode::Interface(node),
+                    parsers::SymbolKind::Enum => CodeNode::Enum(node),
+                    parsers::SymbolKind::TypeAlias => CodeNode::TypeAlias(node),
+                    parsers::SymbolKind::Module => CodeNode::Module(node),
+                    parsers::SymbolKind::Lambda => CodeNode::Lambda(node),
+                    parsers::SymbolKind::Variable => CodeNode::Variable(node),
+                    parsers::SymbolKind::Constant => CodeNode::Constant(node),
                 });
                 chunk_ids.push(sym_id);
             }
@@ -659,6 +960,54 @@ impl CodeGraph {
                     line: route.line,
                 });
             }
+            for inherits in &parsed.inherits {
+                if let Some(sub_id) = sym_id_by_name.get(&inherits.sub_name) {
+                    self.inherits.push(InheritsEdge {
+                        sub_id: sub_id.clone(),
+                        super_name: inherits.super_name.clone(),
+                        line: inherits.line,
+                    });
+                }
+            }
+            for implements in &parsed.implements {
+                if let Some(type_id) = sym_id_by_name.get(&implements.type_name) {
+                    self.implements.push(ImplementsEdge {
+                        type_id: type_id.clone(),
+                        trait_name: implements.trait_name.clone(),
+                        line: implements.line,
+                    });
+                }
+            }
+            for decorates in &parsed.decorates {
+                if let Some(target_id) = sym_id_by_name.get(&decorates.target_name) {
+                    self.decorates.push(DecoratesEdge {
+                        target_id: target_id.clone(),
+                        decorator_name: decorates.decorator_name.clone(),
+                        line: decorates.line,
+                    });
+                }
+            }
+            for type_ref in &parsed.type_refs {
+                if let Some(from_id) = sym_id_by_name.get(&type_ref.from_name) {
+                    self.type_refs.push(TypeRefEdge {
+                        from_id: from_id.clone(),
+                        type_name: type_ref.type_name.clone(),
+                        line: type_ref.line,
+                    });
+                }
+            }
+            for defines in &parsed.defines {
+                if let (Some(container_id), Some(member_id)) = (
+                    sym_id_by_name.get(&defines.container_name),
+                    sym_id_by_name.get(&defines.member_name),
+                ) {
+                    self.defines.push(DefinesEdge {
+                        container_id: container_id.clone(),
+                        member_id: member_id.clone(),
+                        line: defines.line,
+                    });
+                }
+            }
         }
 
         let file_node = FileNode {
@@ -682,6 +1031,52 @@ impl CodeGraph {
 
 fn file_id_for(rel_path: &str) -> String {
     format!("file:{rel_path}")
+}
+
+/// The [`SymbolNode`] inside a [`CodeNode`] if -- and only if -- that
+/// variant is "callable" in the baseline's "Function/Method only"
+/// sense (see `complexity.rs`'s module doc): [`CodeNode::Function`],
+/// [`CodeNode::Method`], [`CodeNode::Test`] (a test is still a runnable
+/// function), and [`CodeNode::Lambda`] (a named, assigned
+/// closure -- callable the same way). Every other variant (types,
+/// files, tombstones) returns `None`, which is this crate's signal
+/// that complexity metrics simply do not apply.
+fn callable_symbol(node: &CodeNode) -> Option<&SymbolNode> {
+    match node {
+        CodeNode::Function(s) | CodeNode::Method(s) | CodeNode::Test(s) | CodeNode::Lambda(s) => {
+            Some(s)
+        }
+        _ => None,
+    }
+}
+
+fn callable_symbol_mut(node: &mut CodeNode) -> Option<&mut SymbolNode> {
+    match node {
+        CodeNode::Function(s) | CodeNode::Method(s) | CodeNode::Test(s) | CodeNode::Lambda(s) => {
+            Some(s)
+        }
+        _ => None,
+    }
+}
+
+/// Map a [`Language`] to the [`crate::complexity::ComplexityLanguage`]
+/// its Tier A metrics pass understands, or `None` for a language with
+/// no structural extractor (config/text-only -- `parsed` is already
+/// `None` for those, so this is belt-and-suspenders) or one not yet
+/// wired into `complexity.rs` (wave-B languages: extend this match
+/// alongside `ComplexityLanguage`'s own variants, not by adding a
+/// second parallel mapping elsewhere).
+fn complexity_language(language: Language) -> Option<crate::complexity::ComplexityLanguage> {
+    match language {
+        Language::Rust => Some(crate::complexity::ComplexityLanguage::Rust),
+        Language::TypeScript | Language::JavaScript => {
+            Some(crate::complexity::ComplexityLanguage::TypeScriptOrJavaScript)
+        }
+        Language::Python => Some(crate::complexity::ComplexityLanguage::Python),
+        Language::ConfigToml | Language::ConfigJson | Language::ConfigYaml | Language::TextOnly => {
+            None
+        }
+    }
 }
 
 fn hash_bytes(bytes: &[u8]) -> String {
@@ -856,7 +1251,7 @@ mod tests {
         let has_type = graph
             .nodes()
             .iter()
-            .any(|n| matches!(n, CodeNode::Type(s) if s.name == "Foo"));
+            .any(|n| matches!(n, CodeNode::Struct(s) if s.name == "Foo"));
         let has_function = graph
             .nodes()
             .iter()
@@ -865,7 +1260,7 @@ mod tests {
             .nodes()
             .iter()
             .any(|n| matches!(n, CodeNode::Test(s) if s.name == "a_test"));
-        assert!(has_type, "expected a Type node for Foo");
+        assert!(has_type, "expected a Struct node for Foo");
         assert!(has_function, "expected a Function node for helper");
         assert!(has_test, "expected a Test node for a_test");
         Ok(())

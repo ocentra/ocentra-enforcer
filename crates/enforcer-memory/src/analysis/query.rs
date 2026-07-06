@@ -273,6 +273,11 @@ pub fn execute(
             }
         });
     }
+    // Note: `order_by_key` returns an `OrderKey` (numeric-aware) rather
+    // than a bare `String` -- see its doc comment for why a plain
+    // lexicographic string sort is wrong for e.g.
+    // `ORDER BY f.transitive_loop_depth DESC` (`"20" < "3"` as
+    // strings).
 
     if let Some(limit) = query.limit {
         rows.truncate(limit);
@@ -348,6 +353,11 @@ fn edge_kind_matches(kind: EdgeKind, rel_type: &str) -> bool {
             | (EdgeKind::Imports, "IMPORTS")
             | (EdgeKind::Route, "ROUTE")
             | (EdgeKind::Contains, "CONTAINS")
+            | (EdgeKind::Inherits, "INHERITS")
+            | (EdgeKind::Implements, "IMPLEMENTS")
+            | (EdgeKind::Decorates, "DECORATES")
+            | (EdgeKind::TypeRef, "TYPE_REF")
+            | (EdgeKind::Defines, "DEFINES")
     )
 }
 
@@ -365,6 +375,16 @@ fn label_matches(view: &AdjacencyView<'_>, id: &str, label: Option<&str>) -> boo
             | (crate::code_graph::CodeNode::Type(_), "TYPE")
             | (crate::code_graph::CodeNode::Test(_), "TEST")
             | (crate::code_graph::CodeNode::Tombstone(_), "TOMBSTONE")
+            | (crate::code_graph::CodeNode::Method(_), "METHOD")
+            | (crate::code_graph::CodeNode::Class(_), "CLASS")
+            | (crate::code_graph::CodeNode::Struct(_), "STRUCT")
+            | (crate::code_graph::CodeNode::Interface(_), "INTERFACE")
+            | (crate::code_graph::CodeNode::Enum(_), "ENUM")
+            | (crate::code_graph::CodeNode::TypeAlias(_), "TYPEALIAS")
+            | (crate::code_graph::CodeNode::Module(_), "MODULE")
+            | (crate::code_graph::CodeNode::Lambda(_), "LAMBDA")
+            | (crate::code_graph::CodeNode::Variable(_), "VARIABLE")
+            | (crate::code_graph::CodeNode::Constant(_), "CONSTANT")
     )
 }
 
@@ -401,15 +421,32 @@ fn eval_predicate(predicate: &Predicate, row: &ResultRow, view: &AdjacencyView<'
 /// (`n.name`) resolves via [`resolve_property`] (stringified so `Str`
 /// and `Int` property values sort uniformly); a bare variable (`n`)
 /// sorts by its resolved node id, matching pre-D-05-extension behavior.
-fn order_by_key(column: &ColumnRef, row: &ResultRow, view: &AdjacencyView<'_>) -> String {
+/// A sortable `ORDER BY` key. Kept as a small enum (rather than
+/// stringifying every property, as this DSL originally did) so numeric
+/// properties -- notably X06 core parity's `transitive_loop_depth`/
+/// `complexity`/etc, whose values commonly exceed one digit -- sort
+/// numerically, not lexicographically (`"20" < "3"` as strings, but
+/// `20 > 3` as the integers they are).
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum OrderKey {
+    // Variant order matters for `Ord`: `Int` sorts before `Str` only
+    // when compared across variants, which never happens in practice
+    // (a given property always resolves to the same `PropertyValue`
+    // variant) -- kept simple rather than reaching for a
+    // total-ordering newtype no caller needs.
+    Int(i64),
+    Str(String),
+}
+
+fn order_by_key(column: &ColumnRef, row: &ResultRow, view: &AdjacencyView<'_>) -> OrderKey {
     match &column.property {
         Some(property) => resolve_property(row, view, &column.var, property)
             .map(|value| match value {
-                PropertyValue::Str(s) => s,
-                PropertyValue::Int(i) => i.to_string(),
+                PropertyValue::Str(s) => OrderKey::Str(s),
+                PropertyValue::Int(i) => OrderKey::Int(i),
             })
-            .unwrap_or_default(),
-        None => row.get(&column.var).cloned().unwrap_or_default(),
+            .unwrap_or(OrderKey::Str(String::new())),
+        None => OrderKey::Str(row.get(&column.var).cloned().unwrap_or_default()),
     }
 }
 
@@ -426,6 +463,62 @@ fn resolve_property(
         "name" => Some(PropertyValue::Str(node_name(node))),
         "rel_path" | "relpath" | "path" => node_rel_path(node).map(PropertyValue::Str),
         "line" => node_line(node).map(|l| PropertyValue::Int(l as i64)),
+        // X06 core parity: Tier A/B complexity properties (see
+        // `docs/plans/enforcer-selfhost-plan/refs/
+        // x06-baseline-tool-schemas.md` §4.5's property table and
+        // `crate::complexity`'s module doc). Booleans surface as `0`/
+        // `1` [`PropertyValue::Int`] rather than a `Bool` literal --
+        // this DSL's `Literal` has no boolean variant, so a query
+        // spells "is true" as `= 1` (matching every other boolean this
+        // grammar exposes today, not a complexity-specific choice).
+        "complexity" => node_metrics(node).map(|m| PropertyValue::Int(m.complexity as i64)),
+        "cognitive" => node_metrics(node).map(|m| PropertyValue::Int(m.cognitive as i64)),
+        "loop_count" => node_metrics(node).map(|m| PropertyValue::Int(m.loop_count as i64)),
+        "loop_depth" => node_metrics(node).map(|m| PropertyValue::Int(m.loop_depth as i64)),
+        "param_count" => node_metrics(node).map(|m| PropertyValue::Int(m.param_count as i64)),
+        "max_access_depth" => {
+            node_metrics(node).map(|m| PropertyValue::Int(m.max_access_depth as i64))
+        }
+        "linear_scan_in_loop" => {
+            node_metrics(node).map(|m| PropertyValue::Int(m.linear_scan_in_loop as i64))
+        }
+        "alloc_in_loop" => node_metrics(node).map(|m| PropertyValue::Int(m.alloc_in_loop as i64)),
+        "self_recursive" => node_metrics(node).map(|m| PropertyValue::Int(m.self_recursive as i64)),
+        "recursion_in_loop" => {
+            node_metrics(node).map(|m| PropertyValue::Int(m.recursion_in_loop as i64))
+        }
+        "unguarded_recursion" => {
+            node_metrics(node).map(|m| PropertyValue::Int(m.unguarded_recursion as i64))
+        }
+        "transitive_loop_depth" => node_transitive_metrics(node)
+            .map(|m| PropertyValue::Int(m.transitive_loop_depth as i64)),
+        "recursive" => {
+            node_transitive_metrics(node).map(|m| PropertyValue::Int(m.recursive as i64))
+        }
+        _ => None,
+    }
+}
+
+fn node_metrics(
+    node: &crate::code_graph::CodeNode,
+) -> Option<crate::complexity::ComplexityMetrics> {
+    use crate::code_graph::CodeNode;
+    match node {
+        CodeNode::Function(s) | CodeNode::Method(s) | CodeNode::Test(s) | CodeNode::Lambda(s) => {
+            s.metrics
+        }
+        _ => None,
+    }
+}
+
+fn node_transitive_metrics(
+    node: &crate::code_graph::CodeNode,
+) -> Option<crate::complexity::TransitiveMetrics> {
+    use crate::code_graph::CodeNode;
+    match node {
+        CodeNode::Function(s) | CodeNode::Method(s) | CodeNode::Test(s) | CodeNode::Lambda(s) => {
+            s.transitive_metrics
+        }
         _ => None,
     }
 }
@@ -434,7 +527,19 @@ fn node_name(node: &crate::code_graph::CodeNode) -> String {
     use crate::code_graph::CodeNode;
     match node {
         CodeNode::File(f) | CodeNode::TextOnly(f) => f.rel_path.clone(),
-        CodeNode::Function(s) | CodeNode::Type(s) | CodeNode::Test(s) => s.name.clone(),
+        CodeNode::Function(s)
+        | CodeNode::Type(s)
+        | CodeNode::Test(s)
+        | CodeNode::Method(s)
+        | CodeNode::Class(s)
+        | CodeNode::Struct(s)
+        | CodeNode::Interface(s)
+        | CodeNode::Enum(s)
+        | CodeNode::TypeAlias(s)
+        | CodeNode::Module(s)
+        | CodeNode::Lambda(s)
+        | CodeNode::Variable(s)
+        | CodeNode::Constant(s) => s.name.clone(),
         CodeNode::Tombstone(t) => t.rel_path.clone(),
     }
 }
@@ -451,7 +556,19 @@ fn node_rel_path(node: &crate::code_graph::CodeNode) -> Option<String> {
 fn node_line(node: &crate::code_graph::CodeNode) -> Option<usize> {
     use crate::code_graph::CodeNode;
     match node {
-        CodeNode::Function(s) | CodeNode::Type(s) | CodeNode::Test(s) => Some(s.line),
+        CodeNode::Function(s)
+        | CodeNode::Type(s)
+        | CodeNode::Test(s)
+        | CodeNode::Method(s)
+        | CodeNode::Class(s)
+        | CodeNode::Struct(s)
+        | CodeNode::Interface(s)
+        | CodeNode::Enum(s)
+        | CodeNode::TypeAlias(s)
+        | CodeNode::Module(s)
+        | CodeNode::Lambda(s)
+        | CodeNode::Variable(s)
+        | CodeNode::Constant(s) => Some(s.line),
         _ => None,
     }
 }

@@ -24,17 +24,19 @@ async fn an_async_test() {}
 }
 
 #[test]
-fn extracts_struct_enum_trait_as_types() {
+fn extracts_struct_enum_trait_with_distinct_kinds() {
+    // X06 rich vocabulary: struct/enum/trait are now distinct labels
+    // (Struct/Enum/Interface), not folded into one generic Type.
     let src = "struct Foo; enum Bar { A } trait Baz {}";
     let parsed = parse(src);
-    let names: Vec<&str> = parsed.symbols.iter().map(|s| s.name.as_str()).collect();
-    assert!(names.contains(&"Foo"));
-    assert!(names.contains(&"Bar"));
-    assert!(names.contains(&"Baz"));
-    assert!(parsed
+    let kinds: Vec<(&str, SymbolKind)> = parsed
         .symbols
         .iter()
-        .all(|s| s.kind == SymbolKind::Type || s.name.ends_with("_fn")));
+        .map(|s| (s.name.as_str(), s.kind))
+        .collect();
+    assert!(kinds.contains(&("Foo", SymbolKind::Struct)));
+    assert!(kinds.contains(&("Bar", SymbolKind::Enum)));
+    assert!(kinds.contains(&("Baz", SymbolKind::Interface)));
 }
 
 #[test]

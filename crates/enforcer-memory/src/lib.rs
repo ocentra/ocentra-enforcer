@@ -202,6 +202,7 @@ pub mod artifacts;
 pub mod cli;
 pub mod code_graph;
 pub mod code_search;
+pub mod complexity;
 pub mod diagnostics;
 pub mod embed;
 pub mod enrichment;

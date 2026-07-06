@@ -891,6 +891,16 @@ fn populate_store_from_candidate_graph(
             CodeNode::Test(_) => "Test",
             CodeNode::TextOnly(_) => "TextOnly",
             CodeNode::Tombstone(_) => "Tombstone",
+            CodeNode::Method(_) => "Method",
+            CodeNode::Class(_) => "Class",
+            CodeNode::Struct(_) => "Struct",
+            CodeNode::Interface(_) => "Interface",
+            CodeNode::Enum(_) => "Enum",
+            CodeNode::TypeAlias(_) => "TypeAlias",
+            CodeNode::Module(_) => "Module",
+            CodeNode::Lambda(_) => "Lambda",
+            CodeNode::Variable(_) => "Variable",
+            CodeNode::Constant(_) => "Constant",
         };
         let node_id = node.id().to_string();
         store.graph_event_log_mut().append_with_seq(|seq| {

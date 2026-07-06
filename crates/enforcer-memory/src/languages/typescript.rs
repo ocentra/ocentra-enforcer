@@ -13,7 +13,10 @@
 //! matches, which is a silent-miss on JSX-only symbols, not a parse
 //! failure (the file still gets its file node either way).
 
-use crate::parsers::{CallRef, ImportRef, Language, ParsedFile, RouteRef, SymbolKind, SymbolRef};
+use crate::parsers::{
+    CallRef, DecoratesRef, DefinesRef, ImplementsRef, ImportRef, InheritsRef, Language, ParsedFile,
+    RouteRef, SymbolKind, SymbolRef, TypeRefRef,
+};
 use tree_sitter::{Node, Parser};
 
 /// HTTP methods this extractor recognizes in route-style call
@@ -34,37 +37,152 @@ pub fn parse(source: &str, _language: Language) -> ParsedFile {
     };
 
     let mut out = ParsedFile::default();
-    walk(tree.root_node(), source.as_bytes(), &mut out);
+    walk(tree.root_node(), source.as_bytes(), &mut out, None);
     out
 }
 
-fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile) {
+/// `enclosing` is the name of the containing `class`/`interface` body
+/// (if any) -- distinguishes [`SymbolKind::Method`] from
+/// [`SymbolKind::Function`] and feeds DEFINES edges.
+fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, enclosing: Option<&str>) {
     match node.kind() {
         "function_declaration" => {
             if let Some(name) = child_text(node, "name", src) {
+                let line = node.start_position().row + 1;
                 out.symbols.push(SymbolRef {
                     kind: test_or_function(&name),
+                    name: name.clone(),
+                    line,
+                });
+                for type_ref in signature_type_refs(node, src) {
+                    out.type_refs.push(TypeRefRef {
+                        from_name: name.clone(),
+                        type_name: type_ref,
+                        line,
+                    });
+                }
+                for decorator_name in preceding_decorators(node, src) {
+                    out.decorates.push(DecoratesRef {
+                        target_name: name.clone(),
+                        decorator_name,
+                        line,
+                    });
+                }
+            }
+        }
+        "class_declaration" => {
+            if let Some(name) = child_text(node, "name", src) {
+                let line = node.start_position().row + 1;
+                out.symbols.push(SymbolRef {
+                    name: name.clone(),
+                    kind: SymbolKind::Class,
+                    line,
+                });
+                for (kind, super_name) in heritage_refs(node, src) {
+                    match kind {
+                        HeritageKind::Extends => out.inherits.push(InheritsRef {
+                            sub_name: name.clone(),
+                            super_name,
+                            line,
+                        }),
+                        HeritageKind::Implements => out.implements.push(ImplementsRef {
+                            type_name: name.clone(),
+                            trait_name: super_name,
+                            line,
+                        }),
+                    }
+                }
+                for decorator_name in preceding_decorators(node, src) {
+                    out.decorates.push(DecoratesRef {
+                        target_name: name.clone(),
+                        decorator_name,
+                        line,
+                    });
+                }
+                walk_children(node, src, out, Some(name.as_str()));
+                return;
+            }
+        }
+        "interface_declaration" => {
+            if let Some(name) = child_text(node, "name", src) {
+                let line = node.start_position().row + 1;
+                out.symbols.push(SymbolRef {
+                    name: name.clone(),
+                    kind: SymbolKind::Interface,
+                    line,
+                });
+                for (kind, super_name) in heritage_refs(node, src) {
+                    if matches!(kind, HeritageKind::Extends) {
+                        out.inherits.push(InheritsRef {
+                            sub_name: name.clone(),
+                            super_name,
+                            line,
+                        });
+                    }
+                }
+            }
+        }
+        "type_alias_declaration" => {
+            if let Some(name) = child_text(node, "name", src) {
+                out.symbols.push(SymbolRef {
                     name,
+                    kind: SymbolKind::TypeAlias,
                     line: node.start_position().row + 1,
                 });
             }
         }
-        "class_declaration" | "interface_declaration" | "type_alias_declaration" => {
+        "enum_declaration" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
                     name,
-                    kind: SymbolKind::Type,
+                    kind: SymbolKind::Enum,
+                    line: node.start_position().row + 1,
+                });
+            }
+        }
+        "module" | "internal_module" => {
+            if let Some(name) = child_text(node, "name", src) {
+                out.symbols.push(SymbolRef {
+                    name,
+                    kind: SymbolKind::Module,
                     line: node.start_position().row + 1,
                 });
             }
         }
         "method_definition" => {
             if let Some(name) = child_text(node, "name", src) {
+                let line = node.start_position().row + 1;
+                let kind = if is_test_name(&name) {
+                    SymbolKind::Test
+                } else if enclosing.is_some() {
+                    SymbolKind::Method
+                } else {
+                    SymbolKind::Function
+                };
                 out.symbols.push(SymbolRef {
-                    kind: test_or_function(&name),
-                    name,
-                    line: node.start_position().row + 1,
+                    kind,
+                    name: name.clone(),
+                    line,
                 });
+                for type_ref in signature_type_refs(node, src) {
+                    out.type_refs.push(TypeRefRef {
+                        from_name: name.clone(),
+                        type_name: type_ref,
+                        line,
+                    });
+                }
+                if let Some(container) = enclosing {
+                    out.defines.push(DefinesRef {
+                        container_name: container.to_string(),
+                        member_name: name,
+                        line,
+                    });
+                }
+            }
+        }
+        "lexical_declaration" | "variable_declaration" => {
+            if let Some(binding) = named_arrow_or_const_binding(node, src) {
+                out.symbols.push(binding);
             }
         }
         "import_statement" => {
@@ -99,20 +217,181 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile) {
         _ => {}
     }
 
+    walk_children(node, src, out, enclosing);
+}
+
+fn walk_children(node: Node<'_>, src: &[u8], out: &mut ParsedFile, enclosing: Option<&str>) {
     for i in 0..node.child_count() {
         if let Some(child) = node.child(i) {
-            walk(child, src, out);
+            walk(child, src, out, enclosing);
         }
     }
 }
 
+enum HeritageKind {
+    Extends,
+    Implements,
+}
+
+/// `class Sub extends Base implements I1, I2` / `interface Sub extends
+/// Base1, Base2` -- the `class_heritage`/`extends_clause`/
+/// `implements_clause` children.
+fn heritage_refs(node: Node<'_>, src: &[u8]) -> Vec<(HeritageKind, String)> {
+    let mut out = Vec::new();
+    for i in 0..node.child_count() {
+        let Some(child) = node.child(i) else { continue };
+        match child.kind() {
+            "class_heritage" => {
+                for j in 0..child.child_count() {
+                    let Some(clause) = child.child(j) else {
+                        continue;
+                    };
+                    collect_heritage_clause(clause, src, &mut out);
+                }
+            }
+            "extends_clause" | "implements_clause" => {
+                collect_heritage_clause(child, src, &mut out);
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
+fn collect_heritage_clause(clause: Node<'_>, src: &[u8], out: &mut Vec<(HeritageKind, String)>) {
+    let is_extends = match clause.kind() {
+        "extends_clause" => true,
+        "implements_clause" => false,
+        _ => return,
+    };
+    for k in 0..clause.child_count() {
+        let Some(entry) = clause.child(k) else {
+            continue;
+        };
+        if matches!(
+            entry.kind(),
+            "identifier" | "type_identifier" | "nested_type_identifier"
+        ) {
+            if let Ok(text) = entry.utf8_text(src) {
+                out.push((
+                    if is_extends {
+                        HeritageKind::Extends
+                    } else {
+                        HeritageKind::Implements
+                    },
+                    text.to_string(),
+                ));
+            }
+        }
+    }
+}
+
+/// Decorators on a class/method/function declaration (`@Injectable()
+/// class X`, `class C { @Prop() name: string; }`). `tree-sitter-
+/// typescript` attaches a decorator to its target as the `decorator:`
+/// field on the target node itself (verified against the grammar's own
+/// s-expression output), not as a preceding sibling -- this also walks
+/// `prev_sibling()` as a defensive fallback for any grammar shape this
+/// field-based lookup does not cover, so a decorator is never silently
+/// missed either way.
+fn preceding_decorators(node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    if let Some(field_decorator) = node.child_by_field_name("decorator") {
+        if let Some(name) = decorator_name(field_decorator, src) {
+            out.push(name);
+        }
+    }
+    let mut sibling = node.prev_sibling();
+    while let Some(candidate) = sibling {
+        if candidate.kind() != "decorator" {
+            break;
+        }
+        if let Some(name) = decorator_name(candidate, src) {
+            out.push(name);
+        }
+        sibling = candidate.prev_sibling();
+    }
+    out.reverse();
+    out
+}
+
+fn decorator_name(decorator_node: Node<'_>, src: &[u8]) -> Option<String> {
+    for i in 0..decorator_node.child_count() {
+        let child = decorator_node.child(i)?;
+        match child.kind() {
+            "call_expression" => {
+                let function = child.child_by_field_name("function")?;
+                return function.utf8_text(src).ok().map(str::to_string);
+            }
+            "identifier" => {
+                return child.utf8_text(src).ok().map(str::to_string);
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Parameter and return types on a function/method's signature.
+fn signature_type_refs(node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    if let Some(params) = node.child_by_field_name("parameters") {
+        for i in 0..params.child_count() {
+            if let Some(param) = params.child(i) {
+                if let Some(type_node) = param.child_by_field_name("type") {
+                    if let Ok(text) = type_node.utf8_text(src) {
+                        out.push(text.trim_start_matches(':').trim().to_string());
+                    }
+                }
+            }
+        }
+    }
+    if let Some(return_type) = node.child_by_field_name("return_type") {
+        if let Ok(text) = return_type.utf8_text(src) {
+            out.push(text.trim_start_matches(':').trim().to_string());
+        }
+    }
+    out
+}
+
+/// `const f = (x) => ...` / `const f = function() {}` -- a named
+/// arrow-function/lambda binding, best-effort [`SymbolKind::Lambda`]
+/// source.
+fn named_arrow_or_const_binding(node: Node<'_>, src: &[u8]) -> Option<SymbolRef> {
+    for i in 0..node.child_count() {
+        let declarator = node.child(i)?;
+        if declarator.kind() != "variable_declarator" {
+            continue;
+        }
+        let name_node = declarator.child_by_field_name("name")?;
+        if name_node.kind() != "identifier" {
+            continue;
+        }
+        let value = declarator.child_by_field_name("value")?;
+        let name = name_node.utf8_text(src).ok()?.to_string();
+        let line = node.start_position().row + 1;
+        if matches!(value.kind(), "arrow_function" | "function_expression") {
+            return Some(SymbolRef {
+                name,
+                kind: SymbolKind::Lambda,
+                line,
+            });
+        }
+    }
+    None
+}
+
 fn test_or_function(name: &str) -> SymbolKind {
-    let lower = name.to_lowercase();
-    if lower.starts_with("test") || lower.starts_with("it_") || lower == "it" {
+    if is_test_name(name) {
         SymbolKind::Test
     } else {
         SymbolKind::Function
     }
+}
+
+fn is_test_name(name: &str) -> bool {
+    let lower = name.to_lowercase();
+    lower.starts_with("test") || lower.starts_with("it_") || lower == "it"
 }
 
 fn child_text(node: Node<'_>, field: &str, src: &[u8]) -> Option<String> {

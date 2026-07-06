@@ -15,13 +15,15 @@ fn extracts_function_and_test_symbols() {
 }
 
 #[test]
-fn extracts_class_as_type() {
+fn extracts_class_as_class() {
+    // X06 rich vocabulary: Python classes are now their own Class
+    // label, not folded into the generic Type.
     let src = "class Foo:\n    pass\n";
     let parsed = parse(src);
     assert!(parsed
         .symbols
         .iter()
-        .any(|s| s.name == "Foo" && s.kind == SymbolKind::Type));
+        .any(|s| s.name == "Foo" && s.kind == SymbolKind::Class));
 }
 
 #[test]

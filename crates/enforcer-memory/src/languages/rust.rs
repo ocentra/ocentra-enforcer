@@ -8,7 +8,10 @@
 //! every file in the repo has been parsed and every symbol's id is
 //! known.
 
-use crate::parsers::{CallRef, ImportRef, ParsedFile, SymbolKind, SymbolRef};
+use crate::parsers::{
+    CallRef, DecoratesRef, DefinesRef, ImplementsRef, ImportRef, InheritsRef, ParsedFile,
+    SymbolKind, SymbolRef, TypeRefRef,
+};
 use tree_sitter::{Node, Parser};
 
 /// Parse Rust `source`. Never panics on malformed input: a source file
@@ -34,34 +37,145 @@ pub fn parse(source: &str) -> ParsedFile {
     };
 
     let mut out = ParsedFile::default();
-    walk(tree.root_node(), source.as_bytes(), &mut out);
+    walk(tree.root_node(), source.as_bytes(), &mut out, None);
     out
 }
 
-fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile) {
+/// `enclosing` is the name of the containing `impl`/`trait`/`mod` block
+/// (if any) -- used to tag a `function_item` as [`SymbolKind::Method`]
+/// instead of [`SymbolKind::Function`] and to emit a DEFINES edge from
+/// the container to the member.
+fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, enclosing: Option<&str>) {
     match node.kind() {
         "function_item" => {
             if let Some(name) = child_text(node, "name", src) {
+                let line = node.start_position().row + 1;
                 let kind = if has_test_attribute(node, src) {
                     SymbolKind::Test
+                } else if enclosing.is_some() {
+                    SymbolKind::Method
                 } else {
                     SymbolKind::Function
                 };
                 out.symbols.push(SymbolRef {
-                    name,
+                    name: name.clone(),
                     kind,
+                    line,
+                });
+                for decorator in attribute_decorators(node, src) {
+                    out.decorates.push(DecoratesRef {
+                        target_name: name.clone(),
+                        decorator_name: decorator,
+                        line,
+                    });
+                }
+                for type_ref in signature_type_refs(node, src) {
+                    out.type_refs.push(TypeRefRef {
+                        from_name: name.clone(),
+                        type_name: type_ref,
+                        line,
+                    });
+                }
+                if let Some(container) = enclosing {
+                    out.defines.push(DefinesRef {
+                        container_name: container.to_string(),
+                        member_name: name,
+                        line,
+                    });
+                }
+            }
+        }
+        "struct_item" => {
+            if let Some(name) = child_text(node, "name", src) {
+                out.symbols.push(SymbolRef {
+                    name,
+                    kind: SymbolKind::Struct,
                     line: node.start_position().row + 1,
                 });
             }
         }
-        "struct_item" | "enum_item" | "trait_item" => {
+        "enum_item" => {
             if let Some(name) = child_text(node, "name", src) {
                 out.symbols.push(SymbolRef {
                     name,
-                    kind: SymbolKind::Type,
+                    kind: SymbolKind::Enum,
                     line: node.start_position().row + 1,
                 });
             }
+        }
+        "trait_item" => {
+            if let Some(name) = child_text(node, "name", src) {
+                let line = node.start_position().row + 1;
+                out.symbols.push(SymbolRef {
+                    name: name.clone(),
+                    kind: SymbolKind::Interface,
+                    line,
+                });
+                for supertrait in trait_bounds(node, src) {
+                    out.inherits.push(InheritsRef {
+                        sub_name: name.clone(),
+                        super_name: supertrait,
+                        line,
+                    });
+                }
+                walk_children(node, src, out, Some(name.as_str()));
+                return;
+            }
+        }
+        "mod_item" => {
+            if let Some(name) = child_text(node, "name", src) {
+                out.symbols.push(SymbolRef {
+                    name,
+                    kind: SymbolKind::Module,
+                    line: node.start_position().row + 1,
+                });
+            }
+        }
+        "type_item" => {
+            if let Some(name) = child_text(node, "name", src) {
+                out.symbols.push(SymbolRef {
+                    name,
+                    kind: SymbolKind::TypeAlias,
+                    line: node.start_position().row + 1,
+                });
+            }
+        }
+        "const_item" | "static_item" => {
+            if let Some(name) = child_text(node, "name", src) {
+                out.symbols.push(SymbolRef {
+                    name,
+                    kind: SymbolKind::Constant,
+                    line: node.start_position().row + 1,
+                });
+            }
+        }
+        "let_declaration" => {
+            if let Some(closure_name) = named_closure_binding(node, src) {
+                out.symbols.push(SymbolRef {
+                    name: closure_name,
+                    kind: SymbolKind::Lambda,
+                    line: node.start_position().row + 1,
+                });
+            }
+        }
+        "impl_item" => {
+            let type_name = node
+                .child_by_field_name("type")
+                .and_then(|n| n.utf8_text(src).ok())
+                .map(str::to_string);
+            let trait_name = node
+                .child_by_field_name("trait")
+                .and_then(|n| n.utf8_text(src).ok())
+                .map(str::to_string);
+            if let (Some(type_name), Some(trait_name)) = (&type_name, &trait_name) {
+                out.implements.push(ImplementsRef {
+                    type_name: type_name.clone(),
+                    trait_name: trait_name.clone(),
+                    line: node.start_position().row + 1,
+                });
+            }
+            walk_children(node, src, out, type_name.as_deref());
+            return;
         }
         "use_declaration" => {
             for path in use_paths(node, src) {
@@ -82,11 +196,107 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile) {
         _ => {}
     }
 
+    walk_children(node, src, out, enclosing);
+}
+
+fn walk_children(node: Node<'_>, src: &[u8], out: &mut ParsedFile, enclosing: Option<&str>) {
     for i in 0..node.child_count() {
         if let Some(child) = node.child(i) {
-            walk(child, src, out);
+            walk(child, src, out, enclosing);
         }
     }
+}
+
+/// `#[attribute]`/`#[attribute(...)]` macros directly preceding a
+/// `function_item`, best-effort DECORATES source (excludes the
+/// `#[test]`-family attributes, which are already modeled via
+/// [`SymbolKind::Test`] rather than a decoration edge).
+fn attribute_decorators(function_node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut sibling = function_node.prev_sibling();
+    while let Some(node) = sibling {
+        match node.kind() {
+            "attribute_item" => {
+                if let Ok(text) = node.utf8_text(src) {
+                    if !attribute_is_test(text) {
+                        let inner = text
+                            .trim_start_matches('#')
+                            .trim_start_matches('[')
+                            .trim_end_matches(']')
+                            .trim();
+                        let name = inner.split(['(', ' ']).next().unwrap_or(inner);
+                        if !name.is_empty() {
+                            out.push(name.to_string());
+                        }
+                    }
+                }
+                sibling = node.prev_sibling();
+            }
+            "line_comment" | "block_comment" => sibling = node.prev_sibling(),
+            _ => break,
+        }
+    }
+    out.reverse();
+    out
+}
+
+/// Parameter and return types on a `function_item`'s signature,
+/// as-written (best-effort TYPE_REF source).
+fn signature_type_refs(function_node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    if let Some(params) = function_node.child_by_field_name("parameters") {
+        for i in 0..params.child_count() {
+            if let Some(param) = params.child(i) {
+                if param.kind() == "parameter" {
+                    if let Some(type_node) = param.child_by_field_name("type") {
+                        if let Ok(text) = type_node.utf8_text(src) {
+                            out.push(text.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if let Some(return_type) = function_node.child_by_field_name("return_type") {
+        if let Ok(text) = return_type.utf8_text(src) {
+            out.push(text.to_string());
+        }
+    }
+    out
+}
+
+/// `trait Sub: Super1 + Super2` -- the supertrait bounds list.
+fn trait_bounds(trait_node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    if let Some(bounds) = trait_node.child_by_field_name("bounds") {
+        for i in 0..bounds.child_count() {
+            if let Some(child) = bounds.child(i) {
+                if child.kind() != "+" {
+                    if let Ok(text) = child.utf8_text(src) {
+                        let trimmed = text.trim();
+                        if !trimmed.is_empty() {
+                            out.push(trimmed.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
+/// `let f = |x| ...` / `let f = move |x| ...` -- a named closure
+/// binding, best-effort [`SymbolKind::Lambda`] source.
+fn named_closure_binding(let_node: Node<'_>, src: &[u8]) -> Option<String> {
+    let pattern = let_node.child_by_field_name("pattern")?;
+    if pattern.kind() != "identifier" {
+        return None;
+    }
+    let value = let_node.child_by_field_name("value")?;
+    if value.kind() != "closure_expression" {
+        return None;
+    }
+    pattern.utf8_text(src).ok().map(str::to_string)
 }
 
 fn child_text(node: Node<'_>, field: &str, src: &[u8]) -> Option<String> {

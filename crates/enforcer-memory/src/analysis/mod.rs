@@ -58,6 +58,17 @@ pub enum EdgeKind {
     Route,
     /// `from` file contains symbol `to` (structural containment).
     Contains,
+    /// X06 rich vocabulary (additive): `from` (a Class/Interface)
+    /// inherits/extends a symbol resolved to `to`.
+    Inherits,
+    /// `from` (a type) implements a trait/interface resolved to `to`.
+    Implements,
+    /// `from` (a symbol) is decorated by a symbol/macro resolved to `to`.
+    Decorates,
+    /// `from` (a symbol)'s signature references a type resolved to `to`.
+    TypeRef,
+    /// `from` (a container symbol) defines member symbol `to`.
+    Defines,
 }
 
 /// One traversal step: the edge kind plus the node id reached.
@@ -198,6 +209,54 @@ impl CodeAdjacency {
         // marker: skipped here (route metadata lives on `CodeGraph`
         // directly; `architecture::route_map` reads it from there).
         let _ = graph.routes();
+
+        // X06 rich vocabulary (additive): INHERITS/IMPLEMENTS/DECORATES/
+        // TYPE_REF resolve their unresolved-by-name target against the
+        // same `symbol_ids` name index calls/imports already build
+        // (best-effort, matching every other edge kind's own resolution
+        // rationale). DEFINES already carries both ends as resolved ids
+        // (both extracted from the same file, same pass), so it needs no
+        // name lookup at all.
+        for edge in graph.inherits() {
+            let Some(&from) = index_of.get(edge.sub_id.as_str()) else {
+                continue;
+            };
+            if let Some(&to) = resolve_callee(&edge.super_name, &symbol_ids) {
+                g.add_edge(from, to, EdgeKind::Inherits);
+            }
+        }
+        for edge in graph.implements() {
+            let Some(&from) = index_of.get(edge.type_id.as_str()) else {
+                continue;
+            };
+            if let Some(&to) = resolve_callee(&edge.trait_name, &symbol_ids) {
+                g.add_edge(from, to, EdgeKind::Implements);
+            }
+        }
+        for edge in graph.decorates() {
+            let Some(&from) = index_of.get(edge.target_id.as_str()) else {
+                continue;
+            };
+            if let Some(&to) = resolve_callee(&edge.decorator_name, &symbol_ids) {
+                g.add_edge(from, to, EdgeKind::Decorates);
+            }
+        }
+        for edge in graph.type_refs() {
+            let Some(&from) = index_of.get(edge.from_id.as_str()) else {
+                continue;
+            };
+            if let Some(&to) = resolve_callee(&edge.type_name, &symbol_ids) {
+                g.add_edge(from, to, EdgeKind::TypeRef);
+            }
+        }
+        for edge in graph.defines() {
+            if let (Some(&from), Some(&to)) = (
+                index_of.get(edge.container_id.as_str()),
+                index_of.get(edge.member_id.as_str()),
+            ) {
+                g.add_edge(from, to, EdgeKind::Defines);
+            }
+        }
 
         Self {
             graph: g,

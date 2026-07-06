@@ -77,6 +77,16 @@ pub fn node_label(node: &CodeNode) -> &'static str {
         CodeNode::Test(_) => "Test",
         CodeNode::TextOnly(_) => "TextOnly",
         CodeNode::Tombstone(_) => "Tombstone",
+        CodeNode::Method(_) => "Method",
+        CodeNode::Class(_) => "Class",
+        CodeNode::Struct(_) => "Struct",
+        CodeNode::Interface(_) => "Interface",
+        CodeNode::Enum(_) => "Enum",
+        CodeNode::TypeAlias(_) => "TypeAlias",
+        CodeNode::Module(_) => "Module",
+        CodeNode::Lambda(_) => "Lambda",
+        CodeNode::Variable(_) => "Variable",
+        CodeNode::Constant(_) => "Constant",
     }
 }
 
@@ -102,6 +112,21 @@ pub fn get_graph_schema(graph: &CodeGraph) -> GraphSchema {
     }
     if !graph.routes().is_empty() {
         edge_counts.insert("Route", graph.routes().len());
+    }
+    if !graph.inherits().is_empty() {
+        edge_counts.insert("INHERITS", graph.inherits().len());
+    }
+    if !graph.implements().is_empty() {
+        edge_counts.insert("IMPLEMENTS", graph.implements().len());
+    }
+    if !graph.decorates().is_empty() {
+        edge_counts.insert("DECORATES", graph.decorates().len());
+    }
+    if !graph.type_refs().is_empty() {
+        edge_counts.insert("TYPE_REF", graph.type_refs().len());
+    }
+    if !graph.defines().is_empty() {
+        edge_counts.insert("DEFINES", graph.defines().len());
     }
 
     let mut labels: Vec<LabelCount> = label_counts
