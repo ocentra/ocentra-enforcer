@@ -547,6 +547,63 @@ test('check architecture-policy accepts file scope from a manifest file', () => 
   }
 });
 
+test('check architecture-policy skips stale missing contract owners outside explicit file manifest scope', () => {
+  const project = makeProject({
+    'ocentra-enforcer.config.json': JSON.stringify({
+      profileName: 'architecture-stale-contract-scope-test',
+      architecturePolicyChecks: ['single-source-contracts'],
+    }),
+    'contracts.json': JSON.stringify({
+      contracts: [
+        {
+          name: 'stale-contract-owner',
+          ownerPath: 'src/deleted-owner.ts',
+          scanRoots: ['src'],
+          values: [
+            {
+              name: 'eventName',
+              sourceObjectPath: 'RuntimeEvent.Name',
+            },
+          ],
+        },
+      ],
+    }),
+    'src/current.ts': 'export const current = "current";\n',
+    'scope-files.json': JSON.stringify({ files: ['src/current.ts'] }),
+  });
+  const result = run(project, [
+    'check',
+    'architecture-policy',
+    '--json',
+    '--check-config',
+    'contracts.json',
+    '--files-from',
+    'scope-files.json',
+  ]);
+  assert.equal(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.ok, true);
+  assert.deepEqual(report.violations, []);
+
+  const workspace = run(project, [
+    'check',
+    'architecture-policy',
+    '--json',
+    '--check-config',
+    'contracts.json',
+  ]);
+  assert.notEqual(workspace.status, 0, workspace.stdout || workspace.stderr);
+  const workspaceReport = JSON.parse(workspace.stdout);
+  assert.equal(
+    workspaceReport.violations.some(
+      (violation) =>
+        violation.ruleId === 'CONTRACT-1.1' &&
+        String(violation.message ?? violation.detail ?? '').includes('src/deleted-owner.ts'),
+    ),
+    true,
+  );
+});
+
 test('architecture check now routes to full architecture-policy instead of reexports only', () => {
   const project = makeProject({
     'ocentra-enforcer.config.json': JSON.stringify({

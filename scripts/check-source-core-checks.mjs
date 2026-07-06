@@ -13,6 +13,8 @@ import {
   isNonBlockingContractPath,
   isUnderRoots,
   loadContract,
+  missingRequiredContractPaths,
+  recordMissingContractPaths,
   resolveContractConfigPath,
   scopeFilesByExtensions,
   scopeRelativeFiles,
@@ -43,6 +45,18 @@ function collectSingleSourceContractFindings(
   );
 
   for (const rawContract of contractConfig.contracts ?? []) {
+    const missingPaths = missingRequiredContractPaths(root, rawContract);
+    if (missingPaths.length > 0) {
+      if (
+        scopedFiles !== null &&
+        missingPaths.every((missingPath) => !scopedFiles.includes(missingPath))
+      ) {
+        continue;
+      }
+      recordMissingContractPaths(root, rawContract, missingPaths, findings);
+      continue;
+    }
+
     const contract = loadContract(root, rawContract);
     const files =
       scopedFiles === null
