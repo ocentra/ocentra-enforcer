@@ -60,3 +60,7 @@ install.sh text eol=lf
 # explicitly even though *.ndjson above already covers it, so the pin is
 # self-documenting at this specific path.
 crates/enforcer-memory/tests/fixtures/memory/redaction/* text eol=lf
+# x06 wave-B language-extractor fixtures (.go/.java/.c/.cpp/.cs/.php etc.):
+# LF pinned path-scoped so real source files elsewhere keep default policy
+# (L34/L35: new fixture extensions are pinned the same commit they land).
+crates/enforcer-memory/tests/fixtures/memory/lang_*/** text eol=lf

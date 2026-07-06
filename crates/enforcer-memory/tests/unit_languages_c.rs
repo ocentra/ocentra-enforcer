@@ -126,7 +126,7 @@ fn malformed_source_does_not_panic() {
 /// shape -- one `if`, one `for` loop nested inside it, so cyclomatic
 /// complexity is 3 (base 1 + if + for) and loop_depth is 1.
 #[test]
-fn complexity_hand_case_if_and_for() {
+fn complexity_hand_case_if_and_for() -> TestResult {
     use enforcer_memory::complexity::{compute, find_definition_node, NodeKindTable};
     use tree_sitter::Parser;
 
@@ -143,17 +143,20 @@ int scan(int n) {
     let mut parser = Parser::new();
     parser
         .set_language(&tree_sitter_c::LANGUAGE.into())
-        .expect("grammar loads");
-    let tree = parser.parse(src, None).expect("parses");
+        .map_err(|e| format!("grammar loads: {e}"))?;
+    let tree = parser
+        .parse(src, None)
+        .ok_or_else(|| "parses".to_string())?;
     let table = NodeKindTable::c();
     let root = tree.root_node();
     let def_node = find_definition_node(root, "scan", 2, src.as_bytes(), &table)
-        .expect("finds scan's definition node");
+        .ok_or_else(|| "finds scan's definition node".to_string())?;
     let metrics = compute(def_node, "scan", src.as_bytes(), &table);
     assert_eq!(metrics.complexity, 3);
     assert_eq!(metrics.loop_count, 1);
     assert_eq!(metrics.loop_depth, 1);
     assert_eq!(metrics.param_count, 1);
+    Ok(())
 }
 
 /// Bonus proof: index a couple of real files from the C baseline
