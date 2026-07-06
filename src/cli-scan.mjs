@@ -8,7 +8,7 @@ export function resolveScanLanguages(optionLanguages, config) {
     "python",
     "common",
   ];
-  const allowed = new Set(["rust", "typescript", "python", "common"]);
+  const allowed = new Set(["rust", "typescript", "python", "common", "iac"]);
   const normalized = languages
     .map((language) => String(language).trim())
     .filter(Boolean);
