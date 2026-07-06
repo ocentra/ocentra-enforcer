@@ -34,6 +34,7 @@ pub mod metrics;
 pub mod proof;
 pub mod queryset;
 pub mod runners;
+pub mod tool_diff;
 
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use enforcer_memory::embed::{Embedder, HashingEmbedder};

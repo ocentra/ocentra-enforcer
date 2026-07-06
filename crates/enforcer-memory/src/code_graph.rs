@@ -203,6 +203,84 @@ pub struct IndexReport {
     pub deleted: Vec<String>,
 }
 
+/// X06.8: indexing depth, mirroring the baseline doc's `full`/`moderate`/
+/// `fast` mode semantics (see `docs/plans/enforcer-selfhost-plan/refs/
+/// x06-baseline-tool-schemas.md` §9.2). This crate's [`CodeGraph`] has no
+/// SIMILAR_TO/SEMANTICALLY_RELATED edges or macro-extraction pass to gate
+/// (those are out of this slice's scope -- see `src/lib.rs` module
+/// docs), so the one gate [`IndexMode`] currently controls is git-history
+/// computation, exactly matching the baseline's one universally-confirmed
+/// mode distinction: "`full` and `moderate` both compute git history;
+/// only `fast` omits it." Adding a future gated pass (e.g. a real
+/// similarity edge) should extend this enum's match arms, not add a
+/// parallel boolean flag.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum IndexMode {
+    /// Everything this indexer currently supports, including git
+    /// history. The default -- back-compat convenience constructors
+    /// ([`CodeGraph::index_repository`]) always run at this mode.
+    #[default]
+    Full,
+    /// Same file-history computation as [`IndexMode::Full`] in this
+    /// slice (the baseline's moderate/full split is driven entirely by
+    /// the macro-extraction/similarity passes this crate does not
+    /// implement); kept as a distinct variant so a future gated pass has
+    /// somewhere to plug in without another signature change.
+    Moderate,
+    /// Skips git-history computation (`last_commit`/`change_count` stay
+    /// at their defaults: `None`/`0`) for the fastest indexing pass.
+    Fast,
+}
+
+impl IndexMode {
+    /// Whether this mode computes per-file git history
+    /// (`last_commit`/`change_count`). Matches the baseline's
+    /// "`full`/`moderate` compute git history; only `fast` omits it."
+    fn computes_git_history(self) -> bool {
+        !matches!(self, IndexMode::Fast)
+    }
+}
+
+/// X06.8: bundled options for [`CodeGraph::index_repository_with_options`],
+/// the extended entry point that adds indexing-depth gating and the
+/// optional `.codebase-memory/graph.db.zst` persistence artifact on top
+/// of the original [`CodeGraph::index_repository`] (which stays
+/// unchanged -- all of its existing call sites keep compiling against
+/// the original 3-argument signature).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct IndexOptions<'a> {
+    pub mode: IndexMode,
+    /// When `true`, a successful index run additionally exports a
+    /// `.codebase-memory/graph.db.zst` + `artifact.json` persistence
+    /// artifact for `repo_root` via [`crate::artifacts`].
+    pub persistence: bool,
+    /// Project name recorded in `artifact.json` when `persistence` is
+    /// enabled. Required (as `Some`) whenever `persistence` is `true`;
+    /// ignored otherwise.
+    pub project_name: Option<&'a str>,
+    /// Timestamp recorded in `artifact.json` when `persistence` is
+    /// enabled (RFC3339-ish string, caller-supplied so this module has
+    /// no wall-clock dependency). Required (as `Some`) whenever
+    /// `persistence` is `true`; ignored otherwise.
+    pub indexed_at: Option<&'a str>,
+}
+
+/// X06.8: errors from [`CodeGraph::index_repository_with_options`] that
+/// are specific to the options wrapper (persistence/bootstrap) rather
+/// than the underlying indexing pass (those still surface as
+/// [`IndexError`]).
+#[derive(Debug, thiserror::Error)]
+pub enum IndexWithOptionsError {
+    #[error(transparent)]
+    Index(#[from] IndexError),
+    #[error("persistence=true requires project_name to be set")]
+    MissingProjectName,
+    #[error("persistence=true requires indexed_at to be set")]
+    MissingIndexedAt,
+    #[error(transparent)]
+    Artifact(#[from] crate::artifacts::GraphArtifactError),
+}
+
 /// Bundled arguments for [`CodeGraph::insert_file_and_chunks`] --
 /// grouped into one struct rather than passed positionally so adding a
 /// future field (e.g. a language-server diagnostic) does not require
@@ -288,6 +366,146 @@ impl CodeGraph {
         walk_files: &[PathBuf],
         previous_manifest: &Manifest,
     ) -> Result<(Manifest, IndexReport), IndexError> {
+        self.index_repository_at_mode(repo_root, walk_files, previous_manifest, IndexMode::Full)
+    }
+
+    /// X06.8: [`Self::index_repository`] extended with indexing-depth
+    /// gating ([`IndexMode`]) and the optional persistence artifact
+    /// (`.codebase-memory/graph.db.zst` + `artifact.json`, via
+    /// [`crate::artifacts`]) plus bootstrap-on-index: if `previous_manifest`
+    /// is empty (no local store for this project yet) AND a persistence
+    /// artifact already exists at `repo_root`, this imports that artifact
+    /// FIRST (regardless of `options.persistence` on this specific call --
+    /// matching the baseline's "triggers purely on artifact exists but no
+    /// local db yet") before running the fresh index pass, so a teammate
+    /// bootstraps from a committed artifact instead of a full re-index.
+    ///
+    /// [`Self::index_repository`] itself is left completely unchanged
+    /// (still the plain 3-argument call every existing call site in this
+    /// crate uses) -- this is an additive entry point, not a signature
+    /// change.
+    pub fn index_repository_with_options(
+        &mut self,
+        repo_root: &Path,
+        walk_files: &[PathBuf],
+        previous_manifest: &Manifest,
+        options: IndexOptions<'_>,
+    ) -> Result<(Manifest, IndexReport), IndexWithOptionsError> {
+        if options.persistence {
+            if options.project_name.is_none() {
+                return Err(IndexWithOptionsError::MissingProjectName);
+            }
+            if options.indexed_at.is_none() {
+                return Err(IndexWithOptionsError::MissingIndexedAt);
+            }
+        }
+
+        // Bootstrap-on-index: no local manifest entries yet, but an
+        // artifact already exists on disk -- import it before indexing.
+        if previous_manifest.entries.is_empty() && crate::artifacts::artifact_exists(repo_root) {
+            let (snapshot, _meta) = crate::artifacts::import_graph_artifact(repo_root)?;
+            self.restore_from_snapshot(&snapshot);
+        }
+
+        let (manifest, report) =
+            self.index_repository_at_mode(repo_root, walk_files, previous_manifest, options.mode)?;
+
+        if options.persistence {
+            let project = options
+                .project_name
+                .ok_or(IndexWithOptionsError::MissingProjectName)?;
+            let indexed_at = options
+                .indexed_at
+                .ok_or(IndexWithOptionsError::MissingIndexedAt)?;
+            let snapshot = crate::artifacts::GraphSnapshot::from_code_graph(self);
+            let commit = GitMetadata::open(repo_root)
+                .ok()
+                .flatten()
+                .and_then(|g| g.head_commit());
+            crate::artifacts::export_graph_artifact(
+                repo_root, &snapshot, project, commit, indexed_at,
+            )?;
+        }
+
+        Ok((manifest, report))
+    }
+
+    /// Repopulate this (assumed-empty, freshly constructed) graph from a
+    /// previously exported [`crate::artifacts::GraphSnapshot`] -- the
+    /// "reconstruct node/edge counts" half of bootstrap-on-index. Kept
+    /// deliberately additive (append-only, like every other mutation in
+    /// this graph): a caller that bootstraps into a non-empty graph gets
+    /// the union, not a silent overwrite.
+    fn restore_from_snapshot(&mut self, snapshot: &crate::artifacts::GraphSnapshot) {
+        for file in &snapshot.files {
+            let node = FileNode {
+                id: file.id.clone(),
+                rel_path: file.rel_path.clone(),
+                language: LanguageTag::TextOnly,
+                content_hash: file.content_hash.clone(),
+                last_commit: file.last_commit.clone(),
+                change_count: file.change_count,
+                chunk_ids: file.chunk_ids.clone(),
+            };
+            if file.text_only {
+                self.nodes.push(CodeNode::TextOnly(node));
+            } else {
+                self.nodes.push(CodeNode::File(node));
+            }
+        }
+        for symbol in &snapshot.symbols {
+            let node = SymbolNode {
+                id: symbol.id.clone(),
+                name: symbol.name.clone(),
+                file_id: symbol.file_id.clone(),
+                line: symbol.line,
+            };
+            self.nodes.push(match symbol.kind {
+                crate::artifacts::GraphSymbolKindSnapshot::Function => CodeNode::Function(node),
+                crate::artifacts::GraphSymbolKindSnapshot::Type => CodeNode::Type(node),
+                crate::artifacts::GraphSymbolKindSnapshot::Test => CodeNode::Test(node),
+            });
+        }
+        for tombstone in &snapshot.tombstones {
+            self.nodes.push(CodeNode::Tombstone(TombstoneNode {
+                id: tombstone.id.clone(),
+                rel_path: tombstone.rel_path.clone(),
+                last_commit: tombstone.last_commit.clone(),
+                change_count: tombstone.change_count,
+                prior_chunk_ids: tombstone.prior_chunk_ids.clone(),
+            }));
+        }
+        for edge in &snapshot.imports {
+            self.imports.push(ImportEdge {
+                from_file_id: edge.from_file_id.clone(),
+                module_path: edge.module_path.clone(),
+                line: edge.line,
+            });
+        }
+        for edge in &snapshot.calls {
+            self.calls.push(CallEdge {
+                from_file_id: edge.from_file_id.clone(),
+                callee: edge.callee.clone(),
+                line: edge.line,
+            });
+        }
+        for edge in &snapshot.routes {
+            self.routes.push(RouteEdge {
+                from_file_id: edge.from_file_id.clone(),
+                method: edge.method.clone(),
+                path: edge.path.clone(),
+                line: edge.line,
+            });
+        }
+    }
+
+    fn index_repository_at_mode(
+        &mut self,
+        repo_root: &Path,
+        walk_files: &[PathBuf],
+        previous_manifest: &Manifest,
+        mode: IndexMode,
+    ) -> Result<(Manifest, IndexReport), IndexError> {
         let mut git = GitMetadata::open(repo_root).map_err(IndexError::Git)?;
         let mut new_manifest = Manifest::default();
         let mut report = IndexReport::default();
@@ -315,10 +533,13 @@ impl CodeGraph {
             }
 
             let is_new = previous.is_none();
-            let history = git
-                .as_mut()
-                .map(|g| g.history_for(&rel_path))
-                .unwrap_or_default();
+            let history = if mode.computes_git_history() {
+                git.as_mut()
+                    .map(|g| g.history_for(&rel_path))
+                    .unwrap_or_default()
+            } else {
+                crate::git::PathHistory::default()
+            };
             let text = String::from_utf8_lossy(&content).into_owned();
             let language = parsers::classify(&rel_path);
             let parsed = parsers::parse_file(language, &text);
@@ -703,6 +924,145 @@ mod tests {
             text_only.is_some(),
             "unsupported extension must still produce a TextOnly node, never be skipped"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn fast_mode_skips_git_history_full_mode_computes_it() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        init_git_repo(dir.path())?;
+        let file_path = dir.path().join("a.rs");
+        fs::write(&file_path, "fn a() {}")?;
+        commit_all(dir.path(), "first")?;
+
+        let mut fast_graph = CodeGraph::new();
+        fast_graph.index_repository_with_options(
+            dir.path(),
+            std::slice::from_ref(&file_path),
+            &Manifest::default(),
+            IndexOptions {
+                mode: IndexMode::Fast,
+                ..IndexOptions::default()
+            },
+        )?;
+        let fast_file = fast_graph
+            .file_nodes()
+            .find(|f| f.rel_path == "a.rs")
+            .ok_or("expected a.rs file node")?;
+        assert_eq!(
+            fast_file.last_commit, None,
+            "fast mode must skip git history"
+        );
+
+        let mut full_graph = CodeGraph::new();
+        full_graph.index_repository_with_options(
+            dir.path(),
+            std::slice::from_ref(&file_path),
+            &Manifest::default(),
+            IndexOptions {
+                mode: IndexMode::Full,
+                ..IndexOptions::default()
+            },
+        )?;
+        let full_file = full_graph
+            .file_nodes()
+            .find(|f| f.rel_path == "a.rs")
+            .ok_or("expected a.rs file node")?;
+        assert!(
+            full_file.last_commit.is_some(),
+            "full mode must compute git history"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn persistence_true_without_project_name_is_a_typed_error() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        init_git_repo(dir.path())?;
+        let file_path = dir.path().join("a.rs");
+        fs::write(&file_path, "fn a() {}")?;
+        commit_all(dir.path(), "first")?;
+
+        let mut graph = CodeGraph::new();
+        let outcome = graph.index_repository_with_options(
+            dir.path(),
+            std::slice::from_ref(&file_path),
+            &Manifest::default(),
+            IndexOptions {
+                persistence: true,
+                indexed_at: Some("2026-07-05T00:00:00Z"),
+                ..IndexOptions::default()
+            },
+        );
+        assert!(matches!(
+            outcome,
+            Err(IndexWithOptionsError::MissingProjectName)
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn persistence_true_writes_artifact_and_bootstrap_reimports_same_counts() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        init_git_repo(dir.path())?;
+        let file_path = dir.path().join("a.rs");
+        fs::write(&file_path, "fn a() {}\nfn b() {}\n")?;
+        commit_all(dir.path(), "first")?;
+
+        let mut graph = CodeGraph::new();
+        graph.index_repository_with_options(
+            dir.path(),
+            std::slice::from_ref(&file_path),
+            &Manifest::default(),
+            IndexOptions {
+                mode: IndexMode::Full,
+                persistence: true,
+                project_name: Some("demo"),
+                indexed_at: Some("2026-07-05T00:00:00Z"),
+            },
+        )?;
+        assert!(crate::artifacts::artifact_exists(dir.path()));
+
+        let original_node_count = graph.nodes().len();
+        let original_edge_count =
+            graph.imports().len() + graph.calls().len() + graph.routes().len();
+
+        // A brand-new CodeGraph with an EMPTY previous manifest but the
+        // artifact already on disk must bootstrap-import it before
+        // indexing (even though this second call passes an empty file
+        // list, so nothing would be found by walking otherwise).
+        let mut bootstrapped = CodeGraph::new();
+        bootstrapped.index_repository_with_options(
+            dir.path(),
+            &[],
+            &Manifest::default(),
+            IndexOptions::default(),
+        )?;
+
+        assert_eq!(bootstrapped.nodes().len(), original_node_count);
+        let bootstrapped_edge_count =
+            bootstrapped.imports().len() + bootstrapped.calls().len() + bootstrapped.routes().len();
+        assert_eq!(bootstrapped_edge_count, original_edge_count);
+        Ok(())
+    }
+
+    #[test]
+    fn index_repository_original_signature_still_compiles_and_runs() -> TestResult {
+        // Back-compat: the plain 3-arg `index_repository` (every existing
+        // call site in this crate) must keep working unchanged.
+        let dir = tempfile::tempdir()?;
+        init_git_repo(dir.path())?;
+        let file_path = dir.path().join("a.rs");
+        fs::write(&file_path, "fn a() {}")?;
+        commit_all(dir.path(), "first")?;
+
+        let mut graph = CodeGraph::new();
+        let (_manifest, report) = graph.index_repository(
+            dir.path(),
+            std::slice::from_ref(&file_path),
+            &Manifest::default(),
+        )?;
+        assert_eq!(report.added, vec!["a.rs".to_string()]);
         Ok(())
     }
 }

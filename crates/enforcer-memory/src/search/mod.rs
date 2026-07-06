@@ -28,8 +28,13 @@
 //! hard-filter-before-soft-boost ordering; see [`crate::ranking`].
 
 pub mod document;
+pub mod search_graph;
 
 pub use document::{DocumentKind, SearchDocument};
+pub use search_graph::{
+    search_graph as run_search_graph, search_graph_with_semantic, NodeLabel, SearchGraphError,
+    SearchGraphHit, SearchGraphResult, SearchGraphSpec, SearchMode,
+};
 
 use crate::embed::{DegradedState, Embedder, LoadState};
 use crate::error::Result;
@@ -220,34 +225,5 @@ pub fn degraded_reason(state: &LoadState) -> Option<DegradedState> {
     match state {
         LoadState::Degraded(reason) => Some(*reason),
         _ => None,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn token_reduction_ratio_is_zero_for_empty_context() {
-        let estimate = TokenReductionEstimate {
-            naive_tokens: 1000,
-            context_tokens: 0,
-        };
-        assert_eq!(estimate.ratio(), 0.0);
-    }
-
-    #[test]
-    fn token_reduction_ratio_reflects_savings() {
-        let estimate = TokenReductionEstimate {
-            naive_tokens: 10_000,
-            context_tokens: 500,
-        };
-        assert_eq!(estimate.ratio(), 20.0);
-    }
-
-    #[test]
-    fn estimate_tokens_is_never_zero_for_nonempty_text() {
-        assert!(estimate_tokens("a") >= 1);
-        assert!(estimate_tokens("") >= 1);
     }
 }

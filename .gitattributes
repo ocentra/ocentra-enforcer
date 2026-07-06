@@ -51,3 +51,12 @@ install.sh text eol=lf
 *.mdc text eol=lf
 # x06.6 continuous-learning fixtures + memory streams
 *.ndjson text eol=lf
+# x06.8: the .codebase-memory persistence artifact is a binary blob
+# rebuilt deterministically by `index_repository`/`artifacts::export_graph_artifact`
+# on every machine that reindexes -- a merge conflict on it should always
+# resolve to "keep mine and reindex", never a byte-level content merge.
+*.zst merge=ours binary
+# x06.8 redaction golden fixtures: byte-exact test input, LF pinned
+# explicitly even though *.ndjson above already covers it, so the pin is
+# self-documenting at this specific path.
+crates/enforcer-memory/tests/fixtures/memory/redaction/* text eol=lf

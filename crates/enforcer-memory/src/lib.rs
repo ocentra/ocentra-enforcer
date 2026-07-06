@@ -36,13 +36,21 @@
 //! embedding seam, which is feature-gated and unimplemented here on
 //! purpose so no test or default build ever needs a model runtime).
 //!
-//! # Federation
+//! # Federation (X06.8)
 //!
-//! Federation (sharing memory across machines/agents) is not
-//! implemented in this slice. Per the crate's local-first mandate, any
-//! future federation surface must be an explicit opt-in seam analogous
-//! to [`retriever::EmbeddingRetriever`] — never a live dependency of the
-//! default ingest/recall path.
+//! Federation (sharing memory across machines/agents) is an explicit
+//! opt-in surface, never a live dependency of the default ingest/recall
+//! path (the crate's local-first mandate): [`share`] exports signed,
+//! zstd-compressed bundles (personal DEFAULT / team / community scopes,
+//! explicit per-call consent required beyond personal); [`federation`]
+//! is the zero-trust import gate (signature vs a local trust list,
+//! checksum, schema version — typed rejection reasons, imported lessons
+//! forced inactive until local x05 validation supersedes them);
+//! [`redaction`] is the community-scope redaction pipeline (paths,
+//! identities, secret-shaped strings, bounded snippets — golden
+//! byte-exact fixture-tested); [`artifacts`] is exact fail-closed
+//! content-addressed retrieval plus the D-11 `.codebase-memory/
+//! graph.db.zst` + `artifact.json` code-graph bootstrap artifact.
 //!
 //! # X06.1 -- core/store/logs
 //!
@@ -157,16 +165,49 @@
 //!   [`store::Store`] layout: one store per project under a root.
 //!   Delete removes only the derived store and refuses any path outside
 //!   the store root.
+//!
+//! # X06.P2 -- trace_path / ingest_traces / detect_changes parity
+//!
+//! - [`analysis::trace`] — `trace_path`'s three modes (calls/data_flow/
+//!   cross_service) plus its baseline-verified `risk_labels` hop-distance
+//!   scheme, layered over [`analysis::CodeAdjacency`].
+//! - [`traces`] — `ingest_traces`: an additive runtime-call-trace overlay
+//!   over [`code_graph::CodeGraph`] (the baseline's own `ingest_traces`
+//!   is an unimplemented stub, so this module's merge/idempotency/
+//!   provenance semantics are this crate's own documented design).
+//! - [`impact::detect_changes_view`] — the baseline-parity `detect_changes`
+//!   response shape (file-level `impacted_symbols`, no risk field);
+//!   [`impact::analyze_diff_impact_scoped`] is a separate, richer,
+//!   non-parity risk-classification extension layered alongside it.
+//!
+//! # X06.7 -- MCP/CLI wrapper, filesystem watcher, diagnostics
+//!
+//! - [`mcp`] — the MCP stdio JSON-RPC server exposing the
+//!   codebase-memory-mcp 14-tool parity floor (`tools/list`/`tools/call`,
+//!   dual framing via [`enforcer_mcp::transport`], honest `not_wired`
+//!   results for genuinely unlanded tools/modes).
+//! - [`cli`] — the CLI mirror of [`mcp`]'s tool surface: same registry,
+//!   same dispatch, same envelope, so CLI and MCP are call-for-call
+//!   identical.
+//! - [`watch`] — the D-12 filesystem watcher: native OS events (`notify`)
+//!   with debounce, plus an adaptive-polling + git-HEAD-diff fallback.
+//! - [`diagnostics`] — stderr-only structured KV/JSON logging for the
+//!   MCP/CLI/watch surface, with redaction so no raw source text ever
+//!   reaches a log line.
 
 pub mod adr;
 pub mod analysis;
 pub mod architecture;
+pub mod artifacts;
+pub mod cli;
 pub mod code_graph;
 pub mod code_search;
+pub mod diagnostics;
 pub mod embed;
 pub mod enrichment;
 pub mod error;
 pub mod evidence;
+pub mod federation;
 pub mod fulltext;
 pub mod git;
 pub mod graph;
@@ -178,6 +219,7 @@ pub mod languages;
 pub mod learning;
 pub mod lesson;
 pub mod log;
+pub mod mcp;
 pub mod observations;
 pub mod parsers;
 pub mod projects;
@@ -185,13 +227,17 @@ pub mod queue;
 pub mod ranking;
 pub mod recall;
 pub mod record;
+pub mod redaction;
 pub mod rerank;
 pub mod retriever;
 pub mod schema;
 pub mod search;
 pub mod sessionstart;
+pub mod share;
 pub mod snippet;
 pub mod store;
 pub mod summaries;
+pub mod traces;
 pub mod vector;
+pub mod watch;
 pub mod weaver;

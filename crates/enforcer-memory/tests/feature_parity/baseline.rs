@@ -1,25 +1,28 @@
-//! The [`BaselineAdapter`] seam: the future live comparison against an
+//! The [`BaselineAdapter`] seam: the live comparison against an
 //! installed `codebase-memory-mcp` baseline
 //! (`MEMORY_RETRIEVAL_PARITY_HARNESS.md` §0/§1 -- "baseline: installed
-//! codebase-memory-mcp MCP/CLI"). This lane ships the trait plus a
-//! capability probe and the [`NotInstalled`](BaselineState::NotInstalled)
-//! honest state; it does NOT ship a live MCP/CLI driver. Building that
-//! driver (spawning the baseline process, speaking its MCP JSON-RPC
-//! wire protocol, normalizing its responses) is out of scope for this
-//! SKELETON per the mission brief -- wiring it is future work for
-//! whichever run actually executes the parity harness end to end.
+//! codebase-memory-mcp MCP/CLI"). This pass extends the X06.9 skeleton's
+//! [`BaselineState::NotInstalled`]-only seam with a real CLI-mode driver
+//! ([`CliDriver`]): it spawns the installed binary as `<binary> cli
+//! <tool> '<json>'` (the documented CLI equivalent surface --
+//! `docs/plans/enforcer-selfhost-plan/refs/x06-baseline-tool-schemas.md`
+//! §16: default output is the unwrapped inner JSON on stdout, exit
+//! 0/1) and avoids JSON-RPC session management entirely.
 //!
-//! # Why a trait now, a driver later
+//! # Why a driver now
 //!
 //! `MEMORY_RETRIEVAL_PARITY_HARNESS.md` §6 (non-acceptance cases) is
 //! explicit that a stub/placeholder tool result is a harness FAILURE --
 //! so this module never fabricates a baseline response. Every method on
-//! [`BaselineAdapter`] either returns real data from a live probe or
+//! [`BaselineAdapter`] either returns real data from a live probe/call or
 //! surfaces [`BaselineState::NotInstalled`] / a capability-state value;
 //! there is no code path that invents a plausible-looking fake result.
+//! [`CliDriver::call`] propagates real stdout/stderr/exit-status; it
+//! never synthesizes a response when the process fails to run.
 
 use std::path::PathBuf;
 use std::process::Command;
+use std::time::{Duration, Instant};
 
 /// Whether the baseline binary is available to drive at all, and if
 /// not, why. Mirrors the capability-state doctrine already used by
@@ -28,15 +31,11 @@ use std::process::Command;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BaselineState {
     /// The `codebase-memory-mcp` binary was not found on `PATH` (or the
-    /// configured override path). This is the expected state in this
-    /// SKELETON pass and in most CI/dev environments -- it is not an
-    /// error, it is an honest fact the proof artifacts must record
-    /// (per the mission brief: "expect mostly red/pending today; that
-    /// is CORRECT").
+    /// configured override path). Honest fact this harness must record,
+    /// never treated as an error.
     NotInstalled,
     /// The binary was found at `path` but has not been version-probed
-    /// yet (the live JSON-RPC driver that would do that is future
-    /// work).
+    /// yet.
     FoundUnprobed { path: PathBuf },
 }
 
@@ -46,10 +45,10 @@ impl BaselineState {
     }
 }
 
-/// The seam a future live parity runner drives. Every method takes
-/// `&self` (never `&mut self`) because probing/querying a baseline
-/// process is inherently a read-only comparison operation from this
-/// harness's point of view.
+/// The seam a live parity runner drives. Every method takes `&self`
+/// (never `&mut self`) because probing/querying a baseline process is
+/// inherently a read-only comparison operation from this harness's
+/// point of view.
 pub trait BaselineAdapter {
     /// Human-readable adapter name, e.g. `"codebase-memory-mcp"`, for
     /// proof-artifact labeling.
@@ -144,6 +143,124 @@ impl BaselineAdapter for CodebaseMemoryMcpAdapter {
     }
 }
 
+/// One real invocation of `<binary> cli <tool> <json>`: the raw
+/// stdout/stderr, exit status, and measured wall-clock latency. Never
+/// constructed from anything but an actual spawned child process --
+/// there is no "synthetic" constructor, matching this module's
+/// anti-fabrication doctrine.
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub struct CliCallResult {
+    pub tool: String,
+    pub request_json: String,
+    pub stdout: String,
+    pub stderr: String,
+    pub exit_success: bool,
+    pub latency_ms: f64,
+}
+
+impl CliCallResult {
+    /// Parse `stdout` as JSON. CLI mode's default (non-`--json`) output
+    /// is the unwrapped inner tool JSON on stdout (per
+    /// `x06-baseline-tool-schemas.md` §16) -- but stdout also carries
+    /// `level=info ...` log lines ahead of the JSON body on some builds
+    /// (observed on the installed 0.8.1 binary), so this takes the
+    /// LAST line that parses as JSON rather than assuming stdout is
+    /// pure JSON. Returns `None` (never a fabricated empty object) when
+    /// no line parses.
+    pub fn parsed_json(&self) -> Option<serde_json::Value> {
+        for line in self.stdout.lines().rev() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            if let Ok(value) = serde_json::from_str::<serde_json::Value>(trimmed) {
+                return Some(value);
+            }
+        }
+        // Some responses are pretty-printed multi-line JSON with no
+        // single-line log prefix mixed in -- fall back to parsing the
+        // whole non-log-prefixed stdout as one document.
+        let non_log: String = self
+            .stdout
+            .lines()
+            .filter(|line| !line.trim_start().starts_with("level="))
+            .collect::<Vec<_>>()
+            .join("\n");
+        serde_json::from_str(non_log.trim()).ok()
+    }
+}
+
+/// Errors specific to spawning/running the CLI driver itself (distinct
+/// from a tool call that ran but returned `isError`/a non-zero exit --
+/// that is a normal [`CliCallResult`], not a [`CliDriverError`]).
+#[derive(Debug, thiserror::Error)]
+pub enum CliDriverError {
+    #[error("baseline binary not installed (BaselineState::NotInstalled)")]
+    NotInstalled,
+    #[error("failed to spawn baseline process: {0}")]
+    Spawn(#[source] std::io::Error),
+}
+
+/// Drives the installed `codebase-memory-mcp` binary's `cli <tool>
+/// <json>` subcommand form -- the CLI mode explicitly documented as
+/// avoiding JSON-RPC session management
+/// (`x06-baseline-tool-schemas.md` §16).
+#[derive(Debug)]
+pub struct CliDriver {
+    binary_path: PathBuf,
+}
+
+impl CliDriver {
+    /// Construct a driver for an already-probed, installed baseline.
+    /// Returns [`CliDriverError::NotInstalled`] rather than panicking
+    /// when `state` reports [`BaselineState::NotInstalled`] -- callers
+    /// (the parity runner) must handle that as an honest "unrunnable"
+    /// case, never treat it as a bug to unwrap through.
+    pub fn from_state(state: &BaselineState) -> Result<Self, CliDriverError> {
+        match state {
+            BaselineState::FoundUnprobed { path } => Ok(Self {
+                binary_path: path.clone(),
+            }),
+            BaselineState::NotInstalled => Err(CliDriverError::NotInstalled),
+        }
+    }
+
+    /// Run `<binary> cli <tool> <request_json>` and capture the result.
+    /// `request_json` must be a compact single-line JSON object (forward
+    /// slashes in any path values -- the installed 0.8.1 binary's CLI
+    /// JSON parser does not accept unescaped backslashes in string
+    /// values, confirmed empirically: a Windows path with `\`
+    /// separators makes the parser report `repo_path is required` even
+    /// though the key is present, because the odd escape sequence
+    /// breaks the value string. Every caller in this harness normalizes
+    /// paths to forward slashes before building `request_json` for
+    /// exactly this reason).
+    pub fn call(&self, tool: &str, request_json: &str) -> Result<CliCallResult, CliDriverError> {
+        let start = Instant::now();
+        let output = Command::new(&self.binary_path)
+            .arg("cli")
+            .arg(tool)
+            .arg(request_json)
+            .output()
+            .map_err(CliDriverError::Spawn)?;
+        let latency_ms = duration_to_ms(start.elapsed());
+
+        Ok(CliCallResult {
+            tool: tool.to_string(),
+            request_json: request_json.to_string(),
+            stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+            stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+            exit_success: output.status.success(),
+            latency_ms,
+        })
+    }
+}
+
+fn duration_to_ms(duration: Duration) -> f64 {
+    duration.as_secs_f64() * 1000.0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -190,5 +307,46 @@ mod tests {
         };
         assert!(found.is_installed());
         assert!(!BaselineState::NotInstalled.is_installed());
+    }
+
+    #[test]
+    fn cli_driver_from_state_rejects_not_installed_without_spawning(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let outcome = CliDriver::from_state(&BaselineState::NotInstalled);
+        let error = match outcome {
+            Err(error) => error,
+            Ok(_) => return Err("NotInstalled must not construct a driver".into()),
+        };
+        assert!(matches!(error, CliDriverError::NotInstalled));
+        Ok(())
+    }
+
+    #[test]
+    fn parsed_json_takes_the_last_json_line_skipping_log_prefixes(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let result = CliCallResult {
+            tool: "list_projects".to_string(),
+            request_json: "{}".to_string(),
+            stdout: "level=info msg=mem.init budget_mb=16106\n{\"projects\":[]}".to_string(),
+            stderr: String::new(),
+            exit_success: true,
+            latency_ms: 1.0,
+        };
+        let parsed = result.parsed_json().ok_or("must parse the JSON line")?;
+        assert_eq!(parsed, serde_json::json!({"projects": []}));
+        Ok(())
+    }
+
+    #[test]
+    fn parsed_json_is_none_for_pure_log_output_never_fabricates_a_value() {
+        let result = CliCallResult {
+            tool: "index_repository".to_string(),
+            request_json: "{}".to_string(),
+            stdout: "level=info msg=mem.init budget_mb=16106\nrepo_path is required".to_string(),
+            stderr: String::new(),
+            exit_success: false,
+            latency_ms: 1.0,
+        };
+        assert_eq!(result.parsed_json(), None);
     }
 }
