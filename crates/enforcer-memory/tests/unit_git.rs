@@ -39,6 +39,24 @@ fn open_on_non_git_dir_returns_none_not_error() -> TestResult {
 }
 
 #[test]
+fn open_over_a_canonicalized_path_still_finds_the_repo() -> TestResult {
+    // Regression test: `Path::canonicalize()` on Windows returns an
+    // extended-length path (`\\?\C:\...`), which `git2::Repository::
+    // discover` fails to resolve unless the `\\?\` prefix is stripped
+    // first. The feature-parity harness's `workspace_root()` calls
+    // `canonicalize()`, so `GitMetadata::open` must tolerate it.
+    let dir = tempfile::tempdir()?;
+    init_repo(dir.path())?;
+    fs::write(dir.path().join("a.txt"), "one")?;
+    commit_all(dir.path(), "first")?;
+
+    let canonical = dir.path().canonicalize()?;
+    let meta = GitMetadata::open(&canonical)?.ok_or("expected a repo via canonicalized path")?;
+    assert!(meta.head_commit().is_some());
+    Ok(())
+}
+
+#[test]
 fn open_on_git_repo_reports_head_commit() -> TestResult {
     let dir = tempfile::tempdir()?;
     init_repo(dir.path())?;
