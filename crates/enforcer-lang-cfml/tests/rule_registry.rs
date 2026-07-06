@@ -21,14 +21,15 @@ use std::path::{Path, PathBuf};
 use enforcer_lang_cfml::all_validators;
 use enforcer_rules::loader::load_registry_from_files;
 
-fn workspace_root() -> PathBuf {
+fn workspace_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
     // CARGO_MANIFEST_DIR is `<repo>/crates/enforcer-lang-cfml`.
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
-        .expect("crates/ parent")
+        .ok_or("CARGO_MANIFEST_DIR has no crates/ parent")?
         .parent()
-        .expect("repo root")
-        .to_path_buf()
+        .ok_or("CARGO_MANIFEST_DIR has no repo root")?
+        .to_path_buf();
+    Ok(root)
 }
 
 fn cfml_catalog_paths(root: &Path) -> Vec<PathBuf> {
@@ -40,7 +41,7 @@ fn cfml_catalog_paths(root: &Path) -> Vec<PathBuf> {
 
 #[test]
 fn cfml_rule_catalogs_load_into_the_registry() -> Result<(), Box<dyn std::error::Error>> {
-    let root = workspace_root();
+    let root = workspace_root()?;
     let paths = cfml_catalog_paths(&root);
     let path_refs: Vec<&Path> = paths.iter().map(PathBuf::as_path).collect();
     let registry = load_registry_from_files(&path_refs)?;
@@ -63,7 +64,7 @@ const MANIFEST_SCOPED_RULE_IDS: &[&str] =
 #[test]
 fn every_fixture_provable_validator_has_a_matching_coldfusion_tagged_record(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let root = workspace_root();
+    let root = workspace_root()?;
     let paths = cfml_catalog_paths(&root);
     let path_refs: Vec<&Path> = paths.iter().map(PathBuf::as_path).collect();
     let registry = load_registry_from_files(&path_refs)?;
@@ -73,7 +74,7 @@ fn every_fixture_provable_validator_has_a_matching_coldfusion_tagged_record(
         let rule_id = validator.rule_id().to_string();
         let record = registry
             .get(validator.rule_id())
-            .unwrap_or_else(|| panic!("no registry record for `{rule_id}`"));
+            .ok_or_else(|| format!("no registry record for `{rule_id}`"))?;
         assert!(
             record.tags.iter().any(|t| t == "coldfusion"),
             "record `{rule_id}` is missing the `coldfusion` language tag"
@@ -96,13 +97,13 @@ fn every_fixture_provable_validator_has_a_matching_coldfusion_tagged_record(
 
 #[test]
 fn t3_advisory_row_carries_the_no_mechanization_label() -> Result<(), Box<dyn std::error::Error>> {
-    let root = workspace_root();
+    let root = workspace_root()?;
     let advisory_path = root.join("crates/enforcer-rules/rules/cfml-advisory.json");
     let registry = load_registry_from_files(&[advisory_path.as_path()])?;
     let rule_id: enforcer_domain::ids::RuleId = "CF-ARCH-6.1".parse()?;
     let record = registry
         .get(&rule_id)
-        .expect("CF-ARCH-6.1 must be registered");
+        .ok_or("CF-ARCH-6.1 must be registered")?;
     assert!(
         record
             .tags
