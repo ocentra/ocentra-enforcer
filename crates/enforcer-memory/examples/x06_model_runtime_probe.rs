@@ -62,6 +62,52 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         observations: Vec<ModelRuntimeObservationRecord>,
     }
 
+    #[derive(Debug, Clone, Copy)]
+    struct CacheProofMode {
+        cache_only: bool,
+        download_enabled: bool,
+        network_may_be_attempted: bool,
+    }
+
+    #[derive(Debug, Clone, Copy)]
+    struct ChatSelectionContext<'a> {
+        repo_root: &'a Path,
+        backend_hint: LlamaCppBackendHint,
+        requested_acceleration: LocalRuntimeAcceleration,
+        resolved_acceleration: LocalRuntimeAcceleration,
+        chat_probe_selected: bool,
+        device_report: Option<&'a enforcer_memory::llama_cpp::LlamaCppDeviceReport>,
+    }
+
+    #[derive(Debug, Clone, Copy)]
+    struct LlamaRunContext<'a> {
+        repo_root: &'a Path,
+        backend_hint: LlamaCppBackendHint,
+        acceleration: LocalRuntimeAcceleration,
+        observed_at: &'a str,
+        run_id: &'a str,
+    }
+
+    struct LlamaResultInput<'a> {
+        operation: &'a str,
+        result: enforcer_memory::error::Result<enforcer_memory::llama_cpp::LlamaCppProbeReport>,
+        model_id: String,
+        task: ModelTask,
+        provider: ProviderKind,
+        observed_at: &'a str,
+        run_id: &'a str,
+        repo_root: &'a Path,
+    }
+
+    struct LoadFailureInput<'a> {
+        observed_at: &'a str,
+        run_id: &'a str,
+        model_id: String,
+        task: ModelTask,
+        requested_provider: Option<ProviderKind>,
+        failure_reason: String,
+    }
+
     let allow_network = env_truthy("ENFORCER_X06_ALLOW_NETWORK");
     let repo_root = std::env::current_dir()?;
     let cache_root_mode = cache_root_mode_from_env();
@@ -99,22 +145,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut lineup = X06ModelLineup::from_env()?;
     let chat_probe_selected = should_run_probe(&probe_filter, "chat-generation-gguf");
-    let device_report = maybe_llama_device_report(runtime_mode != "plan");
+    let device_report = maybe_llama_device_report(runtime_mode == "probe");
     let provider_probe_passed = device_report
         .as_ref()
         .map(|report| !report.devices.is_empty())
         .unwrap_or(false);
     let resolved_llama_acceleration =
         resolve_llama_acceleration(requested_llama_acceleration, provider_probe_passed);
-    let chat_model_selection = maybe_select_chat_model_for_hardware(
-        &repo_root,
-        &mut lineup,
-        llama_backend_hint,
-        requested_llama_acceleration,
-        resolved_llama_acceleration,
+    let chat_selection_context = ChatSelectionContext {
+        repo_root: &repo_root,
+        backend_hint: llama_backend_hint,
+        requested_acceleration: requested_llama_acceleration,
+        resolved_acceleration: resolved_llama_acceleration,
         chat_probe_selected,
-        device_report.as_ref(),
-    );
+        device_report: device_report.as_ref(),
+    };
+    let chat_model_selection =
+        maybe_select_chat_model_for_hardware(&mut lineup, chat_selection_context);
+    let llama_run_context = LlamaRunContext {
+        repo_root: &repo_root,
+        backend_hint: llama_backend_hint,
+        acceleration: resolved_llama_acceleration,
+        observed_at: &observed_at,
+        run_id: &run_id,
+    };
     let mut observations = Vec::new();
 
     if runtime_mode == "plan" {
@@ -151,12 +205,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    if runtime_mode == "download" {
+    if runtime_mode == "download" || runtime_mode == "cache-only" {
+        let cache_only = runtime_mode == "cache-only";
+        let cache_probe = |spec: &HfModelSpec, operation: &str| {
+            if cache_only {
+                cache_only_probe(&repo_root, spec, &cache_root, operation)
+            } else {
+                cache_or_download_probe(&repo_root, spec, &cache_root, allow_network, operation)
+            }
+        };
         let proof = RuntimeProbeProof {
             schema_version: 1,
-            runtime_mode,
-            proof_scope: proof_scope("download"),
-            allow_network,
+            runtime_mode: runtime_mode.clone(),
+            proof_scope: proof_scope(&runtime_mode),
+            allow_network: allow_network && !cache_only,
             probe_execution_policy,
             cache_root: repo_relative_display(&repo_root, &cache_root),
             cache_root_policy: cache_root_policy_proof(&repo_root, &cache_root_policy)?,
@@ -164,46 +226,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             chat_throughput_policy,
             chat_model_selection,
             chat_generation_gguf: if should_run_probe(&probe_filter, "chat-generation-gguf") {
-                cache_only_probe(
-                    &repo_root,
-                    &lineup.chat_generation,
-                    &cache_root,
-                    allow_network,
-                    "chat-generation-cache",
-                )
+                cache_probe(&lineup.chat_generation, "chat-generation-cache")
             } else {
                 proof_skipped("chat-generation-cache")
             },
             qwen_embedding_gguf: if should_run_probe(&probe_filter, "qwen-embedding-gguf") {
-                cache_only_probe(
-                    &repo_root,
-                    &lineup.embedding_gguf,
-                    &cache_root,
-                    allow_network,
-                    "qwen-embedding-gguf-cache",
-                )
+                cache_probe(&lineup.embedding_gguf, "qwen-embedding-gguf-cache")
             } else {
                 proof_skipped("qwen-embedding-gguf-cache")
             },
             qwen_embedding_onnx: if should_run_probe(&probe_filter, "qwen-embedding-onnx") {
-                cache_only_probe(
-                    &repo_root,
-                    &lineup.embedding_onnx,
-                    &cache_root,
-                    allow_network,
-                    "qwen-embedding-onnx-cache",
-                )
+                cache_probe(&lineup.embedding_onnx, "qwen-embedding-onnx-cache")
             } else {
                 proof_skipped("qwen-embedding-onnx-cache")
             },
             qwen_reranker_onnx: if should_run_probe(&probe_filter, "qwen-reranker-onnx") {
-                cache_only_probe(
-                    &repo_root,
-                    &lineup.reranker_onnx,
-                    &cache_root,
-                    allow_network,
-                    "qwen-reranker-onnx-cache",
-                )
+                cache_probe(&lineup.reranker_onnx, "qwen-reranker-onnx-cache")
             } else {
                 proof_skipped("qwen-reranker-onnx-cache")
             },
@@ -217,34 +255,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         match maybe_direct_chat_model_report(&cache_root)
             .or_else(|| maybe_download(&lineup.chat_generation, &cache_root, allow_network).ok())
         {
-            Some(report) => run_llama_generation(
-                &repo_root,
-                &report,
-                llama_backend_hint,
-                resolved_llama_acceleration,
-                &mut observations,
-                &observed_at,
-                &run_id,
-            ),
+            Some(report) => run_llama_generation(&report, llama_run_context, &mut observations),
             None => match maybe_download(&lineup.chat_generation, &cache_root, allow_network) {
-                Ok(report) => run_llama_generation(
-                    &repo_root,
-                    &report,
-                    llama_backend_hint,
-                    resolved_llama_acceleration,
-                    &mut observations,
-                    &observed_at,
-                    &run_id,
-                ),
+                Ok(report) => run_llama_generation(&report, llama_run_context, &mut observations),
                 Err(error) => {
-                    observations.push(load_failure_observation(
-                        &observed_at,
-                        &run_id,
-                        lineup.chat_generation.model_id.clone(),
-                        lineup.chat_generation.task,
-                        None,
-                        error.clone(),
-                    ));
+                    observations.push(load_failure_observation(LoadFailureInput {
+                        observed_at: &observed_at,
+                        run_id: &run_id,
+                        model_id: lineup.chat_generation.model_id.clone(),
+                        task: lineup.chat_generation.task,
+                        requested_provider: None,
+                        failure_reason: error.clone(),
+                    }));
                     proof_error("chat-generation-cache", error)
                 }
             },
@@ -255,24 +277,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let qwen_embedding_gguf_proof = if should_run_probe(&probe_filter, "qwen-embedding-gguf") {
         match maybe_download(&lineup.embedding_gguf, &cache_root, allow_network) {
-            Ok(report) => run_llama_embedding(
-                &repo_root,
-                &report,
-                llama_backend_hint,
-                resolved_llama_acceleration,
-                &mut observations,
-                &observed_at,
-                &run_id,
-            ),
+            Ok(report) => run_llama_embedding(&report, llama_run_context, &mut observations),
             Err(error) => {
-                observations.push(load_failure_observation(
-                    &observed_at,
-                    &run_id,
-                    lineup.embedding_gguf.model_id.clone(),
-                    lineup.embedding_gguf.task,
-                    None,
-                    error.clone(),
-                ));
+                observations.push(load_failure_observation(LoadFailureInput {
+                    observed_at: &observed_at,
+                    run_id: &run_id,
+                    model_id: lineup.embedding_gguf.model_id.clone(),
+                    task: lineup.embedding_gguf.task,
+                    requested_provider: None,
+                    failure_reason: error.clone(),
+                }));
                 proof_error("qwen-embedding-gguf-cache", error)
             }
         }
@@ -284,14 +298,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         match maybe_download(&lineup.embedding_onnx, &cache_root, allow_network) {
             Ok(report) => run_ort_embedding(&report, &mut observations, &observed_at, &run_id),
             Err(error) => {
-                observations.push(load_failure_observation(
-                    &observed_at,
-                    &run_id,
-                    lineup.embedding_onnx.model_id.clone(),
-                    lineup.embedding_onnx.task,
-                    Some(ProviderKind::Cpu),
-                    error.clone(),
-                ));
+                observations.push(load_failure_observation(LoadFailureInput {
+                    observed_at: &observed_at,
+                    run_id: &run_id,
+                    model_id: lineup.embedding_onnx.model_id.clone(),
+                    task: lineup.embedding_onnx.task,
+                    requested_provider: Some(ProviderKind::Cpu),
+                    failure_reason: error.clone(),
+                }));
                 proof_error("qwen-embedding-onnx-cache", error)
             }
         }
@@ -303,14 +317,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         match maybe_download(&lineup.reranker_onnx, &cache_root, allow_network) {
             Ok(report) => run_ort_reranker(&report, &mut observations, &observed_at, &run_id),
             Err(error) => {
-                observations.push(load_failure_observation(
-                    &observed_at,
-                    &run_id,
-                    lineup.reranker_onnx.model_id.clone(),
-                    lineup.reranker_onnx.task,
-                    Some(ProviderKind::Cpu),
-                    error.clone(),
-                ));
+                observations.push(load_failure_observation(LoadFailureInput {
+                    observed_at: &observed_at,
+                    run_id: &run_id,
+                    model_id: lineup.reranker_onnx.model_id.clone(),
+                    task: lineup.reranker_onnx.task,
+                    requested_provider: Some(ProviderKind::Cpu),
+                    failure_reason: error.clone(),
+                }));
                 proof_error("qwen-reranker-onnx-cache", error)
             }
         }
@@ -346,7 +360,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if let Some(parent) = proof_out.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        std::fs::write(&proof_out, serde_json::to_string_pretty(&proof)?)?;
+        std::fs::write(proof_out, serde_json::to_string_pretty(&proof)?)?;
         let proof_path = format!("{}\n", proof_out.display());
         std::io::stdout().write_all(proof_path.as_bytes())?;
         Ok(())
@@ -400,21 +414,73 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         repo_root: &Path,
         spec: &HfModelSpec,
         cache_root: &Path,
+        operation: &str,
+    ) -> serde_json::Value {
+        let mode = CacheProofMode {
+            cache_only: true,
+            download_enabled: false,
+            network_may_be_attempted: false,
+        };
+        match resolve_cache_without_network(spec, cache_root) {
+            Ok(report) => cache_report_json(repo_root, &report, operation, mode),
+            Err(error) => cache_error_json(repo_root, operation, error, mode),
+        }
+    }
+
+    fn cache_or_download_probe(
+        repo_root: &Path,
+        spec: &HfModelSpec,
+        cache_root: &Path,
         allow_network: bool,
         operation: &str,
     ) -> serde_json::Value {
+        let mode = CacheProofMode {
+            cache_only: false,
+            download_enabled: allow_network,
+            network_may_be_attempted: allow_network,
+        };
         match maybe_download(spec, cache_root, allow_network) {
-            Ok(report) => serde_json::json!({
-                "operation": operation,
-                "ok": true,
-                "repoId": report.repo_id,
-                "revision": report.revision,
-                "manifestPath": repo_relative_display(repo_root, &report.manifest_path),
-                "cacheDir": repo_relative_display(repo_root, &report.cache_dir),
-                "downloadedFiles": hf_downloaded_files_proof(repo_root, &report.downloaded_files)
-            }),
-            Err(error) => proof_error(operation, error),
+            Ok(report) => cache_report_json(repo_root, &report, operation, mode),
+            Err(error) => cache_error_json(repo_root, operation, error, mode),
         }
+    }
+
+    fn cache_report_json(
+        repo_root: &Path,
+        report: &HfDownloadReport,
+        operation: &str,
+        mode: CacheProofMode,
+    ) -> serde_json::Value {
+        serde_json::json!({
+            "operation": operation,
+            "ok": true,
+            "cacheOnly": mode.cache_only,
+            "downloadEnabled": mode.download_enabled,
+            "networkMayBeAttempted": mode.network_may_be_attempted,
+            "strictCacheHash": env_truthy("ENFORCER_X06_STRICT_CACHE_HASH"),
+            "repoId": report.repo_id,
+            "revision": report.revision,
+            "manifestPath": repo_relative_display(repo_root, &report.manifest_path),
+            "cacheDir": repo_relative_display(repo_root, &report.cache_dir),
+            "downloadedFiles": hf_downloaded_files_proof(repo_root, &report.downloaded_files)
+        })
+    }
+
+    fn cache_error_json(
+        repo_root: &Path,
+        operation: &str,
+        error: impl std::fmt::Display,
+        mode: CacheProofMode,
+    ) -> serde_json::Value {
+        serde_json::json!({
+            "operation": operation,
+            "ok": false,
+            "cacheOnly": mode.cache_only,
+            "downloadEnabled": mode.download_enabled,
+            "networkMayBeAttempted": mode.network_may_be_attempted,
+            "strictCacheHash": env_truthy("ENFORCER_X06_STRICT_CACHE_HASH"),
+            "reason": repo_path_redacted_text(repo_root, &error.to_string())
+        })
     }
 
     fn hf_downloaded_files_proof(
@@ -442,13 +508,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cache_root: &Path,
         allow_network: bool,
     ) -> Result<HfDownloadReport, String> {
-        let cached = if env_truthy("ENFORCER_X06_STRICT_CACHE_HASH") {
-            resolve_cached_hf_model(spec, cache_root)
-        } else {
-            resolve_cached_hf_model_from_manifest(spec, cache_root)
-        };
-        if let Ok(report) = cached {
-            return Ok(report);
+        match resolve_cache_without_network(spec, cache_root) {
+            Ok(report) => return Ok(report),
+            Err(cache_error) if !allow_network => {
+                return Err(format!(
+                    "{cache_error}; ENFORCER_X06_ALLOW_NETWORK is not enabled"
+                ))
+            }
+            Err(_) => {}
         }
         if allow_network {
             download_hf_model(spec, cache_root, None).map_err(|error| error.to_string())
@@ -458,6 +525,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .to_owned(),
             )
         }
+    }
+
+    fn resolve_cache_without_network(
+        spec: &HfModelSpec,
+        cache_root: &Path,
+    ) -> Result<HfDownloadReport, String> {
+        let cached = if env_truthy("ENFORCER_X06_STRICT_CACHE_HASH") {
+            resolve_cached_hf_model(spec, cache_root)
+        } else {
+            resolve_cached_hf_model_from_manifest(spec, cache_root)
+        };
+        cached.map_err(|error| error.to_string())
     }
 
     fn maybe_direct_chat_model_report(cache_root: &Path) -> Option<HfDownloadReport> {
@@ -526,15 +605,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     fn maybe_select_chat_model_for_hardware(
-        repo_root: &Path,
         lineup: &mut X06ModelLineup,
-        backend_hint: LlamaCppBackendHint,
-        requested_acceleration: LocalRuntimeAcceleration,
-        resolved_acceleration: LocalRuntimeAcceleration,
-        chat_probe_selected: bool,
-        device_report: Option<&enforcer_memory::llama_cpp::LlamaCppDeviceReport>,
+        context: ChatSelectionContext<'_>,
     ) -> serde_json::Value {
-        if !chat_probe_selected {
+        if !context.chat_probe_selected {
             return serde_json::json!({
                 "enabled": false,
                 "reason": "chat-generation-gguf not selected by ENFORCER_X06_PROBE_FILTER",
@@ -556,14 +630,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             });
         }
 
-        let provider_probe_passed = device_report
+        let provider_probe_passed = context
+            .device_report
             .map(|report| !report.devices.is_empty())
             .unwrap_or(false);
-        let detected_free_vram_mib = match (backend_hint, resolved_acceleration) {
+        let detected_free_vram_mib = match (context.backend_hint, context.resolved_acceleration) {
             (LlamaCppBackendHint::OpenVino, LocalRuntimeAcceleration::Npu)
             | (_, LocalRuntimeAcceleration::Npu)
             | (_, LocalRuntimeAcceleration::Cpu) => None,
-            _ => device_report.and_then(|report| {
+            _ => context.device_report.and_then(|report| {
                 report
                     .devices
                     .iter()
@@ -575,14 +650,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         lineup.chat_generation = selection.selected.clone();
         serde_json::json!({
             "enabled": true,
-            "backendHint": backend_hint,
-            "requestedAcceleration": requested_acceleration,
-            "resolvedAcceleration": resolved_acceleration,
+            "backendHint": context.backend_hint,
+            "requestedAcceleration": context.requested_acceleration,
+            "resolvedAcceleration": context.resolved_acceleration,
             "providerProbePassed": provider_probe_passed,
             "providerProbeTimeoutMs": env_u64("ENFORCER_X06_DEVICE_TIMEOUT_MS")
                 .unwrap_or_else(|| default_model_runtime_probe_plan().provider_probe_timeout_ms),
-            "deviceReport": device_report.map(|report| {
-                llama_device_report_proof(repo_root, report)
+            "deviceReport": context.device_report.map(|report| {
+                llama_device_report_proof(context.repo_root, report)
             }),
             "selection": selection
         })
@@ -611,13 +686,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     fn run_llama_generation(
-        repo_root: &Path,
         report: &HfDownloadReport,
-        backend_hint: LlamaCppBackendHint,
-        acceleration: LocalRuntimeAcceleration,
+        context: LlamaRunContext<'_>,
         observations: &mut Vec<ModelRuntimeObservationRecord>,
-        observed_at: &str,
-        run_id: &str,
     ) -> serde_json::Value {
         let Some(model) = first_model_file(report) else {
             return proof_error("chat-generation-model", "no GGUF model file in report");
@@ -635,8 +706,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             model_sha256: strict_model_hash(&model.sha256),
             prompt: "Say hello from the local chat model in one short sentence.".to_owned(),
             kind: LlamaCppProbeKind::Generate,
-            backend_hint,
-            acceleration,
+            backend_hint: context.backend_hint,
+            acceleration: context.acceleration,
             gpu_layers: env_usize("ENFORCER_X06_LLAMA_GPU_LAYERS"),
             device: std::env::var("ENFORCER_X06_LLAMA_DEVICE").ok(),
             main_gpu: env_usize("ENFORCER_X06_LLAMA_MAIN_GPU"),
@@ -649,26 +720,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .unwrap_or_else(|| default_model_runtime_probe_plan().model_probe_timeout_ms),
         });
         llama_result_json(
-            "chat-generation-gguf",
-            result,
-            report.repo_id.clone(),
-            ModelTask::Summarization,
-            provider_kind_for_llama(backend_hint, acceleration),
+            LlamaResultInput {
+                operation: "chat-generation-gguf",
+                result,
+                model_id: report.repo_id.clone(),
+                task: ModelTask::Summarization,
+                provider: provider_kind_for_llama(context.backend_hint, context.acceleration),
+                observed_at: context.observed_at,
+                run_id: context.run_id,
+                repo_root: context.repo_root,
+            },
             observations,
-            observed_at,
-            run_id,
-            repo_root,
         )
     }
 
     fn run_llama_embedding(
-        repo_root: &Path,
         report: &HfDownloadReport,
-        backend_hint: LlamaCppBackendHint,
-        acceleration: LocalRuntimeAcceleration,
+        context: LlamaRunContext<'_>,
         observations: &mut Vec<ModelRuntimeObservationRecord>,
-        observed_at: &str,
-        run_id: &str,
     ) -> serde_json::Value {
         let Some(model) = first_model_file(report) else {
             return proof_error("qwen-embedding-gguf-model", "no GGUF model file in report");
@@ -686,8 +755,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             model_sha256: strict_model_hash(&model.sha256),
             prompt: "embedding hello world for x06 memory retrieval".to_owned(),
             kind: LlamaCppProbeKind::Embedding,
-            backend_hint,
-            acceleration,
+            backend_hint: context.backend_hint,
+            acceleration: context.acceleration,
             gpu_layers: env_usize("ENFORCER_X06_LLAMA_GPU_LAYERS"),
             device: std::env::var("ENFORCER_X06_LLAMA_DEVICE").ok(),
             main_gpu: env_usize("ENFORCER_X06_LLAMA_MAIN_GPU"),
@@ -700,68 +769,63 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .unwrap_or_else(|| default_model_runtime_probe_plan().model_probe_timeout_ms),
         });
         llama_result_json(
-            "qwen-embedding-gguf",
-            result,
-            report.repo_id.clone(),
-            ModelTask::Embedding,
-            provider_kind_for_llama(backend_hint, acceleration),
+            LlamaResultInput {
+                operation: "qwen-embedding-gguf",
+                result,
+                model_id: report.repo_id.clone(),
+                task: ModelTask::Embedding,
+                provider: provider_kind_for_llama(context.backend_hint, context.acceleration),
+                observed_at: context.observed_at,
+                run_id: context.run_id,
+                repo_root: context.repo_root,
+            },
             observations,
-            observed_at,
-            run_id,
-            repo_root,
         )
     }
 
     fn llama_result_json(
-        operation: &str,
-        result: enforcer_memory::error::Result<enforcer_memory::llama_cpp::LlamaCppProbeReport>,
-        model_id: String,
-        task: ModelTask,
-        provider: ProviderKind,
+        input: LlamaResultInput<'_>,
         observations: &mut Vec<ModelRuntimeObservationRecord>,
-        observed_at: &str,
-        run_id: &str,
-        repo_root: &Path,
     ) -> serde_json::Value {
-        match result {
+        match input.result {
             Ok(report) => {
-                let usability = model_usability(task, &report);
+                let usability = model_usability(input.task, &report);
                 if usability.ok {
                     observations.push(success_observation(
-                        observed_at,
-                        run_id,
-                        model_id,
-                        task,
-                        provider,
+                        input.observed_at,
+                        input.run_id,
+                        input.model_id,
+                        input.task,
+                        input.provider,
                     ));
                 } else {
-                    observations.push(load_failure_observation(
-                        observed_at,
-                        run_id,
-                        model_id,
-                        task,
-                        Some(provider),
-                        usability.reason.clone(),
-                    ));
+                    observations.push(load_failure_observation(LoadFailureInput {
+                        observed_at: input.observed_at,
+                        run_id: input.run_id,
+                        model_id: input.model_id,
+                        task: input.task,
+                        requested_provider: Some(input.provider),
+                        failure_reason: usability.reason.clone(),
+                    }));
                 }
                 serde_json::json!({
-                    "operation": operation,
+                    "operation": input.operation,
                     "ok": usability.ok,
                     "loaded": report.loaded(),
                     "usability": usability,
-                    "report": llama_report_proof(repo_root, &report)
+                    "report": llama_report_proof(input.repo_root, &report)
                 })
             }
             Err(error) => {
-                observations.push(load_failure_observation(
-                    observed_at,
-                    run_id,
-                    model_id,
-                    task,
-                    Some(provider),
-                    error.to_string(),
-                ));
-                proof_error(operation, error)
+                observations.push(load_failure_observation(LoadFailureInput {
+                    observed_at: input.observed_at,
+                    run_id: input.run_id,
+                    model_id: input.model_id,
+                    task: input.task,
+                    requested_provider: Some(input.provider),
+                    failure_reason: error.to_string(),
+                }));
+                proof_error(input.operation, error)
             }
         }
     }
@@ -787,6 +851,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "platform": platform,
                 "arch": arch,
                 "reason": "download mode proves explicit cache acquisition and integrity metadata; default CI must not download models"
+            }),
+            "cache-only" => serde_json::json!({
+                "portability": "portable-cache-contract",
+                "capability": "ci-cache",
+                "ciParity": false,
+                "localHardwareRequired": false,
+                "platform": "any",
+                "arch": "any",
+                "reason": "cache-only mode proves deterministic local cache resolution without network, model loading, or hardware probes"
             }),
             _ => serde_json::json!({
                 "portability": "local-runtime-proof",
@@ -833,9 +906,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     fn repo_path_redacted_text(repo_root: &Path, text: &str) -> String {
         let native = repo_root.display().to_string();
         let slash = native.replace('\\', "/");
-        text.replace(&native, "<repo>")
+        let doubled_slash = slash.replace('/', "//");
+        text.replace(&doubled_slash, "<repo>")
+            .replace(&native, "<repo>")
             .replace(&slash, "<repo>")
             .replace('\\', "/")
+            .replace("<repo>//", "<repo>/")
     }
 
     fn model_usability(
@@ -888,25 +964,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 proof
             }
             Ok(proof) => {
-                observations.push(load_failure_observation(
+                observations.push(load_failure_observation(LoadFailureInput {
                     observed_at,
                     run_id,
-                    spec.model_id,
-                    ModelTask::Embedding,
-                    Some(ProviderKind::Cpu),
-                    proof.to_string(),
-                ));
+                    model_id: spec.model_id,
+                    task: ModelTask::Embedding,
+                    requested_provider: Some(ProviderKind::Cpu),
+                    failure_reason: proof.to_string(),
+                }));
                 proof
             }
             Err(error) => {
-                observations.push(load_failure_observation(
+                observations.push(load_failure_observation(LoadFailureInput {
                     observed_at,
                     run_id,
-                    spec.model_id,
-                    ModelTask::Embedding,
-                    Some(ProviderKind::Cpu),
-                    error.to_string(),
-                ));
+                    model_id: spec.model_id,
+                    task: ModelTask::Embedding,
+                    requested_provider: Some(ProviderKind::Cpu),
+                    failure_reason: error.to_string(),
+                }));
                 proof_error("qwen-embedding-onnx", error)
             }
         }
@@ -935,25 +1011,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 proof
             }
             Ok(proof) => {
-                observations.push(load_failure_observation(
+                observations.push(load_failure_observation(LoadFailureInput {
                     observed_at,
                     run_id,
-                    spec.model_id,
-                    ModelTask::Reranking,
-                    Some(ProviderKind::Cpu),
-                    proof.to_string(),
-                ));
+                    model_id: spec.model_id,
+                    task: ModelTask::Reranking,
+                    requested_provider: Some(ProviderKind::Cpu),
+                    failure_reason: proof.to_string(),
+                }));
                 proof
             }
             Err(error) => {
-                observations.push(load_failure_observation(
+                observations.push(load_failure_observation(LoadFailureInput {
                     observed_at,
                     run_id,
-                    spec.model_id,
-                    ModelTask::Reranking,
-                    Some(ProviderKind::Cpu),
-                    error.to_string(),
-                ));
+                    model_id: spec.model_id,
+                    task: ModelTask::Reranking,
+                    requested_provider: Some(ProviderKind::Cpu),
+                    failure_reason: error.to_string(),
+                }));
                 proof_error("qwen-reranker-onnx", error)
             }
         }
@@ -1120,7 +1196,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     fn required_env(name: &str) -> Result<String, String> {
-        std::env::var(name).map_err(|_| format!("missing required env {name}"))
+        std::env::var(name).map_err(|error| format!("missing required env {name}: {error}"))
     }
 
     fn onnx_spec(
@@ -1184,6 +1260,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         {
             "plan" => "plan".to_owned(),
             "download" => "download".to_owned(),
+            "cache-only" | "cache_only" | "cacheonly" => "cache-only".to_owned(),
             _ => "probe".to_owned(),
         }
     }
@@ -1489,23 +1566,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
     }
 
-    fn load_failure_observation(
-        observed_at: &str,
-        run_id: &str,
-        model_id: String,
-        task: ModelTask,
-        requested_provider: Option<ProviderKind>,
-        failure_reason: String,
-    ) -> ModelRuntimeObservationRecord {
+    fn load_failure_observation(input: LoadFailureInput<'_>) -> ModelRuntimeObservationRecord {
         ModelRuntimeObservationRecord::new(
-            observed_at,
+            input.observed_at,
             "x06-model-runtime-probe",
-            run_id,
+            input.run_id,
             ModelRuntimeObservationCandidate::ModelLoadFailure(ModelLoadFailure {
-                model_id,
-                task,
-                requested_provider,
-                failure_reason,
+                model_id: input.model_id,
+                task: input.task,
+                requested_provider: input.requested_provider,
+                failure_reason: input.failure_reason,
             }),
         )
     }

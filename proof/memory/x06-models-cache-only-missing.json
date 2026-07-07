@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "runtimeMode": "cache-only",
+  "proofScope": {
+    "arch": "any",
+    "capability": "ci-cache",
+    "ciParity": false,
+    "localHardwareRequired": false,
+    "platform": "any",
+    "portability": "portable-cache-contract",
+    "reason": "cache-only mode proves deterministic local cache resolution without network, model loading, or hardware probes"
+  },
+  "allowNetwork": false,
+  "probeExecutionPolicy": {
+    "allowMultiProbe": false,
+    "cpuFirst": true,
+    "defaultProbeFilter": "chat",
+    "gpuAndNpuRequireProviderProbe": true,
+    "killOnTimeout": true,
+    "minimumChatTokensPerSecond": 10,
+    "modelProbeTimeoutMs": 120000,
+    "oneModelAtATime": true,
+    "probeOrder": [
+      "chat-generation-gguf",
+      "qwen-embedding-onnx",
+      "qwen-reranker-onnx",
+      "qwen-embedding-gguf"
+    ],
+    "providerProbeTimeoutMs": 5000,
+    "reason": "one model at a time; CPU first; GPU/NPU only after provider probes pass; timeout kills the child process",
+    "requestedProbeFilter": "chat",
+    "selectedProbes": [
+      "chat-generation-gguf"
+    ],
+    "targetChatTokensPerSecondHigh": 60,
+    "targetChatTokensPerSecondLow": 40
+  },
+  "cacheRoot": "<repo>/target/x06-cache-proof/missing",
+  "cacheRootPolicy": {
+    "mode": "dev-repo-local",
+    "reason": "explicit model cache root override",
+    "root": "<repo>/target/x06-cache-proof/missing"
+  },
+  "serviceConfig": {
+    "bindHost": "127.0.0.1",
+    "cacheRoot": "<repo>/model",
+    "exposeLlamaServer": false,
+    "port": 8766,
+    "routes": [
+      "health",
+      "models",
+      "load-model",
+      "unload-model",
+      "chat",
+      "embeddings",
+      "rerank"
+    ]
+  },
+  "chatThroughputPolicy": {
+    "minTokensPerSecond": 10.0,
+    "targetTokensPerSecondLow": 40.0,
+    "targetTokensPerSecondHigh": 60.0
+  },
+  "chatModelSelection": {
+    "enabled": false,
+    "reason": "explicit ENFORCER_X06_CHAT_MODEL_* override present",
+    "selected": {
+      "acceleration": "auto",
+      "backend": "llama-cpp",
+      "files": [
+        {
+          "kind": "model",
+          "path": "chat-fixture-Q4_K_M.gguf"
+        }
+      ],
+      "modelId": "local-fixtures/x06-chat-cache:Q4_K_M",
+      "repoId": "local-fixtures/x06-chat-cache",
+      "revision": "main",
+      "task": "summarization"
+    }
+  },
+  "chatGenerationGguf": {
+    "cacheOnly": true,
+    "downloadEnabled": false,
+    "networkMayBeAttempted": false,
+    "ok": false,
+    "operation": "chat-generation-cache",
+    "reason": "model runtime resolve-cached-hf-model failed: model cache directory is missing: <repo>/target/x06-cache-proof/missing/hf/local-fixtures--x06-chat-cache/main",
+    "strictCacheHash": true
+  },
+  "qwenEmbeddingGguf": {
+    "ok": false,
+    "operation": "qwen-embedding-gguf-cache",
+    "reason": "not selected by ENFORCER_X06_PROBE_FILTER",
+    "skipped": true
+  },
+  "qwenEmbeddingOnnx": {
+    "ok": false,
+    "operation": "qwen-embedding-onnx-cache",
+    "reason": "not selected by ENFORCER_X06_PROBE_FILTER",
+    "skipped": true
+  },
+  "qwenRerankerOnnx": {
+    "ok": false,
+    "operation": "qwen-reranker-onnx-cache",
+    "reason": "not selected by ENFORCER_X06_PROBE_FILTER",
+    "skipped": true
+  },
+  "observations": []
+}

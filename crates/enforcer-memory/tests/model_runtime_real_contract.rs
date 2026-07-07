@@ -285,6 +285,14 @@ fn checked_in_real_model_proofs_do_not_hardcode_machine_absolute_paths() {
             "x06-models-qwen3-reranker-ort-cpu.json",
             include_str!("../../../proof/memory/x06-models-qwen3-reranker-ort-cpu.json"),
         ),
+        (
+            "x06-models-cache-only-missing.json",
+            include_str!("../../../proof/memory/x06-models-cache-only-missing.json"),
+        ),
+        (
+            "x06-models-cache-only-preseeded.json",
+            include_str!("../../../proof/memory/x06-models-cache-only-preseeded.json"),
+        ),
     ];
     let banned = [
         concat!("E", ":\\"),
@@ -314,6 +322,8 @@ fn checked_in_real_model_proofs_are_not_claimed_as_ci_parity() -> TestResult {
         include_str!("../../../proof/memory/x06-models-qwen3-embedding-ort-cpu.json"),
         include_str!("../../../proof/memory/x06-models-qwen3-reranker-download.json"),
         include_str!("../../../proof/memory/x06-models-qwen3-reranker-ort-cpu.json"),
+        include_str!("../../../proof/memory/x06-models-cache-only-missing.json"),
+        include_str!("../../../proof/memory/x06-models-cache-only-preseeded.json"),
     ];
 
     for body in proof_files {
@@ -321,6 +331,63 @@ fn checked_in_real_model_proofs_are_not_claimed_as_ci_parity() -> TestResult {
         assert_eq!(proof["proofScope"]["ciParity"], false);
         assert_ne!(proof["proofScope"]["portability"], "portable-ci-proof");
     }
+    Ok(())
+}
+
+#[test]
+fn checked_in_cache_only_proofs_are_zero_network_and_path_redacted() -> TestResult {
+    let missing: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../proof/memory/x06-models-cache-only-missing.json"
+    ))?;
+    let preseeded: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../proof/memory/x06-models-cache-only-preseeded.json"
+    ))?;
+
+    for proof in [&missing, &preseeded] {
+        assert_eq!(proof["runtimeMode"], "cache-only");
+        assert_eq!(proof["allowNetwork"], false);
+        assert_eq!(
+            proof["proofScope"]["portability"],
+            "portable-cache-contract"
+        );
+        assert_eq!(proof["proofScope"]["localHardwareRequired"], false);
+
+        let chat = &proof["chatGenerationGguf"];
+        assert_eq!(chat["cacheOnly"], true);
+        assert_eq!(chat["downloadEnabled"], false);
+        assert_eq!(chat["networkMayBeAttempted"], false);
+        assert_eq!(chat["strictCacheHash"], true);
+    }
+
+    assert_eq!(missing["chatGenerationGguf"]["ok"], false);
+    assert!(missing["chatGenerationGguf"]["reason"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("<repo>/target/x06-cache-proof/missing"));
+    assert_eq!(preseeded["chatGenerationGguf"]["ok"], true);
+    assert_eq!(
+        preseeded["chatGenerationGguf"]["downloadedFiles"][0]["localPath"],
+        "<repo>/target/x06-cache-proof/preseeded/hf/local-fixtures--x06-chat-cache/main/chat-fixture-Q4_K_M.gguf"
+    );
+
+    let banned_paths: [(&str, &str); 3] = [
+        ("windows-drive-backslash", concat!("E", ":\\")),
+        ("windows-drive-url-slash", concat!("E", "://")),
+        ("user-profile-path", concat!("C", ":\\", "Users")),
+    ];
+    for (banned_label, banned_pattern) in banned_paths {
+        for proof_text in [
+            include_str!("../../../proof/memory/x06-models-cache-only-missing.json"),
+            include_str!("../../../proof/memory/x06-models-cache-only-preseeded.json"),
+        ] {
+            assert_eq!(
+                proof_text.find(banned_pattern),
+                None,
+                "{banned_label} leaked into cache-only proof"
+            );
+        }
+    }
+
     Ok(())
 }
 
@@ -397,6 +464,8 @@ fn real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in() {
             "\"modelProbeTimeoutMs\": plan.model_probe_timeout_ms",
             "\"minimumChatTokensPerSecond\": plan.minimum_chat_tokens_per_second",
             "ENFORCER_X06_ALLOW_MULTI_PROBE",
+            "\"cache-only\" | \"cache_only\" | \"cacheonly\"",
+            "runtime_mode == \"probe\"",
             "\"reranker\" | \"ranker\" | \"reranker-onnx\"",
             "one model at a time; CPU first; GPU/NPU only after provider probes pass; timeout kills the child process",
         ],
@@ -423,8 +492,8 @@ fn real_model_probe_can_import_external_chat_assets_into_repo_model_cache() {
             "maybe_direct_chat_model_report",
             "\"providerProbePassed\":",
             "\"resolvedAcceleration\":",
-            "llama_report_proof(repo_root, &report)",
-            "llama_device_report_proof(repo_root, report)",
+            "llama_report_proof(input.repo_root, &report)",
+            "llama_device_report_proof(context.repo_root, report)",
             "repo_relative_display(repo_root, &report.binary_path)",
             "repo_path_redacted_text(repo_root, &report.stdout_excerpt)",
             "hf_downloaded_files_proof(repo_root, &report.downloaded_files)",

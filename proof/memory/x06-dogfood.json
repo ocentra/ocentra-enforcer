@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-dogfood",
-  "generatedAt": "2026-07-07T04:21:00Z",
+  "generatedAt": "2026-07-07T05:23:35Z",
   "hub": "ocentra-enforcer",
   "stateRoot": "E:/ocentra-enforcer/.ledger/ocentra-enforcer",
   "lane": "codex-x06-harvest-sync",
@@ -49,7 +49,17 @@
     "cargo fmt --package enforcer-memory --check ok",
     "git diff --check ok",
     "ocentra_enforcer_doctor scope=crate crateName=enforcer-memory ok",
-    "ocentra_enforcer_check source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, and placeholder-implementation scope=files ok for token-reduction QA proof files"
+    "ocentra_enforcer_check source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, and placeholder-implementation scope=files ok for token-reduction QA proof files",
+    "cargo run -p enforcer-memory --features real-models --example x06_model_runtime_probe generated x06-models-cache-only-missing.json with cacheOnly=true, networkMayBeAttempted=false, and a redacted missing-cache diagnostic",
+    "cargo run -p enforcer-memory --features real-models --example x06_model_runtime_probe generated x06-models-cache-only-preseeded.json with cacheOnly=true, networkMayBeAttempted=false, and strict cache hash proof",
+    "cargo test -p enforcer-memory --test model_runtime_real_contract passed after adding cache-only proof enforcement",
+    "cargo clippy -p enforcer-memory --features real-models --example x06_model_runtime_probe -- -D warnings passed after refactoring probe helper argument lists",
+    "cargo test -p enforcer-memory --quiet passed after cache-only proof assertion hardening",
+    "cargo test -p enforcer-memory --features ort-models --quiet passed before assertion hardening and focused ORT contract rerun passed after assertion hardening",
+    "cargo test -p enforcer-memory --features ort-models --test model_runtime_real_contract --quiet passed after cache-only proof assertion hardening",
+    "cargo clippy -p enforcer-memory --all-targets -- -D warnings passed after cache-only proof assertion hardening",
+    "cargo fmt --package enforcer-memory --check passed after cache-only proof assertion hardening",
+    "ocentra_enforcer_check weak-assertions scope=files ok after replacing negative contains assertions with exact find(None) checks"
   ],
   "redOrPartialGates": [
     {
@@ -333,6 +343,42 @@
     {
       "shape": "t2",
       "evidence": "cargo clippy -p enforcer-memory --all-targets -- -D warnings passed after this fix."
+    },
+    {
+      "shape": "t0",
+      "incident": "The first cache-only proof leaked a repo-local Windows path as E://... in a missing-cache error, bypassing the simple path redactor."
+    },
+    {
+      "shape": "t1",
+      "fix": "cache_error_json now routes diagnostics through repo_path_redacted_text, and the redactor handles doubled slash Windows forms before replacing repo paths."
+    },
+    {
+      "shape": "t2",
+      "evidence": "x06-models-cache-only-missing.json now reports <repo>/target/x06-cache-proof/missing and model_runtime_real_contract asserts no E:/, E://, or C:/Users path leakage."
+    },
+    {
+      "shape": "t0",
+      "incident": "Feature-gated clippy rejected the model-runtime probe example for needless generic borrows, swallowed env var errors, and long helper argument lists that default clippy did not exercise."
+    },
+    {
+      "shape": "t1",
+      "fix": "The probe now uses CacheProofMode, ChatSelectionContext, LlamaRunContext, LlamaResultInput, and LoadFailureInput, preserving error sources and keeping the real-models path lintable."
+    },
+    {
+      "shape": "t2",
+      "evidence": "cargo clippy -p enforcer-memory --features real-models --example x06_model_runtime_probe -- -D warnings passed."
+    },
+    {
+      "shape": "t0",
+      "incident": "Enforcer weak-assertions rejected negative contains assertions in the cache-only no-hardcoded-path test; the first replacement also introduced an over-specific redacted-prefix count that failed the focused contract test."
+    },
+    {
+      "shape": "t1",
+      "fix": "The test now uses an explicit banned-pattern table with assert_eq!(find(...), None) for hardcoded-path absence and relies on exact JSON field assertions for expected redacted cache paths."
+    },
+    {
+      "shape": "t2",
+      "evidence": "ocentra_enforcer_check weak-assertions scope=files, cargo test -p enforcer-memory --test model_runtime_real_contract --quiet, cargo test -p enforcer-memory --quiet, and focused ORT contract tests passed after the fix."
     }
   ]
 }
