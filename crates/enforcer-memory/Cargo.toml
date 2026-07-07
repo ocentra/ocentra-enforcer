@@ -95,6 +95,99 @@ tree-sitter-php = "0.24"
 # builds against this workspace's `tree-sitter = "0.24"` core.
 tree-sitter-c = "0.24"
 tree-sitter-cpp = "0.23"
+# Language-parity wave G2.1a: Kotlin/Swift structural extractors (see
+# languages/generic.rs's `parse_kotlin`/`parse_swift`). Neither crate
+# depends on `tree-sitter` core as a runtime dependency at all -- both
+# instead depend on `tree-sitter-language` (the same ABI-stable
+# `LanguageFn` wrapper crate every other grammar here re-exports
+# through, e.g. `tree_sitter_go::LANGUAGE.into()`), so pinning to this
+# workspace's `tree-sitter = "0.25"` core carries no ABI risk regardless
+# of which tree-sitter version either grammar crate itself was tested
+# against. `tree-sitter-kotlin` (the older, non-"-ng" crates.io name,
+# last published 2024-08) was rejected: it pins a hard `tree-sitter
+# >=0.21, <0.23` RUNTIME dependency, which is incompatible with this
+# workspace's core -- `tree-sitter-kotlin-ng` is the actively maintained
+# fork (crates.io `repository` field points at
+# `github.com/tree-sitter-grammars/tree-sitter-kotlin`, the same
+# fwcd-authored grammar lineage vendored at
+# `codebase-memory-mcp/internal/cbm/vendored/grammars/kotlin/`) that
+# uses the safe `tree-sitter-language` shim instead.
+tree-sitter-kotlin-ng = "1.1"
+tree-sitter-swift = "0.7"
+# Language-parity wave G2.1d: Solidity/GDScript structural extractors
+# (see languages/generic.rs's `parse_solidity`/`parse_gdscript`). Both
+# crates are actively maintained on crates.io and, like Kotlin/Swift
+# above, depend on `tree-sitter-language` (not `tree-sitter` core) as
+# their runtime binding, so pinning to this workspace's
+# `tree-sitter = "0.25"` core carries no ABI risk: `tree-sitter-solidity`
+# 1.2.13 generates ABI 15, `tree-sitter-gdscript` 6.1.0 generates ABI 14,
+# both within `tree-sitter` 0.25's compatible range (13-15, see this
+# file's own tree-sitter-c-sharp/tree-sitter-php comment above). Neither
+# grammar is vendored from the baseline's
+# `codebase-memory-mcp/internal/cbm/vendored/grammars/{solidity,gdscript}/`
+# C sources: both crates' shipped `node-types.json` was cross-checked
+# directly against every node kind/field name `languages/spec.rs`'s
+# `LangSpec::solidity`/`LangSpec::gdscript` and `languages/generic.rs`'s
+# corresponding quirks read, so there is no correctness reason to prefer
+# the vendored copy over the maintained crate.
+tree-sitter-solidity = "1.2"
+tree-sitter-gdscript = "6"
+# Language-parity wave G2.1b: Dart/Scala/Groovy structural extractors
+# (see languages/generic.rs's `parse_dart`/`parse_scala`/`parse_groovy`).
+# All three, like every grammar above, depend on `tree-sitter-language`
+# (not `tree-sitter` core) as their runtime binding, so pinning to this
+# workspace's `tree-sitter = "0.25"` core carries no ABI risk -- verified
+# by an isolated `cargo build` against `tree-sitter = "0.25"` before
+# adding these lines (all three compile clean).
+# - `tree-sitter-dart` 0.2.0 (crates.io `repository`:
+#   github.com/nielsenko/tree-sitter-dart, an actively maintained fork;
+#   its own `src/node-types.json` was cross-checked directly against
+#   every node kind `languages/spec.rs`'s `LangSpec::dart` and
+#   `languages/generic.rs`'s `dart_quirk`/`dart_call_override` read --
+#   several of the baseline's own `dart_*` arrays in
+#   `codebase-memory-mcp/internal/cbm/lang_specs.c` are stale against
+#   this grammar version (e.g. `class_definition` -> real kind is
+#   `class_declaration`; `selector` -> real kind is `call_expression`;
+#   `program` -> real root kind is `source_file`), corrected per
+#   `LangSpec::dart`'s own doc comment rather than copied blindly.
+# - `tree-sitter-scala` 0.26.0 (crates.io `repository`:
+#   github.com/tree-sitter/tree-sitter-scala, the official
+#   `tree-sitter` org grammar). Every baseline `scala_*` array matched
+#   this grammar version exactly on cross-check -- no corrections
+#   needed, see `LangSpec::scala`'s doc comment.
+# - `tree-sitter-groovy` 0.1.2 (crates.io `repository`:
+#   github.com/amaanq/tree-sitter-groovy). This grammar is considerably
+#   more Java-shaped than the baseline's own `groovy_*` arrays assume
+#   (e.g. class methods get their own distinct, Java-like
+#   `method_declaration` node kind the baseline's flat array never
+#   mentions at all -- omitting it would make every class method
+#   invisible, not just imprecisely classified), corrected per
+#   `LangSpec::groovy`'s own doc comment.
+tree-sitter-dart = "0.2"
+tree-sitter-scala = "0.26"
+tree-sitter-groovy = "0.1"
+# Language-parity wave G2.1c: Ruby/Zig/Objective-C structural extractors
+# (see languages/generic.rs's `parse_ruby`/`parse_zig`/`parse_objc`).
+# All three verified end-to-end (real parse, no ABI error) against this
+# workspace's `tree-sitter = "0.25"` core before being added here.
+# tree-sitter-ruby 0.23.1/tree-sitter-objc 3.0.2 both depend on
+# `tree-sitter-language` (not `tree-sitter` core) as their runtime
+# binding, same ABI-range-agnostic pattern as every grammar above;
+# tree-sitter-zig 1.1.2's grammar happens to be ABI 15 (the newest
+# generation, needing `tree-sitter` 0.25's raised ceiling) but binds
+# through the identical `tree-sitter-language` mechanism. Every one of
+# these three crates' shipped `node-types.json` was cross-checked
+# directly against every node kind/field name `languages/spec.rs`'s
+# `LangSpec::ruby`/`LangSpec::zig`/`LangSpec::objc` and
+# `languages/generic.rs`'s corresponding quirks read -- see those doc
+# comments for grammar-version drift found against the C baseline's own
+# `ruby_*`/`zig_*`/`objc_*` arrays (e.g. Objective-C's
+# `message_expression` has no `"selector"` field in this grammar
+# version, unlike what `codebase-memory-mcp/internal/cbm/extract_calls.c`'s
+# `extract_objc_callee` reads).
+tree-sitter-ruby = "0.23"
+tree-sitter-zig = "1"
+tree-sitter-objc = "3"
 # X06.4 (D-04, DEFAULT): pure-Rust HNSW vector index -- no C++ toolchain,
 # no external vector service (qdrant-client is explicitly rejected, see
 # MEMORY_RETRIEVAL_DECISIONS D-04). Harvested dependency choice from

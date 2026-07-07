@@ -176,6 +176,29 @@ pub enum LanguageTag {
     Cpp,
     CSharp,
     Php,
+    /// Kotlin. Language-parity wave G2.1a.
+    Kotlin,
+    /// Swift. Language-parity wave G2.1a.
+    Swift,
+    /// TSX -- distinct from [`LanguageTag::TypeScript`], mirroring
+    /// [`Language::Tsx`]'s own doc comment. Language-parity wave G2.1a.
+    Tsx,
+    /// Solidity. Language-parity wave G2.1d.
+    Solidity,
+    /// GDScript. Language-parity wave G2.1d.
+    Gdscript,
+    /// Dart. Language-parity wave G2.1b.
+    Dart,
+    /// Scala. Language-parity wave G2.1b.
+    Scala,
+    /// Groovy. Language-parity wave G2.1b.
+    Groovy,
+    /// Ruby. Language-parity wave G2.1c.
+    Ruby,
+    /// Zig. Language-parity wave G2.1c.
+    Zig,
+    /// Objective-C. Language-parity wave G2.1c.
+    ObjectiveC,
     ConfigToml,
     ConfigJson,
     ConfigYaml,
@@ -195,6 +218,17 @@ impl From<Language> for LanguageTag {
             Language::Cpp => LanguageTag::Cpp,
             Language::CSharp => LanguageTag::CSharp,
             Language::Php => LanguageTag::Php,
+            Language::Kotlin => LanguageTag::Kotlin,
+            Language::Swift => LanguageTag::Swift,
+            Language::Tsx => LanguageTag::Tsx,
+            Language::Solidity => LanguageTag::Solidity,
+            Language::Gdscript => LanguageTag::Gdscript,
+            Language::Dart => LanguageTag::Dart,
+            Language::Scala => LanguageTag::Scala,
+            Language::Groovy => LanguageTag::Groovy,
+            Language::Ruby => LanguageTag::Ruby,
+            Language::Zig => LanguageTag::Zig,
+            Language::ObjectiveC => LanguageTag::ObjectiveC,
             Language::ConfigToml => LanguageTag::ConfigToml,
             Language::ConfigJson => LanguageTag::ConfigJson,
             Language::ConfigYaml => LanguageTag::ConfigYaml,
@@ -1181,9 +1215,52 @@ fn complexity_language(language: Language) -> Option<crate::complexity::Complexi
         Language::Cpp => Some(crate::complexity::ComplexityLanguage::Cpp),
         Language::CSharp => Some(crate::complexity::ComplexityLanguage::CSharp),
         Language::Php => Some(crate::complexity::ComplexityLanguage::Php),
-        Language::ConfigToml | Language::ConfigJson | Language::ConfigYaml | Language::TextOnly => {
-            None
-        }
+        // Language-parity wave G2.1a: Kotlin/Swift/TSX are onboarded
+        // for structural extraction (symbols/calls/imports/DEFINES/
+        // INHERITS) but NOT yet wired into `complexity.rs`'s own
+        // `ComplexityLanguage`/`NodeKindTable` (out of this wave's
+        // explicit file-ownership scope) -- `None` here is this
+        // function's own documented convention for exactly that case
+        // ("one not yet wired into `complexity.rs`"), not a silent
+        // gap: `parsed` (symbols/calls/imports/...) is populated in
+        // full for all three, only the separate Tier-A complexity-
+        // metrics pass is deferred.
+        // Language-parity wave G2.1d: same "not yet wired into
+        // `complexity.rs`" convention as the G2.1a trio above, for the
+        // same reason (out of that wave's own explicit file-ownership
+        // scope too).
+        // Language-parity wave G2.1b: same "not yet wired into
+        // `complexity.rs`" convention as G2.1a/G2.1d above, for the
+        // same reason.
+        // Language-parity wave G2.1c: same "not yet wired into
+        // `complexity.rs`" convention as every sibling G2.1 batch above
+        // -- kept consistent across the whole wave rather than wiring
+        // Ruby/Zig alone (both COULD resolve through
+        // `find_definition_node`'s existing plain-`name_field` path;
+        // Objective-C's `method_definition`/`method_declaration`
+        // genuinely could not without a third declarator-unwrapping
+        // fallback shape added to that shared function, well beyond
+        // this batch's own scope -- see this worker's own final report
+        // for the full finding). A single future pass wiring
+        // `ComplexityLanguage`/`NodeKindTable` for every G2.1 language
+        // together (once ObjC's own path is decided) is more coherent
+        // than each batch independently deciding its own subset's
+        // complexity depth.
+        Language::Kotlin
+        | Language::Swift
+        | Language::Tsx
+        | Language::Solidity
+        | Language::Gdscript
+        | Language::Dart
+        | Language::Scala
+        | Language::Groovy
+        | Language::Ruby
+        | Language::Zig
+        | Language::ObjectiveC
+        | Language::ConfigToml
+        | Language::ConfigJson
+        | Language::ConfigYaml
+        | Language::TextOnly => None,
     }
 }
 

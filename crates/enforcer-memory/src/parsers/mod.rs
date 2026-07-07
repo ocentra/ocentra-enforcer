@@ -234,6 +234,44 @@ pub enum Language {
     Cpp,
     CSharp,
     Php,
+    /// Kotlin (`.kt`/`.kts`). Language-parity wave G2.1a.
+    Kotlin,
+    /// Swift (`.swift`). Language-parity wave G2.1a.
+    Swift,
+    /// TSX (TypeScript-JSX, `.tsx`) -- a DISTINCT language from plain
+    /// [`Language::TypeScript`], matching the baseline's own
+    /// `CBM_LANG_TSX`/`CBM_LANG_TYPESCRIPT` split
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c` :1622-1636).
+    /// Every `.mts`/`.cts` file still routes to `TypeScript` (neither
+    /// is a JSX-capable extension in the baseline's own
+    /// `src/discover/language.c` `EXT_TABLE`) -- only `.tsx` itself
+    /// moves here. Language-parity wave G2.1a.
+    Tsx,
+    /// Solidity (`.sol`). Language-parity wave G2.1d.
+    Solidity,
+    /// GDScript (`.gd`). Language-parity wave G2.1d.
+    Gdscript,
+    /// Dart (`.dart`). Language-parity wave G2.1b.
+    Dart,
+    /// Scala (`.sc`/`.scala`). Language-parity wave G2.1b.
+    Scala,
+    /// Groovy (`.gradle`/`.groovy`). Language-parity wave G2.1b.
+    Groovy,
+    /// Ruby (`.rb`/`.gemspec`/`.rake`). Language-parity wave G2.1c.
+    Ruby,
+    /// Zig (`.zig`). Language-parity wave G2.1c.
+    Zig,
+    /// Objective-C (`.m`). Language-parity wave G2.1c. Unconditional,
+    /// not content-sniffed the way the baseline's own
+    /// `cbm_disambiguate_m` (`src/discover/language.c`:997) is -- the
+    /// baseline only needs that sniff because MATLAB is ALSO a
+    /// registered baseline language sharing the `.m` extension; this
+    /// crate has no MATLAB extractor at all yet, so there is nothing
+    /// for a `.m` file to be ambiguous *with* here. No `.mm`: the
+    /// baseline's own `EXT_TABLE` (`src/discover/language.c`:30-621)
+    /// has no `.mm` entry either -- Objective-C++ is out of scope for
+    /// both.
+    ObjectiveC,
     ConfigToml,
     ConfigJson,
     ConfigYaml,
@@ -253,12 +291,31 @@ pub fn classify(rel_path: &str) -> Language {
         .to_lowercase();
     match ext.as_str() {
         "rs" => Language::Rust,
-        "ts" | "tsx" | "mts" | "cts" => Language::TypeScript,
+        // `.tsx` is its own [`Language::Tsx`] (baseline's distinct
+        // `CBM_LANG_TSX` row, see [`Language::Tsx`]'s own doc comment)
+        // -- NOT folded into plain TypeScript the way this crate did
+        // before language-parity wave G2.1a. `.mts`/`.cts` stay
+        // TypeScript per the baseline's own `EXT_TABLE`.
+        "ts" | "mts" | "cts" => Language::TypeScript,
+        "tsx" => Language::Tsx,
         "js" | "jsx" | "mjs" | "cjs" => Language::JavaScript,
         "py" | "pyi" => Language::Python,
         "go" => Language::Go,
         "java" => Language::Java,
         "c" => Language::C,
+        "kt" | "kts" => Language::Kotlin,
+        "swift" => Language::Swift,
+        "sol" => Language::Solidity,
+        "gd" => Language::Gdscript,
+        "dart" => Language::Dart,
+        // Baseline `src/discover/language.c` `EXT_TABLE` maps both `.sc`
+        // and `.scala` to `CBM_LANG_SCALA` (Scala's Ammonite-script
+        // extension and its ordinary source extension share one
+        // language).
+        "sc" | "scala" => Language::Scala,
+        // Baseline maps both `.gradle` (Gradle's Groovy-DSL build-script
+        // extension) and `.groovy` to `CBM_LANG_GROOVY`.
+        "gradle" | "groovy" => Language::Groovy,
         // ".h" ambiguity (C vs C++ header): default to C++'s grammar.
         // tree-sitter-cpp's grammar is a syntactic superset of C for
         // every construct this crate's extractor matches (function/
@@ -273,6 +330,11 @@ pub fn classify(rel_path: &str) -> Language {
         "cpp" | "cc" | "cxx" | "c++" => Language::Cpp,
         "cs" => Language::CSharp,
         "php" => Language::Php,
+        "rb" | "gemspec" | "rake" => Language::Ruby,
+        "zig" => Language::Zig,
+        // See `Language::ObjectiveC`'s own doc comment for why this is
+        // unconditional rather than content-sniffed.
+        "m" => Language::ObjectiveC,
         "toml" => Language::ConfigToml,
         "json" => Language::ConfigJson,
         "yml" | "yaml" => Language::ConfigYaml,
@@ -364,6 +426,88 @@ pub fn parse_file(language: Language, source: &str, rel_path: &str) -> Option<Pa
             // `tests/unit_languages_php.rs`, run unchanged against
             // this dispatch, for the zero-regression proof.
             Some(generic::parse_php(source))
+        }
+        Language::Kotlin => {
+            // Language-parity wave G2.1a: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_kotlin`) -- there is no bespoke `languages::kotlin`
+            // extractor to prove zero-regression against (Kotlin has
+            // never had one in this crate); see
+            // `tests/unit_languages_kotlin.rs`.
+            Some(generic::parse_kotlin(source))
+        }
+        Language::Swift => {
+            // Language-parity wave G2.1a: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_swift`) -- see `tests/unit_languages_swift.rs`.
+            Some(generic::parse_swift(source))
+        }
+        Language::Tsx => {
+            // Language-parity wave G2.1a: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_tsx`), reusing TypeScript's own quirks unchanged
+            // (see `LangSpec::tsx`'s doc comment) with the `tsx()`
+            // grammar entry point swapped in -- see
+            // `tests/unit_languages_tsx.rs`.
+            Some(generic::parse_tsx(source))
+        }
+        Language::Solidity => {
+            // Language-parity wave G2.1d: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_solidity`) -- there is no bespoke
+            // `languages::solidity` extractor to prove zero-regression
+            // against (Solidity has never had one in this crate); see
+            // `tests/unit_languages_solidity.rs`.
+            Some(generic::parse_solidity(source))
+        }
+        Language::Gdscript => {
+            // Language-parity wave G2.1d: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_gdscript`) -- see
+            // `tests/unit_languages_gdscript.rs`.
+            Some(generic::parse_gdscript(source))
+        }
+        Language::Dart => {
+            // Language-parity wave G2.1b: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_dart`) -- there is no bespoke `languages::dart`
+            // extractor to prove zero-regression against (Dart has
+            // never had one in this crate); see
+            // `tests/unit_languages_dart.rs`.
+            Some(generic::parse_dart(source))
+        }
+        Language::Scala => {
+            // Language-parity wave G2.1b: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_scala`) -- see `tests/unit_languages_scala.rs`.
+            Some(generic::parse_scala(source))
+        }
+        Language::Groovy => {
+            // Language-parity wave G2.1b: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_groovy`) -- see `tests/unit_languages_groovy.rs`.
+            Some(generic::parse_groovy(source))
+        }
+        Language::Ruby => {
+            // Language-parity wave G2.1c: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_ruby`) -- there is no bespoke `languages::ruby`
+            // extractor to prove zero-regression against (Ruby has
+            // never had one in this crate); see
+            // `tests/unit_languages_ruby.rs`.
+            Some(generic::parse_ruby(source))
+        }
+        Language::Zig => {
+            // Language-parity wave G2.1c: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_zig`) -- see `tests/unit_languages_zig.rs`.
+            Some(generic::parse_zig(source))
+        }
+        Language::ObjectiveC => {
+            // Language-parity wave G2.1c: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_objc`) -- see `tests/unit_languages_objc.rs`.
+            Some(generic::parse_objc(source))
         }
         Language::ConfigToml | Language::ConfigJson | Language::ConfigYaml | Language::TextOnly => {
             None
