@@ -7,7 +7,7 @@
 //! change fully contained to `languages/` + the one dispatch arm in
 //! [`parse_file`] below.
 
-use crate::languages::{c, cpp, csharp, go, java, php, python, rust, typescript};
+use crate::languages::{c, cpp, csharp, generic, java, php, python, rust, typescript};
 
 /// One extracted symbol: a function, type, or test found in a source
 /// file. Route/import/call extraction is intentionally modeled
@@ -296,8 +296,13 @@ pub fn parse_file(language: Language, source: &str, rel_path: &str) -> Option<Pa
         Language::TypeScript | Language::JavaScript => Some(typescript::parse(source, language)),
         Language::Python => Some(python::parse(source)),
         Language::Go => {
+            // G1: routed through the generic spec-table engine
+            // (`languages::generic::parse_go`) rather than the bespoke
+            // `languages::go` extractor -- `tests/unit_lang_spec_engine.rs`
+            // proves the two produce identical node/edge sets on every
+            // existing Go fixture/scenario before this cutover.
             let is_test_file = rel_path.to_lowercase().ends_with("_test.go");
-            Some(go::parse(source, is_test_file))
+            Some(generic::parse_go(source, is_test_file))
         }
         Language::Java => Some(java::parse(source)),
         Language::C => {

@@ -7,6 +7,16 @@
 //! struct/interface -> member, `*_test.go` `TestXxx` test detection,
 //! and best-effort `net/http`-style route extraction.
 //!
+//! G1 note: [`crate::parsers::parse_file`] no longer dispatches Go
+//! files here -- it routes through
+//! [`crate::languages::generic::parse_go`] instead, a spec-table-
+//! driven walker proven (`tests/unit_lang_spec_engine.rs`) to emit the
+//! identical node/edge set this module does on every scenario/fixture
+//! this crate exercises. This module is kept as the correctness oracle
+//! that proof is checked against (and `tests/unit_languages_go.rs`
+//! still exercises it directly), not because it is still on the
+//! production path.
+//!
 //! Unresolved by design (same rationale as `rust.rs`/`typescript.rs`):
 //! import paths and call callees are recorded as written in source,
 //! not resolved to graph node ids here.
