@@ -18,6 +18,7 @@
     "cargo metadata --locked --format-version 1 --no-deps ok",
     "cargo test -p enforcer-memory ok",
     "cargo test -p enforcer-memory --features ort-models ok",
+    "cargo test -p enforcer-memory --test feature_parity_harness ok after artifact-backed rollup fix",
     "cargo clippy -p enforcer-memory --all-targets -- -D warnings ok",
     "cargo fmt --package enforcer-memory --check ok"
   ],
@@ -125,6 +126,18 @@
     {
       "shape": "t2",
       "evidence": "Pre-commit hook reported 19884 workspace violations while cargo test, ORT tests, clippy, package fmt, doctor, source-shape, validation-bypass, placeholder-implementation, and secrets were green."
+    },
+    {
+      "shape": "t0",
+      "incident": "x06-feature-parity.json stayed skeleton-stale and marked MOD, DOG, TOK, STO, TXT/VEC/RRK, and PAR pending even after proof artifacts existed."
+    },
+    {
+      "shape": "t1",
+      "fix": "Feature parity rollup now derives signal fields and prefix statuses from committed proof artifacts, while keeping QA/LRN red and missing subpacks pending."
+    },
+    {
+      "shape": "t2",
+      "evidence": "cargo test -p enforcer-memory --test feature_parity_harness passed and regenerated proof/memory/x06-feature-parity.json with artifact-backed MOD/DOG/TOK/STO/TXT/VEC/RRK/PAR green rows."
     }
   ]
 }

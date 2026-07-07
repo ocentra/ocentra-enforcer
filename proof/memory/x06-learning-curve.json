@@ -79,11 +79,21 @@
         "proof/memory/x06-models.json"
       ],
       "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-007",
+      "lesson": "Rollup proof must be derived from artifact evidence; stale pending rows can hide completed model, token, Store, RAG, dogfood, and parity work just as badly as fake green can overclaim it.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/proof.rs",
+        "crates/enforcer-memory/tests/feature_parity_harness.rs",
+        "proof/memory/x06-feature-parity.json"
+      ],
+      "status": "learned"
     }
   ],
   "blockers": [
     "Full graph-dependent recurrence curves still need the derived projection rollup over Store logs.",
-    "No new GGUF chat hello-world load was executed in this turn; checked-in local runtime proofs remain host-local and non-CI-parity.",
+    "Checked-in real model runtime proofs remain host-local and non-CI-parity; rerun explicit probes when hardware, cache, or providers change.",
     "QA coverage is 40/250 runnable with 0 failures; unsupported rows remain unrunnable rather than fake green."
   ],
   "recurrenceNotes": [

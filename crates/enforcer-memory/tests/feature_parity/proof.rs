@@ -227,25 +227,42 @@ pub fn build_feature_parity_document(
 
     let qa_rows_green = qa_results.iter().filter(|r| r.is_green()).count();
 
+    let kg_parity_compared_against_baseline = prefix_statuses
+        .get("PAR")
+        .is_some_and(|row| row.status.is_green());
+    let mcp_cli_parity = ["MCP", "CLI"].iter().all(|prefix| {
+        prefix_statuses
+            .get(prefix)
+            .is_some_and(|row| row.status.is_green())
+    });
+    let local_dense_retrieval_present = ["TXT", "VEC"].iter().all(|prefix| {
+        prefix_statuses
+            .get(prefix)
+            .is_some_and(|row| row.status.is_green())
+    });
+    let local_reranker_present = ["RRK", "MOD"].iter().any(|prefix| {
+        prefix_statuses
+            .get(prefix)
+            .is_some_and(|row| row.status.is_green())
+    });
+    let retrieval_improvement_curve_present = prefix_statuses
+        .get("LRN")
+        .is_some_and(|row| row.status.is_green());
+    let token_reduction_median_at_least_10x = prefix_statuses
+        .get("TOK")
+        .is_some_and(|row| row.status.is_green());
+
     FeatureParityDocument {
         prefixes,
         all_matrix_prefixes_green,
         qa_rows_total: qa_results.len(),
         qa_rows_green,
-        // Honest SKELETON defaults: this pass never executed a live
-        // baseline comparison (baseline.rs ships NotInstalled-only),
-        // never wired MCP/CLI, and this HybridSearcher run is the
-        // deterministic zero-network default embedder/reranker (D-03),
-        // not a real model backend -- so "local dense retrieval
-        // present" is true (the seam runs) but "external model
-        // provider used" must stay false either way per the
-        // local-first mandate, never flipped true by this SKELETON.
-        kg_parity_compared_against_baseline: false,
-        mcp_cli_parity: false,
-        local_dense_retrieval_present: true,
-        local_reranker_present: true,
-        retrieval_improvement_curve_present: false,
-        token_reduction_median_at_least_10x: false,
+        kg_parity_compared_against_baseline,
+        mcp_cli_parity,
+        local_dense_retrieval_present,
+        local_reranker_present,
+        retrieval_improvement_curve_present,
+        token_reduction_median_at_least_10x,
         exact_artifact_mismatch_count: 0,
         external_model_provider_used: false,
     }
@@ -374,6 +391,41 @@ mod tests {
         );
         let document = build_feature_parity_document(&prefixes, &[]);
         assert!(!document.all_matrix_prefixes_green, "Pending is not Green");
+    }
+
+    #[test]
+    fn rollup_signal_fields_are_derived_from_prefix_evidence() {
+        let mut prefixes = all_green_prefixes();
+        prefixes.insert(
+            "CLI",
+            MatrixPrefixRow {
+                prefix: "CLI".to_string(),
+                status: PrefixStatus::Pending,
+                test_name: None,
+                artifact_path: "proof/memory/x06-cli.json".to_string(),
+                failure_reason: Some("CLI proof not emitted yet".to_string()),
+            },
+        );
+        prefixes.insert(
+            "LRN",
+            MatrixPrefixRow {
+                prefix: "LRN".to_string(),
+                status: PrefixStatus::Red,
+                test_name: Some("x06_learning_curve_followup".to_string()),
+                artifact_path: "proof/memory/x06-learning-curve.json".to_string(),
+                failure_reason: Some("longitudinal recurrence curve not proven".to_string()),
+            },
+        );
+
+        let document = build_feature_parity_document(&prefixes, &[]);
+
+        assert!(document.kg_parity_compared_against_baseline);
+        assert!(!document.mcp_cli_parity);
+        assert!(document.local_dense_retrieval_present);
+        assert!(document.local_reranker_present);
+        assert!(!document.retrieval_improvement_curve_present);
+        assert!(document.token_reduction_median_at_least_10x);
+        assert!(!document.external_model_provider_used);
     }
 
     #[test]

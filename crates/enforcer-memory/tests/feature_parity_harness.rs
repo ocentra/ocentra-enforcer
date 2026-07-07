@@ -23,8 +23,9 @@ use feature_parity::proof::{
 use feature_parity::runners::run_all;
 use feature_parity::{build_fixtures, BoxError};
 use std::collections::BTreeMap;
+use std::path::Path;
 
-type TestResult = Result<(), BoxError>;
+type TestResult<T = ()> = Result<T, BoxError>;
 
 /// End-to-end: parse all 250 rows, run them against the fixture
 /// environment, and assert the honest split the mission brief requires
@@ -87,36 +88,17 @@ fn qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split() -> T
     let qa_path = workspace_root.join("proof/memory/x06-rag-qa.json");
     write_json_document(&qa_path, &document)?;
 
-    // Build and emit the feature-parity rollup. Every non-QA prefix is
-    // conservatively Pending here unless a dedicated subpack proof has
-    // promoted it elsewhere. QA is Red (not Green) until all rows are
-    // runnable and passing.
+    // Build and emit the feature-parity rollup from committed proof
+    // artifacts. This is intentionally not an all-green claim: partial
+    // proofs become Red with a concrete reason, missing proofs remain
+    // Pending, and only artifacts with a real pass signal become Green.
+    let mut prefixes =
+        current_prefix_statuses(&workspace_root, document.rows_green, document.rows_total)?;
     let qa_status = if document.rows_green == document.rows_total {
         PrefixStatus::Green
     } else {
         PrefixStatus::Red
     };
-    let mut prefixes: BTreeMap<&'static str, MatrixPrefixRow> = REQUIRED_PREFIXES
-        .iter()
-        .map(|prefix| {
-            (
-                *prefix,
-                MatrixPrefixRow {
-                    prefix: prefix.to_string(),
-                    status: PrefixStatus::Pending,
-                    test_name: None,
-                    artifact_path: format!(
-                        "proof/memory/x06-{}.json",
-                        prefix_artifact_stem(prefix)
-                    ),
-                    failure_reason: Some(
-                        "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
-                            .to_string(),
-                    ),
-                },
-            )
-        })
-        .collect();
     prefixes.insert(
         "QA",
         MatrixPrefixRow {
@@ -141,9 +123,15 @@ fn qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split() -> T
     let rollup = build_feature_parity_document(&prefixes, &results);
     assert!(
         !rollup.all_matrix_prefixes_green,
-        "the rollup must NOT claim all-green while prefixes are Pending and QA is Red -- fake green is failure (OWNER_INTENT)"
+        "the rollup must NOT claim all-green while prefixes are Pending/Red -- fake green is failure (OWNER_INTENT)"
     );
     assert_eq!(rollup.qa_rows_total, 250);
+    assert!(rollup.kg_parity_compared_against_baseline);
+    assert!(rollup.local_dense_retrieval_present);
+    assert!(rollup.local_reranker_present);
+    assert!(rollup.token_reduction_median_at_least_10x);
+    assert!(!rollup.mcp_cli_parity);
+    assert!(!rollup.retrieval_improvement_curve_present);
 
     let rollup_path = workspace_root.join("proof/memory/x06-feature-parity.json");
     write_json_document(&rollup_path, &rollup)?;
@@ -183,6 +171,339 @@ fn prefix_artifact_stem(prefix: &'static str) -> &'static str {
         // unmapped prefix -- see the coverage test below.
         _ => "unmapped-prefix",
     }
+}
+
+fn current_prefix_statuses(
+    workspace_root: &Path,
+    qa_rows_green: usize,
+    qa_rows_total: usize,
+) -> TestResult<BTreeMap<&'static str, MatrixPrefixRow>> {
+    let mut prefixes: BTreeMap<&'static str, MatrixPrefixRow> = REQUIRED_PREFIXES
+        .iter()
+        .map(|prefix| (*prefix, pending_prefix(prefix)))
+        .collect();
+
+    set_store_status(workspace_root, &mut prefixes)?;
+    set_rag_status(workspace_root, &mut prefixes)?;
+    set_kg_status(workspace_root, &mut prefixes)?;
+    set_kg_parity_status(workspace_root, &mut prefixes)?;
+    set_learning_status(workspace_root, &mut prefixes)?;
+    set_token_status(workspace_root, &mut prefixes)?;
+    set_model_status(workspace_root, &mut prefixes)?;
+    set_dogfood_status(workspace_root, &mut prefixes)?;
+
+    if qa_rows_green == qa_rows_total {
+        prefixes.insert(
+            "QA",
+            green_prefix(
+                "QA",
+                "proof/memory/x06-rag-qa.json",
+                "qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split",
+            ),
+        );
+    }
+
+    Ok(prefixes)
+}
+
+fn pending_prefix(prefix: &'static str) -> MatrixPrefixRow {
+    MatrixPrefixRow {
+        prefix: prefix.to_string(),
+        status: PrefixStatus::Pending,
+        test_name: None,
+        artifact_path: format!("proof/memory/x06-{}.json", prefix_artifact_stem(prefix)),
+        failure_reason: Some(
+            "proof artifact not emitted or not owned by this X06 slice".to_string(),
+        ),
+    }
+}
+
+fn green_prefix(prefix: &str, artifact_path: &str, test_name: &str) -> MatrixPrefixRow {
+    MatrixPrefixRow {
+        prefix: prefix.to_string(),
+        status: PrefixStatus::Green,
+        test_name: Some(test_name.to_string()),
+        artifact_path: artifact_path.to_string(),
+        failure_reason: None,
+    }
+}
+
+fn red_prefix(
+    prefix: &str,
+    artifact_path: &str,
+    test_name: Option<&str>,
+    failure_reason: impl Into<String>,
+) -> MatrixPrefixRow {
+    MatrixPrefixRow {
+        prefix: prefix.to_string(),
+        status: PrefixStatus::Red,
+        test_name: test_name.map(str::to_string),
+        artifact_path: artifact_path.to_string(),
+        failure_reason: Some(failure_reason.into()),
+    }
+}
+
+fn proof_json(workspace_root: &Path, artifact_path: &str) -> TestResult<Option<serde_json::Value>> {
+    let path = workspace_root.join(artifact_path);
+    if !path.is_file() {
+        return Ok(None);
+    }
+    let body = std::fs::read_to_string(&path)?;
+    Ok(Some(serde_json::from_str(&body)?))
+}
+
+fn set_store_status(
+    workspace_root: &Path,
+    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRow>,
+) -> TestResult<()> {
+    let Some(store) = proof_json(workspace_root, "proof/memory/x06-store.json")? else {
+        return Ok(());
+    };
+    let tests_failed = store["result"]["testsFailed"].as_u64().unwrap_or(1);
+    prefixes.insert(
+        "STO",
+        if tests_failed == 0 {
+            green_prefix("STO", "proof/memory/x06-store.json", "memory-store-core")
+        } else {
+            red_prefix(
+                "STO",
+                "proof/memory/x06-store.json",
+                Some("memory-store-core"),
+                format!("store proof reports {tests_failed} failed tests"),
+            )
+        },
+    );
+    Ok(())
+}
+
+fn set_rag_status(
+    workspace_root: &Path,
+    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRow>,
+) -> TestResult<()> {
+    let Some(rag) = proof_json(workspace_root, "proof/memory/x06-rag.json")? else {
+        return Ok(());
+    };
+    let tests_failed = rag["result"]["testsFailed"].as_u64().unwrap_or(1);
+    let row = if tests_failed == 0 {
+        green_prefix("TXT", "proof/memory/x06-rag.json", "memory-retrieval-stack")
+    } else {
+        red_prefix(
+            "TXT",
+            "proof/memory/x06-rag.json",
+            Some("memory-retrieval-stack"),
+            format!("RAG proof reports {tests_failed} failed tests"),
+        )
+    };
+    prefixes.insert("TXT", row.clone());
+    prefixes.insert(
+        "VEC",
+        MatrixPrefixRow {
+            prefix: "VEC".to_string(),
+            ..row.clone()
+        },
+    );
+    prefixes.insert(
+        "RRK",
+        MatrixPrefixRow {
+            prefix: "RRK".to_string(),
+            ..row
+        },
+    );
+    Ok(())
+}
+
+fn set_kg_status(
+    workspace_root: &Path,
+    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRow>,
+) -> TestResult<()> {
+    let Some(kg) = proof_json(workspace_root, "proof/memory/x06-kg.json")? else {
+        return Ok(());
+    };
+    let status = kg["status"].as_str().unwrap_or("unknown");
+    prefixes.insert(
+        "GPH",
+        if status == "green" || status == "complete" {
+            green_prefix("GPH", "proof/memory/x06-kg.json", "x06-kg")
+        } else {
+            let remaining = kg["remaining"]
+                .as_array()
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(|item| item.as_str())
+                        .filter(|item| !item.contains("Claude parity lane"))
+                        .collect::<Vec<_>>()
+                        .join("; ")
+                })
+                .filter(|text| !text.is_empty())
+                .unwrap_or_else(|| format!("KG artifact status is {status}"));
+            red_prefix("GPH", "proof/memory/x06-kg.json", Some("x06-kg"), remaining)
+        },
+    );
+    Ok(())
+}
+
+fn set_kg_parity_status(
+    workspace_root: &Path,
+    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRow>,
+) -> TestResult<()> {
+    let Some(parity) = proof_json(workspace_root, "proof/memory/x06-kg-parity.json")? else {
+        return Ok(());
+    };
+    let baseline_executed = parity["baseline_executed"].as_bool().unwrap_or(false);
+    let worse = parity["tools_worse"].as_u64().unwrap_or(1);
+    let unrunnable = parity["tools_unrunnable"].as_u64().unwrap_or(1);
+    prefixes.insert(
+        "PAR",
+        if baseline_executed && worse == 0 && unrunnable == 0 {
+            green_prefix("PAR", "proof/memory/x06-kg-parity.json", "x06-live-baseline-parity")
+        } else {
+            red_prefix(
+                "PAR",
+                "proof/memory/x06-kg-parity.json",
+                Some("x06-live-baseline-parity"),
+                format!(
+                    "baseline_executed={baseline_executed}, tools_worse={worse}, tools_unrunnable={unrunnable}"
+                ),
+            )
+        },
+    );
+    Ok(())
+}
+
+fn set_learning_status(
+    workspace_root: &Path,
+    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRow>,
+) -> TestResult<()> {
+    let Some(learning) = proof_json(workspace_root, "proof/memory/x06-learning-curve.json")? else {
+        return Ok(());
+    };
+    let present = learning["learningCurve"]["present"]
+        .as_bool()
+        .unwrap_or(false);
+    let blockers = learning["blockers"]
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.as_str())
+                .collect::<Vec<_>>()
+                .join("; ")
+        })
+        .unwrap_or_default();
+    prefixes.insert(
+        "LRN",
+        if present && blockers.is_empty() {
+            green_prefix(
+                "LRN",
+                "proof/memory/x06-learning-curve.json",
+                "x06-learning-curve",
+            )
+        } else {
+            red_prefix(
+                "LRN",
+                "proof/memory/x06-learning-curve.json",
+                Some("x06-learning-curve"),
+                if present {
+                    format!("store-backed learning present, but follow-up remains: {blockers}")
+                } else {
+                    "learning curve proof is not present".to_string()
+                },
+            )
+        },
+    );
+    Ok(())
+}
+
+fn set_token_status(
+    workspace_root: &Path,
+    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRow>,
+) -> TestResult<()> {
+    let Some(token) = proof_json(workspace_root, "proof/memory/x06-token-reduction.json")? else {
+        return Ok(());
+    };
+    let passes = token["passes10xGate"].as_bool().unwrap_or(false);
+    let median = token["medianReductionRatio"].as_f64().unwrap_or_default();
+    prefixes.insert(
+        "TOK",
+        if passes {
+            green_prefix(
+                "TOK",
+                "proof/memory/x06-token-reduction.json",
+                "x06-token-reduction",
+            )
+        } else {
+            red_prefix(
+                "TOK",
+                "proof/memory/x06-token-reduction.json",
+                Some("x06-token-reduction"),
+                format!("median token reduction ratio {median:.2} does not pass 10x gate"),
+            )
+        },
+    );
+    Ok(())
+}
+
+fn set_model_status(
+    workspace_root: &Path,
+    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRow>,
+) -> TestResult<()> {
+    let chat_ok = proof_json(
+        workspace_root,
+        "proof/memory/x06-models-qwen3-4b-vulkan-windows-local.json",
+    )?
+    .and_then(|proof| proof["chatGenerationGguf"]["usability"]["ok"].as_bool());
+    let embedding_ok = proof_json(
+        workspace_root,
+        "proof/memory/x06-models-qwen3-embedding-ort-cpu.json",
+    )?
+    .and_then(|proof| proof["qwenEmbeddingOnnx"]["ok"].as_bool());
+    let reranker_ok = proof_json(
+        workspace_root,
+        "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
+    )?
+    .and_then(|proof| proof["qwenRerankerOnnx"]["ok"].as_bool());
+    prefixes.insert(
+        "MOD",
+        if chat_ok == Some(true) && embedding_ok == Some(true) && reranker_ok == Some(true) {
+            green_prefix("MOD", "proof/memory/x06-models.json", "x06-real-model-runtime-proof")
+        } else {
+            red_prefix(
+                "MOD",
+                "proof/memory/x06-models.json",
+                Some("x06-real-model-runtime-proof"),
+                format!(
+                    "model proof incomplete: chat_ok={chat_ok:?}, embedding_ok={embedding_ok:?}, reranker_ok={reranker_ok:?}"
+                ),
+            )
+        },
+    );
+    Ok(())
+}
+
+fn set_dogfood_status(
+    workspace_root: &Path,
+    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRow>,
+) -> TestResult<()> {
+    let Some(dogfood) = proof_json(workspace_root, "proof/memory/x06-dogfood.json")? else {
+        return Ok(());
+    };
+    let green_gates = dogfood["greenGates"].as_array().map_or(0, Vec::len);
+    let lessons = dogfood["lessons"].as_array().map_or(0, Vec::len);
+    prefixes.insert(
+        "DOG",
+        if green_gates > 0 && lessons > 0 {
+            green_prefix("DOG", "proof/memory/x06-dogfood.json", "x06-dogfood-closeout")
+        } else {
+            red_prefix(
+                "DOG",
+                "proof/memory/x06-dogfood.json",
+                Some("x06-dogfood-closeout"),
+                format!("dogfood proof missing gates or lessons: green_gates={green_gates}, lessons={lessons}"),
+            )
+        },
+    );
+    Ok(())
 }
 
 #[test]

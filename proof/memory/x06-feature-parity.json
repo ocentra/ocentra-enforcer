@@ -2,75 +2,76 @@
   "prefixes": [
     {
       "prefix": "STO",
-      "status": "pending",
-      "artifactPath": "proof/memory/x06-store.json",
-      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+      "status": "green",
+      "testName": "memory-store-core",
+      "artifactPath": "proof/memory/x06-store.json"
     },
     {
       "prefix": "IDX",
       "status": "pending",
       "artifactPath": "proof/memory/x06-indexing.json",
-      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+      "failureReason": "proof artifact not emitted or not owned by this X06 slice"
     },
     {
       "prefix": "COD",
       "status": "pending",
       "artifactPath": "proof/memory/x06-code-graph.json",
-      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+      "failureReason": "proof artifact not emitted or not owned by this X06 slice"
     },
     {
       "prefix": "GPH",
-      "status": "pending",
+      "status": "red",
+      "testName": "x06-kg",
       "artifactPath": "proof/memory/x06-kg.json",
-      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+      "failureReason": "Full semantic graph-over-code layer still needs derived projection and query UX over the canonical Store-backed graph."
     },
     {
       "prefix": "TXT",
-      "status": "pending",
-      "artifactPath": "proof/memory/x06-fulltext.json",
-      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+      "status": "green",
+      "testName": "memory-retrieval-stack",
+      "artifactPath": "proof/memory/x06-rag.json"
     },
     {
       "prefix": "VEC",
-      "status": "pending",
-      "artifactPath": "proof/memory/x06-vector.json",
-      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+      "status": "green",
+      "testName": "memory-retrieval-stack",
+      "artifactPath": "proof/memory/x06-rag.json"
     },
     {
       "prefix": "RRK",
-      "status": "pending",
-      "artifactPath": "proof/memory/x06-reranker.json",
-      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+      "status": "green",
+      "testName": "memory-retrieval-stack",
+      "artifactPath": "proof/memory/x06-rag.json"
     },
     {
       "prefix": "SUM",
       "status": "pending",
       "artifactPath": "proof/memory/x06-summaries.json",
-      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+      "failureReason": "proof artifact not emitted or not owned by this X06 slice"
     },
     {
       "prefix": "WVR",
       "status": "pending",
       "artifactPath": "proof/memory/x06-weaver.json",
-      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+      "failureReason": "proof artifact not emitted or not owned by this X06 slice"
     },
     {
       "prefix": "MCP",
       "status": "pending",
       "artifactPath": "proof/memory/x06-mcp.json",
-      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+      "failureReason": "proof artifact not emitted or not owned by this X06 slice"
     },
     {
       "prefix": "CLI",
       "status": "pending",
       "artifactPath": "proof/memory/x06-cli.json",
-      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+      "failureReason": "proof artifact not emitted or not owned by this X06 slice"
     },
     {
       "prefix": "PAR",
-      "status": "pending",
-      "artifactPath": "proof/memory/x06-kg-parity.json",
-      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+      "status": "green",
+      "testName": "x06-live-baseline-parity",
+      "artifactPath": "proof/memory/x06-kg-parity.json"
     },
     {
       "prefix": "QA",
@@ -81,56 +82,57 @@
     },
     {
       "prefix": "LRN",
-      "status": "pending",
+      "status": "red",
+      "testName": "x06-learning-curve",
       "artifactPath": "proof/memory/x06-learning-curve.json",
-      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+      "failureReason": "store-backed learning present, but follow-up remains: Full graph-dependent recurrence curves still need the derived projection rollup over Store logs.; Checked-in real model runtime proofs remain host-local and non-CI-parity; rerun explicit probes when hardware, cache, or providers change.; QA coverage is 40/250 runnable with 0 failures; unsupported rows remain unrunnable rather than fake green."
     },
     {
       "prefix": "FED",
       "status": "pending",
       "artifactPath": "proof/memory/x06-federation.json",
-      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+      "failureReason": "proof artifact not emitted or not owned by this X06 slice"
     },
     {
       "prefix": "DIA",
       "status": "pending",
       "artifactPath": "proof/memory/x06-diagnostics.json",
-      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+      "failureReason": "proof artifact not emitted or not owned by this X06 slice"
     },
     {
       "prefix": "SEC",
       "status": "pending",
       "artifactPath": "proof/memory/x06-policy.json",
-      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+      "failureReason": "proof artifact not emitted or not owned by this X06 slice"
     },
     {
       "prefix": "TOK",
-      "status": "pending",
-      "artifactPath": "proof/memory/x06-token-reduction.json",
-      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+      "status": "green",
+      "testName": "x06-token-reduction",
+      "artifactPath": "proof/memory/x06-token-reduction.json"
     },
     {
       "prefix": "MOD",
-      "status": "pending",
-      "artifactPath": "proof/memory/x06-models.json",
-      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+      "status": "green",
+      "testName": "x06-real-model-runtime-proof",
+      "artifactPath": "proof/memory/x06-models.json"
     },
     {
       "prefix": "DOG",
-      "status": "pending",
-      "artifactPath": "proof/memory/x06-dogfood.json",
-      "failureReason": "not yet emitted by its owning X06 subpack as of the X06.9 skeleton pass"
+      "status": "green",
+      "testName": "x06-dogfood-closeout",
+      "artifactPath": "proof/memory/x06-dogfood.json"
     }
   ],
   "allMatrixPrefixesGreen": false,
   "qaRowsTotal": 250,
   "qaRowsGreen": 40,
-  "kgParityComparedAgainstBaseline": false,
+  "kgParityComparedAgainstBaseline": true,
   "mcpCliParity": false,
   "localDenseRetrievalPresent": true,
   "localRerankerPresent": true,
   "retrievalImprovementCurvePresent": false,
-  "tokenReductionMedianAtLeast10x": false,
+  "tokenReductionMedianAtLeast10x": true,
   "exactArtifactMismatchCount": 0,
   "externalModelProviderUsed": false
 }
