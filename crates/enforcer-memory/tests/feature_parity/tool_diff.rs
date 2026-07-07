@@ -40,16 +40,20 @@ use super::baseline::{BaselineAdapter, BaselineState, CliDriver, CodebaseMemoryM
 use super::BoxError;
 use enforcer_memory::adr::AdrStore;
 use enforcer_memory::analysis::query as cypher;
+use enforcer_memory::analysis::trace::trace_data_flow;
 use enforcer_memory::analysis::{trace::TraceCallsParams, CodeAdjacency, TraceDirection};
 use enforcer_memory::architecture::{self, Aspect};
 use enforcer_memory::code_graph::{CodeGraph, CodeNode, Manifest};
 use enforcer_memory::code_search::{self, SearchMode, SearchQuery};
+use enforcer_memory::cross_repo::match_cross_repo;
 use enforcer_memory::graph_schema;
 use enforcer_memory::projects;
+use enforcer_memory::resolution::{self, ResolutionConfidence};
 use enforcer_memory::search::search_graph::{search_graph, SearchGraphSpec};
+use enforcer_memory::similarity::{semantically_related, similar_to};
 use enforcer_memory::snippet;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Instant;
@@ -125,6 +129,23 @@ const FIXTURE_LIB_RS: &str =
 const FIXTURE_WIDGET_RS: &str =
     "fn load_widget_settings(path: &str) -> String {\n    path.to_string()\n}\n";
 
+/// X06 core-parity extension fixture: a trait + struct + two `impl`
+/// blocks (INHERITS via the supertrait bound, IMPLEMENTS via each
+/// `impl Trait for Widget`, TYPE_REF via the `&Widget` parameter,
+/// DEFINES via each method's enclosing impl) plus a function with real
+/// branch/loop structure (`describe`: a `for` loop and three `if`/
+/// `else if`/`else` arms) so the complexity-property comparison rows
+/// have a non-trivial cyclomatic/loop signal to measure, not just the
+/// two straight-line functions above. The trailing near-duplicate pair
+/// (`parse_widget_config` / `parseWidgetConfig`: identical bodies,
+/// identical name-token sets `{parse, widget, config}` under both
+/// snake_case and camelCase splitting) exists so BOTH similarity
+/// mechanisms have a real >=0.95 pair to fire on -- the baseline's
+/// body-shingle MinHash (identical bodies) and the candidate's
+/// name-token Jaccard (identical token sets) -- without disturbing any
+/// symbol the earlier rows assert on.
+const FIXTURE_TRAITS_RS: &str = "pub trait Drawable {\n    fn draw(&self) -> String;\n}\n\npub trait Named: Drawable {\n    fn name(&self) -> String;\n}\n\npub struct Widget {\n    pub label: String,\n}\n\nimpl Drawable for Widget {\n    fn draw(&self) -> String {\n        self.label.clone()\n    }\n}\n\nimpl Named for Widget {\n    fn name(&self) -> String {\n        self.label.clone()\n    }\n}\n\npub fn describe(widget: &Widget) -> String {\n    let mut total = 0;\n    for _ in 0..widget.label.len() {\n        total += 1;\n    }\n    if total > 0 {\n        widget.draw()\n    } else if total == 0 {\n        widget.name()\n    } else {\n        String::new()\n    }\n}\n\npub fn parse_widget_config(path: &str) -> String {\n    path.trim().to_string()\n}\n\npub fn parseWidgetConfig(path: &str) -> String {\n    path.trim().to_string()\n}\n";
+
 /// Build a fresh, real git-backed fixture repo in a tempdir. Returns
 /// the tempdir (kept alive by the caller) and its forward-slash-
 /// normalized path string (the baseline's CLI JSON parser rejects
@@ -134,6 +155,7 @@ fn build_fixture_repo() -> Result<(tempfile::TempDir, String), BoxError> {
     let dir = tempfile::tempdir()?;
     std::fs::write(dir.path().join("lib.rs"), FIXTURE_LIB_RS)?;
     std::fs::write(dir.path().join("widget.rs"), FIXTURE_WIDGET_RS)?;
+    std::fs::write(dir.path().join("traits.rs"), FIXTURE_TRAITS_RS)?;
     run_git(dir.path(), &["init", "--quiet"])?;
     run_git(
         dir.path(),
@@ -156,7 +178,11 @@ fn build_fixture_repo() -> Result<(tempfile::TempDir, String), BoxError> {
 /// lane's own comparison, not shared process state with the baseline
 /// since the two are entirely separate programs).
 fn build_candidate_graph(fixture_dir: &Path) -> Result<CodeGraph, BoxError> {
-    let files = vec![fixture_dir.join("lib.rs"), fixture_dir.join("widget.rs")];
+    let files = vec![
+        fixture_dir.join("lib.rs"),
+        fixture_dir.join("widget.rs"),
+        fixture_dir.join("traits.rs"),
+    ];
     let mut graph = CodeGraph::new();
     graph.index_repository(fixture_dir, &files, &Manifest::default())?;
     Ok(graph)
@@ -1519,6 +1545,922 @@ fn compare_ingest_traces(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     }
 }
 
+// ---------------------------------------------------------------------
+// X06 core-parity extension rows (final verification wave): complexity
+// properties, rich node/edge vocabulary, multi-language indexing,
+// similarity edges, data_flow tracing, type-aware call resolution, and
+// cross-repo-intelligence mode. Same honesty rules as every row above:
+// real calls on both sides, documented normalizations, never a
+// fabricated result.
+// ---------------------------------------------------------------------
+
+/// `query_graph` over the X06 complexity properties: both sides run the
+/// same class of Cypher query filtering on `f.complexity` (Tier A,
+/// cyclomatic) and `f.transitive_loop_depth` (Tier B, interprocedural),
+/// expecting the fixture's `describe` function (a `for` loop + three
+/// `if`/`else if`/`else` arms) to be the row both filters select.
+fn compare_query_graph_complexity(ctx: &mut Ctx<'_>) -> ToolDiffRow {
+    let tool = "query_graph(complexity)";
+    let complexity_query =
+        "MATCH (f:Function) WHERE f.complexity >= 2 RETURN f.name, f.complexity ORDER BY f.name";
+    let tld_query =
+        "MATCH (f:Function) WHERE f.transitive_loop_depth >= 1 RETURN f.name ORDER BY f.name";
+
+    let complexity_request = format!(
+        r#"{{"project":"{}","query":"{}"}}"#,
+        ctx.baseline_project, complexity_query
+    );
+    let complexity_call = match ctx.driver.call("query_graph", &complexity_request) {
+        Ok(call) => call,
+        Err(error) => return unrunnable_row(tool, &format!("baseline call failed: {error}")),
+    };
+    record_baseline_result(
+        ctx.results,
+        "query_graph(complexity:cyclomatic)",
+        &complexity_call,
+    );
+    let baseline_complexity_ok = complexity_call
+        .parsed_json()
+        .map(|json| haystack_contains_all(&json, &["describe"]))
+        .unwrap_or(false);
+
+    let tld_request = format!(
+        r#"{{"project":"{}","query":"{}"}}"#,
+        ctx.baseline_project, tld_query
+    );
+    let tld_call = match ctx.driver.call("query_graph", &tld_request) {
+        Ok(call) => call,
+        Err(error) => return unrunnable_row(tool, &format!("baseline call failed: {error}")),
+    };
+    record_baseline_result(ctx.results, "query_graph(complexity:tld)", &tld_call);
+    let baseline_tld_ok = tld_call
+        .parsed_json()
+        .map(|json| haystack_contains_all(&json, &["describe"]))
+        .unwrap_or(false);
+
+    let start = Instant::now();
+    let candidate_outcome = (|| -> Result<(bool, bool), cypher::QueryError> {
+        let adjacency = CodeAdjacency::build(ctx.candidate_graph);
+        let complexity_rows = cypher::execute(
+            &cypher::parse(complexity_query)?,
+            &adjacency,
+            ctx.candidate_graph,
+        )?;
+        let tld_rows =
+            cypher::execute(&cypher::parse(tld_query)?, &adjacency, ctx.candidate_graph)?;
+        let found_in = |rows: &[cypher::ResultRow]| {
+            rows.iter()
+                .any(|row| row.values().any(|v| v.contains("describe")))
+        };
+        Ok((found_in(&complexity_rows), found_in(&tld_rows)))
+    })();
+    let candidate_latency_ms = start.elapsed().as_secs_f64() * 1000.0;
+    let (candidate_complexity_ok, candidate_tld_ok, candidate_error) = match candidate_outcome {
+        Ok((c, t)) => (c, t, None),
+        Err(error) => (false, false, Some(error.to_string())),
+    };
+    record_candidate_result(
+        ctx.results,
+        tool,
+        &format!(
+            "complexity_ok={candidate_complexity_ok} tld_ok={candidate_tld_ok} error={candidate_error:?}"
+        ),
+        candidate_latency_ms,
+    );
+
+    let mut normalizations = common_normalizations();
+    normalizations.push(
+        "same class of Cypher complexity-property query on both sides (WHERE f.complexity >= 2 / WHERE f.transitive_loop_depth >= 1); candidate answers via analysis::query's resolve_property over complexity::ComplexityMetrics (Tier A) and TransitiveMetrics (Tier B), baseline via its SQLite node-property columns -- compared on which function each filter selects (describe), never on independently-derived score equality".to_string(),
+    );
+
+    if baseline_complexity_ok && baseline_tld_ok && candidate_complexity_ok && candidate_tld_ok {
+        ToolDiffRow {
+            tool: tool.to_string(),
+            comparison_verdict: "equal".to_string(),
+            better_because: None,
+            worse_because: None,
+            normalizations,
+            baseline_latency_ms: Some(complexity_call.latency_ms + tld_call.latency_ms),
+            candidate_latency_ms: Some(candidate_latency_ms),
+        }
+    } else {
+        ToolDiffRow {
+            tool: tool.to_string(),
+            comparison_verdict: "worse".to_string(),
+            better_because: None,
+            worse_because: Some(format!(
+                "baseline_complexity_ok={baseline_complexity_ok} baseline_tld_ok={baseline_tld_ok} candidate_complexity_ok={candidate_complexity_ok} candidate_tld_ok={candidate_tld_ok} candidate_error={candidate_error:?}"
+            )),
+            normalizations,
+            baseline_latency_ms: Some(complexity_call.latency_ms + tld_call.latency_ms),
+            candidate_latency_ms: Some(candidate_latency_ms),
+        }
+    }
+}
+
+/// Rich node-label/edge-type vocabulary: the fixture's `traits.rs`
+/// carries a trait hierarchy (`Named: Drawable`), two `impl Trait for
+/// Widget` blocks, a typed `&Widget` parameter, and impl-scoped methods
+/// -- so the candidate schema must report `Interface`/`Struct`/`Method`
+/// labels and `INHERITS`/`IMPLEMENTS`/`TYPE_REF`/`DEFINES` edge rows,
+/// and the baseline's own schema over the same repo is graded on
+/// reporting the same class of rich vocabulary.
+fn compare_graph_schema_rich_vocab(ctx: &mut Ctx<'_>) -> ToolDiffRow {
+    let tool = "get_graph_schema(rich_vocab)";
+    let request = format!(r#"{{"project":"{}"}}"#, ctx.baseline_project);
+    let call = match ctx.driver.call("get_graph_schema", &request) {
+        Ok(call) => call,
+        Err(error) => return unrunnable_row(tool, &format!("baseline call failed: {error}")),
+    };
+    record_baseline_result(ctx.results, tool, &call);
+    let Some(baseline_json) = call.parsed_json() else {
+        return unrunnable_row(tool, "baseline returned no parseable JSON");
+    };
+    let baseline_text = baseline_json.to_string();
+    // Rust traits may surface as "Interface" (this crate's vocabulary)
+    // or "Trait" in the baseline's own label set -- accept either as
+    // "the baseline models the trait", never require our exact string.
+    let baseline_rich_labels = (baseline_text.contains("Interface")
+        || baseline_text.contains("Trait"))
+        && baseline_text.contains("Struct")
+        && baseline_text.contains("Method");
+    let baseline_rich_edges = baseline_text.contains("INHERITS")
+        || baseline_text.contains("IMPLEMENTS")
+        || baseline_text.contains("TYPE_REF")
+        || baseline_text.contains("DEFINES");
+
+    let start = Instant::now();
+    let schema = graph_schema::get_graph_schema(ctx.candidate_graph);
+    let candidate_latency_ms = start.elapsed().as_secs_f64() * 1000.0;
+    let label_set: BTreeSet<&str> = schema.labels.iter().map(|l| l.label.as_str()).collect();
+    let edge_set: BTreeSet<&str> = schema
+        .edge_types
+        .iter()
+        .map(|e| e.edge_type.as_str())
+        .collect();
+    let candidate_ok = ["Interface", "Struct", "Method"]
+        .iter()
+        .all(|label| label_set.contains(label))
+        && ["INHERITS", "IMPLEMENTS", "TYPE_REF", "DEFINES"]
+            .iter()
+            .all(|edge| edge_set.contains(edge));
+    record_candidate_result(
+        ctx.results,
+        tool,
+        &format!("{schema:?}"),
+        candidate_latency_ms,
+    );
+
+    let mut normalizations = common_normalizations();
+    normalizations.push(
+        "compared rich-vocabulary PRESENCE (Interface-or-Trait/Struct/Method labels; at least one of INHERITS/IMPLEMENTS/TYPE_REF/DEFINES edge rows on the baseline side, all four required on the candidate side), not per-row counts -- the two extractors derive node/edge sets from independent parsers".to_string(),
+    );
+
+    if candidate_ok && baseline_rich_labels && baseline_rich_edges {
+        ToolDiffRow {
+            tool: tool.to_string(),
+            comparison_verdict: "equal".to_string(),
+            better_because: None,
+            worse_because: None,
+            normalizations,
+            baseline_latency_ms: Some(call.latency_ms),
+            candidate_latency_ms: Some(candidate_latency_ms),
+        }
+    } else if candidate_ok {
+        ToolDiffRow {
+            tool: tool.to_string(),
+            comparison_verdict: "better".to_string(),
+            better_because: Some(format!(
+                "candidate schema reports the full rich vocabulary (Interface/Struct/Method + INHERITS/IMPLEMENTS/TYPE_REF/DEFINES) on this Rust fixture; baseline schema on the same repo lacks part of it (rich_labels={baseline_rich_labels} rich_edges={baseline_rich_edges} -- raw baseline schema recorded in tool-results.ndjson as evidence)"
+            )),
+            worse_because: None,
+            normalizations,
+            baseline_latency_ms: Some(call.latency_ms),
+            candidate_latency_ms: Some(candidate_latency_ms),
+        }
+    } else {
+        ToolDiffRow {
+            tool: tool.to_string(),
+            comparison_verdict: "worse".to_string(),
+            better_because: None,
+            worse_because: Some(format!(
+                "candidate schema missing required rich vocabulary: labels={label_set:?} edges={edge_set:?}"
+            )),
+            normalizations,
+            baseline_latency_ms: Some(call.latency_ms),
+            candidate_latency_ms: Some(candidate_latency_ms),
+        }
+    }
+}
+
+/// `SIMILAR_TO`/`SEMANTICALLY_RELATED` materialization: the fixture's
+/// `parse_widget_config`/`parseWidgetConfig` pair has identical bodies
+/// (so the baseline's body-shingle MinHash clears its 0.95 Jaccard
+/// threshold) and identical name-token sets (so the candidate's
+/// name-token Jaccard analog clears the same 0.95 threshold) -- both
+/// sides are then asked, via their schema surface, whether a
+/// `SIMILAR_TO` edge exists.
+fn compare_graph_schema_similarity(ctx: &mut Ctx<'_>) -> ToolDiffRow {
+    let tool = "get_graph_schema(similarity)";
+    let request = format!(r#"{{"project":"{}"}}"#, ctx.baseline_project);
+    let call = match ctx.driver.call("get_graph_schema", &request) {
+        Ok(call) => call,
+        Err(error) => return unrunnable_row(tool, &format!("baseline call failed: {error}")),
+    };
+    record_baseline_result(ctx.results, tool, &call);
+    let Some(baseline_json) = call.parsed_json() else {
+        return unrunnable_row(tool, "baseline returned no parseable JSON");
+    };
+    let baseline_text = baseline_json.to_string();
+    let baseline_similar_to = baseline_text.contains("SIMILAR_TO");
+    let baseline_semantic = baseline_text.contains("SEMANTICALLY_RELATED");
+
+    let start = Instant::now();
+    let similar = similar_to(ctx.candidate_graph);
+    let semantic = semantically_related(ctx.candidate_graph);
+    let schema =
+        graph_schema::get_graph_schema_with_similarity(ctx.candidate_graph, &similar, &semantic);
+    let candidate_latency_ms = start.elapsed().as_secs_f64() * 1000.0;
+    let candidate_pair_found = similar.iter().any(|edge| {
+        edge.source_id.contains("parse_widget_config")
+            && edge.target_id.contains("parseWidgetConfig")
+            || edge.source_id.contains("parseWidgetConfig")
+                && edge.target_id.contains("parse_widget_config")
+    });
+    let candidate_schema_row = schema
+        .edge_types
+        .iter()
+        .any(|e| e.edge_type == "SIMILAR_TO");
+    let candidate_ok = candidate_pair_found && candidate_schema_row;
+    record_candidate_result(
+        ctx.results,
+        tool,
+        &format!(
+            "similar_to={similar:?} semantically_related_count={} schema={schema:?}",
+            semantic.len()
+        ),
+        candidate_latency_ms,
+    );
+
+    let mut normalizations = common_normalizations();
+    normalizations.push(
+        "candidate SIMILAR_TO is a documented honest analog: name-token Jaccard over identifier tokens in place of the baseline's 64-permutation body-shingle MinHash (no stored source text/fingerprint on SymbolNode -- similarity.rs module docs), same 0.95 threshold, same-extension gate, same 10-edges-per-node cap, same source_id<target_id dedup; the fixture pair is constructed to clear BOTH fingerprints (identical bodies AND identical token sets) so presence is comparable".to_string(),
+    );
+    normalizations.push(format!(
+        "SEMANTICALLY_RELATED recorded, not graded: baseline_present={baseline_semantic}, candidate_count={} -- the candidate's 3-signal reduction (name-token/shared-callee/complexity-profile, re-weighted per similarity.rs) and the baseline's 11-signal score are both real but not comparable pair-for-pair on a fixture this small, and the early-exit rule removes the one engineered near-duplicate pair from BOTH sides' SEMANTICALLY_RELATED candidates",
+        semantic.len()
+    ));
+
+    if candidate_ok && baseline_similar_to {
+        ToolDiffRow {
+            tool: tool.to_string(),
+            comparison_verdict: "equal".to_string(),
+            better_because: None,
+            worse_because: None,
+            normalizations,
+            baseline_latency_ms: Some(call.latency_ms),
+            candidate_latency_ms: Some(candidate_latency_ms),
+        }
+    } else if candidate_ok {
+        normalizations.push(
+            "baseline schema reported no SIMILAR_TO row on this fixture (raw response recorded in tool-results.ndjson) -- its MinHash pipeline evidently does not emit an edge for functions this small; the candidate's name-token analog does. Different fingerprint inputs, both real -- graded incomparable, not better/worse".to_string(),
+        );
+        ToolDiffRow {
+            tool: tool.to_string(),
+            comparison_verdict: "incomparable".to_string(),
+            better_because: None,
+            worse_because: None,
+            normalizations,
+            baseline_latency_ms: Some(call.latency_ms),
+            candidate_latency_ms: Some(candidate_latency_ms),
+        }
+    } else {
+        ToolDiffRow {
+            tool: tool.to_string(),
+            comparison_verdict: "worse".to_string(),
+            better_because: None,
+            worse_because: Some(format!(
+                "candidate similarity pass did not produce the engineered SIMILAR_TO pair (pair_found={candidate_pair_found} schema_row={candidate_schema_row})"
+            )),
+            normalizations,
+            baseline_latency_ms: Some(call.latency_ms),
+            candidate_latency_ms: Some(candidate_latency_ms),
+        }
+    }
+}
+
+/// `trace_path mode=data_flow`: both sides trace from
+/// `parse_config_file` and must reach `load_widget_settings`; the
+/// candidate's hop additionally carries a [`enforcer_memory::analysis::trace::ParamLink`]
+/// with the real captured argument expression (`path`) and the
+/// documented always-`None` `parameter_name` (no extractor records
+/// callee parameter names -- data_flow.rs module docs).
+fn compare_trace_data_flow(ctx: &mut Ctx<'_>) -> ToolDiffRow {
+    let tool = "trace_path(data_flow)";
+    let request = format!(
+        r#"{{"project":"{}","function_name":"parse_config_file","mode":"data_flow"}}"#,
+        ctx.baseline_project
+    );
+    let call = match ctx.driver.call("trace_path", &request) {
+        Ok(call) => call,
+        Err(error) => return unrunnable_row(tool, &format!("baseline call failed: {error}")),
+    };
+    record_baseline_result(ctx.results, tool, &call);
+    let Some(baseline_json) = call.parsed_json() else {
+        return unrunnable_row(tool, "baseline returned no parseable JSON");
+    };
+    let baseline_ok = haystack_contains_all(&baseline_json, &["load_widget_settings"]);
+
+    let start = Instant::now();
+    let adjacency = CodeAdjacency::build(ctx.candidate_graph);
+    let start_node = ctx
+        .candidate_graph
+        .nodes()
+        .iter()
+        .find_map(|node| match node {
+            CodeNode::Function(sym) if sym.name == "parse_config_file" => Some(sym.id.clone()),
+            _ => None,
+        });
+    let (candidate_hop_ok, param_link_observed) = match &start_node {
+        Some(id) => {
+            let report = trace_data_flow(
+                &adjacency,
+                ctx.candidate_graph,
+                id,
+                &TraceCallsParams {
+                    direction: TraceDirection::Out,
+                    ..Default::default()
+                },
+            );
+            let hop_ok = report.paths.iter().any(|path| {
+                path.hops
+                    .iter()
+                    .any(|hop| hop.hop.node_id.contains("load_widget_settings"))
+            });
+            let param_link = report
+                .paths
+                .iter()
+                .flat_map(|path| path.hops.iter())
+                .find_map(|hop| hop.param_link.clone());
+            (hop_ok, param_link)
+        }
+        None => (false, None),
+    };
+    let candidate_latency_ms = start.elapsed().as_secs_f64() * 1000.0;
+    // The engineered expectation: the call site `load_widget_settings(path)`
+    // has a captured argument expression, so the hop must carry a real
+    // ParamLink whose argument_expr is "path" and whose parameter_name is
+    // the documented honest None -- a Some(..) parameter_name here would
+    // mean someone fabricated a binding no extractor records.
+    let candidate_param_ok = matches!(
+        &param_link_observed,
+        Some(link) if link.argument_expr == "path" && link.parameter_name.is_none()
+    );
+    record_candidate_result(
+        ctx.results,
+        tool,
+        &format!("hop_ok={candidate_hop_ok} param_link={param_link_observed:?}"),
+        candidate_latency_ms,
+    );
+
+    let mut normalizations = common_normalizations();
+    normalizations.push(
+        "candidate data_flow is the documented honest analog: call-graph walk plus real captured argument text (CallEdge::arg_texts -> ParamLink::argument_expr), approximation=CallGraphOnly; ParamLink::parameter_name is always None because no language extractor records callee parameter names (data_flow.rs/analysis::trace module docs) -- the same granularity as the baseline's own caller_args raw-JSON copy, which also never binds arguments to parameters by name".to_string(),
+    );
+
+    if baseline_ok && candidate_hop_ok && candidate_param_ok {
+        ToolDiffRow {
+            tool: tool.to_string(),
+            comparison_verdict: "equal".to_string(),
+            better_because: None,
+            worse_because: None,
+            normalizations,
+            baseline_latency_ms: Some(call.latency_ms),
+            candidate_latency_ms: Some(candidate_latency_ms),
+        }
+    } else {
+        ToolDiffRow {
+            tool: tool.to_string(),
+            comparison_verdict: "worse".to_string(),
+            better_because: None,
+            worse_because: Some(format!(
+                "baseline_ok={baseline_ok} candidate_hop_ok={candidate_hop_ok} candidate_param_ok={candidate_param_ok} param_link={param_link_observed:?}"
+            )),
+            normalizations,
+            baseline_latency_ms: Some(call.latency_ms),
+            candidate_latency_ms: Some(candidate_latency_ms),
+        }
+    }
+}
+
+/// Type-aware call resolution: `describe` calls `widget.draw()` on a
+/// `&Widget`-typed parameter, so the candidate's resolution ladder must
+/// resolve that call to the single `impl Drawable for Widget` method
+/// (confidence Resolved or Probable, exactly one candidate -- never an
+/// arbitrary pick from an ambiguous set), and the baseline's own
+/// `trace_path` from `describe` must reach `draw` through its
+/// equivalent resolution.
+fn compare_resolution_trace(ctx: &mut Ctx<'_>) -> ToolDiffRow {
+    let tool = "trace_path(calls,type_resolution)";
+    let request = format!(
+        r#"{{"project":"{}","function_name":"describe","mode":"calls"}}"#,
+        ctx.baseline_project
+    );
+    let call = match ctx.driver.call("trace_path", &request) {
+        Ok(call) => call,
+        Err(error) => return unrunnable_row(tool, &format!("baseline call failed: {error}")),
+    };
+    record_baseline_result(ctx.results, tool, &call);
+    let Some(baseline_json) = call.parsed_json() else {
+        return unrunnable_row(tool, "baseline returned no parseable JSON");
+    };
+    let baseline_ok = haystack_contains_all(&baseline_json, &["draw"]);
+
+    let start = Instant::now();
+    let resolved = resolution::resolve(ctx.candidate_graph);
+    let candidate_resolution = ctx
+        .candidate_graph
+        .calls()
+        .iter()
+        .zip(resolved.iter())
+        .find(|(call_edge, _)| call_edge.callee.contains("draw"))
+        .map(|(_, resolved_call)| (resolved_call.confidence, resolved_call.candidates.clone()));
+    let candidate_latency_ms = start.elapsed().as_secs_f64() * 1000.0;
+    let candidate_ok = matches!(
+        &candidate_resolution,
+        Some((confidence, candidates))
+            if matches!(confidence, ResolutionConfidence::Resolved | ResolutionConfidence::Probable)
+                && candidates.len() == 1
+                && candidates[0].contains("draw")
+    );
+    record_candidate_result(
+        ctx.results,
+        tool,
+        &format!("{candidate_resolution:?}"),
+        candidate_latency_ms,
+    );
+
+    let mut normalizations = common_normalizations();
+    normalizations.push(
+        "candidate graded on resolution::resolve's ladder output for the widget.draw() call site (exactly one candidate at Resolved/Probable confidence -- type-aware receiver match or documented lower-confidence rung, never an arbitrary pick from an Ambiguous set); baseline graded on its trace_path from describe reaching draw, its own resolution surface".to_string(),
+    );
+
+    if baseline_ok && candidate_ok {
+        ToolDiffRow {
+            tool: tool.to_string(),
+            comparison_verdict: "equal".to_string(),
+            better_because: None,
+            worse_because: None,
+            normalizations,
+            baseline_latency_ms: Some(call.latency_ms),
+            candidate_latency_ms: Some(candidate_latency_ms),
+        }
+    } else {
+        ToolDiffRow {
+            tool: tool.to_string(),
+            comparison_verdict: "worse".to_string(),
+            better_because: None,
+            worse_because: Some(format!(
+                "baseline_ok={baseline_ok} candidate_ok={candidate_ok} candidate_resolution={candidate_resolution:?}"
+            )),
+            normalizations,
+            baseline_latency_ms: Some(call.latency_ms),
+            candidate_latency_ms: Some(candidate_latency_ms),
+        }
+    }
+}
+
+/// The multi-language fixture set this row indexes on both sides: one
+/// real file per wave-B language from the repo's own committed fixtures
+/// (READ at run time, never inlined copies that could drift), plus the
+/// Rust `lib.rs` the primary fixture already uses. Each entry carries
+/// one expected symbol name unique to that language's file, so a miss
+/// is attributable to a specific language.
+const MULTI_LANG_FIXTURES: &[(&str, &str, &str)] = &[
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_go/widget.go",
+        "widget.go",
+        "NewWidget",
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_java/Widget.java",
+        "Widget.java",
+        "Shape",
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_c/widget.c",
+        "widget.c",
+        "widget_new",
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_cpp/widget.cpp",
+        "widget.cpp",
+        "DerivedWidget",
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_csharp/Widget.cs",
+        "Widget.cs",
+        "LoadWidgetSettings",
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_php/Widget.php",
+        "Widget.php",
+        "loadWidgetSettings",
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/code_graph/app.py",
+        "app.py",
+        "list_widgets",
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/code_graph/server.ts",
+        "server.ts",
+        "listWidgets",
+    ),
+];
+
+/// Build a git-backed multi-language fixture repo (8 committed fixture
+/// files + the Rust `lib.rs`) in a tempdir; returns the tempdir, its
+/// forward-slash path, and the list of file paths for the candidate
+/// indexer.
+fn build_multi_language_repo() -> Result<(tempfile::TempDir, String, Vec<PathBuf>), BoxError> {
+    let dir = tempfile::tempdir()?;
+    let root = workspace_root();
+    let mut files: Vec<PathBuf> = Vec::new();
+
+    let lib_dest = dir.path().join("lib.rs");
+    std::fs::write(&lib_dest, FIXTURE_LIB_RS)?;
+    files.push(lib_dest);
+
+    for (source_rel, dest_name, _symbol) in MULTI_LANG_FIXTURES {
+        let dest = dir.path().join(dest_name);
+        std::fs::copy(root.join(source_rel), &dest)?;
+        files.push(dest);
+    }
+
+    run_git(dir.path(), &["init", "--quiet"])?;
+    run_git(
+        dir.path(),
+        &["config", "user.email", "x06-parity@example.com"],
+    )?;
+    run_git(dir.path(), &["config", "user.name", "x06-parity"])?;
+    run_git(dir.path(), &["add", "-A"])?;
+    run_git(
+        dir.path(),
+        &[
+            "commit",
+            "--quiet",
+            "-m",
+            "x06-parity multi-language fixture",
+        ],
+    )?;
+
+    let forward_slash_path = dir.path().to_string_lossy().replace('\\', "/");
+    Ok((dir, forward_slash_path, files))
+}
+
+/// Multi-language indexing: index the SAME 9-language fixture set on
+/// both sides, then require one language-unique symbol per file to be
+/// findable on each side (baseline: one `search_graph` lookup per
+/// symbol; candidate: node-name containment over the indexed
+/// [`CodeGraph`]).
+fn compare_multi_language(ctx: &mut Ctx<'_>) -> ToolDiffRow {
+    let tool = "index_repository(multi_language)";
+
+    let built = match build_multi_language_repo() {
+        Ok(built) => built,
+        Err(error) => return unrunnable_row(tool, &format!("fixture build failed: {error}")),
+    };
+    let (_dir, repo_path, files) = built;
+
+    let index_request =
+        format!(r#"{{"repo_path":"{repo_path}","name":"x06parity-multilang","mode":"full"}}"#);
+    let index_call = match ctx.driver.call("index_repository", &index_request) {
+        Ok(call) => call,
+        Err(error) => return unrunnable_row(tool, &format!("baseline index failed: {error}")),
+    };
+    record_baseline_result(ctx.results, "index_repository(multi_language)", &index_call);
+    let Some(project) = index_call.parsed_json().and_then(|v| {
+        v.get("project")
+            .and_then(|p| p.as_str())
+            .map(str::to_string)
+    }) else {
+        return unrunnable_row(
+            tool,
+            "baseline multi-language index returned no project name",
+        );
+    };
+
+    let mut expected: Vec<&str> = vec!["parse_config_file"];
+    expected.extend(MULTI_LANG_FIXTURES.iter().map(|(_, _, symbol)| *symbol));
+
+    let mut baseline_missing: Vec<String> = Vec::new();
+    let mut baseline_latency_total = index_call.latency_ms;
+    for symbol in &expected {
+        let request = format!(r#"{{"project":"{project}","query":"{symbol}"}}"#);
+        let call = match ctx.driver.call("search_graph", &request) {
+            Ok(call) => call,
+            Err(error) => {
+                return unrunnable_row(tool, &format!("baseline search_graph failed: {error}"))
+            }
+        };
+        baseline_latency_total += call.latency_ms;
+        record_baseline_result(
+            ctx.results,
+            &format!("search_graph(multi_language:{symbol})"),
+            &call,
+        );
+        let found = call
+            .parsed_json()
+            .map(|json| haystack_contains_all(&json, &[symbol]))
+            .unwrap_or(false);
+        if !found {
+            baseline_missing.push((*symbol).to_string());
+        }
+    }
+
+    let start = Instant::now();
+    let candidate_outcome = (|| -> Result<Vec<String>, BoxError> {
+        let mut graph = CodeGraph::new();
+        graph.index_repository(Path::new(&repo_path), &files, &Manifest::default())?;
+        let nodes_debug = format!("{:?}", graph.nodes());
+        Ok(expected
+            .iter()
+            .filter(|symbol| !nodes_debug.contains(**symbol))
+            .map(|symbol| (*symbol).to_string())
+            .collect())
+    })();
+    let candidate_latency_ms = start.elapsed().as_secs_f64() * 1000.0;
+    let (candidate_missing, candidate_error) = match candidate_outcome {
+        Ok(missing) => (missing, None),
+        Err(error) => (
+            expected.iter().map(|s| (*s).to_string()).collect(),
+            Some(error.to_string()),
+        ),
+    };
+    record_candidate_result(
+        ctx.results,
+        tool,
+        &format!("missing={candidate_missing:?} error={candidate_error:?}"),
+        candidate_latency_ms,
+    );
+
+    // Best-effort cleanup of the extra baseline project.
+    let _ = ctx
+        .driver
+        .call("delete_project", &format!(r#"{{"project":"{project}"}}"#));
+
+    let mut normalizations = common_normalizations();
+    normalizations.push(
+        "same 9-language fixture set (Rust, Go, Java, C, C++, C#, PHP, Python, TypeScript -- committed repo fixtures, copied at run time) indexed on both sides; one language-unique symbol per file must be findable per side (baseline via search_graph, candidate via node-name containment) -- per-language attribution, not total node-count equality".to_string(),
+    );
+
+    if baseline_missing.is_empty() && candidate_missing.is_empty() {
+        ToolDiffRow {
+            tool: tool.to_string(),
+            comparison_verdict: "equal".to_string(),
+            better_because: None,
+            worse_because: None,
+            normalizations,
+            baseline_latency_ms: Some(baseline_latency_total),
+            candidate_latency_ms: Some(candidate_latency_ms),
+        }
+    } else if candidate_missing.is_empty() {
+        ToolDiffRow {
+            tool: tool.to_string(),
+            comparison_verdict: "better".to_string(),
+            better_because: Some(format!(
+                "candidate extracted every per-language symbol; baseline search_graph could not find {baseline_missing:?} in its own index of the same repo (raw responses recorded in tool-results.ndjson as evidence)"
+            )),
+            worse_because: None,
+            normalizations,
+            baseline_latency_ms: Some(baseline_latency_total),
+            candidate_latency_ms: Some(candidate_latency_ms),
+        }
+    } else {
+        ToolDiffRow {
+            tool: tool.to_string(),
+            comparison_verdict: "worse".to_string(),
+            better_because: None,
+            worse_because: Some(format!(
+                "candidate_missing={candidate_missing:?} baseline_missing={baseline_missing:?} candidate_error={candidate_error:?}"
+            )),
+            normalizations,
+            baseline_latency_ms: Some(baseline_latency_total),
+            candidate_latency_ms: Some(candidate_latency_ms),
+        }
+    }
+}
+
+/// The cross-repo fixture pair: a "server" project declaring an Express
+/// route (`router.get("/widgets", ...)`) and a "client" project whose
+/// only call is `fetch("/widgets")` -- the exact literal-URL-to-declared-
+/// route shape `cross_repo::match_cross_repo` documents as its one real
+/// detector (`CROSS_HTTP_CALLS`).
+const CROSS_REPO_SERVER_TS: &str = "import { Router } from \"express\";\n\nconst router = Router();\n\nrouter.get(\"/widgets\", (req, res) => {\n  res.json([]);\n});\n\nexport { router };\n";
+const CROSS_REPO_CLIENT_TS: &str =
+    "export function fetchWidgets() {\n  return fetch(\"/widgets\");\n}\n";
+
+fn build_cross_repo_pair(
+) -> Result<(tempfile::TempDir, String, tempfile::TempDir, String), BoxError> {
+    let server_dir = tempfile::tempdir()?;
+    std::fs::write(server_dir.path().join("server.ts"), CROSS_REPO_SERVER_TS)?;
+    let client_dir = tempfile::tempdir()?;
+    std::fs::write(client_dir.path().join("client.ts"), CROSS_REPO_CLIENT_TS)?;
+    for dir in [server_dir.path(), client_dir.path()] {
+        run_git(dir, &["init", "--quiet"])?;
+        run_git(dir, &["config", "user.email", "x06-parity@example.com"])?;
+        run_git(dir, &["config", "user.name", "x06-parity"])?;
+        run_git(dir, &["add", "-A"])?;
+        run_git(
+            dir,
+            &["commit", "--quiet", "-m", "x06-parity cross-repo fixture"],
+        )?;
+    }
+    let server_path = server_dir.path().to_string_lossy().replace('\\', "/");
+    let client_path = client_dir.path().to_string_lossy().replace('\\', "/");
+    Ok((server_dir, server_path, client_dir, client_path))
+}
+
+/// Candidate-side cross-repo match over the fixture pair -- shared by
+/// the live parity row and the baseline-independent unit test below, so
+/// the unit test exercises exactly the code path the parity row grades.
+fn candidate_cross_repo_report(
+    server_path: &str,
+    client_path: &str,
+) -> Result<enforcer_memory::cross_repo::CrossRepoReport, BoxError> {
+    let mut server_graph = CodeGraph::new();
+    server_graph.index_repository(
+        Path::new(server_path),
+        &[Path::new(server_path).join("server.ts")],
+        &Manifest::default(),
+    )?;
+    let mut client_graph = CodeGraph::new();
+    client_graph.index_repository(
+        Path::new(client_path),
+        &[Path::new(client_path).join("client.ts")],
+        &Manifest::default(),
+    )?;
+    let mut targets: BTreeMap<String, &CodeGraph> = BTreeMap::new();
+    targets.insert("x06parity-crossrepo-server".to_string(), &server_graph);
+    Ok(match_cross_repo(
+        "x06parity-crossrepo-client",
+        &client_graph,
+        &targets,
+    ))
+}
+
+/// `index_repository(mode="cross-repo-intelligence")`: index the
+/// server/client fixture pair on the baseline, run its cross-repo
+/// matcher, and compare against `cross_repo::match_cross_repo` over the
+/// same two graphs -- graded on finding the one engineered
+/// `CROSS_HTTP_CALLS` link plus honest zeros for the five protocols
+/// this crate documents as having no detector.
+fn compare_cross_repo(ctx: &mut Ctx<'_>) -> ToolDiffRow {
+    let tool = "index_repository(cross-repo-intelligence)";
+
+    let built = match build_cross_repo_pair() {
+        Ok(built) => built,
+        Err(error) => return unrunnable_row(tool, &format!("fixture build failed: {error}")),
+    };
+    let (_server_dir, server_path, _client_dir, client_path) = built;
+
+    let mut baseline_latency_total = 0.0;
+    let mut baseline_projects: Vec<String> = Vec::new();
+    for (name, path) in [
+        ("x06parity-crossrepo-server", &server_path),
+        ("x06parity-crossrepo-client", &client_path),
+    ] {
+        let request = format!(r#"{{"repo_path":"{path}","name":"{name}","mode":"full"}}"#);
+        let call = match ctx.driver.call("index_repository", &request) {
+            Ok(call) => call,
+            Err(error) => return unrunnable_row(tool, &format!("baseline index failed: {error}")),
+        };
+        baseline_latency_total += call.latency_ms;
+        record_baseline_result(ctx.results, &format!("index_repository({name})"), &call);
+        match call.parsed_json().and_then(|v| {
+            v.get("project")
+                .and_then(|p| p.as_str())
+                .map(str::to_string)
+        }) {
+            Some(project) => baseline_projects.push(project),
+            None => {
+                return unrunnable_row(tool, "baseline cross-repo index returned no project name")
+            }
+        }
+    }
+
+    let cross_request = format!(
+        r#"{{"repo_path":"{client_path}","mode":"cross-repo-intelligence","target_projects":["*"]}}"#
+    );
+    let cross_call = match ctx.driver.call("index_repository", &cross_request) {
+        Ok(call) => call,
+        Err(error) => {
+            return unrunnable_row(tool, &format!("baseline cross-repo call failed: {error}"))
+        }
+    };
+    baseline_latency_total += cross_call.latency_ms;
+    record_baseline_result(ctx.results, tool, &cross_call);
+    let baseline_total_edges = cross_call
+        .parsed_json()
+        .and_then(|v| v.get("total_cross_edges").and_then(|n| n.as_u64()));
+
+    let start = Instant::now();
+    let candidate_outcome = candidate_cross_repo_report(&server_path, &client_path);
+    let candidate_latency_ms = start.elapsed().as_secs_f64() * 1000.0;
+    let (candidate_ok, candidate_summary) = match &candidate_outcome {
+        Ok(report) => {
+            let http_found = report.cross_http_calls.iter().any(|edge| {
+                edge.method == "GET"
+                    && edge.path == "/widgets"
+                    && edge.target_project == "x06parity-crossrepo-server"
+            });
+            let honest_zeros = report.cross_async_calls == 0
+                && report.cross_channel == 0
+                && report.cross_grpc_calls == 0
+                && report.cross_graphql_calls == 0
+                && report.cross_trpc_calls == 0;
+            (
+                http_found && honest_zeros && report.total_cross_edges() >= 1,
+                format!("{report:?}"),
+            )
+        }
+        Err(error) => (false, format!("error: {error}")),
+    };
+    record_candidate_result(ctx.results, tool, &candidate_summary, candidate_latency_ms);
+
+    // Best-effort cleanup of both extra baseline projects.
+    for project in &baseline_projects {
+        let _ = ctx
+            .driver
+            .call("delete_project", &format!(r#"{{"project":"{project}"}}"#));
+    }
+
+    let mut normalizations = common_normalizations();
+    normalizations.push(
+        "candidate cross-repo mode is the documented honest analog (cross_repo.rs): CROSS_HTTP_CALLS via literal-URL-to-declared-route matching only, with the five other protocol counts (ASYNC/CHANNEL/GRPC/GRAPHQL/TRPC) reported as real zeros because no upstream extractor exists -- graded on finding the one engineered GET /widgets link AND keeping those zeros honest, mirroring the baseline's §9.5 response shape (typed count per protocol + total_cross_edges)".to_string(),
+    );
+
+    match (candidate_ok, baseline_total_edges) {
+        (true, Some(total)) if total >= 1 => ToolDiffRow {
+            tool: tool.to_string(),
+            comparison_verdict: "equal".to_string(),
+            better_because: None,
+            worse_because: None,
+            normalizations,
+            baseline_latency_ms: Some(baseline_latency_total),
+            candidate_latency_ms: Some(candidate_latency_ms),
+        },
+        (true, Some(0)) => {
+            normalizations.push(
+                "baseline's cross-repo matcher reported total_cross_edges=0 on this fixture pair (raw response recorded in tool-results.ndjson as evidence) -- its Route/Channel-node mechanism evidently requires more than a bare fetch(\"/path\") literal; the candidate's literal-URL matcher finds it. Different matching inputs, both real -- graded incomparable, not better/worse".to_string(),
+            );
+            ToolDiffRow {
+                tool: tool.to_string(),
+                comparison_verdict: "incomparable".to_string(),
+                better_because: None,
+                worse_because: None,
+                normalizations,
+                baseline_latency_ms: Some(baseline_latency_total),
+                candidate_latency_ms: Some(candidate_latency_ms),
+            }
+        }
+        (true, None) => {
+            normalizations.push(
+                "baseline cross-repo response carried no parseable total_cross_edges field (raw response recorded in tool-results.ndjson as evidence); candidate produced the full §9.5-shaped report".to_string(),
+            );
+            ToolDiffRow {
+                tool: tool.to_string(),
+                comparison_verdict: "incomparable".to_string(),
+                better_because: None,
+                worse_because: None,
+                normalizations,
+                baseline_latency_ms: Some(baseline_latency_total),
+                candidate_latency_ms: Some(candidate_latency_ms),
+            }
+        }
+        (false, _) | (true, Some(_)) => ToolDiffRow {
+            tool: tool.to_string(),
+            comparison_verdict: if candidate_ok {
+                "equal".to_string()
+            } else {
+                "worse".to_string()
+            },
+            better_because: None,
+            worse_because: if candidate_ok {
+                None
+            } else {
+                Some(format!(
+                    "candidate cross-repo match failed: {candidate_summary} (baseline_total_edges={baseline_total_edges:?})"
+                ))
+            },
+            normalizations,
+            baseline_latency_ms: Some(baseline_latency_total),
+            candidate_latency_ms: Some(candidate_latency_ms),
+        },
+    }
+}
+
 /// Run the full live comparison. Returns the [`KgParityDocument`] plus
 /// the raw per-tool result rows (for `tool-results.ndjson`) -- never
 /// partially fabricated: every row is either a real comparison or an
@@ -1549,6 +2491,13 @@ pub fn run_live_parity_comparison() -> Result<(KgParityDocument, Vec<ToolResultR
                 "index_repository",
                 "delete_project",
                 "ingest_traces",
+                "query_graph(complexity)",
+                "get_graph_schema(rich_vocab)",
+                "get_graph_schema(similarity)",
+                "trace_path(data_flow)",
+                "trace_path(calls,type_resolution)",
+                "index_repository(multi_language)",
+                "index_repository(cross-repo-intelligence)",
             ];
             let rows: Vec<ToolDiffRow> = tool_names
                 .iter()
@@ -1603,8 +2552,26 @@ pub fn run_live_parity_comparison() -> Result<(KgParityDocument, Vec<ToolResultR
         compare_index_status(&mut ctx, Path::new(&fixture_path)),
         compare_detect_changes(&mut ctx),
         compare_manage_adr(&mut ctx),
+        // X06 core-parity extension rows that query the PRIMARY baseline
+        // project MUST run before compare_delete_project: that row
+        // indexes the same fixture repo_path under a throwaway name and
+        // deletes it, which the baseline treats as invalidating the
+        // primary project too (projects are keyed by repo path in its
+        // store manager -- observed empirically: every primary-project
+        // call after the throwaway delete exits nonzero with empty
+        // stdout, while fresh-project calls keep working).
+        compare_query_graph_complexity(&mut ctx),
+        compare_graph_schema_rich_vocab(&mut ctx),
+        compare_graph_schema_similarity(&mut ctx),
+        compare_trace_data_flow(&mut ctx),
+        compare_resolution_trace(&mut ctx),
+        // Rows below here either use their own throwaway projects or a
+        // store-lookup-free baseline stub (ingest_traces, §15.2), so
+        // primary-project invalidation cannot affect them.
         compare_delete_project(&mut ctx, Path::new(&fixture_path)),
         compare_ingest_traces(&mut ctx),
+        compare_multi_language(&mut ctx),
+        compare_cross_repo(&mut ctx),
     ];
     rows.sort_by(|a, b| a.tool.cmp(&b.tool));
 
@@ -1764,6 +2731,45 @@ mod tests {
         assert_eq!(state, BaselineState::NotInstalled);
         let row = unrunnable_row("get_graph_schema", "baseline not available");
         assert_eq!(row.comparison_verdict, "unrunnable: baseline not available");
+    }
+
+    /// Baseline-independent coverage for `cross_repo::match_cross_repo`
+    /// (the one core-parity module with no test coverage in `tests/`
+    /// before this wave): the engineered server/client fixture pair must
+    /// produce exactly one `CROSS_HTTP_CALLS` edge (GET /widgets into the
+    /// server project) and honest zeros for the five protocols the
+    /// module documents as having no detector -- exercised through the
+    /// same `candidate_cross_repo_report` helper the live parity row
+    /// grades, so this test and that row can never diverge silently.
+    #[test]
+    fn cross_repo_match_finds_the_engineered_http_call_and_keeps_protocol_zeros_honest(
+    ) -> TestResult {
+        let (_server_dir, server_path, _client_dir, client_path) = build_cross_repo_pair()?;
+        let report = candidate_cross_repo_report(&server_path, &client_path)?;
+
+        assert_eq!(report.project, "x06parity-crossrepo-client");
+        assert_eq!(report.projects_scanned, 1);
+        assert_eq!(
+            report.cross_http_calls.len(),
+            1,
+            "expected exactly the one engineered fetch(\"/widgets\") -> GET /widgets match, got {:?}",
+            report.cross_http_calls
+        );
+        let edge = &report.cross_http_calls[0];
+        assert_eq!(edge.method, "GET");
+        assert_eq!(edge.path, "/widgets");
+        assert_eq!(edge.source_project, "x06parity-crossrepo-client");
+        assert_eq!(edge.target_project, "x06parity-crossrepo-server");
+
+        // Honest zeros, never omitted/fabricated counts (cross_repo.rs
+        // module docs + baseline §9.5 shape).
+        assert_eq!(report.cross_async_calls, 0);
+        assert_eq!(report.cross_channel, 0);
+        assert_eq!(report.cross_grpc_calls, 0);
+        assert_eq!(report.cross_graphql_calls, 0);
+        assert_eq!(report.cross_trpc_calls, 0);
+        assert_eq!(report.total_cross_edges(), 1);
+        Ok(())
     }
 
     /// The real end-to-end run: spawns the actual installed baseline
