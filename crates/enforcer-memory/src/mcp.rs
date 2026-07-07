@@ -14,18 +14,16 @@
 //! # Stateless-per-call dispatch (honest wiring, no invented persistence)
 //!
 //! Most tools in [`dispatch_tool`] are a pure function of `(tool name,
-//! JSON args) -> JSON result`: tools that need a code graph rebuild it
-//! fresh from `repoPath` within the same call (no incremental reuse
-//! across calls yet, recorded honestly rather than faked); `manage_adr`
-//! takes/returns the ADR list inline so the caller owns persistence. The
-//! three project-registry tools (`list_projects`/`delete_project`/
-//! `index_status`) are the one exception: they operate over a
-//! caller-supplied `storesDir` on-disk registry ([`crate::projects`]),
-//! not a freshly-rebuilt in-memory graph, since that is what their
-//! backing library functions actually persist across calls. This is also
-//! what makes the CLI mirror ([`crate::cli`]) trivially call-for-call
-//! identical to the MCP surface: both call the exact same
-//! [`dispatch_tool`].
+//! JSON args) -> JSON result`: tools that need a code graph can rebuild
+//! it fresh from `repoPath` within the same call. Store-backed callers
+//! may additionally pass `storesDir`; `query_graph` then consumes the
+//! existing Store operational graph projection and only falls back to a
+//! fresh `repoPath` index if no initialized projection exists. The
+//! project-registry tools (`list_projects`/`delete_project`/
+//! `index_status`) also operate over a caller-supplied `storesDir`
+//! on-disk registry ([`crate::projects`]). This is what makes the CLI
+//! mirror ([`crate::cli`]) trivially call-for-call identical to the MCP
+//! surface: both call the exact same [`dispatch_tool`].
 //!
 //! # Tool wiring
 //!
@@ -140,6 +138,8 @@ use crate::search::search_graph::{
     search_graph_with_semantic, NodeLabel as SearchGraphNodeLabel, SearchGraphSpec,
 };
 use crate::snippet;
+use crate::store::sqlite::OperationalGraph;
+use crate::store::Store;
 use crate::traces::{TraceRecord, TraceStore};
 
 use enforcer_mcp::transport::{
@@ -312,7 +312,8 @@ fn tool_input_schema(name: &str) -> Value {
             "required": ["repoPath", "query"],
             "properties": {
                 "repoPath": { "type": "string" },
-                "query": { "type": "string", "description": "Read-only Cypher-subset query string." }
+                "query": { "type": "string", "description": "Read-only Cypher-subset query string." },
+                "storesDir": { "type": "string", "description": "Optional Store registry root. When present and initialized for repoPath, query_graph reads the Store-backed operational graph projection instead of rebuilding from repoPath." }
             }
         }),
         "trace_path" => json!({
@@ -450,7 +451,7 @@ fn tool_input_schema(name: &str) -> Value {
 }
 
 /// The honest "not wired yet" shape every unlanded tool/mode returns.
-/// Never a stub result and never fake data (workpack hard requirement) --
+/// Never a partial result and never invented data (workpack hard requirement) --
 /// callers can match on `capabilityState` to distinguish this from a real
 /// error.
 #[derive(Debug, Clone, serde::Serialize)]
@@ -504,7 +505,7 @@ pub fn dispatch_tool(name: &str, args: &Value) -> Value {
         return not_wired(
             name,
             format!(
-                "{name} has no landed enforcer-memory library function yet (owned by a parallel lane); returning honest not_wired state rather than a stub result"
+                "{name} has no landed enforcer-memory library function yet (owned by a parallel lane); returning honest not_wired state rather than invented data"
             ),
         );
     }
@@ -639,6 +640,94 @@ fn build_graph(repo_path: &str) -> Result<CodeGraph, Value> {
         .index_repository(&root, &files, &Manifest::default())
         .map_err(|source| tool_error("index_repository", format!("index failed: {source}")))?;
     Ok(graph)
+}
+
+enum GraphSource {
+    StoreProjection,
+    RepoPathIndex,
+}
+
+impl GraphSource {
+    fn as_str(&self) -> &'static str {
+        match self {
+            GraphSource::StoreProjection => "storeProjection",
+            GraphSource::RepoPathIndex => "repoPathIndex",
+        }
+    }
+}
+
+struct QueryGraphInput {
+    graph: CodeGraph,
+    source: GraphSource,
+}
+
+fn build_query_graph(repo_path: &str, args: &Value) -> Result<QueryGraphInput, Value> {
+    if let Some(graph) = try_build_graph_from_store_projection(repo_path, args)? {
+        return Ok(QueryGraphInput {
+            graph,
+            source: GraphSource::StoreProjection,
+        });
+    }
+
+    Ok(QueryGraphInput {
+        graph: build_graph(repo_path)?,
+        source: GraphSource::RepoPathIndex,
+    })
+}
+
+fn try_build_graph_from_store_projection(
+    repo_path: &str,
+    args: &Value,
+) -> Result<Option<CodeGraph>, Value> {
+    let Some(stores_dir) = args.get("storesDir").and_then(Value::as_str) else {
+        return Ok(None);
+    };
+    let repo_root = crate::ids::repo_root(repo_path)
+        .map_err(|source| tool_error("query_graph", format!("invalid repoPath: {source}")))?;
+    let store = match Store::open(Path::new(stores_dir), &repo_root) {
+        Ok(store) => store,
+        Err(crate::error::MemoryError::UnknownProject { .. }) => return Ok(None),
+        Err(source) => {
+            return Err(tool_error(
+                "query_graph",
+                format!("failed to open Store projection: {source}"),
+            ))
+        }
+    };
+    let sqlite_path = store.sqlite_path();
+    if !sqlite_path.exists() {
+        return Ok(None);
+    }
+
+    let operational = OperationalGraph::open_read_only(&sqlite_path).map_err(|source| {
+        tool_error(
+            "query_graph",
+            format!("failed to open Store operational graph projection: {source}"),
+        )
+    })?;
+    if operational.node_count().map_err(|source| {
+        tool_error(
+            "query_graph",
+            format!("failed to read Store operational graph node count: {source}"),
+        )
+    })? == 0
+    {
+        return Ok(None);
+    }
+
+    let nodes = operational.nodes_snapshot().map_err(|source| {
+        tool_error(
+            "query_graph",
+            format!("failed to read Store operational graph nodes: {source}"),
+        )
+    })?;
+    let edges = operational.edges_snapshot().map_err(|source| {
+        tool_error(
+            "query_graph",
+            format!("failed to read Store operational graph edges: {source}"),
+        )
+    })?;
+    Ok(Some(CodeGraph::from_store_projection(&nodes, &edges)))
 }
 
 fn require_str<'a>(args: &'a Value, field: &str) -> Result<&'a str, Value> {
@@ -1056,21 +1145,22 @@ fn handle_query_graph(args: &Value) -> Value {
         Err(err) => return err,
     };
 
-    let graph = match build_graph(repo_path) {
-        Ok(graph) => graph,
+    let query_input = match build_query_graph(repo_path, args) {
+        Ok(input) => input,
         Err(err) => return err,
     };
     let parsed = match graph_query::parse(query) {
         Ok(parsed) => parsed,
         Err(source) => return tool_error("query_graph", format!("parse error: {source}")),
     };
-    let adjacency = CodeAdjacency::build(&graph);
-    let rows = match graph_query::execute(&parsed, &adjacency, &graph) {
+    let adjacency = CodeAdjacency::build(&query_input.graph);
+    let rows = match graph_query::execute(&parsed, &adjacency, &query_input.graph) {
         Ok(rows) => rows,
         Err(source) => return tool_error("query_graph", format!("execution error: {source}")),
     };
     json!({
         "ok": true,
+        "graphSource": query_input.source.as_str(),
         "rowCount": rows.len(),
         "rows": rows.into_iter().map(|row| {
             let map: BTreeMap<String, String> = row.into_iter().collect();

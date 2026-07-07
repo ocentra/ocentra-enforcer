@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-kg",
-  "generatedAt": "2026-07-07T01:20:00Z",
-  "status": "partial",
+  "generatedAt": "2026-07-07T07:26:00Z",
+  "status": "green",
   "canonicalDataSource": {
     "sourceOfTruth": "Store append logs plus manifest",
     "derivedProjections": [
@@ -30,7 +30,8 @@
     "replay_procedural_and_routes_from_store",
     "project_model_runtime_observations_from_store",
     "replay_trace_records_from_store",
-    "store_backed_projection_rebuilds_from_a_real_code_graph_fixture"
+    "store_backed_projection_rebuilds_from_a_real_code_graph_fixture",
+    "query_graph_prefers_store_projection_when_stores_dir_is_available"
   ],
   "baselineParity": {
     "artifactPath": "proof/memory/x06-kg-parity.json",
@@ -42,8 +43,12 @@
     "toolsIncomparable": 2,
     "toolsUnrunnable": 0
   },
-  "remaining": [
-    "Claude parity lane can still improve exact codebase-memory-mcp behavioral equivalence, but current parity artifact has no worse/unrunnable rows.",
-    "Query UX still builds a CodeGraph from repoPath directly; the Store-backed projection proof is now present, but the query entrypoint is not yet routed through it."
+  "completed": [
+    "Store append logs plus manifest remain the canonical source of truth; CodeGraph, SQLite operational graph, and query results are derived projections.",
+    "query_graph now prefers an initialized Store operational graph projection when storesDir is supplied for repoPath, and only falls back to fresh repoPath indexing when no projection exists.",
+    "Store-backed query proof uses an empty repoPath directory plus Store-only graph events, so a passing query result proves the UX is no longer reading source files to answer that path."
+  ],
+  "followUps": [
+    "Claude parity lane can still improve exact codebase-memory-mcp behavioral equivalence, but current parity artifact has no worse/unrunnable rows."
   ]
 }

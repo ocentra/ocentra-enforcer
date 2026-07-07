@@ -7,7 +7,7 @@
 //! is never hand-edited and can always be thrown away and rebuilt from
 //! the log.
 
-use rusqlite::Connection;
+use rusqlite::{Connection, OpenFlags};
 
 use crate::error::Result;
 use crate::schema::GraphEventKind;
@@ -24,6 +24,15 @@ impl OperationalGraph {
     pub fn open(path: &std::path::Path) -> Result<Self> {
         let conn = Connection::open(path)?;
         Self::from_connection(conn)
+    }
+
+    /// Open an existing SQLite read model without creating or migrating
+    /// anything. Query surfaces use this when they need to consume the
+    /// Store-backed projection without turning a read into a hidden index
+    /// build or filesystem mutation.
+    pub fn open_read_only(path: &std::path::Path) -> Result<Self> {
+        let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+        Ok(Self { conn })
     }
 
     /// An in-memory database, useful for tests and one-shot rebuilds
@@ -118,6 +127,20 @@ impl OperationalGraph {
             .conn
             .prepare("SELECT node_id, node_kind FROM nodes ORDER BY node_id")?;
         let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        let mut out = Vec::new();
+        for row in rows {
+            out.push(row?);
+        }
+        Ok(out)
+    }
+
+    /// Snapshot of every `(from_id, to_id, label)` edge, sorted for
+    /// deterministic projection replay and tests.
+    pub fn edges_snapshot(&self) -> Result<Vec<(String, String, String)>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT from_id, to_id, label FROM edges ORDER BY from_id, to_id, label")?;
+        let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?;
         let mut out = Vec::new();
         for row in rows {
             out.push(row?);

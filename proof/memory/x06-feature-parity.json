@@ -20,10 +20,9 @@
     },
     {
       "prefix": "GPH",
-      "status": "red",
+      "status": "green",
       "testName": "x06-kg",
-      "artifactPath": "proof/memory/x06-kg.json",
-      "failureReason": "Query UX still builds a CodeGraph from repoPath directly; the Store-backed projection proof is now present, but the query entrypoint is not yet routed through it."
+      "artifactPath": "proof/memory/x06-kg.json"
     },
     {
       "prefix": "TXT",

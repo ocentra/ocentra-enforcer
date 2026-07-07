@@ -5,6 +5,9 @@
 //! original inline module's `.unwrap()`/`.expect(...)` calls).
 
 use enforcer_memory::mcp::{dispatch_tool, tool_descriptors, wrap_envelope};
+use enforcer_memory::schema::{GraphEventKind, GraphEventLogEntry, SCHEMA_VERSION};
+use enforcer_memory::store::sqlite::OperationalGraph;
+use enforcer_memory::store::Store;
 use serde_json::json;
 use std::error::Error;
 
@@ -82,7 +85,11 @@ fn wrap_envelope_error_omits_structured_content() -> TestResult {
     let text = envelope["content"][0]["text"]
         .as_str()
         .ok_or("content[0].text must be a string")?;
-    assert!(text.contains("unknown tool"));
+    let payload: serde_json::Value = serde_json::from_str(text)?;
+    assert_eq!(
+        payload["error"]["message"],
+        json!("unknown tool: totally_unknown_tool")
+    );
     Ok(())
 }
 
@@ -107,6 +114,73 @@ fn get_graph_schema_on_empty_repo_returns_zero_totals() -> TestResult {
     );
     assert_eq!(result["ok"], json!(true));
     assert_eq!(result["totalNodes"], json!(0));
+    Ok(())
+}
+
+#[test]
+fn query_graph_prefers_store_projection_when_stores_dir_is_available() -> TestResult {
+    let repo_dir = tempfile::tempdir()?;
+    let stores_dir = tempfile::tempdir()?;
+    let repo_root = enforcer_memory::ids::repo_root(&repo_dir.path().to_string_lossy())?;
+    let mut store = Store::init(stores_dir.path(), &repo_root, "2026-07-07T00:00:00Z")?;
+
+    let file_id = "file:store_only.rs".to_owned();
+    let symbol_id = "sym:store_only.rs:7:store_only_symbol".to_owned();
+    store.append_graph_event_entry(|seq| GraphEventLogEntry {
+        schema_version: SCHEMA_VERSION,
+        seq,
+        id: format!("evt-node-file-{seq}"),
+        event: GraphEventKind::NodeAdded {
+            node_id: file_id.clone(),
+            node_kind: "File".to_owned(),
+        },
+        ts: "2026-07-07T00:00:00Z".to_owned(),
+        supersedes_seq: None,
+    })?;
+    store.append_graph_event_entry(|seq| GraphEventLogEntry {
+        schema_version: SCHEMA_VERSION,
+        seq,
+        id: format!("evt-node-symbol-{seq}"),
+        event: GraphEventKind::NodeAdded {
+            node_id: symbol_id.clone(),
+            node_kind: "Function".to_owned(),
+        },
+        ts: "2026-07-07T00:00:00Z".to_owned(),
+        supersedes_seq: None,
+    })?;
+    store.append_graph_event_entry(|seq| GraphEventLogEntry {
+        schema_version: SCHEMA_VERSION,
+        seq,
+        id: format!("evt-edge-contains-{seq}"),
+        event: GraphEventKind::EdgeAdded {
+            from: file_id.clone(),
+            to: symbol_id.clone(),
+            label: "contains".to_owned(),
+        },
+        ts: "2026-07-07T00:00:00Z".to_owned(),
+        supersedes_seq: None,
+    })?;
+
+    let sqlite_path = store.sqlite_path();
+    let entries = store.read_graph_event_entries()?;
+    drop(store);
+    let mut operational = OperationalGraph::open(&sqlite_path)?;
+    operational.rebuild(&entries.entries)?;
+
+    let result = dispatch_tool(
+        "query_graph",
+        &json!({
+            "repoPath": repo_dir.path().to_string_lossy(),
+            "storesDir": stores_dir.path().to_string_lossy(),
+            "query": "MATCH (f:Function) RETURN f.name ORDER BY f.name"
+        }),
+    );
+
+    assert_eq!(result["ok"], json!(true));
+    assert_eq!(result["graphSource"], json!("storeProjection"));
+    assert_eq!(result["rowCount"], json!(1));
+    assert_eq!(result["rows"][0]["f"], json!(symbol_id));
+
     Ok(())
 }
 

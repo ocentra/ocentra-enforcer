@@ -731,6 +731,80 @@ impl CodeGraph {
         Self::default()
     }
 
+    /// Rebuild a minimal [`CodeGraph`] read model from the Store-backed
+    /// operational projection. This is intentionally lossy: Store graph
+    /// events are the canonical facts here (`node_id`, `node_kind`, edge
+    /// endpoints, label), so fields that require source text or git
+    /// history are left empty instead of guessed.
+    pub fn from_store_projection(
+        nodes: &[(String, String)],
+        edges: &[(String, String, String)],
+    ) -> Self {
+        let mut graph = Self::new();
+
+        for (node_id, node_kind) in nodes {
+            graph
+                .nodes
+                .push(code_node_from_store_projection(node_id, node_kind));
+        }
+
+        for (from, to, label) in edges {
+            match normalize_store_projection_kind(label).as_str() {
+                "calls" | "call" => graph.calls.push(CallEdge {
+                    from_file_id: file_id_for_projection_edge(from),
+                    callee: node_name_from_projection_id(to),
+                    line: line_from_projection_id(to),
+                    ..CallEdge::default()
+                }),
+                "imports" | "import" => graph.imports.push(ImportEdge {
+                    from_file_id: file_id_for_projection_edge(from),
+                    module_path: module_path_from_projection_target(to),
+                    line: line_from_projection_id(to),
+                }),
+                "route" | "routes" => {
+                    let (method, path) = route_parts_from_projection_target(to);
+                    graph.routes.push(RouteEdge {
+                        from_file_id: file_id_for_projection_edge(from),
+                        method,
+                        path,
+                        line: line_from_projection_id(to),
+                    });
+                }
+                "inherits" | "inherit" => graph.inherits.push(InheritsEdge {
+                    sub_id: from.clone(),
+                    super_name: node_name_from_projection_id(to),
+                    line: line_from_projection_id(to),
+                }),
+                "implements" | "implement" => graph.implements.push(ImplementsEdge {
+                    type_id: from.clone(),
+                    trait_name: node_name_from_projection_id(to),
+                    line: line_from_projection_id(to),
+                }),
+                "decorates" | "decorate" => graph.decorates.push(DecoratesEdge {
+                    target_id: from.clone(),
+                    decorator_name: node_name_from_projection_id(to),
+                    line: line_from_projection_id(to),
+                }),
+                "typeref" | "type_ref" | "type_refs" => graph.type_refs.push(TypeRefEdge {
+                    from_id: from.clone(),
+                    type_name: node_name_from_projection_id(to),
+                    line: line_from_projection_id(to),
+                }),
+                "defines" | "define" => graph.defines.push(DefinesEdge {
+                    container_id: from.clone(),
+                    member_id: to.clone(),
+                    line: line_from_projection_id(to),
+                }),
+                // `contains` is derived by CodeAdjacency from each symbol's
+                // file_id, so replaying it here would duplicate edges.
+                "contains" | "contain" => {}
+                _ => {}
+            }
+        }
+
+        graph
+    }
+
     /// Test-only seam: append one [`RouteEdge`] directly, bypassing the
     /// tree-sitter extraction pipeline entirely. Exists because
     /// [`crate::cross_repo`]'s matching-algorithm tests need small,
@@ -1395,6 +1469,141 @@ impl CodeGraph {
 
 fn file_id_for(rel_path: &str) -> String {
     format!("file:{rel_path}")
+}
+
+fn code_node_from_store_projection(node_id: &str, node_kind: &str) -> CodeNode {
+    match normalize_store_projection_kind(node_kind).as_str() {
+        "file" => CodeNode::File(file_node_from_projection_id(node_id, false)),
+        "textonly" | "text_only" => CodeNode::TextOnly(file_node_from_projection_id(node_id, true)),
+        "tombstone" => CodeNode::Tombstone(tombstone_from_projection_id(node_id)),
+        "type" => CodeNode::Type(symbol_node_from_projection_id(node_id)),
+        "test" => CodeNode::Test(symbol_node_from_projection_id(node_id)),
+        "method" => CodeNode::Method(symbol_node_from_projection_id(node_id)),
+        "class" => CodeNode::Class(symbol_node_from_projection_id(node_id)),
+        "struct" => CodeNode::Struct(symbol_node_from_projection_id(node_id)),
+        "interface" => CodeNode::Interface(symbol_node_from_projection_id(node_id)),
+        "enum" => CodeNode::Enum(symbol_node_from_projection_id(node_id)),
+        "typealias" | "type_alias" => CodeNode::TypeAlias(symbol_node_from_projection_id(node_id)),
+        "module" => CodeNode::Module(symbol_node_from_projection_id(node_id)),
+        "lambda" => CodeNode::Lambda(symbol_node_from_projection_id(node_id)),
+        "variable" => CodeNode::Variable(symbol_node_from_projection_id(node_id)),
+        "constant" => CodeNode::Constant(symbol_node_from_projection_id(node_id)),
+        "function" => CodeNode::Function(symbol_node_from_projection_id(node_id)),
+        _ if node_id.starts_with("sym:") => {
+            CodeNode::Function(symbol_node_from_projection_id(node_id))
+        }
+        _ => CodeNode::File(file_node_from_projection_id(node_id, false)),
+    }
+}
+
+fn normalize_store_projection_kind(raw: &str) -> String {
+    raw.chars()
+        .filter(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
+fn file_node_from_projection_id(node_id: &str, _text_only: bool) -> FileNode {
+    let rel_path = node_id.strip_prefix("file:").unwrap_or(node_id).to_owned();
+    FileNode {
+        id: node_id.to_owned(),
+        rel_path,
+        language: LanguageTag::TextOnly,
+        content_hash: String::new(),
+        last_commit: None,
+        change_count: 0,
+        chunk_ids: Vec::new(),
+    }
+}
+
+fn tombstone_from_projection_id(node_id: &str) -> TombstoneNode {
+    let rel_path = node_id
+        .strip_prefix("file:")
+        .or_else(|| node_id.strip_prefix("tombstone:"))
+        .unwrap_or(node_id)
+        .to_owned();
+    TombstoneNode {
+        id: node_id.to_owned(),
+        rel_path,
+        last_commit: None,
+        change_count: 0,
+        prior_chunk_ids: Vec::new(),
+    }
+}
+
+fn symbol_node_from_projection_id(node_id: &str) -> SymbolNode {
+    let (file_id, line, name) = symbol_parts_from_projection_id(node_id);
+    SymbolNode {
+        id: node_id.to_owned(),
+        name,
+        file_id,
+        line,
+        metrics: None,
+        transitive_metrics: None,
+    }
+}
+
+fn symbol_parts_from_projection_id(node_id: &str) -> (String, usize, String) {
+    let Some(rest) = node_id.strip_prefix("sym:") else {
+        return (String::new(), 0, node_id.to_owned());
+    };
+    let mut parts = rest.rsplitn(3, ':');
+    let name = parts.next().unwrap_or(rest).to_owned();
+    let line = parts
+        .next()
+        .and_then(|raw| raw.parse::<usize>().ok())
+        .unwrap_or(0);
+    let rel_path = parts.next().unwrap_or_default();
+    let file_id = if rel_path.is_empty() {
+        String::new()
+    } else {
+        file_id_for(rel_path)
+    };
+    (file_id, line, name)
+}
+
+fn node_name_from_projection_id(node_id: &str) -> String {
+    if node_id.starts_with("sym:") {
+        return symbol_parts_from_projection_id(node_id).2;
+    }
+    node_id
+        .strip_prefix("file:")
+        .or_else(|| node_id.strip_prefix("route:"))
+        .unwrap_or(node_id)
+        .to_owned()
+}
+
+fn line_from_projection_id(node_id: &str) -> usize {
+    if node_id.starts_with("sym:") {
+        return symbol_parts_from_projection_id(node_id).1;
+    }
+    0
+}
+
+fn file_id_for_projection_edge(node_id: &str) -> String {
+    if node_id.starts_with("file:") {
+        return node_id.to_owned();
+    }
+    let file_id = symbol_parts_from_projection_id(node_id).0;
+    if file_id.is_empty() {
+        node_id.to_owned()
+    } else {
+        file_id
+    }
+}
+
+fn module_path_from_projection_target(node_id: &str) -> String {
+    node_id.strip_prefix("file:").unwrap_or(node_id).to_owned()
+}
+
+fn route_parts_from_projection_target(node_id: &str) -> (String, String) {
+    let raw = node_id.strip_prefix("route:").unwrap_or(node_id);
+    let mut parts = raw.splitn(2, ' ');
+    let first = parts.next().unwrap_or_default();
+    let Some(path) = parts.next() else {
+        return ("GET".to_owned(), raw.to_owned());
+    };
+    (first.to_owned(), path.to_owned())
 }
 
 /// The [`SymbolNode`] inside a [`CodeNode`] if -- and only if -- that
