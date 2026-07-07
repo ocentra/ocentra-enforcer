@@ -4,13 +4,17 @@
 //! wire-compatible for a future Store writer (no persistence exists in
 //! this pass).
 
+use enforcer_domain::paths::RepoRoot;
+use enforcer_memory::graph::MemoryGraph;
 use enforcer_memory::model_observations::{
-    DegradedFallback, HashMismatch, LocalLoadSucceeded, ModelLoadFailure,
-    ModelRuntimeObservationCandidate, ModelRuntimeObservationRecord, ProviderDowngrade,
-    RecurrenceNegativeKind, RecurrenceOrNegativeEvidence, RerankerLiftProof, RetrievalQualityProof,
-    RouteChoiceImprovement, TokenReductionProof,
+    ingest_model_runtime_observation, project_model_runtime_observations_from_store,
+    record_model_runtime_observation_in_store, DegradedFallback, HashMismatch, LocalLoadSucceeded,
+    ModelLoadFailure, ModelRuntimeObservationCandidate, ModelRuntimeObservationRecord,
+    ProviderDowngrade, RecurrenceNegativeKind, RecurrenceOrNegativeEvidence, RerankerLiftProof,
+    RetrievalQualityProof, RouteChoiceImprovement, TokenReductionProof,
 };
 use enforcer_memory::model_runtime::{ModelTask, ProviderKind};
+use enforcer_memory::store::Store;
 
 #[test]
 fn model_load_failure_shape_round_trips() -> Result<(), Box<dyn std::error::Error>> {
@@ -201,5 +205,79 @@ fn recurrence_and_negative_evidence_shape() -> Result<(), Box<dyn std::error::Er
     assert_eq!(negative_value["cleanEvidence"], true);
     let local_value = serde_json::to_value(local_load)?;
     assert_eq!(local_value["observationKind"], "successful-local-load");
+    Ok(())
+}
+
+#[test]
+fn model_runtime_observation_persists_to_store_and_graph() -> Result<(), Box<dyn std::error::Error>>
+{
+    let dir = tempfile::tempdir()?;
+    let root: RepoRoot = "C:/Projects/x06-model-observation-store".parse()?;
+    let mut store = Store::init(dir.path(), &root, "2026-07-05T12:00:00Z")?;
+    let mut graph = MemoryGraph::new();
+    let record = ModelRuntimeObservationRecord::new(
+        "2026-07-05T12:00:00Z",
+        "x06-model-runtime-proof",
+        "run-1",
+        ModelRuntimeObservationCandidate::DegradedFallback(DegradedFallback {
+            model_id: "Qwen/Qwen3-Embedding-0.6B".to_string(),
+            task: ModelTask::Embedding,
+            fallback_reason: "provider unavailable".to_string(),
+        }),
+    );
+
+    let id = ingest_model_runtime_observation(&mut store, &mut graph, record)?;
+    assert!(id.starts_with("obs-x06-model-runtime-proof-"));
+    assert_eq!(graph.len(), 1);
+
+    let entries = store.read_observation_entries()?;
+    assert_eq!(entries.entries.len(), 1);
+    assert_eq!(
+        entries.entries[0].payload_kind.as_deref(),
+        Some("model-runtime:degraded-fallback")
+    );
+    assert_eq!(
+        entries.entries[0].payload.as_ref().and_then(|payload| {
+            payload
+                .pointer("/candidate/observationKind")
+                .and_then(serde_json::Value::as_str)
+        }),
+        Some("degraded-fallback")
+    );
+    Ok(())
+}
+
+#[test]
+fn store_backed_model_runtime_observation_replays_without_duplicate_writes(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempfile::tempdir()?;
+    let root: RepoRoot = "C:/Projects/x06-model-observation-store-replay".parse()?;
+    let mut store = Store::init(dir.path(), &root, "2026-07-05T12:00:00Z")?;
+    let record = ModelRuntimeObservationRecord::new(
+        "2026-07-05T12:00:00Z",
+        "x06-model-runtime-proof",
+        "run-2",
+        ModelRuntimeObservationCandidate::SuccessfulLocalLoad(LocalLoadSucceeded {
+            model_id: "Qwen/Qwen3-Embedding-0.6B".to_string(),
+            task: ModelTask::Embedding,
+            provider: ProviderKind::Cpu,
+            loaded_from_local_cache: true,
+        }),
+    );
+
+    let id = record_model_runtime_observation_in_store(&mut store, &record)?;
+    assert!(id.starts_with("obs-"));
+
+    let entries = store.read_observation_entries()?;
+    assert_eq!(entries.entries.len(), 1);
+    assert_eq!(
+        entries.entries[0].payload_kind.as_deref(),
+        Some("model-runtime:successful-local-load")
+    );
+
+    let replayed = project_model_runtime_observations_from_store(&store)?;
+    assert_eq!(replayed, vec![record.clone()]);
+    let replayed_again = project_model_runtime_observations_from_store(&store)?;
+    assert_eq!(replayed_again, replayed);
     Ok(())
 }

@@ -29,7 +29,21 @@ fn zero_network_default_proof_records_learning_observation_kinds() {
         proof.reranker.load_state,
         LoadStateReport::DegradedProviderUnavailable
     );
+    assert!(proof.probe_plan.one_model_at_a_time);
+    assert!(proof.probe_plan.cpu_first);
+    assert!(proof.probe_plan.gpu_and_npu_require_provider_probe);
+    assert_eq!(proof.probe_plan.default_probe_filter, "chat");
+    assert_eq!(proof.probe_plan.minimum_chat_tokens_per_second, 10);
+    assert_eq!(proof.probe_plan.target_chat_tokens_per_second_low, 40);
+    assert_eq!(proof.probe_plan.target_chat_tokens_per_second_high, 60);
+    assert!(proof.probe_plan.kill_on_timeout);
     assert_eq!(proof.embedding.source_policy, SourcePolicy::LocalCache);
+    assert!(proof
+        .embedding
+        .reason
+        .as_deref()
+        .unwrap_or_default()
+        .contains("provider probes remain unavailable"));
     assert_eq!(proof.reranker.source_policy, SourcePolicy::LocalCache);
     assert!(proof
         .learning_observation_kinds

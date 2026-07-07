@@ -7,6 +7,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::model_observations::ModelRuntimeObservationCandidate;
+
 /// Current schema version for every shape in this module. Bumped only on
 /// a wire-incompatible change; readers must reject an unknown version
 /// rather than guess at a shape.
@@ -37,6 +39,15 @@ pub struct ObservationLogEntry {
     /// deletes or edits the earlier row, it only records the relation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub supersedes_seq: Option<u64>,
+    /// Optional typed payload discriminator for non-incident learning
+    /// observations, for example model-runtime or route-choice records.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub payload_kind: Option<String>,
+    /// Raw typed payload for replayable projection records. The
+    /// top-level incident fields stay populated so older readers still
+    /// have a useful observation row even when they ignore this payload.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub payload: Option<serde_json::Value>,
 }
 
 /// One append-only graph-event-log entry: a structural change to the
@@ -51,6 +62,60 @@ pub struct GraphEventLogEntry {
     pub id: String,
     pub event: GraphEventKind,
     pub ts: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub supersedes_seq: Option<u64>,
+}
+
+/// One append-only procedural-memory log entry.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProceduralLogEntry {
+    pub schema_version: u32,
+    pub seq: u64,
+    pub id: String,
+    pub lesson_id: String,
+    pub outcome: ProceduralOutcomeWire,
+    pub detail: String,
+    pub ts: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub supersedes_seq: Option<u64>,
+}
+
+/// The wire shape for [`crate::observations::ProceduralOutcome`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ProceduralOutcomeWire {
+    RetrievalSuccess,
+    RetrievalFailure,
+    FixSuccess,
+    FixFailure,
+}
+
+/// One append-only route-trace log entry.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RouteTraceLogEntry {
+    pub schema_version: u32,
+    pub seq: u64,
+    pub id: String,
+    pub query: String,
+    pub route: String,
+    pub confidence: f64,
+    pub ts: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub supersedes_seq: Option<u64>,
+}
+
+/// One append-only model-runtime observation log entry.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelObservationLogEntry {
+    pub schema_version: u32,
+    pub seq: u64,
+    pub observed_at: String,
+    pub source: String,
+    pub run_id: String,
+    pub candidate: ModelRuntimeObservationCandidate,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub supersedes_seq: Option<u64>,
 }

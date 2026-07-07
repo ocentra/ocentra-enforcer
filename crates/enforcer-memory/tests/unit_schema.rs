@@ -14,6 +14,8 @@ fn observation_entry_round_trips() -> Result<(), serde_json::Error> {
         source_surface: "scan".to_owned(),
         ts: "2026-07-04T00:00:00Z".to_owned(),
         supersedes_seq: None,
+        payload_kind: None,
+        payload: None,
     };
     let json = serde_json::to_string(&entry)?;
     let back: ObservationLogEntry = serde_json::from_str(&json)?;

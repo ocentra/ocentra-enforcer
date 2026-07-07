@@ -17,6 +17,8 @@ fn entry(seq: u64, repo_context: &str, clean: bool) -> ObservationLogEntry {
         source_surface: "scan".to_owned(),
         ts: "2026-07-04T00:00:00Z".to_owned(),
         supersedes_seq: None,
+        payload_kind: None,
+        payload: None,
     }
 }
 

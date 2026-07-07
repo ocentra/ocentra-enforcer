@@ -285,7 +285,13 @@ fn append_acceleration_plan(
     env: &mut Vec<(String, String)>,
 ) {
     match (config.backend_hint, config.acceleration) {
-        (_, LocalRuntimeAcceleration::Auto) => {}
+        (LlamaCppBackendHint::OpenVino, LocalRuntimeAcceleration::Auto) => {
+            env.push(("GGML_OPENVINO_DEVICE".to_owned(), "CPU".to_owned()));
+        }
+        (_, LocalRuntimeAcceleration::Auto) => {
+            args.push("-ngl".to_owned());
+            args.push("0".to_owned());
+        }
         (LlamaCppBackendHint::OpenVino, LocalRuntimeAcceleration::Cpu) => {
             env.push(("GGML_OPENVINO_DEVICE".to_owned(), "CPU".to_owned()));
         }
@@ -465,6 +471,11 @@ fn model_error(operation: &'static str, reason: impl Into<String>) -> MemoryErro
 mod tests {
     use super::*;
 
+    fn contains_arg_pair(args: &[String], key: &str, value: &str) -> bool {
+        args.windows(2)
+            .any(|pair| pair[0].as_str() == key && pair[1].as_str() == value)
+    }
+
     #[test]
     fn generation_plan_is_single_turn_and_subprocess_safe() {
         let config = LlamaCppProbeConfig {
@@ -491,6 +502,63 @@ mod tests {
         assert!(plan.args.iter().any(|arg| arg == "-st"));
         assert!(plan.args.iter().any(|arg| arg == "--simple-io"));
         assert!(plan.args.iter().any(|arg| arg == "--no-display-prompt"));
+    }
+
+    #[test]
+    fn auto_acceleration_defaults_to_cpu_first() {
+        let config = LlamaCppProbeConfig {
+            binary_path: "llama-cli.exe".into(),
+            model_path: "model.gguf".into(),
+            model_sha256: None,
+            prompt: "hello".to_owned(),
+            kind: LlamaCppProbeKind::Generate,
+            backend_hint: LlamaCppBackendHint::Native,
+            acceleration: LocalRuntimeAcceleration::Auto,
+            gpu_layers: None,
+            device: None,
+            main_gpu: None,
+            split_mode: None,
+            tensor_split: None,
+            fit: None,
+            context_size: None,
+            max_tokens: 8,
+            timeout_ms: 1_000,
+        };
+
+        let plan = llama_cpp_command_plan(&config);
+
+        assert!(contains_arg_pair(&plan.args, "-ngl", "0"));
+        assert!(plan.env.is_empty());
+    }
+
+    #[test]
+    fn openvino_auto_acceleration_keeps_cpu_device_selection() {
+        let config = LlamaCppProbeConfig {
+            binary_path: "llama-cli.exe".into(),
+            model_path: "model.gguf".into(),
+            model_sha256: None,
+            prompt: "hello".to_owned(),
+            kind: LlamaCppProbeKind::Generate,
+            backend_hint: LlamaCppBackendHint::OpenVino,
+            acceleration: LocalRuntimeAcceleration::Auto,
+            gpu_layers: None,
+            device: None,
+            main_gpu: None,
+            split_mode: None,
+            tensor_split: None,
+            fit: None,
+            context_size: None,
+            max_tokens: 8,
+            timeout_ms: 1_000,
+        };
+
+        let plan = llama_cpp_command_plan(&config);
+
+        assert!(plan
+            .env
+            .iter()
+            .any(|(key, value)| key == "GGML_OPENVINO_DEVICE" && value == "CPU"));
+        assert!(!plan.args.iter().any(|arg| arg == "-ngl"));
     }
 
     #[test]

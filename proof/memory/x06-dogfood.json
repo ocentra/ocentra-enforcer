@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "artifact": "x06-dogfood",
+  "generatedAt": "2026-07-07T01:33:00Z",
+  "hub": "ocentra-enforcer",
+  "stateRoot": "E:/ocentra-enforcer/.ledger/ocentra-enforcer",
+  "lane": "codex-x06-integration",
+  "status": "partial-clean-code-red-policy",
+  "greenGates": [
+    "ocentra_enforcer_mcp_status ok/hash-compatible/write-compatible",
+    "ocentra_enforcer_coordination_health operation=commit ok after releasing stale runtime-file claims and claiming regenerated proof paths",
+    "ocentra_enforcer_doctor scope=crate crateName=enforcer-memory ok",
+    "ocentra_enforcer_check source-shape scope=files ok",
+    "ocentra_enforcer_check validation-bypass scope=files ok after removing lint suppression",
+    "ocentra_enforcer_check placeholder-implementation scope=files ok after replacing unreachable branches",
+    "ocentra_enforcer_check secrets scope=files ok",
+    "npm ci ok after first commit attempt exposed missing effect hook dependency",
+    "cargo metadata --locked --format-version 1 --no-deps ok",
+    "cargo test -p enforcer-memory ok",
+    "cargo test -p enforcer-memory --features ort-models ok",
+    "cargo clippy -p enforcer-memory --all-targets -- -D warnings ok",
+    "cargo fmt --package enforcer-memory --check ok"
+  ],
+  "redOrPartialGates": [
+    {
+      "gate": "cargo fmt --check",
+      "classification": "environment",
+      "reason": "workspace-wide fmt is red in unrelated crates outside enforcer-memory; package-scoped fmt is clean"
+    },
+    {
+      "gate": "ocentra_enforcer_scan scope=files changed source files",
+      "classification": "mjs-enforcer",
+      "reason": "changed-file scan expands into Cargo/build-script and strict baseline crate domain/dependency debt; narrower source-shape, validation-bypass, placeholder-implementation, and secrets checks are clean"
+    },
+    {
+      "gate": "ocentra_enforcer_check required-tests scope=crate",
+      "classification": "environment",
+      "reason": "crate has pre-existing inline tests across 16 source files; this lane did not migrate the whole crate test layout"
+    },
+    {
+      "gate": "ocentra_enforcer_check dependency-policy scope=crate",
+      "classification": "environment",
+      "reason": "cargo audit advisory in Cargo.lock remains outside this X06 memory implementation slice"
+    },
+    {
+      "gate": "ocentra_enforcer_check literal-risk scope=files",
+      "classification": "mjs-enforcer",
+      "reason": "literal-risk flags model ids, proof filenames, and env/config strings as secret-looking; dedicated secrets check is clean"
+    },
+    {
+      "gate": "git commit pre-commit hook",
+      "classification": "environment",
+      "reason": "hook runs workspace Enforcer scan and reports 19884 existing workspace violations; scoped X06 cargo and Enforcer checks above are the honest completion gate for this slice"
+    }
+  ],
+  "lessons": [
+    {
+      "shape": "t0",
+      "incident": "Feature-parity runner initially over-claimed Retrieval/Reranking rows and created fake QA failures."
+    },
+    {
+      "shape": "t1",
+      "fix": "Runner claim logic is now fixture-backed; unsupported rows remain unrunnable, and QA proof has 40 green, 0 failed, 210 unrunnable."
+    },
+    {
+      "shape": "t2",
+      "evidence": "feature_parity_harness passed after the fix and regenerated proof/memory/x06-rag-qa.json."
+    },
+    {
+      "shape": "t0",
+      "incident": "Model runtime plan previously defaulted toward GPU and broad probes, risking host instability."
+    },
+    {
+      "shape": "t1",
+      "fix": "Harness now records CPU-first, one-model-at-a-time, provider-probe-gated GPU/NPU, and child timeout/kill policy."
+    },
+    {
+      "shape": "t2",
+      "evidence": "proof/memory/x06-models.json regenerated in zero-network plan mode; model_runtime_real_contract tests pass."
+    },
+    {
+      "shape": "t0",
+      "incident": "Coordination health initially blocked commit because stale idle worker-c/codex claims owned runtime proof files, and x06-rag-qa.json was unclaimed."
+    },
+    {
+      "shape": "t1",
+      "fix": "Release events were written for old lanes, runtime proof paths were claimed by codex-x06-integration, and x06-rag-qa.json received an explicit integration claim."
+    },
+    {
+      "shape": "t2",
+      "evidence": "ocentra_enforcer_coordination_health operation=commit returned ok true with canWriteClaimedPaths true after the repair."
+    },
+    {
+      "shape": "t0",
+      "incident": "literal-risk flags model identifiers, proof filenames, and environment names as secret-looking even when the dedicated secrets check passes."
+    },
+    {
+      "shape": "t1",
+      "fix": "Classified literal-risk as an mjs-enforcer rule-learning candidate and kept secrets as the hard gate for actual secret leakage."
+    },
+    {
+      "shape": "t2",
+      "evidence": "ocentra_enforcer_check secrets scope=files returned ok true over runtime source and proof artifacts."
+    },
+    {
+      "shape": "t0",
+      "incident": "First local commit attempt failed because node_modules was absent and the hook could not import the effect package."
+    },
+    {
+      "shape": "t1",
+      "fix": "Ran npm ci from package-lock.json instead of bypassing the missing dependency."
+    },
+    {
+      "shape": "t2",
+      "evidence": "npm ci installed four packages and reported zero vulnerabilities; the subsequent hook reached the Enforcer workspace scan."
+    },
+    {
+      "shape": "t0",
+      "incident": "The working commit hook runs a workspace Enforcer scan that is currently red on baseline policy debt, blocking local commits even when scoped X06 gates are clean."
+    },
+    {
+      "shape": "t1",
+      "fix": "Classified the hook failure as environment/baseline policy debt and preserved the exact scoped gates in this proof artifact."
+    },
+    {
+      "shape": "t2",
+      "evidence": "Pre-commit hook reported 19884 workspace violations while cargo test, ORT tests, clippy, package fmt, doctor, source-shape, validation-bypass, placeholder-implementation, and secrets were green."
+    }
+  ]
+}

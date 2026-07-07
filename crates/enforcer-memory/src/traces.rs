@@ -43,6 +43,10 @@
 //! follows for unsupported file extensions.
 
 use crate::code_graph::{CodeGraph, CodeNode};
+use crate::error::Result;
+use crate::schema::{ObservationLogEntry, SCHEMA_VERSION};
+use crate::store::Store;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 /// One runtime-observed call record, as a caller (e.g. an APM/tracing
@@ -52,7 +56,7 @@ use std::collections::BTreeMap;
 /// too since not every runtime tracer resolves calls to symbol
 /// granularity), and `count` is how many times this edge was observed
 /// in the reporting window.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TraceRecord {
     pub caller: String,
     pub callee: String,
@@ -65,7 +69,8 @@ pub struct TraceRecord {
 /// or observed at runtime via [`TraceStore::ingest`]. Mirrors the
 /// parity digest's QA-080 "provenance split... matters" requirement
 /// directly in the type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum EdgeProvenance {
     Parsed,
     Inferred,
@@ -75,7 +80,7 @@ pub enum EdgeProvenance {
 /// One caller->callee edge with its provenance and observed runtime
 /// count (0 if never runtime-observed -- a parsed-only edge with no
 /// matching trace record).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TracedEdge {
     pub caller: String,
     pub callee: String,
@@ -85,11 +90,78 @@ pub struct TracedEdge {
 
 /// A trace record whose `caller` or `callee` (or both) could not be
 /// resolved to a known graph node id at ingestion time.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UnresolvedTrace {
     pub record: TraceRecord,
     pub unresolved_caller: bool,
     pub unresolved_callee: bool,
+}
+
+pub struct TraceRecordStoreBatch<'a> {
+    pub records: &'a [TraceRecord],
+    pub source_surface: String,
+    pub ts: String,
+}
+
+impl<'a> TraceRecordStoreBatch<'a> {
+    pub fn new(
+        records: &'a [TraceRecord],
+        source_surface: impl Into<String>,
+        ts: impl Into<String>,
+    ) -> Self {
+        Self {
+            records,
+            source_surface: source_surface.into(),
+            ts: ts.into(),
+        }
+    }
+}
+
+pub fn ingest_trace_records_into_store(
+    store: &mut Store,
+    trace_store: &mut TraceStore,
+    graph: &CodeGraph,
+    batch: &TraceRecordStoreBatch<'_>,
+) -> Result<usize> {
+    for record in batch.records {
+        let payload = serde_json::to_value(record)?;
+        store.append_observation_entry(|seq| ObservationLogEntry {
+            schema_version: SCHEMA_VERSION,
+            seq,
+            id: format!("trace-{seq:04}"),
+            lesson_id: String::new(),
+            rule_id: None,
+            fault_class: Some("runtime-trace".to_owned()),
+            repo_context: format!("{} -> {}", record.caller, record.callee),
+            clean: true,
+            source_surface: batch.source_surface.clone(),
+            ts: batch.ts.clone(),
+            supersedes_seq: None,
+            payload_kind: Some("runtime-trace".to_owned()),
+            payload: Some(payload),
+        })?;
+    }
+    trace_store.ingest(graph, batch.records);
+    Ok(batch.records.len())
+}
+
+pub fn replay_trace_records_from_store(
+    store: &Store,
+    trace_store: &mut TraceStore,
+    graph: &CodeGraph,
+) -> Result<usize> {
+    let outcome = store.read_observation_entries()?;
+    let mut records = Vec::new();
+    for entry in outcome.entries {
+        if entry.payload_kind.as_deref() != Some("runtime-trace") {
+            continue;
+        }
+        if let Some(payload) = entry.payload {
+            records.push(serde_json::from_value::<TraceRecord>(payload)?);
+        }
+    }
+    trace_store.ingest(graph, &records);
+    Ok(records.len())
 }
 
 /// The additive runtime-trace overlay described in the module docs.

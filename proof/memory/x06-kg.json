@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "artifact": "x06-kg",
+  "generatedAt": "2026-07-07T01:20:00Z",
+  "status": "partial",
+  "canonicalDataSource": {
+    "sourceOfTruth": "Store append logs plus manifest",
+    "derivedProjections": [
+      "CodeGraph",
+      "MemoryGraph",
+      "TraceStore",
+      "summaries",
+      "search documents",
+      "SQLite operational graph",
+      "learning curves",
+      "model observations"
+    ],
+    "separateKgSystemCreated": false
+  },
+  "implementedStoreWriters": [
+    "append_observation_entry",
+    "append_graph_event_entry",
+    "append_model_observation",
+    "append_trace_records",
+    "record_procedural_in_store",
+    "record_route_choice_in_store"
+  ],
+  "replayProof": [
+    "replay_incident_observations_from_store",
+    "replay_procedural_and_routes_from_store",
+    "project_model_runtime_observations_from_store",
+    "replay_trace_records_from_store"
+  ],
+  "baselineParity": {
+    "artifactPath": "proof/memory/x06-kg-parity.json",
+    "baselineExecuted": true,
+    "toolsTotal": 23,
+    "toolsEqual": 18,
+    "toolsBetter": 3,
+    "toolsWorse": 0,
+    "toolsIncomparable": 2,
+    "toolsUnrunnable": 0
+  },
+  "remaining": [
+    "Claude parity lane can still improve exact codebase-memory-mcp behavioral equivalence, but current parity artifact has no worse/unrunnable rows.",
+    "Full semantic graph-over-code layer still needs derived projection and query UX over the canonical Store-backed graph."
+  ]
+}

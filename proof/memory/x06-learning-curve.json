@@ -2,11 +2,29 @@
   "schemaVersion": 1,
   "artifact": "x06-learning-curve",
   "workpack": "x06-models-harvest",
-  "generatedAt": "2026-07-05T17:40:08.4830907Z",
-  "status": "contract-only",
+  "generatedAt": "2026-07-07T01:20:00Z",
+  "status": "store-backed-seams",
   "learningCurve": {
-    "present": false,
-    "reason": "graph-dependent persistence writer is still a follow-up"
+    "present": true,
+    "reason": "durable observation, procedural, route-choice, trace, and model-runtime observation records now append to Store logs and can be replayed into projections; full longitudinal graph-dependent curve rollup remains follow-up",
+    "storeBackedSignals": [
+      "incident-observation",
+      "procedural-record",
+      "route-choice",
+      "trace-observation",
+      "model-load-failure",
+      "model-provider-downgrade",
+      "model-hash-mismatch",
+      "model-tokenizer-mismatch",
+      "model-degraded-fallback",
+      "model-local-load-success"
+    ],
+    "tests": [
+      "cargo test -p enforcer-memory --test unit_ingest -- store_backed_observation_appends_then_replays_projection",
+      "cargo test -p enforcer-memory --test unit_observations",
+      "cargo test -p enforcer-memory --test unit_traces",
+      "cargo test -p enforcer-memory --test model_observations"
+    ]
   },
   "dogfoodLessons": [
     {
@@ -37,21 +55,40 @@
     },
     {
       "lessonId": "dogfood-004",
-      "lesson": "Model observations should stay append-only and graph-driven once the persistence writer exists; do not fake that step in the proof file.",
+      "lesson": "Model observations stay append-only first, then project into graph/memory views; the proof must distinguish persisted observation facts from derived graph curves.",
       "evidence": [
         "crates/enforcer-memory/src/model_observations.rs",
-        "docs/plans/enforcer-selfhost-plan/workpacks/x06-harness-memory-graph.md"
+        "crates/enforcer-memory/tests/model_observations.rs"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-005",
+      "lesson": "A broad QA runner can create fake red by claiming rows it cannot prove; runner claim logic must be fixture-backed and leave unsupported rows unrunnable.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "proof/memory/x06-rag-qa.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-006",
+      "lesson": "Runtime model proof must be CPU-first and one-model-at-a-time by default; GPU/NPU requires provider probes and child-process timeout protection.",
+      "evidence": [
+        "crates/enforcer-memory/examples/x06_model_runtime_probe.rs",
+        "proof/memory/x06-models.json"
       ],
       "status": "learned"
     }
   ],
   "blockers": [
-    "No graph-dependent persistence writer exists yet for model observations or learning curves.",
-    "No executed llama-cpp/GGUF runtime proof has landed yet.",
-    "The optional ONNX/ORT backend remains a follow-up path behind the feature gate."
+    "Full graph-dependent recurrence curves still need the derived projection rollup over Store logs.",
+    "No new GGUF chat hello-world load was executed in this turn; checked-in local runtime proofs remain host-local and non-CI-parity.",
+    "QA coverage is 40/250 runnable with 0 failures; unsupported rows remain unrunnable rather than fake green."
   ],
   "recurrenceNotes": [
-    "Record recurrence only after the persistence writer exists.",
-    "Until then, treat the learning curve as a contract stub, not a completed signal."
+    "t0 events now have durable Store append paths for observations and model-runtime incidents.",
+    "t1 proof exists through replay tests and clean source-shape/check gates.",
+    "t2 recurrence curves must be regenerated after the graph projection layer consumes Store logs end-to-end."
   ]
 }

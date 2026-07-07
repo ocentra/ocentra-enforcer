@@ -16,7 +16,7 @@ use super::queryset::QaRow;
 use enforcer_memory::analysis::CodeAdjacency;
 use enforcer_memory::architecture::{self, Aspect};
 use enforcer_memory::cli::cli_invoke;
-use enforcer_memory::code_graph::{CodeGraph, CodeNode, Manifest};
+use enforcer_memory::code_graph::{CodeGraph, CodeNode, IndexMode, IndexOptions, Manifest};
 use enforcer_memory::embed::HashingEmbedder;
 use enforcer_memory::fulltext::FullTextIndex;
 use enforcer_memory::git::GitMetadata;
@@ -27,6 +27,8 @@ use enforcer_memory::search::{HybridSearcher, SearchDocument};
 use enforcer_memory::vector::VectorIndex;
 use enforcer_memory::{learning, recall};
 use std::path::{Path, PathBuf};
+
+const ARCHITECTURE_SAMPLE_FILE_LIMIT: usize = 16;
 
 /// Per-row proof record. Field names/shapes follow
 /// `MEMORY_RETRIEVAL_QA_PROOF_GATE.md` §"Per-row proof requirements"
@@ -250,6 +252,15 @@ pub trait RowRunner {
     fn run(&self, row: &QaRow, fixtures: &Fixtures) -> RowResult;
 }
 
+fn row_text(row: &QaRow) -> String {
+    format!("{} {}", row.query, row.expectation).to_lowercase()
+}
+
+fn row_text_contains_any(row: &QaRow, tokens: &[&str]) -> bool {
+    let lowered = row_text(row);
+    tokens.iter().any(|token| lowered.contains(token))
+}
+
 /// Runs Symbol/CodeGraph category rows whose query names a symbol
 /// present in the fixture repo, via
 /// [`enforcer_memory::code_graph::CodeGraph`] +
@@ -272,8 +283,19 @@ impl RowRunner for SymbolCodeGraphRunner {
 
     fn can_run(&self, row: &QaRow) -> bool {
         matches!(row.category.as_str(), "Symbol" | "CodeGraph")
-            && (row.query.to_lowercase().contains("parseconfigfile")
-                || row.query.to_lowercase().contains("loadwidgetsettings"))
+            && row_text_contains_any(
+                row,
+                &[
+                    "parseconfigfile",
+                    "parse_config_file",
+                    "parse config file",
+                    "loadwidgetsettings",
+                    "load_widget_settings",
+                    "load widget settings",
+                    "widget settings",
+                    "parse widget",
+                ],
+            )
     }
 
     fn run(&self, row: &QaRow, fixtures: &Fixtures) -> RowResult {
@@ -330,8 +352,9 @@ impl RowRunner for SymbolCodeGraphRunner {
 /// Runs Retrieval-category rows through
 /// [`enforcer_memory::search::HybridSearcher`] (full-text + vector +
 /// rerank). Claims only the rows whose query text overlaps the fixture
-/// search corpus's known vocabulary (`config`, `widget`) -- same
-/// narrow-claim discipline as [`SymbolCodeGraphRunner`].
+/// search corpus's known fixture vocabulary (`parse_config_file`,
+/// `load_widget_settings`, config/widget settings) -- same narrow-claim
+/// discipline as [`SymbolCodeGraphRunner`].
 ///
 /// Under the `real-models` feature, [`RetrievalRunner::run`] first tries
 /// [`real_models::maybe_run`], which only actually executes when a real
@@ -351,12 +374,22 @@ impl RowRunner for RetrievalRunner {
 
     fn can_run(&self, row: &QaRow) -> bool {
         matches!(row.category.as_str(), "Retrieval" | "Reranking")
-            && (row.query.to_lowercase().contains("config")
-                || row.query.to_lowercase().contains("widget"))
+            && row_text_contains_any(
+                row,
+                &[
+                    "parse_config_file",
+                    "parse config file",
+                    "load_widget_settings",
+                    "load widget settings",
+                    "widget settings",
+                    "configuration settings",
+                ],
+            )
     }
 
     fn run(&self, row: &QaRow, fixtures: &Fixtures) -> RowResult {
-        let query = if row.query.to_lowercase().contains("widget") {
+        let lowered = row_text(row);
+        let query = if lowered.contains("widget") || lowered.contains("loadwidget") {
             "widget settings"
         } else {
             "parse config file"
@@ -567,11 +600,11 @@ impl RowRunner for LessonsRunner {
 /// unrunnable rather than guessed at.
 pub struct McpRunner;
 
-/// Find the [`TOOL_NAMES`] entry `row`'s query text names, matching
-/// either the exact snake_case tool name or its space-separated form
+/// Find the [`TOOL_NAMES`] entry in a row's full text (`query + expectation`),
+/// matching either the exact snake_case tool name or its space-separated form
 /// (`search_graph` / `search graph`), case-insensitively.
-fn mcp_tool_named_in(query: &str) -> Option<&'static str> {
-    let lowered = query.to_lowercase();
+fn mcp_tool_named_in(row: &QaRow) -> Option<&'static str> {
+    let lowered = row_text(row);
     TOOL_NAMES
         .iter()
         .find(|&&tool| lowered.contains(tool) || lowered.contains(&tool.replace('_', " ")))
@@ -584,11 +617,11 @@ impl RowRunner for McpRunner {
     }
 
     fn can_run(&self, row: &QaRow) -> bool {
-        row.category == "MCP" && mcp_tool_named_in(&row.query).is_some()
+        row.category == "MCP" && mcp_tool_named_in(row).is_some()
     }
 
     fn run(&self, row: &QaRow, fixtures: &Fixtures) -> RowResult {
-        let Some(tool) = mcp_tool_named_in(&row.query) else {
+        let Some(tool) = mcp_tool_named_in(row) else {
             return unrunnable(row, "row query names no known MCP tool");
         };
         let repo_root = fixtures.repo_root_for_mcp();
@@ -696,11 +729,11 @@ impl RowRunner for CliRunner {
     }
 
     fn can_run(&self, row: &QaRow) -> bool {
-        row.category == "CLI" && mcp_tool_named_in(&row.query).is_some()
+        row.category == "CLI" && mcp_tool_named_in(row).is_some()
     }
 
     fn run(&self, row: &QaRow, fixtures: &Fixtures) -> RowResult {
-        let Some(tool) = mcp_tool_named_in(&row.query) else {
+        let Some(tool) = mcp_tool_named_in(row) else {
             return unrunnable(row, "row query names no known CLI-mirrored tool");
         };
         let Some(repo_root) = fixtures.repo_root_for_mcp() else {
@@ -749,21 +782,21 @@ impl RowRunner for CliRunner {
 /// Parked live-proof runner for Architecture/Repository rows whose query names a real
 /// enforcer-rust crate (by directory name under `crates/`) via
 /// [`architecture::build_report`] over that crate's own `src/` dir,
-/// indexed fresh (kept fast: only the anchor crate's `src/` tree, never
-/// the whole workspace). Claims only rows whose query text contains an
+/// indexed fresh in fast mode over a deterministic bounded sample
+/// (kept fast: only the anchor crate's `src/` tree, never the whole
+/// workspace, and no per-file git history). Claims only rows whose
+/// query text contains an
 /// `enforcer-<name>` crate reference this harness can resolve to a real
 /// `crates/<name>/src` directory that exists on disk -- rows that
 /// reference doc sections, workpack ids, or Cargo.toml-only facts with
 /// no `build_report` aspect answering them stay unrunnable. Symbol and
 /// CodeGraph rows are deliberately excluded: a crate mention alone does
 /// not prove an architecture overview answers a symbol-level query.
-#[allow(dead_code)]
 pub struct ArchitectureRepositoryRunner;
 
 /// Extract `enforcer-<kebab-name>` crate references from `text`,
 /// returning the first that resolves to a real `crates/<name>` dir
 /// under `workspace_root`.
-#[allow(dead_code)]
 fn resolve_crate_reference(text: &str, workspace_root: &Path) -> Option<PathBuf> {
     let lowered = text.to_lowercase();
     let mut idx = 0;
@@ -779,7 +812,7 @@ fn resolve_crate_reference(text: &str, workspace_root: &Path) -> Option<PathBuf>
         if crate_dir.join("src").is_dir() {
             return Some(crate_dir.join("src"));
         }
-        idx = start + found.max(1);
+        idx = start + 1;
         if idx >= lowered.len() {
             break;
         }
@@ -817,9 +850,27 @@ impl RowRunner for ArchitectureRepositoryRunner {
         if files.is_empty() {
             return unrunnable(row, "resolved crate src/ dir has no files to index");
         }
+        let sampled_files: Vec<PathBuf> = files
+            .into_iter()
+            .filter(|path| path.extension().is_some_and(|ext| ext == "rs"))
+            .take(ARCHITECTURE_SAMPLE_FILE_LIMIT)
+            .collect();
+        if sampled_files.is_empty() {
+            return unrunnable(row, "resolved crate src/ dir has no Rust files to index");
+        }
 
         let mut graph = CodeGraph::new();
-        if let Err(error) = graph.index_repository(&src_dir, &files, &Manifest::default()) {
+        if let Err(error) = graph.index_repository_with_options(
+            &src_dir,
+            &sampled_files,
+            &Manifest::default(),
+            IndexOptions {
+                mode: IndexMode::Fast,
+                persistence: false,
+                project_name: None,
+                indexed_at: None,
+            },
+        ) {
             return unrunnable(row, &format!("index_repository failed: {error}"));
         }
 
@@ -854,13 +905,13 @@ impl RowRunner for ArchitectureRepositoryRunner {
                 vec![
                     "crates/enforcer-memory/src/architecture.rs".to_string(),
                     src_dir.to_string_lossy().to_string(),
+                    format!("bounded sample: {} Rust files", sampled_files.len()),
                 ],
             ),
         )
     }
 }
 
-#[allow(dead_code)]
 fn walk_files(root: &Path) -> std::io::Result<Vec<PathBuf>> {
     let mut out = Vec::new();
     let mut stack = vec![root.to_path_buf()];
@@ -982,6 +1033,7 @@ pub fn registry() -> Vec<Box<dyn RowRunner>> {
         Box::new(SymbolCodeGraphRunner),
         Box::new(RetrievalRunner),
         Box::new(LessonsRunner),
+        Box::new(ArchitectureRepositoryRunner),
         Box::new(McpRunner),
         Box::new(CliRunner),
         Box::new(GitHistoryRunner),
@@ -1023,6 +1075,96 @@ mod tests {
             query: query.to_string(),
             expectation: "test expectation".to_string(),
         }
+    }
+
+    fn sample_row_with_expectation(
+        id: &str,
+        category: &str,
+        query: &str,
+        expectation: &str,
+    ) -> QaRow {
+        QaRow {
+            id: id.to_string(),
+            category: category.to_string(),
+            query: query.to_string(),
+            expectation: expectation.to_string(),
+        }
+    }
+
+    #[test]
+    fn registry_includes_architecture_repository_runner() {
+        let names: Vec<&str> = registry().iter().map(|runner| runner.name()).collect();
+        assert!(names.contains(&"ArchitectureRepositoryRunner"));
+    }
+
+    #[test]
+    fn architecture_rows_with_resolvable_crate_references_are_no_longer_unrunnable() -> TestResult {
+        let row = sample_row_with_expectation(
+            "QA-ARCH-1",
+            "Architecture",
+            "Find the public API surface of a fixture crate.",
+            "Resolve `enforcer-memory` module tree and interfaces.",
+        );
+        let fixtures = super::super::build_fixtures()?;
+        let results = run_all(&[row], &fixtures);
+        assert_eq!(results.len(), 1);
+        assert!(!results[0].is_unrunnable());
+        assert_eq!(results[0].verdict, "pass");
+        Ok(())
+    }
+
+    #[test]
+    fn architecture_rows_without_resolvable_crate_references_remain_unrunnable() -> TestResult {
+        let row = sample_row_with_expectation(
+            "QA-ARCH-2",
+            "Architecture",
+            "What proof exists for the c05 Claude SessionStart hook?",
+            "proof/install/c05-claude-hook-wiring.json",
+        );
+        let fixtures = super::super::build_fixtures()?;
+        let results = run_all(&[row], &fixtures);
+        assert_eq!(results.len(), 1);
+        assert!(results[0].is_unrunnable());
+        assert!(results[0].verdict.contains("no wired runner"));
+        Ok(())
+    }
+
+    #[test]
+    fn mcp_and_cli_can_use_full_row_text_for_tool_detection() {
+        let mcp_row = sample_row_with_expectation(
+            "QA-MCP-1",
+            "MCP",
+            "Which tool should answer this?",
+            "Use `search graph` to inspect the repository.",
+        );
+        assert!(McpRunner.can_run(&mcp_row));
+
+        let cli_row = sample_row_with_expectation(
+            "QA-CLI-1",
+            "CLI",
+            "Which CLI-mirrored tool should answer this?",
+            "Call `trace path` with a known start node.",
+        );
+        assert!(CliRunner.can_run(&cli_row));
+    }
+
+    #[test]
+    fn retrieval_runner_claims_only_fixture_backed_rows() {
+        let runnable = sample_row_with_expectation(
+            "QA-RET-1",
+            "Retrieval",
+            "Find the relevant function.",
+            "Expected `parse_config_file` in top results.",
+        );
+        assert!(RetrievalRunner.can_run(&runnable));
+
+        let unsupported = sample_row_with_expectation(
+            "QA-RET-2",
+            "Retrieval",
+            "Find all network calls made by this crate.",
+            "HTTP/API call nodes correct.",
+        );
+        assert!(!RetrievalRunner.can_run(&unsupported));
     }
 
     #[test]

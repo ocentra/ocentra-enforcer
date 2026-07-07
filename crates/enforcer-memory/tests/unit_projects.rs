@@ -25,12 +25,12 @@ fn temp_dir(name: &str) -> PathBuf {
     std::env::temp_dir().join(unique)
 }
 
-fn init_repo_root(raw: &str) -> enforcer_domain::paths::RepoRoot {
-    raw.parse().unwrap_or_else(|_| {
-        // Every literal used by this test module is a well-formed
-        // Windows/POSIX absolute path; a parse failure here is a
-        // test-authoring bug, not a runtime case to handle.
-        unreachable!("test literal {raw:?} must parse as a RepoRoot")
+fn init_repo_root(raw: &str) -> ProjectsResult<enforcer_domain::paths::RepoRoot> {
+    raw.parse().map_err(|source| {
+        ProjectsError::Memory(MemoryError::InvalidPath {
+            path: raw.to_owned(),
+            source,
+        })
     })
 }
 
@@ -45,8 +45,8 @@ fn list_projects_returns_empty_for_a_missing_stores_dir() -> ProjectsResult<()> 
 #[test]
 fn list_projects_reports_every_initialized_project_and_skips_non_projects() -> ProjectsResult<()> {
     let stores_dir = temp_dir("list");
-    let root_a = init_repo_root("C:/Projects/alpha");
-    let root_b = init_repo_root("C:/Projects/beta");
+    let root_a = init_repo_root("C:/Projects/alpha")?;
+    let root_b = init_repo_root("C:/Projects/beta")?;
 
     Store::init(&stores_dir, &root_a, "2026-07-05T00:00:00Z")?;
     Store::init(&stores_dir, &root_b, "2026-07-05T00:00:01Z")?;
@@ -76,7 +76,7 @@ fn list_projects_reports_every_initialized_project_and_skips_non_projects() -> P
 #[test]
 fn index_status_reports_no_index_built_when_no_manifest_exists() -> ProjectsResult<()> {
     let stores_dir = temp_dir("status-fresh");
-    let root = init_repo_root("C:/Projects/gamma");
+    let root = init_repo_root("C:/Projects/gamma")?;
     let store = Store::init(&stores_dir, &root, "2026-07-05T00:00:00Z")?;
     let project_id = store.project_id().as_str().to_owned();
 
@@ -103,7 +103,7 @@ fn index_status_reports_no_index_built_when_no_manifest_exists() -> ProjectsResu
 #[test]
 fn index_status_reports_ready_once_the_operational_graph_has_nodes() -> ProjectsResult<()> {
     let stores_dir = temp_dir("status-ready");
-    let root = init_repo_root("C:/Projects/zeta");
+    let root = init_repo_root("C:/Projects/zeta")?;
     let store = Store::init(&stores_dir, &root, "2026-07-05T00:00:00Z")?;
     let project_id = store.project_id().as_str().to_owned();
     let sqlite_path = store.sqlite_path();
@@ -140,7 +140,7 @@ fn index_status_reports_ready_once_the_operational_graph_has_nodes() -> Projects
 #[test]
 fn index_status_detects_a_stale_index_after_the_log_grows() -> ProjectsResult<()> {
     let stores_dir = temp_dir("status-stale");
-    let root = init_repo_root("C:/Projects/delta");
+    let root = init_repo_root("C:/Projects/delta")?;
     let mut store = Store::init(&stores_dir, &root, "2026-07-05T00:00:00Z")?;
     let project_id = store.project_id().as_str().to_owned();
     let store_root = store.root().to_path_buf();
@@ -161,6 +161,8 @@ fn index_status_detects_a_stale_index_after_the_log_grows() -> ProjectsResult<()
             source_surface: "test".to_owned(),
             ts: "2026-07-05T00:00:00Z".to_owned(),
             supersedes_seq: None,
+            payload_kind: None,
+            payload: None,
         })
         .map_err(ProjectsError::Memory)?;
 
@@ -195,7 +197,7 @@ fn index_status_detects_a_stale_index_after_the_log_grows() -> ProjectsResult<()
 #[test]
 fn delete_project_removes_only_the_derived_store_directory() -> ProjectsResult<()> {
     let stores_dir = temp_dir("delete-happy");
-    let root = init_repo_root("C:/Projects/epsilon");
+    let root = init_repo_root("C:/Projects/epsilon")?;
     let store = Store::init(&stores_dir, &root, "2026-07-05T00:00:00Z")?;
     let project_id = store.project_id().as_str().to_owned();
     let store_root = store.root().to_path_buf();

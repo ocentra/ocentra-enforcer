@@ -22,14 +22,19 @@
 //! never-mutate-in-place discipline: outcomes and route traces are
 //! FACTS ABOUT PAST EVENTS, never edited once recorded.
 
+use serde::{Deserialize, Serialize};
+
+use crate::error::{MemoryError, Result};
 use crate::graph::MemoryGraph;
+use crate::schema::{ObservationLogEntry, SCHEMA_VERSION};
+use crate::store::Store;
 
 /// One procedural-memory record: the outcome of attempting to apply a
 /// lesson's fix or retrieval guidance. Both success AND failure are
 /// first-class -- a procedural memory that only ever records success
 /// cannot distinguish "this always works" from "this was only tried
 /// once and got lucky".
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProceduralRecord {
     pub id: String,
     pub lesson_id: String,
@@ -41,7 +46,8 @@ pub struct ProceduralRecord {
 }
 
 /// Whether applying a lesson's guidance succeeded or failed this time.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum ProceduralOutcome {
     RetrievalSuccess,
     RetrievalFailure,
@@ -84,7 +90,7 @@ impl ProceduralRecord {
 /// data (never inferred after the fact) so a later audit of "should
 /// this query have used a different route" has ground truth to compare
 /// against.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RouteTrace {
     pub id: String,
     pub query: String,
@@ -110,6 +116,54 @@ impl RouteTrace {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProceduralStoreInput {
+    pub lesson_id: String,
+    pub outcome: ProceduralOutcome,
+    pub detail: String,
+    pub ts: String,
+}
+
+impl ProceduralStoreInput {
+    pub fn new(
+        lesson_id: impl Into<String>,
+        outcome: ProceduralOutcome,
+        detail: impl Into<String>,
+        ts: impl Into<String>,
+    ) -> Self {
+        Self {
+            lesson_id: lesson_id.into(),
+            outcome,
+            detail: detail.into(),
+            ts: ts.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RouteChoiceStoreInput {
+    pub query: String,
+    pub route: String,
+    pub confidence: f64,
+    pub ts: String,
+}
+
+impl RouteChoiceStoreInput {
+    pub fn new(
+        query: impl Into<String>,
+        route: impl Into<String>,
+        confidence: f64,
+        ts: impl Into<String>,
+    ) -> Self {
+        Self {
+            query: query.into(),
+            route: route.into(),
+            confidence,
+            ts: ts.into(),
+        }
+    }
+}
+
 /// Record one procedural-memory outcome into `graph`. Returns the
 /// assigned id.
 pub fn record_procedural(
@@ -129,6 +183,57 @@ pub fn record_procedural(
     };
     graph.ingest_procedural(record);
     id
+}
+
+pub fn record_procedural_in_store(
+    store: &mut Store,
+    graph: &mut MemoryGraph,
+    input: &ProceduralStoreInput,
+) -> Result<String> {
+    let mut assigned_id = String::new();
+    let mut assigned_record: Option<ProceduralRecord> = None;
+    store.append_observation_entry(|seq| {
+        let id = format!("proc-{seq:04}");
+        assigned_id = id.clone();
+        let record = ProceduralRecord {
+            id: id.clone(),
+            lesson_id: input.lesson_id.clone(),
+            outcome: input.outcome,
+            detail: input.detail.clone(),
+            ts: input.ts.clone(),
+        };
+        let payload = serde_json::json!({
+            "id": &record.id,
+            "lesson_id": &record.lesson_id,
+            "outcome": record.outcome,
+            "detail": &record.detail,
+            "ts": &record.ts,
+        });
+        assigned_record = Some(record);
+        ObservationLogEntry {
+            schema_version: SCHEMA_VERSION,
+            seq,
+            id,
+            lesson_id: input.lesson_id.clone(),
+            rule_id: None,
+            fault_class: Some(input.outcome.as_str().to_owned()),
+            repo_context: input.detail.clone(),
+            clean: input.outcome.is_success(),
+            source_surface: "procedural-memory".to_owned(),
+            ts: input.ts.clone(),
+            supersedes_seq: None,
+            payload_kind: Some("procedural-memory".to_owned()),
+            payload: Some(payload),
+        }
+    })?;
+    let Some(record) = assigned_record else {
+        return Err(MemoryError::InternalInvariant {
+            operation: "record_procedural_in_store",
+            reason: "append did not assign a procedural record".to_owned(),
+        });
+    };
+    graph.ingest_procedural(record);
+    Ok(assigned_id)
 }
 
 /// Record one meta-memory route-choice trace into `graph`. `confidence`
@@ -152,6 +257,85 @@ pub fn record_route_choice(
     };
     graph.ingest_route_trace(trace);
     id
+}
+
+pub fn record_route_choice_in_store(
+    store: &mut Store,
+    graph: &mut MemoryGraph,
+    input: &RouteChoiceStoreInput,
+) -> Result<String> {
+    let mut assigned_id = String::new();
+    let mut assigned_trace: Option<RouteTrace> = None;
+    store.append_observation_entry(|seq| {
+        let id = format!("route-{seq:04}");
+        assigned_id = id.clone();
+        let trace = RouteTrace {
+            id: id.clone(),
+            query: input.query.clone(),
+            route: input.route.clone(),
+            confidence: input.confidence.clamp(0.0, 1.0),
+            ts: input.ts.clone(),
+        };
+        let payload = serde_json::json!({
+            "id": &trace.id,
+            "query": &trace.query,
+            "route": &trace.route,
+            "confidence": trace.confidence,
+            "ts": &trace.ts,
+        });
+        assigned_trace = Some(trace);
+        ObservationLogEntry {
+            schema_version: SCHEMA_VERSION,
+            seq,
+            id,
+            lesson_id: String::new(),
+            rule_id: None,
+            fault_class: Some("route-choice".to_owned()),
+            repo_context: input.query.clone(),
+            clean: true,
+            source_surface: "route-choice".to_owned(),
+            ts: input.ts.clone(),
+            supersedes_seq: None,
+            payload_kind: Some("route-choice".to_owned()),
+            payload: Some(payload),
+        }
+    })?;
+    let Some(trace) = assigned_trace else {
+        return Err(MemoryError::InternalInvariant {
+            operation: "record_route_choice_in_store",
+            reason: "append did not assign a route trace".to_owned(),
+        });
+    };
+    graph.ingest_route_trace(trace);
+    Ok(assigned_id)
+}
+
+pub fn replay_procedural_and_routes_from_store(
+    store: &Store,
+    graph: &mut MemoryGraph,
+) -> Result<usize> {
+    let outcome = store.read_observation_entries()?;
+    let mut count = 0;
+    for entry in outcome.entries {
+        match (entry.payload_kind.as_deref(), entry.payload) {
+            (Some("procedural-memory"), Some(payload)) => {
+                let record: ProceduralRecord = serde_json::from_value(payload)?;
+                if !graph.procedural_records().iter().any(|r| r.id == record.id) {
+                    graph.ingest_procedural(record);
+                    count += 1;
+                }
+            }
+            (Some("route-choice"), Some(payload)) => {
+                let trace: RouteTrace = serde_json::from_value(payload)?;
+                if !graph.route_traces().iter().any(|r| r.id == trace.id) {
+                    graph.ingest_route_trace(trace);
+                    count += 1;
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(count)
 }
 
 /// Success rate (successes / total) for a lesson's procedural history.

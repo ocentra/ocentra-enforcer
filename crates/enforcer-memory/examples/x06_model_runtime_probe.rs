@@ -31,10 +31,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ModelRuntimeObservationRecord,
     };
     use enforcer_memory::model_runtime::{
-        evaluate_chat_usability, loaded_non_chat_usability, resolve_model_cache_root, sha256_file,
-        ChatThroughputPolicy, ModelCacheRootMode, ModelRuntimeServiceConfig, ModelSpec, ModelTask,
-        ModelUsabilityReport, ProviderKind, DEFAULT_EMBEDDING_MODEL_ID,
-        DEFAULT_MIN_CHAT_TOKENS_PER_SECOND, DEFAULT_RERANKER_MODEL_ID,
+        default_model_runtime_probe_plan, evaluate_chat_usability, loaded_non_chat_usability,
+        resolve_model_cache_root, sha256_file, ChatThroughputPolicy, ModelCacheRootMode,
+        ModelRuntimeServiceConfig, ModelSpec, ModelTask, ModelUsabilityReport, ProviderKind,
+        DEFAULT_EMBEDDING_MODEL_ID, DEFAULT_MIN_CHAT_TOKENS_PER_SECOND, DEFAULT_RERANKER_MODEL_ID,
         TARGET_CHAT_TOKENS_PER_SECOND_HIGH, TARGET_CHAT_TOKENS_PER_SECOND_LOW,
     };
     use enforcer_memory::ort_runtime::{OrtEmbedder, OrtReranker};
@@ -91,7 +91,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::io::stdout().write_all(proof_text.as_bytes())?;
         return Ok(());
     }
-    let llama_acceleration = llama_acceleration_from_env();
+    let requested_llama_acceleration = llama_acceleration_from_env();
     let llama_backend_hint = llama_backend_hint_from_env();
     let probe_filter = probe_filter_from_env();
     let probe_execution_policy = probe_execution_policy(&probe_filter);
@@ -99,13 +99,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut lineup = X06ModelLineup::from_env()?;
     let chat_probe_selected = should_run_probe(&probe_filter, "chat-generation-gguf");
+    let device_report = maybe_llama_device_report(runtime_mode != "plan");
+    let provider_probe_passed = device_report
+        .as_ref()
+        .map(|report| !report.devices.is_empty())
+        .unwrap_or(false);
+    let resolved_llama_acceleration =
+        resolve_llama_acceleration(requested_llama_acceleration, provider_probe_passed);
     let chat_model_selection = maybe_select_chat_model_for_hardware(
         &repo_root,
         &mut lineup,
         llama_backend_hint,
-        llama_acceleration,
+        requested_llama_acceleration,
+        resolved_llama_acceleration,
         chat_probe_selected,
-        runtime_mode != "plan",
+        device_report.as_ref(),
     );
     let mut observations = Vec::new();
 
@@ -213,7 +221,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &repo_root,
                 &report,
                 llama_backend_hint,
-                llama_acceleration,
+                resolved_llama_acceleration,
                 &mut observations,
                 &observed_at,
                 &run_id,
@@ -223,7 +231,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &repo_root,
                     &report,
                     llama_backend_hint,
-                    llama_acceleration,
+                    resolved_llama_acceleration,
                     &mut observations,
                     &observed_at,
                     &run_id,
@@ -251,7 +259,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &repo_root,
                 &report,
                 llama_backend_hint,
-                llama_acceleration,
+                resolved_llama_acceleration,
                 &mut observations,
                 &observed_at,
                 &run_id,
@@ -468,17 +476,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .ok()
             .filter(|value| !value.trim().is_empty())
             .unwrap_or_else(|| "local".to_owned());
+        let cache_dir = cache_root.join("local").join("chat");
         Some(HfDownloadReport {
             repo_id: model_id,
             revision,
-            cache_dir: model_path
-                .parent()
-                .map(PathBuf::from)
-                .unwrap_or_else(|| cache_root.join("local").join("chat")),
-            manifest_path: cache_root
-                .join("local")
-                .join("chat")
-                .join("direct-chat-model.manifest.json"),
+            cache_dir: cache_dir.clone(),
+            manifest_path: cache_dir.join("direct-chat-model.manifest.json"),
             downloaded_files: vec![HfDownloadedFile {
                 source_path: file_name,
                 local_path: model_path,
@@ -489,13 +492,47 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
     }
 
+    fn maybe_llama_device_report(
+        allow_device_probe: bool,
+    ) -> Option<enforcer_memory::llama_cpp::LlamaCppDeviceReport> {
+        if !allow_device_probe {
+            return None;
+        }
+        let binary = env_path("ENFORCER_X06_LLAMA_CLI").or_else(default_llama_cli)?;
+        list_llama_cpp_devices(
+            &binary,
+            env_u64("ENFORCER_X06_DEVICE_TIMEOUT_MS")
+                .unwrap_or_else(|| default_model_runtime_probe_plan().provider_probe_timeout_ms),
+        )
+        .ok()
+    }
+
+    fn resolve_llama_acceleration(
+        requested: LocalRuntimeAcceleration,
+        provider_probe_passed: bool,
+    ) -> LocalRuntimeAcceleration {
+        match requested {
+            LocalRuntimeAcceleration::Cpu => LocalRuntimeAcceleration::Cpu,
+            LocalRuntimeAcceleration::Gpu | LocalRuntimeAcceleration::Npu
+                if provider_probe_passed =>
+            {
+                requested
+            }
+            LocalRuntimeAcceleration::Gpu | LocalRuntimeAcceleration::Npu => {
+                LocalRuntimeAcceleration::Cpu
+            }
+            LocalRuntimeAcceleration::Auto => LocalRuntimeAcceleration::Cpu,
+        }
+    }
+
     fn maybe_select_chat_model_for_hardware(
         repo_root: &Path,
         lineup: &mut X06ModelLineup,
         backend_hint: LlamaCppBackendHint,
-        acceleration: LocalRuntimeAcceleration,
+        requested_acceleration: LocalRuntimeAcceleration,
+        resolved_acceleration: LocalRuntimeAcceleration,
         chat_probe_selected: bool,
-        allow_device_probe: bool,
+        device_report: Option<&enforcer_memory::llama_cpp::LlamaCppDeviceReport>,
     ) -> serde_json::Value {
         if !chat_probe_selected {
             return serde_json::json!({
@@ -519,23 +556,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             });
         }
 
-        let binary = env_path("ENFORCER_X06_LLAMA_CLI").or_else(default_llama_cli);
-        let device_report = if allow_device_probe {
-            binary.as_ref().and_then(|binary| {
-                list_llama_cpp_devices(
-                    binary,
-                    env_u64("ENFORCER_X06_DEVICE_TIMEOUT_MS").unwrap_or(5_000),
-                )
-                .ok()
-            })
-        } else {
-            None
-        };
-        let detected_free_vram_mib = match (backend_hint, acceleration) {
+        let provider_probe_passed = device_report
+            .map(|report| !report.devices.is_empty())
+            .unwrap_or(false);
+        let detected_free_vram_mib = match (backend_hint, resolved_acceleration) {
             (LlamaCppBackendHint::OpenVino, LocalRuntimeAcceleration::Npu)
             | (_, LocalRuntimeAcceleration::Npu)
             | (_, LocalRuntimeAcceleration::Cpu) => None,
-            _ => device_report.as_ref().and_then(|report| {
+            _ => device_report.and_then(|report| {
                 report
                     .devices
                     .iter()
@@ -548,8 +576,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         serde_json::json!({
             "enabled": true,
             "backendHint": backend_hint,
-            "requestedAcceleration": acceleration,
-            "deviceReport": device_report.as_ref().map(|report| {
+            "requestedAcceleration": requested_acceleration,
+            "resolvedAcceleration": resolved_acceleration,
+            "providerProbePassed": provider_probe_passed,
+            "providerProbeTimeoutMs": env_u64("ENFORCER_X06_DEVICE_TIMEOUT_MS")
+                .unwrap_or_else(|| default_model_runtime_probe_plan().provider_probe_timeout_ms),
+            "deviceReport": device_report.map(|report| {
                 llama_device_report_proof(repo_root, report)
             }),
             "selection": selection
@@ -613,7 +645,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             fit: env_optional_bool("ENFORCER_X06_LLAMA_FIT").or(Some(true)),
             context_size: env_usize("ENFORCER_X06_LLAMA_CONTEXT"),
             max_tokens: env_usize("ENFORCER_X06_LLAMA_MAX_TOKENS").unwrap_or(32),
-            timeout_ms: env_u64("ENFORCER_X06_LLAMA_TIMEOUT_MS").unwrap_or(120_000),
+            timeout_ms: env_u64("ENFORCER_X06_LLAMA_TIMEOUT_MS")
+                .unwrap_or_else(|| default_model_runtime_probe_plan().model_probe_timeout_ms),
         });
         llama_result_json(
             "chat-generation-gguf",
@@ -663,7 +696,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             fit: env_optional_bool("ENFORCER_X06_LLAMA_FIT").or(Some(true)),
             context_size: env_usize("ENFORCER_X06_LLAMA_CONTEXT"),
             max_tokens: 0,
-            timeout_ms: env_u64("ENFORCER_X06_LLAMA_TIMEOUT_MS").unwrap_or(120_000),
+            timeout_ms: env_u64("ENFORCER_X06_LLAMA_TIMEOUT_MS")
+                .unwrap_or_else(|| default_model_runtime_probe_plan().model_probe_timeout_ms),
         });
         llama_result_json(
             "qwen-embedding-gguf",
@@ -1193,7 +1227,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     fn llama_acceleration_from_env() -> LocalRuntimeAcceleration {
         match std::env::var("ENFORCER_X06_LLAMA_ACCELERATION")
-            .unwrap_or_else(|_| "auto".to_owned())
+            .unwrap_or_else(|_| "cpu".to_owned())
             .to_ascii_lowercase()
             .as_str()
         {
@@ -1354,16 +1388,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .ok()
             .filter(|value| !value.trim().is_empty())
             .unwrap_or_else(|| DEFAULT_PROBE_FILTER.to_owned());
+        let plan = default_model_runtime_probe_plan();
         serde_json::json!({
-            "defaultProbeFilter": DEFAULT_PROBE_FILTER,
+            "defaultProbeFilter": plan.default_probe_filter,
             "requestedProbeFilter": requested_filter,
+            "oneModelAtATime": plan.one_model_at_a_time,
+            "cpuFirst": plan.cpu_first,
+            "gpuAndNpuRequireProviderProbe": plan.gpu_and_npu_require_provider_probe,
+            "providerProbeTimeoutMs": plan.provider_probe_timeout_ms,
+            "modelProbeTimeoutMs": plan.model_probe_timeout_ms,
+            "killOnTimeout": plan.kill_on_timeout,
+            "minimumChatTokensPerSecond": plan.minimum_chat_tokens_per_second,
+            "targetChatTokensPerSecondLow": plan.target_chat_tokens_per_second_low,
+            "targetChatTokensPerSecondHigh": plan.target_chat_tokens_per_second_high,
             "allowMultiProbe": env_truthy("ENFORCER_X06_ALLOW_MULTI_PROBE"),
             "selectedProbes": selected_probes,
             "probeOrder": PROBE_ORDER,
             "reason": if env_truthy("ENFORCER_X06_ALLOW_MULTI_PROBE") {
                 "multi-probe explicitly enabled"
             } else {
-                "one real model probe at a time by default to avoid resource contention or host instability"
+                "one model at a time; CPU first; GPU/NPU only after provider probes pass; timeout kills the child process"
             }
         })
     }

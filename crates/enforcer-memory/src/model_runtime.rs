@@ -33,6 +33,8 @@ pub const DEFAULT_MODEL_SERVICE_PORT: u16 = 8766;
 pub const DEFAULT_MIN_CHAT_TOKENS_PER_SECOND: f64 = 10.0;
 pub const TARGET_CHAT_TOKENS_PER_SECOND_LOW: f64 = 40.0;
 pub const TARGET_CHAT_TOKENS_PER_SECOND_HIGH: f64 = 60.0;
+pub const DEFAULT_DEVICE_PROBE_TIMEOUT_MS: u64 = 5_000;
+pub const DEFAULT_MODEL_PROBE_TIMEOUT_MS: u64 = 120_000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -266,6 +268,21 @@ pub struct ModelUsabilityReport {
     pub target_chat_tokens_per_second_low: Option<f64>,
     pub target_chat_tokens_per_second_high: Option<f64>,
     pub measured_tokens_per_second: Option<f64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelRuntimeProbePlan {
+    pub default_probe_filter: String,
+    pub one_model_at_a_time: bool,
+    pub cpu_first: bool,
+    pub gpu_and_npu_require_provider_probe: bool,
+    pub provider_probe_timeout_ms: u64,
+    pub model_probe_timeout_ms: u64,
+    pub kill_on_timeout: bool,
+    pub minimum_chat_tokens_per_second: u32,
+    pub target_chat_tokens_per_second_low: u32,
+    pub target_chat_tokens_per_second_high: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -614,6 +631,7 @@ pub struct ModelRuntimeProof {
     pub schema_version: u32,
     pub backend: String,
     pub zero_network_default: bool,
+    pub probe_plan: ModelRuntimeProbePlan,
     pub embedding: ModelCapabilityReport,
     pub reranker: ModelCapabilityReport,
     pub learning_observation_kinds: Vec<ModelRuntimeObservationKind>,
@@ -857,15 +875,16 @@ pub fn default_zero_network_proof() -> ModelRuntimeProof {
         schema_version: MODEL_RUNTIME_SCHEMA_VERSION,
         backend: "deterministic-fallback".to_owned(),
         zero_network_default: true,
+        probe_plan: default_model_runtime_probe_plan(),
         embedding: degraded_capability_report(
             ModelTask::Embedding,
             SourcePolicy::LocalCache,
-            "default build has no compiled real model provider",
+            "default build has no compiled real model provider; provider probes remain unavailable",
         ),
         reranker: degraded_capability_report(
             ModelTask::Reranking,
             SourcePolicy::LocalCache,
-            "default build has no compiled real model provider",
+            "default build has no compiled real model provider; provider probes remain unavailable",
         ),
         learning_observation_kinds: vec![
             ModelRuntimeObservationKind::ModelLoadFailed,
@@ -875,6 +894,21 @@ pub fn default_zero_network_proof() -> ModelRuntimeProof {
             ModelRuntimeObservationKind::DegradedFallback,
             ModelRuntimeObservationKind::LocalLoadSucceeded,
         ],
+    }
+}
+
+pub fn default_model_runtime_probe_plan() -> ModelRuntimeProbePlan {
+    ModelRuntimeProbePlan {
+        default_probe_filter: "chat".to_owned(),
+        one_model_at_a_time: true,
+        cpu_first: true,
+        gpu_and_npu_require_provider_probe: true,
+        provider_probe_timeout_ms: DEFAULT_DEVICE_PROBE_TIMEOUT_MS,
+        model_probe_timeout_ms: DEFAULT_MODEL_PROBE_TIMEOUT_MS,
+        kill_on_timeout: true,
+        minimum_chat_tokens_per_second: DEFAULT_MIN_CHAT_TOKENS_PER_SECOND as u32,
+        target_chat_tokens_per_second_low: TARGET_CHAT_TOKENS_PER_SECOND_LOW as u32,
+        target_chat_tokens_per_second_high: TARGET_CHAT_TOKENS_PER_SECOND_HIGH as u32,
     }
 }
 

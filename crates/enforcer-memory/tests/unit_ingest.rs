@@ -1,5 +1,10 @@
+use enforcer_domain::paths::RepoRoot;
 use enforcer_memory::graph::MemoryGraph;
-use enforcer_memory::ingest::{ingest_observation, parse_ndjson, IngestError, Observation};
+use enforcer_memory::ingest::{
+    ingest_observation, ingest_observation_into_store, parse_ndjson,
+    replay_incident_observations_from_store, IngestError, Observation,
+};
+use enforcer_memory::store::Store;
 
 #[test]
 fn parses_multiple_lines_and_skips_blanks() -> Result<(), Box<dyn std::error::Error>> {
@@ -12,12 +17,15 @@ fn parses_multiple_lines_and_skips_blanks() -> Result<(), Box<dyn std::error::Er
 }
 
 #[test]
-fn rejects_malformed_line() {
+fn rejects_malformed_line() -> Result<(), Box<dyn std::error::Error>> {
     let text = "{not json}\n";
     let result = parse_ndjson(text);
     match result {
-        Err(IngestError::InvalidJson { line, .. }) => assert_eq!(line, 1),
-        Ok(_) => unreachable!("malformed line must not parse as valid ndjson"),
+        Err(IngestError::InvalidJson { line, .. }) => {
+            assert_eq!(line, 1);
+            Ok(())
+        }
+        Ok(_) => Err("malformed line parsed as valid ndjson".into()),
     }
 }
 
@@ -40,4 +48,38 @@ fn observation_seam_records_clean_run_as_negative_evidence() {
     assert_eq!(graph.incidents_for_lesson("L1").len(), 1);
     assert!(graph.incidents_for_lesson("L1")[0].clean);
     assert!(id.starts_with("obs-scan-"));
+}
+
+#[test]
+fn store_backed_observation_appends_then_replays_projection(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempfile::tempdir()?;
+    let root: RepoRoot = "C:/Projects/x06-observation-store".parse()?;
+    let mut store = Store::init(dir.path(), &root, "2026-07-04T00:00:00Z")?;
+    let mut graph = MemoryGraph::new();
+
+    let id = ingest_observation_into_store(
+        &mut store,
+        &mut graph,
+        Observation {
+            lesson_id: "L-store".to_string(),
+            rule_id: Some("RULE-1".to_string()),
+            fault_class: Some("model-load-failure".to_string()),
+            repo_context: "crates/enforcer-memory".to_string(),
+            clean: false,
+            source_surface: "scan".to_string(),
+            ts: "2026-07-04T00:00:00Z".to_string(),
+        },
+    )?;
+
+    assert_eq!(graph.incidents_for_lesson("L-store").len(), 1);
+    let entries = store.read_observation_entries()?;
+    assert_eq!(entries.entries.len(), 1);
+    assert_eq!(entries.entries[0].id, id);
+
+    let mut replayed = MemoryGraph::new();
+    let replay_count = replay_incident_observations_from_store(&store, &mut replayed)?;
+    assert_eq!(replay_count, 1);
+    assert_eq!(replayed.incidents_for_lesson("L-store").len(), 1);
+    Ok(())
 }

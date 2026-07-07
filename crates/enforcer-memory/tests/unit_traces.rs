@@ -1,5 +1,10 @@
+use enforcer_domain::paths::RepoRoot;
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
-use enforcer_memory::traces::{EdgeProvenance, TraceRecord, TraceStore};
+use enforcer_memory::store::Store;
+use enforcer_memory::traces::{
+    ingest_trace_records_into_store, replay_trace_records_from_store, EdgeProvenance, TraceRecord,
+    TraceRecordStoreBatch, TraceStore,
+};
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -231,5 +236,40 @@ fn ingest_is_deterministically_ordered_by_caller_then_callee() -> TestResult {
         callers_callees, sorted,
         "edges() must be sorted by (caller, callee)"
     );
+    Ok(())
+}
+
+#[test]
+fn runtime_trace_records_append_to_store_and_replay_projection() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let graph = build_fixture_graph(dir.path())?;
+    let stores_dir = tempfile::tempdir()?;
+    let root: RepoRoot = "C:/Projects/x06-trace-store".parse()?;
+    let mut store = Store::init(stores_dir.path(), &root, "2026-07-04T00:00:00Z")?;
+    let batch = vec![TraceRecord {
+        caller: "file:a.rs".to_string(),
+        callee: "helper".to_string(),
+        count: 7,
+    }];
+
+    let mut trace_store = TraceStore::new();
+    let appended = ingest_trace_records_into_store(
+        &mut store,
+        &mut trace_store,
+        &graph,
+        &TraceRecordStoreBatch::new(&batch, "runtime-probe", "2026-07-04T00:00:01Z"),
+    )?;
+    assert_eq!(appended, 1);
+    assert_eq!(store.read_observation_entries()?.entries.len(), 1);
+
+    let mut replayed = TraceStore::new();
+    let replayed_count = replay_trace_records_from_store(&store, &mut replayed, &graph)?;
+    assert_eq!(replayed_count, 1);
+    let edge = replayed
+        .edges(&graph)
+        .into_iter()
+        .find(|edge| edge.caller == "file:a.rs" && edge.callee == "helper")
+        .ok_or("expected replayed trace edge")?;
+    assert_eq!(edge.observed_count, 7);
     Ok(())
 }

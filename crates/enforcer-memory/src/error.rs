@@ -97,6 +97,15 @@ pub enum MemoryError {
         operation: &'static str,
         reason: String,
     },
+
+    /// An internal append/replay invariant failed. This is returned as a
+    /// typed error instead of panicking so proof runs can record the
+    /// failure and keep the harness process alive.
+    #[error("internal invariant failed in {operation}: {reason}")]
+    InternalInvariant {
+        operation: &'static str,
+        reason: String,
+    },
 }
 
 fn format_rows(rows: &[QuarantinedRow]) -> String {

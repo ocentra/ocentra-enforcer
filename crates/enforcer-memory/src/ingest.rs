@@ -10,8 +10,11 @@
 //! `crates/enforcer-memory/**`) — see the final report for the deferred
 //! follow-up.
 
+use crate::error::Result as MemoryResult;
 use crate::graph::MemoryGraph;
 use crate::record::MemoryRecord;
+use crate::schema::{ObservationLogEntry, SCHEMA_VERSION};
+use crate::store::Store;
 use thiserror::Error;
 
 /// Errors from parsing an NDJSON memory-record stream.
@@ -120,8 +123,95 @@ pub struct Observation {
 /// created so the caller can, e.g., surface it in a run's proof journal.
 pub fn ingest_observation(graph: &mut MemoryGraph, observation: Observation) -> String {
     let id = format!("obs-{}-{:04}", observation.source_surface, graph.len());
-    let incident = Incident {
-        id: id.clone(),
+    let incident = incident_from_observation(id.clone(), observation);
+    graph.ingest_incident(incident);
+    id
+}
+
+pub fn append_observation_to_store(
+    store: &mut Store,
+    observation: Observation,
+) -> MemoryResult<String> {
+    append_observation_payload_to_store(store, observation, None, None)
+}
+
+pub fn append_observation_payload_to_store(
+    store: &mut Store,
+    observation: Observation,
+    payload_kind: Option<String>,
+    payload: Option<serde_json::Value>,
+) -> MemoryResult<String> {
+    let mut assigned_id = String::new();
+    store.append_observation_entry(|seq| {
+        let id = format!("obs-{}-{seq:04}", observation.source_surface);
+        assigned_id = id.clone();
+        ObservationLogEntry {
+            schema_version: SCHEMA_VERSION,
+            seq,
+            id,
+            lesson_id: observation.lesson_id,
+            rule_id: observation.rule_id,
+            fault_class: observation.fault_class,
+            repo_context: observation.repo_context,
+            clean: observation.clean,
+            source_surface: observation.source_surface,
+            ts: observation.ts,
+            supersedes_seq: None,
+            payload_kind,
+            payload,
+        }
+    })?;
+    Ok(assigned_id)
+}
+
+pub fn ingest_observation_into_store(
+    store: &mut Store,
+    graph: &mut MemoryGraph,
+    observation: Observation,
+) -> MemoryResult<String> {
+    ingest_observation_payload_into_store(store, graph, observation, None, None)
+}
+
+pub fn ingest_observation_payload_into_store(
+    store: &mut Store,
+    graph: &mut MemoryGraph,
+    observation: Observation,
+    payload_kind: Option<String>,
+    payload: Option<serde_json::Value>,
+) -> MemoryResult<String> {
+    let id = append_observation_payload_to_store(store, observation, payload_kind, payload)?;
+    let stored = store.read_observation_entries()?;
+    if let Some(entry) = stored.entries.into_iter().find(|entry| entry.id == id) {
+        graph.ingest_incident(incident_from_entry(&entry));
+    }
+    Ok(id)
+}
+
+pub fn replay_incident_observations_from_store(
+    store: &Store,
+    graph: &mut MemoryGraph,
+) -> MemoryResult<usize> {
+    let outcome = store.read_observation_entries()?;
+    let mut count = 0;
+    for entry in outcome.entries {
+        if matches!(
+            entry.payload_kind.as_deref(),
+            Some("procedural-memory") | Some("route-choice")
+        ) {
+            continue;
+        }
+        if graph.nodes().iter().any(|node| node.id() == entry.id) {
+            continue;
+        }
+        graph.ingest_incident(incident_from_entry(&entry));
+        count += 1;
+    }
+    Ok(count)
+}
+
+fn incident_from_observation(id: String, observation: Observation) -> Incident {
+    Incident {
+        id,
         lesson_id: observation.lesson_id,
         rule_id: observation.rule_id,
         fault_class: observation.fault_class,
@@ -129,7 +219,18 @@ pub fn ingest_observation(graph: &mut MemoryGraph, observation: Observation) -> 
         clean: observation.clean,
         source_surface: observation.source_surface,
         ts: observation.ts,
-    };
-    graph.ingest_incident(incident);
-    id
+    }
+}
+
+fn incident_from_entry(entry: &ObservationLogEntry) -> Incident {
+    Incident {
+        id: entry.id.clone(),
+        lesson_id: entry.lesson_id.clone(),
+        rule_id: entry.rule_id.clone(),
+        fault_class: entry.fault_class.clone(),
+        repo_context: entry.repo_context.clone(),
+        clean: entry.clean,
+        source_surface: entry.source_surface.clone(),
+        ts: entry.ts.clone(),
+    }
 }

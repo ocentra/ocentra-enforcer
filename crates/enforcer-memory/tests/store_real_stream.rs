@@ -100,6 +100,8 @@ fn real_stream_file_round_trips_through_the_store() -> Result<(), Box<dyn std::e
                 source_surface: "real-stream-ingest-test".to_owned(),
                 ts: record.ts.clone(),
                 supersedes_seq: None,
+                payload_kind: None,
+                payload: None,
             })?;
     }
     assert_eq!(

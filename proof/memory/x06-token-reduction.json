@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "artifact": "x06-token-reduction",
+  "generatedAt": "2026-07-07T01:20:00Z",
+  "status": "green-fixture-proof",
+  "sourceArtifact": "proof/memory/x06-retrieval-quality.json",
+  "queries": [
+    {
+      "queryId": "q-retrieval-exact",
+      "query": "parseConfigFile",
+      "naiveTokens": 2500,
+      "contextTokens": 101,
+      "reductionRatio": 24.7524752475
+    },
+    {
+      "queryId": "q-retrieval-semantic",
+      "query": "widget configuration settings",
+      "naiveTokens": 2500,
+      "contextTokens": 101,
+      "reductionRatio": 24.7524752475
+    },
+    {
+      "queryId": "q-retrieval-network",
+      "query": "network socket timeout retry",
+      "naiveTokens": 2500,
+      "contextTokens": 101,
+      "reductionRatio": 24.7524752475
+    }
+  ],
+  "medianReductionRatio": 24.7524752475,
+  "passes10xGate": true,
+  "notes": [
+    "Token reduction is proven on committed fixture retrieval rows, not on an external model provider.",
+    "Reranker lift remains separately tracked because the current deterministic fixture reranker does not improve all rows."
+  ]
+}

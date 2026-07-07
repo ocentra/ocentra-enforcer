@@ -345,12 +345,21 @@ fn real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in() {
     let script = include_str!("../scripts/x06-real-model-proof.ps1");
 
     assert!(probe.contains("const DEFAULT_PROBE_FILTER: &str = \"chat\";"));
+    assert!(probe.contains("\"oneModelAtATime\": plan.one_model_at_a_time"));
+    assert!(probe.contains("\"cpuFirst\": plan.cpu_first"));
+    assert!(probe
+        .contains("\"gpuAndNpuRequireProviderProbe\": plan.gpu_and_npu_require_provider_probe"));
+    assert!(probe.contains("\"killOnTimeout\": plan.kill_on_timeout"));
+    assert!(probe.contains("\"providerProbeTimeoutMs\": plan.provider_probe_timeout_ms"));
+    assert!(probe.contains("\"modelProbeTimeoutMs\": plan.model_probe_timeout_ms"));
+    assert!(probe.contains("\"minimumChatTokensPerSecond\": plan.minimum_chat_tokens_per_second"));
     assert!(probe.contains("ENFORCER_X06_ALLOW_MULTI_PROBE"));
     assert!(probe.contains("\"reranker\" | \"ranker\" | \"reranker-onnx\""));
     assert!(
-        probe.contains("one real model probe at a time by default"),
+        probe.contains("one model at a time; CPU first; GPU/NPU only after provider probes pass; timeout kills the child process"),
         "probe proof should explain why broad model launches are disabled by default"
     );
+    assert!(script.contains("[string]$Acceleration = 'cpu'"));
     assert!(script.contains("[switch]$AllowMultiProbe"));
     assert!(script.contains("$env:ENFORCER_X06_ALLOW_MULTI_PROBE"));
 }
@@ -362,6 +371,8 @@ fn real_model_probe_can_import_external_chat_assets_into_repo_model_cache() {
 
     assert!(probe.contains("ENFORCER_X06_CHAT_MODEL_PATH"));
     assert!(probe.contains("maybe_direct_chat_model_report"));
+    assert!(probe.contains("\"providerProbePassed\":"));
+    assert!(probe.contains("\"resolvedAcceleration\":"));
     assert!(script.contains("[string]$ImportChatModelPath"));
     assert!(script.contains("[string]$ImportLlamaCliPath"));
     assert!(script.contains("$env:ENFORCER_X06_ORT_TIMEOUT_MS"));

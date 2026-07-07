@@ -13,7 +13,7 @@ param(
     [string]$ProofOut = 'proof/memory/x06-models-chat-auto-gpu.json',
 
     [ValidateSet('cpu', 'gpu', 'npu', 'auto')]
-    [string]$Acceleration = 'gpu',
+    [string]$Acceleration = 'cpu',
 
     [double]$MinChatTokensPerSecond = 10.0,
     [double]$TargetChatTokensPerSecondLow = 40.0,
