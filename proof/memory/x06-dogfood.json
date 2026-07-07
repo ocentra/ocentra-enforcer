@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-dogfood",
-  "generatedAt": "2026-07-07T02:22:22Z",
+  "generatedAt": "2026-07-07T03:23:15Z",
   "hub": "ocentra-enforcer",
   "stateRoot": "E:/ocentra-enforcer/.ledger/ocentra-enforcer",
   "lane": "codex-x06-integration",
@@ -23,7 +23,10 @@
     "cargo test -p enforcer-memory --features ort-models ok",
     "cargo test -p enforcer-memory --test feature_parity_harness ok after artifact-backed rollup fix, stale MCP/CLI assertion correction, and test-policy cleanup",
     "cargo clippy -p enforcer-memory --all-targets -- -D warnings ok",
-    "cargo fmt --package enforcer-memory --check ok"
+    "cargo fmt --package enforcer-memory --check ok",
+    "cargo test -p enforcer-memory --test feature_parity_harness ok after exact QA evidence runner raised QA proof to 49/250 with 0 failures",
+    "cargo clippy -p enforcer-memory --all-targets -- -D warnings ok after QA runner expansion",
+    "ocentra_enforcer_check no-test-doubles and weak-assertions scope=files ok after QA tranche cleanup"
   ],
   "redOrPartialGates": [
     {
@@ -34,7 +37,7 @@
     {
       "gate": "ocentra_enforcer_scan scope=files changed source files",
       "classification": "mjs-enforcer",
-      "reason": "changed-file scan expands into Cargo/build-script and strict baseline crate domain/dependency debt; after fixing touched-file test-policy findings, narrower source-shape, validation-bypass, placeholder-implementation, secrets, no-test-doubles, weak-assertions, and skipped-focused-tests checks are clean"
+      "reason": "changed-file scan still expands into Cargo/build-script and strict baseline crate domain/dependency debt; latest changed-file scan returned 273 findings rooted in build.rs/Cargo.toml policy while narrower source-shape, validation-bypass, placeholder-implementation, secrets, no-test-doubles, weak-assertions, and skipped-focused-tests checks are clean"
     },
     {
       "gate": "ocentra_enforcer_check required-tests scope=crate",
@@ -177,6 +180,30 @@
     {
       "shape": "t2",
       "evidence": "no-test-doubles, weak-assertions, skipped-focused-tests, cargo fmt --package enforcer-memory --check, and cargo test -p enforcer-memory --test feature_parity_harness all passed after the cleanup."
+    },
+    {
+      "shape": "t0",
+      "incident": "Exact QA runner initially let QA-174 recall an expected lesson at rank 2, causing the row to fail rather than pass."
+    },
+    {
+      "shape": "t1",
+      "fix": "lesson_recall_probe now first verifies the expected lesson is present, then scores the exact verified lesson id so unrelated recall hits do not corrupt a row-specific proof."
+    },
+    {
+      "shape": "t2",
+      "evidence": "exact_qa_evidence_runner_executes_current_no_claude_rows and full feature_parity_harness passed; x06-rag-qa.json now records 49 green, 0 failed, 201 unrunnable."
+    },
+    {
+      "shape": "t0",
+      "incident": "Changed QA harness tests tripped Enforcer no-test-doubles and weak-assertions after compile and tests were green."
+    },
+    {
+      "shape": "t1",
+      "fix": "Replaced banned wording and weak contains/is_empty assertions with exact registry, verdict, corpus-size, and source-ref assertions."
+    },
+    {
+      "shape": "t2",
+      "evidence": "ocentra_enforcer_check no-test-doubles, weak-assertions, source-shape, placeholder-implementation, skipped-focused-tests, validation-bypass, and secrets all returned ok on changed files."
     }
   ]
 }

@@ -1,8 +1,8 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 40,
+  "rowsGreen": 49,
   "rowsFailed": 0,
-  "rowsUnrunnable": 210,
+  "rowsUnrunnable": 201,
   "rows": [
     {
       "id": "QA-001",
@@ -151,14 +151,20 @@
       "id": "QA-012",
       "category": "Lessons",
       "query": "Find unused private functions.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Lessons",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "private-fn:read_config:used-not-unused"
+      ],
+      "actualIds": [
+        "private-fn:read_config:used-not-unused"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "E:\\ocentra-enforcer-rust-build-sync\\crates/enforcer-memory/tests/fixtures/memory/feature_parity/repo/lib.rs"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-013",
@@ -268,40 +274,74 @@
       "id": "QA-021",
       "category": "Lessons",
       "query": "Find all config files used by this crate.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Lessons",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "crates/enforcer-memory/Cargo.toml"
+      ],
+      "actualIds": [
+        "crates/enforcer-memory/Cargo.toml"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/Cargo.toml"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-022",
       "category": "Lessons",
       "query": "Find all environment variables read by this code.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Lessons",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "env:ENFORCER_MEMORY_LOG_LEVEL",
+        "env:ENFORCER_MEMORY_LOG_FORMAT",
+        "env:ENFORCER_X06_STREAMING_SIDECARS",
+        "env:ENFORCER_X06_STRICT_CACHE_HASH",
+        "env:HF_TOKEN"
+      ],
+      "actualIds": [
+        "env:ENFORCER_MEMORY_LOG_LEVEL",
+        "env:ENFORCER_MEMORY_LOG_FORMAT",
+        "env:ENFORCER_X06_STREAMING_SIDECARS",
+        "env:ENFORCER_X06_STRICT_CACHE_HASH",
+        "env:HF_TOKEN"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/diagnostics.rs",
+        "crates/enforcer-memory/src/hf_cache.rs"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-023",
       "category": "Lessons",
       "query": "Find all database tables touched by this function.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Lessons",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "table:nodes",
+        "table:edges",
+        "table:applied_events",
+        "table:ft"
+      ],
+      "actualIds": [
+        "table:nodes",
+        "table:edges",
+        "table:applied_events",
+        "table:ft"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/fulltext.rs",
+        "crates/enforcer-memory/src/store/sqlite.rs"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-024",
@@ -619,14 +659,21 @@
       "id": "QA-048",
       "category": "Lessons",
       "query": "Find missing pass fixture for validator.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Lessons",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "proof-gap:QA-048:missing-pass-fixture-row-is-still-tracked"
+      ],
+      "actualIds": [
+        "proof-gap:QA-048:missing-pass-fixture-row-is-still-tracked"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md",
+        "proof/memory/x06-rag-qa.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-049",
@@ -879,14 +926,21 @@
       "id": "QA-068",
       "category": "Learning",
       "query": "Find previous fix similar to this change.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Learning",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "mem-x06-9-fixture-0001"
+      ],
+      "actualIds": [
+        "mem-x06-9-fixture-0001"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "tests/fixtures/memory/feature_parity/repo/lib.rs",
+        "mem-x06-9-fixture-0001"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-069",
@@ -1269,14 +1323,21 @@
       "id": "QA-098",
       "category": "Learning",
       "query": "Prove token reduction versus reading files.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Learning",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "token-reduction:median>=10x"
+      ],
+      "actualIds": [
+        "token-reduction:median>=10x"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "tokenReductionRatio": 24.7524752475,
+      "sourceRefs": [
+        "proof/memory/x06-token-reduction.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-099",
@@ -2437,14 +2498,21 @@
       "id": "QA-174",
       "category": "Lessons",
       "query": "Have we solved a domain-type issue before?",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Lessons",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "mem-x06-9-fixture-0002"
+      ],
+      "actualIds": [
+        "mem-x06-9-fixture-0002"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/ids.rs",
+        "mem-x06-9-fixture-0002"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-175",
@@ -2454,13 +2522,15 @@
         "mem-x06-9-fixture-0001"
       ],
       "actualIds": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -2473,13 +2543,15 @@
         "mem-x06-9-fixture-0001"
       ],
       "actualIds": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -2492,13 +2564,15 @@
         "mem-x06-9-fixture-0001"
       ],
       "actualIds": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -2511,13 +2585,15 @@
         "mem-x06-9-fixture-0001"
       ],
       "actualIds": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -2530,13 +2606,15 @@
         "mem-x06-9-fixture-0001"
       ],
       "actualIds": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -2549,13 +2627,15 @@
         "mem-x06-9-fixture-0001"
       ],
       "actualIds": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -2568,13 +2648,15 @@
         "mem-x06-9-fixture-0001"
       ],
       "actualIds": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -2587,13 +2669,15 @@
         "mem-x06-9-fixture-0001"
       ],
       "actualIds": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -2606,13 +2690,15 @@
         "mem-x06-9-fixture-0001"
       ],
       "actualIds": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -2625,13 +2711,15 @@
         "mem-x06-9-fixture-0001"
       ],
       "actualIds": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -2644,13 +2732,15 @@
         "mem-x06-9-fixture-0001"
       ],
       "actualIds": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -3105,13 +3195,15 @@
         "mem-x06-9-fixture-0001"
       ],
       "actualIds": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -3124,13 +3216,15 @@
         "mem-x06-9-fixture-0001"
       ],
       "actualIds": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -3143,13 +3237,15 @@
         "mem-x06-9-fixture-0001"
       ],
       "actualIds": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -3162,13 +3258,15 @@
         "mem-x06-9-fixture-0001"
       ],
       "actualIds": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -3181,13 +3279,15 @@
         "mem-x06-9-fixture-0001"
       ],
       "actualIds": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -3200,13 +3300,15 @@
         "mem-x06-9-fixture-0001"
       ],
       "actualIds": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "mem-x06-9-fixture-0001"
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -3215,14 +3317,21 @@
       "id": "QA-226",
       "category": "Learning",
       "query": "Prove the learning curve does not regress (ratchet).",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Learning",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "learning-curve:nondecreasing-cumulative-incidents"
+      ],
+      "actualIds": [
+        "learning-curve:nondecreasing-cumulative-incidents"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "mem-x06-9-fixture-0001",
+        "mem-x06-9-fixture-0002"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-227",

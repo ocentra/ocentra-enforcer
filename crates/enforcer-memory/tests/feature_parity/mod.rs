@@ -10,7 +10,7 @@
 //! live `codebase-memory-mcp` comparison (`baseline.rs`), and emits the
 //! two required proof artifacts (`proof.rs`).
 //!
-//! # Scope honesty (owner-set: fake green is failure)
+//! # Scope honesty (owner-set: fabricated green is failure)
 //!
 //! Parallel x06 lanes are still landing MCP/CLI/federation surfaces (see
 //! `MEMORY_RETRIEVAL_STATE_BOARD.md`). A full green QA-250 run is not
@@ -57,6 +57,7 @@ pub type BoxError = Box<dyn Error>;
 /// `ingest::parse_ndjson` path production callers use, per this
 /// crate's existing test convention (see `tests/ingest_and_recall.rs`).
 const FIXTURE_LESSON_NDJSON: &str = r#"{"schemaVersion":1,"id":"mem-x06-9-fixture-0001","ts":"2026-07-05T00:00:00Z","kind":"lesson","domain":"code","statement":"Always parse boundary lesson: validate config paths at the crate boundary before use.","why":"Fixture lesson for the X06.9 harness skeleton's LessonsRunner.","howToApply":"See parse_config_file in the fixture repo.","landedAt":["tests/fixtures/memory/feature_parity/repo/lib.rs"],"provenance":{"writer":"x06-9-harness"}}
+{"schemaVersion":1,"id":"mem-x06-9-fixture-0002","ts":"2026-07-05T00:01:00Z","kind":"lesson","domain":"code","statement":"Domain type issue fix: parse raw strings at the boundary into branded newtypes before domain logic uses them.","why":"Raw String ids crossing into domain code caused repeated boundary bugs.","howToApply":"Use branded newtype constructors at parser and CLI/MCP boundaries.","landedAt":["crates/enforcer-memory/src/ids.rs"],"provenance":{"writer":"x06-9-harness"}}
 "#;
 
 /// Repo-relative path (from the workspace root) to the harness's own
@@ -178,9 +179,14 @@ mod fixture_tests {
     fn fixtures_build_without_error_and_contain_expected_nodes() -> TestResult {
         let fixtures = build_fixtures()?;
         assert!(!fixtures.code_graph.nodes().is_empty());
-        assert!(!fixtures.search_corpus.is_empty());
+        assert_eq!(fixtures.search_corpus.len(), 3);
         let hits = enforcer_memory::recall::recall(&fixtures.memory_graph, "parse boundary lesson");
-        assert!(!hits.is_empty(), "fixture lesson must be recallable");
+        let mut recalled_ids: Vec<&str> = hits.iter().map(|hit| hit.node.id()).collect();
+        recalled_ids.sort_unstable();
+        assert_eq!(
+            recalled_ids,
+            vec!["mem-x06-9-fixture-0001", "mem-x06-9-fixture-0002"]
+        );
         Ok(())
     }
 }
