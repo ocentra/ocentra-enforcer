@@ -272,9 +272,155 @@ pub enum Language {
     /// has no `.mm` entry either -- Objective-C++ is out of scope for
     /// both.
     ObjectiveC,
+    /// Bash (`.bash`/`.sh`). Language-parity wave G2.2f.
+    Bash,
+    /// Lua (`.lua`). Language-parity wave G2.2f. No `.luau`: the
+    /// baseline's own `EXT_TABLE` maps that extension to a DIFFERENT
+    /// registered language, `CBM_LANG_LUAU` (Tier 1, out of this wave's
+    /// scope) -- Luau is a distinct dialect/grammar from plain Lua, not
+    /// an alternate extension for the same language the way `.sc`/
+    /// `.scala` are for Scala.
+    Lua,
+    /// Elixir (`.ex`/`.exs`). Language-parity wave G2.2f.
+    Elixir,
+    /// Haskell (`.hs`). Language-parity wave G2.2g. No `.lhs`: the
+    /// baseline's own `EXT_TABLE` (`src/discover/language.c`:131) has no
+    /// literate-Haskell entry either -- `.lhs` is out of scope for both.
+    Haskell,
+    /// OCaml (`.ml`/`.mli`). Language-parity wave G2.2g. One `Language`
+    /// variant (and one [`crate::languages::spec::LangSpec::ocaml`] row)
+    /// covers both -- see that row's own doc comment for why this
+    /// crate, like the baseline, binds only the one implementation
+    /// grammar (`tree_sitter_ocaml::LANGUAGE_OCAML`) for `.mli` content
+    /// too rather than the grammar crate's separate
+    /// `LANGUAGE_OCAML_INTERFACE` entry point.
+    OCaml,
+    /// Erlang (`.erl`). Language-parity wave G2.2g. No `.hrl`: the
+    /// baseline's own `EXT_TABLE` (`src/discover/language.c`:97) has no
+    /// header-file entry either -- `.hrl` is out of scope for both.
+    Erlang,
+    /// CUDA (`.cu`/`.cuh`). Language-parity wave G2.2b. Reuses
+    /// [`crate::languages::spec::LangSpec::cpp`]/
+    /// [`crate::languages::generic::cpp_quirks`] verbatim -- the
+    /// baseline's own `lang_specs.c` table literally reuses C++'s node-
+    /// type arrays for `CBM_LANG_CUDA` too (see
+    /// [`crate::languages::spec::LangSpec::cuda`]'s own doc comment for
+    /// the empirically-confirmed grammar-superset finding this relies
+    /// on) -- a genuinely dedicated `tree-sitter-cuda` grammar, not a
+    /// relabeled tree-sitter-cpp, but one that happens to be a strict
+    /// syntactic superset of C++'s grammar for every construct this
+    /// crate's extractor matches.
+    Cuda,
+    /// D (`.d`). Language-parity wave G2.2b. No `.di` (D interface
+    /// files): the baseline's own `EXT_TABLE`
+    /// (`src/discover/language.c`:343) has no `.di` entry either --
+    /// `.di` is out of scope for both.
+    D,
+    /// PowerShell (`.ps1`/`.psm1`/`.psd1`). Language-parity wave G2.2b.
+    PowerShell,
+    /// F# (`.fs`/`.fsx`/`.fsi`). Language-parity wave G2.2c. One
+    /// `Language` variant (and one
+    /// [`crate::languages::spec::LangSpec::fsharp`] row) covers all
+    /// three extensions -- the baseline's own `EXT_TABLE`
+    /// (`src/discover/language.c`:100-102) maps all three to the SAME
+    /// `CBM_LANG_FSHARP`, and that baseline's own `extern` declaration
+    /// only ever names ONE grammar function pointer (`tree_sitter_fsharp`,
+    /// no `_signature` variant referenced anywhere in that codebase) even
+    /// though the real `tree-sitter-fsharp` crate this row binds actually
+    /// ships a SEPARATE `fsharp_signature` grammar for `.fsi` files --
+    /// this crate matches the baseline's own single-grammar-for-all-three
+    /// choice (binding only `LANGUAGE_FSHARP`, never the crate's own
+    /// `LANGUAGE_SIGNATURE`) rather than improving on it, per the
+    /// "baseline's real depth, not an idealized one" instruction.
+    Fsharp,
+    /// Gleam (`.gleam`). Language-parity wave G2.2c.
+    Gleam,
+    /// GLSL (`.frag`/`.glsl`/`.vert`). Language-parity wave G2.2c. Reuses
+    /// [`crate::languages::spec::LangSpec::cpp`]-style verbatim reuse,
+    /// but of [`crate::languages::spec::LangSpec::c`] instead: the
+    /// baseline's own `lang_specs.c` table literally reuses C's node-type
+    /// arrays for `CBM_LANG_GLSL` too (see
+    /// [`crate::languages::spec::LangSpec::glsl`]'s own doc comment for
+    /// the verified-via-real-parse-tree finding this relies on, including
+    /// the shader-storage-qualifier parse-error boundary that is
+    /// confirmed harmless for this crate's own extraction scope). No
+    /// `.comp`/`.geom`/`.tesc`/`.tese`: the baseline's own `EXT_TABLE`
+    /// (`src/discover/language.c`:115-117) registers only these exact
+    /// three extensions for `CBM_LANG_GLSL` -- the other shader-stage
+    /// extensions are out of scope for both.
+    Glsl,
+    /// Ada (`.adb`/`.ads`). Language-parity wave G2.2a.
+    Ada,
+    /// Apex (`.cls`/`.trigger`). Language-parity wave G2.2a.
+    Apex,
+    /// Crystal (`.cr`). Language-parity wave G2.2a.
+    Crystal,
+    /// R (`.r`/`.R`). Language-parity wave G2.2h. Baseline's own
+    /// `EXT_TABLE` maps both cases of the extension to the same
+    /// `CBM_LANG_R` (this crate's own [`classify`] is already
+    /// case-insensitive for every extension, so no special-casing is
+    /// needed here beyond the ordinary lowercase match arm).
+    R,
+    /// Perl (`.pl`/`.pm`). Language-parity wave G2.2h. No `.t` (Perl test
+    /// scripts): the baseline's own `EXT_TABLE`
+    /// (`src/discover/language.c`) has no dedicated `.t` entry either --
+    /// Perl test files use the plain `.pl`/`.pm` extensions there too.
+    Perl,
+    /// Clojure (`.clj`/`.cljc`/`.cljs`). Language-parity wave G2.2h.
+    /// Baseline's own `EXT_TABLE` maps all three to the same
+    /// `CBM_LANG_CLOJURE` (ClojureScript's `.cljs` and the cross-platform
+    /// `.cljc` are still ordinary Clojure-grammar source from this
+    /// tree-sitter grammar's own point of view -- neither is a distinct
+    /// registered baseline language the way e.g. TSX is from TypeScript).
+    Clojure,
     ConfigToml,
     ConfigJson,
     ConfigYaml,
+    /// Julia (`.jl`). Language-parity wave G2.2d. This grammar's
+    /// function/struct/call-shaped nodes are entirely unfielded --
+    /// see [`crate::languages::spec::LangSpec::julia`]'s own doc
+    /// comment.
+    Julia,
+    /// Odin (`.odin`). Language-parity wave G2.2d. No dedicated
+    /// baseline `extract_base_classes` walker (Odin has no classical
+    /// inheritance syntax), but this row wires its real `using`
+    /// composition idiom as an INHERITS edge -- see
+    /// [`crate::languages::spec::LangSpec::odin`]'s own doc comment.
+    Odin,
+    /// Pascal (`.pas`/`.pp`/`.dpr`/`.dpk`/`.inc`). Language-parity
+    /// wave G2.2d. Baseline's own `EXT_TABLE` registers this same
+    /// extension set for `CBM_LANG_PASCAL` (Delphi/Free Pascal unit,
+    /// program, project, package, and include-file conventions
+    /// alike) -- see
+    /// [`crate::languages::spec::LangSpec::pascal`]'s own doc comment
+    /// for the grammar-shape findings.
+    Pascal,
+    /// QML (Qt Modeling Language, `.qml`). Language-parity wave G2.2e.
+    /// A genuine TypeScript-superset grammar (`tree-sitter-qmljs`) plus
+    /// declarative `ui_*` nodes layered on top -- see
+    /// [`crate::languages::spec::LangSpec::qml`]'s own doc comment,
+    /// including the real (non-obvious) finding that a bare top-level
+    /// JS statement with no wrapping QML object at all does not parse
+    /// cleanly in this grammar.
+    Qml,
+    /// ReScript (`.res`/`.resi`). Language-parity wave G2.2e. Grammar
+    /// sourced from the `arborium-rescript` crate (crates.io has no
+    /// standalone `tree-sitter-rescript` at all) -- see
+    /// [`crate::languages::spec::LangSpec::rescript`]'s own doc comment,
+    /// including the real name-resolution gap (`function`'s own name
+    /// lives on its PARENT `let_binding`'s `pattern` field) the
+    /// baseline's own `cbm_resolve_func_name` already has a dedicated
+    /// case for.
+    Rescript,
+    /// Squirrel (`.nut`). Language-parity wave G2.2e. Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-squirrel-local/`),
+    /// not a crates.io dependency -- the published `tree-sitter-squirrel`
+    /// 1.0.0 crate hard-pins `tree-sitter = "~0.20.9"`, incompatible with
+    /// this workspace's `tree-sitter = "0.25"` core -- see
+    /// [`crate::languages::spec::LangSpec::squirrel`]'s own doc comment,
+    /// including the finding that this grammar is almost entirely
+    /// field-free for the constructs this row cares about.
+    Squirrel,
     /// Anything else: still indexed as a file node, but with no
     /// structural extraction -- see the workpack's "unsupported files
     /// become TextOnly nodes, never silent skip" hard requirement.
@@ -335,6 +481,46 @@ pub fn classify(rel_path: &str) -> Language {
         // See `Language::ObjectiveC`'s own doc comment for why this is
         // unconditional rather than content-sniffed.
         "m" => Language::ObjectiveC,
+        "bash" | "sh" => Language::Bash,
+        // No "luau" here -- see `Language::Lua`'s own doc comment.
+        "lua" => Language::Lua,
+        "ex" | "exs" => Language::Elixir,
+        // No "lhs" -- see `Language::Haskell`'s own doc comment.
+        "hs" => Language::Haskell,
+        // One `Language::OCaml` for both -- see its own doc comment.
+        "ml" | "mli" => Language::OCaml,
+        // No "hrl" -- see `Language::Erlang`'s own doc comment.
+        "erl" => Language::Erlang,
+        "cu" | "cuh" => Language::Cuda,
+        // No "di" -- see `Language::D`'s own doc comment.
+        "d" => Language::D,
+        "ps1" | "psm1" | "psd1" => Language::PowerShell,
+        // One `Language::Fsharp` for all three -- see its own doc comment.
+        "fs" | "fsx" | "fsi" => Language::Fsharp,
+        "gleam" => Language::Gleam,
+        // No "comp"/"geom"/"tesc"/"tese" -- see `Language::Glsl`'s own
+        // doc comment.
+        "frag" | "glsl" | "vert" => Language::Glsl,
+        // No plain ".ada" -- the baseline's own `EXT_TABLE` registers
+        // only the body/spec-file split (`.adb`/`.ads`) for
+        // `CBM_LANG_ADA`, no bare `.ada` entry at all.
+        "adb" | "ads" => Language::Ada,
+        "cls" | "trigger" => Language::Apex,
+        "cr" => Language::Crystal,
+        "r" => Language::R,
+        "pl" | "pm" => Language::Perl,
+        "clj" | "cljc" | "cljs" => Language::Clojure,
+        "jl" => Language::Julia,
+        "odin" => Language::Odin,
+        // Baseline `src/discover/language.c` `EXT_TABLE` registers this
+        // full Delphi/Free Pascal extension set for `CBM_LANG_PASCAL`:
+        // `.pas` (unit source), `.pp` (Free Pascal unit, an older/
+        // alternate convention), `.dpr` (Delphi project), `.dpk` (Delphi
+        // package), `.inc` (textually-included Pascal source fragment).
+        "pas" | "pp" | "dpr" | "dpk" | "inc" => Language::Pascal,
+        "qml" => Language::Qml,
+        "res" | "resi" => Language::Rescript,
+        "nut" => Language::Squirrel,
         "toml" => Language::ConfigToml,
         "json" => Language::ConfigJson,
         "yml" | "yaml" => Language::ConfigYaml,
@@ -508,6 +694,173 @@ pub fn parse_file(language: Language, source: &str, rel_path: &str) -> Option<Pa
             // the generic spec-table engine (`languages::generic::
             // parse_objc`) -- see `tests/unit_languages_objc.rs`.
             Some(generic::parse_objc(source))
+        }
+        Language::Bash => {
+            // Language-parity wave G2.2f: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_bash`) -- see `tests/unit_languages_bash.rs`.
+            Some(generic::parse_bash(source))
+        }
+        Language::Lua => {
+            // Language-parity wave G2.2f: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_lua`) -- see `tests/unit_languages_lua.rs`.
+            Some(generic::parse_lua(source))
+        }
+        Language::Elixir => {
+            // Language-parity wave G2.2f: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_elixir`) -- see `tests/unit_languages_elixir.rs`.
+            Some(generic::parse_elixir(source))
+        }
+        Language::Haskell => {
+            // Language-parity wave G2.2g: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_haskell`) -- see `tests/unit_languages_haskell.rs`.
+            Some(generic::parse_haskell(source))
+        }
+        Language::OCaml => {
+            // Language-parity wave G2.2g: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_ocaml`) -- covers both `.ml`/`.mli` (see
+            // `Language::OCaml`'s own doc comment); see
+            // `tests/unit_languages_ocaml.rs`.
+            Some(generic::parse_ocaml(source))
+        }
+        Language::Erlang => {
+            // Language-parity wave G2.2g: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_erlang`) -- see `tests/unit_languages_erlang.rs`.
+            Some(generic::parse_erlang(source))
+        }
+        Language::Cuda => {
+            // Language-parity wave G2.2b: reuses the generic spec-table
+            // engine's own C++ path (`languages::generic::parse_cuda`,
+            // itself `parse_cpp` with the grammar entry point swapped --
+            // see `LangSpec::cuda`'s own doc comment) -- same `tests/`/
+            // `_test.cu`-suffix convention as every other C-family
+            // language in this crate; see `tests/unit_languages_cuda.rs`.
+            let is_test_file = is_c_family_test_path(rel_path, &["_test.cu", "_test.cuh"]);
+            Some(generic::parse_cuda(source, is_test_file))
+        }
+        Language::D => {
+            // Language-parity wave G2.2b: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_d`) -- there is no bespoke `languages::d` extractor
+            // to prove zero-regression against (D has never had one in
+            // this crate); see `tests/unit_languages_d.rs`.
+            Some(generic::parse_d(source))
+        }
+        Language::PowerShell => {
+            // Language-parity wave G2.2b: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_powershell`) -- see
+            // `tests/unit_languages_powershell.rs`.
+            Some(generic::parse_powershell(source))
+        }
+        Language::Fsharp => {
+            // Language-parity wave G2.2c: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_fsharp`) -- there is no bespoke `languages::fsharp`
+            // extractor to prove zero-regression against (F# has never
+            // had one in this crate); see
+            // `tests/unit_languages_fsharp.rs`.
+            Some(generic::parse_fsharp(source))
+        }
+        Language::Gleam => {
+            // Language-parity wave G2.2c: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_gleam`) -- see `tests/unit_languages_gleam.rs`.
+            Some(generic::parse_gleam(source))
+        }
+        Language::Glsl => {
+            // Language-parity wave G2.2c: reuses the generic spec-table
+            // engine's own C path verbatim (`languages::generic::
+            // parse_glsl`, itself `parse_c` with the grammar binding and
+            // spec row both left as C's own except for `name` -- see
+            // `LangSpec::glsl`'s own doc comment) -- see
+            // `tests/unit_languages_glsl.rs`. `is_test_file` is not
+            // threaded through (unlike `Language::C`/`Language::Cpp`):
+            // GLSL shader source has no test-file naming convention in
+            // the baseline (see `generic::parse_glsl`'s own doc comment).
+            Some(generic::parse_glsl(source))
+        }
+        Language::Ada => {
+            // Language-parity wave G2.2a: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_ada`) -- see `tests/unit_languages_ada.rs`.
+            Some(generic::parse_ada(source))
+        }
+        Language::Apex => {
+            // Language-parity wave G2.2a: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_apex`) -- see `tests/unit_languages_apex.rs`.
+            Some(generic::parse_apex(source))
+        }
+        Language::Crystal => {
+            // Language-parity wave G2.2a: onboarded directly through
+            // the generic spec-table engine (`languages::generic::
+            // parse_crystal`) -- see `tests/unit_languages_crystal.rs`.
+            Some(generic::parse_crystal(source))
+        }
+        Language::R => {
+            // Language-parity wave G2.2h: onboarded directly through the
+            // generic spec-table engine (`languages::generic::parse_r`)
+            // -- there is no bespoke `languages::r` extractor to prove
+            // zero-regression against (R has never had one in this
+            // crate); see `tests/unit_languages_r.rs`.
+            Some(generic::parse_r(source))
+        }
+        Language::Perl => {
+            // Language-parity wave G2.2h: onboarded directly through the
+            // generic spec-table engine (`languages::generic::parse_perl`)
+            // -- see `tests/unit_languages_perl.rs`.
+            Some(generic::parse_perl(source))
+        }
+        Language::Clojure => {
+            // Language-parity wave G2.2h: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_clojure`) -- see `tests/unit_languages_clojure.rs`.
+            Some(generic::parse_clojure(source))
+        }
+        Language::Julia => {
+            // Language-parity wave G2.2d: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_julia`) -- there is no bespoke `languages::julia`
+            // extractor to prove zero-regression against (Julia has
+            // never had one in this crate); see
+            // `tests/unit_languages_julia.rs`.
+            Some(generic::parse_julia(source))
+        }
+        Language::Odin => {
+            // Language-parity wave G2.2d: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_odin`) -- see `tests/unit_languages_odin.rs`.
+            Some(generic::parse_odin(source))
+        }
+        Language::Pascal => {
+            // Language-parity wave G2.2d: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_pascal`) -- see `tests/unit_languages_pascal.rs`.
+            Some(generic::parse_pascal(source))
+        }
+        Language::Qml => {
+            // Language-parity wave G2.2e: onboarded directly through the
+            // generic spec-table engine (`languages::generic::parse_qml`)
+            // -- see `tests/unit_languages_qml.rs`.
+            Some(generic::parse_qml(source))
+        }
+        Language::Rescript => {
+            // Language-parity wave G2.2e: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_rescript`) -- see `tests/unit_languages_rescript.rs`.
+            Some(generic::parse_rescript(source))
+        }
+        Language::Squirrel => {
+            // Language-parity wave G2.2e: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_squirrel`) -- see `tests/unit_languages_squirrel.rs`.
+            Some(generic::parse_squirrel(source))
         }
         Language::ConfigToml | Language::ConfigJson | Language::ConfigYaml | Language::TextOnly => {
             None

@@ -8236,3 +8236,6770 @@ pub fn parse_objc(source: &str) -> ParsedFile {
     let language: tree_sitter::Language = tree_sitter_objc::LANGUAGE.into();
     parse_with_spec(source, &language, &spec, &quirks, false)
 }
+
+// =====================================================================
+// Bash
+// =====================================================================
+
+/// Every `command`'s own written argument text, in written order --
+/// unlike [`call_arg_texts`] (which reads a single `arguments`-field
+/// child node's own children), `command` has no such wrapper at all: a
+/// real parse confirms every argument is instead a repeated `argument`
+/// FIELD entry directly on the `command` node itself (see
+/// [`LangSpec::bash`]'s own doc comment) -- walked here via
+/// [`tree_sitter::Node::children_by_field_name`] rather than
+/// [`tree_sitter::Node::child_by_field_name`] (which would only ever
+/// return the first one).
+fn bash_command_arg_texts(command_node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut cursor = command_node.walk();
+    command_node
+        .children_by_field_name("argument", &mut cursor)
+        .filter_map(|arg| arg.utf8_text(src).ok().map(str::to_string))
+        .collect()
+}
+
+/// Bash's [`Quirks::call_override`]: every `command` node is recorded as
+/// a CALLS edge (its own `name` field's `command_name` wrapper already
+/// yields the correct callee text via plain `.utf8_text()`, see
+/// [`LangSpec::bash`]'s own doc comment, so this does not need to
+/// re-derive the callee itself) plus its own `argument`-field children
+/// as `arg_texts` (see [`bash_command_arg_texts`]) -- neither of which
+/// [`LangSpec::bash`]'s flat `call_arguments_field` mechanism could
+/// express on its own. Additionally recognizes `source ./lib.sh`/
+/// `. ./other.sh` (Bash's closest import-statement analog, matching the
+/// baseline's own `bash_import_types`/`parse_generic_imports(ctx,
+/// "command")` intent -- see [`LangSpec::bash`]'s own doc comment for why
+/// a flat `import_types` array entry cannot express this without
+/// colliding with this same node kind's own `call_types` membership) and
+/// additionally pushes an IMPORTS edge in that case, using the first
+/// `argument`-field child's own text as the module path.
+fn bash_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "command" {
+        return false;
+    }
+    let Some(name_node) = node.child_by_field_name("name") else {
+        return false;
+    };
+    let Ok(callee) = name_node.utf8_text(src) else {
+        return false;
+    };
+    let arg_texts = bash_command_arg_texts(node, src);
+    out.calls.push(CallRef {
+        callee: callee.to_string(),
+        line: node.start_position().row + 1,
+        from_symbol: from_symbol.map(str::to_string),
+        from_symbol_line,
+        receiver_text: None,
+        receiver_hint: None,
+        arg_texts: arg_texts.clone(),
+    });
+    if matches!(callee, "source" | ".") {
+        if let Some(path) = arg_texts.into_iter().next() {
+            out.imports.push(ImportRef {
+                module_path: path,
+                line: node.start_position().row + 1,
+            });
+        }
+    }
+    true
+}
+
+/// Bash's [`Quirks`] row: full CALLS recording (own callee text +
+/// `argument`-field `arg_texts`, see [`bash_call_override`]) doubling as
+/// `source`/`.` IMPORTS detection. No `on_unmatched_node`/`is_test_name`/
+/// `route_from_call`/`on_method_defined`: `function_definition` has a
+/// real `name`/`body` field pair the generic engine's own func/method
+/// branch already handles unaided (see [`LangSpec::bash`]'s own doc
+/// comment), and the baseline gives Bash no test-name convention,
+/// decorator syntax, or route-registration-by-call-shape detection
+/// either (`CBM_LANG_BASH` never appears in
+/// `internal/cbm/service_patterns.c`'s route-library tables, and its own
+/// `lang_specs.c` row has `NULL` for both the decorator-types and
+/// env-funcs columns).
+pub fn bash_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: None,
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(bash_call_override)),
+    }
+}
+
+/// Parse Bash source through the generic engine. No pre-existing bespoke
+/// `languages::bash` extractor to prove zero-regression against (Bash
+/// has never had one in this crate) -- correctness is instead verified
+/// directly against the `tree-sitter-bash` crate's own `node-types.json`
+/// plus real parse trees (see [`LangSpec::bash`]'s doc comment and
+/// `tests/unit_languages_bash.rs`).
+pub fn parse_bash(source: &str) -> ParsedFile {
+    let spec = LangSpec::bash();
+    let quirks = bash_quirks();
+    let language: tree_sitter::Language = tree_sitter_bash::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Lua
+// =====================================================================
+
+/// A Lua `function_definition` (the ANONYMOUS function-literal form,
+/// `local foo = function(a) ... end` / `foo = function(a) ... end`) has
+/// no `name` field at all (see [`LangSpec::lua`]'s own doc comment) --
+/// its name, when one exists, is the LEFT-hand side of the enclosing
+/// `assignment_statement` this literal is the right-hand side of.
+/// Mirrors the baseline's own dedicated `resolve_lua_func_name`
+/// (`codebase-memory-mcp/internal/cbm/extract_defs.c`:207-232) exactly:
+/// walk up through an intervening `expression_list` (the RHS wrapper for
+/// `local foo = function() end`'s single expression) to the parent
+/// `assignment_statement`, then read its own `variable_list` field's
+/// first `variable` child (an `identifier` for the common case this
+/// crate's own `child_text`-based reconstruction below already handles;
+/// a `dot_index_expression`/`bracket_index_expression` target is
+/// possible too but rarer for an anonymous-function assignment and left
+/// unresolved here the same "no name recovered, no def emitted" way the
+/// baseline's own walker leaves any parent shape it does not recognize).
+fn lua_anonymous_function_name(node: Node<'_>, src: &[u8]) -> Option<String> {
+    let mut parent = node.parent()?;
+    if parent.kind() == "expression_list" {
+        parent = parent.parent()?;
+    }
+    if parent.kind() != "assignment_statement" {
+        return None;
+    }
+    let variables = parent.child_by_field_name("variables").or_else(|| {
+        (0..parent.child_count())
+            .filter_map(|i| parent.child(i))
+            .find(|c| c.kind() == "variable_list")
+    })?;
+    let first_var = (0..variables.child_count()).find_map(|i| variables.child(i))?;
+    first_var.utf8_text(src).ok().map(str::to_string)
+}
+
+/// Lua's [`Quirks::on_unmatched_node`]: the anonymous
+/// `function_definition` literal's own name resolution (see
+/// [`lua_anonymous_function_name`]) plus a correctly `fn_scope`-scoped
+/// walk of its own `body` field -- [`LangSpec::lua`]'s `func_types`
+/// deliberately excludes `function_definition` (it has no `name` field
+/// the generic engine's own func/method branch could read), so this
+/// quirk hook -- not that branch -- is what actually claims it.
+fn lua_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    if node.kind() != "function_definition" {
+        return false;
+    }
+    let line = node.start_position().row + 1;
+    let Some(name) = lua_anonymous_function_name(node, src) else {
+        // No recoverable name (e.g. an anonymous function passed
+        // directly as a call argument, not assigned to a variable) --
+        // still walk its body generically (with no `fn_scope`) so any
+        // call/import nested inside it is still found, matching every
+        // other language's "no name, still recurse" posture.
+        walk_children(node, &ctx_for_lua(src), out, None, FnScope::default());
+        return true;
+    };
+    out.symbols.push(SymbolRef {
+        name: name.clone(),
+        kind: SymbolKind::Function,
+        line,
+    });
+    if let Some(body) = node.child_by_field_name("body") {
+        let fn_scope = FnScope {
+            name: Some(name.as_str()),
+            line: Some(line),
+        };
+        walk_children(body, &ctx_for_lua(src), out, None, fn_scope);
+    }
+    true
+}
+
+/// A throwaway [`Ctx`] for [`lua_quirk`]'s own re-entrant body walk --
+/// mirrors every other language's identical `*_walk_scoped_body`/
+/// `*_walk_function_body` helper pattern (e.g. [`dart_walk_function_body`])
+/// of constructing a fresh spec/quirks pair rather than threading the
+/// caller's own borrowed `Ctx` through (which the [`Quirks::on_unmatched_node`]
+/// hook signature does not carry access to).
+fn ctx_for_lua(src: &[u8]) -> Ctx<'_> {
+    // `Box::leak` keeps a `'static`-lifetime-free `LangSpec`/`Quirks`
+    // pair alive for exactly this call's own nested walk without
+    // widening `Ctx`'s own lifetime parameter beyond `src`'s -- every
+    // field `LangSpec`/`Quirks` need is itself `Copy`/boxed-fn-pointer
+    // data with no borrow back into this function's stack, so leaking
+    // one pair per anonymous-function-literal node (a bounded, rare
+    // construct, not a hot loop) is a deliberate, small, one-directional
+    // trade favoring this helper's own simplicity over pooling/caching.
+    static SPEC: std::sync::OnceLock<LangSpec> = std::sync::OnceLock::new();
+    let spec = SPEC.get_or_init(LangSpec::lua);
+    let quirks: &'static Quirks = Box::leak(Box::new(lua_quirks()));
+    Ctx {
+        spec,
+        src,
+        quirks,
+        is_test_file: false,
+    }
+}
+
+/// Lua's [`Quirks::call_override`]: `function_call`'s own `name` field
+/// can be `method_index_expression` (`w:draw()`, a `table`/`method`
+/// two-field split the generic engine's single `call_function_field`
+/// cannot reconstruct receiver info from on its own -- see
+/// [`LangSpec::lua`]'s own doc comment) -- claimed here, mirroring
+/// [`ruby_call_override`]'s identical `receiver`/`method`-field-split
+/// posture. Every other `name`-field shape (`identifier`/`function_call`/
+/// `parenthesized_expression`) returns `false` (not overridden), falling
+/// through to the generic engine's own ordinary `call_function_field`
+/// flat path unchanged. Also recognizes a bare `require(...)` callee and
+/// pushes an IMPORTS edge from its first string-literal argument,
+/// mirroring [`ruby_call_override`]'s identical `require`/
+/// `require_relative` precedent and the baseline's own dedicated
+/// `parse_lua_imports` (`codebase-memory-mcp/internal/cbm/
+/// extract_imports.c`:749-810) intent.
+fn lua_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "function_call" {
+        return false;
+    }
+    let Some(name_node) = node.child_by_field_name("name") else {
+        return false;
+    };
+    let arg_texts = call_arg_texts(node, "arguments", src);
+    if name_node.kind() == "method_index_expression" {
+        let Some(table) = name_node.child_by_field_name("table") else {
+            return false;
+        };
+        let Some(method) = name_node.child_by_field_name("method") else {
+            return false;
+        };
+        let (Ok(table_text), Ok(method_text)) = (table.utf8_text(src), method.utf8_text(src))
+        else {
+            return false;
+        };
+        let receiver_hint = if table_text == "self" {
+            ReceiverHint::SelfOrThis
+        } else if table.kind() == "identifier" {
+            ReceiverHint::Identifier
+        } else {
+            ReceiverHint::Other
+        };
+        out.calls.push(CallRef {
+            callee: format!("{table_text}:{method_text}"),
+            line: node.start_position().row + 1,
+            from_symbol: from_symbol.map(str::to_string),
+            from_symbol_line,
+            receiver_text: Some(table_text.to_string()),
+            receiver_hint: Some(receiver_hint),
+            arg_texts,
+        });
+        return true;
+    }
+    // Not a method-index call -- record the bare, unqualified callee (the
+    // generic engine's own flat path would do the same thing for this
+    // shape, but returning `false` here would also skip the
+    // `require(...)` IMPORTS check below, which needs the callee text
+    // regardless of which path recorded the call itself).
+    let Ok(callee) = name_node.utf8_text(src) else {
+        return false;
+    };
+    out.calls.push(CallRef {
+        callee: callee.to_string(),
+        line: node.start_position().row + 1,
+        from_symbol: from_symbol.map(str::to_string),
+        from_symbol_line,
+        receiver_text: None,
+        receiver_hint: None,
+        arg_texts: arg_texts.clone(),
+    });
+    if callee == "require" {
+        // `arg_texts`' own raw text keeps the surrounding quote
+        // characters verbatim (`"\"json\""`, matching every other
+        // language's `call_arg_texts`-derived `arg_texts` convention of
+        // recording exactly what was written) -- the IMPORTS module
+        // path needs those quotes stripped instead, mirroring
+        // [`ruby_call_override`]'s own `ruby_require_import` precedent
+        // exactly (same `trim_matches` call, same quote-character set).
+        if let Some(raw) = arg_texts.into_iter().next() {
+            let path = raw.trim_matches(|c| c == '"' || c == '\'').to_string();
+            if !path.is_empty() {
+                out.imports.push(ImportRef {
+                    module_path: path,
+                    line: node.start_position().row + 1,
+                });
+            }
+        }
+    }
+    true
+}
+
+/// Lua's [`Quirks`] row: anonymous `function_definition`-literal name
+/// resolution + scoped body walk (see [`lua_quirk`]), full
+/// `method_index_expression` receiver-qualified callee reconstruction,
+/// and `require(...)` IMPORTS (see [`lua_call_override`]). No
+/// `is_test_name`/`route_from_call`/`on_method_defined`: the baseline
+/// gives Lua no test-name convention or route-registration-by-call-shape
+/// detection either (`CBM_LANG_LUA` never appears in
+/// `internal/cbm/service_patterns.c`'s route-library tables).
+pub fn lua_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(lua_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(lua_call_override)),
+    }
+}
+
+/// Parse Lua source through the generic engine. No pre-existing bespoke
+/// `languages::lua` extractor to prove zero-regression against (Lua has
+/// never had one in this crate) -- correctness is instead verified
+/// directly against the `tree-sitter-lua` crate's own `node-types.json`
+/// plus real parse trees (see [`LangSpec::lua`]'s doc comment and
+/// `tests/unit_languages_lua.rs`).
+pub fn parse_lua(source: &str) -> ParsedFile {
+    let spec = LangSpec::lua();
+    let quirks = lua_quirks();
+    let language: tree_sitter::Language = tree_sitter_lua::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Elixir
+// =====================================================================
+
+/// An Elixir `call` node's own `arguments` field, tolerating the
+/// baseline's own "no `arguments` field, take the second positional
+/// child instead" fallback (`elixir_call_args`,
+/// `codebase-memory-mcp/internal/cbm/extract_defs.c`:4350-4356) -- in
+/// practice this crate's own grammar version always exposes a real
+/// `arguments` field for every argument-bearing call shape seen during
+/// this wave's own real-parse-tree verification, but the fallback is
+/// kept for defensive parity with the baseline's own documented
+/// uncertainty about that.
+fn elixir_call_args(node: Node<'_>) -> Option<Node<'_>> {
+    node.child_by_field_name("arguments")
+        .or_else(|| node.child(1))
+}
+
+/// A `def`/`defp`/`defmacro` call's own function-name resolution --
+/// mirrors the baseline's own `extract_elixir_func_def`
+/// (`codebase-memory-mcp/internal/cbm/extract_defs.c`:4359-4392) exactly
+/// for the two shapes it already recognizes (a bare `identifier` for a
+/// zero-arg `def go do`, or a `call`'s own first child for `def bar(x)
+/// do`) -- PLUS, as a deliberate additive improvement over the baseline
+/// (see [`LangSpec::elixir`]'s own doc comment), one `binary_operator`
+/// unwrap for a guard clause (`def bar(x) when x > 0 do`), taking its
+/// `left` child (the `bar(x)` call) before applying the same two-shape
+/// check to what remains.
+fn elixir_def_name(first_arg: Node<'_>, src: &[u8]) -> Option<String> {
+    let first_arg = if first_arg.kind() == "binary_operator"
+        && first_arg
+            .child_by_field_name("operator")
+            .and_then(|op| op.utf8_text(src).ok())
+            == Some("when")
+    {
+        first_arg.child_by_field_name("left")?
+    } else {
+        first_arg
+    };
+    match first_arg.kind() {
+        "call" => first_arg
+            .child(0)
+            .and_then(|head| head.utf8_text(src).ok())
+            .map(str::to_string),
+        "identifier" => first_arg.utf8_text(src).ok().map(str::to_string),
+        _ => None,
+    }
+}
+
+/// Push a `def`/`defp`/`defmacro` call's own Function symbol -- mirrors
+/// the baseline's `extract_elixir_func_def`'s own `CBMDefinition` shape
+/// (name + start/end line; `is_exported` is a `def`/`defmacro` vs `defp`
+/// distinction this crate's own [`SymbolRef`] has no field for, so it is
+/// not carried here, matching every OTHER language row's own "exported"-
+/// ness likewise going unrepresented in this crate's schema).
+fn elixir_push_def(call_node: Node<'_>, macro_name: &str, src: &[u8], out: &mut ParsedFile) {
+    let Some(args) = elixir_call_args(call_node) else {
+        return;
+    };
+    let Some(first_arg) = args.child(0) else {
+        return;
+    };
+    let Some(name) = elixir_def_name(first_arg, src) else {
+        return;
+    };
+    let line = call_node.start_position().row + 1;
+    out.symbols.push(SymbolRef {
+        name: name.clone(),
+        kind: SymbolKind::Function,
+        line,
+    });
+    let is_macro_or_def_or_defp = macro_name == "def" || macro_name == "defmacro";
+    let _ = is_macro_or_def_or_defp; // documented above; no exported-ness field to set.
+    if let Some(do_block) = call_node.child_by_field_name("do_block").or_else(|| {
+        (0..call_node.child_count())
+            .filter_map(|i| call_node.child(i))
+            .find(|c| c.kind() == "do_block")
+    }) {
+        let fn_scope = FnScope {
+            name: Some(name.as_str()),
+            line: Some(line),
+        };
+        walk_children(do_block, &ctx_for_elixir(src), out, None, fn_scope);
+    }
+}
+
+/// Push a `defmodule` call's own Class symbol (matching the baseline's
+/// own `emit_elixir_module_class`'s `label = "Class"`, NOT `"Module"` --
+/// see [`LangSpec::elixir`]'s own doc comment) plus a DEFINES-scoped walk
+/// of its own `do_block`.
+fn elixir_push_module(call_node: Node<'_>, src: &[u8], out: &mut ParsedFile) {
+    let Some(args) = elixir_call_args(call_node) else {
+        return;
+    };
+    let Some(name_node) = args.child(0) else {
+        return;
+    };
+    let Ok(name) = name_node.utf8_text(src) else {
+        return;
+    };
+    let line = call_node.start_position().row + 1;
+    out.symbols.push(SymbolRef {
+        name: name.to_string(),
+        kind: SymbolKind::Class,
+        line,
+    });
+    if let Some(do_block) = (0..call_node.child_count())
+        .filter_map(|i| call_node.child(i))
+        .find(|c| c.kind() == "do_block")
+    {
+        walk_children(
+            do_block,
+            &ctx_for_elixir(src),
+            out,
+            Some(name),
+            FnScope::default(),
+        );
+    }
+}
+
+/// Push an `alias`/`import`/`use`/`require` call's own IMPORTS edge --
+/// see [`LangSpec::elixir`]'s own doc comment for why this crate reaches
+/// every one of these regardless of nesting depth (the generic engine's
+/// own recursive walk already visits every `call` node in the tree,
+/// unlike the baseline's non-recursive root-children-only scan).
+fn elixir_push_import(call_node: Node<'_>, src: &[u8], out: &mut ParsedFile) {
+    let Some(args) = elixir_call_args(call_node) else {
+        return;
+    };
+    let Some(first) = args.child(0) else {
+        return;
+    };
+    let Ok(path) = first.utf8_text(src) else {
+        return;
+    };
+    out.imports.push(ImportRef {
+        module_path: path.to_string(),
+        line: call_node.start_position().row + 1,
+    });
+}
+
+/// Elixir's [`Quirks::on_unmatched_node`]: every `call` node is
+/// disambiguated by its own `target` field's text -- `defmodule`
+///   (Class symbol + scoped body walk), `def`/`defp`/`defmacro` (Function
+///   symbol, incl. the guard-clause unwrap -- see [`elixir_def_name`] --
+///   plus a `fn_scope`-scoped body walk), `alias`/`import`/`use`/`require`
+///   (IMPORTS), or -- for anything else -- returns `false` so the node
+///   falls through to [`elixir_call_override`] as an ordinary call.
+///   Mirrors the baseline's own `extract_elixir_call`'s
+///   `strcmp(macro, "def")`-style dispatch
+///   (`codebase-memory-mcp/internal/cbm/extract_defs.c`:4425-4463) except
+///   reached via this crate's own recursive walk rather than a bespoke
+///   explicit stack (see [`LangSpec::elixir`]'s own doc comment for why
+///   this also reaches nested/non-root-child import calls the baseline's
+///   own non-recursive scan misses).
+fn elixir_quirk(
+    node: Node<'_>,
+    _enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "call" {
+        return false;
+    }
+    let Some(target) = node.child_by_field_name("target") else {
+        return false;
+    };
+    let Ok(macro_name) = target.utf8_text(src) else {
+        return false;
+    };
+    match macro_name {
+        "defmodule" => {
+            elixir_push_module(node, src, out);
+            true
+        }
+        "def" | "defp" | "defmacro" => {
+            elixir_push_def(node, macro_name, src, out);
+            true
+        }
+        "alias" | "import" | "use" | "require" => {
+            elixir_push_import(node, src, out);
+            // Still recorded as an ordinary call too (matching the
+            // baseline's own `extract_scripting_callee`, which never
+            // excludes these macro names from CALLS just because
+            // `extract_imports.c` ALSO wants them -- the two passes are
+            // independent there, and this crate's own unified walk keeps
+            // that same independence by falling through to the ordinary
+            // call-override path rather than returning `true` here).
+            false
+        }
+        _ => false,
+    }
+}
+
+/// A throwaway [`Ctx`] for [`elixir_push_def`]/[`elixir_push_module`]'s
+/// own re-entrant `do_block` walks -- see [`ctx_for_lua`]'s own doc
+/// comment for the identical `Box::leak`-based rationale (this function
+/// is its Elixir-specific twin).
+fn ctx_for_elixir(src: &[u8]) -> Ctx<'_> {
+    static SPEC: std::sync::OnceLock<LangSpec> = std::sync::OnceLock::new();
+    let spec = SPEC.get_or_init(LangSpec::elixir);
+    let quirks: &'static Quirks = Box::leak(Box::new(elixir_quirks()));
+    Ctx {
+        spec,
+        src,
+        quirks,
+        is_test_file: false,
+    }
+}
+
+/// Elixir's [`Quirks::call_override`]: an ordinary call's own callee
+/// text -- mirrors the baseline's `extract_scripting_callee`'s
+/// `CBM_LANG_ELIXIR` branch exactly
+/// (`codebase-memory-mcp/internal/cbm/extract_calls.c`:433-440): a
+/// `call`'s own first child must be an `identifier` (a bare `helper(x)`)
+/// or a `dot` (a qualified `Enum.map(...)`, whose own `.utf8_text()`
+/// already spans the full dotted text, e.g. `"Enum.map"`) -- anything
+/// else (a `binary_operator`, e.g.) resolves no callee at all and the
+/// call is silently not recorded, matching the baseline's own `return
+/// NULL` for that case. [`LangSpec::elixir`]'s `func_types`/
+/// `class_types`/`call_types` arrays are ALL `["call"]`, so
+/// [`elixir_quirk`] (run first, as [`Quirks::on_unmatched_node`]) claims
+/// `defmodule`/`def`-family/`alias`-family calls before this hook would
+/// ever see them for those macro names specifically -- this hook only
+/// ever actually receives an ORDINARY call (or an `alias`/`import`/
+/// `use`/`require` call, which `elixir_quirk` deliberately returns
+/// `false` for after pushing its own IMPORTS edge, see
+/// [`elixir_quirk`]'s own doc comment, so it is ALSO recorded as a call
+/// here).
+fn elixir_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "call" {
+        return false;
+    }
+    let Some(first) = node.child(0) else {
+        return false;
+    };
+    if !matches!(first.kind(), "identifier" | "dot") {
+        return false;
+    }
+    let Ok(callee) = first.utf8_text(src) else {
+        return false;
+    };
+    let arg_texts = elixir_call_args(node)
+        .map(|args| {
+            (0..args.child_count())
+                .filter_map(|i| args.child(i))
+                .filter(|c| c.is_named())
+                .filter_map(|c| c.utf8_text(src).ok().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default();
+    out.calls.push(CallRef {
+        callee: callee.to_string(),
+        line: node.start_position().row + 1,
+        from_symbol: from_symbol.map(str::to_string),
+        from_symbol_line,
+        receiver_text: None,
+        receiver_hint: None,
+        arg_texts,
+    });
+    true
+}
+
+/// Elixir's [`Quirks`] row: `defmodule`/`def`-family/`alias`-family
+/// macro-call disambiguation (see [`elixir_quirk`]) + ordinary-call
+/// recording (see [`elixir_call_override`]). No `is_test_name`/
+/// `route_from_call`/`on_method_defined`: this crate has no
+/// ExUnit-test-name convention wired, and Elixir's real route-
+/// registration signal is Phoenix's `Phoenix.Router` library-NAME match
+/// over IMPORTS (`codebase-memory-mcp/internal/cbm/
+/// service_patterns.c`:374, `route_reg_libraries`) -- a
+/// [`crate::code_graph`]-layer concern over this row's own
+/// [`elixir_push_import`]-emitted IMPORTS edges, not a per-language
+/// `route_from_call` quirk, matching every G2.1 scripting-language row's
+/// identical `route_from_call: None` posture (see e.g. [`ruby_quirks`]'s
+/// own doc comment).
+pub fn elixir_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(elixir_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(elixir_call_override)),
+    }
+}
+
+/// Parse Elixir source through the generic engine. No pre-existing
+/// bespoke `languages::elixir` extractor to prove zero-regression
+/// against (Elixir has never had one in this crate) -- correctness is
+/// instead verified directly against the `tree-sitter-elixir` crate's
+/// own `node-types.json` plus real parse trees (see [`LangSpec::elixir`]'s
+/// doc comment and `tests/unit_languages_elixir.rs`).
+pub fn parse_elixir(source: &str) -> ParsedFile {
+    let spec = LangSpec::elixir();
+    let quirks = elixir_quirks();
+    let language: tree_sitter::Language = tree_sitter_elixir::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Haskell
+// =====================================================================
+
+/// Recreates a [`Ctx`] for Haskell and recurses into `node`'s own
+/// children -- same "no single `body_field`, re-walk this node's whole
+/// remaining structure generically" rationale as [`kotlin_walk_scoped`],
+/// needed here because a `function`/`bind` node's actual body lives
+/// inside one or more `match` children (each itself wrapping an
+/// `expression` via its own `expression` field, for a guarded/
+/// multi-equation definition) rather than behind one flat `"body"`
+/// field this file's generic func/method branch could read directly --
+/// see [`LangSpec::haskell`]'s own doc comment.
+fn haskell_walk_scoped(node: Node<'_>, src: &[u8], fn_scope: FnScope<'_>, out: &mut ParsedFile) {
+    let spec = LangSpec::haskell();
+    let quirks = haskell_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    for i in 0..node.child_count() {
+        if let Some(child) = node.child(i) {
+            walk(child, &ctx, out, None, fn_scope);
+        }
+    }
+}
+
+/// `function`/`bind`'s own symbol + scoped body walk -- fully claimed
+/// (not the generic engine's own func/method branch) purely because of
+/// the `body_field` gap [`haskell_walk_scoped`]'s own doc comment
+/// explains; the name itself DOES come from the ordinary `"name"` field
+/// (`function`/`bind` both have one, confirmed via `node-types.json` --
+/// see [`LangSpec::haskell`]'s own doc comment), so this only
+/// re-implements the body-walk half of the generic branch, not the name
+/// resolution. Haskell has no class/impl-body nesting concept the way
+/// Rust/TS/Python's `enclosing` convention models (every `function`/
+/// `bind` is module-scope, `class`/`instance` bodies hold `signature`/
+/// `function` declarations that are themselves still ordinary top-level-
+/// shaped definitions, not "methods" in the DEFINES sense other
+/// languages use) -- `enclosing` is consequently always `None` for this
+/// symbol/DEFINES pair, matching Python's identical no-DEFINES-edge
+/// posture for its own module-level functions.
+fn haskell_function_like(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
+    let Some(name) = child_text(node, "name", src) else {
+        return true;
+    };
+    let line = node.start_position().row + 1;
+    out.symbols.push(SymbolRef {
+        name: name.clone(),
+        kind: SymbolKind::Function,
+        line,
+    });
+    haskell_walk_scoped(
+        node,
+        src,
+        FnScope {
+            name: Some(name.as_str()),
+            line: Some(line),
+        },
+        out,
+    );
+    true
+}
+
+/// `import Data.List (sort)` / `import qualified Data.Map as Map` --
+/// Haskell's `import` node has a real `"module"` field (confirmed via
+/// `node-types.json`), read directly rather than through the generic
+/// engine's own field-fallback chain (which only ever fires for
+/// `LangSpec::class_types`-shaped nodes, not `import_types`).
+fn haskell_import_path(node: Node<'_>, src: &[u8]) -> Option<String> {
+    let module = node.child_by_field_name("module")?;
+    module.utf8_text(src).ok().map(str::to_string)
+}
+
+/// `class`/`data_type`/`newtype`/`instance`'s own Class symbol --
+/// EVERY one of these four genuinely has a real, working `"name"` field
+/// (confirmed via `node-types.json`), so this reads it directly the same
+/// way [`haskell_function_like`] reads `function`/`bind`'s own `"name"`
+/// field directly rather than through `spec.name_field`: both
+/// `func_types` AND `class_types` share that one `LangSpec::name_field`
+/// slot, but only the func/method half needs it turned into a
+/// placeholder (to let `on_unmatched_node` run before the generic
+/// engine's own func/method branch would otherwise short-circuit first
+/// -- see [`LangSpec::haskell`]'s own doc comment for the full
+/// explanation), which means this class-shape half can no longer rely
+/// on that shared field being real either, despite never having needed
+/// a quirk for its OWN sake -- caught by this row's own
+/// `tests/unit_languages_haskell.rs`'s own `extracts_data_type_as_class`/
+/// `extracts_newtype_as_class`/`extracts_class_and_instance_as_class`
+/// tests regressing back to failing once the func/method fix above
+/// landed (both halves read the identical field, so protecting one
+/// silently broke the other), not by inspection. Recurses into the
+/// node's own children generically afterward (`walk_children`, matching
+/// the generic engine's own class-shape branch's identical
+/// `walk_children(node, ctx, out, Some(name.as_str()), fn_scope)` call
+/// this function stands in for) so a `class`/`instance` body's own
+/// `signature`/`function` declarations are still visited with `enclosing`
+/// set to this symbol's own name.
+fn haskell_class_like(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
+    let Some(name) = child_text(node, "name", src) else {
+        return true;
+    };
+    out.symbols.push(SymbolRef {
+        name,
+        kind: SymbolKind::Class,
+        line: node.start_position().row + 1,
+    });
+    haskell_walk_scoped(node, src, FnScope::default(), out);
+    true
+}
+
+/// Everything Haskell's flat [`LangSpec`] arrays cannot express: the
+/// `function`/`bind` scoped-body-walk gap [`haskell_walk_scoped`]'s own
+/// doc comment explains, `class`/`data_type`/`newtype`/`instance`'s own
+/// `"name"`-field read (see [`haskell_class_like`]'s own doc comment for
+/// why these need an explicit arm too despite each having a genuinely
+/// working field the generic engine's own fallback COULD read, if only
+/// `LangSpec::name_field` were not shared with the func/method half),
+/// and `import`'s `"module"`-field path -- wired as this wave's
+/// [`Quirks::on_unmatched_node`] hook.
+fn haskell_quirk(
+    node: Node<'_>,
+    _enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    match node.kind() {
+        "function" | "bind" => haskell_function_like(node, src, out),
+        "class" | "data_type" | "newtype" | "instance" => haskell_class_like(node, src, out),
+        "import" => {
+            if let Some(path) = haskell_import_path(node, src) {
+                out.imports.push(ImportRef {
+                    module_path: path,
+                    line: node.start_position().row + 1,
+                });
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+/// Curried-application head recovery for `apply` (`f a b` nests as
+/// `apply(function=apply(function=f,argument=a),argument=b)`, confirmed
+/// via a real parse-tree dump) -- mirrors the baseline's own shared
+/// `extract_fp_callee` (`internal/cbm/extract_calls.c`:324-344, used for
+/// `CBM_LANG_HASKELL`/`CBM_LANG_OCAML`/`CBM_LANG_PURESCRIPT` alike)
+/// exactly: descend via the `function` field until it is no longer
+/// itself an `apply`/`application_expression`, then read whatever is
+/// there directly (an identifier-like leaf, or -- unlike the baseline's
+/// own fixed accepted-kind allowlist -- ANY other expression shape,
+/// e.g. a parenthesized lambda `(\x -> x + 1) 3`, whose own written text
+/// is still a reasonable callee string even though it is not a bare
+/// name). `apply_kind` is threaded through explicitly (rather than
+/// hardcoding one grammar's own node-kind string) so this one function
+/// serves both Haskell's `apply` and [`ocaml_call_override`]'s
+/// `application_expression` callers without duplicating the recursion.
+fn fp_call_head<'a>(node: Node<'a>, apply_kind: &str) -> Node<'a> {
+    let mut current = node;
+    loop {
+        let Some(function) = current.child_by_field_name("function") else {
+            return current;
+        };
+        if function.kind() == apply_kind {
+            current = function;
+            continue;
+        }
+        return function;
+    }
+}
+
+/// Every curried argument of an `apply` chain, in written
+/// (leftmost-first) order -- e.g. `f a b` yields `["a", "b"]`, recovered
+/// by walking the SAME `function`-field spine [`fp_call_head`] descends,
+/// collecting each level's own `argument` field on the way back up
+/// (implemented as a recursive collect-then-append rather than a
+/// reversal, since the recursion already visits levels outermost-first
+/// and this file's `arg_texts` convention is "written order", i.e.
+/// innermost/leftmost first). Haskell-only, NOT shared with
+/// [`ocaml_call_override`]'s own `application_expression` arm despite
+/// [`fp_call_head`] itself being shared by both: this grammar's `apply`
+/// genuinely nests one node per curried argument (`argument` field
+/// `multiple: false`), but OCaml's `application_expression` is a FLAT
+/// single node with a `multiple: true` `"argument"` field instead (see
+/// [`ocaml_application_arg_texts`]'s own doc comment for the real
+/// grammar-shape divergence this caught) -- `apply_kind` is kept as an
+/// explicit parameter anyway (mirroring [`fp_call_head`]'s own
+/// parameterization) purely so a future third curried-nesting-shaped
+/// language never needs to duplicate this recursion, not because OCaml
+/// itself still uses it.
+fn fp_call_arg_texts(node: Node<'_>, apply_kind: &str, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    fp_collect_args(node, apply_kind, src, &mut out);
+    out
+}
+
+fn fp_collect_args(node: Node<'_>, apply_kind: &str, src: &[u8], out: &mut Vec<String>) {
+    let Some(function) = node.child_by_field_name("function") else {
+        return;
+    };
+    if function.kind() == apply_kind {
+        fp_collect_args(function, apply_kind, src, out);
+    }
+    if let Some(argument) = node.child_by_field_name("argument") {
+        if let Ok(text) = argument.utf8_text(src) {
+            out.push(text.to_string());
+        }
+    }
+}
+
+/// `apply`/`infix` callee reconstruction -- wired as this wave's
+/// [`Quirks::call_override`] hook since neither shape fits the generic
+/// engine's single `function`/`arguments`-field-pair assumption (see
+/// [`LangSpec::haskell`]'s own doc comment for the field-shape details).
+/// `infix`'s callee is its own `operator` field's text, mirroring the
+/// baseline's `extract_fp_callee` `infix`/`infix_expression` arm
+/// exactly (`internal/cbm/extract_calls.c`:345-354).
+fn haskell_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    match node.kind() {
+        "apply" => {
+            let head = fp_call_head(node, "apply");
+            let Ok(callee) = head.utf8_text(src) else {
+                return false;
+            };
+            out.calls.push(CallRef {
+                callee: callee.to_string(),
+                line: node.start_position().row + 1,
+                from_symbol: from_symbol.map(str::to_string),
+                from_symbol_line,
+                receiver_text: None,
+                receiver_hint: None,
+                arg_texts: fp_call_arg_texts(node, "apply", src),
+            });
+            true
+        }
+        "infix" => {
+            let Some(operator) = node.child_by_field_name("operator") else {
+                return false;
+            };
+            let Ok(callee) = operator.utf8_text(src) else {
+                return false;
+            };
+            let left = node.child_by_field_name("left_operand");
+            let right = node.child_by_field_name("right_operand");
+            let arg_texts = [left, right]
+                .into_iter()
+                .flatten()
+                .filter_map(|n| n.utf8_text(src).ok().map(str::to_string))
+                .collect();
+            out.calls.push(CallRef {
+                callee: callee.to_string(),
+                line: node.start_position().row + 1,
+                from_symbol: from_symbol.map(str::to_string),
+                from_symbol_line,
+                receiver_text: None,
+                receiver_hint: None,
+                arg_texts,
+            });
+            true
+        }
+        _ => false,
+    }
+}
+
+/// Haskell's [`Quirks`] row: `function`/`bind` scoped-body-walk gap +
+/// `import`'s `"module"`-field path + `apply`/`infix` callee
+/// reconstruction. No `is_test_name`/`route_from_call`/
+/// `on_method_defined`: the baseline wires Haskell no test-name
+/// convention, DEFINES-container-from-elsewhere method convention, or
+/// route-registration detection at all (`CBM_LANG_HASKELL` never
+/// appears in `internal/cbm/service_patterns.c`'s route-library tables).
+pub fn haskell_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(haskell_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(haskell_call_override)),
+    }
+}
+
+/// Parse Haskell source through the generic engine.
+pub fn parse_haskell(source: &str) -> ParsedFile {
+    let spec = LangSpec::haskell();
+    let quirks = haskell_quirks();
+    let language: tree_sitter::Language = tree_sitter_haskell::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// OCaml
+// =====================================================================
+
+/// Recreates a [`Ctx`] for OCaml and recurses into `node`'s own
+/// children -- same rationale as [`haskell_walk_scoped`]/
+/// [`kotlin_walk_scoped`]: every one of `LangSpec::ocaml`'s
+/// `func_types`/`class_types` node kinds needs its name recovered via a
+/// child-kind search (never a flat field, see [`LangSpec::ocaml`]'s own
+/// doc comment) and none has a single `"body"` field either, so this
+/// re-walks the node's own remaining children generically once its name
+/// (if any) has been resolved and pushed.
+fn ocaml_walk_scoped(
+    node: Node<'_>,
+    src: &[u8],
+    enclosing: Option<&str>,
+    fn_scope: FnScope<'_>,
+    out: &mut ParsedFile,
+) {
+    let spec = LangSpec::ocaml();
+    let quirks = ocaml_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    for i in 0..node.child_count() {
+        if let Some(child) = node.child(i) {
+            walk(child, &ctx, out, enclosing, fn_scope);
+        }
+    }
+}
+
+/// The first direct child of `node` whose own `.kind()` is `child_kind`
+/// -- OCaml's `value_definition`/`class_definition`/`module_definition`/
+/// `exception_definition` all name themselves via one specific,
+/// unfielded child rather than a `name`/`pattern`/... field on the
+/// outer node itself (see [`LangSpec::ocaml`]'s own doc comment), so
+/// every one of this file's OCaml naming helpers below is built on this
+/// one shared child-kind search.
+fn ocaml_find_child<'a>(node: Node<'a>, child_kind: &str) -> Option<Node<'a>> {
+    (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|c| c.kind() == child_kind)
+}
+
+/// `let square x = x * x` -- `value_definition`'s own name lives on its
+/// `let_binding` child's `"pattern"` field, mirroring the baseline's own
+/// dedicated `resolve_ocaml_func_name`
+/// (`internal/cbm/extract_defs.c`:253-262) exactly (find the
+/// `let_binding` child, then that binding's own `pattern` field).
+fn ocaml_value_definition_name<'a>(node: Node<'a>, src: &[u8]) -> Option<(String, Node<'a>)> {
+    let binding = ocaml_find_child(node, "let_binding")?;
+    let pattern = binding.child_by_field_name("pattern")?;
+    let text = pattern.utf8_text(src).ok()?.to_string();
+    Some((text, binding))
+}
+
+/// `value_definition`'s own symbol + scoped body walk (the `let_binding`
+/// child itself, since that is what carries the actual bound
+/// expression/parameters -- see [`ocaml_value_definition_name`]).
+fn ocaml_value_definition(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
+    let Some((name, binding)) = ocaml_value_definition_name(node, src) else {
+        return true;
+    };
+    let line = node.start_position().row + 1;
+    out.symbols.push(SymbolRef {
+        name: name.clone(),
+        kind: SymbolKind::Function,
+        line,
+    });
+    ocaml_walk_scoped(
+        binding,
+        src,
+        None,
+        FnScope {
+            name: Some(name.as_str()),
+            line: Some(line),
+        },
+        out,
+    );
+    true
+}
+
+/// `Circle of float` (a data constructor) / `exception BadShape` (an
+/// exception, itself a bare `constructor_declaration`) -- named by its
+/// own unfielded `constructor_name` child (see [`LangSpec::ocaml`]'s own
+/// doc comment: this is a real gap the baseline's own resolver never
+/// closes either, corrected here per the "more complete than baseline
+/// when baseline has a real gap" precedent). Recorded as a
+/// [`SymbolKind::Function`] (OCaml has no dedicated "data constructor"
+/// `SymbolKind` of its own, and a constructor genuinely is a callable --
+/// `Circle 2.0` constructs a value the same syntactic way a function
+/// application does, confirmed via [`LangSpec::ocaml`]'s own
+/// `application_expression` `constructor`-headed case in this file's
+/// probe output) rather than [`SymbolKind::Class`] (already used for
+/// the surrounding `type_definition`'s own alias-shaped symbol, one
+/// level up, when `type_definition` is classified via
+/// [`LangSpec::alias_types`]'s ordinary flat-field path -- a data
+/// constructor is a MEMBER of that type, not the type itself). No
+/// DEFINES edge to the enclosing type: unlike a class-body method,
+/// OCaml's own `type shape = Circle of float | Rectangle of float *
+/// float` variant list has no natural "container name" the way a
+/// class's own name is -- `type_binding`'s name is read via the
+/// generic engine's own [`LangSpec::alias_types`] fallback (a sibling
+/// path, not `enclosing`-threaded down into this node), so there is no
+/// container name available here to attach a DEFINES edge to without
+/// re-deriving it from the parent chain -- left for a future G3 pass
+/// rather than guessed at.
+fn ocaml_constructor_declaration(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
+    if let Some(name_node) = ocaml_find_child(node, "constructor_name") {
+        if let Ok(name) = name_node.utf8_text(src) {
+            out.symbols.push(SymbolRef {
+                name: name.to_string(),
+                kind: SymbolKind::Function,
+                line: node.start_position().row + 1,
+            });
+        }
+    }
+    // Not fully claimed: a record-shaped constructor
+    // (`Circle of { radius : float }`) nests a `record_declaration`
+    // child worth recursing into generically (its own `field_declaration`
+    // children carry no DEFINES target here for the same "no natural
+    // container name available" reason this function's own doc comment
+    // gives, but they are harmless to visit -- there is simply nothing
+    // this quirk itself pushes for them).
+    false
+}
+
+/// `method draw = print_string "draw"` -- named by its own unfielded
+/// `method_name` child (see [`LangSpec::ocaml`]'s own doc comment for
+/// why this is a real gap the baseline's own resolver never closes
+/// either). `enclosing` is always `None` here: `method_definition` only
+/// ever appears nested inside an `object_expression` body
+/// (`class widget = object ... end`), which is itself a `class_binding`
+/// child rather than a [`LangSpec::class_types`]-classified node in its
+/// own right (`ocaml_class_definition` below walks straight through
+/// `object_expression` generically without setting `enclosing`,
+/// mirroring how Rust's own `struct_item` arm never sets `enclosing`
+/// when recursing into a struct body either -- see [`LangSpec::rust`]'s
+/// own `field_types` doc comment for that precedent), so there is no
+/// container name available to attach a DEFINES edge to.
+fn ocaml_method_definition(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
+    let Some(name_node) = ocaml_find_child(node, "method_name") else {
+        return true;
+    };
+    let Ok(name) = name_node.utf8_text(src) else {
+        return true;
+    };
+    let line = node.start_position().row + 1;
+    out.symbols.push(SymbolRef {
+        name: name.to_string(),
+        kind: SymbolKind::Method,
+        line,
+    });
+    ocaml_walk_scoped(
+        node,
+        src,
+        None,
+        FnScope {
+            name: Some(name),
+            line: Some(line),
+        },
+        out,
+    );
+    true
+}
+
+/// `class widget = object ... end` -- named by `class_binding`'s own
+/// unfielded `class_name` child (two levels of unwrap below
+/// `class_definition` itself, see [`LangSpec::ocaml`]'s own doc
+/// comment).
+fn ocaml_class_definition(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
+    let Some(binding) = ocaml_find_child(node, "class_binding") else {
+        return true;
+    };
+    let Some(name_node) = ocaml_find_child(binding, "class_name") else {
+        return true;
+    };
+    let Ok(name) = name_node.utf8_text(src) else {
+        return true;
+    };
+    let line = node.start_position().row + 1;
+    out.symbols.push(SymbolRef {
+        name: name.to_string(),
+        kind: SymbolKind::Class,
+        line,
+    });
+    ocaml_walk_scoped(binding, src, Some(name), FnScope::default(), out);
+    true
+}
+
+/// `module Helper = struct ... end` -- named by `module_binding`'s own
+/// unfielded `module_name` child (same two-level unwrap shape as
+/// [`ocaml_class_definition`]'s own `class_binding`/`class_name`, see
+/// [`LangSpec::ocaml`]'s own doc comment). Recorded as
+/// [`SymbolKind::Module`] (not [`SymbolKind::Class`], despite living in
+/// this row's own `class_types` array for lack of a better generic-array
+/// home -- OCaml's `module` really is a namespace/module container, the
+/// same construct [`LangSpec::module_types`] models for every other
+/// language row in this file, so the symbol kind should say so even
+/// though [`LangSpec::ocaml`]'s own `module_types` stays empty for the
+/// dead-baseline-data reason its doc comment gives).
+fn ocaml_module_definition(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
+    let Some(binding) = ocaml_find_child(node, "module_binding") else {
+        return true;
+    };
+    let Some(name_node) = ocaml_find_child(binding, "module_name") else {
+        return true;
+    };
+    let Ok(name) = name_node.utf8_text(src) else {
+        return true;
+    };
+    let line = node.start_position().row + 1;
+    out.symbols.push(SymbolRef {
+        name: name.to_string(),
+        kind: SymbolKind::Module,
+        line,
+    });
+    ocaml_walk_scoped(binding, src, Some(name), FnScope::default(), out);
+    true
+}
+
+/// `exception BadShape` / `exception BadShape of string` -- a bare
+/// `constructor_declaration` child, reusing
+/// [`ocaml_constructor_declaration`]'s own `constructor_name` search
+/// directly (see [`LangSpec::ocaml`]'s own doc comment: confirmed via
+/// `node-types.json` that `exception_definition.children` includes
+/// `constructor_declaration`).
+fn ocaml_exception_definition(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
+    let Some(decl) = ocaml_find_child(node, "constructor_declaration") else {
+        return true;
+    };
+    let Some(name_node) = ocaml_find_child(decl, "constructor_name") else {
+        return true;
+    };
+    if let Ok(name) = name_node.utf8_text(src) {
+        out.symbols.push(SymbolRef {
+            name: name.to_string(),
+            kind: SymbolKind::Function,
+            line: node.start_position().row + 1,
+        });
+    }
+    true
+}
+
+/// `type shape = Circle of float | Rectangle of float * float` --
+/// UNLIKE every other node kind this quirk claims, `type_definition`'s
+/// own `type_binding` child DOES have a real, working `"name"` field
+/// (see [`LangSpec::ocaml`]'s own doc comment) -- this helper exists
+/// purely so the generic engine's own [`LangSpec::alias_types`]-shaped
+/// fallback (`walk`'s `spec.alias_types.contains(&kind)` arm, which
+/// reads `spec.name_field` off `type_definition` ITSELF, not its
+/// `type_binding` child) still works: `type_definition` has no `"name"`
+/// field of its own at all, only its child does, so this is wired as an
+/// `on_unmatched_node` claim the same as every other OCaml node kind in
+/// this file, just to perform the one level of descent the generic
+/// engine's own field lookup cannot.
+fn ocaml_type_definition(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
+    let Some(binding) = ocaml_find_child(node, "type_binding") else {
+        return true;
+    };
+    let Some(name_node) = binding.child_by_field_name("name") else {
+        return true;
+    };
+    let Ok(name) = name_node.utf8_text(src) else {
+        return true;
+    };
+    out.symbols.push(SymbolRef {
+        name: name.to_string(),
+        kind: SymbolKind::TypeAlias,
+        line: node.start_position().row + 1,
+    });
+    ocaml_walk_scoped(binding, src, Some(name), FnScope::default(), out);
+    true
+}
+
+/// `open Printf` -- `open_module`'s own `"module"` field (confirmed via
+/// `node-types.json`), read directly rather than through the generic
+/// engine's own field-fallback chain (which only ever fires for
+/// [`LangSpec::class_types`]-shaped nodes, not `import_types`) --
+/// mirrors the baseline's own `try_generic_path_fields`'s `"module"`-
+/// field case (`internal/cbm/extract_imports.c`:902-917) for the
+/// dedicated `parse_generic_imports(ctx, "open_module")` dispatch
+/// exactly (`internal/cbm/extract_imports.c`:2809). See
+/// [`LangSpec::ocaml`]'s own doc comment for why `include_module` is
+/// deliberately left unhandled.
+fn ocaml_import_path(node: Node<'_>, src: &[u8]) -> Option<String> {
+    let module = node.child_by_field_name("module")?;
+    module.utf8_text(src).ok().map(str::to_string)
+}
+
+/// Everything OCaml's flat [`LangSpec`] arrays cannot express: every one
+/// of `func_types`/`class_types`/`alias_types`'s own child-kind-search
+/// naming (see this file's `ocaml_value_definition`/
+/// `ocaml_constructor_declaration`/`ocaml_method_definition`/
+/// `ocaml_class_definition`/`ocaml_module_definition`/
+/// `ocaml_exception_definition`/`ocaml_type_definition`, one arm each)
+/// plus `open_module`'s own `"module"`-field path -- wired as this
+/// wave's [`Quirks::on_unmatched_node`] hook, fully claiming every one
+/// of [`LangSpec::ocaml`]'s own `func_types`/`class_types`/
+/// `alias_types`/`import_types` node kinds (same posture as
+/// [`kotlin_quirk`]/[`c_quirk`] -- see [`LangSpec::ocaml`]'s own doc
+/// comment for why the generic engine's field-name-keyed fallbacks
+/// could never reach any of them directly).
+fn ocaml_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    match node.kind() {
+        "value_definition" => ocaml_value_definition(node, src, out),
+        "constructor_declaration" => ocaml_constructor_declaration(node, src, out),
+        "method_definition" => ocaml_method_definition(node, src, out),
+        "class_definition" => ocaml_class_definition(node, src, out),
+        "module_definition" => ocaml_module_definition(node, src, out),
+        "exception_definition" => ocaml_exception_definition(node, src, out),
+        "type_definition" => ocaml_type_definition(node, src, out),
+        "open_module" => {
+            if let Some(path) = ocaml_import_path(node, src) {
+                out.imports.push(ImportRef {
+                    module_path: path,
+                    line: node.start_position().row + 1,
+                });
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+/// `x.foo`/`Module.value`-shaped receiver text plus a cheap syntactic
+/// hint for [`ocaml_call_override`]'s `method_invocation` arm --
+/// `method_invocation.object` is a `_simple_expression`, whose own
+/// written text is a reasonable receiver string regardless of its exact
+/// sub-shape (mirrors this file's shared [`receiver_of_call`]
+/// convention for every other language's method-call-shaped callee).
+fn ocaml_method_invocation_receiver(
+    object: Node<'_>,
+    src: &[u8],
+) -> (Option<String>, Option<ReceiverHint>) {
+    let Ok(text) = object.utf8_text(src) else {
+        return (None, None);
+    };
+    let hint = if text == "self" {
+        ReceiverHint::SelfOrThis
+    } else if object.kind() == "value_path" {
+        ReceiverHint::Identifier
+    } else {
+        ReceiverHint::Other
+    };
+    (Some(text.to_string()), Some(hint))
+}
+
+/// Every argument of an `application_expression`, in written order --
+/// e.g. `combine 1 2` yields `["1", "2"]`. UNLIKE Haskell's `apply`
+/// (whose own `argument` field is singular, `multiple: false`, forcing
+/// a curried nested-node chain -- see [`fp_call_head`]/
+/// [`fp_collect_args`]'s own doc comments), this grammar's
+/// `application_expression` has ONE node with a `multiple: true`
+/// `"argument"` field: `combine 1 2` is a SINGLE node (`{function:
+/// value_path "combine"}, {argument: number "1"}, {argument: number
+/// "2"}` all direct children of the one node), confirmed via a real
+/// parse-tree dump after [`fp_call_arg_texts`] (designed around
+/// Haskell's curried-nesting shape) silently dropped every argument
+/// past the first for this language -- caught by this row's own
+/// `tests/unit_languages_ocaml.rs::extracts_multi_arg_curried_application_callee`
+/// failing during this wave's own verification, not by inspection (a
+/// real grammar-shape divergence between two languages sharing the
+/// same "curried function application" surface syntax, exactly the
+/// kind of drift this worker's brief warned functional languages are
+/// especially likely to have). [`tree_sitter::Node::child_by_field_name`]
+/// only ever returns the FIRST matching child for a `multiple: true`
+/// field, so this reads every direct child instead, filtering by
+/// [`tree_sitter::Node::field_name_for_child`] rather than
+/// [`tree_sitter::Node::children_by_field_name`] (which needs a
+/// [`tree_sitter::TreeCursor`] this file's other helpers do not
+/// otherwise thread through) -- same "iterate `0..child_count()`,
+/// check each child's own field/kind directly" convention as
+/// [`ocaml_find_child`]/[`zig_container_field_names`] elsewhere in this
+/// file.
+fn ocaml_application_arg_texts(node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    for i in 0..node.child_count() {
+        if node.field_name_for_child(i as u32) != Some("argument") {
+            continue;
+        }
+        let Some(child) = node.child(i) else { continue };
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
+        }
+    }
+    out
+}
+
+/// `application_expression`/`infix_expression`/`method_invocation`/
+/// `module_application`/`new_expression` callee reconstruction -- wired
+/// as this wave's [`Quirks::call_override`] hook since none fits the
+/// generic engine's single `function`/`arguments`-field-pair assumption
+/// (see [`LangSpec::ocaml`]'s own doc comment for the field-shape
+/// details of each). `application_expression`'s own CALLEE (not its
+/// arguments, see [`ocaml_application_arg_texts`]'s own doc comment for
+/// why those need a dedicated helper) and `infix_expression` mirror the
+/// baseline's own shared `extract_fp_callee` exactly (via
+/// [`fp_call_head`], the same helper [`haskell_call_override`] uses,
+/// parameterized by this grammar's own `"application_expression"`
+/// node-kind string); `method_invocation`/`module_application`/
+/// `new_expression` have no baseline-shared helper to mirror (the
+/// baseline's own `extract_fp_callee` never matches any of the three)
+/// and are handled directly.
+fn ocaml_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    match node.kind() {
+        "application_expression" => {
+            // NOT `fp_call_arg_texts` (Haskell's own curried-NESTING
+            // shape, `argument` field `multiple: false`) -- a real
+            // parse-tree dump of `combine 1 2` proved this grammar's
+            // `application_expression` is instead FLAT: one node with a
+            // single `"function"` field plus `multiple: true` sibling
+            // `"argument"`-field children (`{function: value_path
+            // "combine"}, {argument: number "1"}, {argument: number
+            // "2"}` all as direct children of the SAME node, no nested
+            // `application_expression` at all) -- see
+            // `ocaml_application_arg_texts`'s own doc comment. Caught by
+            // this row's own
+            // `tests/unit_languages_ocaml.rs::extracts_multi_arg_curried_application_callee`
+            // failing during this wave's own verification (silently
+            // dropped every argument past the first), not by inspection
+            // -- [`fp_call_head`] itself is unaffected (it only follows
+            // one level when `function` is not itself an
+            // `application_expression`, which correctly matches this
+            // flat shape's own single, non-recursive `function` field).
+            let head = fp_call_head(node, "application_expression");
+            let Ok(callee) = head.utf8_text(src) else {
+                return false;
+            };
+            out.calls.push(CallRef {
+                callee: callee.to_string(),
+                line: node.start_position().row + 1,
+                from_symbol: from_symbol.map(str::to_string),
+                from_symbol_line,
+                receiver_text: None,
+                receiver_hint: None,
+                arg_texts: ocaml_application_arg_texts(node, src),
+            });
+            true
+        }
+        "infix_expression" => {
+            let Some(operator) = node.child_by_field_name("operator") else {
+                return false;
+            };
+            let Ok(callee) = operator.utf8_text(src) else {
+                return false;
+            };
+            let left = node.child_by_field_name("left");
+            let right = node.child_by_field_name("right");
+            let arg_texts = [left, right]
+                .into_iter()
+                .flatten()
+                .filter_map(|n| n.utf8_text(src).ok().map(str::to_string))
+                .collect();
+            out.calls.push(CallRef {
+                callee: callee.to_string(),
+                line: node.start_position().row + 1,
+                from_symbol: from_symbol.map(str::to_string),
+                from_symbol_line,
+                receiver_text: None,
+                receiver_hint: None,
+                arg_texts,
+            });
+            true
+        }
+        "method_invocation" => {
+            let Some(method) = node.child_by_field_name("method") else {
+                return false;
+            };
+            let Ok(callee) = method.utf8_text(src) else {
+                return false;
+            };
+            let (receiver_text, receiver_hint) = node
+                .child_by_field_name("object")
+                .map(|object| ocaml_method_invocation_receiver(object, src))
+                .unwrap_or((None, None));
+            out.calls.push(CallRef {
+                callee: callee.to_string(),
+                line: node.start_position().row + 1,
+                from_symbol: from_symbol.map(str::to_string),
+                from_symbol_line,
+                receiver_text,
+                receiver_hint,
+                arg_texts: Vec::new(),
+            });
+            true
+        }
+        "module_application" => {
+            let Some(functor) = node.child_by_field_name("functor") else {
+                return false;
+            };
+            let Ok(callee) = functor.utf8_text(src) else {
+                return false;
+            };
+            let arg_texts = node
+                .child_by_field_name("argument")
+                .and_then(|a| a.utf8_text(src).ok())
+                .map(|t| vec![t.to_string()])
+                .unwrap_or_default();
+            out.calls.push(CallRef {
+                callee: callee.to_string(),
+                line: node.start_position().row + 1,
+                from_symbol: from_symbol.map(str::to_string),
+                from_symbol_line,
+                receiver_text: None,
+                receiver_hint: None,
+                arg_texts,
+            });
+            true
+        }
+        "new_expression" => {
+            let Some(class_path) = ocaml_find_child(node, "class_path") else {
+                return false;
+            };
+            let Ok(callee) = class_path.utf8_text(src) else {
+                return false;
+            };
+            out.calls.push(CallRef {
+                callee: callee.to_string(),
+                line: node.start_position().row + 1,
+                from_symbol: from_symbol.map(str::to_string),
+                from_symbol_line,
+                receiver_text: None,
+                receiver_hint: Some(ReceiverHint::NewExpression),
+                arg_texts: Vec::new(),
+            });
+            true
+        }
+        _ => false,
+    }
+}
+
+/// OCaml's [`Quirks`] row: every `func_types`/`class_types`/
+/// `alias_types` node kind's own child-kind-search naming + scoped body
+/// walk, `open_module`'s own `"module"`-field import path, and
+/// `application_expression`/`infix_expression`/`method_invocation`/
+/// `module_application`/`new_expression` callee reconstruction. No
+/// `is_test_name`/`route_from_call`/`on_method_defined`: the baseline
+/// wires OCaml no test-name convention, DEFINES-container-from-elsewhere
+/// method convention, or route-registration detection at all
+/// (`CBM_LANG_OCAML` never appears in
+/// `internal/cbm/service_patterns.c`'s route-library tables).
+pub fn ocaml_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(ocaml_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(ocaml_call_override)),
+    }
+}
+
+/// Parse OCaml source through the generic engine -- covers both `.ml`
+/// and `.mli` files (see [`LangSpec::ocaml`]'s own doc comment for why
+/// this crate, like the baseline, uses the one implementation grammar
+/// for both rather than binding `tree-sitter-ocaml`'s separate
+/// `LANGUAGE_OCAML_INTERFACE` entry point too).
+pub fn parse_ocaml(source: &str) -> ParsedFile {
+    let spec = LangSpec::ocaml();
+    let quirks = ocaml_quirks();
+    let language: tree_sitter::Language = tree_sitter_ocaml::LANGUAGE_OCAML.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Erlang
+// =====================================================================
+
+/// `-type shape() :: {circle, float()} | ...` -- `type_alias`'s own
+/// `"name"` field points at an intermediate `type_name` wrapper node
+/// (`shape()`, including the parenthesized arity/params suffix, e.g.
+/// `shape(A, B)` for a parameterized type), not a bare identifier; the
+/// real type name text is that wrapper's OWN nested `"name"` field (an
+/// `atom` node) -- see [`LangSpec::erlang`]'s own doc comment.
+fn erlang_type_alias(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
+    let Some(wrapper) = node.child_by_field_name("name") else {
+        return true;
+    };
+    let Some(atom) = wrapper.child_by_field_name("name") else {
+        return true;
+    };
+    let Ok(name) = atom.utf8_text(src) else {
+        return true;
+    };
+    out.symbols.push(SymbolRef {
+        name: name.to_string(),
+        kind: SymbolKind::TypeAlias,
+        line: node.start_position().row + 1,
+    });
+    true
+}
+
+/// `-import(lists, [sort/1, reverse/1]).` -- `import_attribute`'s own
+/// `"module"` field (an `atom`, confirmed via `node-types.json`) is the
+/// real dependency-edge text -- see [`LangSpec::erlang`]'s own doc
+/// comment for why this row deliberately does NOT reproduce the
+/// baseline's own literal `parse_generic_imports(ctx, "module_attribute")`
+/// dispatch (a self-referential "this file imports its own name" choice
+/// with no useful dependency-edge meaning), instead extracting the
+/// semantically real one via this direct field read.
+fn erlang_import_path(node: Node<'_>, src: &[u8]) -> Option<String> {
+    let module = node.child_by_field_name("module")?;
+    module.utf8_text(src).ok().map(str::to_string)
+}
+
+/// Everything Erlang's flat [`LangSpec`] arrays cannot express:
+/// `type_alias`'s own two-level `"name"`-field unwrap +
+/// `import_attribute`'s own `"module"`-field path -- wired as this
+/// wave's [`Quirks::on_unmatched_node`] hook. `function_clause`
+/// (`LangSpec::erlang`'s own `func_types`) is deliberately NOT matched
+/// here: it has real, working `"name"`/`"body"` fields (confirmed via
+/// `node-types.json`), so the generic engine's own func/method branch
+/// (`walk`'s `spec.func_types.contains(&kind)` arm) already reaches it
+/// correctly with no quirk needed at all -- see [`LangSpec::erlang`]'s
+/// own doc comment.
+fn erlang_quirk(
+    node: Node<'_>,
+    _enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    match node.kind() {
+        "type_alias" => erlang_type_alias(node, src, out),
+        "import_attribute" => {
+            if let Some(path) = erlang_import_path(node, src) {
+                out.imports.push(ImportRef {
+                    module_path: path,
+                    line: node.start_position().row + 1,
+                });
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+/// `call` callee reconstruction -- wired as this wave's
+/// [`Quirks::call_override`] hook since `call`'s own `"args"` field
+/// points at an intermediate `expr_args` wrapper node (see
+/// [`LangSpec::erlang`]'s own doc comment), not a flat argument list the
+/// way this file's shared [`call_arg_texts`] helper's single-field
+/// convention assumes for languages whose `LangSpec::call_arguments_field`
+/// points directly at the argument list itself -- `expr_args`'s own
+/// children (parens/commas plus each argument expression) are exactly
+/// the shape [`call_arg_texts`] already knows how to skip past, so this
+/// reuses it unchanged, just called on `call` (whose `"args"` field
+/// happens to point at that intermediate wrapper rather than the list
+/// directly the way, say, Rust/Go/TS's own `"arguments"` field does).
+/// Mirrors the baseline's own dedicated `extract_erlang_callee`
+/// (`internal/cbm/extract_calls.c`:487-492) exactly: a `call` node's
+/// callee is simply its own `"expr"` field's text, with no special
+/// handling for a `remote`-wrapped qualified call (`io:format(...)`) --
+/// see [`LangSpec::erlang`]'s own doc comment for why this row matches
+/// that real (qualifier-dropping) baseline depth rather than
+/// reconstructing the full `io:format` qualified name.
+fn erlang_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "call" {
+        return false;
+    }
+    let Some(expr) = node.child_by_field_name("expr") else {
+        return false;
+    };
+    let Ok(callee) = expr.utf8_text(src) else {
+        return false;
+    };
+    out.calls.push(CallRef {
+        callee: callee.to_string(),
+        line: node.start_position().row + 1,
+        from_symbol: from_symbol.map(str::to_string),
+        from_symbol_line,
+        receiver_text: None,
+        receiver_hint: None,
+        arg_texts: call_arg_texts(node, "args", src),
+    });
+    true
+}
+
+/// Erlang's [`Quirks`] row: `type_alias`'s own two-level `"name"`-field
+/// unwrap + `import_attribute`'s own `"module"`-field path + `call`
+/// callee reconstruction. No `is_test_name`/`route_from_call`/
+/// `on_method_defined`: the baseline wires Erlang no test-name
+/// convention, DEFINES-container-from-elsewhere method convention, or
+/// route-registration detection at all (`CBM_LANG_ERLANG` never appears
+/// in `internal/cbm/service_patterns.c`'s route-library tables --
+/// Elixir's own `Phoenix.Router` entry there is Elixir-specific, a
+/// distinct baseline language this crate does not onboard in this
+/// wave).
+pub fn erlang_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(erlang_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(erlang_call_override)),
+    }
+}
+
+/// Parse Erlang source through the generic engine.
+pub fn parse_erlang(source: &str) -> ParsedFile {
+    let spec = LangSpec::erlang();
+    let quirks = erlang_quirks();
+    let language: tree_sitter::Language = tree_sitter_erlang::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Parse CUDA source through the generic engine. G2.2b: reuses
+/// [`LangSpec::cpp`]/[`cpp_quirks`] verbatim (see [`LangSpec::cuda`]'s own
+/// doc comment for the full grammar-superset finding this relies on) --
+/// this function is `parse_cpp` with only the grammar entry point and
+/// `LangSpec` row swapped, since every node kind/field
+/// [`cpp_quirk`]/[`cpp_call_override`] read is confirmed byte-for-byte
+/// identical in this grammar. `is_test_file` mirrors [`parse_cpp`]'s own
+/// post-walk Function/Method -> Test reclassification pass exactly (same
+/// `tests/`/`_test.cu`-suffix convention as every other C-family
+/// language in this crate, wired via [`crate::parsers::is_c_family_test_path`]
+/// at the [`crate::parsers::parse_file`] call site).
+pub fn parse_cuda(source: &str, is_test_file: bool) -> ParsedFile {
+    let spec = LangSpec::cuda();
+    let quirks = cpp_quirks();
+    let language: tree_sitter::Language = tree_sitter_cuda::LANGUAGE.into();
+    let mut out = parse_with_spec(source, &language, &spec, &quirks, false);
+    if is_test_file {
+        for symbol in &mut out.symbols {
+            if matches!(symbol.kind, SymbolKind::Function | SymbolKind::Method) {
+                symbol.kind = SymbolKind::Test;
+            }
+        }
+    }
+    out
+}
+
+/// D's `import_declaration`/`class_declaration`/... own name-bearing
+/// child, found by KIND rather than field (this grammar's own
+/// `node-types.json` gives EVERY node kind `"fields": {}` -- see
+/// [`LangSpec::d`]'s own doc comment for the full finding) -- the
+/// direct-children-only (not recursive-descendant) scan mirrors the
+/// baseline's own `cbm_find_child_by_kind` exactly (`internal/cbm/
+/// extract_defs.c`'s D-specific branches at :3548/:3660 both use it,
+/// never a recursive descendant search).
+fn d_child_by_kind<'a>(node: Node<'a>, kind: &str) -> Option<Node<'a>> {
+    (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|child| child.kind() == kind)
+}
+
+/// A `function_declaration`'s own name -- a plain `identifier` direct
+/// child (mirrors the baseline's own `cbm_resolve_func_name`'s
+/// `CBM_LANG_DLANG` branch, `internal/cbm/extract_defs.c`:711-720:
+/// "the name is a plain `identifier` child"). Returns `None` for
+/// `constructor`/`destructor` (D's `this(...)`/`~this()` special-method
+/// syntax has no identifier child at all -- see [`LangSpec::d`]'s own
+/// doc comment), which [`d_function_like`] records as a nameless
+/// [`SymbolKind::Method`] rather than treating as "not found, skip
+/// entirely".
+fn d_function_name(node: Node<'_>, src: &[u8]) -> Option<String> {
+    if node.kind() == "constructor" || node.kind() == "destructor" {
+        return None;
+    }
+    d_child_by_kind(node, "identifier")?
+        .utf8_text(src)
+        .ok()
+        .map(str::to_string)
+}
+
+/// `class Dog : Animal, Serializable` -- every `base_class` direct
+/// child holds one heritage name (mirrors the baseline's own dedicated
+/// D `extract_base_classes` walker exactly, `internal/cbm/
+/// extract_defs.c`:2446-2473: "class_declaration lists one `base_class`
+/// child per base").
+fn d_base_class_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
+    (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .filter(|child| child.kind() == "base_class")
+        .filter_map(|child| child.utf8_text(src).ok().map(str::to_string))
+        .collect()
+}
+
+/// `module myapp.widgets;` -- the dotted name lives on a `module_fqn`
+/// direct child of `module_declaration` (`module` keyword, `module_fqn`,
+/// `;`).
+fn d_module_fqn_text(node: Node<'_>, src: &[u8]) -> Option<String> {
+    d_child_by_kind(node, "module_fqn")?
+        .utf8_text(src)
+        .ok()
+        .map(str::to_string)
+}
+
+/// `import std.stdio;` / `import std.algorithm : map, filter;` -- the
+/// module path lives on an `imported` direct child wrapping a
+/// `module_fqn` (mirrors the baseline's own `parse_dlang_imports`
+/// exactly, `internal/cbm/extract_imports.c`:2361-2381: find the first
+/// `module_fqn` descendant of the `import_declaration`, read its text).
+/// Selective-import `import_bind` siblings (`: map, filter`) are not
+/// additionally chased, matching the baseline's own identical scope.
+fn d_import_path(node: Node<'_>, src: &[u8]) -> Option<String> {
+    let imported = d_child_by_kind(node, "imported")?;
+    d_child_by_kind(imported, "module_fqn")?
+        .utf8_text(src)
+        .ok()
+        .map(str::to_string)
+}
+
+/// `int x;` inside an `aggregate_body` -- `variable_declaration`'s own
+/// name lives on a `declarator` direct child wrapping a bare
+/// `identifier` (confirmed in a real parse tree: `variable_declaration {
+/// type, declarator { identifier "x" }, ; }`).
+fn d_variable_declarator_name(node: Node<'_>, src: &[u8]) -> Option<String> {
+    let declarator = d_child_by_kind(node, "declarator")?;
+    d_child_by_kind(declarator, "identifier")?
+        .utf8_text(src)
+        .ok()
+        .map(str::to_string)
+}
+
+/// `function_declaration`/`constructor`/`destructor`'s own symbol +
+/// DEFINES-scoped body walk -- mirrors the generic engine's own
+/// func/method branch but reimplemented directly because this
+/// grammar's body is an UNFIELDED `function_body` child (see
+/// [`LangSpec::d`]'s own doc comment), which [`LangSpec::body_field`]'s
+/// generic `child_by_field_name` lookup can never find.
+fn d_function_like(
+    node: Node<'_>,
+    enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    let line = node.start_position().row + 1;
+    let name = d_function_name(node, src);
+    let kind = if enclosing.is_some() {
+        SymbolKind::Method
+    } else {
+        SymbolKind::Function
+    };
+    if let Some(name) = &name {
+        out.symbols.push(SymbolRef {
+            name: name.clone(),
+            kind,
+            line,
+        });
+        if let Some(container) = enclosing {
+            out.defines.push(DefinesRef {
+                container_name: container.to_string(),
+                member_name: name.clone(),
+                line,
+            });
+        }
+    } else {
+        // `constructor`/`destructor`: no name to recover -- still record
+        // a nameless Method (mirrors `kotlin_function_like`'s
+        // `secondary_constructor` case, also unnamed in ITS grammar) so
+        // the body is still walked for nested calls, and still gets a
+        // DEFINES edge from the enclosing class/struct if any.
+        out.symbols.push(SymbolRef {
+            name: String::new(),
+            kind: SymbolKind::Method,
+            line,
+        });
+    }
+    if let Some(body) = d_child_by_kind(node, "function_body") {
+        d_walk_scoped(
+            body,
+            src,
+            enclosing,
+            FnScope {
+                name: name.as_deref(),
+                line: Some(line),
+            },
+            out,
+        );
+    }
+    true
+}
+
+/// `class_declaration`/`struct_declaration`/`union_declaration`/
+/// `interface_declaration`'s own symbol + heritage + DEFINES-scoped body
+/// walk -- same unfielded-body rationale as [`d_function_like`].
+fn d_class_like(node: Node<'_>, kind: SymbolKind, src: &[u8], out: &mut ParsedFile) -> bool {
+    let Some(name) = d_child_by_kind(node, "identifier").and_then(|n| n.utf8_text(src).ok()) else {
+        return true;
+    };
+    let name = name.to_string();
+    let line = node.start_position().row + 1;
+    out.symbols.push(SymbolRef {
+        name: name.clone(),
+        kind,
+        line,
+    });
+    for super_name in d_base_class_names(node, src) {
+        out.inherits.push(InheritsRef {
+            sub_name: name.clone(),
+            super_name,
+            line,
+        });
+    }
+    if let Some(body) = d_child_by_kind(node, "aggregate_body") {
+        d_walk_scoped(body, src, Some(name.as_str()), FnScope::default(), out);
+    }
+    true
+}
+
+/// `module_declaration`'s own Module symbol -- `module myapp.widgets;`
+/// pushes one [`SymbolKind::Module`] named after the FULL dotted
+/// `module_fqn` text (`"myapp.widgets"`), not just its last segment
+/// (matches every other language row's `module_types`-driven convention
+/// of using the whole written name, e.g. C++'s `namespace geometry {}`).
+fn d_module_declaration(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
+    if let Some(name) = d_module_fqn_text(node, src) {
+        out.symbols.push(SymbolRef {
+            name,
+            kind: SymbolKind::Module,
+            line: node.start_position().row + 1,
+        });
+    }
+    // Not `true`: `module_declaration` has no children worth
+    // recursing into beyond its own `module_fqn` (already consumed
+    // above) and the `module`/`;` keyword tokens -- but returning
+    // `false` here is harmless (ordinary recursion finds nothing new)
+    // and keeps this arm consistent with every other "record, then let
+    // the walker's own generic recursion continue" quirk arm in this
+    // file that has no scoped-body concern of its own.
+    false
+}
+
+/// D's `aggregate_body`/`function_body`'s own scoped recursion
+/// (`enclosing`/`fn_scope` threaded through explicitly) -- mirrors every
+/// other quirk's `*_walk_scoped`/`*_walk_scoped_body` helper in this file
+/// (`kotlin_walk_scoped`/`ts_walk_scoped_body`/`py_walk_scoped_body`),
+/// needed because D's body is an unfielded child the generic engine's
+/// own body-walk (keyed off [`LangSpec::body_field`]) can never reach.
+fn d_walk_scoped(
+    body: Node<'_>,
+    src: &[u8],
+    enclosing: Option<&str>,
+    fn_scope: FnScope<'_>,
+    out: &mut ParsedFile,
+) {
+    let spec = LangSpec::d();
+    let quirks = d_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    for i in 0..body.child_count() {
+        if let Some(child) = body.child(i) {
+            walk(child, &ctx, out, enclosing, fn_scope);
+        }
+    }
+}
+
+/// Everything D's flat [`LangSpec`] arrays cannot express (no tree-sitter
+/// fields anywhere in this grammar at all -- see [`LangSpec::d`]'s own
+/// doc comment) -- wired as this wave's [`Quirks::on_unmatched_node`]
+/// hook. Fully claims every one of [`LangSpec::d`]'s `func_types`/
+/// `method_types`/`class_types`/`field_types`/`import_types` node kinds
+/// (same posture as [`c_quirk`]/[`cpp_quirk`]/[`kotlin_quirk`]).
+fn d_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    match node.kind() {
+        "function_declaration" | "constructor" | "destructor" => {
+            d_function_like(node, enclosing, src, out)
+        }
+        "class_declaration" => d_class_like(node, SymbolKind::Class, src, out),
+        "struct_declaration" => d_class_like(node, SymbolKind::Struct, src, out),
+        "union_declaration" => d_class_like(node, SymbolKind::Class, src, out),
+        "interface_declaration" => d_class_like(node, SymbolKind::Interface, src, out),
+        "enum_declaration" => {
+            if let Some(name) =
+                d_child_by_kind(node, "identifier").and_then(|n| n.utf8_text(src).ok())
+            {
+                out.symbols.push(SymbolRef {
+                    name: name.to_string(),
+                    kind: SymbolKind::Enum,
+                    line: node.start_position().row + 1,
+                });
+            }
+            // Not fully claimed: an enum's own members (`enum_member`
+            // children) carry no further nested defs/calls worth a
+            // dedicated scoped walk (matches every other language row's
+            // enum handling, e.g. `LangSpec::rust`'s plain `enum_item`
+            // flat-array path, which also does not scope into the enum
+            // body specially) -- ordinary recursion suffices.
+            false
+        }
+        "variable_declaration" => {
+            if let (Some(container), Some(name)) =
+                (enclosing, d_variable_declarator_name(node, src))
+            {
+                out.defines.push(DefinesRef {
+                    container_name: container.to_string(),
+                    member_name: name,
+                    line: node.start_position().row + 1,
+                });
+            }
+            false
+        }
+        "module_declaration" => d_module_declaration(node, src, out),
+        "import_declaration" => {
+            if let Some(path) = d_import_path(node, src) {
+                out.imports.push(ImportRef {
+                    module_path: path,
+                    line: node.start_position().row + 1,
+                });
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+/// D's `call_expression` has NO fields at all (see [`LangSpec::d`]'s own
+/// doc comment) -- wired as this wave's [`Quirks::call_override`] hook,
+/// mirroring [`kotlin_call_override`]'s posture of fully claiming the
+/// one `call_types` entry directly rather than relying on the generic
+/// engine's own single-field `call_function_field` reconstruction. The
+/// callee is always the node's own FIRST child (an `identifier` for a
+/// plain call, `super` for a super-constructor call, a `type` node for a
+/// receiver-qualified member call, or a `new_expression` for a
+/// constructor call); the argument list is a `named_arguments` sibling
+/// (NOT a field named `"arguments"`).
+fn d_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "call_expression" {
+        return false;
+    }
+    let Some(callee_node) = node.child(0) else {
+        return false;
+    };
+    let Ok(callee) = callee_node.utf8_text(src) else {
+        return false;
+    };
+    let arg_texts = d_child_by_kind(node, "named_arguments")
+        .map(|args| {
+            (0..args.child_count())
+                .filter_map(|i| args.child(i))
+                .filter(|c| c.is_named())
+                .filter_map(|c| c.utf8_text(src).ok().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default();
+    out.calls.push(CallRef {
+        callee: callee.to_string(),
+        line: node.start_position().row + 1,
+        from_symbol: from_symbol.map(str::to_string),
+        from_symbol_line,
+        receiver_text: None,
+        receiver_hint: None,
+        arg_texts,
+    });
+    true
+}
+
+/// D's [`Quirks`] row: unfielded function/class bodies, `identifier`-
+/// child-based naming (no fields anywhere in this grammar), `base_class`
+/// heritage (mirrors the baseline's own dedicated D
+/// `extract_base_classes` walker), `module_fqn`-based module/import
+/// paths, and full `call_expression` claiming (no fields at all). No
+/// `route_from_call`: this crate has no D web-framework route
+/// convention wired (the baseline's own `service_patterns.c` route table
+/// has no D-specific library-name entry either), matching every G2.1/
+/// G2.2 scripting/systems-language row's identical `route_from_call:
+/// None` posture for a language with no route signal of its own (see
+/// e.g. [`elixir_quirks`]'s own doc comment for an analogous language
+/// missing this signal for the identical "the baseline itself has
+/// nothing here" reason).
+pub fn d_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(d_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(d_call_override)),
+    }
+}
+
+/// Parse D source through the generic engine. Grammar: `tree-sitter-d`
+/// (crates.io, `gdamore/tree-sitter-d`) -- no pre-existing bespoke
+/// `languages::d` extractor to prove zero-regression against (D has
+/// never had one in this crate); correctness is verified directly
+/// against this crate's own `node-types.json` plus real parse trees (see
+/// [`LangSpec::d`]'s doc comment and `tests/unit_languages_d.rs`).
+pub fn parse_d(source: &str) -> ParsedFile {
+    let spec = LangSpec::d();
+    let quirks = d_quirks();
+    let language: tree_sitter::Language = tree_sitter_d::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// PowerShell's `script_block`/`class_method_definition`/... own body,
+/// found by KIND (this grammar gives `function_statement`/
+/// `class_method_definition` no fields at all -- see
+/// [`LangSpec::powershell`]'s own doc comment) -- unlike D, a direct
+/// child search is not enough here: the real body content is TWO
+/// unfielded wrapper levels deep (`script_block > script_block_body >
+/// statement_list`, confirmed in a real parse tree), so this walks down
+/// through both wrapper kinds by name rather than a single-level
+/// by-kind child scan.
+fn ps_function_body<'a>(node: Node<'a>) -> Option<Node<'a>> {
+    let script_block = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|child| child.kind() == "script_block")?;
+    (0..script_block.child_count())
+        .filter_map(|i| script_block.child(i))
+        .find(|child| child.kind() == "script_block_body")
+}
+
+/// `function_statement`'s own name -- a `function_name` direct child
+/// (mirrors the baseline's own `cbm_resolve_func_name`'s dedicated
+/// `CBM_LANG_POWERSHELL` branch, `internal/cbm/extract_defs.c`:702-707
+/// exactly: "the name is a `function_name` child node").
+fn ps_function_name(node: Node<'_>, src: &[u8]) -> Option<String> {
+    (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|child| child.kind() == "function_name")?
+        .utf8_text(src)
+        .ok()
+        .map(str::to_string)
+}
+
+/// `class_statement`/`enum_statement`'s own name -- the FIRST
+/// `simple_name` direct child (mirrors the baseline's own dedicated
+/// `CBM_LANG_POWERSHELL` name-resolution branches,
+/// `internal/cbm/extract_defs.c`:3553-3555/:3666-3668 exactly: "the name
+/// is the FIRST `simple_name` child").
+fn ps_first_simple_name(node: Node<'_>, src: &[u8]) -> Option<String> {
+    (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|child| child.kind() == "simple_name")?
+        .utf8_text(src)
+        .ok()
+        .map(str::to_string)
+}
+
+/// `class Dog : Animal` -- every `simple_name` child AFTER the first `:`
+/// token is a base name, stopping at the class body's own opening `{`
+/// (mirrors the baseline's own dedicated PowerShell
+/// `extract_base_classes` walker exactly, `internal/cbm/
+/// extract_defs.c`:2477-2510: "collect every `simple_name` that appears
+/// after the first `:` token, stop at `{`"). The class's OWN name (the
+/// first `simple_name`, before the `:`) is correctly excluded since the
+/// `seen_colon` gate below only starts collecting after the colon.
+fn ps_class_base_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut seen_colon = false;
+    for i in 0..node.child_count() {
+        let Some(child) = node.child(i) else { continue };
+        match child.kind() {
+            ":" => seen_colon = true,
+            "{" => break,
+            "simple_name" if seen_colon => {
+                if let Ok(text) = child.utf8_text(src) {
+                    out.push(text.to_string());
+                }
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
+/// `class_method_definition`'s own name -- its FIRST `simple_name`
+/// direct child (this kind's own `simple_name` child -- the method's own
+/// identifier -- always precedes its `class_method_parameter_list`/
+/// `script_block` siblings in a real parse tree, mirroring the same
+/// "first matching child wins" convention [`ps_first_simple_name`]
+/// already uses for `class_statement`/`enum_statement`).
+fn ps_method_name(node: Node<'_>, src: &[u8]) -> Option<String> {
+    ps_first_simple_name(node, src)
+}
+
+/// `function_statement`'s own symbol + DEFINES-scoped body walk --
+/// mirrors the generic engine's own func/method branch but reimplemented
+/// directly because this grammar's body is TWO unfielded wrapper levels
+/// deep (see [`ps_function_body`]).
+fn ps_function_like(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
+    let line = node.start_position().row + 1;
+    let name = ps_function_name(node, src);
+    if let Some(name) = &name {
+        out.symbols.push(SymbolRef {
+            name: name.clone(),
+            kind: SymbolKind::Function,
+            line,
+        });
+    }
+    if let Some(body) = ps_function_body(node) {
+        ps_walk_scoped(
+            body,
+            src,
+            None,
+            FnScope {
+                name: name.as_deref(),
+                line: Some(line),
+            },
+            out,
+        );
+    }
+    true
+}
+
+/// `class_method_definition`'s own symbol + DEFINES edge + body walk --
+/// same unfielded-body rationale as [`ps_function_like`], but always a
+/// [`SymbolKind::Method`] (a class-body method, never a free function)
+/// with `enclosing` set to the containing class's own name.
+fn ps_method_like(node: Node<'_>, enclosing: &str, src: &[u8], out: &mut ParsedFile) {
+    let line = node.start_position().row + 1;
+    let name = ps_method_name(node, src);
+    if let Some(name) = &name {
+        out.symbols.push(SymbolRef {
+            name: name.clone(),
+            kind: SymbolKind::Method,
+            line,
+        });
+        out.defines.push(DefinesRef {
+            container_name: enclosing.to_string(),
+            member_name: name.clone(),
+            line,
+        });
+    }
+    if let Some(body) = ps_function_body(node) {
+        ps_walk_scoped(
+            body,
+            src,
+            Some(enclosing),
+            FnScope {
+                name: name.as_deref(),
+                line: Some(line),
+            },
+            out,
+        );
+    }
+}
+
+/// `class_statement`'s own symbol + heritage + class-body walk (dispatch
+/// to [`ps_method_like`] for each `class_method_definition` child; a
+/// `class_property_definition` child is deliberately NOT turned into a
+/// DEFINES edge, matching the baseline's own real absent depth here --
+/// see [`LangSpec::powershell`]'s own doc comment).
+fn ps_class_like(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
+    let Some(name) = ps_first_simple_name(node, src) else {
+        return true;
+    };
+    let line = node.start_position().row + 1;
+    out.symbols.push(SymbolRef {
+        name: name.clone(),
+        kind: SymbolKind::Class,
+        line,
+    });
+    for super_name in ps_class_base_names(node, src) {
+        out.inherits.push(InheritsRef {
+            sub_name: name.clone(),
+            super_name,
+            line,
+        });
+    }
+    for i in 0..node.child_count() {
+        let Some(child) = node.child(i) else { continue };
+        if child.kind() == "class_method_definition" {
+            ps_method_like(child, name.as_str(), src, out);
+        }
+    }
+    true
+}
+
+/// PowerShell's `script_block_body`/`statement_list`'s own scoped
+/// recursion (`enclosing`/`fn_scope` threaded through explicitly) --
+/// mirrors every other quirk's `*_walk_scoped`/`*_walk_scoped_body`
+/// helper in this file, needed because PowerShell's body is an unfielded
+/// wrapper chain the generic engine's own body-walk (keyed off
+/// [`LangSpec::body_field`]) can never reach.
+fn ps_walk_scoped(
+    body: Node<'_>,
+    src: &[u8],
+    enclosing: Option<&str>,
+    fn_scope: FnScope<'_>,
+    out: &mut ParsedFile,
+) {
+    let spec = LangSpec::powershell();
+    let quirks = ps_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    for i in 0..body.child_count() {
+        if let Some(child) = body.child(i) {
+            walk(child, &ctx, out, enclosing, fn_scope);
+        }
+    }
+}
+
+/// Everything PowerShell's flat [`LangSpec`] arrays cannot express
+/// (unfielded function/class-method bodies, by-kind-child-based naming,
+/// `class_statement` heritage) -- wired as this wave's
+/// [`Quirks::on_unmatched_node`] hook. Fully claims
+/// [`LangSpec::powershell`]'s `func_types`/`method_types`/`class_types`/
+/// `enum_types` node kinds (same posture as [`c_quirk`]/[`d_quirk`]).
+fn ps_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    match node.kind() {
+        "function_statement" => ps_function_like(node, src, out),
+        "class_statement" => ps_class_like(node, src, out),
+        "enum_statement" => {
+            if let Some(name) = ps_first_simple_name(node, src) {
+                out.symbols.push(SymbolRef {
+                    name,
+                    kind: SymbolKind::Enum,
+                    line: node.start_position().row + 1,
+                });
+            }
+            // Not fully claimed: an enum's own `enum_member` children
+            // carry no further nested defs/calls worth a dedicated
+            // scoped walk (matches every other language row's plain
+            // enum handling) -- ordinary recursion suffices.
+            false
+        }
+        _ => false,
+    }
+}
+
+/// The LAST `generic_token` descendant of `node` whose own start byte is
+/// strictly after `skip_before`, excluding the `module`/`namespace`/
+/// `assembly` keyword tokens themselves -- mirrors the baseline's own
+/// `parse_powershell_imports` exactly (`internal/cbm/
+/// extract_imports.c`:1587-1618: "find the last `generic_token` anywhere
+/// under the command", skipping those three specific keyword tokens).
+/// A `command`'s own `command_elements` field is the natural place to
+/// scan from (excludes the leading `command_name` -- the `"using"` token
+/// itself never collides with a real keyword/path token this way), but
+/// this walks `command_elements`' full subtree (not just its direct
+/// children) since a nested `sub_expression`/`variable` could in
+/// principle wrap a `generic_token` one level deeper -- matching the
+/// baseline's own recursive stack-based descendant scan rather than a
+/// direct-children-only one.
+fn ps_last_generic_token_text<'a>(node: Node<'a>, src: &'a [u8]) -> Option<&'a str> {
+    let mut best: Option<Node<'a>> = None;
+    let mut stack = vec![node];
+    while let Some(current) = stack.pop() {
+        if current.kind() == "generic_token" {
+            if let Ok(text) = current.utf8_text(src) {
+                if !matches!(text, "module" | "namespace" | "assembly") {
+                    let better = best.is_none_or(|prev| current.start_byte() > prev.start_byte());
+                    if better {
+                        best = Some(current);
+                    }
+                }
+            }
+        }
+        for i in 0..current.child_count() {
+            if let Some(child) = current.child(i) {
+                stack.push(child);
+            }
+        }
+    }
+    best.and_then(|n| n.utf8_text(src).ok())
+}
+
+/// `command`'s own callee + args, plus `using namespace ...`/`using
+/// module ...` IMPORTS detection -- wired as this wave's
+/// [`Quirks::call_override`] hook (this kind's own `command_name` FIELD
+/// is real and usable directly, unlike the baseline's own manual
+/// named-child scan -- see [`LangSpec::powershell`]'s own doc comment --
+/// but its arguments are bare `command_elements` children, not a
+/// parenthesized field, so the whole call still needs a full override
+/// rather than the generic engine's flat `call_arguments_field`
+/// mechanism). `invokation_expression` (`$d.Speak()`) is claimed too,
+/// since neither kind has a usable single flat field pair.
+fn ps_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    match node.kind() {
+        "command" => {
+            let Some(command_name) = node.child_by_field_name("command_name") else {
+                return false;
+            };
+            let Ok(callee) = command_name.utf8_text(src) else {
+                return false;
+            };
+            if callee == "using" {
+                if let Some(elements) = node.child_by_field_name("command_elements") {
+                    if let Some(path) = ps_last_generic_token_text(elements, src) {
+                        out.imports.push(ImportRef {
+                            module_path: path.to_string(),
+                            line: node.start_position().row + 1,
+                        });
+                    }
+                }
+            }
+            let arg_texts = node
+                .child_by_field_name("command_elements")
+                .map(|elements| {
+                    (0..elements.child_count())
+                        .filter_map(|i| elements.child(i))
+                        .filter(|c| c.is_named() && c.kind() != "command_argument_sep")
+                        .filter_map(|c| c.utf8_text(src).ok().map(str::to_string))
+                        .collect()
+                })
+                .unwrap_or_default();
+            out.calls.push(CallRef {
+                callee: callee.to_string(),
+                line: node.start_position().row + 1,
+                from_symbol: from_symbol.map(str::to_string),
+                from_symbol_line,
+                receiver_text: None,
+                receiver_hint: None,
+                arg_texts,
+            });
+            true
+        }
+        "invokation_expression" => {
+            let Some(receiver) = node.child(0) else {
+                return false;
+            };
+            let Some(member_name) = (0..node.child_count())
+                .filter_map(|i| node.child(i))
+                .find(|child| child.kind() == "member_name")
+            else {
+                return false;
+            };
+            let Ok(callee) = member_name.utf8_text(src) else {
+                return false;
+            };
+            let Ok(receiver_text) = receiver.utf8_text(src) else {
+                return false;
+            };
+            let hint = if receiver_text == "$this" {
+                ReceiverHint::SelfOrThis
+            } else if receiver.kind() == "variable" {
+                ReceiverHint::Identifier
+            } else {
+                ReceiverHint::Other
+            };
+            let arg_texts = (0..node.child_count())
+                .filter_map(|i| node.child(i))
+                .find(|child| child.kind() == "argument_list")
+                .map(|args| {
+                    (0..args.child_count())
+                        .filter_map(|i| args.child(i))
+                        .filter(|c| c.is_named())
+                        .filter_map(|c| c.utf8_text(src).ok().map(str::to_string))
+                        .collect()
+                })
+                .unwrap_or_default();
+            out.calls.push(CallRef {
+                callee: callee.to_string(),
+                line: node.start_position().row + 1,
+                from_symbol: from_symbol.map(str::to_string),
+                from_symbol_line,
+                receiver_text: Some(receiver_text.to_string()),
+                receiver_hint: Some(hint),
+                arg_texts,
+            });
+            true
+        }
+        _ => false,
+    }
+}
+
+/// PowerShell's [`Quirks`] row: unfielded function/class-method bodies,
+/// by-kind-child-based naming (no `name` field anywhere in this
+/// grammar's own function/class/enum node kinds), `class_statement`
+/// heritage (mirrors the baseline's own dedicated PowerShell
+/// `extract_base_classes` walker), and full `command`/
+/// `invokation_expression` call claiming plus `using`-directive IMPORTS
+/// detection (mirrors the baseline's own `parse_powershell_imports`). No
+/// `route_from_call`: this crate has no PowerShell web-framework route
+/// convention wired (the baseline's own `service_patterns.c` route table
+/// has no PowerShell-specific library-name entry either), same posture
+/// as [`d_quirks`]'s own doc comment for an analogous language missing
+/// this signal for the identical "the baseline itself has nothing here"
+/// reason.
+pub fn ps_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(ps_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(ps_call_override)),
+    }
+}
+
+/// Parse PowerShell source through the generic engine. Grammar:
+/// `tree-sitter-powershell` (crates.io, `airbus-cert/
+/// tree-sitter-powershell`) -- no pre-existing bespoke
+/// `languages::powershell` extractor to prove zero-regression against
+/// (PowerShell has never had one in this crate); correctness is verified
+/// directly against this crate's own `node-types.json` plus real parse
+/// trees (see [`LangSpec::powershell`]'s doc comment and
+/// `tests/unit_languages_powershell.rs`).
+pub fn parse_powershell(source: &str) -> ParsedFile {
+    let spec = LangSpec::powershell();
+    let quirks = ps_quirks();
+    let language: tree_sitter::Language = tree_sitter_powershell::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// F#
+// =====================================================================
+
+/// Join a `long_identifier`'s (or a bare `identifier`'s) own dot-joined
+/// segments into one written-as-source string -- shared by every F#
+/// name-resolution site that reads a `long_identifier`
+/// (`named_module`/`namespace`'s own `name` field, `import_decl`'s
+/// positional child, `class_inherits_decl`'s base-type child when it is
+/// a dotted path, and `type_name`'s own `type_name` field when it holds
+/// a `long_identifier` rather than a bare `identifier`) -- same
+/// "join a grammar's own unfielded identifier-list wrapper" pattern as
+/// [`objc_join_selector_parts`], specialized to F#'s `.`-separator
+/// convention instead of Objective-C's `:`.
+fn fsharp_long_identifier_text(node: Node<'_>, src: &[u8]) -> Option<String> {
+    match node.kind() {
+        "identifier" | "op_identifier" => node.utf8_text(src).ok().map(str::to_string),
+        "long_identifier" => {
+            let mut parts = Vec::new();
+            for i in 0..node.child_count() {
+                let Some(child) = node.child(i) else {
+                    continue;
+                };
+                if child.kind() == "identifier" {
+                    if let Ok(text) = child.utf8_text(src) {
+                        parts.push(text.to_string());
+                    }
+                }
+            }
+            if parts.is_empty() {
+                None
+            } else {
+                Some(parts.join("."))
+            }
+        }
+        _ => None,
+    }
+}
+
+/// A `function_declaration_left`/`value_declaration_left` node's own
+/// name: neither has a `name` FIELD (both `{"fields":{}}` in this
+/// grammar's own `node-types.json`) -- the name is whichever direct
+/// child is an `identifier`/`op_identifier`/`active_pattern`, scanned in
+/// written order (mirrors [`objc_method_selector`]'s identical
+/// "direct-children-only scan for the unfielded name" shape). A
+/// `value_declaration_left` binding a destructuring pattern rather than
+/// a bare name (`let (a, b) = ...`) has no `identifier` direct child at
+/// all -- returns `None`, same "silently produce no symbol for an
+/// unnamed/pattern binding" posture every other quirk in this file
+/// already has for an analogous case (e.g. [`zig_quirk`]'s anonymous
+/// active-pattern skip).
+fn fsharp_declaration_left_name(left_node: Node<'_>, src: &[u8]) -> Option<String> {
+    for i in 0..left_node.child_count() {
+        let Some(child) = left_node.child(i) else {
+            continue;
+        };
+        match child.kind() {
+            "identifier" | "op_identifier" => {
+                return child.utf8_text(src).ok().map(str::to_string);
+            }
+            "active_pattern" => {
+                // `(|Even|Odd|)`-style active-pattern definitions: take
+                // the node's own full written text (`|Even|Odd|`,
+                // including the delimiting pipes) as its name -- there is
+                // no bare-identifier sub-name to prefer, and this at
+                // least gives a stable, non-empty symbol name rather
+                // than silently dropping every active-pattern def.
+                return child.utf8_text(src).ok().map(str::to_string);
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// A `function_or_value_defn`'s inner `function_declaration_left`/
+/// `value_declaration_left` child, if any (a `let rec`/`and`-chained
+/// defn can wrap several via `_function_or_value_defns`, but this crate
+/// only resolves the single, common `let name ... = body` shape --
+/// matches this row's own "baseline's real depth, not idealized" bar
+/// for `member_defn`/nested-OOP scope).
+fn fsharp_declaration_left(defn_node: Node<'_>) -> Option<Node<'_>> {
+    for i in 0..defn_node.child_count() {
+        let child = defn_node.child(i)?;
+        if matches!(
+            child.kind(),
+            "function_declaration_left" | "value_declaration_left"
+        ) {
+            return Some(child);
+        }
+    }
+    None
+}
+
+/// An `anon_type_defn`/`record_type_defn`/`union_type_defn`/
+/// `enum_type_defn`/`type_abbrev_defn`'s own name: find its positional
+/// `type_name` child, then read THAT node's own `type_name` field (this
+/// grammar reuses the literal string `"type_name"` as both a node kind
+/// AND that same node kind's own field name -- see
+/// [`crate::languages::spec::LangSpec::fsharp`]'s doc comment) -- the
+/// field's value is either a bare `identifier` (common case) or a
+/// `long_identifier` (a dotted/module-qualified type name), both
+/// resolved via [`fsharp_long_identifier_text`].
+fn fsharp_container_name(container_node: Node<'_>, src: &[u8]) -> Option<String> {
+    let type_name_node = (0..container_node.child_count())
+        .filter_map(|i| container_node.child(i))
+        .find(|n| n.kind() == "type_name")?;
+    let name_node = type_name_node.child_by_field_name("type_name")?;
+    fsharp_long_identifier_text(name_node, src)
+}
+
+/// `inherit Base(...)`'s own base-type name -- mirrors
+/// `internal/cbm/extract_defs.c`'s dedicated `CBM_LANG_FSHARP` branch of
+/// `extract_base_classes` (:2429-2440) exactly: find the first
+/// `class_inherits_decl` descendant, then its own `simple_type` child,
+/// then take that node's own written text. `find_first_descendant`
+/// mirrors the baseline's `find_first_descendant_by_kind` (a bounded-
+/// depth DFS in the baseline; this crate has no existing shared
+/// bounded-depth-DFS helper for the analogous case, so it recurses over
+/// the WHOLE subtree instead -- a `record_type_defn`/`union_type_defn`+
+/// body is never deep enough for this distinction to matter in practice,
+/// and this crate's engine has no other bounded-depth-limited helper
+/// anywhere else to match against for precedent either way).
+fn fsharp_find_descendant<'a>(node: Node<'a>, kind: &str) -> Option<Node<'a>> {
+    if node.kind() == kind {
+        return Some(node);
+    }
+    for i in 0..node.child_count() {
+        let Some(child) = node.child(i) else {
+            continue;
+        };
+        if let Some(found) = fsharp_find_descendant(child, kind) {
+            return Some(found);
+        }
+    }
+    None
+}
+
+fn fsharp_inherits_base_name(container_node: Node<'_>, src: &[u8]) -> Option<String> {
+    let inh = fsharp_find_descendant(container_node, "class_inherits_decl")?;
+    let simple_type = (0..inh.child_count())
+        .filter_map(|i| inh.child(i))
+        .find(|n| n.kind() == "simple_type")?;
+    simple_type.utf8_text(src).ok().map(str::to_string)
+}
+
+/// `anon_type_defn`/`record_type_defn`/`union_type_defn`/
+/// `enum_type_defn`/`type_abbrev_defn`'s own scoped recursion once its
+/// name (if any) has been resolved via [`fsharp_container_name`] -- none
+/// of these five kinds is one of `LangSpec::fsharp()`'s `func_types`/
+/// `method_types` (so the generic walker's own DEFINES-scoped
+/// body-walk-on-symbol-push never runs for them), and all five are fully
+/// claimed by [`fsharp_quirk`] before the generic class-shape fallback's
+/// own recursion would ever run, so this quirk re-implements that one
+/// recursive call directly -- same shape as [`zig_walk_container_body`]/
+/// [`objc_walk_scoped`].
+fn fsharp_walk_container_body(
+    node: Node<'_>,
+    src: &[u8],
+    name: Option<&str>,
+    out: &mut ParsedFile,
+) {
+    let spec = LangSpec::fsharp();
+    let quirks = fsharp_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    for i in 0..node.child_count() {
+        if let Some(child) = node.child(i) {
+            walk(child, &ctx, out, name, FnScope::default());
+        }
+    }
+}
+
+/// A `function_or_value_defn`'s own `body` field: every call inside it
+/// needs `fn_scope` set to this defn's own name/line -- same rationale
+/// as [`c_walk_function_body`]/[`objc_walk_method_body`]
+/// (`function_or_value_defn` is not one of `LangSpec::fsharp()`'s
+/// func/method arrays' the generic engine's own body-walk would
+/// otherwise handle, since `LangSpec::fsharp()`'s `body_field` is a
+/// placeholder never consulted -- `fsharp_quirk` claims the whole node
+/// instead). Walks `body` DIRECTLY (a single [`walk`] call on the node
+/// itself), NOT its children -- a real, test-caught bug this function
+/// originally had iterated `body.child_count()` instead, copying the
+/// "walk a block/compound-statement wrapper's own children" shape every
+/// OTHER language's analogous helper correctly uses for THEIR grammars
+/// (C's `compound_statement`, Objective-C's `compound_statement`, both
+/// always real multi-statement block wrappers) -- but F#'s
+/// `function_or_value_defn` `body` field is NOT always a block wrapper:
+/// a single-expression let-binding (`let draw x = helper x`, no further
+/// statements) has its `body` field point DIRECTLY AT the one
+/// expression itself (`application_expression`, verified via a real
+/// parse tree dump), so iterating that node's own children treated
+/// `helper`/`x` (the call's own callee/argument sub-nodes) as if they
+/// were independent top-level statements, silently walking past the
+/// `application_expression` node itself (and therefore never invoking
+/// [`fsharp_call_override`] on it at all) -- caught by
+/// `tests/unit_languages_fsharp.rs::extracts_simple_application_call`
+/// failing (no callee found) despite an earlier, larger fixture
+/// happening to still pass (that fixture's own body was a
+/// `sequential_expression` wrapping MULTIPLE statements, whose own
+/// children genuinely are the top-level expressions -- the multi-
+/// statement case accidentally worked, masking the single-expression
+/// case's real breakage). `walk` itself already recurses into
+/// `application_expression`'s own children generically after
+/// `fsharp_call_override` runs (see the shared `walk` function's own
+/// `call_types` branch), so calling `walk` on `body` once here is both
+/// necessary and sufficient for either body shape.
+fn fsharp_walk_defn_body(
+    body: Node<'_>,
+    src: &[u8],
+    name: Option<&str>,
+    line: usize,
+    out: &mut ParsedFile,
+) {
+    let spec = LangSpec::fsharp();
+    let quirks = fsharp_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    let fn_scope = FnScope {
+        name,
+        line: Some(line),
+    };
+    walk(body, &ctx, out, None, fn_scope);
+}
+
+/// Everything F#'s flat `LangSpec` arrays cannot express:
+/// `function_or_value_defn` signature-node/body-field split (naming via
+/// the inner `function_declaration_left`/`value_declaration_left`,
+/// walking the OUTER node's own `body` field with `fn_scope` correctly
+/// set), `anon_type_defn`/`record_type_defn`/`union_type_defn`/
+/// `enum_type_defn`/`type_abbrev_defn` positional `type_name` naming +
+/// `inherit Base(...)` INHERITS + DEFINES-scoped body walk,
+/// `named_module`/`namespace` dot-joined naming, and `import_decl`
+/// positional `long_identifier` IMPORTS -- wired as this wave's
+/// [`Quirks::on_unmatched_node`] hook. `application_expression`'s full
+/// callee-head reconstruction is a separate [`Quirks::call_override`]
+/// hook (see [`fsharp_call_override`]).
+fn fsharp_quirk(
+    node: Node<'_>,
+    _enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    match node.kind() {
+        "function_or_value_defn" => {
+            let Some(left) = fsharp_declaration_left(node) else {
+                return true;
+            };
+            let Some(name) = fsharp_declaration_left_name(left, src) else {
+                return true;
+            };
+            let line = node.start_position().row + 1;
+            let kind = if left.kind() == "function_declaration_left" {
+                SymbolKind::Function
+            } else {
+                SymbolKind::Variable
+            };
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind,
+                line,
+            });
+            if let Some(body) = node.child_by_field_name("body") {
+                fsharp_walk_defn_body(body, src, Some(name.as_str()), line, out);
+            }
+            true
+        }
+        "anon_type_defn" | "record_type_defn" | "union_type_defn" | "enum_type_defn"
+        | "type_abbrev_defn" => {
+            let name = fsharp_container_name(node, src);
+            if let Some(name) = &name {
+                let line = node.start_position().row + 1;
+                let kind = if node.kind() == "enum_type_defn" {
+                    SymbolKind::Enum
+                } else if node.kind() == "type_abbrev_defn" {
+                    SymbolKind::TypeAlias
+                } else {
+                    SymbolKind::Class
+                };
+                out.symbols.push(SymbolRef {
+                    name: name.clone(),
+                    kind,
+                    line,
+                });
+                if let Some(base_name) = fsharp_inherits_base_name(node, src) {
+                    out.inherits.push(InheritsRef {
+                        sub_name: name.clone(),
+                        super_name: base_name,
+                        line,
+                    });
+                }
+            }
+            fsharp_walk_container_body(node, src, name.as_deref(), out);
+            true
+        }
+        "named_module" | "namespace" => {
+            let name = node
+                .child_by_field_name("name")
+                .and_then(|n| fsharp_long_identifier_text(n, src));
+            if let Some(name) = &name {
+                out.symbols.push(SymbolRef {
+                    name: name.clone(),
+                    kind: SymbolKind::Module,
+                    line: node.start_position().row + 1,
+                });
+            }
+            // Not fully claimed for recursion purposes: neither kind
+            // needs its own re-scoped walk the way a class/type-defn
+            // container does (F# module members are not "DEFINES"-linked
+            // the way a class's own methods/fields are in this crate's
+            // model -- matches [`Self::fsharp`]'s own doc comment on why
+            // `module_defn`'s nested case is left unhandled too) --
+            // falling through to the walker's own generic recursion
+            // (`false`) still visits every nested declaration/call inside
+            // correctly, just without a Module-named `enclosing` scope.
+            false
+        }
+        "import_decl" => {
+            let path = (0..node.child_count())
+                .filter_map(|i| node.child(i))
+                .find(|n| matches!(n.kind(), "long_identifier" | "identifier"))
+                .and_then(|n| fsharp_long_identifier_text(n, src));
+            if let Some(path) = path {
+                out.imports.push(ImportRef {
+                    module_path: path,
+                    line: node.start_position().row + 1,
+                });
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+/// `application_expression`'s full callee reconstruction -- wired as
+/// [`Quirks::call_override`] since this grammar's curried-application
+/// shape has no single `call_function_field` the generic engine's own
+/// default reconstruction could read (see
+/// [`crate::languages::spec::LangSpec::fsharp`]'s own doc comment for the
+/// full rationale). Mirrors `internal/cbm/extract_calls.c`'s own
+/// `extract_fsharp_callee` (:514-523) exactly: only ever inspects this
+/// node's own first named child, recognizing it as a callee ONLY when
+/// its kind is `long_identifier_or_op`/`long_identifier`/`identifier` --
+/// any other head shape (in particular, a NESTED `application_expression`
+/// head from a genuinely curried multi-argument call) returns `false`
+/// (no CALLS edge recorded), matching that baseline function's own real,
+/// narrow depth rather than improving on it.
+fn fsharp_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "application_expression" {
+        return false;
+    }
+    let Some(head) = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|n| n.is_named())
+    else {
+        return false;
+    };
+    if !matches!(
+        head.kind(),
+        "long_identifier_or_op" | "long_identifier" | "identifier"
+    ) {
+        return false;
+    }
+    let Ok(callee) = head.utf8_text(src) else {
+        return false;
+    };
+    // The application's own second positional child is its single
+    // argument -- mirrors this grammar's own `_high_prec_app`/
+    // `_low_prec_app` two-slot shape (`[callee, arg]`); a genuinely
+    // multi-argument curried call is out of scope for the SAME reason
+    // the callee-head check above already is (see this function's own
+    // doc comment). `unit` (a literal `f ()` zero-argument call's second
+    // slot, confirmed via a real parse tree dump: `helper()` yields
+    // `application_expression[long_identifier_or_op "helper", unit
+    // "()"]` with the `unit` node itself having no children of its own)
+    // is excluded from `arg_texts` so a true zero-argument call gets an
+    // EMPTY arg list, matching every other language's own "empty parens
+    // means empty arg_texts" convention (e.g. Rust/Go/TS's own
+    // `call_arguments_field`-keyed reads naturally yield `[]` for `f()`)
+    // rather than a synthetic `"()"` literal-text entry.
+    let arg_texts: Vec<String> = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .filter(|n| n.is_named() && *n != head && n.kind() != "unit")
+        .filter_map(|n| n.utf8_text(src).ok().map(str::to_string))
+        .collect();
+    out.calls.push(CallRef {
+        callee: callee.to_string(),
+        line: node.start_position().row + 1,
+        from_symbol: from_symbol.map(str::to_string),
+        from_symbol_line,
+        receiver_text: None,
+        receiver_hint: None,
+        arg_texts,
+    });
+    true
+}
+
+/// F#'s [`Quirks`] row: `function_or_value_defn` signature/body-split
+/// naming, type-defn positional naming + `inherit` INHERITS + DEFINES-
+/// scoped body walk, module/namespace dot-joined naming, `import_decl`
+/// IMPORTS, and `application_expression` callee-head reconstruction. No
+/// `is_test_name`/`route_from_call`/`on_method_defined`: the baseline
+/// wires F# no test-name convention or route-registration detection at
+/// all (`CBM_LANG_FSHARP` never appears in
+/// `internal/cbm/service_patterns.c`'s route-library tables, and its own
+/// `lang_specs.c` row has no dedicated test-name column populated
+/// either), and F# has no method-vs-DEFINES-container distinction this
+/// row's naming quirk does not already fully resolve inline (there is
+/// no receiver-clause-style method binding the way Go's is).
+pub fn fsharp_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(fsharp_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(fsharp_call_override)),
+    }
+}
+
+/// Parse F# source through the generic engine.
+pub fn parse_fsharp(source: &str) -> ParsedFile {
+    let spec = LangSpec::fsharp();
+    let quirks = fsharp_quirks();
+    let language: tree_sitter::Language = tree_sitter_fsharp::LANGUAGE_FSHARP.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Gleam
+// =====================================================================
+
+/// A `type_definition`/`type_alias` node's own name: neither has a
+/// `name` FIELD of its own (both `{"fields":{}}` in this grammar's own
+/// `node-types.json`) -- each carries a positional `type_name` child
+/// instead, whose OWN `name` field (a `type_identifier`/
+/// `remote_type_identifier` leaf) is the actual written name.
+fn gleam_type_name(container_node: Node<'_>, src: &[u8]) -> Option<String> {
+    let type_name_node = (0..container_node.child_count())
+        .filter_map(|i| container_node.child(i))
+        .find(|n| n.kind() == "type_name")?;
+    type_name_node
+        .child_by_field_name("name")
+        .and_then(|n| n.utf8_text(src).ok())
+        .map(str::to_string)
+}
+
+/// Everything Gleam's flat `LangSpec` arrays cannot express:
+/// `type_definition`/`type_alias` positional `type_name` naming (both
+/// have no `name` field of their own -- see
+/// [`crate::languages::spec::LangSpec::gleam`]'s own doc comment) and
+/// `import`'s own `module`-field text as the IMPORTS path -- wired as
+/// this wave's [`Quirks::on_unmatched_node`] hook. `function_call` needs
+/// NO override at all (this grammar's own `function`/`arguments` fields
+/// already match the generic engine's default single-field
+/// reconstruction, see [`LangSpec::gleam`]'s own doc comment), so this
+/// row's [`Quirks::call_override`] stays `None`, unlike every other
+/// language this wave/G2.1 onboarded.
+fn gleam_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    match node.kind() {
+        "type_definition" | "type_alias" => {
+            if let Some(name) = gleam_type_name(node, src) {
+                out.symbols.push(SymbolRef {
+                    name,
+                    kind: if node.kind() == "type_alias" {
+                        SymbolKind::TypeAlias
+                    } else {
+                        SymbolKind::Class
+                    },
+                    line: node.start_position().row + 1,
+                });
+            }
+            // Not fully claimed: a `type_definition`'s own
+            // `data_constructors` may themselves nest further
+            // expressions (default values, ...) this quirk does not walk
+            // itself -- fall through to generic recursion (same
+            // rationale as [`zig_quirk`]'s `test_declaration` arm).
+            false
+        }
+        "import" => {
+            if let Some(path) = node
+                .child_by_field_name("module")
+                .and_then(|n| n.utf8_text(src).ok())
+            {
+                out.imports.push(ImportRef {
+                    module_path: path.to_string(),
+                    line: node.start_position().row + 1,
+                });
+            }
+            false
+        }
+        _ => false,
+    }
+}
+
+/// Gleam's [`Quirks`] row: `type_definition`/`type_alias` positional
+/// naming + `import`'s `module`-field IMPORTS. No `call_override`
+/// (`function_call` needs none -- see [`gleam_quirk`]'s own doc
+/// comment), and no `is_test_name`/`route_from_call`/`on_method_defined`:
+/// the baseline wires Gleam no test-name convention or route-
+/// registration detection at all (`CBM_LANG_GLEAM` never appears in
+/// `internal/cbm/service_patterns.c`'s route-library tables), and Gleam
+/// has no class/method-DEFINES-container distinction at all (no classes
+/// exist in the language -- see [`LangSpec::gleam`]'s own doc comment on
+/// the exhaustive extends/implements/inherit/protocol/trait/interface
+/// search finding none).
+pub fn gleam_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(gleam_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse Gleam source through the generic engine.
+pub fn parse_gleam(source: &str) -> ParsedFile {
+    let spec = LangSpec::gleam();
+    let quirks = gleam_quirks();
+    let language: tree_sitter::Language = tree_sitter_gleam::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// GLSL
+// =====================================================================
+
+/// Parse GLSL source through the generic engine. GLSL is a C-like shader
+/// language whose own baseline `lang_specs.c` row reuses C's node-type
+/// arrays verbatim (see [`crate::languages::spec::LangSpec::glsl`]'s own
+/// doc comment) -- this function mirrors that reuse exactly, delegating
+/// straight to [`c_quirks`] with only the grammar binding left
+/// unchanged from [`parse_c`] (both share the SAME `tree_sitter_c`
+/// crate dependency; no new grammar needed at all). `is_test_file` is
+/// hardcoded `false` (unlike [`parse_c`]'s own parameter): GLSL shader
+/// source has no test-file naming convention in the baseline (GLSL never
+/// appears in any file-suffix-driven test-detection table there), so
+/// there is nothing analogous to thread through from a caller.
+pub fn parse_glsl(source: &str) -> ParsedFile {
+    let spec = LangSpec::glsl();
+    let quirks = c_quirks();
+    let language: tree_sitter::Language = tree_sitter_c::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Ada
+// =====================================================================
+
+/// Read a name off a nested `procedure_specification`/
+/// `function_specification` child's own `name` field -- the shared shape
+/// [`ada_quirk`]'s `subprogram_body`/`subprogram_declaration`/
+/// `expression_function_declaration` arms all need (see
+/// [`LangSpec::ada`]'s own doc comment for why: none of the three has a
+/// `name` field on itself, only on this nested child).
+fn ada_specification_name(node: Node<'_>, src: &[u8]) -> Option<String> {
+    let spec = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|n| {
+            matches!(
+                n.kind(),
+                "procedure_specification" | "function_specification"
+            )
+        })?;
+    child_text(spec, "name", src)
+}
+
+/// The base type named by a `full_type_declaration`'s nested
+/// `derived_type_definition` child's own `subtype_mark` field (`type
+/// Derived is new Base with record ... end record;` / `type Alias is new
+/// Integer;`) -- see [`LangSpec::ada`]'s own doc comment's INHERITS
+/// bullet for the verification behind this.
+fn ada_derived_base_name(full_type_decl: Node<'_>, src: &[u8]) -> Option<String> {
+    let derived = (0..full_type_decl.child_count())
+        .filter_map(|i| full_type_decl.child(i))
+        .find(|n| n.kind() == "derived_type_definition")?;
+    child_text(derived, "subtype_mark", src)
+}
+
+/// `with Ada.Text_IO;` / `use Ada.Text_IO;` -- mirrors this crate's own
+/// `internal/cbm/extract_imports.c` `parse_ada_imports` exactly: every
+/// named child of kind `identifier`/`selected_component`/`name` is its
+/// own dotted import path (a `with`/`use` clause may name several
+/// packages separated by commas, each its own such child).
+fn ada_import_paths(node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    for i in 0..node.child_count() {
+        let Some(child) = node.child(i) else { continue };
+        if matches!(child.kind(), "identifier" | "selected_component" | "name") {
+            if let Ok(text) = child.utf8_text(src) {
+                out.push(text.to_string());
+            }
+        }
+    }
+    out
+}
+
+/// `Name : String (1 .. 10);` inside a record's `component_list` -- the
+/// component's own name is its first positional `identifier` child (no
+/// `name` field on this node kind at all, verified) -- shared by
+/// [`ada_quirk`]'s `full_type_declaration` arm (walks its own
+/// `component_declaration` descendants for DEFINES) since a record
+/// component only ever DEFINES to the enclosing TYPE, not the enclosing
+/// package (unlike every subprogram/type at package scope, which
+/// [`ada_walk_scoped_body`]'s ordinary generic recursion already scopes
+/// correctly).
+fn ada_component_declaration_names(record_body: Node<'_>, src: &[u8]) -> Vec<(String, usize)> {
+    let mut out = Vec::new();
+    let mut stack = vec![record_body];
+    while let Some(node) = stack.pop() {
+        if node.kind() == "component_declaration" {
+            if let Some(first_named) = (0..node.child_count())
+                .filter_map(|i| node.child(i))
+                .find(|n| n.is_named() && n.kind() == "identifier")
+            {
+                if let Ok(text) = first_named.utf8_text(src) {
+                    out.push((text.to_string(), node.start_position().row + 1));
+                }
+            }
+            continue;
+        }
+        for i in 0..node.child_count() {
+            if let Some(child) = node.child(i) {
+                stack.push(child);
+            }
+        }
+    }
+    out
+}
+
+/// `package_declaration`/`package_body`'s DEFINES-scoped body walk --
+/// same "recurse into every child through the fully generic [`walk`], so
+/// nested subprograms/types/calls all fall out correctly on their own"
+/// pattern as [`java_walk_scoped_body`]/[`ruby_walk_scoped_body`].
+fn ada_walk_scoped_body(node: Node<'_>, src: &[u8], name: &str, out: &mut ParsedFile) {
+    let spec = LangSpec::ada();
+    let quirks = ada_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    for i in 0..node.child_count() {
+        if let Some(child) = node.child(i) {
+            walk(child, &ctx, out, Some(name), FnScope::default());
+        }
+    }
+}
+
+/// Everything Ada's flat [`LangSpec`] arrays cannot express: subprogram/
+/// entry naming off a nested specification node or a distinct field
+/// name, `full_type_declaration`'s positional (fieldless) name plus its
+/// `derived_type_definition` INHERITS + `component_declaration` DEFINES,
+/// `package_declaration`/`package_body`'s scoped body walk, and
+/// `with_clause`/`use_clause` IMPORTS -- wired as this wave's
+/// [`Quirks::on_unmatched_node`] hook. [`ada_specification_name`]'s
+/// result is used for BOTH a def-shaped node's own symbol (Function --
+/// Ada's grammar has no separate class/impl-nesting for subprograms
+/// declared inside a package the way Rust/Java's `method_types` split
+/// works, so every one is recorded as [`crate::parsers::SymbolKind::Function`]
+/// rather than attempting a Method distinction this grammar's own
+/// nesting does not support cleanly) AND its own DEFINES edge to the
+/// enclosing package (when `enclosing` is `Some`, exactly mirroring the
+/// generic engine's own func/method branch's identical DEFINES-push
+/// convention it cannot reach here since these four kinds are absent
+/// from `func_types`/`method_types`).
+fn ada_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    match node.kind() {
+        "subprogram_body" | "subprogram_declaration" | "expression_function_declaration" => {
+            let Some(name) = ada_specification_name(node, src) else {
+                return false;
+            };
+            let line = node.start_position().row + 1;
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: SymbolKind::Function,
+                line,
+            });
+            if let Some(container) = enclosing {
+                out.defines.push(DefinesRef {
+                    container_name: container.to_string(),
+                    member_name: name.clone(),
+                    line,
+                });
+            }
+            // Walk every child generically, scoped to this subprogram's
+            // own name -- including the `procedure_specification`/
+            // `function_specification` child already consumed for the
+            // name above (a parameter default/return-type expression
+            // could itself contain a call; letting the generic recursion
+            // reach it for free is simpler than special-casing it away).
+            let spec = LangSpec::ada();
+            let quirks = ada_quirks();
+            let ctx = Ctx {
+                spec: &spec,
+                src,
+                quirks: &quirks,
+                is_test_file: false,
+            };
+            for i in 0..node.child_count() {
+                if let Some(child) = node.child(i) {
+                    walk(
+                        child,
+                        &ctx,
+                        out,
+                        enclosing,
+                        FnScope {
+                            name: Some(name.as_str()),
+                            line: Some(line),
+                        },
+                    );
+                }
+            }
+            true
+        }
+        "entry_declaration" => {
+            let Some(name) = child_text(node, "entry_name", src) else {
+                return false;
+            };
+            let line = node.start_position().row + 1;
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: SymbolKind::Function,
+                line,
+            });
+            if let Some(container) = enclosing {
+                out.defines.push(DefinesRef {
+                    container_name: container.to_string(),
+                    member_name: name,
+                    line,
+                });
+            }
+            true
+        }
+        "full_type_declaration" => {
+            // No `name` field at all -- the type's own name is the first
+            // positional `identifier` child (right after the `type`
+            // keyword token, before `is`), verified via a real parse.
+            let Some(name) = (0..node.child_count())
+                .filter_map(|i| node.child(i))
+                .find(|n| n.is_named() && n.kind() == "identifier")
+                .and_then(|n| n.utf8_text(src).ok())
+                .map(str::to_string)
+            else {
+                return false;
+            };
+            let line = node.start_position().row + 1;
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: SymbolKind::Class,
+                line,
+            });
+            if let Some(container) = enclosing {
+                out.defines.push(DefinesRef {
+                    container_name: container.to_string(),
+                    member_name: name.clone(),
+                    line,
+                });
+            }
+            if let Some(super_name) = ada_derived_base_name(node, src) {
+                out.inherits.push(InheritsRef {
+                    sub_name: name.clone(),
+                    super_name,
+                    line,
+                });
+            }
+            for (field_name, field_line) in ada_component_declaration_names(node, src) {
+                out.defines.push(DefinesRef {
+                    container_name: name.clone(),
+                    member_name: field_name,
+                    line: field_line,
+                });
+            }
+            true
+        }
+        "package_declaration" | "package_body" => {
+            let Some(name) = child_text(node, "name", src) else {
+                return false;
+            };
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: SymbolKind::Class,
+                line: node.start_position().row + 1,
+            });
+            ada_walk_scoped_body(node, src, name.as_str(), out);
+            true
+        }
+        "with_clause" | "use_clause" => {
+            let line = node.start_position().row + 1;
+            for path in ada_import_paths(node, src) {
+                out.imports.push(ImportRef {
+                    module_path: path,
+                    line,
+                });
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+/// Ada's [`Quirks`] row: subprogram/entry naming + DEFINES,
+/// `full_type_declaration` positional naming + INHERITS (from a nested
+/// `derived_type_definition`'s `subtype_mark` field) + component DEFINES,
+/// package-scoped body walk, and `with`/`use` clause IMPORTS. No
+/// `is_test_name`/`route_from_call`/`on_method_defined`/`call_override`:
+/// this crate's own baseline gives Ada no dedicated test-name convention
+/// or route-registration-by-call-shape entry, `function_call`/
+/// `procedure_call_statement` both carry a real, working `name` field so
+/// the generic engine's own single-field callee reconstruction already
+/// produces the correct callee text with no override needed (matching
+/// `internal/cbm/extract_calls.c`'s own `extract_ada_callee`, which reads
+/// the identical field), and every def-shaped node this crate records is
+/// a plain [`crate::parsers::SymbolKind::Function`] with no
+/// receiver-clause-style DEFINES-container-outside-syntactic-nesting
+/// need the way Go's methods have.
+pub fn ada_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(ada_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse Ada source through the generic engine.
+pub fn parse_ada(source: &str) -> ParsedFile {
+    let spec = LangSpec::ada();
+    let quirks = ada_quirks();
+    let language: tree_sitter::Language = tree_sitter_ada::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Apex
+// =====================================================================
+
+/// `class Sub extends Base` -- direct, non-generic-fallback port of
+/// [`java_superclass_name`] (identical `superclass` field shape,
+/// verified against this grammar's own `grammar.js`:
+/// `superclass: ($) => seq(ci("extends"), $._type)`).
+fn apex_superclass_name(class_node: Node<'_>, src: &[u8]) -> Option<String> {
+    let superclass = class_node.child_by_field_name("superclass")?;
+    let type_node = (0..superclass.child_count())
+        .filter_map(|i| superclass.child(i))
+        .find(|n| n.is_named())?;
+    type_node.utf8_text(src).ok().map(str::to_string)
+}
+
+/// `class C implements I1, I2` / `enum E implements I1, I2` -- direct
+/// port of [`java_super_interfaces`] (identical `interfaces` field
+/// wrapping a `type_list`, verified).
+fn apex_super_interfaces(node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    let Some(interfaces) = node.child_by_field_name("interfaces") else {
+        return out;
+    };
+    let Some(type_list) = (0..interfaces.child_count())
+        .filter_map(|i| interfaces.child(i))
+        .find(|n| n.kind() == "type_list")
+    else {
+        return out;
+    };
+    for i in 0..type_list.child_count() {
+        if let Some(child) = type_list.child(i) {
+            if child.is_named() {
+                if let Ok(text) = child.utf8_text(src) {
+                    out.push(text.to_string());
+                }
+            }
+        }
+    }
+    out
+}
+
+/// `interface Sub extends Base1, Base2` -- direct port of
+/// [`java_extends_interfaces`] (identical `extends_interfaces` child
+/// wrapping a `type_list`, verified).
+fn apex_extends_interfaces(interface_node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    for i in 0..interface_node.child_count() {
+        let Some(child) = interface_node.child(i) else {
+            continue;
+        };
+        if child.kind() != "extends_interfaces" {
+            continue;
+        }
+        let Some(type_list) = (0..child.child_count())
+            .filter_map(|i| child.child(i))
+            .find(|n| n.kind() == "type_list")
+        else {
+            continue;
+        };
+        for j in 0..type_list.child_count() {
+            if let Some(entry) = type_list.child(j) {
+                if entry.is_named() {
+                    if let Ok(text) = entry.utf8_text(src) {
+                        out.push(text.to_string());
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Annotations (`@RestResource(...)`, `@AuraEnabled`) attached via a
+/// `modifiers` child -- simplified single-kind port of
+/// [`java_annotations`] (this grammar uses one unified `annotation` kind
+/// for both the bare and argument-bearing forms, unlike Java's
+/// `marker_annotation`/`annotation` split, verified).
+fn apex_annotations(node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    for i in 0..node.child_count() {
+        let Some(child) = node.child(i) else { continue };
+        if child.kind() != "modifiers" {
+            continue;
+        }
+        for j in 0..child.child_count() {
+            let Some(modifier) = child.child(j) else {
+                continue;
+            };
+            if modifier.kind() == "annotation" {
+                if let Some(name_node) = modifier.child_by_field_name("name") {
+                    if let Ok(text) = name_node.utf8_text(src) {
+                        out.push(text.to_string());
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
+/// `int a = 1, b = 2;` -- direct port of [`java_field_names`] (identical
+/// `variable_declarator` shape, verified).
+fn apex_field_names(field_node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    for i in 0..field_node.child_count() {
+        let Some(child) = field_node.child(i) else {
+            continue;
+        };
+        if child.kind() != "variable_declarator" {
+            continue;
+        }
+        if let Some(name_node) = child.child_by_field_name("name") {
+            if let Ok(text) = name_node.utf8_text(src) {
+                out.push(text.to_string());
+            }
+        }
+    }
+    out
+}
+
+/// `obj.method(...)` / `method(...)` -- direct port of
+/// [`java_method_invocation_callee`] (identical `object`/`name` field
+/// shape, verified).
+fn apex_method_invocation_callee(node: Node<'_>, src: &[u8]) -> String {
+    let name = node
+        .child_by_field_name("name")
+        .and_then(|n| n.utf8_text(src).ok())
+        .unwrap_or("");
+    match node
+        .child_by_field_name("object")
+        .and_then(|n| n.utf8_text(src).ok())
+    {
+        Some(object) => format!("{object}.{name}"),
+        None => name.to_string(),
+    }
+}
+
+/// For a `method_invocation` with an `object` field, the receiver's own
+/// text plus a cheap syntactic hint -- direct port of
+/// [`java_receiver_of_call`], with Apex's own literal node-kind names
+/// (`string_literal`/no separate integer-literal-kind split the way
+/// Java's numeric-base variants have -- verified this grammar uses one
+/// unified numeric literal kind rather than Java's four).
+fn apex_receiver_of_call(
+    invocation_node: Node<'_>,
+    src: &[u8],
+) -> (Option<String>, Option<ReceiverHint>) {
+    let Some(receiver) = invocation_node.child_by_field_name("object") else {
+        return (None, None);
+    };
+    let Ok(text) = receiver.utf8_text(src) else {
+        return (None, None);
+    };
+    let hint = if receiver.kind() == "this" {
+        ReceiverHint::SelfOrThis
+    } else if receiver.kind() == "object_creation_expression" {
+        ReceiverHint::NewExpression
+    } else if receiver.kind() == "identifier" {
+        ReceiverHint::Identifier
+    } else if matches!(
+        receiver.kind(),
+        "string_literal" | "int" | "double" | "true" | "false" | "null_literal"
+    ) {
+        ReceiverHint::Literal
+    } else {
+        ReceiverHint::Other
+    };
+    (Some(text.to_string()), Some(hint))
+}
+
+/// Each argument expression's own source text, in written order --
+/// direct port of [`java_call_arg_texts`].
+fn apex_call_arg_texts(invocation_node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let Some(args) = invocation_node.child_by_field_name("arguments") else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for i in 0..args.child_count() {
+        if let Some(child) = args.child(i) {
+            if matches!(child.kind(), "(" | ")" | ",") {
+                continue;
+            }
+            if let Ok(text) = child.utf8_text(src) {
+                out.push(text.to_string());
+            }
+        }
+    }
+    out
+}
+
+/// `class_declaration`/`interface_declaration`/`enum_declaration`'s
+/// DEFINES-scoped body walk -- same pattern as [`java_walk_scoped_body`]/
+/// [`ruby_walk_scoped_body`], plus a shallow field-DEFINES pass (Apex
+/// records a DEFINES edge for EVERY field unconditionally, unlike Java's
+/// `static final`-gated constant-only pass -- see [`LangSpec::apex`]'s
+/// own doc comment for why this row deliberately does not replicate
+/// Java's exact gate).
+fn apex_walk_scoped_body(node: Node<'_>, src: &[u8], name: Option<&str>, out: &mut ParsedFile) {
+    let spec = LangSpec::apex();
+    let quirks = apex_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    for i in 0..node.child_count() {
+        if let Some(child) = node.child(i) {
+            walk(child, &ctx, out, name, FnScope::default());
+        }
+    }
+    if let Some(container) = name {
+        apex_emit_field_defines(node, src, container, out);
+    }
+}
+
+/// Depth-first search for `field_declaration` descendants of `node`
+/// belonging directly to it (not to any nested class/interface/enum
+/// inside it) -- same "stop at a nested type boundary" shape as
+/// [`java_emit_constant_field_defines`], but unconditional (every field,
+/// not just constant-shaped ones).
+fn apex_emit_field_defines(node: Node<'_>, src: &[u8], container: &str, out: &mut ParsedFile) {
+    for i in 0..node.child_count() {
+        let Some(child) = node.child(i) else { continue };
+        match child.kind() {
+            "field_declaration" => {
+                let line = child.start_position().row + 1;
+                for field_name in apex_field_names(child, src) {
+                    out.defines.push(DefinesRef {
+                        container_name: container.to_string(),
+                        member_name: field_name,
+                        line,
+                    });
+                }
+            }
+            "class_declaration" | "interface_declaration" | "enum_declaration" => {
+                // A nested type's own fields belong to *it*, not to
+                // `container` -- already correctly DEFINES-scoped when
+                // `apex_walk_scoped_body`'s own recursive `walk` reaches
+                // this nested node's own quirk arm.
+            }
+            _ => apex_emit_field_defines(child, src, container, out),
+        }
+    }
+}
+
+/// Everything Apex's flat [`LangSpec`] arrays cannot express: class/
+/// interface/enum heritage + annotations + DEFINES-scoped body walk --
+/// mirrors [`java_quirk`] closely, since the field shapes are identical.
+/// `trigger_declaration` needs NO arm here despite its own `object`/
+/// `events` fields having no flat-array equivalent: it is already listed
+/// in [`LangSpec::apex`]'s own `func_types` with a working `name` field,
+/// so `walk`'s own func/method branch claims it (recording it as a
+/// plain [`crate::parsers::SymbolKind::Function`] and walking its `body`
+/// field with the correct `fn_scope`) before this hook would ever see it
+/// -- `object`/`events` are simply left unextracted (no fixture-driving
+/// need this wave), same "left out rather than guessed at" posture as
+/// several other languages' omitted narrow constructs this wave
+/// documents elsewhere.
+fn apex_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    match node.kind() {
+        "class_declaration" => {
+            if let Some(name) = child_text(node, "name", src) {
+                let line = node.start_position().row + 1;
+                out.symbols.push(SymbolRef {
+                    name: name.clone(),
+                    kind: SymbolKind::Class,
+                    line,
+                });
+                if let Some(super_name) = apex_superclass_name(node, src) {
+                    out.inherits.push(InheritsRef {
+                        sub_name: name.clone(),
+                        super_name,
+                        line,
+                    });
+                }
+                for interface_name in apex_super_interfaces(node, src) {
+                    out.implements.push(ImplementsRef {
+                        type_name: name.clone(),
+                        trait_name: interface_name,
+                        line,
+                    });
+                }
+                for decorator in apex_annotations(node, src) {
+                    out.decorates.push(crate::parsers::DecoratesRef {
+                        target_name: name.clone(),
+                        decorator_name: decorator,
+                        line,
+                    });
+                }
+                apex_walk_scoped_body(node, src, Some(name.as_str()), out);
+            }
+            true
+        }
+        "interface_declaration" => {
+            if let Some(name) = child_text(node, "name", src) {
+                let line = node.start_position().row + 1;
+                out.symbols.push(SymbolRef {
+                    name: name.clone(),
+                    kind: SymbolKind::Interface,
+                    line,
+                });
+                for extended in apex_extends_interfaces(node, src) {
+                    out.inherits.push(InheritsRef {
+                        sub_name: name.clone(),
+                        super_name: extended,
+                        line,
+                    });
+                }
+                apex_walk_scoped_body(node, src, Some(name.as_str()), out);
+            }
+            true
+        }
+        "enum_declaration" => {
+            if let Some(name) = child_text(node, "name", src) {
+                let line = node.start_position().row + 1;
+                out.symbols.push(SymbolRef {
+                    name: name.clone(),
+                    kind: SymbolKind::Enum,
+                    line,
+                });
+                for interface_name in apex_super_interfaces(node, src) {
+                    out.implements.push(ImplementsRef {
+                        type_name: name.clone(),
+                        trait_name: interface_name,
+                        line,
+                    });
+                }
+                apex_walk_scoped_body(node, src, Some(name.as_str()), out);
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+/// Full `method_invocation` callee reconstruction -- direct port of
+/// [`java_call_override`] (identical field shapes throughout).
+fn apex_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "method_invocation" {
+        return false;
+    }
+    let callee = apex_method_invocation_callee(node, src);
+    let (receiver_text, receiver_hint) = apex_receiver_of_call(node, src);
+    out.calls.push(CallRef {
+        callee,
+        line: node.start_position().row + 1,
+        from_symbol: from_symbol.map(str::to_string),
+        from_symbol_line,
+        receiver_text,
+        receiver_hint,
+        arg_texts: apex_call_arg_texts(node, src),
+    });
+    true
+}
+
+/// Apex's [`Quirks`] row: class/interface/enum heritage + annotations +
+/// DEFINES-scoped body walk (a direct port of [`java_quirks`]'s own
+/// logic, since the underlying grammar shapes are identical), plus full
+/// receiver-qualified `method_invocation` callee reconstruction. No
+/// `is_test_name`/`route_from_call`: this crate's own baseline gives Apex
+/// no dedicated test-name convention, and `internal/cbm/
+/// service_patterns.c`'s `route_reg_libraries` table has zero
+/// Apex/Salesforce entries at all (a genuine baseline gap, matched here
+/// rather than invented -- see [`LangSpec::apex`]'s own doc comment).
+pub fn apex_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(apex_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(apex_call_override)),
+    }
+}
+
+/// Parse Apex source through the generic engine.
+pub fn parse_apex(source: &str) -> ParsedFile {
+    let spec = LangSpec::apex();
+    let quirks = apex_quirks();
+    let language: tree_sitter::Language = tree_sitter_sfapex::apex::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Crystal
+// =====================================================================
+
+/// The identifier text inside a Crystal `class`/`struct` `superclass`
+/// field -- unlike Ruby's identically-named field (which wraps the base
+/// type together with its own leading `<` token, needing an unwrap),
+/// this grammar's `superclass` field value is ALREADY just the bare base
+/// type node directly (verified: `class_def`'s own `grammar.js` rule is
+/// `optional(seq('<', field('superclass', choice($.constant,
+/// $.generic_instance_type))))` -- the `<` token is a SIBLING, not a
+/// wrapper, of the field value).
+fn crystal_superclass_name(class_node: Node<'_>, src: &[u8]) -> Option<String> {
+    child_text(class_node, "superclass", src)
+}
+
+/// `require "json"` -- mirrors this crate's own `internal/cbm/
+/// extract_imports.c` `parse_crystal_imports` exactly: any `"require"`-
+/// kind node's own `string` child (a bare positional child, no field)
+/// is the import path, quotes stripped.
+fn crystal_require_import(node: Node<'_>, src: &[u8]) -> Option<ImportRef> {
+    let string_node = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|n| n.kind() == "string")?;
+    let raw = string_node.utf8_text(src).ok()?;
+    let path = raw.trim_matches('"').to_string();
+    if path.is_empty() {
+        return None;
+    }
+    Some(ImportRef {
+        module_path: path,
+        line: node.start_position().row + 1,
+    })
+}
+
+/// `class_def`/`struct_def`/`module_def`/`enum_def`/`annotation_def`'s
+/// DEFINES-scoped body walk -- same "recurse into every child through
+/// the fully generic [`walk`]" pattern as [`ruby_walk_scoped_body`],
+/// operating on the node's own `body` field directly (present, though
+/// optional, on every one of these five kinds -- absent for an empty
+/// `class Foo; end`, in which case there is nothing to walk).
+fn crystal_walk_scoped_body(node: Node<'_>, src: &[u8], name: &str, out: &mut ParsedFile) {
+    let Some(body) = node.child_by_field_name("body") else {
+        return;
+    };
+    let spec = LangSpec::crystal();
+    let quirks = crystal_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    for i in 0..body.child_count() {
+        if let Some(child) = body.child(i) {
+            walk(child, &ctx, out, Some(name), FnScope::default());
+        }
+    }
+}
+
+/// Everything Crystal's flat [`LangSpec`] arrays cannot express:
+/// `class_def`/`struct_def` INHERITS (from their own `superclass` field)
+/// + DEFINES-scoped body walk for all five `class_types` kinds,
+///   `instance_var`/`class_var` DEFINES (each node's own text, sigil
+///   included, is its name -- no field to read), and `require` IMPORTS --
+///   wired as this wave's [`Quirks::on_unmatched_node`] hook. `call`
+///   IMPORTS/callee reconstruction is a separate [`Quirks::call_override`]
+///   hook (see [`crystal_call_override`]) since the generic walker's own
+///   call branch already consumes a `call`-kind node before
+///   `on_unmatched_node` would ever see it -- `require` is NOT `call`-
+///   shaped in this grammar (unlike Ruby's), so it is handled here instead.
+fn crystal_quirk(
+    node: Node<'_>,
+    enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    match node.kind() {
+        "class_def" | "struct_def" => {
+            if let Some(name) = child_text(node, "name", src) {
+                let line = node.start_position().row + 1;
+                out.symbols.push(SymbolRef {
+                    name: name.clone(),
+                    kind: SymbolKind::Class,
+                    line,
+                });
+                if let Some(container) = enclosing {
+                    out.defines.push(DefinesRef {
+                        container_name: container.to_string(),
+                        member_name: name.clone(),
+                        line,
+                    });
+                }
+                if let Some(super_name) = crystal_superclass_name(node, src) {
+                    out.inherits.push(InheritsRef {
+                        sub_name: name.clone(),
+                        super_name,
+                        line,
+                    });
+                }
+                crystal_walk_scoped_body(node, src, name.as_str(), out);
+            }
+            true
+        }
+        "module_def" | "enum_def" | "annotation_def" => {
+            if let Some(name) = child_text(node, "name", src) {
+                let line = node.start_position().row + 1;
+                out.symbols.push(SymbolRef {
+                    name: name.clone(),
+                    kind: if node.kind() == "enum_def" {
+                        SymbolKind::Enum
+                    } else {
+                        SymbolKind::Class
+                    },
+                    line,
+                });
+                if let Some(container) = enclosing {
+                    out.defines.push(DefinesRef {
+                        container_name: container.to_string(),
+                        member_name: name.clone(),
+                        line,
+                    });
+                }
+                crystal_walk_scoped_body(node, src, name.as_str(), out);
+            }
+            true
+        }
+        "instance_var" | "class_var" => {
+            if let (Some(container), Ok(name)) = (enclosing, node.utf8_text(src)) {
+                out.defines.push(DefinesRef {
+                    container_name: container.to_string(),
+                    member_name: name.to_string(),
+                    line: node.start_position().row + 1,
+                });
+            }
+            false
+        }
+        "require" => {
+            if let Some(import) = crystal_require_import(node, src) {
+                out.imports.push(import);
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+/// Each argument expression's own source text, in written order -- same
+/// shape as [`ruby_call_arg_texts`] (identical `arguments` field name in
+/// this grammar too, verified).
+fn crystal_call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let Some(args) = call_node.child_by_field_name("arguments") else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for i in 0..args.child_count() {
+        if let Some(child) = args.child(i) {
+            if matches!(child.kind(), "(" | ")" | ",") {
+                continue;
+            }
+            if let Ok(text) = child.utf8_text(src) {
+                out.push(text.to_string());
+            }
+        }
+    }
+    out
+}
+
+/// Full `call`-node callee reconstruction (`receiver.method` when a
+/// receiver is present, bare `method` otherwise) -- direct port of
+/// [`ruby_call_override`]'s logic, WITHOUT Ruby's own `Widget.new(...)`
+/// constructor-callee redirect (Crystal's own constructor convention is
+/// `def initialize`, called via the SAME `Widget.new(...)` idiom as
+/// Ruby, but this wave found no dedicated baseline
+/// `internal/cbm/extract_calls.c` Crystal case to confirm the identical
+/// redirect is warranted here rather than assumed -- left as a plain
+/// `"new"` callee, matching every other language's default behavior,
+/// rather than inventing a Crystal-specific redirect the baseline itself
+/// never documents).
+fn crystal_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "call" {
+        return false;
+    }
+    let Some(method_node) = node.child_by_field_name("method") else {
+        return false;
+    };
+    let Ok(method_text) = method_node.utf8_text(src) else {
+        return false;
+    };
+    let receiver = node.child_by_field_name("receiver");
+    let receiver_text = receiver.and_then(|r| r.utf8_text(src).ok());
+
+    let callee = if let Some(receiver_text) = receiver_text {
+        format!("{receiver_text}.{method_text}")
+    } else {
+        method_text.to_string()
+    };
+
+    let receiver_hint = receiver.map(|r| {
+        if r.utf8_text(src) == Ok("self") {
+            ReceiverHint::SelfOrThis
+        } else if r.kind() == "constant" {
+            ReceiverHint::NewExpression
+        } else if matches!(r.kind(), "identifier" | "instance_var" | "class_var") {
+            ReceiverHint::Identifier
+        } else if matches!(r.kind(), "string" | "integer" | "float" | "true" | "false") {
+            ReceiverHint::Literal
+        } else {
+            ReceiverHint::Other
+        }
+    });
+
+    out.calls.push(CallRef {
+        callee,
+        line: node.start_position().row + 1,
+        from_symbol: from_symbol.map(str::to_string),
+        from_symbol_line,
+        receiver_text: receiver_text.map(str::to_string),
+        receiver_hint,
+        arg_texts: crystal_call_arg_texts(node, src),
+    });
+
+    true
+}
+
+/// Crystal's [`Quirks`] row: `class_def`/`struct_def`/`module_def`/
+/// `enum_def`/`annotation_def` DEFINES-scoped body walk +
+/// `class_def`/`struct_def` INHERITS (from their own `superclass`
+/// field), `instance_var`/`class_var` DEFINES (each node's own sigil-
+/// prefixed text is its name), `require` IMPORTS, and full
+/// `receiver.method` callee reconstruction. No
+/// `is_test_name`/`route_from_call`/`on_method_defined`: this crate's own
+/// baseline gives Crystal no dedicated test-name convention or
+/// route-registration-by-call-shape entry either (Crystal web frameworks
+/// like Kemal/Lucky are absent from `internal/cbm/service_patterns.c`'s
+/// `route_reg_libraries` table -- matches the identical Apex/Salesforce
+/// finding, a real baseline gap left unfilled per this wave's own
+/// "match, don't invent" mandate).
+pub fn crystal_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(crystal_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(crystal_call_override)),
+    }
+}
+
+/// Parse Crystal source through the generic engine.
+pub fn parse_crystal(source: &str) -> ParsedFile {
+    let spec = LangSpec::crystal();
+    let quirks = crystal_quirks();
+    let language: tree_sitter::Language = tree_sitter_crystal::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// R
+// =====================================================================
+
+/// An R `function_definition`'s own name: NOT a field on the node itself
+/// (its `name` field always resolves to the literal `function` keyword
+/// token, confirmed by a real parse dump -- R functions are anonymous
+/// expressions), but the enclosing `binary_operator`'s `lhs` (`helper <-
+/// function(x, y) {...}`) or `left` field, falling back to the parent's
+/// first named child if neither field is present -- mirrors
+/// `internal/cbm/extract_defs.c`'s `resolve_r_func_name` (:529-545)
+/// exactly.
+fn r_func_name(func_node: Node<'_>, src: &[u8]) -> Option<String> {
+    let parent = func_node.parent()?;
+    if parent.kind() != "binary_operator" {
+        return None;
+    }
+    let lhs = parent
+        .child_by_field_name("lhs")
+        .or_else(|| parent.child_by_field_name("left"))
+        .or_else(|| (0..parent.named_child_count()).find_map(|i| parent.named_child(i)))?;
+    lhs.utf8_text(src).ok().map(str::to_string)
+}
+
+/// Recurses into a `function_definition`'s own `body` field with
+/// `fn_scope` set to the (parent-resolved, see [`r_func_name`]) function
+/// name/line -- builds a fresh local [`Ctx`] from [`LangSpec::r`]/
+/// [`r_quirks`] rather than threading the caller's own `ctx` through
+/// (this row's [`Quirks::on_unmatched_node`] hook signature carries
+/// neither), same pattern as every other fully-quirk-claimed func/method
+/// node kind (see [`dart_walk_function_body`]).
+fn r_walk_function_body(
+    func_node: Node<'_>,
+    src: &[u8],
+    name: &str,
+    line: usize,
+    out: &mut ParsedFile,
+) {
+    let Some(body) = func_node.child_by_field_name("body") else {
+        return;
+    };
+    let spec = LangSpec::r();
+    let quirks = r_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    let fn_scope = FnScope {
+        name: Some(name),
+        line: Some(line),
+    };
+    for i in 0..body.child_count() {
+        if let Some(child) = body.child(i) {
+            walk(child, &ctx, out, None, fn_scope);
+        }
+    }
+}
+
+/// R's `function_definition` naming quirk (see [`r_func_name`]'s own doc
+/// comment) plus `library`/`require`/`requireNamespace`/`loadNamespace`/
+/// `source`/`box::use` IMPORTS detection off an ordinary `call` node --
+/// wired as this row's [`Quirks::on_unmatched_node`] hook. Mirrors
+/// `internal/cbm/extract_imports.c`'s `r_collect_imports`/`parse_r_imports`
+/// (:838-897) for the single-argument import-call shape (this Tier-2
+/// scope does not special-case `box::use`'s own N-argument fan-out into N
+/// separate imports -- see [`LangSpec::r`]'s own doc comment).
+fn r_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    // `on_unmatched_node` also runs for a plain `call` node the generic
+    // engine's own call branch already recorded a CallRef for (this
+    // module's `walk` calls it unconditionally after that branch, not only
+    // for genuinely-unmatched kinds) -- import detection piggybacks on
+    // that second pass rather than claiming the node (`false`, so the
+    // generic engine's own recursion into this node's children still
+    // happens exactly once, from the call branch's own fallthrough).
+    if node.kind() == "call" {
+        if let Some(import) = r_import_from_call(node, src) {
+            out.imports.push(import);
+        }
+        return false;
+    }
+    // `function_definition` is fully claimed here: resolve the real name
+    // off the parent (see `r_func_name`), push the Function symbol, then
+    // recurse into the body with the correct `fn_scope` -- the generic
+    // engine's own func/method branch never reaches this node kind at all
+    // for this row (`LangSpec::r`'s `func_types` IS `["function_definition"]`,
+    // so `walk`'s own func/method branch tries it FIRST and only falls
+    // through to `on_unmatched_node` when `child_text(node, spec.name_field,
+    // ..)` -- reading the placeholder `"UNUSED_SEE_R_QUIRK"` field name --
+    // returns `None`, which it always does since no real field by that
+    // name exists).
+    if node.kind() == "function_definition" {
+        if let Some(name) = r_func_name(node, src) {
+            let line = node.start_position().row + 1;
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: SymbolKind::Function,
+                line,
+            });
+            r_walk_function_body(node, src, &name, line, out);
+        }
+        return true;
+    }
+    false
+}
+
+/// The first positional `argument`'s own `value` field text, quote-
+/// stripped -- the module/path argument to `library`/`require`/
+/// `requireNamespace`/`loadNamespace`/`source`/`box::use`.
+fn r_first_arg_text(call_node: Node<'_>, src: &[u8]) -> Option<String> {
+    let args = call_node.child_by_field_name("arguments")?;
+    for i in 0..args.named_child_count() {
+        let arg = args.named_child(i)?;
+        if arg.kind() != "argument" {
+            continue;
+        }
+        let value = arg.child_by_field_name("value")?;
+        let text = value.utf8_text(src).ok()?;
+        let stripped = text.trim_matches(|c| c == '"' || c == '\'');
+        if !stripped.is_empty() {
+            return Some(stripped.to_string());
+        }
+    }
+    None
+}
+
+/// Recognizes `library(x)`/`require(x)`/`requireNamespace(x)`/
+/// `loadNamespace(x)`/`source(x)` (a plain `identifier` callee) and
+/// `box::use(pkg/mod)` (a `namespace_operator` callee whose `lhs`/`rhs`
+/// text is exactly `"box"`/`"use"`) off an ordinary `call` node -- mirrors
+/// `internal/cbm/extract_imports.c`'s `r_collect_imports` exactly (same
+/// callee-name allowlist, same "first positional argument only" scope).
+fn r_import_from_call(call_node: Node<'_>, src: &[u8]) -> Option<ImportRef> {
+    let function = call_node.child_by_field_name("function")?;
+    let line = call_node.start_position().row + 1;
+    match function.kind() {
+        "identifier" => {
+            let name = function.utf8_text(src).ok()?;
+            if matches!(
+                name,
+                "library" | "require" | "requireNamespace" | "loadNamespace" | "source"
+            ) {
+                let path = r_first_arg_text(call_node, src)?;
+                return Some(ImportRef {
+                    module_path: path,
+                    line,
+                });
+            }
+            None
+        }
+        "namespace_operator" => {
+            let lhs = function.child_by_field_name("lhs")?.utf8_text(src).ok()?;
+            let rhs = function.child_by_field_name("rhs")?.utf8_text(src).ok()?;
+            if lhs == "box" && rhs == "use" {
+                let path = r_first_arg_text(call_node, src)?;
+                return Some(ImportRef {
+                    module_path: path,
+                    line,
+                });
+            }
+            None
+        }
+        _ => None,
+    }
+}
+
+/// R's [`Quirks`] row: `function_definition` naming (resolved off the
+/// enclosing `binary_operator`, not any field on the node itself) plus
+/// `library`/`require`/`requireNamespace`/`loadNamespace`/`source`/
+/// `box::use` IMPORTS off an ordinary `call` node. No `route_from_call`/
+/// `on_method_defined`/`is_test_name`: R has no method-receiver-clause
+/// convention, decorator/attribute syntax, or file-level test-name
+/// convention any bespoke extractor or baseline walker recognizes either.
+/// `call_override` is deliberately `None`: `call`'s `function` field
+/// already reconstructs correctly through the generic engine's own
+/// default single-field path for every receiver shape this grammar has
+/// (identifier/namespace_operator/extract_operator, confirmed by the real
+/// parse dump -- see [`LangSpec::r`]'s own doc comment), so no override is
+/// needed for the base callee-text case.
+pub fn r_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(r_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse R source through the generic engine. Same "no pre-existing
+/// bespoke extractor, correctness verified directly against the grammar
+/// crate's own `node-types.json` plus a real parse-tree dump" posture as
+/// [`parse_solidity`]/[`parse_gdscript`] -- see [`LangSpec::r`]'s doc
+/// comment.
+pub fn parse_r(source: &str) -> ParsedFile {
+    let spec = LangSpec::r();
+    let quirks = r_quirks();
+    let language: tree_sitter::Language = tree_sitter_r::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Perl
+// =====================================================================
+
+/// A `function`/`method` wrapper field's own text already spans the real
+/// callee/method name for every call-shaped kind this row claims --
+/// confirmed by the real parse dump: `function_call_expression`'s
+/// `function` field's single unfielded child is a `varname`-bearing leaf
+/// for an ordinary call, or the literal builtin keyword token itself for
+/// a builtin (`print`/`bless`/...); `func1op_call_expression`/
+/// `func0op_call_expression`'s `function` field IS the literal, unnamed
+/// builtin-keyword token (`shift`/`length`/`time`/...); `method_call_expression`'s
+/// `method` field's own text is already the bare method name. No
+/// unwrapping is needed in any case -- `.utf8_text()` on the field node
+/// itself is correct.
+fn perl_field_text<'a>(node: Node<'a>, field: &str, src: &'a [u8]) -> Option<&'a str> {
+    node.child_by_field_name(field)?.utf8_text(src).ok()
+}
+
+/// Each argument expression's own source text, in written order.
+/// Confirmed by the real parse dump, `function_call_expression`/
+/// `ambiguous_function_call_expression`/`method_call_expression`'s own
+/// `arguments` field has TWO different shapes depending on arity, not one
+/// uniform flattened list: a call with two or more arguments (`helper(1,
+/// 2)`, `bless $self, $class`) wraps them in one `list_expression` field
+/// value whose OWN named children are the individual arguments, but a
+/// call with EXACTLY ONE argument (`print($i)`, `print("pos")`) has the
+/// `arguments` field point DIRECTLY at that single argument expression
+/// with no `list_expression` wrapper at all -- both shapes are handled by
+/// checking the field value's own `.kind()`. A zero-argument call
+/// (`shift`, `Widget->new()`) simply has no `arguments` field to find,
+/// correctly yielding an empty list. `func1op_call_expression`'s single
+/// argument (if any, e.g. `length $x`) is a bare, unfielded child instead
+/// (confirmed: no `arguments` field on this node kind at all) -- reached
+/// via [`tree_sitter::Node::field_name_for_child`] rather than a `.kind()`
+/// filter, since this node kind's OWN `function` field is the literal
+/// builtin-keyword token itself (e.g. `.kind() == "shift"`, not
+/// `"function"`), which a kind-string filter would fail to recognize as
+/// the callee wrapper and incorrectly include as an argument.
+fn perl_call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
+    if let Some(arguments) = call_node.child_by_field_name("arguments") {
+        if arguments.kind() == "list_expression" {
+            return (0..arguments.named_child_count())
+                .filter_map(|i| arguments.named_child(i))
+                .filter_map(|n| n.utf8_text(src).ok().map(str::to_string))
+                .collect();
+        }
+        return arguments
+            .utf8_text(src)
+            .ok()
+            .map(|text| vec![text.to_string()])
+            .unwrap_or_default();
+    }
+    // `func1op_call_expression`'s bare, unfielded single argument (if
+    // any) -- every named child that is not this node's own `function`
+    // field (the builtin-keyword token) is the argument.
+    (0..call_node.child_count())
+        .filter(|&i| call_node.child(i).is_some_and(|c| c.is_named()))
+        .filter(|&i| call_node.field_name_for_child(i as u32) != Some("function"))
+        .filter_map(|i| call_node.child(i))
+        .filter_map(|n| n.utf8_text(src).ok().map(str::to_string))
+        .collect()
+}
+
+/// Full callee reconstruction for all five of this row's `call_types`
+/// node kinds, each of which needs a wrapper-field/two-field-split read
+/// the generic engine's own single flat `call_function_field` cannot
+/// express uniformly -- wired as [`Quirks::call_override`], same
+/// "every call shape claimed here, generic engine's own reconstruction
+/// never actually reached" posture as [`php_call_override`]/
+/// [`ruby_call_override`].
+fn perl_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    let line = node.start_position().row + 1;
+    match node.kind() {
+        "function_call_expression" | "ambiguous_function_call_expression" => {
+            let Some(callee) = perl_field_text(node, "function", src) else {
+                return false;
+            };
+            out.calls.push(CallRef {
+                callee: callee.to_string(),
+                line,
+                from_symbol: from_symbol.map(str::to_string),
+                from_symbol_line,
+                receiver_text: None,
+                receiver_hint: None,
+                arg_texts: perl_call_arg_texts(node, src),
+            });
+            true
+        }
+        "func1op_call_expression" | "func0op_call_expression" => {
+            let Some(callee) = perl_field_text(node, "function", src) else {
+                return false;
+            };
+            out.calls.push(CallRef {
+                callee: callee.to_string(),
+                line,
+                from_symbol: from_symbol.map(str::to_string),
+                from_symbol_line,
+                receiver_text: None,
+                receiver_hint: None,
+                arg_texts: perl_call_arg_texts(node, src),
+            });
+            true
+        }
+        "method_call_expression" => {
+            let Some(method) = perl_field_text(node, "method", src) else {
+                return false;
+            };
+            let invocant = node.child_by_field_name("invocant");
+            let receiver_text = invocant.and_then(|n| n.utf8_text(src).ok());
+            let callee = match receiver_text {
+                Some(receiver) => format!("{receiver}->{method}"),
+                None => method.to_string(),
+            };
+            let receiver_hint = invocant.map(|r| {
+                if r.utf8_text(src) == Ok("$self") {
+                    ReceiverHint::SelfOrThis
+                } else if r.kind() == "bareword" {
+                    ReceiverHint::NewExpression
+                } else if r.kind() == "scalar" {
+                    ReceiverHint::Identifier
+                } else {
+                    ReceiverHint::Other
+                }
+            });
+            out.calls.push(CallRef {
+                callee,
+                line,
+                from_symbol: from_symbol.map(str::to_string),
+                from_symbol_line,
+                receiver_text: receiver_text.map(str::to_string),
+                receiver_hint,
+                arg_texts: perl_call_arg_texts(node, src),
+            });
+            true
+        }
+        _ => false,
+    }
+}
+
+/// `use Foo::Bar;`/`use POSIX qw(...);` (a real `module` field, type
+/// `package`, a fieldless leaf whose own text is the dotted module name --
+/// confirmed unaffected by a trailing `qw(...)` import-list clause) and
+/// `require Foo::Bar;` (a bareword child holding the full dotted path) --
+/// wired as this row's [`Quirks::on_unmatched_node`] hook, mirroring the
+/// intent of baseline's `perl_import_types = {"use_statement",
+/// "require_statement", "require"}` while routing through this grammar's
+/// real node shapes (see [`LangSpec::perl`]'s own doc comment for why
+/// neither baseline node name is real here).
+fn perl_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    match node.kind() {
+        "use_statement" => {
+            if let Some(module) = perl_field_text(node, "module", src) {
+                if !module.is_empty() {
+                    out.imports.push(ImportRef {
+                        module_path: module.to_string(),
+                        line: node.start_position().row + 1,
+                    });
+                }
+            }
+            false
+        }
+        "require_expression" => {
+            let path = (0..node.named_child_count())
+                .filter_map(|i| node.named_child(i))
+                .find(|n| n.kind() == "bareword")
+                .and_then(|n| n.utf8_text(src).ok());
+            if let Some(path) = path {
+                if !path.is_empty() {
+                    out.imports.push(ImportRef {
+                        module_path: path.to_string(),
+                        line: node.start_position().row + 1,
+                    });
+                }
+            }
+            false
+        }
+        _ => false,
+    }
+}
+
+/// Perl's [`Quirks`] row: `use_statement`/`require_expression` IMPORTS
+/// plus full callee reconstruction for all five call-shaped node kinds
+/// (`function_call_expression`/`ambiguous_function_call_expression`/
+/// `func1op_call_expression`/`func0op_call_expression`/
+/// `method_call_expression`). No `route_from_call`/`on_method_defined`/
+/// `is_test_name`: the baseline gives Perl no dedicated route-registration-
+/// by-call-shape detection, DEFINES-container-by-receiver-clause
+/// convention, or file-level test-name convention either.
+pub fn perl_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(perl_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(perl_call_override)),
+    }
+}
+
+/// Parse Perl source through the generic engine, using the `ts-parser-perl`
+/// crate (NOT the crates.io crate literally named `tree-sitter-perl`,
+/// which has a real, unresolvable ABI conflict against this workspace's
+/// `tree-sitter` core -- see [`LangSpec::perl`]'s own doc comment for the
+/// full grammar-crate-choice rationale). Same "no pre-existing bespoke
+/// extractor" posture as [`parse_solidity`]/[`parse_r`].
+pub fn parse_perl(source: &str) -> ParsedFile {
+    let spec = LangSpec::perl();
+    let quirks = perl_quirks();
+    let language: tree_sitter::Language = ts_parser_perl::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Clojure
+// =====================================================================
+
+/// The fixed def-form-head keyword table, restricted to Clojure's own
+/// real subset of the baseline's shared Lisp-family `lisp_is_def_head`
+/// table (`internal/cbm/extract_defs.c`:5995-6018) -- the baseline's own
+/// array additionally lists several Scheme/Racket/Common-Lisp-only heads
+/// (`define`, `define-syntax`, `define-values`, `define-syntax-rule`,
+/// `define-struct`, `define-record-type`, `define/contract`, `struct`)
+/// that are never real Clojure forms, so this table omits them rather
+/// than accepting dead matches no real Clojure source would ever trigger.
+const CLOJURE_DEF_HEADS: &[&str] = &[
+    "defn",
+    "defn-",
+    "def",
+    "defmacro",
+    "defmulti",
+    "defmethod",
+    "defprotocol",
+    "defrecord",
+    "deftype",
+    "definterface",
+    "defonce",
+];
+
+/// The [`crate::parsers::SymbolKind`] a def-form's own head keyword
+/// records -- mirrors the baseline's own `lisp_label` special-casing
+/// (`internal/cbm/extract_defs.c`:6053-6060) exactly: `defrecord`/
+/// `deftype` are product types ([`SymbolKind::Struct`]); `definterface`/
+/// `defprotocol` are interface-shaped ([`SymbolKind::Interface`]);
+/// everything else (`defn`/`defn-`/`def`/`defmacro`/`defmulti`/
+/// `defmethod`/`defonce`) is [`SymbolKind::Function`].
+fn clojure_def_symbol_kind(head: &str) -> SymbolKind {
+    match head {
+        "defrecord" | "deftype" => SymbolKind::Struct,
+        "definterface" | "defprotocol" => SymbolKind::Interface,
+        _ => SymbolKind::Function,
+    }
+}
+
+/// A `list_lit`'s own head symbol -- its first NAMED child's `.utf8_text()`
+/// (already the full written text, namespace-qualifying prefix included
+/// if any -- `sym_lit`'s `namespace`/`delimiter`/`name` fields are three
+/// adjacent children spanning the node's own byte range contiguously, so
+/// no manual reconstruction is needed, confirmed by the real parse dump).
+/// `None` for an empty list (`()`, a valid but headless form).
+fn clojure_head_text<'a>(list_node: Node<'a>, src: &'a [u8]) -> Option<&'a str> {
+    let head = (0..list_node.named_child_count()).find_map(|i| list_node.named_child(i))?;
+    head.utf8_text(src).ok()
+}
+
+/// A def-form's own defined name -- the SECOND named child (index 1),
+/// unwrapped one level further if that child is itself a nested
+/// `list_lit` (the `(defn (foo args) ...)`-style shape the baseline's own
+/// `extract_lisp_def` still handles even though idiomatic Clojure never
+/// actually writes a `defn` this way) -- mirrors
+/// `internal/cbm/extract_defs.c`'s `extract_lisp_def` (:6027-6072) exactly.
+fn clojure_def_name<'a>(list_node: Node<'a>, src: &'a [u8]) -> Option<&'a str> {
+    if list_node.named_child_count() < 2 {
+        return None;
+    }
+    let target = list_node.named_child(1)?;
+    let name_node = if target.kind() == "list_lit" && target.named_child_count() > 0 {
+        target.named_child(0)?
+    } else {
+        target
+    };
+    let text = name_node.utf8_text(src).ok()?;
+    if text.is_empty() {
+        None
+    } else {
+        Some(text)
+    }
+}
+
+/// `(:require [some.ns :as alias] [other.ns] ...)`/`(:use ...)` clause
+/// handling for an `ns` form -- each bracketed `vec_lit`'s own first named
+/// child is the required namespace's `sym_lit` (confirmed by the real
+/// parse dump: `[clojure.string :as str]`'s first named child is the bare
+/// symbol `clojure.string`, followed by an optional `:as alias`/`:refer
+/// [...]` clause this Tier-2 scope does not need to read). A bare
+/// `sym_lit` clause (no brackets, `(:require some.ns)`) is accepted too,
+/// same shape as the plain `(require 'some.ns)` form
+/// [`clojure_plain_require_import`] handles.
+fn clojure_ns_require_imports(ns_form: Node<'_>, src: &[u8], out: &mut ParsedFile) {
+    let line = ns_form.start_position().row + 1;
+    for i in 2..ns_form.named_child_count() {
+        let Some(clause) = ns_form.named_child(i) else {
+            continue;
+        };
+        if clause.kind() != "list_lit" {
+            continue;
+        }
+        let Some(clause_head) = clojure_head_text(clause, src) else {
+            continue;
+        };
+        if clause_head != ":require" && clause_head != ":use" {
+            continue;
+        }
+        for j in 1..clause.named_child_count() {
+            let Some(entry) = clause.named_child(j) else {
+                continue;
+            };
+            let module = match entry.kind() {
+                "vec_lit" => (0..entry.named_child_count())
+                    .find_map(|k| entry.named_child(k))
+                    .and_then(|n| n.utf8_text(src).ok()),
+                "sym_lit" => entry.utf8_text(src).ok(),
+                _ => None,
+            };
+            if let Some(module) = module {
+                if !module.is_empty() {
+                    out.imports.push(ImportRef {
+                        module_path: module.to_string(),
+                        line,
+                    });
+                }
+            }
+        }
+    }
+}
+
+/// `(require 'some.ns)`/`(require 'some.ns 'other.ns)` -- each argument
+/// after the head is a `quoting_lit` wrapping a bare `sym_lit` (confirmed
+/// present by the real parse dump); a bare unquoted `sym_lit` argument is
+/// accepted too for robustness against the rarer unquoted-symbol
+/// convention some Clojure code uses.
+fn clojure_plain_require_import(call_node: Node<'_>, src: &[u8], out: &mut ParsedFile) {
+    let line = call_node.start_position().row + 1;
+    for i in 1..call_node.named_child_count() {
+        let Some(arg) = call_node.named_child(i) else {
+            continue;
+        };
+        let sym = match arg.kind() {
+            "quoting_lit" => (0..arg.named_child_count()).find_map(|k| arg.named_child(k)),
+            "sym_lit" => Some(arg),
+            _ => None,
+        };
+        let Some(sym) = sym.filter(|n| n.kind() == "sym_lit") else {
+            continue;
+        };
+        if let Ok(text) = sym.utf8_text(src) {
+            if !text.is_empty() {
+                out.imports.push(ImportRef {
+                    module_path: text.to_string(),
+                    line,
+                });
+            }
+        }
+    }
+}
+
+/// Recurses into a def-form's own remaining children (from index 2
+/// onward -- past the head keyword at index 0 and the defined name at
+/// index 1, mirroring [`clojure_def_name`]'s own indexing) with `fn_scope`
+/// set to the newly-defined name/line, so a call lexically inside a
+/// `defn`'s own body correctly records `from_symbol` as that `defn`'s own
+/// name rather than whatever (or no) scope was in effect at the point the
+/// def-form itself was reached. Builds a fresh local [`Ctx`] from
+/// [`LangSpec::clojure`]/[`clojure_quirks`] rather than threading the
+/// caller's own `ctx` through (this row's [`Quirks::on_unmatched_node`]
+/// hook signature carries neither) -- same pattern as every other
+/// fully-quirk-claimed def-shaped node kind (see
+/// [`dart_walk_function_body`]/[`r_walk_function_body`]).
+fn clojure_walk_def_body(
+    def_node: Node<'_>,
+    src: &[u8],
+    name: &str,
+    line: usize,
+    out: &mut ParsedFile,
+) {
+    let spec = LangSpec::clojure();
+    let quirks = clojure_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    let fn_scope = FnScope {
+        name: Some(name),
+        line: Some(line),
+    };
+    for i in 2..def_node.named_child_count() {
+        if let Some(child) = def_node.named_child(i) {
+            walk(child, &ctx, out, None, fn_scope);
+        }
+    }
+}
+
+/// Full `list_lit` handling: def-form recognition (mirrors
+/// `internal/cbm/extract_defs.c`'s `extract_lisp_def` -- see
+/// [`clojure_def_name`]/[`clojure_def_symbol_kind`]'s own doc comments)
+/// plus `ns`/`require` IMPORTS (mirrors
+/// `internal/cbm/extract_imports.c`'s `parse_lisp_imports`/
+/// `lisp_process_list` -- see [`clojure_ns_require_imports`]/
+/// [`clojure_plain_require_import`]'s own doc comments) -- wired as this
+/// row's [`Quirks::on_unmatched_node`] hook. `ns`/`require`/a plain call
+/// return `false` (never claim the subtree) so this module's own `walk`'s
+/// OWN unchanged-scope recursion still descends into their children
+/// generically (an `ns` form's own `:require` clauses, a plain call's own
+/// nested argument expressions, ...); a recognized def-form instead
+/// returns `true` and does its OWN scoped recursion via
+/// [`clojure_walk_def_body`] -- claiming the subtree here specifically
+/// (rather than falling through to the generic, unchanged-scope
+/// recursion) is what gives every call lexically inside a `defn`'s own
+/// body the correct `from_symbol` (see [`clojure_walk_def_body`]'s own
+/// doc comment) -- caught by this worker's own standalone verification
+/// harness (a `from_symbol: None` result for a call that should have
+/// recorded its enclosing `defn`'s name), not by inspection.
+fn clojure_quirk(
+    node: Node<'_>,
+    _enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "list_lit" {
+        return false;
+    }
+    let Some(head) = clojure_head_text(node, src) else {
+        return false;
+    };
+    if head == "ns" {
+        clojure_ns_require_imports(node, src, out);
+        return false;
+    }
+    if head == "require" {
+        clojure_plain_require_import(node, src, out);
+        return false;
+    }
+    if CLOJURE_DEF_HEADS.contains(&head) {
+        if let Some(name) = clojure_def_name(node, src) {
+            let line = node.start_position().row + 1;
+            out.symbols.push(SymbolRef {
+                name: name.to_string(),
+                kind: clojure_def_symbol_kind(head),
+                line,
+            });
+            clojure_walk_def_body(node, src, name, line, out);
+            return true;
+        }
+    }
+    false
+}
+
+/// Every `list_lit`'s own head symbol is recorded as a call callee,
+/// unconditionally -- mirrors `internal/cbm/extract_calls.c`'s
+/// `extract_lisp_callee` (:497-510) exactly: a def-form's own head
+/// keyword (e.g. `"defn"`) IS ALSO recorded as a call callee, by design,
+/// not filtered out -- see [`LangSpec::clojure`]'s own doc comment for why
+/// this matches the baseline's real (unfiltered) behavior rather than
+/// "improving" on it. Wired as [`Quirks::call_override`] since `list_lit`'s
+/// own arguments live under one `multiple: true` `"value"` field this
+/// generic engine's single-callee-field-plus-separate-arguments-field
+/// convention cannot enumerate (see [`LangSpec::clojure`]'s own doc
+/// comment).
+fn clojure_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    let Some(head) = clojure_head_text(node, src) else {
+        return false;
+    };
+    let arg_texts = (1..node.named_child_count())
+        .filter_map(|i| node.named_child(i))
+        .filter_map(|n| n.utf8_text(src).ok().map(str::to_string))
+        .collect();
+    out.calls.push(CallRef {
+        callee: head.to_string(),
+        line: node.start_position().row + 1,
+        from_symbol: from_symbol.map(str::to_string),
+        from_symbol_line,
+        receiver_text: None,
+        receiver_hint: None,
+        arg_texts,
+    });
+    true
+}
+
+/// Clojure's [`Quirks`] row: `list_lit` def-form recognition (Struct/
+/// Interface/Function symbol kinds per the baseline's own `lisp_label`
+/// convention) plus `ns`/`require` IMPORTS via `on_unmatched_node`, and
+/// full unconditional head-symbol callee recording via `call_override`.
+/// No `route_from_call`/`on_method_defined`/`is_test_name`: the baseline
+/// gives Clojure no route-registration-by-call-shape detection, DEFINES-
+/// container-by-receiver-clause convention (Clojure has no methods in the
+/// OOP sense to attribute one), or file-level test-name convention
+/// either.
+pub fn clojure_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(clojure_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(clojure_call_override)),
+    }
+}
+
+/// Parse Clojure source through the generic engine. Same "no pre-existing
+/// bespoke extractor" posture as [`parse_solidity`]/[`parse_r`]/
+/// [`parse_perl`].
+pub fn parse_clojure(source: &str) -> ParsedFile {
+    let spec = LangSpec::clojure();
+    let quirks = clojure_quirks();
+    let language: tree_sitter::Language = tree_sitter_clojure::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Julia's `function_definition`/`struct_definition`/`abstract_definition`/
+/// `primitive_definition`/`assignment`/`import_statement`/
+/// `using_statement`/`export_statement` -- every one of them entirely
+/// unfielded in this grammar (see [`LangSpec::julia`]'s own doc comment)
+/// -- wired as this wave's [`Quirks::on_unmatched_node`] hook.
+/// `call_expression`/`broadcast_call_expression` are a separate
+/// [`Quirks::call_override`] hook (see [`julia_call_override`]) since the
+/// generic walker's own call branch dispatches to `call_override` BEFORE
+/// `on_unmatched_node` ever runs for a `call_types` node.
+fn julia_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    match node.kind() {
+        "function_definition" => {
+            julia_walk_function_definition(node, src, out);
+            true
+        }
+        "struct_definition" | "abstract_definition" | "primitive_definition" => {
+            let kind = if node.kind() == "struct_definition" {
+                SymbolKind::Struct
+            } else {
+                SymbolKind::Class
+            };
+            let name = julia_type_head_name(node, src);
+            if let Some(name) = &name {
+                out.symbols.push(SymbolRef {
+                    name: name.clone(),
+                    kind,
+                    line: node.start_position().row + 1,
+                });
+                if let Some(super_name) = julia_type_head_supertype(node, src) {
+                    out.inherits.push(InheritsRef {
+                        sub_name: name.clone(),
+                        super_name,
+                        line: node.start_position().row + 1,
+                    });
+                }
+            }
+            julia_walk_scoped(node, src, name.as_deref(), out);
+            true
+        }
+        // Julia's short-form function definition (`square(x) = x * x`):
+        // an ordinary `assignment` whose LHS is call-shaped
+        // (`call_expression`) -- see `LangSpec::julia`'s own doc comment
+        // for why this gate (rather than listing `assignment` in
+        // `func_types` directly) is needed, mirroring the baseline's OWN
+        // source comment directly above `julia_func_types` in
+        // `lang_specs.c` ("the resolver names it only when the LHS is a
+        // call, so plain `x = 5` is not a def"). Fully claimed (`true`)
+        // in BOTH the short-form-function and the plain-assignment case:
+        // the LHS, if call-shaped, is itself one of `LangSpec::julia()`'s
+        // OWN `call_types` (`call_expression`) -- letting generic
+        // recursion continue into it unfiltered would record a spurious
+        // self-referential CALLS edge (`square` "calling" `square`, its
+        // own signature misread as an invocation) the same way
+        // `julia_walk_function_definition`'s own doc comment already
+        // warns about for the `function`-keyword form; this arm instead
+        // walks the RHS ONLY (with `fn_scope` set to the resolved name,
+        // so calls inside the function's real body are correctly
+        // attributed -- e.g. `square(x) = helper(x)` records `helper`
+        // called FROM `square`) via [`julia_walk_scoped_fn_body`],
+        // skipping the LHS entirely rather than merely "harmlessly"
+        // re-walking it. A plain, non-call-shaped LHS (`x = f()`) is
+        // walked the identical way with `fn_scope` left at `None` (no
+        // enclosing function was resolved), so `f()` is still found,
+        // just correctly unscoped -- matching what unfiltered generic
+        // recursion would have found for that RHS anyway, with the LHS
+        // (a bare, uncallable `identifier` in this case) contributing
+        // nothing either way.
+        "assignment" => {
+            let name = julia_short_form_function_name(node, src);
+            if let Some(name) = &name {
+                out.symbols.push(SymbolRef {
+                    name: name.clone(),
+                    kind: SymbolKind::Function,
+                    line: node.start_position().row + 1,
+                });
+            }
+            julia_walk_scoped_fn_body(node, src, name.as_deref(), out);
+            true
+        }
+        "import_statement" | "using_statement" | "export_statement" => {
+            for path in julia_import_paths(node, src) {
+                out.imports.push(ImportRef {
+                    module_path: path,
+                    line: node.start_position().row + 1,
+                });
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+/// A `function_definition`'s own name: the `signature` child's own
+/// callee identifier, reached through the (up to) two positional layers
+/// a real signature can wrap it in -- confirmed via a real parse tree
+/// dump of every combination this crate's test fixtures exercise:
+/// - plain `function f(x)`: `signature` directly wraps a `call_expression`
+///   (`f(x)`), whose own first child is the name `identifier`.
+/// - return-type-annotated `function f(x)::T`: `signature` instead wraps
+///   a `typed_expression` (`f(x)::T`), whose OWN first child is the
+///   `call_expression` from the plain case -- one extra layer to unwrap.
+fn julia_function_signature_name(node: Node<'_>, src: &[u8]) -> Option<String> {
+    let signature = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|n| n.kind() == "signature")?;
+    let inner = (0..signature.child_count())
+        .filter_map(|i| signature.child(i))
+        .find(|n| n.is_named())?;
+    let call = if inner.kind() == "call_expression" {
+        inner
+    } else {
+        (0..inner.child_count())
+            .filter_map(|i| inner.child(i))
+            .find(|n| n.kind() == "call_expression")?
+    };
+    let callee = (0..call.child_count())
+        .filter_map(|i| call.child(i))
+        .find(|n| n.is_named())?;
+    callee.utf8_text(src).ok().map(str::to_string)
+}
+
+/// `function_definition`'s own scoped recursion once its name (if any)
+/// has been resolved via [`julia_function_signature_name`] -- Julia is
+/// not one of `LangSpec::julia()`'s `class_types`/other DEFINES-container
+/// shapes, and `function_definition` is fully claimed by [`julia_quirk`]
+/// before the generic engine's own func/method branch would ever
+/// classify it correctly (its `name_field`-keyed `child_text` lookup
+/// always fails -- see `LangSpec::julia`'s own doc comment), so this
+/// quirk re-implements the DEFINES-push-plus-scoped-body-walk sequence
+/// directly, mirroring [`zig_walk_container_body`]'s identical rationale
+/// and mechanics (including a nested `function_definition`, Julia's
+/// closure idiom, correctly re-entering this same quirk arm one level
+/// deeper via the shared `walk` re-invocation rather than any special
+/// nested-function handling of its own).
+fn julia_walk_function_definition(node: Node<'_>, src: &[u8], out: &mut ParsedFile) {
+    let name = julia_function_signature_name(node, src);
+    let line = node.start_position().row + 1;
+    if let Some(name) = &name {
+        out.symbols.push(SymbolRef {
+            name: name.clone(),
+            kind: SymbolKind::Function,
+            line,
+        });
+    }
+    let spec = LangSpec::julia();
+    let quirks = julia_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    let fn_scope = FnScope {
+        name: name.as_deref(),
+        line: Some(line),
+    };
+    for i in 0..node.child_count() {
+        if let Some(child) = node.child(i) {
+            // Skip the `signature` child itself: its own nested
+            // `argument_list` holds only parameter-pattern identifiers
+            // (never a real call/def), and re-walking it here would risk
+            // a spurious self-referential CALLS edge from `f`'s own
+            // `fn_scope` back to `f`'s own name (the signature's
+            // `call_expression` looks exactly like an ordinary call
+            // node). Matches `zig_walk_container_body`'s equally
+            // deliberate exclusion of the node kind it already consumed
+            // directly.
+            if child.kind() == "signature" {
+                continue;
+            }
+            walk(child, &ctx, out, None, fn_scope);
+        }
+    }
+}
+
+/// `struct_definition`/`abstract_definition`/`primitive_definition`'s
+/// shared `type_head` child, present on every one of the three
+/// (confirmed via a real parse tree dump; see `LangSpec::julia`'s own
+/// doc comment) -- either a bare `identifier` (`struct Point`, no
+/// supertype) or a `binary_expression` whose own two named children are
+/// the type name and its supertype (`struct Dog <: Animal`), mirroring
+/// `internal/cbm/extract_defs.c`'s `extract_julia_base_classes` exactly:
+/// "find the `type_head` child; if its own first named child is a
+/// `binary_expression`, the type's name is that binary expression's
+/// FIRST named child" -- confirmed against a real parse tree that the
+/// baseline's own `ts_node_named_child(inner, 0)` (the type name) and
+/// `ts_node_named_child(inner, count - 1)` (the supertype, [`julia_type_head_supertype`]'s
+/// own read) are exactly this grammar's `binary_expression`'s two
+/// children, an `identifier` on each side of the `<:` operator token
+/// (itself unnamed, so `count == 2` always for this specific binary
+/// expression shape -- the baseline's own "last named child" phrasing
+/// and this "second of exactly two" reading agree).
+fn julia_type_head_name(node: Node<'_>, src: &[u8]) -> Option<String> {
+    let type_head = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|n| n.kind() == "type_head")?;
+    let inner = (0..type_head.child_count())
+        .filter_map(|i| type_head.child(i))
+        .find(|n| n.is_named())?;
+    if inner.kind() == "binary_expression" {
+        let first_named = (0..inner.child_count())
+            .filter_map(|i| inner.child(i))
+            .find(|n| n.is_named())?;
+        first_named.utf8_text(src).ok().map(str::to_string)
+    } else {
+        inner.utf8_text(src).ok().map(str::to_string)
+    }
+}
+
+/// The supertype half of [`julia_type_head_name`]'s same `type_head`
+/// `binary_expression` shape (`struct Dog <: Animal`'s `Animal`) -- see
+/// that function's own doc comment for the full grammar-shape finding.
+/// Returns `None` for a `type_head` with no supertype at all (a bare
+/// `identifier`, e.g. `struct Point`), matching
+/// `extract_julia_base_classes`'s own identical "no `binary_expression`
+/// inner node -> no base classes" early return.
+fn julia_type_head_supertype(node: Node<'_>, src: &[u8]) -> Option<String> {
+    let type_head = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|n| n.kind() == "type_head")?;
+    let inner = (0..type_head.child_count())
+        .filter_map(|i| type_head.child(i))
+        .find(|n| n.is_named())?;
+    if inner.kind() != "binary_expression" {
+        return None;
+    }
+    let named: Vec<Node<'_>> = (0..inner.child_count())
+        .filter_map(|i| inner.child(i))
+        .filter(|n| n.is_named())
+        .collect();
+    named.last()?.utf8_text(src).ok().map(str::to_string)
+}
+
+/// `struct_definition`/`abstract_definition`/`primitive_definition`'s
+/// own scoped recursion once its name (if any) has been resolved via
+/// [`julia_type_head_name`] -- same "fully claimed by the quirk before
+/// the generic engine's own class-shape branch would classify it
+/// correctly, so the quirk re-implements the DEFINES-container-scoped
+/// recursion directly" rationale as [`julia_walk_function_definition`]
+/// (and [`zig_walk_container_body`]'s identical precedent) -- skips the
+/// already-consumed `type_head` child for the same "avoid re-walking a
+/// child this quirk already read directly" reason
+/// [`julia_walk_function_definition`]'s own doc comment gives (a
+/// `type_head`'s `binary_expression`/identifier holds no call/def/field
+/// shape at all in practice, so skipping it costs nothing either way,
+/// but is skipped anyway for clarity/consistency).
+fn julia_walk_scoped(node: Node<'_>, src: &[u8], name: Option<&str>, out: &mut ParsedFile) {
+    let spec = LangSpec::julia();
+    let quirks = julia_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    for i in 0..node.child_count() {
+        if let Some(child) = node.child(i) {
+            if child.kind() == "type_head" {
+                continue;
+            }
+            walk(child, &ctx, out, name, FnScope::default());
+        }
+    }
+}
+
+/// An `assignment` node's own RHS-only scoped recursion (skips the LHS
+/// entirely) -- see [`julia_quirk`]'s own `"assignment"` arm doc comment
+/// for why the LHS must never be re-walked generically (it risks a
+/// spurious self-call when call-shaped) while the RHS still must be, with
+/// `fn_scope` set to `fn_name` when one was resolved (the short-form
+/// function case) or left at [`FnScope::default`] otherwise (the plain-
+/// assignment case, matching what unfiltered generic recursion would
+/// have produced for that RHS anyway).
+fn julia_walk_scoped_fn_body(
+    node: Node<'_>,
+    src: &[u8],
+    fn_name: Option<&str>,
+    out: &mut ParsedFile,
+) {
+    let spec = LangSpec::julia();
+    let quirks = julia_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    let line = node.start_position().row + 1;
+    let fn_scope = FnScope {
+        name: fn_name,
+        line: fn_name.map(|_| line),
+    };
+    let mut skipped_lhs = false;
+    for i in 0..node.child_count() {
+        let Some(child) = node.child(i) else { continue };
+        if !skipped_lhs && child.is_named() {
+            skipped_lhs = true;
+            continue;
+        }
+        walk(child, &ctx, out, None, fn_scope);
+    }
+}
+
+/// Julia's short-form function definition name (`square(x) = x * x`):
+/// an `assignment` node's LHS is call-shaped -- returns the callee
+/// identifier's text, mirroring the baseline's OWN documented gate (see
+/// `LangSpec::julia`'s own doc comment for the exact baseline source
+/// comment this mirrors). Returns `None` for a plain, non-call-shaped
+/// assignment LHS (`x = 5`), which is correctly not a function
+/// definition at all.
+fn julia_short_form_function_name(node: Node<'_>, src: &[u8]) -> Option<String> {
+    let lhs = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|n| n.is_named())?;
+    if lhs.kind() != "call_expression" {
+        return None;
+    }
+    let callee = (0..lhs.child_count())
+        .filter_map(|i| lhs.child(i))
+        .find(|n| n.is_named())?;
+    callee.utf8_text(src).ok().map(str::to_string)
+}
+
+/// `import_statement`/`using_statement`/`export_statement`'s own
+/// positional, unfielded module-path children (see `LangSpec::julia`'s
+/// own doc comment) -- collects every `identifier`/`import_path`/
+/// `scoped_identifier`/`selected_import` direct child's own text.
+/// `export_statement` (`export draw, area`) is included even though it
+/// exports LOCAL names rather than naming an external module -- matches
+/// baseline's own `julia_import_types` array treating all three
+/// uniformly as "import-shaped" for this crate's own IMPORTS-edge
+/// purposes (mirrors [`Self::gdscript`]'s own `extends_statement`
+/// "closest available analog, not a perfect semantic match" doc-comment
+/// precedent), recorded as its own IMPORTS edge per name rather than
+/// invented as a wholly separate EXPORTS edge kind this crate's
+/// `ParsedFile` shape has no room for.
+fn julia_import_paths(node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    for i in 0..node.child_count() {
+        let Some(child) = node.child(i) else { continue };
+        if !child.is_named() {
+            continue;
+        }
+        match child.kind() {
+            "identifier" | "scoped_identifier" => {
+                if let Ok(text) = child.utf8_text(src) {
+                    out.push(text.to_string());
+                }
+            }
+            "import_path" | "selected_import" => {
+                if let Ok(text) = child.utf8_text(src) {
+                    // `selected_import` (`Base: show`) carries the whole
+                    // `module: name` clause as its own text -- keep only
+                    // the module half (matches the baseline's own
+                    // `julia_import_types` treating this as one
+                    // module-path unit, not a `":"`-split pair).
+                    let module = text.split(':').next().unwrap_or(text).trim();
+                    if !module.is_empty() {
+                        out.push(module.to_string());
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
+/// `call_expression`/`broadcast_call_expression`, both entirely
+/// unfielded in this grammar (see `LangSpec::julia`'s own doc comment) --
+/// wired as [`Quirks::call_override`].
+fn julia_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    match node.kind() {
+        "call_expression" => {
+            let Some(callee_node) = (0..node.child_count())
+                .filter_map(|i| node.child(i))
+                .find(|n| n.is_named())
+            else {
+                return false;
+            };
+            let Ok(callee) = callee_node.utf8_text(src) else {
+                return false;
+            };
+            // `field_expression` receiver detection (`obj.draw(...)`/
+            // `Base.show(...)`) reuses `receiver_of_call`'s own shared
+            // `"field_expression" => "value"` field-name dispatch
+            // directly (this grammar's `field_expression` node shape
+            // matches that shared helper's existing expectation exactly,
+            // confirmed in `node-types.json`) -- a bare, non-dot-call
+            // callee (`helper(1, 2)`, a plain `identifier`) correctly
+            // yields `(None, None)` through that same shared helper's own
+            // `_ => return (None, None)` fallback.
+            let (receiver_text, receiver_hint) = receiver_of_call(callee_node, src);
+            out.calls.push(CallRef {
+                callee: callee.to_string(),
+                line: node.start_position().row + 1,
+                from_symbol: from_symbol.map(str::to_string),
+                from_symbol_line,
+                receiver_text,
+                receiver_hint,
+                arg_texts: julia_call_arg_texts(node, src),
+            });
+            true
+        }
+        "broadcast_call_expression" => {
+            // Positional `[identifier, ".", argument_list]` children --
+            // no wrapping `call_expression` at all (see `LangSpec::julia`'s
+            // own doc comment). The written callee text is the bare
+            // function name (`map`, for `map.(x, y)`) with no `.`
+            // suffix -- matches how this crate's other languages record
+            // a broadcast/vectorized-call idiom by its own plain callee
+            // name, not a synthesized operator-inclusive string.
+            let Some(callee_node) = (0..node.child_count())
+                .filter_map(|i| node.child(i))
+                .find(|n| n.is_named())
+            else {
+                return false;
+            };
+            let Ok(callee) = callee_node.utf8_text(src) else {
+                return false;
+            };
+            out.calls.push(CallRef {
+                callee: callee.to_string(),
+                line: node.start_position().row + 1,
+                from_symbol: from_symbol.map(str::to_string),
+                from_symbol_line,
+                receiver_text: None,
+                receiver_hint: None,
+                arg_texts: julia_call_arg_texts(node, src),
+            });
+            true
+        }
+        _ => false,
+    }
+}
+
+/// A `call_expression`/`broadcast_call_expression`'s own positional
+/// `argument_list` sibling (see `LangSpec::julia`'s own doc comment) --
+/// same shape as [`call_arg_texts`], but scanning for the node KIND
+/// (`argument_list` has no field name to look up here) rather than a
+/// field name.
+fn julia_call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let Some(args) = (0..call_node.child_count())
+        .filter_map(|i| call_node.child(i))
+        .find(|n| n.kind() == "argument_list")
+    else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for i in 0..args.child_count() {
+        if let Some(child) = args.child(i) {
+            if !child.is_named() {
+                continue;
+            }
+            if let Ok(text) = child.utf8_text(src) {
+                out.push(text.to_string());
+            }
+        }
+    }
+    out
+}
+
+pub fn julia_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(julia_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(julia_call_override)),
+    }
+}
+
+/// Parse Julia source through the generic engine. Grammar:
+/// `tree-sitter-julia` (crates.io, official `tree-sitter` GitHub org
+/// lineage). Julia has no pre-existing bespoke `languages::julia`
+/// extractor -- correctness rests entirely on direct verification
+/// against the crate's own `node-types.json`, a real parse tree dump,
+/// and the C baseline's `julia_*` arrays plus its dedicated
+/// `extract_julia_base_classes` walker (see `LangSpec::julia`'s own doc
+/// comment), not byte-for-byte comparison against an oracle.
+pub fn parse_julia(source: &str) -> ParsedFile {
+    let spec = LangSpec::julia();
+    let quirks = julia_quirks();
+    let language: tree_sitter::Language = tree_sitter_julia::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+/// Odin's `field` (struct-body field, including its `using`-prefixed
+/// composition/embedding form) -- everything `LangSpec::odin`'s own flat
+/// arrays cannot express (see that const's own doc comment). Wired as
+/// this wave's [`Quirks::on_unmatched_node`] hook. `procedure_declaration`/
+/// `struct_declaration`/`enum_declaration`/`union_declaration` are ALSO
+/// fully claimed here even though [`LangSpec::odin`] lists them in
+/// `func_types`/`class_types` too -- their own `name_field`-keyed
+/// `child_text` lookup always fails first (this row's `name_field` is a
+/// deliberate placeholder, see that const's own doc comment), so control
+/// safely falls through to THIS hook's final catch-all invocation, same
+/// "arrays exist to document the vocabulary, quirk claims the real
+/// unfielded shape" posture as [`LangSpec::c`]/[`LangSpec::julia`].
+/// `call_expression`/`selector_call_expression` are a separate
+/// [`Quirks::call_override`] hook (see [`odin_call_override`]) since the
+/// generic walker's own call branch dispatches to `call_override` BEFORE
+/// `on_unmatched_node` ever runs for a `call_types` node -- BOTH need it:
+/// `call_expression`'s own `"function"` callee field IS real and would
+/// flow through the generic engine's default single-field path fine on
+/// its own, but its arguments are exposed as a REPEATED `"argument"`
+/// field (singular) rather than a single `"arguments"` wrapper field,
+/// which the generic engine's shared `call_arg_texts` helper cannot read
+/// correctly (see [`odin_call_arg_texts`]'s own doc comment) -- so both
+/// kinds are fully claimed here rather than splitting "callee is fine,
+/// only args need fixing" across the override boundary.
+fn odin_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    match node.kind() {
+        "procedure_declaration" => {
+            let name = odin_leading_identifier_name(node, src);
+            let line = node.start_position().row + 1;
+            if let Some(name) = &name {
+                out.symbols.push(SymbolRef {
+                    name: name.clone(),
+                    kind: SymbolKind::Function,
+                    line,
+                });
+            }
+            let Some(procedure) = (0..node.child_count())
+                .filter_map(|i| node.child(i))
+                .find(|n| n.kind() == "procedure")
+            else {
+                return true;
+            };
+            // `procedure` has NO fields at all (confirmed:
+            // `{"type":"procedure","fields":{}}`) -- `block` is one of
+            // its positional children (alongside `parameters`/`type`/
+            // `where_clause`/...), not a field, so it must be found by
+            // kind rather than `child_by_field_name`.
+            let Some(block) = (0..procedure.child_count())
+                .filter_map(|i| procedure.child(i))
+                .find(|n| n.kind() == "block")
+            else {
+                return true;
+            };
+            odin_walk_scoped(
+                block,
+                src,
+                None,
+                FnScope {
+                    name: name.as_deref(),
+                    line: Some(line),
+                },
+                out,
+            );
+            true
+        }
+        "struct_declaration" | "enum_declaration" | "union_declaration" => {
+            let name = odin_leading_identifier_name(node, src);
+            let line = node.start_position().row + 1;
+            let kind = if node.kind() == "struct_declaration" {
+                SymbolKind::Struct
+            } else {
+                SymbolKind::Class
+            };
+            if let Some(name) = &name {
+                out.symbols.push(SymbolRef {
+                    name: name.clone(),
+                    kind,
+                    line,
+                });
+                if node.kind() == "struct_declaration" {
+                    for (member_name, embedded) in odin_struct_fields(node, src) {
+                        if embedded {
+                            out.inherits.push(InheritsRef {
+                                sub_name: name.clone(),
+                                super_name: member_name,
+                                line,
+                            });
+                        } else {
+                            out.defines.push(DefinesRef {
+                                container_name: name.clone(),
+                                member_name,
+                                line,
+                            });
+                        }
+                    }
+                }
+            }
+            // Fully claimed for naming/field-DEFINES/INHERITS above, but
+            // still explicitly recurses (rather than a bare `true` with
+            // no further walk): a struct/enum/union body has no ordinary
+            // call/def-shaped content in idiomatic Odin (unlike e.g. a
+            // Zig container, which this crate's own `zig_walk_container_body`
+            // precedent already walks for the identical reason), but
+            // recursing costs nothing and matches this crate's
+            // established "never silently skip a subtree without a
+            // concrete reason to" discipline rather than asserting a
+            // negative (no default-value field initializer expressions
+            // exist in this grammar) that a future language feature could
+            // quietly invalidate.
+            odin_walk_scoped(node, src, name.as_deref(), FnScope::default(), out);
+            true
+        }
+        "import_declaration" => {
+            if let Some(path) = odin_import_path(node, src) {
+                out.imports.push(ImportRef {
+                    module_path: path,
+                    line: node.start_position().row + 1,
+                });
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+/// An `import_declaration`'s own module-path text: the `string` child's
+/// `string_content` grandchild (`import "core:fmt"`, confirmed via a
+/// real parse tree dump -- `node-types.json` shows `import_declaration`
+/// has NO fields at all, so this must be found by kind rather than
+/// `child_by_field_name`, same posture as [`odin_leading_identifier_name`]).
+/// `foreign import lib "lib.a"` (this grammar's OTHER `import_declaration`
+/// shape, confirmed via the same parse tree dump) additionally carries
+/// an `"alias"`-tagged local name (`lib`) ahead of its own `string`
+/// child -- this function still finds the `string` child directly by
+/// kind regardless of that extra field, so both shapes resolve to their
+/// own quoted path text correctly.
+fn odin_import_path(node: Node<'_>, src: &[u8]) -> Option<String> {
+    let string_node = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|n| n.kind() == "string")?;
+    let content = (0..string_node.child_count())
+        .filter_map(|i| string_node.child(i))
+        .find(|n| n.kind() == "string_content")?;
+    content.utf8_text(src).ok().map(str::to_string)
+}
+
+/// A `procedure_declaration`/`struct_declaration`/`enum_declaration`/
+/// `union_declaration`'s own name: the FIRST positional `identifier`
+/// child (`add :: proc(...)`/`Dog :: struct {...}`, confirmed unfielded
+/// via a real parse tree dump -- see `LangSpec::odin`'s own doc
+/// comment). Every one of these four kinds shares this identical
+/// leading-identifier-before-`::`-token shape.
+fn odin_leading_identifier_name(node: Node<'_>, src: &[u8]) -> Option<String> {
+    (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|n| n.kind() == "identifier")?
+        .utf8_text(src)
+        .ok()
+        .map(str::to_string)
+}
+
+/// A `struct_declaration`'s own direct-child `field` nodes (see
+/// `LangSpec::odin`'s own doc comment for the shape -- entirely
+/// unfielded: `identifier`, optionally preceded by a `using` keyword
+/// token, then `:` and a `type`). Returns `(name, is_embedded)` per
+/// field: for an ORDINARY field this is `(field_name, false)` (the
+/// binding's own name, for a DEFINES edge); for a `using`-prefixed
+/// composition field this is `(type_name, true)` -- the embedded TYPE's
+/// own name (`Animal`, for `using animal: Animal`), not the local
+/// binding name (`animal`), since an INHERITS edge must point at the
+/// actual supertype-equivalent, not the field's own local identifier
+/// (caught by this row's own hard test: a first-pass implementation used
+/// the local binding name for both cases, silently recording `Dog
+/// INHERITS animal` instead of `Dog INHERITS Animal`) -- directly
+/// analogous to [`go_struct_fields`]'s identical `(member_name,
+/// embedded)` pair for Go's own embedded-struct-field convention (see
+/// `LangSpec::odin`'s own doc comment for the full finding).
+fn odin_struct_fields(struct_node: Node<'_>, src: &[u8]) -> Vec<(String, bool)> {
+    let mut out = Vec::new();
+    for i in 0..struct_node.child_count() {
+        let Some(field) = struct_node.child(i) else {
+            continue;
+        };
+        if field.kind() != "field" {
+            continue;
+        }
+        let mut is_embedded = false;
+        let mut field_name = None;
+        let mut type_name = None;
+        for j in 0..field.child_count() {
+            let Some(child) = field.child(j) else {
+                continue;
+            };
+            match child.kind() {
+                "using" => is_embedded = true,
+                "identifier" if field_name.is_none() => {
+                    field_name = child.utf8_text(src).ok().map(str::to_string);
+                }
+                "type" if type_name.is_none() => {
+                    type_name = child.utf8_text(src).ok().map(str::to_string);
+                }
+                _ => {}
+            }
+        }
+        if is_embedded {
+            if let Some(name) = type_name {
+                out.push((name, true));
+            }
+        } else if let Some(name) = field_name {
+            out.push((name, false));
+        }
+    }
+    out
+}
+
+/// A procedure's own `block` body, scoped recursion once its name (if
+/// any) has been resolved via [`odin_leading_identifier_name`] --
+/// `procedure_declaration` is fully claimed by [`odin_quirk`] before the
+/// generic engine's own func/method branch would ever run its own
+/// `body_field`-keyed lookup (which would fail regardless -- see
+/// `LangSpec::odin`'s own doc comment), so this quirk re-implements the
+/// DEFINES-push-plus-scoped-body-walk sequence directly, mirroring
+/// [`zig_walk_container_body`]'s identical rationale.
+fn odin_walk_scoped(
+    node: Node<'_>,
+    src: &[u8],
+    enclosing: Option<&str>,
+    fn_scope: FnScope<'_>,
+    out: &mut ParsedFile,
+) {
+    let spec = LangSpec::odin();
+    let quirks = odin_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    for i in 0..node.child_count() {
+        if let Some(child) = node.child(i) {
+            walk(child, &ctx, out, enclosing, fn_scope);
+        }
+    }
+}
+
+/// Every direct-child node this grammar tags with the REPEATED
+/// `"argument"` field (singular -- `node-types.json` confirms
+/// `call_expression`'s own field is literally named `"argument"`, not a
+/// single `"arguments"` field wrapping a list the way most of this
+/// crate's other call-shaped nodes have) -- found via
+/// [`Node::field_name_for_child`] rather than
+/// [`Node::child_by_field_name`], which only ever returns the FIRST
+/// match for a repeated field (this crate's shared [`call_arg_texts`]
+/// helper assumes a single wrapper node to iterate, which this grammar
+/// does not have for `call_expression` at all -- reusing it here would
+/// have silently returned only the first argument, or none, rather than
+/// every one).
+fn odin_call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    for i in 0..call_node.child_count() {
+        if call_node.field_name_for_child(i as u32) != Some("argument") {
+            continue;
+        }
+        if let Some(child) = call_node.child(i) {
+            if let Ok(text) = child.utf8_text(src) {
+                out.push(text.to_string());
+            }
+        }
+    }
+    out
+}
+
+/// `call_expression`/`selector_call_expression`, both wired as
+/// [`Quirks::call_override`]:
+/// - `call_expression` DOES have a real, working `"function"` field
+///   (confirmed in `node-types.json`) -- the generic engine's own
+///   default single-field callee reconstruction would already get the
+///   callee text right; this override exists purely to fix up
+///   [`odin_call_arg_texts`]'s own repeated-`"argument"`-field shape
+///   (see that function's own doc comment), which the generic engine's
+///   shared `call_arg_texts` helper cannot read correctly for this
+///   grammar -- without this override every Odin call would silently
+///   record zero/one argument regardless of how many were actually
+///   written.
+/// - `selector_call_expression` is Odin's pointer-dereference
+///   method-call syntax (`p->bark()`) -- see `LangSpec::odin`'s own doc
+///   comment for the full grammar-shape finding: this node's OWN
+///   top-level `"function"` field holds the pointer identifier (`p`),
+///   not the eventual method name; the real callee (`bark`) is one
+///   level down inside its nested `call_expression` child, whose OWN
+///   `"function"` field holds it directly.
+fn odin_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    match node.kind() {
+        "call_expression" => {
+            let Some(callee_node) = node.child_by_field_name("function") else {
+                return false;
+            };
+            let Ok(callee) = callee_node.utf8_text(src) else {
+                return false;
+            };
+            let (receiver_text, receiver_hint) = receiver_of_call(callee_node, src);
+            out.calls.push(CallRef {
+                callee: callee.to_string(),
+                line: node.start_position().row + 1,
+                from_symbol: from_symbol.map(str::to_string),
+                from_symbol_line,
+                receiver_text,
+                receiver_hint,
+                arg_texts: odin_call_arg_texts(node, src),
+            });
+            true
+        }
+        "selector_call_expression" => {
+            let Some(pointer) = node.child_by_field_name("function") else {
+                return false;
+            };
+            let Ok(receiver_text) = pointer.utf8_text(src) else {
+                return false;
+            };
+            let Some(inner_call) = (0..node.child_count())
+                .filter_map(|i| node.child(i))
+                .find(|n| n.kind() == "call_expression")
+            else {
+                return false;
+            };
+            let Some(callee_node) = inner_call.child_by_field_name("function") else {
+                return false;
+            };
+            let Ok(callee) = callee_node.utf8_text(src) else {
+                return false;
+            };
+            let receiver_hint = if receiver_text == "self" || receiver_text == "this" {
+                ReceiverHint::SelfOrThis
+            } else {
+                ReceiverHint::Identifier
+            };
+            out.calls.push(CallRef {
+                callee: callee.to_string(),
+                line: node.start_position().row + 1,
+                from_symbol: from_symbol.map(str::to_string),
+                from_symbol_line,
+                receiver_text: Some(receiver_text.to_string()),
+                receiver_hint: Some(receiver_hint),
+                arg_texts: odin_call_arg_texts(inner_call, src),
+            });
+            true
+        }
+        _ => false,
+    }
+}
+
+pub fn odin_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(odin_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(odin_call_override)),
+    }
+}
+
+/// Parse Odin source through the generic engine. Grammar:
+/// `tree-sitter-odin` (crates.io, `tree-sitter-grammars` GitHub org
+/// lineage -- the same actively-maintained org this crate's Kotlin
+/// grammar dependency already comes from). Odin has no pre-existing
+/// bespoke `languages::odin` extractor -- correctness rests entirely on
+/// direct verification against the crate's own `node-types.json`, a real
+/// parse tree dump, and the C baseline's `odin_*` arrays (which give
+/// Odin no dedicated `extract_base_classes` walker at all -- see
+/// `LangSpec::odin`'s own doc comment), not byte-for-byte comparison
+/// against an oracle.
+pub fn parse_odin(source: &str) -> ParsedFile {
+    let spec = LangSpec::odin();
+    let quirks = odin_quirks();
+    let language: tree_sitter::Language = tree_sitter_odin::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+/// Pascal's `declType` (the real name-bearer for every `declClass`/
+/// `declIntf`/`declHelper`/`declObject`/`declRecord` shape, see
+/// `LangSpec::pascal`'s own doc comment), `defProc` (out-of-body
+/// implementation wrapper), `unit`/`program` (module naming), and
+/// `declUses` (multi-unit import list) -- everything `LangSpec::pascal`'s
+/// own flat arrays cannot express. Wired as this wave's
+/// [`Quirks::on_unmatched_node`] hook. `exprCall`/`exprDot` are a
+/// separate [`Quirks::call_override`] hook (see [`pascal_call_override`])
+/// since the generic walker's own call branch dispatches to
+/// `call_override` BEFORE `on_unmatched_node` ever runs for a
+/// `call_types` node. `declProc` (the ordinary, in-place forward
+/// declaration/bodyless-signature case) needs NO quirk at all: its own
+/// real `"name"` field flows through the generic engine's default
+/// func/method branch unchanged -- only `defProc` (whose name lives on a
+/// NESTED `declProc`, not itself) needs special handling here.
+fn pascal_quirk(
+    node: Node<'_>,
+    _enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    match node.kind() {
+        // Not unconditionally `true`: `pascal_walk_decl_type` itself
+        // returns whether `node` was one of the five class-shapes it
+        // knows how to handle -- a plain type alias (`TId = Integer;`,
+        // `type_node.kind()` none of `declClass`/`declIntf`/`declHelper`/
+        // `declObject`/`declRecord`) falls through to `false`, so THIS
+        // arm falls through to ordinary generic recursion for it too
+        // (matches `pascal_walk_decl_type`'s own doc comment: "leaves it
+        // entirely to ordinary generic recursion" is only true if this
+        // caller actually lets that recursion happen).
+        "declType" => pascal_walk_decl_type(node, src, out),
+        "defProc" => {
+            pascal_walk_def_proc(node, src, out);
+            true
+        }
+        "unit" | "program" => {
+            if let Some(name) = pascal_module_name(node, src) {
+                out.symbols.push(SymbolRef {
+                    name,
+                    kind: SymbolKind::Module,
+                    line: node.start_position().row + 1,
+                });
+            }
+            // Not fully claimed (`false`): a `unit`/`program` node's own
+            // children (`interface`/`implementation`/`declUses`/
+            // `defProc`/`block`/...) still need ordinary generic
+            // recursion to find every declaration/call inside them --
+            // this arm only adds the ONE extra Module symbol the flat
+            // `module_types` array cannot express for this grammar (see
+            // `LangSpec::pascal`'s own doc comment: neither node has any
+            // fields at all, so there is nothing further this specific
+            // arm needs to claim).
+            false
+        }
+        "declUses" => {
+            for path in pascal_uses_paths(node, src) {
+                out.imports.push(ImportRef {
+                    module_path: path,
+                    line: node.start_position().row + 1,
+                });
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+/// A `unit`/`program` node's own `moduleName` child (entirely
+/// positional/unfielded, see `LangSpec::pascal`'s own doc comment) --
+/// its own text spans the whole dotted name already (`identifier` alone,
+/// or `identifier "." identifier` for a namespaced unit), so no further
+/// unwrapping is needed beyond finding the child and reading its text.
+fn pascal_module_name(node: Node<'_>, src: &[u8]) -> Option<String> {
+    (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|n| n.kind() == "moduleName")?
+        .utf8_text(src)
+        .ok()
+        .map(str::to_string)
+}
+
+/// A `declUses` node's own `moduleName` children (see
+/// `LangSpec::pascal`'s own doc comment) -- a single `uses A, B, C.D;`
+/// clause holds one `moduleName` per comma-separated unit.
+fn pascal_uses_paths(node: Node<'_>, src: &[u8]) -> Vec<String> {
+    (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .filter(|n| n.kind() == "moduleName")
+        .filter_map(|n| n.utf8_text(src).ok())
+        .map(str::to_string)
+        .collect()
+}
+
+/// A `declType`'s own `"name"` field (`TDog` in `TDog = class(...) ...
+/// end`) plus its `"type"` field's inner `declClass`/`declIntf`/
+/// `declHelper`/`declObject`/`declRecord` node -- the real name-bearer
+/// for every one of `LangSpec::pascal`'s `class_types` (see that const's
+/// own doc comment: none of those five kinds has a `"name"` field of its
+/// own at all; the name lives one level UP, on this wrapping `declType`).
+/// Pushes the Class/Interface symbol, any `declClass`-only INHERITS
+/// edges (mirrors `internal/cbm/extract_defs.c`'s `extract_base_classes`
+/// Pascal-specific `parent`-field walker exactly -- see
+/// `LangSpec::pascal`'s own doc comment), and recurses into the class
+/// body scoped to this name so nested `declField`/`declProp`/`declProc`
+/// members are found via ordinary generic recursion (each already flows
+/// through the generic engine's own field/func DEFINES-container logic
+/// once `enclosing` is set here).
+fn pascal_walk_decl_type(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
+    let Some(name) = node.child_by_field_name("name") else {
+        return false;
+    };
+    let Ok(name_text) = name.utf8_text(src) else {
+        return false;
+    };
+    let name_text = name_text.to_string();
+    let Some(type_node) = node.child_by_field_name("type") else {
+        return false;
+    };
+    let line = node.start_position().row + 1;
+    let kind = match type_node.kind() {
+        "declIntf" => SymbolKind::Interface,
+        "declClass" | "declHelper" | "declObject" | "declRecord" => SymbolKind::Class,
+        // A `declType` can also wrap an ordinary (non-class-shaped) type
+        // expression (`TId = Integer;`, a type alias) -- not one of
+        // `LangSpec::pascal`'s `class_types` at all, so this quirk leaves
+        // it entirely to ordinary generic recursion (via this function's
+        // own `false` return, which `pascal_quirk`'s `"declType"` arm
+        // passes straight through) rather than guessing at a symbol kind
+        // for a shape it was never meant to classify (the alias case is
+        // out of this wave's own scope, see `LangSpec::pascal`'s own
+        // `alias_types` being deliberately empty).
+        _ => return false,
+    };
+    out.symbols.push(SymbolRef {
+        name: name_text.clone(),
+        kind,
+        line,
+    });
+    if type_node.kind() == "declClass" {
+        for base_name in pascal_class_parents(type_node, src) {
+            out.inherits.push(InheritsRef {
+                sub_name: name_text.clone(),
+                super_name: base_name,
+                line,
+            });
+        }
+    }
+    pascal_walk_scoped(type_node, src, Some(name_text.as_str()), out);
+    true
+}
+
+/// A `declClass` node's own `"parent"`-tagged heritage children
+/// (`class(TAnimal, IFoo)`) -- mirrors
+/// `internal/cbm/extract_defs.c`'s `extract_base_classes` Pascal-specific
+/// walker byte-for-byte (see `LangSpec::pascal`'s own doc comment): every
+/// child whose OWN field name is literally `"parent"`, skipping the
+/// unnamed `(`/`)`/`,` delimiter tokens the grammar ALSO tags `"parent"`
+/// (`is_named()` is the exact filter the baseline's own
+/// `ts_node_is_named` check uses).
+fn pascal_class_parents(decl_class: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    for i in 0..decl_class.child_count() {
+        if decl_class.field_name_for_child(i as u32) != Some("parent") {
+            continue;
+        }
+        let Some(child) = decl_class.child(i) else {
+            continue;
+        };
+        if !child.is_named() {
+            continue;
+        }
+        if let Ok(text) = child.utf8_text(src) {
+            if !text.is_empty() {
+                out.push(text.to_string());
+            }
+        }
+    }
+    out
+}
+
+/// A `declClass`/`declIntf`/`declHelper`/`declObject`/`declRecord`'s own
+/// scoped recursion once its name has been resolved via
+/// [`pascal_walk_decl_type`] -- these five kinds are fully claimed by
+/// [`pascal_quirk`]'s own `declType` arm (which calls this directly)
+/// before the generic engine's own class-shape branch would ever
+/// classify any of them correctly (their own `name_field`-keyed
+/// `child_text` lookup always fails -- see `LangSpec::pascal`'s own doc
+/// comment), so this quirk re-implements the DEFINES-container-scoped
+/// recursion directly, mirroring [`zig_walk_container_body`]'s identical
+/// rationale. Also reused by [`pascal_walk_def_proc`] for an out-of-line
+/// method implementation's own body walk.
+fn pascal_walk_scoped(node: Node<'_>, src: &[u8], enclosing: Option<&str>, out: &mut ParsedFile) {
+    let spec = LangSpec::pascal();
+    let quirks = pascal_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    for i in 0..node.child_count() {
+        if let Some(child) = node.child(i) {
+            walk(child, &ctx, out, enclosing, FnScope::default());
+        }
+    }
+}
+
+/// A `defProc` node's own `"header"` (a NESTED `declProc`) and `"body"`
+/// fields (see `LangSpec::pascal`'s own doc comment for the full
+/// grammar-shape finding: `defProc` itself has no `"name"` field at all,
+/// only these two). Reads the header's own `"name"` field directly
+/// (which can itself be a `genericDot` node for an out-of-line class-
+/// method implementation, e.g. `TDog.Bark` -- `child_text`'s own
+/// `.utf8_text()` read already returns that whole dotted text correctly,
+/// no further unwrapping needed), pushes a Method symbol plus a DEFINES
+/// edge to the owning class when the name is dotted (`TDog.Bark` ->
+/// container `TDog`, member `Bark`, mirroring every other out-of-line
+/// method-scoped language's own DEFINES convention) or a Function symbol
+/// otherwise (a plain top-level `procedure P; begin ... end;`
+/// implementation, no dotted qualifier at all), then walks the OUTER
+/// node's own `"body"` field with the resolved (possibly dot-qualified)
+/// name as `fn_scope` -- mirrors [`dart_walk_function_body`]'s identical
+/// "read the nested signature's name, walk the outer node's own body"
+/// mechanics.
+fn pascal_walk_def_proc(node: Node<'_>, src: &[u8], out: &mut ParsedFile) {
+    let Some(header) = node.child_by_field_name("header") else {
+        return;
+    };
+    let name = child_text(header, "name", src);
+    let line = node.start_position().row + 1;
+    if let Some(name) = &name {
+        if let Some((container, member)) = name.rsplit_once('.') {
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: SymbolKind::Method,
+                line,
+            });
+            out.defines.push(DefinesRef {
+                container_name: container.to_string(),
+                member_name: member.to_string(),
+                line,
+            });
+        } else {
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: SymbolKind::Function,
+                line,
+            });
+        }
+    }
+    let Some(body) = node.child_by_field_name("body") else {
+        return;
+    };
+    let spec = LangSpec::pascal();
+    let quirks = pascal_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    let fn_scope = FnScope {
+        name: name.as_deref(),
+        line: Some(line),
+    };
+    walk(body, &ctx, out, None, fn_scope);
+}
+
+/// `exprCall`'s own `"entity"` (callee, NOT `"function"`) and `"args"`
+/// (a WRAPPING `exprArgs` node, NOT a bare `"arguments"` field) --
+/// neither of `LangSpec::pascal`'s own `call_function_field`/
+/// `call_arguments_field` defaults match this grammar's real field
+/// names, so this override reads both directly (see `LangSpec::pascal`'s
+/// own doc comment). `exprDot` (a bare, PARENLESS method-style call
+/// statement, `Obj.Draw;`) has an entirely different `"lhs"`/`"rhs"`
+/// shape and is ALSO syntactically indistinguishable from an ordinary,
+/// non-call field-read at the node-kind level alone -- recorded as a
+/// call anyway (see `LangSpec::pascal`'s own doc comment for the full
+/// "no type-checker, syntax-only, biased toward over- rather than
+/// under-recording a CALLS edge" rationale), joining `"lhs"`'s own text
+/// with `.` and `"rhs"`'s own text as the callee (`"Obj.Draw"`, matching
+/// how a real `exprCall` with a dotted `exprDot` `"entity"` -- e.g.
+/// `Exception.Create(...)` -- already records its own fully-qualified
+/// callee text the same way, so a parenless and a parenthesized dotted
+/// call agree on their own callee text shape).
+fn pascal_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    match node.kind() {
+        "exprCall" => {
+            let Some(entity) = node.child_by_field_name("entity") else {
+                return false;
+            };
+            let Ok(callee) = entity.utf8_text(src) else {
+                return false;
+            };
+            let arg_texts = node
+                .child_by_field_name("args")
+                .map(|args| pascal_expr_args_texts(args, src))
+                .unwrap_or_default();
+            out.calls.push(CallRef {
+                callee: callee.to_string(),
+                line: node.start_position().row + 1,
+                from_symbol: from_symbol.map(str::to_string),
+                from_symbol_line,
+                receiver_text: None,
+                receiver_hint: None,
+                arg_texts,
+            });
+            true
+        }
+        "exprDot" => {
+            let Some(lhs) = node.child_by_field_name("lhs") else {
+                return false;
+            };
+            let Some(rhs) = node.child_by_field_name("rhs") else {
+                return false;
+            };
+            let (Ok(lhs_text), Ok(rhs_text)) = (lhs.utf8_text(src), rhs.utf8_text(src)) else {
+                return false;
+            };
+            let callee = format!("{lhs_text}.{rhs_text}");
+            // `inherited.MethodName` (Pascal's `super`-equivalent, calling
+            // the parent class's overridden implementation) is its own
+            // distinct, dedicated `"inherited"` node kind (confirmed in
+            // `node-types.json`: `{"type":"inherited","fields":{}}`) --
+            // checked by KIND rather than by text (`lhs_text == "self"`
+            // is still a text check since a plain `self`-named receiver
+            // has no dedicated node kind of its own the way `inherited`
+            // does, matching every other language's identical `"self" |
+            // "this"` text-comparison convention for the ordinary case).
+            let receiver_hint = if lhs_text == "self" || lhs.kind() == "inherited" {
+                Some(ReceiverHint::SelfOrThis)
+            } else if lhs.kind() == "identifier" {
+                Some(ReceiverHint::Identifier)
+            } else {
+                Some(ReceiverHint::Other)
+            };
+            out.calls.push(CallRef {
+                callee,
+                line: node.start_position().row + 1,
+                from_symbol: from_symbol.map(str::to_string),
+                from_symbol_line,
+                receiver_text: Some(lhs_text.to_string()),
+                receiver_hint,
+                arg_texts: Vec::new(),
+            });
+            true
+        }
+        _ => false,
+    }
+}
+
+/// An `exprArgs` node's own named-child argument expressions (see
+/// `pascal_call_override`'s own doc comment: `exprCall`'s `"args"` field
+/// is this WRAPPING node, not a bare list itself).
+fn pascal_expr_args_texts(args_node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    for i in 0..args_node.child_count() {
+        if let Some(child) = args_node.child(i) {
+            if !child.is_named() {
+                continue;
+            }
+            if let Ok(text) = child.utf8_text(src) {
+                out.push(text.to_string());
+            }
+        }
+    }
+    out
+}
+
+pub fn pascal_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(pascal_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(pascal_call_override)),
+    }
+}
+
+/// Parse Pascal source through the generic engine. Grammar:
+/// `tree-sitter-pascal` (crates.io, `Isopod/tree-sitter-pascal` lineage --
+/// the same distinctive `declProc`/`declClass`/`exprCall`/`kIf`-prefixed
+/// node-kind vocabulary the C baseline's own `pascal_*` arrays already
+/// use verbatim, confirming this crate binds the identical grammar the
+/// baseline vendored). Pascal has no pre-existing bespoke
+/// `languages::pascal` extractor -- correctness rests entirely on direct
+/// verification against the crate's own `node-types.json`, a real parse
+/// tree dump, and the C baseline's `pascal_*` arrays plus its dedicated
+/// `extract_base_classes` Pascal-specific walker (see `LangSpec::pascal`'s
+/// own doc comment), not byte-for-byte comparison against an oracle.
+pub fn parse_pascal(source: &str) -> ParsedFile {
+    let spec = LangSpec::pascal();
+    let quirks = pascal_quirks();
+    let language: tree_sitter::Language = tree_sitter_pascal::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// QML
+// =====================================================================
+
+/// `new Widget()`'s callee lives in a `constructor` field, not
+/// `function` -- confirmed via a real parse-tree dump (see
+/// [`LangSpec::qml`]'s own doc comment). `call_expression` itself has a
+/// clean `function`/`arguments` field pair needing no override at all
+/// (returning `false` here lets it fall through to the generic engine's
+/// own default single-field reconstruction, per
+/// [`LangSpec::qml`]'s `call_function_field: "function"`) -- only
+/// `new_expression` is actually claimed.
+fn qml_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "new_expression" {
+        return false;
+    }
+    let Some(constructor) = node.child_by_field_name("constructor") else {
+        return false;
+    };
+    let Ok(callee) = constructor.utf8_text(src) else {
+        return false;
+    };
+    out.calls.push(CallRef {
+        callee: callee.to_string(),
+        line: node.start_position().row + 1,
+        from_symbol: from_symbol.map(str::to_string),
+        from_symbol_line,
+        receiver_text: None,
+        receiver_hint: None,
+        arg_texts: call_arg_texts(node, "arguments", src),
+    });
+    true
+}
+
+/// `component Circle: Rectangle {...}` -- an inline-component
+/// declaration whose own name lives on a `name` field (unlike its
+/// sibling `class_declaration`/`abstract_class_declaration`/
+/// `enum_declaration`, which the ordinary flat `name_field`/`body_field`
+/// path already handles), but whose "body" is a nested
+/// `ui_object_definition` under a `component` field, not a plain
+/// `body`-field block -- recurses into that nested object's own
+/// `ui_object_initializer` generically with `enclosing` set to the
+/// component's name, so any property/signal/function inside it still
+/// gets a DEFINES edge and a correctly-scoped walk. Also handles
+/// `ui_import`/`import_statement`/`import` (IMPORTS path extraction --
+/// none of the three has a single clean "whole path" field the way an
+/// ordinary import scan could read) -- see [`LangSpec::qml`]'s own doc
+/// comment for both findings. Falls through to [`ts_quirk`] for every
+/// other node kind (heritage clauses, decorators, arrow/const-binding
+/// [`SymbolKind::Lambda`], ... -- see [`qml_quirks`]'s own doc comment
+/// for why reusing it directly is correct here, not merely convenient).
+fn qml_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    match node.kind() {
+        "ui_inline_component" => {
+            let Some(name) = child_text(node, "name", src) else {
+                return true;
+            };
+            let line = node.start_position().row + 1;
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: SymbolKind::Class,
+                line,
+            });
+            if let Some(component) = node.child_by_field_name("component") {
+                if let Some(initializer) = component.child_by_field_name("initializer") {
+                    qml_walk_scoped_body(initializer, src, Some(name.as_str()), out);
+                }
+            }
+            true
+        }
+        "ui_import" => {
+            if let Some(source) = node.child_by_field_name("source") {
+                if let Ok(path) = source.utf8_text(src) {
+                    out.imports.push(ImportRef {
+                        module_path: strip_quotes_str(path),
+                        line: node.start_position().row + 1,
+                    });
+                }
+            }
+            true
+        }
+        "import_statement" | "import" => {
+            if let Some(path) = first_named_child_text(node, src) {
+                out.imports.push(ImportRef {
+                    module_path: strip_quotes_str(&path),
+                    line: node.start_position().row + 1,
+                });
+            }
+            true
+        }
+        _ => ts_quirk(node, enclosing, src, out),
+    }
+}
+
+/// Strip a single layer of matching leading/trailing `"`/`'` quotes, if
+/// present -- `ui_import`'s `source` field's own text includes the
+/// quote characters for the string-literal form (`"./helpers.js"`),
+/// unlike its bare-identifier form (`QtQuick`, no quotes to strip).
+fn strip_quotes_str(text: &str) -> String {
+    let bytes = text.as_bytes();
+    if bytes.len() >= 2 {
+        let first = bytes[0];
+        let last = bytes[bytes.len() - 1];
+        if (first == b'"' && last == b'"') || (first == b'\'' && last == b'\'') {
+            return text[1..text.len() - 1].to_string();
+        }
+    }
+    text.to_string()
+}
+
+/// [`ui_inline_component`]'s own nested `ui_object_definition`'s
+/// `ui_object_initializer` body walk, scoped to the component's own
+/// name -- mirrors [`ts_walk_scoped_body`]'s identical "resolve name
+/// externally via the quirk, then re-enter the generic walk with
+/// `enclosing` set" shape, reusing QML's own spec/quirks (not TS's)
+/// since a nested property/signal/function inside the inline
+/// component's body still needs QML's own `ui_property`/`ui_signal`
+/// field-shape recognition, not just TS's.
+fn qml_walk_scoped_body(node: Node<'_>, src: &[u8], name: Option<&str>, out: &mut ParsedFile) {
+    let spec = LangSpec::qml();
+    let quirks = qml_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    for i in 0..node.child_count() {
+        if let Some(child) = node.child(i) {
+            walk(child, &ctx, out, name, FnScope::default());
+        }
+    }
+}
+
+/// QML's [`Quirks`] row: `ui_inline_component` naming + scoped body
+/// walk, `ui_import`/`import_statement`/`import` IMPORTS-path
+/// extraction (none has a single clean path field), and
+/// `new_expression` call reconstruction (`constructor` field, not
+/// `function`) alongside the ordinary `call_expression` path. Every
+/// other construct -- `class_declaration`/`abstract_class_declaration`/
+/// `enum_declaration`/`interface_declaration` (heritage clauses,
+/// decorators -- identical field shapes to
+/// [`Self::typescript`]/[`ts_quirk`], confirmed via the same parse-tree
+/// dump), `function_declaration`/`method_definition`,
+/// `ui_property`/`ui_signal`/`public_field_definition` fields, branches
+/// -- is fully covered by [`LangSpec::qml`]'s own flat arrays with no
+/// quirk needed, so [`ts_quirk`] is reused directly for the
+/// class-shaped kinds rather than re-implemented (this means a
+/// `class_declaration`'s own body walk goes through [`ts_walk_scoped_body`],
+/// which hardcodes plain TS's spec/quirks rather than QML's own --
+/// deliberately correct, not a gap: a QML `class {...}` body is an
+/// embedded plain-JS class, and this grammar's own `class_body` node
+/// kind cannot syntactically contain `ui_property`/`ui_signal`/
+/// `ui_inline_component` at all -- those are only ever valid inside a
+/// `ui_object_definition`'s own `ui_object_initializer`, confirmed via
+/// the same parse-tree dump, so there is nothing QML-specific a nested
+/// class body walk could ever need to recognize).
+pub fn qml_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(qml_quirk)),
+        is_test_name: ts_is_test_name,
+        route_from_call: Some(Box::new(ts_route_from_call)),
+        on_method_defined: Some(Box::new(ts_on_method_defined)),
+        call_override: Some(Box::new(qml_call_override)),
+    }
+}
+
+/// Parse QML source through the generic engine. Language-parity wave
+/// G2.2e.
+pub fn parse_qml(source: &str) -> ParsedFile {
+    let spec = LangSpec::qml();
+    let quirks = qml_quirks();
+    let language: tree_sitter::Language = tree_sitter_qmljs::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, true)
+}
+
+// =====================================================================
+// ReScript
+// =====================================================================
+
+/// `let add = (a, b) => {...}`'s `function` node has no `name` field of
+/// its own -- the written name is the enclosing `let_binding`'s own
+/// `pattern` field. Mirrors `internal/cbm/extract_defs.c`'s
+/// `cbm_resolve_func_name` ReScript case exactly (see [`LangSpec::rescript`]'s
+/// own doc comment): a `let_binding` whose `body` is anything other than
+/// a `function` (a plain value binding, `let x = 42`) never reaches
+/// this arm at all, since [`LangSpec::rescript`]'s own `func_types`
+/// array only ever matches the `function` node kind itself.
+fn rescript_function_name(node: Node<'_>, src: &[u8]) -> Option<String> {
+    let parent = node.parent()?;
+    if parent.kind() != "let_binding" {
+        return None;
+    }
+    let pattern = parent.child_by_field_name("pattern")?;
+    pattern.utf8_text(src).ok().map(str::to_string)
+}
+
+/// `function`'s own scoped body walk once its name has been resolved
+/// via [`rescript_function_name`] -- mirrors
+/// [`zig_walk_container_body`]'s identical "resolve name externally,
+/// then re-enter the generic walk with `enclosing`/`fn_scope` set"
+/// shape. Unlike a class/struct's scoped body (which sets `enclosing`
+/// for member DEFINES edges), a function's own body sets `fn_scope`
+/// instead (calls made directly inside it need `from_symbol` to record
+/// this function's name) -- `enclosing` (the class/module a nested
+/// symbol would DEFINE into) is threaded through unchanged from
+/// whatever the caller already had, matching how [`walk`]'s own
+/// generic func/method branch threads `enclosing` unchanged into its
+/// own body walk.
+fn rescript_walk_function_body(
+    node: Node<'_>,
+    src: &[u8],
+    enclosing: Option<&str>,
+    fn_scope: FnScope<'_>,
+    out: &mut ParsedFile,
+) {
+    let spec = LangSpec::rescript();
+    let quirks = rescript_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    let Some(body) = node.child_by_field_name("body") else {
+        return;
+    };
+    walk_children(body, &ctx, out, enclosing, fn_scope);
+}
+
+/// `module Point = { ... }` / `type t = { ... }` -- neither
+/// `module_declaration` nor `type_declaration` has a `name` field of
+/// its own; the real name lives one level down, on their sole child's
+/// own `name` field (`module_binding.name`/`type_binding.name`). Mirrors
+/// `internal/cbm/extract_defs.c`'s dedicated `CBM_LANG_RESCRIPT` case
+/// for `type_declaration` exactly (see [`LangSpec::rescript`]'s own doc
+/// comment), extended identically for `module_declaration`/
+/// `module_binding`. Recurses into the binding's own nested
+/// definition/body afterward (`module_binding`'s `definition` field or
+/// `type_binding`'s `body` field) so any call/nested-type inside it is
+/// still visited, scoped to this symbol's own name.
+fn rescript_class_quirk(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
+    let (wrapper_kind, kind_out) = match node.kind() {
+        "module_declaration" => ("module_binding", SymbolKind::Class),
+        "type_declaration" => ("type_binding", SymbolKind::TypeAlias),
+        _ => return false,
+    };
+    let Some(binding) = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|n| n.kind() == wrapper_kind)
+    else {
+        return true;
+    };
+    let Some(name) = child_text(binding, "name", src) else {
+        return true;
+    };
+    let line = node.start_position().row + 1;
+    out.symbols.push(SymbolRef {
+        name: name.clone(),
+        kind: kind_out,
+        line,
+    });
+    let spec = LangSpec::rescript();
+    let quirks = rescript_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    walk_children(binding, &ctx, out, Some(name.as_str()), FnScope::default());
+    true
+}
+
+/// `open Belt` / `include MyModule` -- neither has a field of its own;
+/// the module path is the sole positional named child
+/// (`module_identifier`). Reuses [`first_named_child_text`], the same
+/// helper [`walk`]'s own `module_types` branch already uses for an
+/// analogous "the interesting name is just the first named child"
+/// shape.
+fn rescript_import_quirk(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
+    if !matches!(node.kind(), "open_statement" | "include_statement") {
+        return false;
+    }
+    if let Some(path) = first_named_child_text(node, src) {
+        out.imports.push(ImportRef {
+            module_path: path,
+            line: node.start_position().row + 1,
+        });
+    }
+    true
+}
+
+/// `@react.component`'s own name -- a preceding sibling of the
+/// `let_declaration` it annotates (same shape
+/// [`ts_preceding_decorators`]'s own `prev_sibling()` walk already
+/// handles), but this grammar's own `decorator` node wraps a single
+/// `decorator_identifier` child rather than TS's `call_expression`/
+/// `identifier` split, so [`first_named_child_text`] reads its name
+/// directly rather than [`ts_decorator_name`]'s TS-specific match.
+fn rescript_preceding_decorators(node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut sibling = node.prev_sibling();
+    while let Some(candidate) = sibling {
+        if candidate.kind() != "decorator" {
+            break;
+        }
+        if let Some(name) = first_named_child_text(candidate, src) {
+            out.push(name);
+        }
+        sibling = candidate.prev_sibling();
+    }
+    out.reverse();
+    out
+}
+
+/// ReScript's [`Quirks`] row: `function`'s parent-`let_binding`-`pattern`
+/// name resolution + scoped body walk (`func_types`/`method_types`'s
+/// sole entry), `module_declaration`/`type_declaration`'s
+/// child-binding name resolution (`class_types`), `open_statement`/
+/// `include_statement` IMPORTS-path extraction, and `@decorator`
+/// DECORATES edges on the annotated `let_declaration`. Every other
+/// construct (`call_expression`'s ordinary `function`/`arguments`
+/// field pair, `if_expression`/`switch_expression`/`try_expression`
+/// branches) is fully covered by [`LangSpec::rescript`]'s own flat
+/// arrays with no quirk needed.
+fn rescript_quirk(
+    node: Node<'_>,
+    enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() == "function" {
+        // Already claimed by `walk`'s own func/method branch if the
+        // ordinary `name_field` lookup happened to succeed -- for
+        // `function`, [`LangSpec::rescript`]'s own `name_field` is a
+        // placeholder that never resolves (this grammar's `function`
+        // node has no `name` field at all), so control always reaches
+        // here for a well-formed `function` node.
+        let Some(name) = rescript_function_name(node, src) else {
+            return true;
+        };
+        let line = node.start_position().row + 1;
+        // Always `Function`, never `Method`, even when `enclosing` is
+        // set (a `function` nested inside a `module Foo = {...}`):
+        // ReScript has no OOP method/instance concept at all -- a
+        // module is a compile-time namespace, not an instantiable
+        // type, so a function bound inside one is still, semantically,
+        // just a function. Deliberate, not the generic engine's own
+        // usual same-kind-in-both-arrays nesting-based Function-vs-
+        // Method fallback (this quirk fully owns naming for `function`
+        // already, so that shared convention never actually applies
+        // here regardless).
+        out.symbols.push(SymbolRef {
+            name: name.clone(),
+            kind: SymbolKind::Function,
+            line,
+        });
+        if let Some(container) = enclosing {
+            out.defines.push(DefinesRef {
+                container_name: container.to_string(),
+                member_name: name.clone(),
+                line,
+            });
+        }
+        rescript_walk_function_body(
+            node,
+            src,
+            enclosing,
+            FnScope {
+                name: Some(&name),
+                line: Some(line),
+            },
+            out,
+        );
+        // A decorator (`@react.component`) precedes the WHOLE
+        // `let_declaration` (`function`'s grandparent: `function`'s
+        // parent is `let_binding`, whose own parent is
+        // `let_declaration`), not `function` itself or its immediate
+        // `let_binding` parent -- confirmed via the real parse-tree
+        // dump (`decorator` and `let_declaration` are siblings at
+        // `source_file` level).
+        if let Some(let_declaration) = node.parent().and_then(|let_binding| let_binding.parent()) {
+            for decorator_name in rescript_preceding_decorators(let_declaration, src) {
+                out.decorates.push(crate::parsers::DecoratesRef {
+                    target_name: name.clone(),
+                    decorator_name,
+                    line,
+                });
+            }
+        }
+        return true;
+    }
+    if rescript_class_quirk(node, src, out) {
+        return true;
+    }
+    rescript_import_quirk(node, src, out)
+}
+
+pub fn rescript_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(rescript_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse ReScript source through the generic engine. Language-parity
+/// wave G2.2e. Grammar sourced from the `arborium-rescript` crate (part
+/// of the `bearcove/arborium` tree-sitter grammar bundle), NOT a
+/// standalone `tree-sitter-rescript` -- crates.io has no such crate at
+/// all (confirmed via a direct crates.io API search, not assumed).
+/// `arborium-rescript` exports the same `tree-sitter-language::LanguageFn`
+/// shape every other grammar dependency in this workspace already
+/// uses, cross-checked node-kind-by-node-kind against
+/// `internal/cbm/lang_specs.c`'s own `rescript_*` arrays (every single
+/// one confirmed present, matching the exact same grammar shape the
+/// baseline's own vendored `internal/cbm/vendored/grammars/rescript/`
+/// copy -- author Victor Nakoryakov per that directory's own `LICENSE`
+/// -- targets) via a real parse-tree dump, not `node-types.json`
+/// inspection alone.
+pub fn parse_rescript(source: &str) -> ParsedFile {
+    let spec = LangSpec::rescript();
+    let quirks = rescript_quirks();
+    let language: tree_sitter::Language = arborium_rescript::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Squirrel
+// =====================================================================
+
+/// A `function_declaration`/`anonymous_function`/`lambda_expression`'s
+/// own name -- the FIRST direct-child `identifier` (confirmed via a
+/// real parse-tree dump: `function makeDog(name) {...}`'s own children
+/// are literally `function`(keyword), `identifier`(name=`makeDog`),
+/// `(`, `parameters`, `)`, `block` -- the `identifier` inside
+/// `parameters` is one level deeper, so a direct-child-only scan never
+/// confuses the two). Mirrors `internal/cbm/extract_defs.c`'s own
+/// dedicated case exactly ("Cairo / D / Odin / Squirrel: the def node
+/// has no `name` field; the name is a plain `identifier` child" --
+/// :709-718). Returns `None` for `anonymous_function`/`lambda_expression`
+/// (neither has a name-bearing `identifier` in this position at all --
+/// confirmed via the dump: `anonymous_function`'s own direct children
+/// start straight with `function`/`(`, no `identifier` in between), the
+/// same "no name to push" outcome [`c_quirk`]'s anonymous-struct case
+/// and [`kotlin_quirk`]'s `secondary_constructor` case already have.
+fn squirrel_def_name(node: Node<'_>, src: &[u8]) -> Option<String> {
+    (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|n| n.kind() == "identifier")
+        .and_then(|n| n.utf8_text(src).ok())
+        .map(str::to_string)
+}
+
+/// The LAST direct-child `block` of a `function_declaration`/
+/// `anonymous_function`/`lambda_expression` -- this grammar's own
+/// function-body node, positional rather than field-accessible
+/// (confirmed absent from `node-types.json`'s own `"fields"` entry for
+/// all three kinds). `lambda_expression`'s own body is a bare
+/// expression, not a `block`, at all (`@(x) x + 1` has no braces) --
+/// returns `None` for it, matching that its own construct has nothing
+/// this generic engine's own DEFINES-scoped-body-walk concept could
+/// usefully recurse into as a symbol/call-bearing block anyway (a
+/// lambda's own single expression can still itself contain a call,
+/// which the caller's own fallback `walk_children` recursion -- run
+/// unconditionally by [`squirrel_quirk`] regardless of whether a
+/// `block` was found -- already reaches with no special-casing needed
+/// here).
+fn squirrel_def_block(node: Node<'_>) -> Option<Node<'_>> {
+    (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .rfind(|n| n.kind() == "block")
+}
+
+/// `class Dog extends Animal {...}` -- heritage is a plain `identifier`
+/// child directly following the literal `extends` KEYWORD TOKEN
+/// (`"named": false` in `node-types.json` -- an unnamed token, so
+/// [`Node::child`] rather than [`Node::named_child`] is required to
+/// even see it at all). Mirrors `internal/cbm/extract_defs.c`'s own
+/// dedicated `extract_base_classes` Squirrel walker (:2395-2421)
+/// exactly: scan direct children for the `"extends"` token, then take
+/// the very next `identifier` sibling as the one base-class name (this
+/// grammar allows only single inheritance, confirmed via
+/// `node-types.json`'s own `class_declaration` entry listing at most
+/// one non-member-declaration/non-attribute-declaration identifier
+/// position beyond the class's own name).
+fn squirrel_base_class_name(node: Node<'_>, src: &[u8]) -> Option<String> {
+    let mut seen_extends = false;
+    for i in 0..node.child_count() {
+        let Some(child) = node.child(i) else { continue };
+        if child.kind() == "extends" {
+            seen_extends = true;
+            continue;
+        }
+        if seen_extends && child.kind() == "identifier" {
+            return child.utf8_text(src).ok().map(str::to_string);
+        }
+    }
+    None
+}
+
+/// A `class_declaration`'s own DEFINES-scoped member walk: this
+/// grammar's `class_declaration` has NO `body`/`class_body` wrapper
+/// node at all (confirmed via `internal/cbm/extract_defs.c`'s own
+/// "Squirrel: class_declaration has no body field — member_declaration
+/// nodes ... are direct children of the class" comment, :3936-3939,
+/// and the same parse-tree dump) -- `member_declaration` nodes are
+/// direct children of the class node itself, interspersed with the
+/// class's own name `identifier` and (if present) the `extends`
+/// keyword + base-class `identifier`. Each `member_declaration` in turn
+/// wraps a single `function_declaration` for a named method (mirrors
+/// `internal/cbm/extract_defs.c`'s own "Squirrel wraps each class
+/// member in a member_declaration node; the method is the inner
+/// function_declaration. Peek through the wrapper." comment,
+/// :4192-4200) -- a `constructor(...) {...}` member, by contrast, has
+/// no such inner `function_declaration` at all (confirmed via the same
+/// dump), so it is correctly invisible here too, matching that same
+/// baseline comment's own real (limited) reach (see [`LangSpec::squirrel`]'s
+/// own doc comment for the full finding). A bare field-assignment
+/// member (`name = "";`) is likewise correctly invisible (no
+/// `function_declaration` inside its own `member_declaration` either,
+/// and [`LangSpec::squirrel`]'s own `field_types` is empty by design).
+fn squirrel_walk_class_members(node: Node<'_>, src: &[u8], class_name: &str, out: &mut ParsedFile) {
+    let spec = LangSpec::squirrel();
+    let quirks = squirrel_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    for i in 0..node.child_count() {
+        let Some(child) = node.child(i) else { continue };
+        if child.kind() != "member_declaration" {
+            continue;
+        }
+        let Some(inner) = (0..child.child_count())
+            .filter_map(|j| child.child(j))
+            .find(|n| n.kind() == "function_declaration")
+        else {
+            continue;
+        };
+        walk(inner, &ctx, out, Some(class_name), FnScope::default());
+    }
+}
+
+/// `class_declaration`/`enum_declaration` -- neither has a `name`
+/// field; the name is the class/enum's own first direct-child
+/// `identifier` (immediately after the `class`/`enum` keyword, before
+/// any `extends`/`{`). Mirrors `internal/cbm/extract_defs.c`'s own
+/// dedicated case exactly ("CBM_LANG_SQUIRREL: class_declaration >
+/// identifier", :3659, extended identically for `enum_declaration` per
+/// the confirmed real parse-tree shape -- see [`LangSpec::squirrel`]'s
+/// own doc comment). `class_declaration` additionally records an
+/// INHERITS edge via [`squirrel_base_class_name`] and its own scoped
+/// member walk via [`squirrel_walk_class_members`]; `enum_declaration`
+/// needs neither (Squirrel enums have no heritage and
+/// [`LangSpec::squirrel`]'s own `field_types` covers no enum-member
+/// DEFINES edge either, matching the baseline's own equally minimal
+/// depth for this construct).
+fn squirrel_class_quirk(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
+    let kind_out = match node.kind() {
+        "class_declaration" => SymbolKind::Class,
+        "enum_declaration" => SymbolKind::Enum,
+        _ => return false,
+    };
+    let Some(name) = squirrel_def_name(node, src) else {
+        return true;
+    };
+    let line = node.start_position().row + 1;
+    out.symbols.push(SymbolRef {
+        name: name.clone(),
+        kind: kind_out,
+        line,
+    });
+    if node.kind() == "class_declaration" {
+        if let Some(super_name) = squirrel_base_class_name(node, src) {
+            out.inherits.push(InheritsRef {
+                sub_name: name.clone(),
+                super_name,
+                line,
+            });
+        }
+        squirrel_walk_class_members(node, src, &name, out);
+    }
+    true
+}
+
+/// A `function_declaration`/`anonymous_function`/`lambda_expression`'s
+/// own naming + scoped body walk -- neither has a `name`/`body` field
+/// this file's generic `name_field`/`body_field` mechanism could read
+/// directly (see [`squirrel_def_name`]/[`squirrel_def_block`]'s own doc
+/// comments). Mirrors [`walk`]'s own generic func/method branch in
+/// shape (push the Function/Method symbol, a DEFINES edge if
+/// `enclosing` is set, then recurse into the body with `fn_scope` set)
+/// but reads the name/body positionally rather than via
+/// [`Node::child_by_field_name`].
+fn squirrel_func_quirk(
+    node: Node<'_>,
+    enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if !matches!(
+        node.kind(),
+        "function_declaration" | "anonymous_function" | "lambda_expression"
+    ) {
+        return false;
+    }
+    let Some(name) = squirrel_def_name(node, src) else {
+        // Anonymous (`anonymous_function`/`lambda_expression` with no
+        // enclosing name to bind to at this position) -- nothing to
+        // push, but still recurse into the body generically so any
+        // call inside it is still visited (module-scoped, no
+        // `fn_scope`, matching every other language's identical
+        // "unnamed function literal" fallback, e.g.
+        // `LangSpec::gdscript`'s own `lambda` doc note).
+        return false;
+    };
+    let line = node.start_position().row + 1;
+    let is_method = enclosing.is_some();
+    out.symbols.push(SymbolRef {
+        name: name.clone(),
+        kind: if is_method {
+            SymbolKind::Method
+        } else {
+            SymbolKind::Function
+        },
+        line,
+    });
+    if let Some(container) = enclosing {
+        out.defines.push(DefinesRef {
+            container_name: container.to_string(),
+            member_name: name.clone(),
+            line,
+        });
+    }
+    let spec = LangSpec::squirrel();
+    let quirks = squirrel_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    if let Some(block) = squirrel_def_block(node) {
+        walk_children(
+            block,
+            &ctx,
+            out,
+            enclosing,
+            FnScope {
+                name: Some(name.as_str()),
+                line: Some(line),
+            },
+        );
+    }
+    true
+}
+
+/// `h.register()`/`base.speak()`'s own `function` field is a
+/// `deref_expression` node whose OWN children (`identifier`, `.`,
+/// `identifier`) carry NO field names at all (confirmed via the
+/// parse-tree dump -- unlike every node kind [`receiver_of_call`]'s own
+/// `match function_node.kind()` already handles, all of which read a
+/// NAMED field for their receiver) -- the receiver is instead the
+/// FIRST direct child (positional), read here directly rather than
+/// through that shared helper, which has no way to express a
+/// field-less receiver shape. `.utf8_text()` still already includes
+/// the full written `"h.register"`/`"base.speak"` text for the whole
+/// `deref_expression` (used as-is for [`CallRef::callee`]) -- only the
+/// separate RECEIVER text/hint needs this dedicated read.
+fn squirrel_receiver_of_call(
+    function_node: Node<'_>,
+    src: &[u8],
+) -> (Option<String>, Option<ReceiverHint>) {
+    if function_node.kind() != "deref_expression" {
+        return (None, None);
+    }
+    let Some(receiver) = function_node.child(0) else {
+        return (None, None);
+    };
+    let Ok(text) = receiver.utf8_text(src) else {
+        return (None, None);
+    };
+    let hint = if text == "this" {
+        ReceiverHint::SelfOrThis
+    } else if receiver.kind() == "identifier" {
+        ReceiverHint::Identifier
+    } else {
+        ReceiverHint::Other
+    };
+    (Some(text.to_string()), Some(hint))
+}
+
+/// `call_expression`'s own callee/receiver reconstruction (this
+/// grammar's clean `function` field) plus its own positional (not
+/// field-accessible) `call_args` argument list -- mirrors
+/// [`zig_builtin_arg_texts`]'s identical "scan children for the
+/// unnamed arguments-holder kind, then take ITS OWN children" shape.
+/// Receiver text/hint via [`squirrel_receiver_of_call`], NOT the
+/// shared [`receiver_of_call`] helper -- see that function's own doc
+/// comment for why (Squirrel's `deref_expression` has no named field
+/// for its receiver at all, unlike every grammar shape that helper
+/// already covers).
+fn squirrel_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "call_expression" {
+        return false;
+    }
+    let Some(function) = node.child_by_field_name("function") else {
+        return false;
+    };
+    let Ok(callee) = function.utf8_text(src) else {
+        return false;
+    };
+    let (receiver_text, receiver_hint) = squirrel_receiver_of_call(function, src);
+    let arg_texts = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|n| n.kind() == "call_args")
+        .map(|args| {
+            (0..args.child_count())
+                .filter_map(|i| args.child(i))
+                .filter(|c| !matches!(c.kind(), "(" | ")" | ","))
+                .filter_map(|c| c.utf8_text(src).ok())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default();
+    out.calls.push(CallRef {
+        callee: callee.to_string(),
+        line: node.start_position().row + 1,
+        from_symbol: from_symbol.map(str::to_string),
+        from_symbol_line,
+        receiver_text,
+        receiver_hint,
+        arg_texts,
+    });
+    true
+}
+
+/// [`Quirks::on_unmatched_node`] entry point: tries
+/// [`squirrel_func_quirk`], then [`squirrel_class_quirk`] -- named
+/// (not an inline closure) to match every other language row in this
+/// file's own `Box::new(named_fn)` convention.
+fn squirrel_quirk(
+    node: Node<'_>,
+    enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    squirrel_func_quirk(node, enclosing, src, out) || squirrel_class_quirk(node, src, out)
+}
+
+/// Squirrel's [`Quirks`] row: `function_declaration`/
+/// `anonymous_function`/`lambda_expression` positional name/body
+/// resolution (`func_types`/`method_types`), `class_declaration`/
+/// `enum_declaration` positional name resolution plus `extends`-keyword
+/// INHERITS detection and member-peeking DEFINES scan
+/// (`class_types`), and `call_expression`'s positional `call_args`
+/// argument-list reconstruction (its own callee field is clean and
+/// needs no override, but this file's flat `call_arguments_field`
+/// mechanism cannot read an unnamed child). No `import_types` handling
+/// at all -- [`LangSpec::squirrel`]'s own `import_types` array is
+/// empty by design (see its own doc comment for why porting the
+/// baseline's `{"extends"}` verbatim would be actively wrong here, not
+/// merely unused).
+pub fn squirrel_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(squirrel_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(squirrel_call_override)),
+    }
+}
+
+/// Parse Squirrel source through the generic engine. Language-parity
+/// wave G2.2e.
+pub fn parse_squirrel(source: &str) -> ParsedFile {
+    let spec = LangSpec::squirrel();
+    let quirks = squirrel_quirks();
+    let language: tree_sitter::Language = tree_sitter_squirrel_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}

@@ -199,6 +199,70 @@ pub enum LanguageTag {
     Zig,
     /// Objective-C. Language-parity wave G2.1c.
     ObjectiveC,
+    /// Bash. Language-parity wave G2.2f.
+    Bash,
+    /// Lua. Language-parity wave G2.2f.
+    Lua,
+    /// Elixir. Language-parity wave G2.2f.
+    Elixir,
+    /// Haskell. Language-parity wave G2.2 (sibling batch). Courtesy
+    /// addition by the G2.2f/Lua-Elixir-Bash worker while
+    /// compile-checking its own claim -- see this file's
+    /// `complexity_language`'s own doc note.
+    Haskell,
+    /// OCaml. Language-parity wave G2.2 (sibling batch). Courtesy
+    /// addition, same reason as [`LanguageTag::Haskell`] above.
+    OCaml,
+    /// Erlang. Language-parity wave G2.2 (sibling batch). Courtesy
+    /// addition, same reason as [`LanguageTag::Haskell`] above.
+    Erlang,
+    /// CUDA. Language-parity wave G2.2b.
+    Cuda,
+    /// D. Language-parity wave G2.2b.
+    D,
+    /// PowerShell. Language-parity wave G2.2b.
+    PowerShell,
+    /// F#. Language-parity wave G2.2c.
+    Fsharp,
+    /// Gleam. Language-parity wave G2.2c.
+    Gleam,
+    /// GLSL. Language-parity wave G2.2c.
+    Glsl,
+    /// Ada. Language-parity wave G2.2a. Courtesy addition by the
+    /// G2.2h/R-Perl-Clojure worker while compile-checking its own claim
+    /// (Ada/Apex/Crystal are a sibling G2.2 batch's own languages, not
+    /// this worker's) -- same "not yet wired into `complexity.rs`"
+    /// convention every prior wave's own courtesy addition here follows.
+    Ada,
+    /// Apex. Language-parity wave G2.2a. Courtesy addition, same reason
+    /// as [`LanguageTag::Ada`] above.
+    Apex,
+    /// Crystal. Language-parity wave G2.2a. Courtesy addition, same
+    /// reason as [`LanguageTag::Ada`] above.
+    Crystal,
+    /// R. Language-parity wave G2.2h.
+    R,
+    /// Perl. Language-parity wave G2.2h.
+    Perl,
+    /// Clojure. Language-parity wave G2.2h.
+    Clojure,
+    /// Julia. Language-parity wave G2.2d.
+    Julia,
+    /// Odin. Language-parity wave G2.2d.
+    Odin,
+    /// Pascal. Language-parity wave G2.2d.
+    Pascal,
+    /// QML. Language-parity wave G2.2e. Courtesy addition by the
+    /// G2.2h/R-Perl-Clojure worker while compile-checking its own claim
+    /// (QML/ReScript/Squirrel are a sibling G2.2 batch's own languages,
+    /// not this worker's).
+    Qml,
+    /// ReScript. Language-parity wave G2.2e. Courtesy addition, same
+    /// reason as [`LanguageTag::Qml`] above.
+    Rescript,
+    /// Squirrel. Language-parity wave G2.2e. Courtesy addition, same
+    /// reason as [`LanguageTag::Qml`] above.
+    Squirrel,
     ConfigToml,
     ConfigJson,
     ConfigYaml,
@@ -229,6 +293,30 @@ impl From<Language> for LanguageTag {
             Language::Ruby => LanguageTag::Ruby,
             Language::Zig => LanguageTag::Zig,
             Language::ObjectiveC => LanguageTag::ObjectiveC,
+            Language::Bash => LanguageTag::Bash,
+            Language::Lua => LanguageTag::Lua,
+            Language::Elixir => LanguageTag::Elixir,
+            Language::Haskell => LanguageTag::Haskell,
+            Language::OCaml => LanguageTag::OCaml,
+            Language::Erlang => LanguageTag::Erlang,
+            Language::Cuda => LanguageTag::Cuda,
+            Language::D => LanguageTag::D,
+            Language::PowerShell => LanguageTag::PowerShell,
+            Language::Fsharp => LanguageTag::Fsharp,
+            Language::Gleam => LanguageTag::Gleam,
+            Language::Glsl => LanguageTag::Glsl,
+            Language::Ada => LanguageTag::Ada,
+            Language::Apex => LanguageTag::Apex,
+            Language::Crystal => LanguageTag::Crystal,
+            Language::R => LanguageTag::R,
+            Language::Perl => LanguageTag::Perl,
+            Language::Clojure => LanguageTag::Clojure,
+            Language::Julia => LanguageTag::Julia,
+            Language::Odin => LanguageTag::Odin,
+            Language::Pascal => LanguageTag::Pascal,
+            Language::Qml => LanguageTag::Qml,
+            Language::Rescript => LanguageTag::Rescript,
+            Language::Squirrel => LanguageTag::Squirrel,
             Language::ConfigToml => LanguageTag::ConfigToml,
             Language::ConfigJson => LanguageTag::ConfigJson,
             Language::ConfigYaml => LanguageTag::ConfigYaml,
@@ -1246,6 +1334,17 @@ fn complexity_language(language: Language) -> Option<crate::complexity::Complexi
         // together (once ObjC's own path is decided) is more coherent
         // than each batch independently deciding its own subset's
         // complexity depth.
+        // Language-parity wave G2.2f: same "not yet wired into
+        // `complexity.rs`" convention as every sibling G2.1/G2.2 batch
+        // above -- Bash/Lua both have real `branch_types` arrays (a
+        // future pass COULD resolve their complexity depth through
+        // `find_definition_node`'s existing plain-`name_field` path the
+        // same way Ruby/Zig could), but Elixir's own defs are entirely
+        // quirk-claimed `call`-shaped nodes with no `name_field`
+        // `find_definition_node` could resolve at all without a
+        // dedicated fallback shape, well beyond this batch's own scope --
+        // kept consistent with every language above rather than wiring
+        // Bash/Lua alone.
         Language::Kotlin
         | Language::Swift
         | Language::Tsx
@@ -1257,6 +1356,98 @@ fn complexity_language(language: Language) -> Option<crate::complexity::Complexi
         | Language::Ruby
         | Language::Zig
         | Language::ObjectiveC
+        | Language::Bash
+        | Language::Lua
+        | Language::Elixir
+        // Courtesy addition by the G2.2f/Lua-Elixir-Bash worker while
+        // compile-checking its own claim (Haskell/OCaml/Erlang are a
+        // sibling G2.2 batch's own languages, not this worker's) --
+        // same "not yet wired into `complexity.rs`" convention as every
+        // language above.
+        | Language::Haskell
+        | Language::OCaml
+        | Language::Erlang
+        // Language-parity wave G2.2b: same "not yet wired into
+        // `complexity.rs`" convention as every language above -- CUDA
+        // reuses C++'s `LangSpec`/quirks in full (see `LangSpec::cuda`'s
+        // own doc comment) but this crate's separate
+        // `ComplexityLanguage`/`NodeKindTable` pass has no `Cuda` arm of
+        // its own yet either, so it stays grouped with the rest of this
+        // "structural extraction done, complexity deferred" cohort
+        // rather than silently piggy-backing on `ComplexityLanguage::Cpp`
+        // (which this function's own signature -- one `Language` maps to
+        // AT MOST one `ComplexityLanguage` -- has no way to express
+        // "same complexity rules as a DIFFERENT language" without a
+        // dedicated arm this wave does not add). D/PowerShell have no
+        // complexity wiring of their own for the identical reason.
+        | Language::Cuda
+        | Language::D
+        | Language::PowerShell
+        // Language-parity wave G2.2c: same "not yet wired into
+        // `complexity.rs`" convention as every language above -- courtesy
+        // addition while compile-checking this worker's own F#/Gleam/GLSL
+        // claim (GLSL reuses C's own `LangSpec`/quirks in full, same
+        // "one `Language` maps to at most one `ComplexityLanguage`" limit
+        // this function's own doc comment already gives for CUDA's
+        // identical C++-reuse case above -- it cannot silently piggy-back
+        // on `ComplexityLanguage::C` without a dedicated arm this wave
+        // does not add).
+        | Language::Fsharp
+        | Language::Gleam
+        | Language::Glsl
+        // Language-parity wave G2.2a: same "not yet wired into
+        // `complexity.rs`" convention as every language above -- Ada/
+        // Apex/Crystal are all onboarded for structural extraction
+        // (symbols/calls/imports/DEFINES/INHERITS) but this wave's own
+        // explicit file-ownership scope does not extend to
+        // `complexity.rs`'s own `ComplexityLanguage`/`NodeKindTable`.
+        | Language::Ada
+        | Language::Apex
+        | Language::Crystal
+        // Language-parity wave G2.2h: same "not yet wired into
+        // `complexity.rs`" convention as every language above -- R/Perl
+        // both have real `branch_types` arrays a future pass COULD
+        // resolve through `find_definition_node`'s existing plain-
+        // `name_field` path (Perl's `subroutine_declaration_statement`
+        // genuinely has one; R's `function_definition` does not, see
+        // `LangSpec::r`'s own doc comment), but Clojure's own defs are
+        // entirely quirk-claimed `list_lit`-shaped nodes with no
+        // `name_field` `find_definition_node` could resolve at all
+        // without a dedicated fallback shape, well beyond this wave's
+        // own scope -- kept consistent with every language above rather
+        // than wiring R/Perl alone.
+        | Language::R
+        | Language::Perl
+        | Language::Clojure
+        // Language-parity wave G2.2d: same "not yet wired into
+        // `complexity.rs`" convention as every language above --
+        // Julia/Odin both have real `branch_types` arrays (a future pass
+        // COULD resolve their complexity depth), but Julia's own defs
+        // are entirely quirk-claimed unfielded nodes (`function_definition`
+        // has no `name_field` `find_definition_node` could resolve at
+        // all without a dedicated fallback shape) and Pascal's `declProc`
+        // is genuinely `find_definition_node`-resolvable but its
+        // out-of-line `defProc` implementation is not, well beyond this
+        // batch's own scope -- kept consistent with every language above
+        // rather than wiring any one of the three alone.
+        | Language::Julia
+        | Language::Odin
+        | Language::Pascal
+        // Language-parity wave G2.2e: same "not yet wired into
+        // `complexity.rs`" convention as every language above -- QML
+        // reuses TypeScript's own `branch_types` array in full (a future
+        // pass COULD resolve its complexity depth the same way plain TS
+        // eventually would), but Squirrel's own defs are entirely
+        // quirk-claimed unfielded nodes (`function_declaration` has no
+        // `name_field` `find_definition_node` could resolve at all
+        // without a dedicated fallback shape) and ReScript's `function`
+        // needs its own parent-`let_binding` name climb
+        // `find_definition_node` has no equivalent for either, well
+        // beyond this wave's own scope -- kept consistent with every
+        // language above rather than wiring QML alone.
+        | Language::Qml
+        | Language::Rescript
+        | Language::Squirrel
         | Language::ConfigToml
         | Language::ConfigJson
         | Language::ConfigYaml

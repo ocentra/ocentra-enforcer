@@ -188,6 +188,171 @@ tree-sitter-groovy = "0.1"
 tree-sitter-ruby = "0.23"
 tree-sitter-zig = "1"
 tree-sitter-objc = "3"
+# Language-parity wave G2.2f: Lua/Elixir/Bash structural extractors (see
+# languages/generic.rs's `parse_lua`/`parse_elixir`/`parse_bash`). All
+# three verified end-to-end (real parse, no ABI error) against this
+# workspace's `tree-sitter = "0.25"` core before being added here, and
+# all three depend on `tree-sitter-language` (not `tree-sitter` core) as
+# their runtime binding -- crates.io dependency metadata confirms
+# `tree-sitter-lua` 0.5.0/`tree-sitter-elixir` 0.3.5/`tree-sitter-bash`
+# 0.25.1 each declare `tree-sitter` only as a `[dev-dependencies]` entry
+# (their own test suite, not this crate's build), same ABI-range-agnostic
+# pattern as every grammar above. Every one of these three crates' shipped
+# `node-types.json` was cross-checked directly against every node kind/
+# field name `languages/spec.rs`'s `LangSpec::lua`/`LangSpec::elixir`/
+# `LangSpec::bash` and `languages/generic.rs`'s corresponding quirks read,
+# PLUS a real parse-tree dump (`cargo run` against a scratch crate
+# depending on each grammar crate directly) -- see those doc comments for
+# grammar-shape findings against the C baseline's own `lua_*`/`elixir_*`/
+# `bash_*` arrays (e.g. this Lua grammar version has no `for_in_statement`
+# node kind at all; Elixir's `def`/`defmodule`/`import`-family have no
+# dedicated node kind whatsoever, parsing as a plain `call` disambiguated
+# only by its own callee text).
+tree-sitter-lua = "0.5"
+tree-sitter-elixir = "0.3"
+tree-sitter-bash = "0.25"
+# Language-parity wave G2.2g: Haskell/OCaml/Erlang structural extractors
+# (see languages/generic.rs's `parse_haskell`/`parse_ocaml`/
+# `parse_erlang`). All three verified end-to-end (real parse, no ABI
+# error) against this workspace's `tree-sitter = "0.25"` core before
+# being added here, and all three depend on `tree-sitter-language` (not
+# `tree-sitter` core) as their runtime binding -- each crate's own
+# `Cargo.toml` declares `tree-sitter` only as a `[dev-dependencies]`
+# entry (their own test suite, not this crate's build), same
+# ABI-range-agnostic pattern as every grammar above (confirmed via
+# `cargo info`, which additionally shows all three are official/
+# canonical-author grammars: `tree-sitter-haskell` 0.23.1 and
+# `tree-sitter-ocaml` 0.25.0 both live under the `tree-sitter` GitHub
+# org itself; `tree-sitter-erlang` 0.19.0 is WhatsApp's own grammar, the
+# same lineage the baseline vendors). Every one of these three crates'
+# shipped `node-types.json` was cross-checked directly against every
+# node kind/field name `languages/spec.rs`'s `LangSpec::haskell`/
+# `LangSpec::ocaml`/`LangSpec::erlang` and `languages/generic.rs`'s
+# corresponding quirks read, PLUS a real parse-tree dump (`cargo run`
+# against a scratch crate depending on each grammar crate directly) --
+# see those doc comments for grammar-shape findings against the C
+# baseline's own `haskell_*`/`ocaml_*`/`erlang_*` arrays (Erlang showed
+# the heaviest drift of the three: baseline's `if_expression`/
+# `case_expression`/`receive_expression`/`include` do not exist in this
+# grammar version at all -- the real kinds are the short-suffixed
+# `if_expr`/`case_expr`/`receive_expr`, and the real named include kind
+# is `pp_include`, not a bare `"include"` keyword token).
+#
+# `tree-sitter-ocaml` uniquely packages THREE grammars in one crate
+# (implementation/interface/type, exported as `LANGUAGE_OCAML`/
+# `LANGUAGE_OCAML_INTERFACE`/`LANGUAGE_OCAML_TYPE` -- note the
+# non-standard export name, unlike every other grammar crate here's
+# plain `LANGUAGE` const) -- this crate binds only `LANGUAGE_OCAML` for
+# both `.ml` and `.mli` files, matching the baseline's own one-grammar-
+# for-both choice; see `LangSpec::ocaml`'s own doc comment for why.
+tree-sitter-haskell = "0.23"
+tree-sitter-ocaml = "0.25"
+tree-sitter-erlang = "0.19"
+# Language-parity wave G2.2b: CUDA/D/PowerShell structural extractors
+# (see languages/generic.rs's `parse_cuda`/`parse_d`/`parse_powershell`).
+# All three verified end-to-end (real parse, no ABI error) against this
+# workspace's `tree-sitter = "0.25"` core before being added here (ABI
+# 15/14/15 respectively, all within `tree-sitter` 0.25's compatible
+# 13-15 range), and all three depend on `tree-sitter-language` (not
+# `tree-sitter` core) as their runtime binding -- each crate's own
+# `Cargo.toml` declares `tree-sitter` only as a `[dev-dependencies]`
+# entry, same ABI-range-agnostic pattern as every grammar above.
+# - `tree-sitter-cuda` 0.21.1 (crates.io `repository`:
+#   github.com/tree-sitter-grammars/tree-sitter-cuda). NOT a relabeled
+#   tree-sitter-cpp: a genuinely dedicated CUDA grammar that happens to
+#   be a full syntactic SUPERSET of tree-sitter-cpp's own grammar (every
+#   C++ construct unchanged, plus CUDA's `<<<...>>>` kernel-launch syntax
+#   and `__global__`/`__device__`/... qualifier keywords layered on top)
+#   -- confirmed via a real parse-tree dump that every field this crate's
+#   `cpp_quirk`/`cpp_call_override` already read (`function_definition`'s
+#   `declarator`, `call_expression`'s `function`/`arguments`, ...) is
+#   byte-for-byte identical in shape, so this row reuses
+#   `LangSpec::cpp`/`cpp_quirks` verbatim with ZERO new quirk code --
+#   mirrors the baseline's own `lang_specs.c` table, which literally
+#   reuses C++'s node-type arrays for `CBM_LANG_CUDA` too (see
+#   `LangSpec::cuda`'s own doc comment).
+# - `tree-sitter-d` 0.8.2 (crates.io `repository`:
+#   github.com/gdamore/tree-sitter-d). This grammar's own
+#   `node-types.json` gives EVERY node kind `"fields": {}` -- there are
+#   NO tree-sitter fields anywhere in this grammar at all, confirmed by
+#   an exhaustive node-type dump plus a real parse-tree dump exercising
+#   module/import/class-heritage/constructor/call syntax -- explaining
+#   why the baseline's own `extract_defs.c` D handling exclusively uses
+#   `cbm_find_child_by_kind` (a by-KIND child scan) rather than any
+#   field-name lookup. One baseline array entry is stale against this
+#   grammar version (`d_call_types`' `"function_call_expression"` does
+#   not exist anywhere in this grammar), corrected per `LangSpec::d`'s
+#   own doc comment rather than copied blindly.
+# - `tree-sitter-powershell` 0.26.4 (crates.io `repository`:
+#   github.com/airbus-cert/tree-sitter-powershell). Some real fields
+#   exist here (`command`'s own `command_name`/`command_elements`
+#   fields work directly, an improvement on the baseline's own manual
+#   named-child scan), but `function_statement`/`class_statement`/
+#   `enum_statement` have none at all -- names are unfielded
+#   `function_name`/first-`simple_name` children (mirrors the baseline's
+#   own dedicated `CBM_LANG_POWERSHELL` name-resolution branches in
+#   `extract_defs.c` exactly). One baseline array entry is dead against
+#   this grammar version (`powershell_import_types`' `"using_statement"`
+#   does not exist at all -- `using namespace`/`using module` are
+#   ordinary `command` nodes whose `command_name` text is literally
+#   `"using"`, mirroring the baseline's own `parse_powershell_imports`
+#   exactly), corrected per `LangSpec::powershell`'s own doc comment.
+tree-sitter-cuda = "0.21"
+tree-sitter-d = "0.8"
+tree-sitter-powershell = "0.26"
+# Language-parity wave G2.2d: Julia/Odin/Pascal structural extractors (see
+# languages/generic.rs's `parse_julia`/`parse_odin`/`parse_pascal`). All
+# three verified end-to-end (real parse, no ABI error) against this
+# workspace's `tree-sitter = "0.25"` core before being added here (ABI 14
+# for every one), and all three depend on `tree-sitter-language` (not
+# `tree-sitter` core) as their runtime binding -- each crate's own
+# `Cargo.toml` declares `tree-sitter` only as a `[dev-dependencies]` entry,
+# same ABI-range-agnostic pattern as every grammar above.
+# - `tree-sitter-julia` 0.23.1 (crates.io `repository`:
+#   github.com/tree-sitter/tree-sitter-julia, the official `tree-sitter`
+#   GitHub org lineage). This grammar's function/struct/call-shaped nodes
+#   are ENTIRELY unfielded (`"fields": {}` on `function_definition`/
+#   `struct_definition`/`call_expression`/... alike, confirmed via both
+#   the crate's own `node-types.json` and a real parse-tree dump) --
+#   closer to this crate's C/C++ posture than any other G2 language so
+#   far. One baseline array entry does not exist in this grammar version
+#   at all (`julia_func_types`' `"short_function_definition"` -- Julia's
+#   short-form `f(x) = body` parses as a plain `assignment` instead,
+#   exactly as the baseline's OWN source comment above that array already
+#   documents), corrected per `LangSpec::julia`'s own doc comment rather
+#   than copied blindly.
+# - `tree-sitter-odin` 1.3.0 (crates.io `repository`:
+#   github.com/tree-sitter-grammars/tree-sitter-odin, the same
+#   actively-maintained org this crate's Kotlin grammar dependency already
+#   comes from). The baseline gives Odin no dedicated `extract_base_classes`
+#   walker at all (Odin has no classical inheritance syntax), but this
+#   grammar DOES expose a real, grammar-visible composition idiom
+#   (`using base: Animal` inside a struct body) directly analogous to Go's
+#   embedded-struct-field INHERITS signal -- wired as an INHERITS edge, an
+#   improvement over "no heritage signal at all" rather than a baseline
+#   regression. One baseline array entry is stale against this grammar
+#   version (`odin_field_types`' `"field_declaration"` does not exist --
+#   the real struct-field node kind is `field`), corrected per
+#   `LangSpec::odin`'s own doc comment.
+# - `tree-sitter-pascal` 0.10.2 (crates.io `repository`:
+#   github.com/Isopod/tree-sitter-pascal). This grammar's distinctive
+#   camelCase-prefixed node-kind vocabulary (`declProc`/`declClass`/
+#   `exprCall`/`kIf`/...) is the SAME one the C baseline's own `pascal_*`
+#   arrays already use verbatim, confirming this crate binds the identical
+#   grammar lineage the baseline vendored -- most baseline array entries
+#   verified correct outright. One real gap closed: a bare, PARENLESS
+#   method-style call statement (`Obj.Draw;`, common idiomatic Pascal since
+#   empty-argument-list parens are optional) parses as `exprDot`, a node
+#   kind baseline's own `pascal_call_types` array never lists at all,
+#   making every such call invisible to the baseline's own extractor --
+#   this row closes that gap rather than reproducing it (see
+#   `LangSpec::pascal`'s own doc comment for the full finding and its
+#   documented false-positive trade-off against plain, non-call
+#   `Obj.Field` member reads, which parse identically at the node-kind
+#   level alone).
+tree-sitter-julia = "0.23"
+tree-sitter-odin = "1.3"
+tree-sitter-pascal = "0.10"
 # X06.4 (D-04, DEFAULT): pure-Rust HNSW vector index -- no C++ toolchain,
 # no external vector service (qdrant-client is explicitly rejected, see
 # MEMORY_RETRIEVAL_DECISIONS D-04). Harvested dependency choice from
@@ -243,6 +408,233 @@ ed25519-dalek = { version = "2", default-features = false, features = ["std", "r
 # `src/federation.rs`'s own `#[cfg(test)]` modules are part of this
 # crate's own compilation unit and need it too.
 rand_core = { version = "0.6", features = ["getrandom"] }
+# Language-parity wave G2.2c: F#/Gleam structural extractors (see
+# languages/generic.rs's `parse_fsharp`/`parse_gleam`). GLSL (this same
+# wave) needs NO new dependency at all -- it reuses this crate's
+# EXISTING `tree-sitter-c` dependency verbatim (see
+# `languages/spec.rs`'s `LangSpec::glsl` doc comment). Both F#/Gleam
+# crates verified end-to-end (real parse, no ABI error) against this
+# workspace's `tree-sitter = "0.25"` core before being added here, and
+# both depend on `tree-sitter-language` (not `tree-sitter` core) as
+# their runtime binding -- each crate's own `Cargo.toml` declares
+# `tree-sitter` only as a `[dev-dependencies]` entry (their own test
+# suite, not this crate's build), same ABI-range-agnostic pattern as
+# every grammar above.
+# - `tree-sitter-fsharp` 0.3.1 (crates.io `repository`:
+#   github.com/ionide/tree-sitter-fsharp -- the `ionide` org is F#'s own
+#   editor-tooling org, the actively maintained canonical grammar
+#   lineage). This crate's public API is `LANGUAGE_FSHARP`/
+#   `LANGUAGE_SIGNATURE` (note: NOT the plain `LANGUAGE` const every
+#   other grammar crate here exports) -- only `LANGUAGE_FSHARP` is bound
+#   (for `.fs`/`.fsx`/`.fsi` alike), matching the baseline's own single-
+#   grammar-for-all-three-extensions choice rather than binding the
+#   crate's separate `.fsi`-shaped `LANGUAGE_SIGNATURE` grammar (an
+#   improvement the baseline itself does not have -- see
+#   `parsers::Language::Fsharp`'s own doc comment). Several of the
+#   baseline's own `fsharp_*` arrays in
+#   `codebase-memory-mcp/internal/cbm/lang_specs.c` name node kinds this
+#   grammar version never generates at all (e.g. `function_declaration`/
+#   `value_declaration` do not exist -- the real node is
+#   `function_or_value_defn` wrapping a `function_declaration_left`/
+#   `value_declaration_left` child that itself has NO name field of its
+#   own) -- see `LangSpec::fsharp`'s own doc comment for the full list of
+#   corrections, verified via both this crate's `node-types.json` and
+#   real parse-tree dumps (`cargo run` against a scratch crate depending
+#   on `tree-sitter-fsharp` directly).
+# - `tree-sitter-gleam` 1.0.0 (crates.io `repository`:
+#   github.com/gleam-lang/tree-sitter-gleam -- the `gleam-lang` org is
+#   the language's own official GitHub org). The baseline's own
+#   `gleam_class_types` array includes a phantom `"custom_type"` entry
+#   this grammar never generates at all (Gleam's "custom type"
+#   declaration is grammatically just `type_definition` -- the
+#   baseline's own source comment at `lang_specs.c:1340` even
+#   acknowledges `custom_type` is a type-REFERENCE-site concept
+#   elsewhere in that codebase, yet still lists it as a decl-site node
+#   kind here) -- see `LangSpec::gleam`'s own doc comment. This grammar's
+#   `function_call` node is the only call-shaped node kind across this
+#   whole wave's three languages that needs ZERO quirk/override at all
+#   (real `function`/`arguments` fields matching the generic engine's
+#   own default single-field reconstruction unchanged).
+tree-sitter-fsharp = "0.3"
+tree-sitter-gleam = "1"
+# Language-parity wave G2.2h: R/Perl/Clojure structural extractors (see
+# languages/generic.rs's `parse_r`/`parse_perl`/`parse_clojure`). Verified
+# end-to-end (real parse, no ABI error) against this workspace's
+# `tree-sitter = "0.25"` core before being added here.
+# - `tree-sitter-r` 1.3.0 (crates.io `repository`:
+#   github.com/r-lib/tree-sitter-r -- the R Consortium-adjacent `r-lib`
+#   org's own grammar). Every baseline `r_*` array in
+#   `codebase-memory-mcp/internal/cbm/lang_specs.c` matched this grammar
+#   version's real node kinds on cross-check, but `function_definition`'s
+#   own `name` field turned out to resolve to the literal `function`
+#   keyword token itself (not a usable name at all) rather than merely
+#   being differently named -- see `LangSpec::r`'s own doc comment for the
+#   full finding (confirmed by a real parse-tree dump, not
+#   `node-types.json` alone).
+# - `ts-parser-perl` 1.2.1 (crates.io; GitHub org
+#   `tree-sitter-perl/tree-sitter-perl`, "Actively maintained tree-sitter
+#   grammar for Perl" per its own `Cargo.toml` description) -- deliberately
+#   NOT the crates.io crate literally named `tree-sitter-perl`
+#   (ganezdragon, v1.1.2), whose own published manifest declares
+#   `tree-sitter = "0.26.3"` as a genuine normal (not dev) runtime
+#   dependency, incompatible with this workspace's `tree-sitter = "0.25"`
+#   core with no older-version escape hatch (only one version was ever
+#   published) -- confirmed via the crates.io sparse index
+#   (`https://index.crates.io/tr/ee/tree-sitter-perl`), not merely assumed
+#   from crate-name convention. `ts-parser-perl` is the SAME grammar
+#   lineage the baseline itself vendors at
+#   `internal/cbm/vendored/grammars/perl/` (LICENSE line "Copyright 2025
+#   Avishai \"Veesh\" Goldman" matches this org's repo exactly) and depends
+#   on `tree-sitter-language` (not `tree-sitter` core) as its only real
+#   runtime dependency, the same ABI-stable-shim pattern every grammar
+#   above uses -- see `LangSpec::perl`'s own doc comment for the full
+#   grammar-crate-choice rationale and the resulting node-vocabulary
+#   corrections against the baseline's stale `perl_*` arrays.
+# - `tree-sitter-clojure` 0.1.0 (crates.io; GitHub org
+#   `jerielverissimo/tree-sitter-clojure`, which wraps the canonical
+#   `sogaiu/tree-sitter-clojure` upstream grammar as a git submodule and
+#   re-exports its real `node-types.json` verbatim via `include_str!`).
+#   Every baseline `clojure_*` array matched this grammar version exactly
+#   on cross-check -- Lisp-family grammars are unusually uniform (every
+#   form is a `list_lit`), so unlike R/Perl above there was very little
+#   for a grammar-version drift to land on -- see `LangSpec::clojure`'s
+#   own doc comment.
+tree-sitter-r = "1.3"
+ts-parser-perl = "1.2"
+tree-sitter-clojure = "0.1"
+# Language-parity wave G2.2e: QML/ReScript/Squirrel structural extractors
+# (see languages/generic.rs's `parse_qml`/`parse_rescript`/
+# `parse_squirrel`). All three verified end-to-end (real parse, no ABI
+# error) against this workspace's `tree-sitter = "0.25"` core before
+# being added here.
+# - `tree-sitter-qmljs` 0.3.0 (crates.io `repository`:
+#   github.com/yuja/tree-sitter-qmljs). Depends on `tree-sitter-language`
+#   (not `tree-sitter` core) as its runtime binding, same ABI-range-
+#   agnostic pattern as every grammar above; `tree-sitter = "0.24.6"` is
+#   only a `[dev-dependencies]` entry (its own test suite). This grammar
+#   is a genuine TypeScript SUPERSET plus declarative `ui_*` nodes layered
+#   on top (confirmed via both this crate's own `node-types.json` -- every
+#   ordinary JS/TS construct this crate's TS extractor already recognizes
+#   keeps the identical node-kind name -- and a real parse-tree dump),
+#   matching the baseline's own comment for this language exactly. One
+#   real, non-obvious grammar constraint found only via the parse-tree
+#   dump (not `node-types.json` alone): this grammar's `program` root
+#   node has a REQUIRED `root` field that must itself be a
+#   `ui_annotated_object`/`ui_object_definition` -- a bare top-level JS
+#   statement with no wrapping QML object at all does NOT parse cleanly
+#   (produces `ERROR` nodes) -- see `LangSpec::qml`'s own doc comment.
+# - `arborium-rescript` 2.18.1 (crates.io `repository`:
+#   github.com/bearcove/arborium, part of the "arborium" tree-sitter
+#   grammar bundle). NOT a standalone `tree-sitter-rescript` -- crates.io
+#   has no such crate at all (confirmed via a direct crates.io API
+#   search). Depends on `tree-sitter-language` (not `tree-sitter` core) as
+#   its runtime binding, exporting the identical `LanguageFn`-returning
+#   `pub fn language()` shape every other grammar dependency here already
+#   uses. Cross-checked node-kind-by-node-kind against the C baseline's
+#   own `rescript_*` arrays (every single one confirmed present, matching
+#   the exact grammar shape the baseline's own vendored
+#   `internal/cbm/vendored/grammars/rescript/` copy targets) via a real
+#   parse-tree dump, which caught the SAME real name-resolution gap the
+#   baseline's own `cbm_resolve_func_name` already has a dedicated case
+#   for (`function`'s own name lives on its PARENT `let_binding`'s
+#   `pattern` field, not a field of `function` itself) -- see
+#   `LangSpec::rescript`'s own doc comment.
+# - Squirrel: VENDORED, not a crates.io dependency at all -- see
+#   `crates/enforcer-memory/vendor/tree-sitter-squirrel-local/` (a local
+#   path-dependency, added below in this same `[dependencies]` table).
+#   The published `tree-sitter-squirrel` 1.0.0 crate's own `Cargo.toml`
+#   hard-pins `tree-sitter = "~0.20.9"` as a normal (non-dev) dependency
+#   and its own `bindings/rust/lib.rs` returns a bare `tree_sitter::Language`
+#   typed against THAT version (confirmed by inspecting the published
+#   crate's own `Cargo.toml`/`lib.rs` directly, downloaded and extracted,
+#   not merely browsed) -- two different major-incompatible published
+#   versions of the `tree-sitter` crate cannot share one
+#   `tree_sitter::Language`/`tree_sitter::Parser` type in the same
+#   dependency graph, so that crate's own `language()` return value is
+#   not something this workspace's own `tree-sitter = "0.25"` core's
+#   `Parser::set_language` could ever accept. The grammar itself is fine
+#   (its generated `parser.c` is ABI 14, confirmed compatible with this
+#   workspace's 13-15 range) -- only the crate's own outdated Rust binding
+#   is the blocker, so the vendored crate re-pins the SAME unmodified
+#   `parser.c`/`scanner.c` to `tree-sitter-language = "0.1"` instead (see
+#   that crate's own `src/lib.rs` module doc for the full finding and its
+#   own MIT `LICENSE`, copied verbatim from the upstream author). Verified
+#   end-to-end with a standalone `cargo run` against this exact vendored
+#   crate before being wired in here.
+tree-sitter-qmljs = "0.3"
+arborium-rescript = "2.18"
+tree-sitter-squirrel-local = { path = "vendor/tree-sitter-squirrel-local" }
+# Language-parity wave G2.2a: Ada/Apex/Crystal structural extractors
+# (see languages/generic.rs's `parse_ada`/`parse_apex`/`parse_crystal`).
+# `tree-sitter-sfapex`/`tree-sitter-ada` below were first landed as a
+# courtesy fix by the concurrent G2.2f (Lua/Elixir/Bash) worker, who
+# found `languages/generic.rs` already referencing both crates'
+# `LANGUAGE` paths unconditionally with no dependency line yet (blocking
+# every concurrent worker's own `cargo check`); this wave's own owner
+# reconciled that fix into the fuller documentation below rather than
+# duplicating the two lines, and resolved the Crystal gap that same
+# courtesy note flagged as still open. All three verified end-to-end
+# (real parse, no ABI error) against this workspace's `tree-sitter =
+# "0.25"` core before being added here, and all three depend on
+# `tree-sitter-language` (not `tree-sitter` core) as their runtime
+# binding, same ABI-range-agnostic pattern as every grammar above.
+# - `tree-sitter-ada` 0.1.0 (crates.io `repository`:
+#   github.com/briot/tree-sitter-ada -- EXACT copyright-line match,
+#   "Emmanuel Briot", against this crate's own vendored
+#   `internal/cbm/vendored/grammars/ada/LICENSE`, confirming this is the
+#   identical grammar lineage the baseline itself vendored). A real
+#   parse-tree dump caught this grammar giving `subprogram_body`/
+#   `subprogram_declaration`/`expression_function_declaration` NO `name`
+#   field on themselves at all (the name lives on a nested
+#   `procedure_specification`/`function_specification` child's OWN `name`
+#   field instead) and `full_type_declaration` no fields whatsoever (a
+#   positional `identifier` child) -- see `LangSpec::ada`'s own doc
+#   comment for the full corrections against the baseline's own `ada_*`
+#   arrays.
+# - `tree-sitter-sfapex` 3.0.0 (crates.io `repository`:
+#   github.com/aheber/tree-sitter-sfapex -- EXACT copyright-line match,
+#   "Anthony Heber", against this crate's own vendored
+#   `internal/cbm/vendored/grammars/apex/LICENSE`). Bundles FOUR grammars
+#   (Apex/SOQL/SOSL/Log) behind one crate's `apex`/`soql`/`sosl`/`sflog`
+#   submodules -- this row binds only `tree_sitter_sfapex::apex::LANGUAGE`
+#   (the baseline's own `CBM_LANG_APEX` is the sole in-scope target this
+#   wave; `CBM_LANG_SOQL`/`CBM_LANG_SOSL` are separate baseline languages
+#   with their own, still-unclaimed rows). This grammar is thoroughly
+#   Java-shaped -- every array in `LangSpec::apex` matched the baseline's
+#   own guess with zero corrections needed, unlike every other language
+#   this crate has onboarded so far.
+# - `tree-sitter-crystal` 0.0.1, NOT published to crates.io under this or
+#   any other discoverable name (confirmed via `cargo search
+#   tree-sitter-crystal`, which returns only an unrelated "Crystal
+#   Reports formula language" decoy crate, `wicked-estate-tree-sitter-
+#   crystal-formula` -- the same finding the G2.2f courtesy note above
+#   independently confirmed) -- bound via a `git` dependency pinned to a
+#   specific commit instead (source repo: github.com/crystal-lang-tools/
+#   tree-sitter-crystal -- EXACT copyright-line match, "Gabriel Holodak",
+#   against this crate's own vendored `internal/cbm/vendored/grammars/
+#   crystal/LICENSE`, confirming this is the identical grammar lineage
+#   the baseline itself vendored). This repository's own `Cargo.toml` is
+#   a real, well-formed `tree-sitter-language`-based crate
+#   (`bindings/rust/{lib,build}.rs`, depends on `tree-sitter-language =
+#   "0.1"` at runtime same as every other grammar here) -- it simply has
+#   never been pushed to the crates.io registry, so this is "option 1, a
+#   maintained crate exists" sourced via git rather than "option 2,
+#   hand-vendor the C source and write a bespoke build.rs" the earlier
+#   courtesy note raised as the fallback (the crate's own upstream
+#   build.rs/lib.rs are used unmodified, so no bespoke build.rs was
+#   actually needed). Pinned to commit 50ca9e6 (the tip at the time of
+#   this wave) for reproducibility; verified to compile and parse cleanly
+#   against this workspace's `tree-sitter = "0.25"` core in an isolated
+#   scratch-crate build before being added here. A real parse-tree dump
+#   caught the baseline's own `crystal_call_types` including a stale
+#   `"command"` entry (this grammar's real `command` node kind is
+#   Crystal's BACKTICK SHELL-COMMAND LITERAL, not a paren-less method
+#   call) and `crystal_module_types`'s `"program"` not existing at all
+#   (this grammar's actual root rule is named `expressions`) -- see
+#   `LangSpec::crystal`'s own doc comment for the full corrections.
+tree-sitter-sfapex = "3"
+tree-sitter-ada = "0.1"
+tree-sitter-crystal = { git = "https://github.com/crystal-lang-tools/tree-sitter-crystal", rev = "50ca9e6fcfb16a2cbcad59203cfd8ad650e25c49" }
 
 [dev-dependencies]
 tempfile = "3"
