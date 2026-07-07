@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-dogfood",
-  "generatedAt": "2026-07-07T03:23:15Z",
+  "generatedAt": "2026-07-07T03:48:43Z",
   "hub": "ocentra-enforcer",
   "stateRoot": "E:/ocentra-enforcer/.ledger/ocentra-enforcer",
   "lane": "codex-x06-integration",
@@ -26,7 +26,12 @@
     "cargo fmt --package enforcer-memory --check ok",
     "cargo test -p enforcer-memory --test feature_parity_harness ok after exact QA evidence runner raised QA proof to 49/250 with 0 failures",
     "cargo clippy -p enforcer-memory --all-targets -- -D warnings ok after QA runner expansion",
-    "ocentra_enforcer_check no-test-doubles and weak-assertions scope=files ok after QA tranche cleanup"
+    "ocentra_enforcer_check no-test-doubles and weak-assertions scope=files ok after QA tranche cleanup",
+    "cargo test -p enforcer-memory ok after post-rebase assertion hardening",
+    "cargo test -p enforcer-memory --features ort-models --test model_observations --test model_runtime --test model_runtime_real_contract ok after assertion hardening",
+    "cargo clippy -p enforcer-memory --all-targets -- -D warnings ok after assertion hardening",
+    "ocentra_enforcer_check no-test-doubles and weak-assertions scope=files ok over assertion-cleanup files",
+    "ocentra_enforcer_check source-shape scope=files ok over 48 origin/rust-build...HEAD files"
   ],
   "redOrPartialGates": [
     {
@@ -38,6 +43,11 @@
       "gate": "ocentra_enforcer_scan scope=files changed source files",
       "classification": "mjs-enforcer",
       "reason": "changed-file scan still expands into Cargo/build-script and strict baseline crate domain/dependency debt; latest changed-file scan returned 273 findings rooted in build.rs/Cargo.toml policy while narrower source-shape, validation-bypass, placeholder-implementation, secrets, no-test-doubles, weak-assertions, and skipped-focused-tests checks are clean"
+    },
+    {
+      "gate": "ocentra_enforcer_check source-shape scope=diff base=origin/rust-build head=HEAD",
+      "classification": "mjs-enforcer",
+      "reason": "MCP diff-scope check failed before scanning with Unknown argument: --base; file-scope fallback over the exact git diff file list returned source-shape ok"
     },
     {
       "gate": "ocentra_enforcer_check required-tests scope=crate",
@@ -204,6 +214,30 @@
     {
       "shape": "t2",
       "evidence": "ocentra_enforcer_check no-test-doubles, weak-assertions, source-shape, placeholder-implementation, skipped-focused-tests, validation-bypass, and secrets all returned ok on changed files."
+    },
+    {
+      "shape": "t0",
+      "incident": "Post-rebase branch-level Enforcer weak-assertions found 45 assertion-policy failures across older X06 branch-stack test files after the latest QA tranche was locally clean."
+    },
+    {
+      "shape": "t1",
+      "fix": "Strengthened those tests to exact serialized observationKind checks, exact model-runtime operation/reason errors, exact missing-token vectors, exact sequence-gap reason, and exact sorted repo-root lists."
+    },
+    {
+      "shape": "t2",
+      "evidence": "Affected test targets, cargo test -p enforcer-memory, targeted ort-models runtime tests, cargo clippy -p enforcer-memory --all-targets -- -D warnings, no-test-doubles, and weak-assertions all passed after the cleanup."
+    },
+    {
+      "shape": "t0",
+      "incident": "ocentra_enforcer_check source-shape with scope=diff rejected the generated --base argument before scanning the branch diff."
+    },
+    {
+      "shape": "t1",
+      "fix": "Fell back to an explicit git diff file manifest for origin/rust-build...HEAD and kept the issue classified as mjs-enforcer rather than a product-source finding."
+    },
+    {
+      "shape": "t2",
+      "evidence": "ocentra_enforcer_check source-shape scope=files returned ok over the 48-file branch diff list."
     }
   ]
 }
