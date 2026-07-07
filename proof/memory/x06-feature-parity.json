@@ -23,7 +23,7 @@
       "status": "red",
       "testName": "x06-kg",
       "artifactPath": "proof/memory/x06-kg.json",
-      "failureReason": "Full semantic graph-over-code layer still needs derived projection and query UX over the canonical Store-backed graph."
+      "failureReason": "Query UX still builds a CodeGraph from repoPath directly; the Store-backed projection proof is now present, but the query entrypoint is not yet routed through it."
     },
     {
       "prefix": "TXT",
@@ -78,7 +78,7 @@
       "status": "red",
       "testName": "qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split",
       "artifactPath": "proof/memory/x06-rag-qa.json",
-      "failureReason": "196 of 250 rows unrunnable, 0 failed -- see x06-rag-qa.json"
+      "failureReason": "194 of 250 rows unrunnable, 0 failed -- see x06-rag-qa.json"
     },
     {
       "prefix": "LRN",
@@ -125,7 +125,7 @@
   ],
   "allMatrixPrefixesGreen": false,
   "qaRowsTotal": 250,
-  "qaRowsGreen": 54,
+  "qaRowsGreen": 56,
   "kgParityComparedAgainstBaseline": true,
   "mcpCliParity": true,
   "localDenseRetrievalPresent": true,

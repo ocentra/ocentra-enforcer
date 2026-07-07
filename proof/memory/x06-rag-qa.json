@@ -1,8 +1,8 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 54,
+  "rowsGreen": 56,
   "rowsFailed": 0,
-  "rowsUnrunnable": 196,
+  "rowsUnrunnable": 194,
   "rows": [
     {
       "id": "QA-001",
@@ -161,7 +161,7 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "E:\\ocentra-enforcer-rust-build-sync\\crates/enforcer-memory/tests/fixtures/memory/feature_parity/repo/lib.rs"
+        "crates/enforcer-memory/tests/fixtures/memory/feature_parity/repo/lib.rs"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -1435,14 +1435,22 @@
       "id": "QA-105",
       "category": "Symbol",
       "query": "Find tests that directly instantiate the `RuleId` newtype.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Symbol",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "crates/enforcer-domain/src/ids.rs::rule_id_accepts_valid_and_rejects_malformed",
+        "crates/enforcer-domain/src/ids.rs::rule_id_required_at_a_registry_shaped_boundary_not_bare_string"
+      ],
+      "actualIds": [
+        "crates/enforcer-domain/src/ids.rs::rule_id_accepts_valid_and_rejects_malformed",
+        "crates/enforcer-domain/src/ids.rs::rule_id_required_at_a_registry_shaped_boundary_not_bare_string"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-domain/src/ids.rs"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-106",
@@ -1526,14 +1534,20 @@
       "id": "QA-112",
       "category": "Symbol",
       "query": "Which type implements the `Sha256` branded newtype contract?",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Symbol",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "crates/enforcer-domain/src/hashes.rs::Sha256"
+      ],
+      "actualIds": [
+        "crates/enforcer-domain/src/hashes.rs::Sha256"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-domain/src/hashes.rs"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-113",
@@ -1644,17 +1658,17 @@
       "category": "Architecture",
       "query": "Where does `enforcer-coordination` cross into `enforcer-scan` scope?",
       "expectedIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-coordination/src"
+        "crates/enforcer-coordination/src"
       ],
       "actualIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-coordination/src"
+        "crates/enforcer-coordination/src"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
-        "E:\\ocentra-enforcer-rust-build-sync\\crates\\enforcer-coordination\\src",
+        "crates/enforcer-coordination/src",
         "bounded sample: 13 Rust files"
       ],
       "verdict": "pass",
@@ -1665,17 +1679,17 @@
       "category": "Architecture",
       "query": "What is the contract between `enforcer-mcp` `tool_surface.rs` and `enforcer-core::context_budget`?",
       "expectedIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-mcp/src"
+        "crates/enforcer-mcp/src"
       ],
       "actualIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-mcp/src"
+        "crates/enforcer-mcp/src"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
-        "E:\\ocentra-enforcer-rust-build-sync\\crates\\enforcer-mcp\\src",
+        "crates/enforcer-mcp/src",
         "bounded sample: 10 Rust files"
       ],
       "verdict": "pass",
@@ -1686,17 +1700,17 @@
       "category": "Architecture",
       "query": "Which workpack is responsible for the detect-and-route router?",
       "expectedIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-scan/src"
+        "crates/enforcer-scan/src"
       ],
       "actualIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-scan/src"
+        "crates/enforcer-scan/src"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
-        "E:\\ocentra-enforcer-rust-build-sync\\crates\\enforcer-scan\\src",
+        "crates/enforcer-scan/src",
         "bounded sample: 14 Rust files"
       ],
       "verdict": "pass",
@@ -1707,17 +1721,17 @@
       "category": "Architecture",
       "query": "Find code paths that should use the event spine but do not.",
       "expectedIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-events/src"
+        "crates/enforcer-events/src"
       ],
       "actualIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-events/src"
+        "crates/enforcer-events/src"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
-        "E:\\ocentra-enforcer-rust-build-sync\\crates\\enforcer-events\\src",
+        "crates/enforcer-events/src",
         "bounded sample: 16 Rust files"
       ],
       "verdict": "pass",
@@ -1728,17 +1742,17 @@
       "category": "Architecture",
       "query": "Which crate owns the proof-artifact envelope schema?",
       "expectedIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-proof/src"
+        "crates/enforcer-proof/src"
       ],
       "actualIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-proof/src"
+        "crates/enforcer-proof/src"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
-        "E:\\ocentra-enforcer-rust-build-sync\\crates\\enforcer-proof\\src",
+        "crates/enforcer-proof/src",
         "bounded sample: 6 Rust files"
       ],
       "verdict": "pass",
@@ -1762,17 +1776,17 @@
       "category": "Architecture",
       "query": "Find all instances of `enforcer-scan` calling back into `enforcer-cli`.",
       "expectedIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-scan/src"
+        "crates/enforcer-scan/src"
       ],
       "actualIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-scan/src"
+        "crates/enforcer-scan/src"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
-        "E:\\ocentra-enforcer-rust-build-sync\\crates\\enforcer-scan\\src",
+        "crates/enforcer-scan/src",
         "bounded sample: 14 Rust files"
       ],
       "verdict": "pass",
@@ -1783,17 +1797,17 @@
       "category": "Architecture",
       "query": "Which Track C adapters share the same fixture shape?",
       "expectedIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-install/src"
+        "crates/enforcer-install/src"
       ],
       "actualIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-install/src"
+        "crates/enforcer-install/src"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
-        "E:\\ocentra-enforcer-rust-build-sync\\crates\\enforcer-install\\src",
+        "crates/enforcer-install/src",
         "bounded sample: 16 Rust files"
       ],
       "verdict": "pass",
@@ -1817,17 +1831,17 @@
       "category": "Architecture",
       "query": "What is the decision tree for choosing graph vs RAG retrieval?",
       "expectedIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-memory/src"
+        "crates/enforcer-memory/src"
       ],
       "actualIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-memory/src"
+        "crates/enforcer-memory/src"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
-        "E:\\ocentra-enforcer-rust-build-sync\\crates\\enforcer-memory\\src",
+        "crates/enforcer-memory/src",
         "bounded sample: 16 Rust files"
       ],
       "verdict": "pass",
@@ -1838,17 +1852,17 @@
       "category": "Architecture",
       "query": "Which architecture decision governs the domain newtype pattern?",
       "expectedIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-domain/src"
+        "crates/enforcer-domain/src"
       ],
       "actualIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-domain/src"
+        "crates/enforcer-domain/src"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
-        "E:\\ocentra-enforcer-rust-build-sync\\crates\\enforcer-domain\\src",
+        "crates/enforcer-domain/src",
         "bounded sample: 8 Rust files"
       ],
       "verdict": "pass",
@@ -1859,17 +1873,17 @@
       "category": "Architecture",
       "query": "Find all places where a Track D pack mechanizes a Track A runtime.",
       "expectedIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-mechanization/src"
+        "crates/enforcer-mechanization/src"
       ],
       "actualIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-mechanization/src"
+        "crates/enforcer-mechanization/src"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
-        "E:\\ocentra-enforcer-rust-build-sync\\crates\\enforcer-mechanization\\src",
+        "crates/enforcer-mechanization/src",
         "bounded sample: 7 Rust files"
       ],
       "verdict": "pass",
@@ -1880,17 +1894,17 @@
       "category": "Architecture",
       "query": "Which crate should own a new NDJSON stream reader?",
       "expectedIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-core/src"
+        "crates/enforcer-core/src"
       ],
       "actualIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-core/src"
+        "crates/enforcer-core/src"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
-        "E:\\ocentra-enforcer-rust-build-sync\\crates\\enforcer-core\\src",
+        "crates/enforcer-core/src",
         "bounded sample: 10 Rust files"
       ],
       "verdict": "pass",
@@ -1901,17 +1915,17 @@
       "category": "Architecture",
       "query": "Which rule blocks barrel re-export files?",
       "expectedIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-lang-rust/src"
+        "crates/enforcer-lang-rust/src"
       ],
       "actualIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-lang-rust/src"
+        "crates/enforcer-lang-rust/src"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
-        "E:\\ocentra-enforcer-rust-build-sync\\crates\\enforcer-lang-rust\\src",
+        "crates/enforcer-lang-rust/src",
         "bounded sample: 16 Rust files"
       ],
       "verdict": "pass",
@@ -1935,17 +1949,17 @@
       "category": "Repository",
       "query": "Explain the charter of `enforcer-core` as a shared foundation.",
       "expectedIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-core/src"
+        "crates/enforcer-core/src"
       ],
       "actualIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-core/src"
+        "crates/enforcer-core/src"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
-        "E:\\ocentra-enforcer-rust-build-sync\\crates\\enforcer-core\\src",
+        "crates/enforcer-core/src",
         "bounded sample: 10 Rust files"
       ],
       "verdict": "pass",
@@ -1956,17 +1970,17 @@
       "category": "Repository",
       "query": "What is the public API surface of `enforcer-domain`?",
       "expectedIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-domain/src"
+        "crates/enforcer-domain/src"
       ],
       "actualIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-domain/src"
+        "crates/enforcer-domain/src"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
-        "E:\\ocentra-enforcer-rust-build-sync\\crates\\enforcer-domain\\src",
+        "crates/enforcer-domain/src",
         "bounded sample: 8 Rust files"
       ],
       "verdict": "pass",
@@ -2016,17 +2030,17 @@
       "category": "Repository",
       "query": "Find all crates that vendor code from OcentraParent.",
       "expectedIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-core/src"
+        "crates/enforcer-core/src"
       ],
       "actualIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-core/src"
+        "crates/enforcer-core/src"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
-        "E:\\ocentra-enforcer-rust-build-sync\\crates\\enforcer-core\\src",
+        "crates/enforcer-core/src",
         "bounded sample: 10 Rust files"
       ],
       "verdict": "pass",
@@ -2050,17 +2064,17 @@
       "category": "Repository",
       "query": "List the module roots of the single `enforcer-domain` crate.",
       "expectedIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-domain/src"
+        "crates/enforcer-domain/src"
       ],
       "actualIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-domain/src"
+        "crates/enforcer-domain/src"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
-        "E:\\ocentra-enforcer-rust-build-sync\\crates\\enforcer-domain\\src",
+        "crates/enforcer-domain/src",
         "bounded sample: 8 Rust files"
       ],
       "verdict": "pass",
@@ -2071,17 +2085,17 @@
       "category": "Repository",
       "query": "Which modules in `enforcer-scan` are public vs private?",
       "expectedIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-scan/src"
+        "crates/enforcer-scan/src"
       ],
       "actualIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-scan/src"
+        "crates/enforcer-scan/src"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
-        "E:\\ocentra-enforcer-rust-build-sync\\crates\\enforcer-scan\\src",
+        "crates/enforcer-scan/src",
         "bounded sample: 14 Rust files"
       ],
       "verdict": "pass",
@@ -2170,17 +2184,17 @@
       "category": "Repository",
       "query": "What schema fields do arc-25 `enforcer-events` records carry?",
       "expectedIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-events/src"
+        "crates/enforcer-events/src"
       ],
       "actualIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-events/src"
+        "crates/enforcer-events/src"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
-        "E:\\ocentra-enforcer-rust-build-sync\\crates\\enforcer-events\\src",
+        "crates/enforcer-events/src",
         "bounded sample: 16 Rust files"
       ],
       "verdict": "pass",
@@ -2204,17 +2218,17 @@
       "category": "Repository",
       "query": "Which crates own local error types vs delegate to `enforcer-core::error`?",
       "expectedIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-core/src"
+        "crates/enforcer-core/src"
       ],
       "actualIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-core/src"
+        "crates/enforcer-core/src"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
-        "E:\\ocentra-enforcer-rust-build-sync\\crates\\enforcer-core\\src",
+        "crates/enforcer-core/src",
         "bounded sample: 10 Rust files"
       ],
       "verdict": "pass",
@@ -2225,17 +2239,17 @@
       "category": "Repository",
       "query": "Give a module map of `crates/enforcer-memory`.",
       "expectedIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-memory/src"
+        "crates/enforcer-memory/src"
       ],
       "actualIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-memory/src"
+        "crates/enforcer-memory/src"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
-        "E:\\ocentra-enforcer-rust-build-sync\\crates\\enforcer-memory\\src",
+        "crates/enforcer-memory/src",
         "bounded sample: 16 Rust files"
       ],
       "verdict": "pass",
@@ -2272,17 +2286,17 @@
       "category": "Repository",
       "query": "What is the startup order of the `enforcer-cli` binary?",
       "expectedIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-cli/src"
+        "crates/enforcer-cli/src"
       ],
       "actualIds": [
-        "E:/ocentra-enforcer-rust-build-sync/crates/enforcer-cli/src"
+        "crates/enforcer-cli/src"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
-        "E:\\ocentra-enforcer-rust-build-sync\\crates\\enforcer-cli\\src",
+        "crates/enforcer-cli/src",
         "bounded sample: 13 Rust files"
       ],
       "verdict": "pass",

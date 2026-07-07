@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-dogfood",
-  "generatedAt": "2026-07-07T06:37:23Z",
+  "generatedAt": "2026-07-07T07:12:00Z",
   "hub": "ocentra-enforcer",
   "stateRoot": "E:/ocentra-enforcer/.ledger/ocentra-enforcer",
   "lane": "codex-x06-harvest-sync",
@@ -106,7 +106,18 @@
     "ocentra_enforcer_mcp_status ok/hash-compatible/write-compatible after LRN rollup correction",
     "ocentra_enforcer_coordination_health operation=commit ok for LRN rollup files",
     "ocentra_enforcer_doctor scope=crate crateName=enforcer-memory ok after LRN rollup correction",
-    "ocentra_enforcer_check source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, and placeholder-implementation scope=files ok for LRN rollup files"
+    "ocentra_enforcer_check source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, and placeholder-implementation scope=files ok for LRN rollup files",
+    "cargo test -p enforcer-memory --test feature_parity_harness exact_qa_evidence_runner -- --quiet passed after QA-105 and QA-112 exact evidence promotion",
+    "cargo test -p enforcer-memory --test feature_parity_harness qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split -- --exact passed after QA rose to 56/250 with 0 failed rows",
+    "cargo test -p enforcer-memory --test unit_store_sqlite store_backed_projection_rebuilds_from_a_real_code_graph_fixture -- --exact passed after GPH Store-backed projection proof",
+    "cargo test -p enforcer-memory --test unit_store_sqlite --quiet passed after GPH Store-backed projection proof",
+    "hardcoded-path scan over changed QA/GPH proof files returned no E:/, E:\\, C:\\Users, or ocentra-enforcer-rust-build-sync matches after source refs were normalized to repo-relative paths",
+    "x06-kg.json now records store_backed_projection_rebuilds_from_a_real_code_graph_fixture as replay proof while keeping GPH red for query UX not yet routed through the Store-backed projection",
+    "x06-rag-qa.json now records QA-105 and QA-112 pass with repo-relative sourceRefs; total QA coverage is 56/250 with 0 failures",
+    "ocentra_enforcer_mcp_status ok/hash-compatible/write-compatible after QA/GPH proof integration",
+    "ocentra_enforcer_coordination_health operation=commit ok for QA/GPH proof files with explicit hub=ocentra-enforcer and explicit ocentra-enforcer ledger stateRoot",
+    "ocentra_enforcer_doctor scope=crate crateName=enforcer-memory ok after QA/GPH proof integration",
+    "ocentra_enforcer_check source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, placeholder-implementation, and generated-artifacts scope=files ok for QA/GPH proof files"
   ],
   "redOrPartialGates": [
     {
@@ -178,6 +189,41 @@
       "gate": "ocentra_enforcer_check dependency-policy scope=files LRN rollup slice",
       "classification": "environment",
       "reason": "dependency-policy still reports the known Cargo.lock cargo-audit advisory; no dependency or lockfile changes were introduced by this slice"
+    },
+    {
+      "gate": "GPH full green",
+      "classification": "ours",
+      "reason": "Store-backed graph projection proof is now present, but query UX still builds CodeGraph directly from repoPath instead of routing through the canonical Store-backed projection"
+    },
+    {
+      "gate": "QA full green",
+      "classification": "proof-only",
+      "reason": "QA improved from 54/250 to 56/250 with 0 failures; 194 rows remain honestly unrunnable because no exact row runner/proof exists yet"
+    },
+    {
+      "gate": "ocentra_enforcer_check architecture-policy scope=files QA/GPH proof slice",
+      "classification": "mjs-enforcer",
+      "reason": "exact-file architecture-policy currently returns 68 RR-6.1 findings over the proof/test slice while source-shape and the dedicated file-scope safety checks are clean; this is recorded as strict-policy expansion debt, not hidden"
+    },
+    {
+      "gate": "ocentra_enforcer_check architecture-policy scope=diff base=origin/rust-build head=HEAD",
+      "classification": "mjs-enforcer",
+      "reason": "MCP diff-scope architecture-policy failed before scanning with Unknown argument: --base; exact-file fallback was run and recorded instead"
+    },
+    {
+      "gate": "ocentra_enforcer_check required-tests scope=workspace",
+      "classification": "environment",
+      "reason": "workspace required-tests currently reports 236 TEST-2.1/TEST-2.2 findings; this QA/GPH proof slice does not claim to migrate all workspace inline/coverage policy debt"
+    },
+    {
+      "gate": "ocentra_enforcer_check dependency-policy scope=workspace",
+      "classification": "environment",
+      "reason": "workspace dependency-policy still reports 1 DEP-1.1 Cargo.lock advisory; no dependency or lockfile changes were introduced by this slice"
+    },
+    {
+      "gate": "ocentra_enforcer_check literal-risk scope=files QA/GPH proof slice",
+      "classification": "mjs-enforcer",
+      "reason": "literal-risk reports 11 errors and 557 warnings over proof/test strings; dedicated secrets check is clean and this slice preserves explicit proof identifiers"
     }
   ],
   "lessons": [
@@ -588,6 +634,54 @@
     {
       "shape": "t2",
       "evidence": "unit_learning and feature_parity_harness exact tests passed; x06-feature-parity.json now records LRN green, retrievalImprovementCurvePresent=true, QA=54/250, and allMatrixPrefixesGreen=false due remaining GPH/QA gaps."
+    },
+    {
+      "shape": "t0",
+      "incident": "QA-105 and QA-112 were unrunnable even though checked-in RuleId and Sha256 branded-newtype evidence already existed."
+    },
+    {
+      "shape": "t1",
+      "fix": "ExactQaEvidenceRunner now allowlists QA-105 and QA-112 and verifies concrete source markers in enforcer-domain ids.rs and hashes.rs before passing the rows."
+    },
+    {
+      "shape": "t2",
+      "evidence": "feature_parity_harness exact QA test passed and x06-rag-qa.json records 56 green, 194 unrunnable, and 0 failed rows."
+    },
+    {
+      "shape": "t0",
+      "incident": "Worker-generated QA proof initially emitted repo-local absolute E:\\ sourceRefs for the new exact rows, and older runner paths already had similar absolute refs."
+    },
+    {
+      "shape": "t1",
+      "fix": "Added repo_relative_path for QA source refs and regenerated the QA proof so path-derived refs are slash-normalized and repo-relative while runtime MCP/CLI args still use real filesystem paths."
+    },
+    {
+      "shape": "t2",
+      "evidence": "A hardcoded-path scan over the changed QA/GPH proof files returned no E:/, E:\\, C:\\Users, or ocentra-enforcer-rust-build-sync matches after regeneration."
+    },
+    {
+      "shape": "t0",
+      "incident": "GPH was blocked as a broad semantic graph-over-code gap even though a Store append-log to SQLite operational graph projection could be proven now."
+    },
+    {
+      "shape": "t1",
+      "fix": "Added a real CodeGraph-to-Store graph-event replay test that rebuilds OperationalGraph from verified append-log entries and compares node/edge counts against GraphSnapshot."
+    },
+    {
+      "shape": "t2",
+      "evidence": "unit_store_sqlite store_backed_projection_rebuilds_from_a_real_code_graph_fixture and the full unit_store_sqlite test file passed; x06-kg.json now narrows the remaining blocker to query UX not yet using the Store-backed projection."
+    },
+    {
+      "shape": "t0",
+      "incident": "Final dogfood re-run found strict Enforcer surfaces that are not equivalent: exact named file-scope checks are clean, architecture-policy over the same proof/test files reports 68 RR-6.1 findings, workspace required-tests reports 236 findings, and diff-scope architecture-policy fails in the MCP wrapper before scanning."
+    },
+    {
+      "shape": "t1",
+      "fix": "Recorded those as classified red/partial gates instead of flattening them into a green claim; kept the completion proof anchored to cargo gates, crate doctor, and exact changed-file source-shape/security/test-bypass checks."
+    },
+    {
+      "shape": "t2",
+      "evidence": "The dogfood artifact now names the live counts and the MCP --base wrapper failure so the next X06 harness pass can fix policy routing rather than rediscover the same mismatch."
     }
   ]
 }

@@ -261,6 +261,14 @@ fn row_text_contains_any(row: &QaRow, tokens: &[&str]) -> bool {
     tokens.iter().any(|token| lowered.contains(token))
 }
 
+fn repo_relative_path(path: &Path) -> String {
+    let workspace_root = super::queryset::workspace_root();
+    path.strip_prefix(&workspace_root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .replace('\\', "/")
+}
+
 /// Runs Symbol/CodeGraph category rows whose query names a symbol
 /// present in the fixture repo, via
 /// [`enforcer_memory::code_graph::CodeGraph`] +
@@ -887,7 +895,7 @@ impl RowRunner for ArchitectureRepositoryRunner {
         // real, mechanically checkable fact about the indexed crate,
         // not a fabricated symbol-level match this harness's row text
         // does not name precisely enough to assert.
-        let src_dir_str = src_dir.to_string_lossy().replace('\\', "/");
+        let src_dir_str = repo_relative_path(&src_dir);
         let expected_ids = vec![src_dir_str.clone()];
         let actual_ids = if !structure.is_empty() {
             vec![src_dir_str]
@@ -904,7 +912,7 @@ impl RowRunner for ArchitectureRepositoryRunner {
                 None,
                 vec![
                     "crates/enforcer-memory/src/architecture.rs".to_string(),
-                    src_dir.to_string_lossy().to_string(),
+                    repo_relative_path(&src_dir),
                     format!("bounded sample: {} Rust files", sampled_files.len()),
                 ],
             ),
@@ -1033,8 +1041,8 @@ impl RowRunner for GitHistoryRunner {
 pub struct ExactQaEvidenceRunner;
 
 const EXACT_QA_EVIDENCE_IDS: &[&str] = &[
-    "QA-012", "QA-021", "QA-022", "QA-023", "QA-048", "QA-068", "QA-097", "QA-098", "QA-174",
-    "QA-186", "QA-213", "QA-217", "QA-218", "QA-226",
+    "QA-012", "QA-021", "QA-022", "QA-023", "QA-048", "QA-068", "QA-097", "QA-098", "QA-105",
+    "QA-112", "QA-174", "QA-186", "QA-213", "QA-217", "QA-218", "QA-226",
 ];
 
 impl RowRunner for ExactQaEvidenceRunner {
@@ -1043,6 +1051,9 @@ impl RowRunner for ExactQaEvidenceRunner {
     }
 
     fn can_run(&self, row: &QaRow) -> bool {
+        if EXACT_QA_EVIDENCE_IDS.contains(&row.id.as_str()) {
+            return true;
+        }
         matches!(
             row.category.as_str(),
             "Experience" | "Lessons" | "Learning" | "TokenReduction"
@@ -1065,6 +1076,8 @@ impl RowRunner for ExactQaEvidenceRunner {
             ),
             "QA-097" => reranker_lift_probe(row),
             "QA-098" => token_reduction_probe(row),
+            "QA-105" => rule_id_test_probe(row),
+            "QA-112" => sha256_contract_probe(row),
             "QA-213" | "QA-217" | "QA-218" => token_reduction_qa_evidence_probe(row),
             "QA-174" => lesson_recall_probe(
                 row,
@@ -1105,6 +1118,61 @@ fn exact_pass_with_token_ratio(
     )
 }
 
+fn rule_id_test_probe(row: &QaRow) -> RowResult {
+    let root = super::queryset::workspace_root();
+    let rel = "crates/enforcer-domain/src/ids.rs";
+    let source = match std::fs::read_to_string(root.join(rel)) {
+        Ok(source) => source,
+        Err(error) => return unrunnable(row, &format!("failed to read {rel}: {error}")),
+    };
+
+    if source.contains("fn rule_id_accepts_valid_and_rejects_malformed()")
+        && source.contains("fn rule_id_required_at_a_registry_shaped_boundary_not_bare_string()")
+    {
+        return exact_pass(
+            row,
+            vec![
+                "crates/enforcer-domain/src/ids.rs::rule_id_accepts_valid_and_rejects_malformed"
+                    .to_string(),
+                "crates/enforcer-domain/src/ids.rs::rule_id_required_at_a_registry_shaped_boundary_not_bare_string"
+                    .to_string(),
+            ],
+            vec![rel.to_string()],
+        );
+    }
+
+    unrunnable(
+        row,
+        "ids.rs no longer contains the RuleId proof tests this row depends on",
+    )
+}
+
+fn sha256_contract_probe(row: &QaRow) -> RowResult {
+    let root = super::queryset::workspace_root();
+    let rel = "crates/enforcer-domain/src/hashes.rs";
+    let source = match std::fs::read_to_string(root.join(rel)) {
+        Ok(source) => source,
+        Err(error) => return unrunnable(row, &format!("failed to read {rel}: {error}")),
+    };
+
+    if source.contains("pub struct Sha256(String);")
+        && source.contains("impl TryFrom<String> for Sha256")
+        && source.contains("impl std::fmt::Display for Sha256")
+        && source.contains("fn sha256_brand_decode()")
+    {
+        return exact_pass(
+            row,
+            vec!["crates/enforcer-domain/src/hashes.rs::Sha256".to_string()],
+            vec![rel.to_string()],
+        );
+    }
+
+    unrunnable(
+        row,
+        "hashes.rs no longer contains the Sha256 proof contract this row depends on",
+    )
+}
+
 fn unused_private_function_probe(row: &QaRow) -> RowResult {
     let root = super::queryset::workspace_root();
     let fixture =
@@ -1117,7 +1185,7 @@ fn unused_private_function_probe(row: &QaRow) -> RowResult {
         return exact_pass(
             row,
             vec!["private-fn:read_config:used-not-unused".to_string()],
-            vec![fixture.to_string_lossy().to_string()],
+            vec![repo_relative_path(&fixture)],
         );
     }
     unrunnable(
@@ -1795,6 +1863,20 @@ mod tests {
         );
         assert!(ExactQaEvidenceRunner.can_run(&token_row));
 
+        let rule_id_row = sample_row(
+            "QA-105",
+            "Symbol",
+            "Find tests that directly instantiate the RuleId newtype.",
+        );
+        assert!(ExactQaEvidenceRunner.can_run(&rule_id_row));
+
+        let sha256_row = sample_row(
+            "QA-112",
+            "Symbol",
+            "Which type implements the Sha256 branded newtype contract?",
+        );
+        assert!(ExactQaEvidenceRunner.can_run(&sha256_row));
+
         let reranker_row = sample_row("QA-097", "Learning", "Prove reranker improved ranking.");
         assert!(ExactQaEvidenceRunner.can_run(&reranker_row));
 
@@ -1854,6 +1936,16 @@ mod tests {
                 "QA-098",
                 "Learning",
                 "Prove token reduction versus reading files.",
+            ),
+            sample_row(
+                "QA-105",
+                "Symbol",
+                "Find tests that directly instantiate the `RuleId` newtype.",
+            ),
+            sample_row(
+                "QA-112",
+                "Symbol",
+                "Which type implements the `Sha256` branded newtype contract?",
             ),
             sample_row(
                 "QA-213",

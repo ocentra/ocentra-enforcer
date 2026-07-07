@@ -29,7 +29,8 @@
     "replay_incident_observations_from_store",
     "replay_procedural_and_routes_from_store",
     "project_model_runtime_observations_from_store",
-    "replay_trace_records_from_store"
+    "replay_trace_records_from_store",
+    "store_backed_projection_rebuilds_from_a_real_code_graph_fixture"
   ],
   "baselineParity": {
     "artifactPath": "proof/memory/x06-kg-parity.json",
@@ -43,6 +44,6 @@
   },
   "remaining": [
     "Claude parity lane can still improve exact codebase-memory-mcp behavioral equivalence, but current parity artifact has no worse/unrunnable rows.",
-    "Full semantic graph-over-code layer still needs derived projection and query UX over the canonical Store-backed graph."
+    "Query UX still builds a CodeGraph from repoPath directly; the Store-backed projection proof is now present, but the query entrypoint is not yet routed through it."
   ]
 }
