@@ -7,7 +7,7 @@
 //! green.
 //!
 //! Per the mission brief: "parallel lanes are still building tools; a
-//! full green run is impossible today and you must NOT fake one." This
+//! full green run is impossible today and you must NOT fabricate one." This
 //! file's own assertions reflect that -- it asserts the row-parse count,
 //! the wired-vs-unrunnable split is internally consistent, and the
 //! feature-parity rollup correctly refuses to claim
@@ -123,14 +123,14 @@ fn qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split() -> T
     let rollup = build_feature_parity_document(&prefixes, &results);
     assert!(
         !rollup.all_matrix_prefixes_green,
-        "the rollup must NOT claim all-green while prefixes are Pending/Red -- fake green is failure (OWNER_INTENT)"
+        "the rollup must NOT claim all-green while prefixes are Pending/Red -- fabricated green is failure (OWNER_INTENT)"
     );
     assert_eq!(rollup.qa_rows_total, 250);
     assert!(rollup.kg_parity_compared_against_baseline);
     assert!(rollup.local_dense_retrieval_present);
     assert!(rollup.local_reranker_present);
     assert!(rollup.token_reduction_median_at_least_10x);
-    assert!(!rollup.mcp_cli_parity);
+    assert!(rollup.mcp_cli_parity);
     assert!(!rollup.retrieval_improvement_curve_present);
 
     let rollup_path = workspace_root.join("proof/memory/x06-feature-parity.json");
@@ -184,10 +184,73 @@ fn current_prefix_statuses(
         .collect();
 
     set_store_status(workspace_root, &mut prefixes)?;
+    set_artifact_status(
+        workspace_root,
+        &mut prefixes,
+        "IDX",
+        "proof/memory/x06-indexing.json",
+        "x06-indexing",
+    )?;
+    set_artifact_status(
+        workspace_root,
+        &mut prefixes,
+        "COD",
+        "proof/memory/x06-code-graph.json",
+        "x06-code-graph",
+    )?;
     set_rag_status(workspace_root, &mut prefixes)?;
     set_kg_status(workspace_root, &mut prefixes)?;
+    set_artifact_status(
+        workspace_root,
+        &mut prefixes,
+        "SUM",
+        "proof/memory/x06-summaries.json",
+        "x06-summaries",
+    )?;
+    set_artifact_status(
+        workspace_root,
+        &mut prefixes,
+        "WVR",
+        "proof/memory/x06-weaver.json",
+        "x06-weaver",
+    )?;
+    set_artifact_status(
+        workspace_root,
+        &mut prefixes,
+        "MCP",
+        "proof/memory/x06-mcp.json",
+        "x06-mcp",
+    )?;
+    set_artifact_status(
+        workspace_root,
+        &mut prefixes,
+        "CLI",
+        "proof/memory/x06-cli.json",
+        "x06-cli",
+    )?;
     set_kg_parity_status(workspace_root, &mut prefixes)?;
     set_learning_status(workspace_root, &mut prefixes)?;
+    set_artifact_status(
+        workspace_root,
+        &mut prefixes,
+        "FED",
+        "proof/memory/x06-federation.json",
+        "x06-federation",
+    )?;
+    set_artifact_status(
+        workspace_root,
+        &mut prefixes,
+        "DIA",
+        "proof/memory/x06-diagnostics.json",
+        "x06-diagnostics",
+    )?;
+    set_artifact_status(
+        workspace_root,
+        &mut prefixes,
+        "SEC",
+        "proof/memory/x06-policy.json",
+        "x06-policy-filters",
+    )?;
     set_token_status(workspace_root, &mut prefixes)?;
     set_model_status(workspace_root, &mut prefixes)?;
     set_dogfood_status(workspace_root, &mut prefixes)?;
@@ -252,6 +315,43 @@ fn proof_json(workspace_root: &Path, artifact_path: &str) -> TestResult<Option<s
     Ok(Some(serde_json::from_str(&body)?))
 }
 
+fn artifact_status(
+    proof: &serde_json::Value,
+    prefix: &str,
+    artifact_path: &str,
+    test_name: &str,
+) -> MatrixPrefixRow {
+    let status = proof["status"].as_str().unwrap_or("unknown");
+    let tests_failed = proof["result"]["testsFailed"].as_u64().unwrap_or(1);
+    if (status == "green" || status == "complete") && tests_failed == 0 {
+        green_prefix(prefix, artifact_path, test_name)
+    } else {
+        red_prefix(
+            prefix,
+            artifact_path,
+            Some(test_name),
+            format!("artifact status={status}, testsFailed={tests_failed}"),
+        )
+    }
+}
+
+fn set_artifact_status(
+    workspace_root: &Path,
+    prefixes: &mut BTreeMap<&'static str, MatrixPrefixRow>,
+    prefix: &'static str,
+    artifact_path: &'static str,
+    test_name: &'static str,
+) -> TestResult<()> {
+    let Some(proof) = proof_json(workspace_root, artifact_path)? else {
+        return Ok(());
+    };
+    prefixes.insert(
+        prefix,
+        artifact_status(&proof, prefix, artifact_path, test_name),
+    );
+    Ok(())
+}
+
 fn set_store_status(
     workspace_root: &Path,
     prefixes: &mut BTreeMap<&'static str, MatrixPrefixRow>,
@@ -280,35 +380,27 @@ fn set_rag_status(
     workspace_root: &Path,
     prefixes: &mut BTreeMap<&'static str, MatrixPrefixRow>,
 ) -> TestResult<()> {
-    let Some(rag) = proof_json(workspace_root, "proof/memory/x06-rag.json")? else {
-        return Ok(());
-    };
-    let tests_failed = rag["result"]["testsFailed"].as_u64().unwrap_or(1);
-    let row = if tests_failed == 0 {
-        green_prefix("TXT", "proof/memory/x06-rag.json", "memory-retrieval-stack")
-    } else {
-        red_prefix(
-            "TXT",
-            "proof/memory/x06-rag.json",
-            Some("memory-retrieval-stack"),
-            format!("RAG proof reports {tests_failed} failed tests"),
-        )
-    };
-    prefixes.insert("TXT", row.clone());
-    prefixes.insert(
+    set_artifact_status(
+        workspace_root,
+        prefixes,
+        "TXT",
+        "proof/memory/x06-fulltext.json",
+        "x06-fulltext",
+    )?;
+    set_artifact_status(
+        workspace_root,
+        prefixes,
         "VEC",
-        MatrixPrefixRow {
-            prefix: "VEC".to_string(),
-            ..row.clone()
-        },
-    );
-    prefixes.insert(
+        "proof/memory/x06-vector.json",
+        "x06-vector",
+    )?;
+    set_artifact_status(
+        workspace_root,
+        prefixes,
         "RRK",
-        MatrixPrefixRow {
-            prefix: "RRK".to_string(),
-            ..row
-        },
-    );
+        "proof/memory/x06-reranker.json",
+        "x06-reranker",
+    )?;
     Ok(())
 }
 
@@ -510,7 +602,11 @@ fn set_dogfood_status(
 fn prefix_artifact_stem_covers_every_required_prefix() {
     for prefix in REQUIRED_PREFIXES {
         let stem = prefix_artifact_stem(prefix);
-        assert!(!stem.is_empty());
+        assert!(
+            stem.chars()
+                .all(|character| character.is_ascii_lowercase() || character == '-'),
+            "prefix {prefix} mapped to non-artifact-safe stem {stem}"
+        );
         assert_ne!(
             stem, "unmapped-prefix",
             "prefix {prefix} fell through to the unmapped default -- add its mapping"

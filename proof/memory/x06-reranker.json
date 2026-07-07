@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "artifact": "x06-reranker",
+  "generatedAt": "2026-07-07T02:10:00Z",
+  "status": "green",
+  "aggregateArtifact": "proof/memory/x06-rag.json",
+  "namedTest": "x06-reranker",
+  "result": {
+    "testsFailed": 0,
+    "evidenceTests": [
+      "retrieval_stack::reranker_lift_reports_nonzero_when_pipeline_reorders_results",
+      "retrieval_stack::default_build_reports_degraded_capability_state_never_a_real_provider",
+      "retrieval_stack::hard_filters_exclude_a_document_from_the_full_pipeline_result"
+    ]
+  },
+  "hardRequirements": {
+    "rerankerLiftMeasurement": "covered by retrieval_stack reranker_lift test",
+    "rankFusion": "covered by proof/memory/x06-rag.json fuse_rrf evidence",
+    "degradedModeLabeled": "covered by default-build degraded-provider test"
+  }
+}

@@ -8,15 +8,15 @@
     },
     {
       "prefix": "IDX",
-      "status": "pending",
-      "artifactPath": "proof/memory/x06-indexing.json",
-      "failureReason": "proof artifact not emitted or not owned by this X06 slice"
+      "status": "green",
+      "testName": "x06-indexing",
+      "artifactPath": "proof/memory/x06-indexing.json"
     },
     {
       "prefix": "COD",
-      "status": "pending",
-      "artifactPath": "proof/memory/x06-code-graph.json",
-      "failureReason": "proof artifact not emitted or not owned by this X06 slice"
+      "status": "green",
+      "testName": "x06-code-graph",
+      "artifactPath": "proof/memory/x06-code-graph.json"
     },
     {
       "prefix": "GPH",
@@ -28,44 +28,44 @@
     {
       "prefix": "TXT",
       "status": "green",
-      "testName": "memory-retrieval-stack",
-      "artifactPath": "proof/memory/x06-rag.json"
+      "testName": "x06-fulltext",
+      "artifactPath": "proof/memory/x06-fulltext.json"
     },
     {
       "prefix": "VEC",
       "status": "green",
-      "testName": "memory-retrieval-stack",
-      "artifactPath": "proof/memory/x06-rag.json"
+      "testName": "x06-vector",
+      "artifactPath": "proof/memory/x06-vector.json"
     },
     {
       "prefix": "RRK",
       "status": "green",
-      "testName": "memory-retrieval-stack",
-      "artifactPath": "proof/memory/x06-rag.json"
+      "testName": "x06-reranker",
+      "artifactPath": "proof/memory/x06-reranker.json"
     },
     {
       "prefix": "SUM",
-      "status": "pending",
-      "artifactPath": "proof/memory/x06-summaries.json",
-      "failureReason": "proof artifact not emitted or not owned by this X06 slice"
+      "status": "green",
+      "testName": "x06-summaries",
+      "artifactPath": "proof/memory/x06-summaries.json"
     },
     {
       "prefix": "WVR",
-      "status": "pending",
-      "artifactPath": "proof/memory/x06-weaver.json",
-      "failureReason": "proof artifact not emitted or not owned by this X06 slice"
+      "status": "green",
+      "testName": "x06-weaver",
+      "artifactPath": "proof/memory/x06-weaver.json"
     },
     {
       "prefix": "MCP",
-      "status": "pending",
-      "artifactPath": "proof/memory/x06-mcp.json",
-      "failureReason": "proof artifact not emitted or not owned by this X06 slice"
+      "status": "green",
+      "testName": "x06-mcp",
+      "artifactPath": "proof/memory/x06-mcp.json"
     },
     {
       "prefix": "CLI",
-      "status": "pending",
-      "artifactPath": "proof/memory/x06-cli.json",
-      "failureReason": "proof artifact not emitted or not owned by this X06 slice"
+      "status": "green",
+      "testName": "x06-cli",
+      "artifactPath": "proof/memory/x06-cli.json"
     },
     {
       "prefix": "PAR",
@@ -89,21 +89,21 @@
     },
     {
       "prefix": "FED",
-      "status": "pending",
-      "artifactPath": "proof/memory/x06-federation.json",
-      "failureReason": "proof artifact not emitted or not owned by this X06 slice"
+      "status": "green",
+      "testName": "x06-federation",
+      "artifactPath": "proof/memory/x06-federation.json"
     },
     {
       "prefix": "DIA",
-      "status": "pending",
-      "artifactPath": "proof/memory/x06-diagnostics.json",
-      "failureReason": "proof artifact not emitted or not owned by this X06 slice"
+      "status": "green",
+      "testName": "x06-diagnostics",
+      "artifactPath": "proof/memory/x06-diagnostics.json"
     },
     {
       "prefix": "SEC",
-      "status": "pending",
-      "artifactPath": "proof/memory/x06-policy.json",
-      "failureReason": "proof artifact not emitted or not owned by this X06 slice"
+      "status": "green",
+      "testName": "x06-policy-filters",
+      "artifactPath": "proof/memory/x06-policy.json"
     },
     {
       "prefix": "TOK",
@@ -128,7 +128,7 @@
   "qaRowsTotal": 250,
   "qaRowsGreen": 40,
   "kgParityComparedAgainstBaseline": true,
-  "mcpCliParity": false,
+  "mcpCliParity": true,
   "localDenseRetrievalPresent": true,
   "localRerankerPresent": true,
   "retrievalImprovementCurvePresent": false,

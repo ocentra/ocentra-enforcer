@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "artifact": "x06-summaries",
+  "generatedAt": "2026-07-07T02:10:00Z",
+  "status": "green",
+  "namedTest": "x06-summaries",
+  "result": {
+    "testsFailed": 0,
+    "evidenceTests": [
+      "unit_summaries::invalidate_marks_existing_summary_stale_without_deleting_it",
+      "unit_summaries::missing_summary_is_considered_stale",
+      "unit_summaries::remove_deletes_the_entry_entirely",
+      "unit_summaries::deleting_a_file_unlinks_its_entities"
+    ]
+  },
+  "hardRequirements": {
+    "summaryInvalidation": "covered",
+    "entityUnlinkOnDelete": "covered",
+    "safeMissingSummaryState": "covered"
+  }
+}

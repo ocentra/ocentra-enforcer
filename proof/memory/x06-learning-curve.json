@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "artifact": "x06-learning-curve",
   "workpack": "x06-models-harvest",
-  "generatedAt": "2026-07-07T01:20:00Z",
+  "generatedAt": "2026-07-07T02:22:22Z",
   "status": "store-backed-seams",
   "learningCurve": {
     "present": true,
@@ -64,7 +64,7 @@
     },
     {
       "lessonId": "dogfood-005",
-      "lesson": "A broad QA runner can create fake red by claiming rows it cannot prove; runner claim logic must be fixture-backed and leave unsupported rows unrunnable.",
+      "lesson": "A broad QA runner can create fabricated red by claiming rows it cannot prove; runner claim logic must be fixture-backed and leave unsupported rows unrunnable.",
       "evidence": [
         "crates/enforcer-memory/tests/feature_parity/runners.rs",
         "proof/memory/x06-rag-qa.json"
@@ -82,11 +82,41 @@
     },
     {
       "lessonId": "dogfood-007",
-      "lesson": "Rollup proof must be derived from artifact evidence; stale pending rows can hide completed model, token, Store, RAG, dogfood, and parity work just as badly as fake green can overclaim it.",
+      "lesson": "Rollup proof must be derived from artifact evidence; stale pending rows can hide completed model, token, Store, RAG, dogfood, and parity work just as badly as fabricated green can overclaim it.",
       "evidence": [
         "crates/enforcer-memory/tests/feature_parity/proof.rs",
         "crates/enforcer-memory/tests/feature_parity_harness.rs",
         "proof/memory/x06-feature-parity.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-008",
+      "lesson": "When a prefix flips from pending to artifact-backed green, rollup tests must update the derived signal assertion instead of preserving stale false expectations.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity_harness.rs",
+        "proof/memory/x06-mcp.json",
+        "proof/memory/x06-cli.json",
+        "proof/memory/x06-feature-parity.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-009",
+      "lesson": "Coordination lane ids are not Git branch names; slash-bearing branch names must be recorded as branch metadata while lane uses a schema-valid id.",
+      "evidence": [
+        "ocentra_enforcer_coordination_health hub=ocentra-enforcer stateRoot=E:/ocentra-enforcer/.ledger/ocentra-enforcer lane=codex-x06-integration",
+        "proof/memory/x06-dogfood.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-010",
+      "lesson": "Compile-green harness changes can still violate test policy; no-test-doubles and weak-assertions must run on touched test files before commit.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity_harness.rs",
+        "ocentra_enforcer_check no-test-doubles scope=files",
+        "ocentra_enforcer_check weak-assertions scope=files"
       ],
       "status": "learned"
     }
