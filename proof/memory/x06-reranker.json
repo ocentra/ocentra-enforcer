@@ -17,5 +17,34 @@
     "rerankerLiftMeasurement": "covered by retrieval_stack reranker_lift test",
     "rankFusion": "covered by proof/memory/x06-rag.json fuse_rrf evidence",
     "degradedModeLabeled": "covered by default-build degraded-provider test"
+  },
+  "qaEvidence": {
+    "qaRowId": "QA-097",
+    "queryId": "x06-qa-097-reranker-lift",
+    "query": "Prove reranker improved ranking.",
+    "expectedIds": [
+      "runtime:llama-cache",
+      "learning:observations"
+    ],
+    "preRerankTopK": [
+      "unrelated:network",
+      "proof:retrieval-quality",
+      "runtime:llama-cache",
+      "learning:observations"
+    ],
+    "postRerankTopK": [
+      "runtime:llama-cache",
+      "learning:observations",
+      "proof:retrieval-quality",
+      "unrelated:network"
+    ],
+    "liftScore": 0.4293582810446799,
+    "minimumLift": 0.05,
+    "improved": true,
+    "sourceRefs": [
+      "crates/enforcer-memory/src/ranking.rs",
+      "crates/enforcer-memory/src/search/mod.rs",
+      "crates/enforcer-memory/tests/retrieval_stack.rs"
+    ]
   }
 }

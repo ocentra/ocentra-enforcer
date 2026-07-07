@@ -1033,7 +1033,8 @@ impl RowRunner for GitHistoryRunner {
 pub struct ExactQaEvidenceRunner;
 
 const EXACT_QA_EVIDENCE_IDS: &[&str] = &[
-    "QA-012", "QA-021", "QA-022", "QA-023", "QA-048", "QA-068", "QA-098", "QA-174", "QA-226",
+    "QA-012", "QA-021", "QA-022", "QA-023", "QA-048", "QA-068", "QA-097", "QA-098", "QA-174",
+    "QA-226",
 ];
 
 impl RowRunner for ExactQaEvidenceRunner {
@@ -1060,6 +1061,7 @@ impl RowRunner for ExactQaEvidenceRunner {
                 "mem-x06-9-fixture-0001",
                 vec!["tests/fixtures/memory/feature_parity/repo/lib.rs".to_string()],
             ),
+            "QA-097" => reranker_lift_probe(row),
             "QA-098" => token_reduction_probe(row),
             "QA-174" => lesson_recall_probe(
                 row,
@@ -1261,6 +1263,101 @@ fn lesson_recall_probe(
             vec![expected_id.to_string()],
             vec![expected_id.to_string()],
             None,
+            None,
+            source_refs,
+        ),
+    )
+}
+
+fn json_string_array(
+    object: &serde_json::Value,
+    field: &str,
+    artifact_rel: &str,
+) -> Result<Vec<String>, String> {
+    let Some(values) = object.get(field).and_then(serde_json::Value::as_array) else {
+        return Err(format!("{artifact_rel} qaEvidence lacks {field}"));
+    };
+    let mut strings = Vec::new();
+    for value in values {
+        let Some(text) = value.as_str() else {
+            return Err(format!(
+                "{artifact_rel} qaEvidence.{field} contains a non-string value"
+            ));
+        };
+        strings.push(text.to_string());
+    }
+    if strings.is_empty() {
+        return Err(format!("{artifact_rel} qaEvidence.{field} is empty"));
+    }
+    Ok(strings)
+}
+
+fn reranker_lift_probe(row: &QaRow) -> RowResult {
+    let root = super::queryset::workspace_root();
+    let rel = "proof/memory/x06-reranker.json";
+    let artifact: serde_json::Value = match std::fs::read_to_string(root.join(rel))
+        .and_then(|raw| serde_json::from_str(&raw).map_err(std::io::Error::other))
+    {
+        Ok(artifact) => artifact,
+        Err(error) => return unrunnable(row, &format!("failed to parse {rel}: {error}")),
+    };
+    let Some(evidence) = artifact.get("qaEvidence") else {
+        return unrunnable(row, "x06-reranker proof lacks qaEvidence");
+    };
+    if evidence.get("qaRowId").and_then(serde_json::Value::as_str) != Some(row.id.as_str()) {
+        return unrunnable(row, "x06-reranker qaEvidence does not target this QA row");
+    }
+
+    let expected_ids = match json_string_array(evidence, "expectedIds", rel) {
+        Ok(ids) => ids,
+        Err(error) => return unrunnable(row, &error),
+    };
+    let pre_rerank_ids = match json_string_array(evidence, "preRerankTopK", rel) {
+        Ok(ids) => ids,
+        Err(error) => return unrunnable(row, &error),
+    };
+    let post_rerank_ids = match json_string_array(evidence, "postRerankTopK", rel) {
+        Ok(ids) => ids,
+        Err(error) => return unrunnable(row, &error),
+    };
+    let Some(lift_score) = evidence
+        .get("liftScore")
+        .and_then(serde_json::Value::as_f64)
+    else {
+        return unrunnable(row, "x06-reranker qaEvidence lacks liftScore");
+    };
+    let minimum_lift = evidence
+        .get("minimumLift")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(0.05);
+    let improved = evidence
+        .get("improved")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
+    let recomputed = metrics::reranker_lift(&expected_ids, &pre_rerank_ids, &post_rerank_ids, 10);
+    if !lift_score.is_finite() || (recomputed - lift_score).abs() > 1e-9 {
+        return unrunnable(
+            row,
+            "x06-reranker liftScore does not match recomputed ranking lift",
+        );
+    }
+    if !improved || lift_score < minimum_lift {
+        return unrunnable(
+            row,
+            "x06-reranker proof does not meet the positive lift gate",
+        );
+    }
+
+    let mut source_refs = json_string_array(evidence, "sourceRefs", rel).unwrap_or_default();
+    source_refs.push(rel.to_string());
+    source_refs.sort();
+    source_refs.dedup();
+    score_row(
+        row,
+        RowEvidence::degraded(
+            expected_ids,
+            post_rerank_ids,
+            Some(lift_score),
             None,
             source_refs,
         ),
@@ -1489,11 +1586,8 @@ mod tests {
         );
         assert!(ExactQaEvidenceRunner.can_run(&token_row));
 
-        let reranker_gap = sample_row("QA-097", "Learning", "Prove reranker improved ranking.");
-        assert!(
-            !ExactQaEvidenceRunner.can_run(&reranker_gap),
-            "QA-097 needs positive reranker-lift evidence; current committed proof must not fabricate green"
-        );
+        let reranker_row = sample_row("QA-097", "Learning", "Prove reranker improved ranking.");
+        assert!(ExactQaEvidenceRunner.can_run(&reranker_row));
 
         let broad_lessons = sample_row("QA-999", "Lessons", "Find arbitrary lesson content.");
         assert!(!ExactQaEvidenceRunner.can_run(&broad_lessons));
@@ -1529,6 +1623,7 @@ mod tests {
                 "Learning",
                 "Find previous fix similar to this change.",
             ),
+            sample_row("QA-097", "Learning", "Prove reranker improved ranking."),
             sample_row(
                 "QA-098",
                 "Learning",
@@ -1564,16 +1659,23 @@ mod tests {
     }
 
     #[test]
-    fn qa_097_remains_unrunnable_without_positive_reranker_lift() -> TestResult {
+    fn qa_097_runs_with_checked_in_positive_reranker_lift() -> TestResult {
         let fixtures = super::super::build_fixtures()?;
         let row = sample_row("QA-097", "Learning", "Prove reranker improved ranking.");
         let results = run_all(&[row], &fixtures);
         assert_eq!(results.len(), 1);
-        assert!(results[0].is_unrunnable());
-        assert_eq!(
-            results[0].verdict,
-            "unrunnable: no wired runner for category Learning"
+        assert_eq!(results[0].verdict, "pass");
+        let Some(lift) = results[0].reranker_lift else {
+            return Err("QA-097 must report reranker lift".into());
+        };
+        assert!(
+            lift >= 0.05,
+            "QA-097 reranker lift must meet the semantic-row threshold, got {lift}"
         );
+        assert!(results[0]
+            .source_refs
+            .iter()
+            .any(|source| source == "proof/memory/x06-reranker.json"));
         Ok(())
     }
 

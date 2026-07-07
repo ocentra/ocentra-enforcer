@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-dogfood",
-  "generatedAt": "2026-07-07T03:48:43Z",
+  "generatedAt": "2026-07-07T04:15:00Z",
   "hub": "ocentra-enforcer",
   "stateRoot": "E:/ocentra-enforcer/.ledger/ocentra-enforcer",
-  "lane": "codex-x06-integration",
+  "lane": "codex-x06-harvest-sync",
   "status": "partial-clean-code-red-policy",
   "greenGates": [
     "ocentra_enforcer_mcp_status ok/hash-compatible/write-compatible",
@@ -31,7 +31,16 @@
     "cargo test -p enforcer-memory --features ort-models --test model_observations --test model_runtime --test model_runtime_real_contract ok after assertion hardening",
     "cargo clippy -p enforcer-memory --all-targets -- -D warnings ok after assertion hardening",
     "ocentra_enforcer_check no-test-doubles and weak-assertions scope=files ok over assertion-cleanup files",
-    "ocentra_enforcer_check source-shape scope=files ok over 48 origin/rust-build...HEAD files"
+    "ocentra_enforcer_check source-shape scope=files ok over 48 origin/rust-build...HEAD files",
+    "ocentra_enforcer_coordination_health ok after using schema-valid lane id codex-x06-harvest-sync instead of slash-bearing Git branch name",
+    "cargo test -p enforcer-memory ok after QA-097 reranker-lift proof promotion",
+    "cargo test -p enforcer-memory --features ort-models ok after retrying with CARGO_BUILD_JOBS=1, CARGO_PROFILE_TEST_DEBUG=0, and CARGO_INCREMENTAL=0",
+    "cargo clippy -p enforcer-memory --all-targets -- -D warnings ok with low-memory cargo settings",
+    "cargo fmt --package enforcer-memory --check ok",
+    "ocentra_enforcer_doctor scope=crate crateName=enforcer-memory ok",
+    "ocentra_enforcer_check source-shape, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, placeholder-implementation, and secrets scope=files ok for QA-097/reranker proof files",
+    "git diff --check ok",
+    "x06-rag-qa.json now records QA-097 pass with rerankerLift=0.4293582810446799 and total QA coverage 50/250 with 0 failures"
   ],
   "redOrPartialGates": [
     {
@@ -40,9 +49,14 @@
       "reason": "workspace-wide fmt is red in unrelated crates outside enforcer-memory; package-scoped fmt is clean"
     },
     {
+      "gate": "cargo test -p enforcer-memory --features ort-models default concurrency",
+      "classification": "environment",
+      "reason": "first ORT feature run hit Windows paging-file/rustc allocation failure (os error 1455 / STATUS_STACK_BUFFER_OVERRUN); same gate passed when retried single-job with debug disabled and incremental disabled"
+    },
+    {
       "gate": "ocentra_enforcer_scan scope=files changed source files",
       "classification": "mjs-enforcer",
-      "reason": "changed-file scan still expands into Cargo/build-script and strict baseline crate domain/dependency debt; latest changed-file scan returned 273 findings rooted in build.rs/Cargo.toml policy while narrower source-shape, validation-bypass, placeholder-implementation, secrets, no-test-doubles, weak-assertions, and skipped-focused-tests checks are clean"
+      "reason": "changed-file scan still expands into Cargo/build-script and strict baseline crate domain/dependency debt; latest changed-file scan returned 283 findings rooted in build.rs/Cargo.toml policy while narrower source-shape, validation-bypass, placeholder-implementation, secrets, no-test-doubles, weak-assertions, and skipped-focused-tests checks are clean"
     },
     {
       "gate": "ocentra_enforcer_check source-shape scope=diff base=origin/rust-build head=HEAD",
@@ -238,6 +252,54 @@
     {
       "shape": "t2",
       "evidence": "ocentra_enforcer_check source-shape scope=files returned ok over the 48-file branch diff list."
+    },
+    {
+      "shape": "t0",
+      "incident": "QA-097 remained unrunnable even though a reranker proof artifact existed, because the artifact only named a test and did not expose numeric lift evidence."
+    },
+    {
+      "shape": "t1",
+      "fix": "x06-reranker.json now carries qaEvidence with expected/pre/post rankings, liftScore, minimumLift, and sourceRefs; ExactQaEvidenceRunner recomputes the lift and requires the threshold before returning pass."
+    },
+    {
+      "shape": "t2",
+      "evidence": "feature_parity_harness passed, x06-rag-qa.json records QA-097 pass with rerankerLift=0.4293582810446799, and QA coverage is 50 green / 200 unrunnable / 0 failed."
+    },
+    {
+      "shape": "t0",
+      "incident": "The ORT feature gate failed under default cargo concurrency from Windows paging-file pressure, producing rustc allocation failures rather than assertion failures."
+    },
+    {
+      "shape": "t1",
+      "fix": "Retried the same ORT gate one model/runtime feature at a time in practice by constraining cargo to one build job, disabling test debuginfo, and disabling incremental compilation."
+    },
+    {
+      "shape": "t2",
+      "evidence": "cargo test -p enforcer-memory --features ort-models passed with CARGO_BUILD_JOBS=1, CARGO_PROFILE_TEST_DEBUG=0, and CARGO_INCREMENTAL=0."
+    },
+    {
+      "shape": "t0",
+      "incident": "Enforcer coordination health rejected the Git branch name codex/x06-harvest-sync as a lane id because lane ids disallow slash characters."
+    },
+    {
+      "shape": "t1",
+      "fix": "Used codex-x06-harvest-sync as the coordination lane id and kept the slash-bearing branch name only as git metadata."
+    },
+    {
+      "shape": "t2",
+      "evidence": "ocentra_enforcer_coordination_health returned ok with canWriteClaimedPaths true for lane codex-x06-harvest-sync."
+    },
+    {
+      "shape": "t0",
+      "incident": "Exact-file Enforcer scan over the changed proof/harness files still expanded into enforcer-memory build.rs and Cargo.toml baseline dependency policy findings."
+    },
+    {
+      "shape": "t1",
+      "fix": "Classified scan expansion as mjs-enforcer/baseline debt and used exact named file-scope checks for source-shape, secrets, test-policy, validation-bypass, placeholder-implementation, no-test-doubles, and weak-assertions."
+    },
+    {
+      "shape": "t2",
+      "evidence": "Exact named file-scope checks passed; ocentra_enforcer_scan scope=files reported 283 baseline findings rooted in crate metadata/build-script policy rather than the edited files."
     }
   ]
 }

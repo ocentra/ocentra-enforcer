@@ -1,8 +1,8 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 49,
+  "rowsGreen": 50,
   "rowsFailed": 0,
-  "rowsUnrunnable": 201,
+  "rowsUnrunnable": 200,
   "rows": [
     {
       "id": "QA-001",
@@ -1310,14 +1310,28 @@
       "id": "QA-097",
       "category": "Learning",
       "query": "Prove reranker improved ranking.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Learning",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "runtime:llama-cache",
+        "learning:observations"
+      ],
+      "actualIds": [
+        "runtime:llama-cache",
+        "learning:observations",
+        "proof:retrieval-quality",
+        "unrelated:network"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "rerankerLift": 0.4293582810446799,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/ranking.rs",
+        "crates/enforcer-memory/src/search/mod.rs",
+        "crates/enforcer-memory/tests/retrieval_stack.rs",
+        "proof/memory/x06-reranker.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-098",
