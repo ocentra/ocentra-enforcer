@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-dogfood",
-  "generatedAt": "2026-07-07T05:34:52Z",
+  "generatedAt": "2026-07-07T06:19:46Z",
   "hub": "ocentra-enforcer",
   "stateRoot": "E:/ocentra-enforcer/.ledger/ocentra-enforcer",
   "lane": "codex-x06-harvest-sync",
@@ -71,7 +71,27 @@
     "cargo metadata --locked --format-version 1 --no-deps passed after QA-186 Experience proof promotion",
     "git diff --check passed after QA-186 Experience proof promotion",
     "ocentra_enforcer_doctor scope=crate crateName=enforcer-memory ok after QA-186 proof promotion",
-    "ocentra_enforcer_check source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, and placeholder-implementation scope=files ok for QA-186 proof files"
+    "ocentra_enforcer_check source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, and placeholder-implementation scope=files ok for QA-186 proof files",
+    "cargo test -p enforcer-memory --test model_runtime_real_contract --quiet passed after adding usable Qwen3 Vulkan chat proof assertions and portable mismatch fixtures",
+    "node JSON parse check passed for x06-dogfood.json, x06-models-hash-mismatch.json, and x06-models-tokenizer-mismatch.json",
+    "cargo fmt --package enforcer-memory --check passed after running rustfmt on the new model-runtime contract assertions",
+    "cargo test -p enforcer-memory --features ort-models --quiet passed with CARGO_BUILD_JOBS=1, CARGO_PROFILE_TEST_DEBUG=0, and CARGO_INCREMENTAL=0 after clearing an orphaned pre-compaction ORT cargo process",
+    "cargo clippy -p enforcer-memory --all-targets -- -D warnings passed after model-runtime mismatch proof promotion",
+    "cargo metadata --locked --format-version 1 --no-deps passed after model-runtime mismatch proof promotion",
+    "git diff --check passed after model-runtime mismatch proof promotion",
+    "ocentra_enforcer_doctor scope=crate crateName=enforcer-memory ok after model-runtime mismatch proof promotion",
+    "ocentra_enforcer_check source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, and placeholder-implementation scope=files ok for model-runtime mismatch proof files",
+    "x06-models.json keeps zero-network plan mode while linking Qwen3 Vulkan/CPU local proof artifacts and portable hash/tokenizer mismatch artifacts",
+    "cargo test -p enforcer-memory --quiet passed after x06-models rollup linking",
+    "cargo test -p enforcer-memory --features ort-models --quiet passed after x06-models rollup linking with CARGO_BUILD_JOBS=1, CARGO_PROFILE_TEST_DEBUG=0, and CARGO_INCREMENTAL=0",
+    "cargo clippy -p enforcer-memory --all-targets -- -D warnings passed after x06-models rollup linking",
+    "cargo metadata --locked --format-version 1 --no-deps passed after x06-models rollup linking",
+    "cargo fmt --package enforcer-memory --check passed after x06-models rollup linking",
+    "git diff --check passed after x06-models rollup linking",
+    "JSON parse check passed for x06-dogfood.json, x06-models.json, x06-feature-parity.json, x06-models-hash-mismatch.json, and x06-models-tokenizer-mismatch.json",
+    "ocentra_enforcer_coordination_health operation=commit ok over expanded model proof rollup file set",
+    "ocentra_enforcer_doctor scope=crate crateName=enforcer-memory ok after expanded model proof rollup",
+    "ocentra_enforcer_check source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, and placeholder-implementation scope=files ok for expanded model proof rollup files"
   ],
   "redOrPartialGates": [
     {
@@ -112,7 +132,22 @@
     {
       "gate": "git commit pre-commit hook",
       "classification": "environment",
-      "reason": "hook runs workspace Enforcer scan and reports 20190 existing workspace violations on this slice; scoped X06 cargo and Enforcer checks above are the honest completion gate for this slice"
+      "reason": "hook runs workspace Enforcer scan and reports 20254 existing workspace violations on this slice; scoped X06 cargo and Enforcer checks above are the honest completion gate for this slice"
+    },
+    {
+      "gate": "ocentra_enforcer_scan scope=files model-runtime proof slice",
+      "classification": "mjs-enforcer",
+      "reason": "expanded exact-file scan returned 198 existing strict-scan findings by expanding into enforcer-memory Cargo.toml/build.rs, deny.toml, config policy, and existing test-file domain/source rules; exact named file-scope checks are clean for the edited files"
+    },
+    {
+      "gate": "ocentra_enforcer_check required-tests scope=files model-runtime proof slice",
+      "classification": "environment",
+      "reason": "required-tests still reports the known 16 pre-existing inline-test findings in enforcer-memory source files; this model-runtime proof slice only edits tests/proof artifacts"
+    },
+    {
+      "gate": "ocentra_enforcer_check dependency-policy scope=files model-runtime proof slice",
+      "classification": "environment",
+      "reason": "dependency-policy still reports the known Cargo.lock cargo-audit advisory; no dependency or lockfile changes were introduced by this slice"
     }
   ],
   "lessons": [
@@ -439,6 +474,78 @@
     {
       "shape": "t2",
       "evidence": "ocentra_enforcer_scan scope=files returned 309 findings; source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, and placeholder-implementation all returned ok over the exact same changed files."
+    },
+    {
+      "shape": "t0",
+      "incident": "The checked-in chat proof set could be misread as complete while the real successful local chat proof is Qwen3 4B Vulkan, not Ornith, and the CPU run remains below the 10 tok/s floor."
+    },
+    {
+      "shape": "t1",
+      "fix": "Added contract assertions that explicitly prove the Qwen3 Vulkan GGUF hello-world probe is loaded, local-cache backed, provider=vulkan, and 101.9 tok/s, while the CPU proof is kept as a model-load-failure observation at 8.5 tok/s."
+    },
+    {
+      "shape": "t2",
+      "evidence": "cargo test -p enforcer-memory --test model_runtime_real_contract --quiet passed with checked_in_qwen3_vulkan_chat_probe_is_real_usable_local_gguf and checked_in_qwen3_cpu_chat_probe_records_below_floor_failure."
+    },
+    {
+      "shape": "t0",
+      "incident": "Model-runtime learning required durable negative evidence for artifact and tokenizer hash mismatches, but checked-in proofs only covered positive/local-load and degraded/cache states."
+    },
+    {
+      "shape": "t1",
+      "fix": "Added portable negative fixtures x06-models-hash-mismatch.json and x06-models-tokenizer-mismatch.json with no network, no local hardware requirement, and artifact-hash-mismatch/tokenizer-hash-mismatch observation candidates."
+    },
+    {
+      "shape": "t2",
+      "evidence": "model_runtime_real_contract now verifies both negative fixtures emit x06-model-runtime-negative-proof observations with <repo>/model paths and distinct 64-hex expected/observed hashes."
+    },
+    {
+      "shape": "t0",
+      "incident": "cargo fmt --package enforcer-memory --check rejected the first model-runtime proof assertion patch for rustfmt line wrapping."
+    },
+    {
+      "shape": "t1",
+      "fix": "Ran cargo fmt --package enforcer-memory rather than hand-editing formatter output."
+    },
+    {
+      "shape": "t2",
+      "evidence": "cargo fmt --package enforcer-memory --check passed on rerun before the model-runtime proof commit."
+    },
+    {
+      "shape": "t0",
+      "incident": "A pre-compaction ORT feature cargo process remained alive with negligible CPU progress and caused the focused model-runtime contract gate to wait behind build/test contention."
+    },
+    {
+      "shape": "t1",
+      "fix": "Inspected cargo process command lines and CPU deltas, stopped the orphaned ORT cargo process, then reran gates in a serialized order."
+    },
+    {
+      "shape": "t2",
+      "evidence": "The focused model-runtime contract test passed with 31 tests, and the full ort-models feature test passed afterward with one cargo job and low-memory settings."
+    },
+    {
+      "shape": "t0",
+      "incident": "Current exact-file scan for the model-runtime proof slice returned 191 strict-scan findings even though the named file-scope checks were clean."
+    },
+    {
+      "shape": "t1",
+      "fix": "Recorded the scan as baseline/mjs-enforcer expansion debt and kept source-shape, secrets, test-policy, weak-assertions, skipped/focused, validation-bypass, and placeholder checks as the exact hard gates for edited files."
+    },
+    {
+      "shape": "t2",
+      "evidence": "ocentra_enforcer_check source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, and placeholder-implementation returned ok over the same edited file list."
+    },
+    {
+      "shape": "t0",
+      "incident": "The MOD rollup artifact still looked like a pure zero-network plan after local Qwen3 and negative mismatch proofs were added, making the feature-parity row too easy to misread."
+    },
+    {
+      "shape": "t1",
+      "fix": "Added linkedProofArtifacts to x06-models.json so the plan artifact remains CI-safe while pointing to host-local Qwen3 proofs and portable negative learning proofs."
+    },
+    {
+      "shape": "t2",
+      "evidence": "model_runtime_real_contract now asserts the zero-network plan rollup links the Qwen3 Vulkan usable proof, CPU below-floor proof, artifact hash mismatch proof, and tokenizer hash mismatch proof without claiming ciParity."
     }
   ]
 }

@@ -293,6 +293,14 @@ fn checked_in_real_model_proofs_do_not_hardcode_machine_absolute_paths() {
             "x06-models-cache-only-preseeded.json",
             include_str!("../../../proof/memory/x06-models-cache-only-preseeded.json"),
         ),
+        (
+            "x06-models-hash-mismatch.json",
+            include_str!("../../../proof/memory/x06-models-hash-mismatch.json"),
+        ),
+        (
+            "x06-models-tokenizer-mismatch.json",
+            include_str!("../../../proof/memory/x06-models-tokenizer-mismatch.json"),
+        ),
     ];
     let banned = [
         concat!("E", ":\\"),
@@ -324,6 +332,8 @@ fn checked_in_real_model_proofs_are_not_claimed_as_ci_parity() -> TestResult {
         include_str!("../../../proof/memory/x06-models-qwen3-reranker-ort-cpu.json"),
         include_str!("../../../proof/memory/x06-models-cache-only-missing.json"),
         include_str!("../../../proof/memory/x06-models-cache-only-preseeded.json"),
+        include_str!("../../../proof/memory/x06-models-hash-mismatch.json"),
+        include_str!("../../../proof/memory/x06-models-tokenizer-mismatch.json"),
     ];
 
     for body in proof_files {
@@ -392,6 +402,126 @@ fn checked_in_cache_only_proofs_are_zero_network_and_path_redacted() -> TestResu
 }
 
 #[test]
+fn checked_in_qwen3_vulkan_chat_probe_is_real_usable_local_gguf() -> TestResult {
+    let proof: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../proof/memory/x06-models-qwen3-4b-vulkan-windows-local.json"
+    ))?;
+    let chat = &proof["chatGenerationGguf"];
+    let report = &chat["report"];
+    let usability = &chat["usability"];
+
+    assert_eq!(proof["runtimeMode"], "probe");
+    assert_eq!(proof["proofScope"]["portability"], "local-runtime-proof");
+    assert_eq!(proof["proofScope"]["localHardwareRequired"], true);
+    assert_eq!(proof["proofScope"]["ciParity"], false);
+    assert_eq!(proof["allowNetwork"], true);
+    assert_eq!(
+        proof["chatModelSelection"]["selected"]["repoId"],
+        "Qwen/Qwen3-4B-GGUF"
+    );
+
+    assert_eq!(chat["operation"], "chat-generation-gguf");
+    assert_eq!(chat["loaded"], true);
+    assert_eq!(chat["ok"], true);
+    assert_eq!(report["kind"], "generate");
+    assert_eq!(report["backendHint"], "vulkan");
+    assert_eq!(report["requestedAcceleration"], "gpu");
+    assert_eq!(
+        report["modelPath"],
+        "<repo>/model/hf/Qwen--Qwen3-4B-GGUF/main/Qwen3-4B-Q4_K_M.gguf"
+    );
+    assert!(report["stdoutExcerpt"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("Say hello from the local chat model in one short sentence."));
+
+    let measured = usability["measuredTokensPerSecond"]
+        .as_f64()
+        .ok_or("missing chat throughput measurement")?;
+    assert!(measured >= DEFAULT_MIN_CHAT_TOKENS_PER_SECOND);
+    assert!(measured >= TARGET_CHAT_TOKENS_PER_SECOND_HIGH);
+    assert_eq!(usability["ok"], true);
+
+    let observation = &proof["observations"][0]["candidate"];
+    assert_eq!(observation["observationKind"], "successful-local-load");
+    assert_eq!(observation["modelId"], "Qwen/Qwen3-4B-GGUF");
+    assert_eq!(observation["provider"], "vulkan");
+    assert_eq!(observation["loadedFromLocalCache"], true);
+    Ok(())
+}
+
+#[test]
+fn checked_in_qwen3_cpu_chat_probe_records_below_floor_failure() -> TestResult {
+    let proof: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../proof/memory/x06-models-qwen3-4b-cpu-windows-local.json"
+    ))?;
+    let chat = &proof["chatGenerationGguf"];
+    let usability = &chat["usability"];
+
+    assert_eq!(chat["loaded"], true);
+    assert_eq!(chat["ok"], false);
+    assert_eq!(chat["report"]["requestedAcceleration"], "cpu");
+    assert_eq!(usability["ok"], false);
+    assert_eq!(usability["minChatTokensPerSecond"], 10.0);
+    assert!(usability["reason"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("measured 8.50 tokens/sec < required 10.00"));
+    assert_eq!(
+        proof["observations"][0]["candidate"]["observationKind"],
+        "model-load-failure"
+    );
+    Ok(())
+}
+
+#[test]
+fn checked_in_negative_mismatch_proofs_emit_learning_observations() -> TestResult {
+    let proof_files = [
+        (
+            "artifact-hash-mismatch",
+            "x06-models-hash-mismatch",
+            include_str!("../../../proof/memory/x06-models-hash-mismatch.json"),
+        ),
+        (
+            "tokenizer-hash-mismatch",
+            "x06-models-tokenizer-mismatch",
+            include_str!("../../../proof/memory/x06-models-tokenizer-mismatch.json"),
+        ),
+    ];
+
+    for (kind, run_id, body) in proof_files {
+        let proof: serde_json::Value = serde_json::from_str(body)?;
+        assert_eq!(proof["runtimeMode"], "negative-fixture");
+        assert_eq!(proof["allowNetwork"], false);
+        assert_eq!(proof["ok"], false);
+        assert_eq!(
+            proof["proofScope"]["portability"],
+            "portable-negative-contract"
+        );
+        assert_eq!(proof["proofScope"]["localHardwareRequired"], false);
+        assert_eq!(proof["proofScope"]["ciParity"], false);
+        assert_eq!(proof["case"], kind);
+        assert_eq!(proof["error"]["kind"], kind);
+
+        let observation = &proof["observations"][0];
+        assert_eq!(observation["source"], "x06-model-runtime-negative-proof");
+        assert_eq!(observation["runId"], run_id);
+        let candidate = &observation["candidate"];
+        assert_eq!(candidate["observationKind"], kind);
+        assert!(candidate["path"]
+            .as_str()
+            .unwrap_or_default()
+            .starts_with("<repo>/model/"));
+        let expected = candidate["expectedSha256"].as_str().unwrap_or_default();
+        let observed = candidate["observedSha256"].as_str().unwrap_or_default();
+        assert_eq!(expected.len(), 64);
+        assert_eq!(observed.len(), 64);
+        assert_ne!(expected, observed);
+    }
+    Ok(())
+}
+
+#[test]
 fn portable_plan_proof_does_not_probe_local_hardware() -> TestResult {
     let proof: serde_json::Value =
         serde_json::from_str(include_str!("../../../proof/memory/x06-models.json"))?;
@@ -401,6 +531,34 @@ fn portable_plan_proof_does_not_probe_local_hardware() -> TestResult {
     assert_eq!(proof["proofScope"]["ciParity"], false);
     assert!(proof["chatModelSelection"]["deviceReport"].is_null());
     assert_eq!(proof["cacheRoot"], "<repo>/model");
+    assert_eq!(
+        proof["linkedProofArtifacts"]["localRuntimeProofs"][0]["artifactPath"],
+        "proof/memory/x06-models-qwen3-4b-vulkan-windows-local.json"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["localRuntimeProofs"][0]["status"],
+        "usable-local-chat"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["localRuntimeProofs"][0]["ciParity"],
+        false
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["localRuntimeProofs"][0]["measuredTokensPerSecond"],
+        101.9
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["localRuntimeProofs"][1]["status"],
+        "below-chat-floor"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["negativeLearningProofs"][0]["observationKind"],
+        "artifact-hash-mismatch"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["negativeLearningProofs"][1]["observationKind"],
+        "tokenizer-hash-mismatch"
+    );
     Ok(())
 }
 

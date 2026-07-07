@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "artifact": "x06-model-runtime-negative-proof",
+  "runtimeMode": "negative-fixture",
+  "proofScope": {
+    "arch": "any",
+    "capability": "ci",
+    "ciParity": false,
+    "localHardwareRequired": false,
+    "platform": "any",
+    "portability": "portable-negative-contract",
+    "reason": "checked-in negative fixture proves tokenizer hash mismatch learning shape without network, model download, or local hardware"
+  },
+  "allowNetwork": false,
+  "case": "tokenizer-hash-mismatch",
+  "operation": "qwen-embedding-onnx-tokenizer",
+  "ok": false,
+  "strictCacheHash": true,
+  "error": {
+    "kind": "tokenizer-hash-mismatch",
+    "reason": "tokenizer hash mismatch for <repo>/model/hf/Qwen--Qwen3-Embedding-0.6B/main/tokenizer.json"
+  },
+  "observations": [
+    {
+      "schemaVersion": 1,
+      "observedAt": "checked-in-negative-fixture",
+      "source": "x06-model-runtime-negative-proof",
+      "runId": "x06-models-tokenizer-mismatch",
+      "candidate": {
+        "observationKind": "tokenizer-hash-mismatch",
+        "modelId": "Qwen/Qwen3-Embedding-0.6B",
+        "path": "<repo>/model/hf/Qwen--Qwen3-Embedding-0.6B/main/tokenizer.json",
+        "expectedSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "observedSha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      }
+    }
+  ]
+}

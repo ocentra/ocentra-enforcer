@@ -230,5 +230,45 @@
     "reason": "runtime mode plan does not download or load models",
     "skipped": true
   },
-  "observations": []
+  "observations": [],
+  "linkedProofArtifacts": {
+    "localRuntimeProofs": [
+      {
+        "artifactPath": "proof/memory/x06-models-qwen3-4b-vulkan-windows-local.json",
+        "ciParity": false,
+        "localHardwareRequired": true,
+        "modelId": "Qwen/Qwen3-4B-GGUF",
+        "provider": "vulkan",
+        "status": "usable-local-chat",
+        "measuredTokensPerSecond": 101.9,
+        "minimumTokensPerSecond": 10.0
+      },
+      {
+        "artifactPath": "proof/memory/x06-models-qwen3-4b-cpu-windows-local.json",
+        "ciParity": false,
+        "localHardwareRequired": true,
+        "modelId": "Qwen/Qwen3-4B-GGUF",
+        "provider": "cpu",
+        "status": "below-chat-floor",
+        "measuredTokensPerSecond": 8.5,
+        "minimumTokensPerSecond": 10.0
+      }
+    ],
+    "negativeLearningProofs": [
+      {
+        "artifactPath": "proof/memory/x06-models-hash-mismatch.json",
+        "ciParity": false,
+        "localHardwareRequired": false,
+        "observationKind": "artifact-hash-mismatch",
+        "status": "portable-negative-contract"
+      },
+      {
+        "artifactPath": "proof/memory/x06-models-tokenizer-mismatch.json",
+        "ciParity": false,
+        "localHardwareRequired": false,
+        "observationKind": "tokenizer-hash-mismatch",
+        "status": "portable-negative-contract"
+      }
+    ]
+  }
 }
