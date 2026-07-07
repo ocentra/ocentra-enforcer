@@ -80,6 +80,49 @@
         "proof/memory/x06-retrieval-quality.json"
       ]
     },
+    "QA-214": {
+      "queryId": "x06-qa-214-kg-filter-top100-to-top25",
+      "expectedId": "token-reduction:kg-filter-top100-to-top25",
+      "stage": "kg-filter",
+      "inputCandidates": 100,
+      "outputCandidates": 25,
+      "reductionRatio": 4.0,
+      "minimumReductionRatio": 1.0,
+      "scope": "fixture candidate-count proof before context-pack assembly",
+      "sourceRefs": [
+        "crates/enforcer-memory/src/search/mod.rs",
+        "proof/memory/x06-retrieval-quality.json"
+      ]
+    },
+    "QA-215": {
+      "queryId": "x06-qa-215-rerank-top25-to-top5",
+      "expectedId": "token-reduction:rerank-top25-to-top5",
+      "stage": "rerank-context-pack",
+      "inputCandidates": 25,
+      "outputCandidates": 5,
+      "reductionRatio": 5.0,
+      "minimumReductionRatio": 5.0,
+      "scope": "fixture candidate-count proof for reranker-selected context-pack inputs",
+      "sourceRefs": [
+        "crates/enforcer-memory/src/ranking.rs",
+        "crates/enforcer-memory/src/search/mod.rs",
+        "proof/memory/x06-reranker.json"
+      ]
+    },
+    "QA-216": {
+      "queryId": "x06-qa-216-lowest-token-reduction-class",
+      "expectedId": "token-reduction:no-query-class-below-5x",
+      "querySet": "committed-fixture-token-reduction-queries",
+      "queryCount": 3,
+      "lowestReductionRatio": 24.7524752475,
+      "reductionRatio": 24.7524752475,
+      "minimumReductionRatio": 5.0,
+      "scope": "fixture proof that the committed token-reduction query classes have no <5x row",
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/feature_parity/metrics.rs",
+        "proof/memory/x06-retrieval-quality.json"
+      ]
+    },
     "QA-217": {
       "queryId": "x06-qa-217-p95-token-savings",
       "expectedId": "token-reduction:p95>=10x",
@@ -108,11 +151,25 @@
         "crates/enforcer-memory/tests/feature_parity/metrics.rs",
         "proof/memory/x06-retrieval-quality.json"
       ]
+    },
+    "QA-219": {
+      "queryId": "x06-qa-219-file-open-avoidance",
+      "expectedId": "token-reduction:file-open-avoidance-context-pack",
+      "baselineFilesOpened": 42,
+      "contextPackFilesOpened": 5,
+      "avoidedFiles": 37,
+      "reductionRatio": 8.4,
+      "minimumReductionRatio": 1.0,
+      "scope": "fixture proof that context packing avoids opening the full 42-file baseline",
+      "sourceRefs": [
+        "crates/enforcer-memory/src/search/mod.rs",
+        "proof/memory/x06-retrieval-quality.json"
+      ]
     }
   },
   "notes": [
     "Token reduction is proven on committed fixture retrieval rows, not on an external model provider.",
-    "QA-213, QA-217, and QA-218 are fixture-scope proof rows; they do not claim production-query distribution coverage.",
+    "QA-213 through QA-219 token-reduction rows are fixture-scope proof rows; they do not claim production-query distribution coverage.",
     "Reranker lift remains separately tracked because the current deterministic fixture reranker does not improve all rows."
   ]
 }

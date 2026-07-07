@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-dogfood",
-  "generatedAt": "2026-07-07T07:38:00Z",
+  "generatedAt": "2026-07-07T07:45:00Z",
   "hub": "ocentra-enforcer",
   "stateRoot": "E:/ocentra-enforcer/.ledger/ocentra-enforcer",
   "lane": "codex-x06-harvest-sync",
@@ -132,7 +132,10 @@
     "final cargo test -p enforcer-memory --quiet passed end-to-end after query_graph Store-projection routing",
     "final cargo clippy -p enforcer-memory --all-targets -- -D warnings passed after query_graph Store-projection routing",
     "final ocentra_enforcer_coordination_health operation=commit ok over the seven changed files with explicit hub=ocentra-enforcer and explicit stateRoot",
-    "final ocentra_enforcer_check source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, placeholder-implementation, and generated-artifacts scope=files ok over the seven changed files"
+    "final ocentra_enforcer_check source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, placeholder-implementation, and generated-artifacts scope=files ok over the seven changed files",
+    "cargo test -p enforcer-memory --test feature_parity_harness --quiet passed after token-reduction QA tranche promotion",
+    "x06-rag-qa.json now records QA-214, QA-215, QA-216, and QA-219 pass with recomputed fixture-scoped token-reduction ratios; total QA coverage is 60/250 with 0 failures",
+    "x06-feature-parity.json now records QA as the only red matrix prefix with 190 unrunnable rows and 0 failed rows"
   ],
   "redOrPartialGates": [
     {
@@ -208,7 +211,7 @@
     {
       "gate": "QA full green",
       "classification": "proof-only",
-      "reason": "QA improved from 54/250 to 56/250 with 0 failures; 194 rows remain honestly unrunnable because no exact row runner/proof exists yet"
+      "reason": "QA improved from 56/250 to 60/250 with 0 failures; 190 rows remain honestly unrunnable because no exact row runner/proof exists yet"
     },
     {
       "gate": "ocentra_enforcer_check architecture-policy scope=files QA/GPH proof slice",
@@ -716,6 +719,18 @@
     {
       "shape": "t2",
       "evidence": "unit_mcp passed after the edit, and exact no-test-doubles plus weak-assertions checks returned zero findings over the changed file set."
+    },
+    {
+      "shape": "t0",
+      "incident": "QA still had token-reduction rows marked unrunnable even though x06-token-reduction.json already carried deterministic fixture evidence for committed retrieval/token-reduction behavior."
+    },
+    {
+      "shape": "t1",
+      "fix": "Extended the exact QA evidence runner and token-reduction proof artifact for QA-214, QA-215, QA-216, and QA-219, recomputing each ratio from checked-in candidate/file/token counts instead of hardcoding a pass."
+    },
+    {
+      "shape": "t2",
+      "evidence": "feature_parity_harness passed and regenerated x06-rag-qa.json with 60 green rows, 190 unrunnable rows, and 0 failed rows."
     }
   ]
 }

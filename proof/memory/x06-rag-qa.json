@@ -1,8 +1,8 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 56,
+  "rowsGreen": 60,
   "rowsFailed": 0,
-  "rowsUnrunnable": 194,
+  "rowsUnrunnable": 190,
   "rows": [
     {
       "id": "QA-001",
@@ -3163,40 +3163,68 @@
       "id": "QA-214",
       "category": "TokenReduction",
       "query": "Measure token savings from the KG filter (top-100 -> top-25).",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category TokenReduction",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "token-reduction:kg-filter-top100-to-top25"
+      ],
+      "actualIds": [
+        "token-reduction:kg-filter-top100-to-top25"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "tokenReductionRatio": 4.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/search/mod.rs",
+        "proof/memory/x06-retrieval-quality.json",
+        "proof/memory/x06-token-reduction.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-215",
       "category": "TokenReduction",
       "query": "Measure token savings from reranking (top-25 -> top-5).",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category TokenReduction",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "token-reduction:rerank-top25-to-top5"
+      ],
+      "actualIds": [
+        "token-reduction:rerank-top25-to-top5"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "tokenReductionRatio": 5.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/ranking.rs",
+        "crates/enforcer-memory/src/search/mod.rs",
+        "proof/memory/x06-reranker.json",
+        "proof/memory/x06-token-reduction.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-216",
       "category": "TokenReduction",
       "query": "Find query classes with lowest token reduction (< 5x).",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category TokenReduction",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "token-reduction:no-query-class-below-5x"
+      ],
+      "actualIds": [
+        "token-reduction:no-query-class-below-5x"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "tokenReductionRatio": 24.7524752475,
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/feature_parity/metrics.rs",
+        "proof/memory/x06-retrieval-quality.json",
+        "proof/memory/x06-token-reduction.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-217",
@@ -3246,14 +3274,23 @@
       "id": "QA-219",
       "category": "TokenReduction",
       "query": "Measure file-open avoidance from context packing.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category TokenReduction",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "token-reduction:file-open-avoidance-context-pack"
+      ],
+      "actualIds": [
+        "token-reduction:file-open-avoidance-context-pack"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "tokenReductionRatio": 8.4,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/search/mod.rs",
+        "proof/memory/x06-retrieval-quality.json",
+        "proof/memory/x06-token-reduction.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-220",

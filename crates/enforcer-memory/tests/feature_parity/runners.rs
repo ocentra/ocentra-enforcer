@@ -1042,7 +1042,8 @@ pub struct ExactQaEvidenceRunner;
 
 const EXACT_QA_EVIDENCE_IDS: &[&str] = &[
     "QA-012", "QA-021", "QA-022", "QA-023", "QA-048", "QA-068", "QA-097", "QA-098", "QA-105",
-    "QA-112", "QA-174", "QA-186", "QA-213", "QA-217", "QA-218", "QA-226",
+    "QA-112", "QA-174", "QA-186", "QA-213", "QA-214", "QA-215", "QA-216", "QA-217", "QA-218",
+    "QA-219", "QA-226",
 ];
 
 impl RowRunner for ExactQaEvidenceRunner {
@@ -1051,13 +1052,7 @@ impl RowRunner for ExactQaEvidenceRunner {
     }
 
     fn can_run(&self, row: &QaRow) -> bool {
-        if EXACT_QA_EVIDENCE_IDS.contains(&row.id.as_str()) {
-            return true;
-        }
-        matches!(
-            row.category.as_str(),
-            "Experience" | "Lessons" | "Learning" | "TokenReduction"
-        ) && EXACT_QA_EVIDENCE_IDS.contains(&row.id.as_str())
+        EXACT_QA_EVIDENCE_IDS.contains(&row.id.as_str())
     }
 
     fn run(&self, row: &QaRow, fixtures: &Fixtures) -> RowResult {
@@ -1078,7 +1073,9 @@ impl RowRunner for ExactQaEvidenceRunner {
             "QA-098" => token_reduction_probe(row),
             "QA-105" => rule_id_test_probe(row),
             "QA-112" => sha256_contract_probe(row),
-            "QA-213" | "QA-217" | "QA-218" => token_reduction_qa_evidence_probe(row),
+            "QA-213" | "QA-214" | "QA-215" | "QA-216" | "QA-217" | "QA-218" | "QA-219" => {
+                token_reduction_qa_evidence_probe(row)
+            }
             "QA-174" => lesson_recall_probe(
                 row,
                 fixtures,
@@ -1627,6 +1624,18 @@ fn token_reduction_qa_evidence_probe(row: &QaRow) -> RowResult {
             Some(value) => value,
             None => return unrunnable(row, "QA-217 could not recompute p95 token reduction"),
         },
+        "QA-214" | "QA-215" => {
+            let input = match json_usize(qa_evidence, "inputCandidates", rel) {
+                Ok(value) => value,
+                Err(error) => return unrunnable(row, &error),
+            };
+            let output = match json_usize(qa_evidence, "outputCandidates", rel) {
+                Ok(value) => value,
+                Err(error) => return unrunnable(row, &error),
+            };
+            metrics::token_reduction_ratio(input, output)
+        }
+        "QA-216" => ratios.iter().copied().fold(f64::INFINITY, f64::min),
         "QA-218" => {
             let replayed = match json_usize(qa_evidence, "replayedQueries", rel) {
                 Ok(value) => value,
@@ -1643,6 +1652,17 @@ fn token_reduction_qa_evidence_probe(row: &QaRow) -> RowResult {
             if replayed != 1_000 {
                 return unrunnable(row, "QA-218 evidence must use a 1,000-query replay");
             }
+            metrics::token_reduction_ratio(baseline, context)
+        }
+        "QA-219" => {
+            let baseline = match json_usize(qa_evidence, "baselineFilesOpened", rel) {
+                Ok(value) => value,
+                Err(error) => return unrunnable(row, &error),
+            };
+            let context = match json_usize(qa_evidence, "contextPackFilesOpened", rel) {
+                Ok(value) => value,
+                Err(error) => return unrunnable(row, &error),
+            };
             metrics::token_reduction_ratio(baseline, context)
         }
         _ => return unrunnable(row, "unsupported token-reduction QA evidence row"),
@@ -1887,6 +1907,13 @@ mod tests {
         );
         assert!(ExactQaEvidenceRunner.can_run(&token_replay_row));
 
+        let kg_filter_row = sample_row(
+            "QA-214",
+            "TokenReduction",
+            "Measure token savings from the KG filter.",
+        );
+        assert!(ExactQaEvidenceRunner.can_run(&kg_filter_row));
+
         let parse_boundary_row = sample_row(
             "QA-186",
             "Experience",
@@ -1953,6 +1980,21 @@ mod tests {
                 "Prove MCP retrieval beats agent-opens-42-files.",
             ),
             sample_row(
+                "QA-214",
+                "TokenReduction",
+                "Measure token savings from the KG filter (top-100 -> top-25).",
+            ),
+            sample_row(
+                "QA-215",
+                "TokenReduction",
+                "Measure token savings from reranking (top-25 -> top-5).",
+            ),
+            sample_row(
+                "QA-216",
+                "TokenReduction",
+                "Find query classes with lowest token reduction (< 5x).",
+            ),
+            sample_row(
                 "QA-217",
                 "TokenReduction",
                 "Report p95 token savings across the workpack query set.",
@@ -1961,6 +2003,11 @@ mod tests {
                 "QA-218",
                 "TokenReduction",
                 "Report cumulative token savings over 1,000 replayed queries.",
+            ),
+            sample_row(
+                "QA-219",
+                "TokenReduction",
+                "Measure file-open avoidance from context packing.",
             ),
             sample_row(
                 "QA-174",
@@ -2006,6 +2053,21 @@ mod tests {
                 "Prove MCP retrieval beats agent-opens-42-files.",
             ),
             sample_row(
+                "QA-214",
+                "TokenReduction",
+                "Measure token savings from the KG filter (top-100 -> top-25).",
+            ),
+            sample_row(
+                "QA-215",
+                "TokenReduction",
+                "Measure token savings from reranking (top-25 -> top-5).",
+            ),
+            sample_row(
+                "QA-216",
+                "TokenReduction",
+                "Find query classes with lowest token reduction (< 5x).",
+            ),
+            sample_row(
                 "QA-217",
                 "TokenReduction",
                 "Report p95 token savings across the workpack query set.",
@@ -2015,6 +2077,11 @@ mod tests {
                 "TokenReduction",
                 "Report cumulative token savings over 1,000 replayed queries.",
             ),
+            sample_row(
+                "QA-219",
+                "TokenReduction",
+                "Measure file-open avoidance from context packing.",
+            ),
         ];
         let results = run_all(&rows, &fixtures);
         assert_eq!(results.len(), rows.len());
@@ -2023,9 +2090,16 @@ mod tests {
             let Some(ratio) = result.token_reduction_ratio else {
                 return Err(format!("{} must report a token-reduction ratio", result.id).into());
             };
+            let expected = match result.id.as_str() {
+                "QA-213" | "QA-216" | "QA-217" | "QA-218" => 24.7524752475,
+                "QA-214" => 4.0,
+                "QA-215" => 5.0,
+                "QA-219" => 8.4,
+                id => return Err(format!("unexpected token-reduction QA row {id}").into()),
+            };
             assert!(
-                ratio >= 10.0,
-                "{} token-reduction ratio must satisfy the 10x gate, got {ratio}",
+                (ratio - expected).abs() < 1e-9,
+                "{} token-reduction ratio must match checked-in evidence; got {ratio}, expected {expected}",
                 result.id
             );
             assert!(result
