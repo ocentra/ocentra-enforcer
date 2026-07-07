@@ -1,8 +1,8 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 53,
+  "rowsGreen": 54,
   "rowsFailed": 0,
-  "rowsUnrunnable": 197,
+  "rowsUnrunnable": 196,
   "rows": [
     {
       "id": "QA-001",
@@ -2763,14 +2763,26 @@
       "id": "QA-186",
       "category": "Experience",
       "query": "What fix strategy worked for parse-at-boundary violations?",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Experience",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "mem-a03-0001",
+        "mem-a05-0001",
+        "mem-a06-0001"
+      ],
+      "actualIds": [
+        "mem-a03-0001",
+        "mem-a05-0001",
+        "mem-a06-0001"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "memory/streams/a03.ndjson",
+        "memory/streams/a05.ndjson",
+        "memory/streams/a06.ndjson"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-187",

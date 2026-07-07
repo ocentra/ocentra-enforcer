@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-dogfood",
-  "generatedAt": "2026-07-07T05:23:35Z",
+  "generatedAt": "2026-07-07T05:34:52Z",
   "hub": "ocentra-enforcer",
   "stateRoot": "E:/ocentra-enforcer/.ledger/ocentra-enforcer",
   "lane": "codex-x06-harvest-sync",
@@ -59,7 +59,19 @@
     "cargo test -p enforcer-memory --features ort-models --test model_runtime_real_contract --quiet passed after cache-only proof assertion hardening",
     "cargo clippy -p enforcer-memory --all-targets -- -D warnings passed after cache-only proof assertion hardening",
     "cargo fmt --package enforcer-memory --check passed after cache-only proof assertion hardening",
-    "ocentra_enforcer_check weak-assertions scope=files ok after replacing negative contains assertions with exact find(None) checks"
+    "ocentra_enforcer_check weak-assertions scope=files ok after replacing negative contains assertions with exact find(None) checks",
+    "cargo test -p enforcer-memory --test feature_parity_harness qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split -- --exact passed after QA-186 Experience evidence promotion",
+    "cargo test -p enforcer-memory exact_qa_evidence_runner --quiet passed with exact-runner tests covering QA-186 allowlist behavior",
+    "x06-rag-qa.json now records QA-186 pass with mem-a03-0001, mem-a05-0001, and mem-a06-0001 parse-boundary evidence; total QA coverage is 54/250 with 0 failures",
+    "cargo test -p enforcer-memory --test feature_parity_harness --quiet passed after QA-186 proof regeneration",
+    "cargo test -p enforcer-memory --quiet passed after QA-186 Experience proof promotion",
+    "cargo test -p enforcer-memory --features ort-models --quiet passed with CARGO_BUILD_JOBS=1, CARGO_PROFILE_TEST_DEBUG=0, and CARGO_INCREMENTAL=0",
+    "cargo clippy -p enforcer-memory --all-targets -- -D warnings passed after QA-186 Experience proof promotion",
+    "cargo fmt --package enforcer-memory --check passed after QA-186 Experience proof promotion",
+    "cargo metadata --locked --format-version 1 --no-deps passed after QA-186 Experience proof promotion",
+    "git diff --check passed after QA-186 Experience proof promotion",
+    "ocentra_enforcer_doctor scope=crate crateName=enforcer-memory ok after QA-186 proof promotion",
+    "ocentra_enforcer_check source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, and placeholder-implementation scope=files ok for QA-186 proof files"
   ],
   "redOrPartialGates": [
     {
@@ -75,7 +87,7 @@
     {
       "gate": "ocentra_enforcer_scan scope=files changed source files",
       "classification": "mjs-enforcer",
-      "reason": "changed-file scan still expands into Cargo/build-script and strict baseline crate domain/dependency debt; latest changed-file scan returned 306 findings rooted in build.rs/Cargo.toml policy while narrower source-shape, validation-bypass, placeholder-implementation, secrets, no-test-doubles, weak-assertions, and skipped-focused-tests checks are clean"
+      "reason": "changed-file scan still expands into strict baseline crate domain/dependency debt; latest QA-186 file scan returned 309 findings across the pre-existing feature-parity runner shape, enforcer-memory Cargo.toml/build.rs policy, deny.toml, and config policy while narrower source-shape, validation-bypass, placeholder-implementation, secrets, no-test-doubles, weak-assertions, and skipped-focused-tests checks are clean"
     },
     {
       "gate": "ocentra_enforcer_check source-shape scope=diff base=origin/rust-build head=HEAD",
@@ -100,7 +112,7 @@
     {
       "gate": "git commit pre-commit hook",
       "classification": "environment",
-      "reason": "hook runs workspace Enforcer scan and reports 19884 existing workspace violations; scoped X06 cargo and Enforcer checks above are the honest completion gate for this slice"
+      "reason": "hook runs workspace Enforcer scan and reports 20190 existing workspace violations on this slice; scoped X06 cargo and Enforcer checks above are the honest completion gate for this slice"
     }
   ],
   "lessons": [
@@ -174,7 +186,7 @@
     },
     {
       "shape": "t2",
-      "evidence": "Pre-commit hook reported 19884 workspace violations while cargo test, ORT tests, clippy, package fmt, doctor, source-shape, validation-bypass, placeholder-implementation, and secrets were green."
+      "evidence": "Pre-commit hook reported 20190 workspace violations while cargo test, ORT tests, clippy, package fmt, doctor, source-shape, validation-bypass, placeholder-implementation, and secrets were green."
     },
     {
       "shape": "t0",
@@ -379,6 +391,54 @@
     {
       "shape": "t2",
       "evidence": "ocentra_enforcer_check weak-assertions scope=files, cargo test -p enforcer-memory --test model_runtime_real_contract --quiet, cargo test -p enforcer-memory --quiet, and focused ORT contract tests passed after the fix."
+    },
+    {
+      "shape": "t0",
+      "incident": "QA-186 was unrunnable even though durable memory streams already contained parse-at-boundary branded-newtype fix evidence."
+    },
+    {
+      "shape": "t1",
+      "fix": "ExactQaEvidenceRunner now allowlists only QA-186 from the Experience category and requires mem-a03-0001, mem-a05-0001, and mem-a06-0001 plus exact parse-boundary/branded-newtype markers before passing."
+    },
+    {
+      "shape": "t2",
+      "evidence": "feature_parity_harness regenerated x06-rag-qa.json with QA-186 pass, 54 green rows, 196 unrunnable rows, and 0 failed rows."
+    },
+    {
+      "shape": "t0",
+      "incident": "A cheaper scout found no row-id-tagged evidence for QA-087..089 or QA-186..191, which exposed the risk of promoting Experience rows from loose semantic matches."
+    },
+    {
+      "shape": "t1",
+      "fix": "Kept QA-087..089 and QA-187..191 unrunnable; only QA-186 moved because the runner verifies concrete stream ids and marker text in source artifacts."
+    },
+    {
+      "shape": "t2",
+      "evidence": "x06-rag-qa.json still reports 196 unrunnable rows and 0 failed rows after the single-row Experience promotion."
+    },
+    {
+      "shape": "t0",
+      "incident": "PowerShell rejected Bash-style heredocs and this host's Get-Date lacks the -AsUTC parameter while running dogfood evidence scripts."
+    },
+    {
+      "shape": "t1",
+      "fix": "Used PowerShell-native here-strings piped to node and [DateTime]::UtcNow.ToString(...) for portable local evidence collection."
+    },
+    {
+      "shape": "t2",
+      "evidence": "The rerun evidence script completed, and dogfood generatedAt was refreshed with the .NET UTC timestamp path."
+    },
+    {
+      "shape": "t0",
+      "incident": "The exact-file Enforcer scan for the QA-186 slice reported 309 strict-scan findings even after named file-scope checks were clean."
+    },
+    {
+      "shape": "t1",
+      "fix": "Classified this as mjs-enforcer/baseline policy debt because the scan includes existing feature-parity runner shape rules plus Cargo/build.rs/deny/config policy findings outside the single-row QA proof change."
+    },
+    {
+      "shape": "t2",
+      "evidence": "ocentra_enforcer_scan scope=files returned 309 findings; source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, and placeholder-implementation all returned ok over the exact same changed files."
     }
   ]
 }

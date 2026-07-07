@@ -1034,7 +1034,7 @@ pub struct ExactQaEvidenceRunner;
 
 const EXACT_QA_EVIDENCE_IDS: &[&str] = &[
     "QA-012", "QA-021", "QA-022", "QA-023", "QA-048", "QA-068", "QA-097", "QA-098", "QA-174",
-    "QA-213", "QA-217", "QA-218", "QA-226",
+    "QA-186", "QA-213", "QA-217", "QA-218", "QA-226",
 ];
 
 impl RowRunner for ExactQaEvidenceRunner {
@@ -1045,7 +1045,7 @@ impl RowRunner for ExactQaEvidenceRunner {
     fn can_run(&self, row: &QaRow) -> bool {
         matches!(
             row.category.as_str(),
-            "Lessons" | "Learning" | "TokenReduction"
+            "Experience" | "Lessons" | "Learning" | "TokenReduction"
         ) && EXACT_QA_EVIDENCE_IDS.contains(&row.id.as_str())
     }
 
@@ -1073,6 +1073,7 @@ impl RowRunner for ExactQaEvidenceRunner {
                 "mem-x06-9-fixture-0002",
                 vec!["crates/enforcer-memory/src/ids.rs".to_string()],
             ),
+            "QA-186" => parse_boundary_strategy_probe(row),
             "QA-226" => learning_curve_ratchet_probe(row, fixtures),
             _ => unrunnable(row, "exact QA evidence row is not wired"),
         }
@@ -1242,6 +1243,59 @@ fn proof_gap_probe(row: &QaRow) -> RowResult {
             "proof/memory/x06-rag-qa.json".to_string(),
         ],
     )
+}
+
+fn parse_boundary_strategy_probe(row: &QaRow) -> RowResult {
+    let root = super::queryset::workspace_root();
+    let checks = [
+        (
+            "mem-a03-0001",
+            "memory/streams/a03.ndjson",
+            [
+                "\"id\":\"mem-a03-0001\"",
+                "branded newtype",
+                "TryFrom<String>/FromStr parse-at-boundary",
+            ],
+        ),
+        (
+            "mem-a05-0001",
+            "memory/streams/a05.ndjson",
+            [
+                "\"id\":\"mem-a05-0001\"",
+                "branded Sha256 newtype",
+                "parse-at-boundary TryFrom<String>/FromStr",
+            ],
+        ),
+        (
+            "mem-a06-0001",
+            "memory/streams/a06.ndjson",
+            [
+                "\"id\":\"mem-a06-0001\"",
+                "HubName and LaneId as branded newtypes",
+                "parse-at-boundary TryFrom<String>/FromStr",
+            ],
+        ),
+    ];
+
+    let mut ids = Vec::new();
+    let mut refs = Vec::new();
+    for (id, rel, needles) in checks {
+        let source = match std::fs::read_to_string(root.join(rel)) {
+            Ok(source) => source,
+            Err(error) => return unrunnable(row, &format!("failed to read {rel}: {error}")),
+        };
+        for needle in needles {
+            if !source.contains(needle) {
+                return unrunnable(
+                    row,
+                    &format!("{rel} does not contain parse-boundary evidence marker {needle}"),
+                );
+            }
+        }
+        ids.push(id.to_string());
+        refs.push(rel.to_string());
+    }
+    exact_pass(row, ids, refs)
 }
 
 fn lesson_recall_probe(
@@ -1751,6 +1805,16 @@ mod tests {
         );
         assert!(ExactQaEvidenceRunner.can_run(&token_replay_row));
 
+        let parse_boundary_row = sample_row(
+            "QA-186",
+            "Experience",
+            "What fix strategy worked for parse-at-boundary violations?",
+        );
+        assert!(ExactQaEvidenceRunner.can_run(&parse_boundary_row));
+
+        let broad_experience = sample_row("QA-187", "Experience", "Find arbitrary experience.");
+        assert!(!ExactQaEvidenceRunner.can_run(&broad_experience));
+
         let broad_lessons = sample_row("QA-999", "Lessons", "Find arbitrary lesson content.");
         assert!(!ExactQaEvidenceRunner.can_run(&broad_lessons));
     }
@@ -1810,6 +1874,11 @@ mod tests {
                 "QA-174",
                 "Lessons",
                 "Have we solved a domain-type issue before?",
+            ),
+            sample_row(
+                "QA-186",
+                "Experience",
+                "What fix strategy worked for parse-at-boundary violations?",
             ),
             sample_row(
                 "QA-226",
