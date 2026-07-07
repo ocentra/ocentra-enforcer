@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "artifact": "x06-learning-curve",
   "workpack": "x06-models-harvest",
-  "generatedAt": "2026-07-07T02:38:20Z",
+  "generatedAt": "2026-07-07T06:22:41Z",
   "status": "store-backed-projection",
   "learningCurve": {
     "present": true,
@@ -135,9 +135,10 @@
       "status": "learned"
     }
   ],
-  "blockers": [
+  "blockers": [],
+  "followUps": [
     "Checked-in real model runtime proofs remain host-local and non-CI-parity; rerun explicit probes when hardware, cache, or providers change.",
-    "QA coverage is 53/250 runnable with 0 failures; unsupported rows remain unrunnable rather than fake green."
+    "QA coverage is 54/250 runnable with 0 failures; unsupported rows remain unrunnable rather than fake green."
   ],
   "recurrenceNotes": [
     "t0 events now have durable Store append paths for observations and model-runtime incidents.",

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-dogfood",
-  "generatedAt": "2026-07-07T06:19:46Z",
+  "generatedAt": "2026-07-07T06:37:23Z",
   "hub": "ocentra-enforcer",
   "stateRoot": "E:/ocentra-enforcer/.ledger/ocentra-enforcer",
   "lane": "codex-x06-harvest-sync",
@@ -91,7 +91,22 @@
     "JSON parse check passed for x06-dogfood.json, x06-models.json, x06-feature-parity.json, x06-models-hash-mismatch.json, and x06-models-tokenizer-mismatch.json",
     "ocentra_enforcer_coordination_health operation=commit ok over expanded model proof rollup file set",
     "ocentra_enforcer_doctor scope=crate crateName=enforcer-memory ok after expanded model proof rollup",
-    "ocentra_enforcer_check source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, and placeholder-implementation scope=files ok for expanded model proof rollup files"
+    "ocentra_enforcer_check source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, and placeholder-implementation scope=files ok for expanded model proof rollup files",
+    "cargo test -p enforcer-memory --test unit_learning store_learning_projection_replays_observations_into_curves -- --exact passed for Store-backed learning projection replay",
+    "cargo test -p enforcer-memory --test feature_parity_harness qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split -- --exact passed after LRN rollup correction",
+    "x06-feature-parity.json now records LRN green and retrievalImprovementCurvePresent=true while keeping allMatrixPrefixesGreen=false because GPH and QA remain red",
+    "cargo test -p enforcer-memory --test feature_parity_harness --quiet passed after LRN rollup correction",
+    "cargo test -p enforcer-memory --quiet passed after LRN rollup correction",
+    "cargo test -p enforcer-memory --features ort-models --quiet passed with CARGO_BUILD_JOBS=1, CARGO_PROFILE_TEST_DEBUG=0, and CARGO_INCREMENTAL=0 after LRN rollup correction",
+    "cargo clippy -p enforcer-memory --all-targets -- -D warnings passed after LRN rollup correction",
+    "cargo metadata --locked --format-version 1 --no-deps passed after LRN rollup correction",
+    "cargo fmt --package enforcer-memory --check passed after LRN rollup correction",
+    "git diff --check passed after LRN rollup correction",
+    "JSON parse check passed for x06-dogfood.json, x06-learning-curve.json, and x06-feature-parity.json",
+    "ocentra_enforcer_mcp_status ok/hash-compatible/write-compatible after LRN rollup correction",
+    "ocentra_enforcer_coordination_health operation=commit ok for LRN rollup files",
+    "ocentra_enforcer_doctor scope=crate crateName=enforcer-memory ok after LRN rollup correction",
+    "ocentra_enforcer_check source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, and placeholder-implementation scope=files ok for LRN rollup files"
   ],
   "redOrPartialGates": [
     {
@@ -146,6 +161,21 @@
     },
     {
       "gate": "ocentra_enforcer_check dependency-policy scope=files model-runtime proof slice",
+      "classification": "environment",
+      "reason": "dependency-policy still reports the known Cargo.lock cargo-audit advisory; no dependency or lockfile changes were introduced by this slice"
+    },
+    {
+      "gate": "ocentra_enforcer_scan scope=files LRN rollup slice",
+      "classification": "mjs-enforcer",
+      "reason": "expanded exact-file scan returned 140 existing strict-scan findings by expanding into enforcer-memory crate metadata/build policy and config policy; exact named file-scope checks are clean for the edited files"
+    },
+    {
+      "gate": "ocentra_enforcer_check required-tests scope=files LRN rollup slice",
+      "classification": "environment",
+      "reason": "required-tests still reports the known 16 pre-existing inline-test findings in enforcer-memory source files; this LRN rollup slice only edits tests/proof artifacts"
+    },
+    {
+      "gate": "ocentra_enforcer_check dependency-policy scope=files LRN rollup slice",
       "classification": "environment",
       "reason": "dependency-policy still reports the known Cargo.lock cargo-audit advisory; no dependency or lockfile changes were introduced by this slice"
     }
@@ -546,6 +576,18 @@
     {
       "shape": "t2",
       "evidence": "model_runtime_real_contract now asserts the zero-network plan rollup links the Qwen3 Vulkan usable proof, CPU below-floor proof, artifact hash mismatch proof, and tokenizer hash mismatch proof without claiming ciParity."
+    },
+    {
+      "shape": "t0",
+      "incident": "LRN stayed red because x06-learning-curve.json mixed durable learning blockers with non-learning follow-ups for host-local model proof and QA coverage."
+    },
+    {
+      "shape": "t1",
+      "fix": "Moved non-learning items to followUps, kept learning blockers empty, and updated the feature-parity harness to expect retrievalImprovementCurvePresent=true once the Store-backed learning curve is green."
+    },
+    {
+      "shape": "t2",
+      "evidence": "unit_learning and feature_parity_harness exact tests passed; x06-feature-parity.json now records LRN green, retrievalImprovementCurvePresent=true, QA=54/250, and allMatrixPrefixesGreen=false due remaining GPH/QA gaps."
     }
   ]
 }

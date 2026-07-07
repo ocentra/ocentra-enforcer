@@ -131,7 +131,7 @@ fn qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split() -> T
     assert!(rollup.local_reranker_present);
     assert!(rollup.token_reduction_median_at_least_10x);
     assert!(rollup.mcp_cli_parity);
-    assert!(!rollup.retrieval_improvement_curve_present);
+    assert!(rollup.retrieval_improvement_curve_present);
 
     let rollup_path = workspace_root.join("proof/memory/x06-feature-parity.json");
     write_json_document(&rollup_path, &rollup)?;
