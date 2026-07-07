@@ -29,6 +29,31 @@ Per language, resolve the tree-sitter grammar for Rust, in preference order:
   TOML, Dockerfile, HTML, CSS/SCSS, Vue, Svelte, GraphQL, Protobuf, Markdown, XML, INI, …
 - G2.4 — exotic long tail as grammars allow: COBOL, Wolfram, Hare, Pony, Pine, Ada, Agda, …
 
+## Progress log
+
+- **G2.1 DONE (pushed 80f6237):** Kotlin, Swift, TSX, Dart, Scala, Groovy, Ruby, Zig,
+  Objective-C, Solidity, GDScript — 11 languages, 0 deferred, all real crates.io grammars.
+  Real bugs caught against actual grammar shapes (not blind baseline transcription):
+  Dart's fn-name/body field split, Groovy's baseline array missing `method_declaration`
+  entirely, Solidity's wrapped call-function field, GDScript's `base_call` callee. Ruby's
+  inheritance depth deliberately matches the baseline's own (limited) support rather than
+  over-building. Complexity extraction deferred per-language (`complexity_language() ->
+  None`) for this whole batch — richer tier work lands in G3.
+- **G2.2 DONE (pushed a6ef2f8):** Ada, Apex, Crystal, CUDA, D, PowerShell, F#, Gleam, GLSL,
+  Julia, Odin, Pascal, QML, ReScript, Squirrel — completes ALL 34 baseline Tier-3 languages.
+  Plus Lua, Elixir, Bash, Haskell, OCaml, Erlang, R, Perl, Clojure (Tier-2). 24 languages,
+  0 deferred. CUDA/GLSL reuse the existing C++/C grammar deps (mirrors baseline's own
+  lang_specs.c aliasing). Real bugs caught: Elixir's baseline func-def extractor drops every
+  guard-clause def (`def foo(x) when x > 0`) — fixed as a genuine improvement, documented;
+  Elixir's baseline imports pass is non-recursive and breaks on any `defmodule`-wrapped file
+  (virtually all of them) — this crate's recursive walk doesn't have that bug; Lua's baseline
+  `branch_types` names a node (`for_in_statement`) that doesn't exist in the real grammar.
+  8 of 8 parallel workers hit a simultaneous session rate-limit wall mid-wave (see
+  orchestration-lessons.md) — landed code was verified directly against tree+gates, not
+  trusted from self-reports; orchestrator hand-fixed the resulting 12 clippy + 2 test errors.
+- **Next: G2.3** — Tier-1 (30) + Tier-0 (45) config/markup/shallow languages. Sizing the
+  next fan-out to 4-5 workers (not 8) per the session-limit lesson.
+
 ## Fixtures & tests
 Per language: one small source file under `tests/fixtures/memory/lang_<x>/` exercising a
 function, a call, an import (and a branch for complexity). A table-driven test asserts the
