@@ -1,3 +1,4 @@
+use enforcer_memory::error::MemoryError;
 use enforcer_memory::hf_cache::{
     expand_onnx_spec_from_metadata, model_cache_dir, resolve_cached_hf_model,
     resolve_cached_hf_model_from_manifest, resolve_onnx_external_data_files,
@@ -20,6 +21,33 @@ use enforcer_memory::model_runtime::{
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+fn assert_contract_terms(haystack: &str, expected_terms: &[&str]) {
+    let missing_terms: Vec<&str> = expected_terms
+        .iter()
+        .copied()
+        .filter(|term| !haystack.contains(term))
+        .collect();
+    assert_eq!(missing_terms, Vec::<&str>::new());
+}
+
+fn assert_model_runtime_error(
+    result: Result<(), MemoryError>,
+    expected_operation: &str,
+    expected_reason: &str,
+) -> TestResult {
+    match result {
+        Err(error) => match error {
+            MemoryError::ModelRuntime { operation, reason } => {
+                assert_eq!(operation, expected_operation);
+                assert_eq!(reason, expected_reason);
+                Ok(())
+            }
+            other => Err(format!("expected model runtime error, got {other:?}").into()),
+        },
+        Ok(()) => Err("expected model runtime error, got Ok(())".into()),
+    }
+}
 
 #[test]
 fn hf_specs_pin_enforcer_model_lineup() -> TestResult {
@@ -76,7 +104,11 @@ fn user_model_override_specs_validate_before_download() -> TestResult {
         acceleration: enforcer_memory::local_runtime::LocalRuntimeAcceleration::Auto,
         file_path: "../secret.gguf".to_owned(),
     });
-    assert!(bad.validate().is_err());
+    assert_model_runtime_error(
+        bad.validate(),
+        "validate-hf-repo-id",
+        "invalid Hugging Face repo id: \"../bad/repo\"",
+    )?;
     Ok(())
 }
 
@@ -98,7 +130,10 @@ fn chat_model_selector_prefers_q4_model_that_fits_detected_hardware() {
 
     assert_eq!(selection.selected.model_id, "Qwen/Qwen3-4B-GGUF:Q4_K_M");
     assert_eq!(selection.selected_quantization, "Q4_K_M");
-    assert!(selection.reason.contains("7484"));
+    assert_eq!(
+        selection.reason,
+        "selected Qwen/Qwen3-4B-GGUF:Q4_K_M because detected free VRAM is 7484 MiB and required free VRAM is 4096 MiB"
+    );
 }
 
 #[test]
@@ -148,7 +183,10 @@ fn chat_usability_requires_ten_tokens_per_second_and_records_target_band() {
     assert_eq!(crawl.min_chat_tokens_per_second, Some(10.0));
     assert_eq!(crawl.target_chat_tokens_per_second_low, Some(40.0));
     assert_eq!(crawl.target_chat_tokens_per_second_high, Some(60.0));
-    assert!(crawl.reason.contains("chat not usable"));
+    assert_eq!(
+        crawl.reason,
+        "chat not usable: measured 2.00 tokens/sec < required 10.00; target 40.00-60.00 tokens/sec"
+    );
 
     let usable = evaluate_chat_usability(true, Some(10.0), "loaded", policy);
     assert!(usable.ok);
@@ -303,15 +341,18 @@ fn portable_plan_proof_does_not_probe_local_hardware() -> TestResult {
 fn ort_runtime_uses_qwen_causal_lm_reranker_scoring_contract() {
     let runtime = include_str!("../src/ort_runtime.rs");
 
-    assert!(runtime.contains("Tensor::<f32>::new("));
-    assert!(
-        runtime.contains("Shape::new([1, QWEN3_KV_HEAD_COUNT as i64, 0, QWEN3_HEAD_DIM as i64])")
+    assert_contract_terms(
+        runtime,
+        &[
+            "Tensor::<f32>::new(",
+            "Shape::new([1, QWEN3_KV_HEAD_COUNT as i64, 0, QWEN3_HEAD_DIM as i64])",
+            "answer can only be \\\"yes\\\" or \\\"no\\\"",
+            "token_to_id(\"yes\")",
+            "token_to_id(\"no\")",
+            "let last_token_offset = (active_seq_len - 1) * vocab_size;",
+            "let yes_exp = (yes_logit - max_logit).exp();",
+        ],
     );
-    assert!(runtime.contains("answer can only be \\\"yes\\\" or \\\"no\\\""));
-    assert!(runtime.contains("token_to_id(\"yes\")"));
-    assert!(runtime.contains("token_to_id(\"no\")"));
-    assert!(runtime.contains("let last_token_offset = (active_seq_len - 1) * vocab_size;"));
-    assert!(runtime.contains("let yes_exp = (yes_logit - max_logit).exp();"));
 }
 
 #[test]
@@ -344,24 +385,30 @@ fn real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in() {
     let probe = include_str!("../examples/x06_model_runtime_probe.rs");
     let script = include_str!("../scripts/x06-real-model-proof.ps1");
 
-    assert!(probe.contains("const DEFAULT_PROBE_FILTER: &str = \"chat\";"));
-    assert!(probe.contains("\"oneModelAtATime\": plan.one_model_at_a_time"));
-    assert!(probe.contains("\"cpuFirst\": plan.cpu_first"));
-    assert!(probe
-        .contains("\"gpuAndNpuRequireProviderProbe\": plan.gpu_and_npu_require_provider_probe"));
-    assert!(probe.contains("\"killOnTimeout\": plan.kill_on_timeout"));
-    assert!(probe.contains("\"providerProbeTimeoutMs\": plan.provider_probe_timeout_ms"));
-    assert!(probe.contains("\"modelProbeTimeoutMs\": plan.model_probe_timeout_ms"));
-    assert!(probe.contains("\"minimumChatTokensPerSecond\": plan.minimum_chat_tokens_per_second"));
-    assert!(probe.contains("ENFORCER_X06_ALLOW_MULTI_PROBE"));
-    assert!(probe.contains("\"reranker\" | \"ranker\" | \"reranker-onnx\""));
-    assert!(
-        probe.contains("one model at a time; CPU first; GPU/NPU only after provider probes pass; timeout kills the child process"),
-        "probe proof should explain why broad model launches are disabled by default"
+    assert_contract_terms(
+        probe,
+        &[
+            "const DEFAULT_PROBE_FILTER: &str = \"chat\";",
+            "\"oneModelAtATime\": plan.one_model_at_a_time",
+            "\"cpuFirst\": plan.cpu_first",
+            "\"gpuAndNpuRequireProviderProbe\": plan.gpu_and_npu_require_provider_probe",
+            "\"killOnTimeout\": plan.kill_on_timeout",
+            "\"providerProbeTimeoutMs\": plan.provider_probe_timeout_ms",
+            "\"modelProbeTimeoutMs\": plan.model_probe_timeout_ms",
+            "\"minimumChatTokensPerSecond\": plan.minimum_chat_tokens_per_second",
+            "ENFORCER_X06_ALLOW_MULTI_PROBE",
+            "\"reranker\" | \"ranker\" | \"reranker-onnx\"",
+            "one model at a time; CPU first; GPU/NPU only after provider probes pass; timeout kills the child process",
+        ],
     );
-    assert!(script.contains("[string]$Acceleration = 'cpu'"));
-    assert!(script.contains("[switch]$AllowMultiProbe"));
-    assert!(script.contains("$env:ENFORCER_X06_ALLOW_MULTI_PROBE"));
+    assert_contract_terms(
+        script,
+        &[
+            "[string]$Acceleration = 'cpu'",
+            "[switch]$AllowMultiProbe",
+            "$env:ENFORCER_X06_ALLOW_MULTI_PROBE",
+        ],
+    );
 }
 
 #[test]
@@ -369,21 +416,31 @@ fn real_model_probe_can_import_external_chat_assets_into_repo_model_cache() {
     let probe = include_str!("../examples/x06_model_runtime_probe.rs");
     let script = include_str!("../scripts/x06-real-model-proof.ps1");
 
-    assert!(probe.contains("ENFORCER_X06_CHAT_MODEL_PATH"));
-    assert!(probe.contains("maybe_direct_chat_model_report"));
-    assert!(probe.contains("\"providerProbePassed\":"));
-    assert!(probe.contains("\"resolvedAcceleration\":"));
-    assert!(script.contains("[string]$ImportChatModelPath"));
-    assert!(script.contains("[string]$ImportLlamaCliPath"));
-    assert!(script.contains("$env:ENFORCER_X06_ORT_TIMEOUT_MS"));
-    assert!(script.contains("Filter '*.dll'"));
-    assert!(script.contains("model\\local\\chat"));
-    assert!(script.contains("model\\bin"));
-    assert!(probe.contains("llama_report_proof(repo_root, &report)"));
-    assert!(probe.contains("llama_device_report_proof(repo_root, report)"));
-    assert!(probe.contains("repo_relative_display(repo_root, &report.binary_path)"));
-    assert!(probe.contains("repo_path_redacted_text(repo_root, &report.stdout_excerpt)"));
-    assert!(probe.contains("hf_downloaded_files_proof(repo_root, &report.downloaded_files)"));
+    assert_contract_terms(
+        probe,
+        &[
+            "ENFORCER_X06_CHAT_MODEL_PATH",
+            "maybe_direct_chat_model_report",
+            "\"providerProbePassed\":",
+            "\"resolvedAcceleration\":",
+            "llama_report_proof(repo_root, &report)",
+            "llama_device_report_proof(repo_root, report)",
+            "repo_relative_display(repo_root, &report.binary_path)",
+            "repo_path_redacted_text(repo_root, &report.stdout_excerpt)",
+            "hf_downloaded_files_proof(repo_root, &report.downloaded_files)",
+        ],
+    );
+    assert_contract_terms(
+        script,
+        &[
+            "[string]$ImportChatModelPath",
+            "[string]$ImportLlamaCliPath",
+            "$env:ENFORCER_X06_ORT_TIMEOUT_MS",
+            "Filter '*.dll'",
+            "model\\local\\chat",
+            "model\\bin",
+        ],
+    );
 }
 
 #[test]
@@ -455,9 +512,21 @@ fn onnx_metadata_expansion_includes_dot_external_data_files() -> TestResult {
 fn hf_cache_paths_are_stable_and_safe() -> TestResult {
     validate_hf_repo_id("Qwen/Qwen3-Embedding-0.6B-GGUF")?;
     validate_hf_file_path("onnx/model_q4.onnx")?;
-    assert!(validate_hf_repo_id("../bad/repo").is_err());
-    assert!(validate_hf_file_path("../secret").is_err());
-    assert!(validate_hf_file_path("/absolute/model.onnx").is_err());
+    assert_model_runtime_error(
+        validate_hf_repo_id("../bad/repo"),
+        "validate-hf-repo-id",
+        "invalid Hugging Face repo id: \"../bad/repo\"",
+    )?;
+    assert_model_runtime_error(
+        validate_hf_file_path("../secret"),
+        "validate-hf-file-path",
+        "unsafe Hugging Face file path: \"../secret\"",
+    )?;
+    assert_model_runtime_error(
+        validate_hf_file_path("/absolute/model.onnx"),
+        "validate-hf-file-path",
+        "unsafe Hugging Face file path: \"/absolute/model.onnx\"",
+    )?;
 
     let cache = model_cache_dir(
         std::path::Path::new("target/cache"),
@@ -471,9 +540,18 @@ fn hf_cache_paths_are_stable_and_safe() -> TestResult {
 }
 
 #[test]
-fn llama_cpp_validation_fails_closed_for_missing_assets() {
-    assert!(validate_executable(std::path::Path::new("missing-llama-cli.exe")).is_err());
-    assert!(validate_model(std::path::Path::new("missing-model.gguf")).is_err());
+fn llama_cpp_validation_fails_closed_for_missing_assets() -> TestResult {
+    assert_model_runtime_error(
+        validate_executable(std::path::Path::new("missing-llama-cli.exe")),
+        "validate-llama-executable",
+        "llama.cpp executable not found: missing-llama-cli.exe",
+    )?;
+    assert_model_runtime_error(
+        validate_model(std::path::Path::new("missing-model.gguf")),
+        "validate-llama-model",
+        "GGUF model not found: missing-model.gguf",
+    )?;
+    Ok(())
 }
 
 #[test]

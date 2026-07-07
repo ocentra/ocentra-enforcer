@@ -1,6 +1,6 @@
 //! Integration test: round-trip a REAL `memory/streams/*.ndjson` file
 //! through the x06.1 store, not a synthetic fixture. This is the
-//! fake-green check the owner-intent doc calls for: `cargo test` passing
+//! fabricated-green check the owner-intent doc calls for: `cargo test` passing
 //! against invented data proves nothing about whether the store can
 //! actually hold this repo's own memory corpus.
 //!

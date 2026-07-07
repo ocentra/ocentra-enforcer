@@ -116,12 +116,16 @@ fn retrieval_and_reranker_evidence_round_trip() -> Result<(), Box<dyn std::error
     });
 
     let serialized = serde_json::to_string(&retrieval)?;
+    let serialized_json: serde_json::Value = serde_json::from_str(&serialized)?;
     let deserialized = serde_json::from_str::<ModelRuntimeObservationCandidate>(&serialized)?;
     assert!(matches!(
         deserialized,
         ModelRuntimeObservationCandidate::RetrievalQualityProof(_)
     ));
-    assert!(serialized.contains("retrieval-quality-proof"));
+    assert_eq!(
+        serialized_json["observationKind"].as_str(),
+        Some("retrieval-quality-proof")
+    );
 
     let rerank_round = serde_json::to_string(&rerank)?;
     let rerank_deserialized =

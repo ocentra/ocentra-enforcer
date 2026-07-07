@@ -30,7 +30,8 @@ fn graph_event_kind_tags_on_wire() -> Result<(), serde_json::Error> {
         node_kind: "file".to_owned(),
     };
     let json = serde_json::to_string(&node)?;
-    assert!(json.contains("\"kind\":\"nodeAdded\""));
+    let value: serde_json::Value = serde_json::from_str(&json)?;
+    assert_eq!(value["kind"].as_str(), Some("nodeAdded"));
     Ok(())
 }
 

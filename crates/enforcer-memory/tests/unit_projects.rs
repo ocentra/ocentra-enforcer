@@ -62,9 +62,9 @@ fn list_projects_reports_every_initialized_project_and_skips_non_projects() -> P
 
     let projects = list_projects(&stores_dir)?;
     assert_eq!(projects.len(), 2);
-    let repo_roots: Vec<&str> = projects.iter().map(|p| p.repo_root.as_str()).collect();
-    assert!(repo_roots.contains(&"C:/Projects/alpha"));
-    assert!(repo_roots.contains(&"C:/Projects/beta"));
+    let mut repo_roots: Vec<&str> = projects.iter().map(|p| p.repo_root.as_str()).collect();
+    repo_roots.sort_unstable();
+    assert_eq!(repo_roots, vec!["C:/Projects/alpha", "C:/Projects/beta"]);
 
     std::fs::remove_dir_all(&stores_dir).map_err(|source| MemoryError::Io {
         path: stores_dir,

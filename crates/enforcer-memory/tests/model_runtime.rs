@@ -151,7 +151,6 @@ fn parent_policy_cache_and_integrity_states_are_represented() -> TestResult {
         .iter()
         .position(|path| path.ends_with("tokenizer_config.json"))
         .ok_or("tokenizer_config.json should be included")?;
-    assert!(artifacts[0].files.contains(&"tokenizer.json".to_owned()));
     let tokenizer_json_index = artifacts[0]
         .files
         .iter()
@@ -235,13 +234,25 @@ fn invalid_hash_shape_is_a_typed_model_runtime_error() {
 
 #[test]
 fn output_validation_rejects_invalid_runtime_shapes() {
-    assert!(validate_embedding_output(&[0.1, 0.2], 2).is_ok());
-    assert!(validate_embedding_output(&[0.1], 2).is_err());
-    assert!(validate_embedding_output(&[f32::NAN], 1).is_err());
+    assert!(matches!(validate_embedding_output(&[0.1, 0.2], 2), Ok(())));
+    assert!(matches!(
+        validate_embedding_output(&[0.1], 2),
+        Err(MemoryError::ModelRuntime { .. })
+    ));
+    assert!(matches!(
+        validate_embedding_output(&[f32::NAN], 1),
+        Err(MemoryError::ModelRuntime { .. })
+    ));
 
-    assert!(validate_reranker_scores(&[0.9, 0.1], 2).is_ok());
-    assert!(validate_reranker_scores(&[0.9], 2).is_err());
-    assert!(validate_reranker_scores(&[f32::INFINITY], 1).is_err());
+    assert!(matches!(validate_reranker_scores(&[0.9, 0.1], 2), Ok(())));
+    assert!(matches!(
+        validate_reranker_scores(&[0.9], 2),
+        Err(MemoryError::ModelRuntime { .. })
+    ));
+    assert!(matches!(
+        validate_reranker_scores(&[f32::INFINITY], 1),
+        Err(MemoryError::ModelRuntime { .. })
+    ));
 }
 
 #[cfg(not(feature = "ort-models"))]

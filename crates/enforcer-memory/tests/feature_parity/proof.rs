@@ -8,7 +8,7 @@
 //! report a prefix or a QA row green without a real green result behind
 //! it. [`rollup::compute`]'s `all_matrix_prefixes_green` field is
 //! mechanically `true` only when every one of the 20 required prefixes
-//! is individually green (see the module-level fake-green-refusal test
+//! is individually green (see the module-level fabricated-green-refusal test
 //! at the bottom of this file) -- exactly the property the mission
 //! brief requires this harness prove about itself, before it can be
 //! trusted to prove it about the rest of x06.
@@ -205,7 +205,7 @@ pub struct FeatureParityDocument {
 /// results this harness itself computed.
 ///
 /// `all_matrix_prefixes_green` is computed here, not accepted as a
-/// caller-supplied bool: this is the load-bearing anti-fake-green
+/// caller-supplied bool: this is the load-bearing anti-fabricated-green
 /// property this module exists to guarantee (a caller cannot simply
 /// pass `true` while a prefix is red).
 pub fn build_feature_parity_document(
@@ -346,7 +346,7 @@ mod tests {
         );
     }
 
-    /// **Fake-green refusal test** (mission brief §4, required): the
+    /// **Fabricated-green refusal test** (mission brief §4, required): the
     /// rollup must REFUSE to report `all_matrix_prefixes_green = true`
     /// unless every one of the 20 required prefixes is individually
     /// green. This flips exactly one prefix to Red and asserts the

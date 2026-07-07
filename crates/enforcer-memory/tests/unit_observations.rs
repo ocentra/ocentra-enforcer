@@ -90,7 +90,13 @@ fn procedural_and_route_records_replay_from_store() -> Result<(), Box<dyn std::e
     assert_eq!(graph.route_traces().len(), 1);
     let entries = store.read_observation_entries()?;
     assert_eq!(entries.entries.len(), 2);
-    assert!(entries.entries.iter().all(|entry| entry.payload.is_some()));
+    let missing_payload_seqs: Vec<u64> = entries
+        .entries
+        .iter()
+        .filter(|entry| entry.payload.is_none())
+        .map(|entry| entry.seq)
+        .collect();
+    assert_eq!(missing_payload_seqs, Vec::<u64>::new());
 
     let mut replayed = MemoryGraph::new();
     let replay_count = replay_procedural_and_routes_from_store(&store, &mut replayed)?;

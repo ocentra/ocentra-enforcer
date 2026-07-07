@@ -128,7 +128,10 @@ fn corrupt_row_is_quarantined_not_dropped_silently() -> Result<()> {
         1,
         "the duplicate seq row is quarantined"
     );
-    assert!(outcome.quarantined[0].reason.contains("sequence gap"));
+    assert_eq!(
+        outcome.quarantined[0].reason,
+        "sequence gap: expected seq 1, found 0"
+    );
     cleanup(&path);
     Ok(())
 }
