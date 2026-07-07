@@ -7,7 +7,7 @@
 //! change fully contained to `languages/` + the one dispatch arm in
 //! [`parse_file`] below.
 
-use crate::languages::{c, cpp, csharp, generic, java, php, python, rust, typescript};
+use crate::languages::generic;
 
 /// One extracted symbol: a function, type, or test found in a source
 /// file. Route/import/call extraction is intentionally modeled
@@ -292,9 +292,32 @@ pub fn classify(rel_path: &str) -> Language {
 /// per Go convention -- see `languages/go.rs`'s module doc).
 pub fn parse_file(language: Language, source: &str, rel_path: &str) -> Option<ParsedFile> {
     match language {
-        Language::Rust => Some(rust::parse(source)),
-        Language::TypeScript | Language::JavaScript => Some(typescript::parse(source, language)),
-        Language::Python => Some(python::parse(source)),
+        Language::Rust => {
+            // G1b: routed through the generic spec-table engine
+            // (`languages::generic::parse_rust`) rather than the
+            // bespoke `languages::rust` extractor -- see
+            // `tests/unit_languages_rust.rs`, run unchanged against
+            // this dispatch, for the zero-regression proof.
+            Some(generic::parse_rust(source))
+        }
+        Language::TypeScript | Language::JavaScript => {
+            // G1b: routed through the generic spec-table engine
+            // (`languages::generic::parse_typescript`) -- see
+            // `tests/unit_languages_typescript.rs` (exercises both
+            // `Language::TypeScript` and `Language::JavaScript`
+            // scenarios), run unchanged against this dispatch, for the
+            // zero-regression proof. Both languages share one
+            // grammar/quirks row unchanged from the bespoke
+            // extractor's own behavior.
+            Some(generic::parse_typescript(source))
+        }
+        Language::Python => {
+            // G1b: routed through the generic spec-table engine
+            // (`languages::generic::parse_python`) -- see
+            // `tests/unit_languages_python.rs`, run unchanged against
+            // this dispatch, for the zero-regression proof.
+            Some(generic::parse_python(source))
+        }
         Language::Go => {
             // G1: routed through the generic spec-table engine
             // (`languages::generic::parse_go`) rather than the bespoke
@@ -304,18 +327,44 @@ pub fn parse_file(language: Language, source: &str, rel_path: &str) -> Option<Pa
             let is_test_file = rel_path.to_lowercase().ends_with("_test.go");
             Some(generic::parse_go(source, is_test_file))
         }
-        Language::Java => Some(java::parse(source)),
+        Language::Java => {
+            // G1b: routed through the generic spec-table engine
+            // (`languages::generic::parse_java`) -- see
+            // `tests/unit_languages_java.rs`, run unchanged against
+            // this dispatch, for the zero-regression proof.
+            Some(generic::parse_java(source))
+        }
         Language::C => {
+            // G1b: routed through the generic spec-table engine
+            // (`languages::generic::parse_c`) -- see
+            // `tests/unit_languages_c.rs`, run unchanged against this
+            // dispatch, for the zero-regression proof.
             let is_test_file = is_c_family_test_path(rel_path, &["_test.c"]);
-            Some(c::parse(source, is_test_file))
+            Some(generic::parse_c(source, is_test_file))
         }
         Language::Cpp => {
+            // G1b: routed through the generic spec-table engine
+            // (`languages::generic::parse_cpp`) -- see
+            // `tests/unit_languages_cpp.rs`, run unchanged against this
+            // dispatch, for the zero-regression proof.
             let is_test_file =
                 is_c_family_test_path(rel_path, &["_test.cpp", "_test.cc", "_test.cxx"]);
-            Some(cpp::parse(source, is_test_file))
+            Some(generic::parse_cpp(source, is_test_file))
         }
-        Language::CSharp => Some(csharp::parse(source)),
-        Language::Php => Some(php::parse(source)),
+        Language::CSharp => {
+            // G1b: routed through the generic spec-table engine
+            // (`languages::generic::parse_csharp`) -- see
+            // `tests/unit_languages_csharp.rs`, run unchanged against
+            // this dispatch, for the zero-regression proof.
+            Some(generic::parse_csharp(source))
+        }
+        Language::Php => {
+            // G1b: routed through the generic spec-table engine
+            // (`languages::generic::parse_php`) -- see
+            // `tests/unit_languages_php.rs`, run unchanged against
+            // this dispatch, for the zero-regression proof.
+            Some(generic::parse_php(source))
+        }
         Language::ConfigToml | Language::ConfigJson | Language::ConfigYaml | Language::TextOnly => {
             None
         }

@@ -21,20 +21,25 @@
 //! the baseline's per-language `if (lang == CBM_LANG_X)` branches in
 //! `extract_defs.c`/`extract_calls.c`.
 //!
-//! G1 scope note: every one of our existing 10 languages has a
-//! `LangSpec` row below (node-kind names read off the current bespoke
-//! extractor in `languages/*.rs`). Go is fully routed through the
-//! generic walker (see `generic::parse_go`, wired into
-//! [`crate::parsers::parse_file`]) as this wave's zero-regression
-//! proof; the other 9 rows are data-complete but not yet dispatched
-//! through the generic path -- their bespoke extractors keep running
-//! unchanged. Cutting them over is mechanical repetition of the same
-//! Go migration (route via `generic::parse_with_spec` + a quirk
-//! closure for whatever that language's rich behaviors need) but is
-//! left as explicit follow-up so this wave's diff stays reviewable and
-//! the zero-regression bar stays provable one language at a time, per
-//! this wave's own migration strategy ("port ONE language first ...
-//! then the rest").
+//! G1/G1b scope note: every one of our existing 10 languages is now
+//! fully routed through the generic walker (`generic::parse_<lang>`,
+//! wired into [`crate::parsers::parse_file`]) -- Go was this wave's
+//! original zero-regression proof; Rust, TypeScript/JavaScript,
+//! Python, Java, C, C++, C#, and PHP followed the same pattern
+//! (`tests/unit_lang_spec_engine.rs` proves each generic-path function
+//! reproduces its bespoke counterpart byte-for-byte-equivalent output
+//! on every existing scenario). Several rows below needed correcting
+//! against the actual bespoke source during that migration -- a
+//! node-kind array entry with no corresponding bespoke `match` arm
+//! (invisible data, silently never dispatched until G1b actually
+//! wired it up) is a real class of bug this crate now has direct
+//! evidence for, not just a hypothetical; see e.g. [`LangSpec::java`],
+//! [`LangSpec::csharp`], and [`LangSpec::php`]'s own doc comments for
+//! the specific corrections each needed. [`LangSpec::c`] and
+//! [`LangSpec::cpp`] additionally could not use this file's `name_field`
+//! mechanism at all (see their own doc comments) -- every one of their
+//! node kinds is instead claimed in full by the corresponding
+//! `generic::c_quirk`/`generic::cpp_quirk`.
 
 /// One language's tree-sitter node-*kind* vocabulary, addressed by
 /// name (not grammar-specific enum) so the generic walker never needs
@@ -140,7 +145,13 @@ impl LangSpec {
             interface_types: &["trait_item"],
             enum_types: &["enum_item"],
             alias_types: &["type_item"],
-            field_types: &["field_declaration"],
+            // Empty (not `["field_declaration"]`): `languages/rust.rs`'s
+            // bespoke `struct_item` arm never sets `enclosing` when
+            // recursing into a struct body, so it never emits a
+            // struct-field DEFINES edge either -- matched here for
+            // zero-regression rather than "improving" on the bespoke
+            // behavior (G3's job, if ever wanted).
+            field_types: &[],
             module_types: &["mod_item"],
             call_types: &["call_expression", "method_call_expression"],
             call_function_field: "function",
@@ -174,7 +185,14 @@ impl LangSpec {
             interface_types: &["interface_declaration"],
             enum_types: &["enum_declaration"],
             alias_types: &["type_alias_declaration"],
-            field_types: &["public_field_definition"],
+            // Empty (not `["public_field_definition"]`):
+            // `languages/typescript.rs`'s bespoke walker has no
+            // `"public_field_definition"` match arm at all -- it falls
+            // through to the unmatched-node case and is never turned
+            // into a DEFINES edge, so this stays empty for
+            // zero-regression rather than adding a field DEFINES edge
+            // the bespoke extractor never emitted.
+            field_types: &[],
             module_types: &["module", "internal_module"],
             call_types: &["call_expression"],
             call_function_field: "function",
@@ -234,12 +252,26 @@ impl LangSpec {
         Self {
             name: "java",
             func_types: &[],
-            method_types: &["method_declaration", "constructor_declaration"],
+            // NOT `constructor_declaration`:
+            // `languages/java.rs`'s bespoke walk has no
+            // `"constructor_declaration"` match arm at all -- a
+            // constructor is invisible to the bespoke extractor today,
+            // so including it here would add symbols the bespoke path
+            // never emitted (a regression, not an improvement; G3's
+            // job if ever wanted).
+            method_types: &["method_declaration"],
             class_types: &["class_declaration"],
             interface_types: &["interface_declaration"],
             enum_types: &["enum_declaration"],
             alias_types: &[],
-            field_types: &["field_declaration"],
+            // Empty (not `["field_declaration"]`): only
+            // `static final` fields become a DEFINES-carrying
+            // `SymbolKind::Constant` in the bespoke walk (see its
+            // `field_declaration` arm's `is_constant` gate) -- an
+            // ordinary field is invisible. Handled fully by
+            // [`crate::languages::generic::java_quirk`] instead of this
+            // flat array, which cannot express the modifier gate.
+            field_types: &[],
             module_types: &["package_declaration"],
             call_types: &["method_invocation"],
             call_function_field: "name",
@@ -262,7 +294,23 @@ impl LangSpec {
         }
     }
 
-    /// C: node kinds read off `languages/c.rs`.
+    /// C: node kinds read off `languages/c.rs`. Every one of
+    /// `func_types`/`class_types`/`enum_types`/`alias_types`/
+    /// `field_types` is fully claimed by
+    /// [`crate::languages::generic::c_quirk`] rather than dispatched
+    /// through the generic engine's own `name_field`-based fallback --
+    /// C's declarator-unwrapping (`int *foo(...)`), per-node-kind field
+    /// name (`struct_specifier`/`enum_specifier`/`preproc_def` use
+    /// `"name"`; `function_definition` uses `"declarator"`, which still
+    /// needs unwrapping through pointer/parenthesized-declarator layers
+    /// down to the bare identifier), and multi-name `type_definition`
+    /// alias extraction cannot be expressed by a single flat
+    /// `name_field`/`body_field` pair the way every other language row
+    /// in this file can. These arrays exist so `LangSpec::c()` still
+    /// documents which node kinds are "C's functions/classes/etc." at a
+    /// glance and so `spec.call_types`/`branch_types`/`import_types`
+    /// (which the generic engine *does* use directly and correctly)
+    /// stay declared the normal way.
     pub const fn c() -> Self {
         Self {
             name: "c",
@@ -288,12 +336,26 @@ impl LangSpec {
                 "||",
             ],
             decorator_types: &[],
-            name_field: "declarator",
+            // Never actually consulted: `c_quirk` claims (returns
+            // `true` for) every node kind in `func_types`/
+            // `class_types`/`enum_types`/`alias_types`/`field_types`
+            // above before the generic engine's own `name_field`-keyed
+            // fallback would ever run, so this value's only role is
+            // "not a real field name, so a future maintainer never
+            // mistakes it for one" -- see this const's own doc comment.
+            name_field: "UNUSED_SEE_C_QUIRK",
             body_field: "body",
         }
     }
 
-    /// C++: node kinds read off `languages/cpp.rs`.
+    /// C++: node kinds read off `languages/cpp.rs`. Same "every array
+    /// fully claimed by the quirk hook, `name_field` never actually
+    /// consulted" posture as [`Self::c`] and for the identical reasons
+    /// (declarator unwrapping, out-of-line `Class::method` scoping, the
+    /// abstract-class-as-Interface heuristic, and gtest macro detection
+    /// on two different node kinds all need full custom logic no flat
+    /// array/field-name pair could express) -- see
+    /// [`crate::languages::generic::cpp_quirk`].
     pub const fn cpp() -> Self {
         Self {
             name: "cpp",
@@ -322,26 +384,50 @@ impl LangSpec {
                 "conditional_expression",
             ],
             decorator_types: &[],
-            name_field: "declarator",
+            // Never actually consulted -- see this const's own doc
+            // comment and `LangSpec::c()`'s identical `name_field`
+            // doc.
+            name_field: "UNUSED_SEE_CPP_QUIRK",
             body_field: "body",
         }
     }
 
-    /// C#: node kinds read off `languages/csharp.rs`.
+    /// C#: node kinds read off `languages/csharp.rs`. Several arrays
+    /// differ from what a first glance at the bespoke source might
+    /// suggest -- verified directly against `languages/csharp.rs`'s own
+    /// `match` arms (see [`crate::languages::generic::csharp_quirk`]
+    /// for the corresponding claims):
+    /// - `func_types` is empty, NOT `["local_function_statement"]`: the
+    ///   bespoke `"local_function_statement"` arm only ever pushes a
+    ///   [`crate::parsers::SymbolKind::Lambda`] symbol, never Function/
+    ///   Method -- there is no free-function node kind in C# at all.
+    /// - `method_types` has no `"constructor_declaration"`: the
+    ///   bespoke walk has no such arm (a constructor is invisible to
+    ///   it today, same finding as Java's `LangSpec::java()`).
+    /// - `field_types` is empty, NOT
+    ///   `["field_declaration", "property_declaration"]`: the bespoke
+    ///   `"field_declaration"` arm is match-guarded on
+    ///   `is_const_or_static_readonly(...)` (an ordinary field is
+    ///   invisible), and there is no `"property_declaration"` arm at
+    ///   all.
     pub const fn csharp() -> Self {
         Self {
             name: "csharp",
-            func_types: &["local_function_statement"],
-            method_types: &["method_declaration", "constructor_declaration"],
+            func_types: &[],
+            method_types: &["method_declaration"],
             class_types: &["class_declaration", "struct_declaration"],
             interface_types: &["interface_declaration"],
             enum_types: &["enum_declaration"],
             alias_types: &[],
-            field_types: &["field_declaration", "property_declaration"],
+            field_types: &[],
             module_types: &["namespace_declaration", "file_scoped_namespace_declaration"],
             call_types: &["invocation_expression"],
             call_function_field: "function",
-            call_arguments_field: "argument_list",
+            // `"arguments"`, NOT `"argument_list"`: verified against
+            // `languages/csharp.rs`'s own `call_arg_texts`/
+            // `route_from_map_call`, both of which read
+            // `call_node.child_by_field_name("arguments")`.
+            call_arguments_field: "arguments",
             import_types: &["using_directive"],
             branch_types: &[
                 "if_statement",
@@ -362,20 +448,57 @@ impl LangSpec {
         }
     }
 
-    /// PHP: node kinds read off `languages/php.rs`.
+    /// PHP: node kinds read off `languages/php.rs`. Several arrays
+    /// differ from a first-glance guess -- verified directly against
+    /// the bespoke source's own `match` arms (see
+    /// [`crate::languages::generic::php_quirk`]/
+    /// [`crate::languages::generic::php_call_override`] for the
+    /// corresponding claims):
+    /// - `class_types` includes `"trait_declaration"` (missing
+    ///   before): the bespoke walk DOES have a `"trait_declaration"`
+    ///   arm, tagging it [`crate::parsers::SymbolKind::Class`] same as
+    ///   an ordinary class.
+    /// - `enum_types` is empty, NOT `["enum_declaration"]`: the
+    ///   bespoke walk has no `"enum_declaration"` arm at all (PHP
+    ///   enums are invisible to it today).
+    /// - `field_types` is empty, NOT `["property_declaration"]`: same
+    ///   finding -- no `"property_declaration"` arm exists.
+    /// - `call_types` has all *four* call-shaped node kinds the
+    ///   bespoke walk actually handles (not just
+    ///   `function_call_expression`/`member_call_expression` --
+    ///   `nullsafe_member_call_expression`/`scoped_call_expression`
+    ///   too), each with its own field-name shape the generic engine's
+    ///   single `call_function_field` cannot express uniformly
+    ///   (`function_call_expression`'s callee lives in a `"function"`
+    ///   field; `member_call_expression`'s lives in a `"name"` field
+    ///   with a *separate* `"object"` receiver field;
+    ///   `scoped_call_expression`'s lives in a `"name"` field with a
+    ///   separate `"scope"` field) -- every one is instead claimed in
+    ///   full by [`crate::languages::generic::php_call_override`],
+    ///   which (unlike `on_unmatched_node`) receives the caller's
+    ///   `fn_scope` (`from_symbol`/`from_symbol_line`) directly, so
+    ///   PHP's CALLS edges still get the correct enclosing-function
+    ///   scope the bespoke walk threads through -- `call_function_field`
+    ///   below is consequently never actually read (every one of
+    ///   `call_types` is claimed before it would matter).
     pub const fn php() -> Self {
         Self {
             name: "php",
             func_types: &["function_definition"],
             method_types: &["method_declaration"],
-            class_types: &["class_declaration"],
+            class_types: &["class_declaration", "trait_declaration"],
             interface_types: &["interface_declaration"],
-            enum_types: &["enum_declaration"],
+            enum_types: &[],
             alias_types: &[],
-            field_types: &["property_declaration"],
+            field_types: &[],
             module_types: &["namespace_definition"],
-            call_types: &["function_call_expression", "member_call_expression"],
-            call_function_field: "function",
+            call_types: &[
+                "function_call_expression",
+                "member_call_expression",
+                "nullsafe_member_call_expression",
+                "scoped_call_expression",
+            ],
+            call_function_field: "UNUSED_SEE_PHP_CALL_OVERRIDE",
             call_arguments_field: "arguments",
             import_types: &["namespace_use_declaration"],
             branch_types: &[
