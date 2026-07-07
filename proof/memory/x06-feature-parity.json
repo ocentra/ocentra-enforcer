@@ -85,7 +85,7 @@
       "status": "red",
       "testName": "x06-learning-curve",
       "artifactPath": "proof/memory/x06-learning-curve.json",
-      "failureReason": "store-backed learning present, but follow-up remains: Full graph-dependent recurrence curves still need the derived projection rollup over Store logs.; Checked-in real model runtime proofs remain host-local and non-CI-parity; rerun explicit probes when hardware, cache, or providers change.; QA coverage is 40/250 runnable with 0 failures; unsupported rows remain unrunnable rather than fake green."
+      "failureReason": "store-backed learning present, but follow-up remains: Checked-in real model runtime proofs remain host-local and non-CI-parity; rerun explicit probes when hardware, cache, or providers change.; QA coverage is 40/250 runnable with 0 failures; unsupported rows remain unrunnable rather than fake green."
     },
     {
       "prefix": "FED",

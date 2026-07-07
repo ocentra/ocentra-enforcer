@@ -14,19 +14,25 @@
 //! 6. route-choice trace with confidence
 //! 7. improvement curve (per-domain learning curve) emission
 
+use enforcer_domain::paths::RepoRoot;
 use enforcer_memory::evidence::{
     evidence_chain, recurrence_curve, EvidenceReport, NoProofRefs, ProofRefLookup,
 };
 use enforcer_memory::graph::MemoryGraph;
-use enforcer_memory::ingest::{ingest_ndjson_into, ingest_observation, Observation};
+use enforcer_memory::ingest::{
+    ingest_ndjson_into, ingest_observation, ingest_observation_into_store, Observation,
+};
 use enforcer_memory::learning::{
-    active_lessons, learning_curve, lesson_status, superseded_by, LessonStatus,
+    active_lessons, learning_curve, lesson_status, project_learning_from_store, superseded_by,
+    LessonStatus,
 };
 use enforcer_memory::observations::{
-    procedural_success_rate, record_procedural, record_route_choice, ProceduralOutcome,
+    procedural_success_rate, record_procedural, record_procedural_in_store, record_route_choice,
+    record_route_choice_in_store, ProceduralOutcome, ProceduralStoreInput, RouteChoiceStoreInput,
 };
 use enforcer_memory::record::RecordDomain;
 use enforcer_memory::sessionstart::recall_pack;
+use enforcer_memory::store::Store;
 use std::collections::HashMap;
 
 fn load_fixture_graph() -> Result<MemoryGraph, Box<dyn std::error::Error>> {
@@ -109,7 +115,11 @@ fn clean_scan_writes_negative_evidence() -> Result<(), Box<dyn std::error::Error
             clean_incident.clean,
             "the observation must be recorded as clean = true (negative evidence)"
         ),
-        None => unreachable!("test setup: just-ingested incident must be retrievable by lesson id"),
+        None => {
+            return Err(
+                "test setup: just-ingested incident must be retrievable by lesson id".into(),
+            )
+        }
     }
 
     // Negative evidence must be visible through the same evidence chain
@@ -121,7 +131,7 @@ fn clean_scan_writes_negative_evidence() -> Result<(), Box<dyn std::error::Error
                 "clean observation must appear in the t0 evidence chain"
             );
         }
-        EvidenceReport::Unknown { .. } => unreachable!("mem-cl-0003 is a known lesson"),
+        EvidenceReport::Unknown { .. } => return Err("mem-cl-0003 is a known lesson".into()),
     }
     Ok(())
 }
@@ -388,16 +398,16 @@ fn improvement_curve_emission() -> Result<(), Box<dyn std::error::Error>> {
                 harness.iter().any(|p| p.lesson_id == "mem-cl-0001"),
                 "harness curve must include mem-cl-0001"
             );
-            match harness.last() {
-                Some(last) => assert_eq!(
-                    last.landed_count,
-                    harness.len(),
-                    "landed_count must run cumulatively across the domain's own points"
-                ),
-                None => unreachable!("harness curve is non-empty"),
-            }
+            let Some(last) = harness.last() else {
+                return Err("harness curve is non-empty".into());
+            };
+            assert_eq!(
+                last.landed_count,
+                harness.len(),
+                "landed_count must run cumulatively across the domain's own points"
+            );
         }
-        None => unreachable!("harness domain has landed lessons in the fixture"),
+        None => return Err("harness domain has landed lessons in the fixture".into()),
     }
 
     // mem-cl-0004 (domain code, unlanded) must not appear in any curve.
@@ -405,6 +415,78 @@ fn improvement_curve_emission() -> Result<(), Box<dyn std::error::Error>> {
     assert!(
         code.is_none(),
         "an unlanded lesson must not fabricate a code-domain curve entry"
+    );
+    Ok(())
+}
+
+#[test]
+fn store_backed_learning_projection_replays_t0_t1_t2() -> Result<(), Box<dyn std::error::Error>> {
+    let seed_graph = load_fixture_graph()?;
+    let dir = tempfile::tempdir()?;
+    let root: RepoRoot = "C:/Projects/x06-continuous-learning-store".parse()?;
+    let mut store = Store::init(dir.path(), &root, "2026-07-07T00:00:00Z")?;
+    let mut write_projection = MemoryGraph::new();
+
+    ingest_observation_into_store(
+        &mut store,
+        &mut write_projection,
+        Observation {
+            lesson_id: "mem-cl-0001".to_string(),
+            rule_id: Some("CL-STORE".to_string()),
+            fault_class: Some("store-backed-recurrence".to_string()),
+            repo_context: "crates/enforcer-memory/src/learning.rs".to_string(),
+            clean: false,
+            source_surface: "check".to_string(),
+            ts: "2026-07-07T00:01:00Z".to_string(),
+        },
+    )?;
+    record_procedural_in_store(
+        &mut store,
+        &mut write_projection,
+        &ProceduralStoreInput::new(
+            "mem-cl-0001",
+            ProceduralOutcome::FixSuccess,
+            "confirmed Store replay drives recurrence curve",
+            "2026-07-07T00:02:00Z",
+        ),
+    )?;
+    record_route_choice_in_store(
+        &mut store,
+        &mut write_projection,
+        &RouteChoiceStoreInput::new(
+            "continuous learning store projection",
+            "learning-projection",
+            0.88,
+            "2026-07-07T00:03:00Z",
+        ),
+    )?;
+
+    assert!(
+        seed_graph.incidents_for_lesson("mem-cl-0001").is_empty(),
+        "fixture seed graph carries lessons only; Store replay supplies t0 observations"
+    );
+
+    let projection = project_learning_from_store(&store, &seed_graph)?;
+    assert_eq!(projection.replayed_incident_observations, 1);
+    assert_eq!(projection.replayed_procedural_and_routes, 2);
+    assert_eq!(projection.procedural_record_count, 1);
+    assert_eq!(projection.route_trace_count, 1);
+
+    let Some(recurrence) = projection.recurrence_curves.get("mem-cl-0001") else {
+        return Err("landed lesson plus Store observation must emit a recurrence curve".into());
+    };
+    assert_eq!(recurrence.len(), 1);
+    assert!(recurrence[0].since_landing);
+    assert_eq!(recurrence[0].running_recurrence_count, 1);
+
+    let Some(harness) = projection.learning_curves.get(&RecordDomain::Harness) else {
+        return Err("fixture has landed harness lessons".into());
+    };
+    assert!(
+        harness
+            .iter()
+            .any(|point| point.lesson_id == "mem-cl-0001" && point.cumulative_incidents >= 1),
+        "Store-derived learning curve must include the replayed t0 observation"
     );
     Ok(())
 }
@@ -458,7 +540,9 @@ fn evidence_chain_and_recall_pack_are_consistent_over_the_fixture(
                 "landed step must carry the enforcer-proof journal ref the caller's lookup found"
             );
         }
-        EvidenceReport::Unknown { .. } => unreachable!("mem-cl-0001 is a known, landed lesson"),
+        EvidenceReport::Unknown { .. } => {
+            return Err("mem-cl-0001 is a known, landed lesson".into())
+        }
     }
 
     // An id with no node at all is fail-closed Unknown, never a

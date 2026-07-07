@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "artifact": "x06-learning-curve",
   "workpack": "x06-models-harvest",
-  "generatedAt": "2026-07-07T02:22:22Z",
-  "status": "store-backed-seams",
+  "generatedAt": "2026-07-07T02:38:20Z",
+  "status": "store-backed-projection",
   "learningCurve": {
     "present": true,
-    "reason": "durable observation, procedural, route-choice, trace, and model-runtime observation records now append to Store logs and can be replayed into projections; full longitudinal graph-dependent curve rollup remains follow-up",
+    "reason": "durable observation, procedural, route-choice, trace, and model-runtime observation records append to Store logs; project_learning_from_store now replays those logs into a deterministic Store-derived learning and recurrence projection",
     "storeBackedSignals": [
       "incident-observation",
       "procedural-record",
@@ -17,10 +17,14 @@
       "model-hash-mismatch",
       "model-tokenizer-mismatch",
       "model-degraded-fallback",
-      "model-local-load-success"
+      "model-local-load-success",
+      "store-learning-projection",
+      "store-derived-recurrence-curve"
     ],
     "tests": [
       "cargo test -p enforcer-memory --test unit_ingest -- store_backed_observation_appends_then_replays_projection",
+      "cargo test -p enforcer-memory --test unit_learning -- store_learning_projection_replays_observations_into_curves --exact",
+      "cargo test -p enforcer-memory --test continuous_learning -- store_backed_learning_projection_replays_t0_t1_t2 --exact",
       "cargo test -p enforcer-memory --test unit_observations",
       "cargo test -p enforcer-memory --test unit_traces",
       "cargo test -p enforcer-memory --test model_observations"
@@ -119,16 +123,25 @@
         "ocentra_enforcer_check weak-assertions scope=files"
       ],
       "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-011",
+      "lesson": "Store-backed learning projection should clone a seed lesson graph and replay canonical Store observation logs into that projection; otherwise recurrence proof either mutates caller state or treats the in-memory graph as the source of truth.",
+      "evidence": [
+        "crates/enforcer-memory/src/learning.rs",
+        "crates/enforcer-memory/tests/unit_learning.rs",
+        "crates/enforcer-memory/tests/continuous_learning.rs"
+      ],
+      "status": "learned"
     }
   ],
   "blockers": [
-    "Full graph-dependent recurrence curves still need the derived projection rollup over Store logs.",
     "Checked-in real model runtime proofs remain host-local and non-CI-parity; rerun explicit probes when hardware, cache, or providers change.",
     "QA coverage is 40/250 runnable with 0 failures; unsupported rows remain unrunnable rather than fake green."
   ],
   "recurrenceNotes": [
     "t0 events now have durable Store append paths for observations and model-runtime incidents.",
-    "t1 proof exists through replay tests and clean source-shape/check gates.",
-    "t2 recurrence curves must be regenerated after the graph projection layer consumes Store logs end-to-end."
+    "t1 proof exists through Store replay tests and clean source-shape/check gates.",
+    "t2 recurrence curves now come from project_learning_from_store, which replays Store logs into a deterministic projection before computing learning_curve and recurrence_curve."
   ]
 }

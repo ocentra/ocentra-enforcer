@@ -34,10 +34,16 @@
 //! (no smoothing/regression) so the curve is exactly reproducible from
 //! the graph's own append-only history, never a fitted approximation.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
+use crate::error::Result;
+use crate::evidence::{recurrence_curve, RecurrencePoint};
 use crate::graph::{MemoryGraph, MemoryNode};
+use crate::ingest::replay_incident_observations_from_store;
+use crate::model_observations::project_model_runtime_observations_from_store;
+use crate::observations::replay_procedural_and_routes_from_store;
 use crate::record::RecordDomain;
+use crate::store::Store;
 
 /// Whether a lesson has landed, proof-linked evidence or is still an
 /// unlanded/imported candidate.
@@ -209,4 +215,67 @@ pub fn learning_curve(graph: &MemoryGraph) -> HashMap<RecordDomain, Vec<Learning
         });
     }
     curves
+}
+
+/// Store-log-derived learning projection.
+///
+/// The seed graph carries durable lesson facts from the x05 memory corpus;
+/// mutable learning events are replayed from [`Store`] append logs into a
+/// cloned projection before curves are computed. This keeps Store as the
+/// canonical source for observations without inventing lesson-record
+/// persistence in this narrow slice.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoreLearningProjection {
+    pub replayed_incident_observations: usize,
+    pub replayed_procedural_and_routes: usize,
+    pub model_runtime_observations: usize,
+    pub procedural_record_count: usize,
+    pub route_trace_count: usize,
+    pub learning_curves: HashMap<RecordDomain, Vec<LearningCurvePoint>>,
+    pub recurrence_curves: BTreeMap<String, Vec<RecurrencePoint>>,
+}
+
+pub fn project_learning_from_store(
+    store: &Store,
+    seed_graph: &MemoryGraph,
+) -> Result<StoreLearningProjection> {
+    let mut projected = seed_graph.clone();
+    let replayed_incident_observations =
+        replay_incident_observations_from_store(store, &mut projected)?;
+    let replayed_procedural_and_routes =
+        replay_procedural_and_routes_from_store(store, &mut projected)?;
+    let model_runtime_observations = project_model_runtime_observations_from_store(store)?.len();
+    let learning_curves = learning_curve(&projected);
+
+    let mut lesson_ids = BTreeSet::<String>::new();
+    for node in projected.nodes() {
+        match node {
+            MemoryNode::Incident(incident) if !incident.lesson_id.trim().is_empty() => {
+                lesson_ids.insert(incident.lesson_id.clone());
+            }
+            MemoryNode::Lesson(_) | MemoryNode::Record(_) | MemoryNode::Incident(_) => {}
+        }
+    }
+
+    let recurrence_curves = lesson_ids
+        .into_iter()
+        .filter_map(|lesson_id| {
+            let curve = recurrence_curve(&projected, &lesson_id);
+            if curve.is_empty() {
+                None
+            } else {
+                Some((lesson_id, curve))
+            }
+        })
+        .collect();
+
+    Ok(StoreLearningProjection {
+        replayed_incident_observations,
+        replayed_procedural_and_routes,
+        model_runtime_observations,
+        procedural_record_count: projected.procedural_records().len(),
+        route_trace_count: projected.route_traces().len(),
+        learning_curves,
+        recurrence_curves,
+    })
 }
