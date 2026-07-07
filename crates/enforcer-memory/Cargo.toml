@@ -635,6 +635,468 @@ tree-sitter-squirrel-local = { path = "vendor/tree-sitter-squirrel-local" }
 tree-sitter-sfapex = "3"
 tree-sitter-ada = "0.1"
 tree-sitter-crystal = { git = "https://github.com/crystal-lang-tools/tree-sitter-crystal", rev = "50ca9e6fcfb16a2cbcad59203cfd8ad650e25c49" }
+# Language-parity wave G2.3e: Starlark/Templ/Typst/WGSL structural
+# extractors (see languages/generic.rs's `parse_starlark`/`parse_templ`/
+# `parse_typst`/`parse_wgsl`). Sway/Wolfram (this same wave) have NO
+# crates.io release under any name -- see
+# `vendor/tree-sitter-sway-local`/`vendor/tree-sitter-wolfram-local`'s own
+# doc comments for the full grammar-sourcing rationale; both bound as local
+# path-dependencies below, same pattern as `tree-sitter-squirrel-local`.
+# All four crates.io grammars verified end-to-end (real parse, no ABI
+# error) against this workspace's `tree-sitter = "0.25"` core before being
+# added here, and all four depend on `tree-sitter-language` (not
+# `tree-sitter` core) as their runtime binding -- each crate's own
+# `Cargo.toml` declares `tree-sitter` only as a `[dev-dependencies]` entry,
+# same ABI-range-agnostic pattern as every grammar above.
+# - `tree-sitter-starlark` 1.3.0 (crates.io `repository`:
+#   github.com/tree-sitter-grammars/tree-sitter-starlark). Copyright line
+#   "Amaan Qureshi" byte-matches this crate's own vendored
+#   `internal/cbm/vendored/grammars/starlark/LICENSE` exactly. No
+#   corrections needed for def/call extraction (`function_definition`'s
+#   `name`/`body`, `call`'s `function`/`arguments` all match this file's
+#   defaults directly) -- see `LangSpec::starlark`'s own doc comment for the
+#   one real finding this wave made (`starlark_import_types`' baseline
+#   `"with_clause"` entry is a real but UNRELATED node -- Starlark's actual
+#   `load(...)` import mechanism is an ordinary `call`, caught via
+#   `call_override` instead).
+# - `tree-sitter-templ` 2.2.0 (crates.io `repository`:
+#   github.com/vrischmann/tree-sitter-templ). Copyright line "Vincent
+#   Rischmann" byte-matches this crate's own vendored
+#   `internal/cbm/vendored/grammars/templ/LICENSE` exactly. This grammar is
+#   Go's own grammar plus `templ`-specific nodes layered on top -- see
+#   `LangSpec::templ`'s own doc comment for the two corrections found
+#   (`method_elem`'s harmless no-`body`-field shape; `templ_import_types`'
+#   baseline `"import"` entry is a phantom unnamed token, not a real node).
+# - `arborium-typst` 2.18.1 (crates.io, part of the `bearcove/arborium`
+#   grammar bundle this crate's own `arborium-rescript` dependency already
+#   comes from). Cross-checked byte-for-byte against the sibling
+#   `codebook-tree-sitter-typst` 0.12.1 crate via a full `node-types.json`
+#   diff -- identical upstream lineage; this one chosen for the existing-
+#   dependency precedent. See `LangSpec::typst`'s own doc comment for the
+#   two real findings (`call`'s field is `item`, not `function`, with no
+#   separate `arguments` field at all; `let`'s function-vs-variable
+#   disambiguation needs a nested-`call`-pattern unwrap) -- this is the one
+#   language in this wave where the C baseline itself already needed
+#   dedicated non-generic code, confirming the grammar really is this
+#   unusual.
+# - `tree-sitter-wgsl-bevy` 0.1.4 (crates.io `repository`:
+#   github.com/tree-sitter-grammars/tree-sitter-wgsl-bevy, an actively-
+#   maintained fork of `szebniok/tree-sitter-wgsl`). Copyright line "Konrad
+#   Bochnia" (szebniok's real name) byte-matches this crate's own vendored
+#   `internal/cbm/vendored/grammars/wgsl/LICENSE` exactly. The plain
+#   `tree-sitter-wgsl` crate name on crates.io is REJECTED: last published
+#   2022-06 at v0.0.6, hard-pins `tree-sitter ~0.20.6` as a normal runtime
+#   dependency, the same incompatible-ABI blocker Sway/Wolfram also hit
+#   (confirmed via the crates.io sparse index, not merely assumed). See
+#   `LangSpec::wgsl`'s own doc comment for the two corrections found
+#   (`type_constructor_or_function_call_expression` has zero fields at all,
+#   needing deepest-identifier-descent reconstruction exactly mirroring the
+#   baseline's own `extract_wgsl_callee`; baseline's `wgsl_module_types`'
+#   `"translation_unit"` entry does not exist in this grammar at all -- the
+#   real root rule is `source_file`).
+tree-sitter-starlark = "1.3"
+tree-sitter-templ = "2.2"
+arborium-typst = "2.18"
+tree-sitter-wgsl-bevy = "0.1"
+# Language-parity wave G2.3e: Slang structural extractor (see
+# languages/generic.rs's `parse_slang`). Verified end-to-end (real parse,
+# no ABI error) against this workspace's `tree-sitter = "0.25"` core before
+# being added here, and depends on `tree-sitter-language` (not
+# `tree-sitter` core) as its runtime binding -- its own `Cargo.toml`
+# declares `tree-sitter` only as a `[dev-dependencies]` entry, same
+# ABI-range-agnostic pattern as every grammar above.
+# - `tree-sitter-slang` 0.3.1 (crates.io `repository`:
+#   github.com/theHamsta/tree-sitter-slang). Copyright line "Stephan Seitz"
+#   byte-matches this crate's own vendored
+#   `internal/cbm/vendored/grammars/slang/LICENSE` exactly -- the SAME
+#   author who also publishes this same wave's `tree-sitter-wgsl-bevy`
+#   dependency above, though the two are unrelated grammar lineages. This
+#   grammar extends tree-sitter-cpp's own grammar (Slang's real-world
+#   syntax is a C/C++-family superset with shader-specific additions) --
+#   every node kind `LangSpec::slang`/`generic::parse_slang` reads uses the
+#   SAME C++-shaped fields this crate's own `cpp_quirks` already handles,
+#   reused verbatim (same posture as the existing CUDA/GLSL C/C++-array-
+#   reuse rows) rather than duplicating that logic for a language with no
+#   dedicated bespoke extractor of its own to reproduce. No corrections
+#   needed against the baseline's own `slang_*` arrays at all -- see
+#   `LangSpec::slang`'s own doc comment.
+tree-sitter-slang = "0.3"
+# Language-parity wave G2.3e: Sway/Wolfram structural extractors (see
+# languages/generic.rs's `parse_sway`/`parse_wolfram`). NEITHER has a
+# crates.io release under any discoverable name -- confirmed via the
+# crates.io sparse index, which 404s on both `tree-sitter-sway` and
+# `tree-sitter-wolfram` -- bound as local path-dependencies to vendored
+# grammar source instead, same pattern as `tree-sitter-squirrel-local`
+# above. See `vendor/tree-sitter-sway-local/src/lib.rs` and
+# `vendor/tree-sitter-wolfram-local/src/lib.rs`'s own module docs for the
+# full grammar-sourcing rationale and provenance for each (Sway: FuelLabs'
+# own repo, Apache-2.0, pinned commit `9b7845c`, ABI 14; Wolfram:
+# LumaKernel's own repo, MIT, ABI 13, cross-checked symbol-table-exact
+# against this crate's own vendored C baseline copy).
+tree-sitter-sway-local = { path = "vendor/tree-sitter-sway-local" }
+tree-sitter-wolfram-local = { path = "vendor/tree-sitter-wolfram-local" }
+# COURTESY FIX (found by the G2.3e worker, not that worker's own language
+# assignment -- landed here only because `languages/generic.rs` already
+# referenced these crates' `LANGUAGE`/`language()` paths unconditionally
+# with no dependency line yet, blocking `cargo test -p enforcer-memory`
+# for every concurrent worker, same "courtesy fix a crate-wide blocker,
+# document it, move on" situation `tree-sitter-sfapex`/`tree-sitter-ada`
+# document above for an earlier wave). Each verified end-to-end (real
+# parse, no ABI error) against this workspace's `tree-sitter = "0.25"`
+# core before being added here.
+# - `tree-sitter-cmake` 0.7.2, `tree-sitter-make` 1.1.1, `tree-sitter-puppet`
+#   1.3.0, `tree-sitter-elm` 5.9.0: all four depend on
+#   `tree-sitter-language` (not `tree-sitter` core) as their runtime
+#   binding, same ABI-range-agnostic pattern as every grammar above.
+# - `tree-sitter-fortran` 0.6.0: also `tree-sitter-language`-bound: its own
+#   `[dev-dependencies]` `tree-sitter = "^0.26.3"` entry is a test-only
+#   dependency, not a runtime-binding constraint.
+# - `tree-sitter-vim` 0.4.0: the ONE exception in this group -- its own
+#   `Cargo.toml` declares `tree-sitter = ">=0.21.0"` as a normal (non-dev)
+#   dependency, an older-style direct `tree_sitter::Language`-returning
+#   binding rather than the `tree-sitter-language` shim every other crate
+#   here uses. Unlike the `~0.20.x`/`<0.21` UPPER-BOUNDED pins this
+#   workspace has rejected elsewhere (Squirrel/Sway/Wolfram/WGSL), this
+#   requirement has NO upper bound, so Cargo's own resolver is free to pick
+#   this workspace's own `tree-sitter = "0.25"` for BOTH crates in the same
+#   dependency graph -- confirmed by an actual `cargo check` succeeding
+#   with this exact line added, not merely assumed from the version range
+#   alone.
+tree-sitter-cmake = "0.7"
+tree-sitter-make = "1.1"
+tree-sitter-fortran = "0.6"
+tree-sitter-vim = "0.4"
+tree-sitter-puppet = "1.3"
+tree-sitter-elm = "5.9"
+# SCSS grammar VENDORED (language-parity wave G2.3a) --
+# `crates/enforcer-memory/vendor/tree-sitter-scss-local/` (a local
+# path-dependency, same pattern as `tree-sitter-squirrel-local` above).
+# The published `tree-sitter-scss` 1.0.0 crate's own
+# `bindings/rust/build.rs` unconditionally passes the GCC/Clang-only
+# `-Wno-unused-parameter` flag to its `cc::Build` with no MSVC guard
+# (unlike e.g. `tree-sitter-vim`'s own `build.rs` just above, which
+# correctly uses `.flag_if_supported(..)` for the identical intent) --
+# confirmed by direct inspection of that crate's own downloaded `.crate`
+# tarball, and confirmed to actually fail (`cl : Command line error
+# D8021: invalid numeric argument '/Wno-unused-parameter'`) via a real
+# `cargo build` against this workspace's MSVC toolchain. This is an
+# upstream packaging bug specific to that one crate's `build.rs`, NOT a
+# tree-sitter ABI incompatibility (that crate's own `[dependencies]`
+# `tree-sitter = ">=0.21.0"` requirement has no upper bound, the same
+# ABI-range-agnostic shape as `tree-sitter-vim`'s own entry above -- the
+# grammar's own generated `parser.c`/`scanner.c` parse correctly once
+# compiled through a working `cc::Build` invocation, confirmed by a real
+# parse-tree dump against this vendored copy) -- see
+# `vendor/tree-sitter-scss-local/src/lib.rs`'s own doc comment for the
+# full finding.
+tree-sitter-scss-local = { path = "vendor/tree-sitter-scss-local" }
+# Language-parity wave G2.3c: Bicep/Nickel/Jsonnet/CFScript structural
+# extractors (see languages/generic.rs's `parse_bicep`/`parse_nickel`/
+# `parse_jsonnet`/`parse_cfscript`). All four verified end-to-end (real
+# parse, no ABI error) against this workspace's `tree-sitter = "0.25"`
+# core before being added here, and all four depend on
+# `tree-sitter-language` (not `tree-sitter` core) as their runtime
+# binding, same ABI-range-agnostic pattern as every grammar above.
+# - `tree-sitter-bicep` 1.1.0 (crates.io `repository`:
+#   github.com/tree-sitter-grammars/tree-sitter-bicep). Every declaration
+#   node kind this row's own `LangSpec::bicep`/`generic::bicep_quirk`
+#   care about (`resource_declaration`/`type_declaration`/
+#   `module_declaration`/`variable_declaration`/`output_declaration`/
+#   `parameter_declaration`) has `"fields": {}` in this grammar's own
+#   `node-types.json` (confirmed via both that file and a real parse-tree
+#   dump) -- their own names are all positional `identifier` children,
+#   not fields; only `user_defined_function` has a real `name` field.
+#   This grammar's own root node kind is `infrastructure`, NOT the
+#   baseline's own `bicep_module_types`' `"program"` guess -- see
+#   `LangSpec::bicep`'s own doc comment for the full corrections.
+# - `tree-sitter-nickel` 0.5.0 (crates.io `repository`:
+#   github.com/nickel-lang/tree-sitter-nickel -- the language's own
+#   official GitHub org). This grammar's root node kind is `term`, NOT
+#   the baseline's own `nickel_module_types`' `"source_file"` guess;
+#   `applicative` (the baseline's own correctly-identified call-shaped
+#   node) is a LEFT-RECURSIVE curried-application chain
+#   (`f a b c` = `applicative(t1=applicative(t1=applicative(t1=f,t2=a),
+#   t2=b),t2=c)`, confirmed via a real parse-tree dump of a deliberate
+#   3-argument call) needing a dedicated chain-walking
+#   `generic::nickel_call_override` rather than the generic engine's own
+#   flat single-field callee reconstruction -- see `LangSpec::nickel`'s
+#   own doc comment for this and the `import`-vs-baseline's-dead-`include`
+#   finding.
+# - `tree-sitter-jsonnet` 0.0.1 (crates.io `repository`:
+#   github.com/deltarocks/tree-sitter-jrsonnet -- published 2026-05-05,
+#   the newest grammar dependency in this whole crate; crate's own
+#   description is "jsonnet and jrsonnet grammar for tree-sitter"). This
+#   grammar generation has drifted completely from every node-kind name the
+#   baseline's own `jsonnet_*` arrays list (`document`/`anonymous_function`/
+#   `functioncall`/`conditional`/`local_bind` all do not exist -- the real
+#   kinds are `source_file`/no-dedicated-function-node-at-all/
+#   `suffix_apply`/`if_then_else`/`bind`) -- see `LangSpec::jsonnet`'s own
+#   doc comment for the full corrections, including the real finding
+#   (verified via THREE separate real parse-tree dumps of different
+#   function-definition syntaxes) that this grammar never actually
+#   produces the `function_expr` wrapper node its own `node-types.json`
+#   lists as a legal child shape.
+# - CFScript: NO new grammar dependency at all -- reuses this crate's
+#   `tree-sitter-cfml` dependency (added just below) via that SAME
+#   crate's separate `LANGUAGE_CFSCRIPT` export, mirroring the
+#   `tree-sitter-typescript` crate's own TS/TSX-two-entry-points
+#   precedent this crate already follows for `LangSpec::tsx`.
+tree-sitter-bicep = "1.1"
+tree-sitter-nickel = "0.5"
+tree-sitter-jsonnet = "0.0.1"
+# `cfmleditor/tree-sitter-cfml` -- bundles CFML/CFScript/CFQuery as THREE
+# separate grammars in one crate/repo (`LANGUAGE_CFML`/`LANGUAGE_CFSCRIPT`/
+# `LANGUAGE_CFQUERY`, each its own `LanguageFn` const) -- this crate binds
+# `LANGUAGE_CFSCRIPT` only (`generic::parse_cfscript`), the baseline's own
+# `CBM_LANG_CFSCRIPT`; `CBM_LANG_CFML`'s separate tag-dialect row is still
+# unclaimed. See `LangSpec::cfscript`'s own doc comment for the real
+# `property_declaration`-does-not-exist-at-all finding (CFScript's
+# script-mode `property name="x";` declaration parses as an ordinary
+# `tag_statement` instead, claimed by `generic::cfscript_quirk`).
+tree-sitter-cfml = "0.26"
+# Language-parity wave G2.3c: BitBake/Cairo/FunC/Move structural
+# extractors (see languages/generic.rs's `parse_bitbake`/`parse_cairo`/
+# `parse_func`/`parse_move`). All four VENDORED as local path-dependencies
+# rather than crates.io crates -- every one of the four has either no
+# crates.io release at all, or only a release that hard-pins an
+# incompatible pre-`tree-sitter-language` `tree-sitter` version as a
+# normal (non-dev) dependency, the same class of blocker
+# `tree-sitter-squirrel-local`'s own module doc already documents; see
+# each vendored crate's own `src/lib.rs` doc comment for the full,
+# crate-specific finding. All four verified end-to-end (real parse, no
+# ABI error) against this workspace's `tree-sitter = "0.25"` core before
+# being added here (ABI 14/14/13/14 respectively, all within the 13-15
+# compatible range).
+tree-sitter-bitbake-local = { path = "vendor/tree-sitter-bitbake-local" }
+tree-sitter-cairo-local = { path = "vendor/tree-sitter-cairo-local" }
+tree-sitter-func-local = { path = "vendor/tree-sitter-func-local" }
+tree-sitter-move-local = { path = "vendor/tree-sitter-move-local" }
+# Language-parity wave G2.3d: Hare/HLSL/ISPC/Just/Magma/NASM/Pony/
+# PureScript structural extractors (see languages/generic.rs's
+# `parse_hare`/`parse_hlsl`/`parse_ispc`/`parse_just`/`parse_magma`/
+# `parse_nasm`/`parse_pony`/`parse_purescript`). A genuinely mixed batch
+# for grammar sourcing across all three of this campaign's fallback tiers
+# (crate / git / vendor), unlike most single-tier prior batches:
+# - `tree-sitter-hlsl` 0.2.0 (crates.io, `theHamsta/tree-sitter-hlsl`) and
+#   `tree-sitter-just` 0.2.0 (crates.io, `casey/tree-sitter-just`) both
+#   depend on `tree-sitter-language` (not `tree-sitter` core) as their
+#   runtime binding, the same ABI-range-agnostic pattern as every crate
+#   dependency in this file -- verified end-to-end (real parse, no ABI
+#   error) against this workspace's `tree-sitter = "0.25"` core before
+#   being added here. HLSL's own export is `LANGUAGE_HLSL` (NOT the plain
+#   `LANGUAGE` const most other grammar crates here export) -- see
+#   `LangSpec::hlsl`'s own doc comment for the grammar-reuse rationale (a
+#   genuine `tree-sitter-cpp` fork) and the real top-level-`cbuffer`-block
+#   parse-gap finding this wave documents as an accepted grammar
+#   limitation.
+# - `tree-sitter-purescript` 0.3.0 (git, tag `v0.3.0`,
+#   `postsolar/tree-sitter-purescript`) and `tree-sitter-magma` (git, rev
+#   `75b31f4695261967c7aa87d552d69805dc03c77b`,
+#   `edgarcosta/tree-sitter-magma`) are BOTH real, well-formed
+#   `tree-sitter-language`-based crates that simply have never been
+#   pushed to crates.io at all (confirmed via direct crates.io API
+#   searches returning zero results for either) -- the same "option 1, a
+#   maintained crate exists" git-dependency sourcing this workspace's own
+#   `tree-sitter-crystal` dependency (G2.2a) already established as
+#   precedent, rather than vendoring their C sources by hand (unnecessary
+#   when the upstream repo's own `bindings/rust/{lib,build}.rs` already
+#   work correctly against this workspace's core). See
+#   `LangSpec::purescript`'s/`LangSpec::magma`'s own doc comments for the
+#   real baseline-array corrections both required (PureScript's
+#   `module_types`; Magma's `call_types`/`module_types`/`import_types` --
+#   the baseline's own `magma_call_types` names a node kind,
+#   `call_expression`, that does not exist anywhere in this grammar at
+#   all, which would have silently produced zero CALLS edges for every
+#   Magma file if ported verbatim).
+# - `tree-sitter-hare` (VENDORED, `vendor/tree-sitter-hare-local/`),
+#   `tree-sitter-ispc` (VENDORED, `vendor/tree-sitter-ispc-local/`),
+#   `tree-sitter-pony` (VENDORED, `vendor/tree-sitter-pony-local/`), and
+#   `tree-sitter-nasm` (VENDORED, `vendor/tree-sitter-nasm-local/`) are
+#   all genuinely unavailable any other way: each has EITHER only a stale
+#   crates.io release that hard-pins a pre-`tree-sitter-language`
+#   `tree-sitter` version as a normal (non-dev) dependency (Hare 0.20.7
+#   pins `^0.20.6`; ISPC 0.1.0 pins `~0.20.10`; Pony 1.0.0 pins
+#   `~0.20.10`), OR (NASM) no crates.io release under any discoverable
+#   name at all -- AND, unlike `tree-sitter-crystal`'s own git-dependency
+#   precedent, each one's own LIVE upstream repository (checked directly,
+#   not merely inferred from crate metadata) ALSO still uses the old raw
+#   `extern "C" fn ... -> Language` binding shape on its own default
+#   branch, so there is no newer, safely-shimmed version to prefer either
+#   as a crates.io upgrade or as a pinned git dependency -- the exact
+#   "unavailable/broken ABI" condition this campaign's own grammar-
+#   sourcing fallback order (crate -> vendor -> defer) exists for. All
+#   four re-pin their own unmodified vendored `parser.c` (Pony's ALSO
+#   includes its own hand-written `scanner.c`) to
+#   `tree-sitter-language = "0.1"` instead, mirroring
+#   `tree-sitter-squirrel-local`'s own identical vendoring precedent
+#   exactly; each vendored crate's own `src/lib.rs` doc comment has the
+#   full, crate-specific finding. All four verified end-to-end (real
+#   parse-tree dump, zero parse errors, zero ABI error) against this
+#   workspace's `tree-sitter = "0.25"` core before being added here.
+tree-sitter-hlsl = "0.2"
+tree-sitter-just = "0.2"
+tree-sitter-purescript = { git = "https://github.com/postsolar/tree-sitter-purescript", tag = "v0.3.0" }
+tree-sitter-magma = { git = "https://github.com/edgarcosta/tree-sitter-magma", rev = "75b31f4695261967c7aa87d552d69805dc03c77b" }
+tree-sitter-hare-local = { path = "vendor/tree-sitter-hare-local" }
+tree-sitter-ispc-local = { path = "vendor/tree-sitter-ispc-local" }
+tree-sitter-pony-local = { path = "vendor/tree-sitter-pony-local" }
+tree-sitter-nasm-local = { path = "vendor/tree-sitter-nasm-local" }
+
+# Language-parity wave G2.3b: COBOL/Common Lisp/Lean/TLA+/Verilog/VHDL/
+# SystemVerilog structural extractors (see languages/generic.rs's
+# `parse_cobol`/`parse_commonlisp`/`parse_lean`/`parse_tlaplus`/
+# `parse_verilog`/`parse_vhdl`/`parse_systemverilog`). FORM (this wave's
+# 8th assigned language) is DEFERRED -- no tree-sitter grammar exists for
+# it anywhere: confirmed absent from crates.io (no `tree-sitter-form`/
+# variant-spelling crate under any plausible name) AND from GitHub (an
+# exhaustive repository search for "tree-sitter-form" returns only
+# unrelated Rust-macro-formatting decoy repos, zero real FORM-language
+# grammars) -- see `docs/plans/enforcer-selfhost-plan/language-parity/`
+# wave report for the full finding; `LangSpec`/`Language`/dispatch rows
+# for FORM are intentionally NOT added.
+#
+# All six real crates.io grammars below verified end-to-end (real parse,
+# no ABI error, cross-checked against each crate's own `node-types.json`
+# directly, not dump-only) against this workspace's `tree-sitter = "0.25"`
+# core before being added:
+# - `tree-sitter-commonlisp` 0.4.1 (crates.io `repository`:
+#   github.com/theHamsta/tree-sitter-commonlisp). Depends on
+#   `tree-sitter-language` (not `tree-sitter` core) as its runtime
+#   binding, same ABI-range-agnostic pattern as every grammar above --
+#   `tree-sitter = "0.25"` is only a `[dev-dependencies]` entry (its own
+#   test suite). Exports `LANGUAGE_COMMONLISP` (NOT the plain `LANGUAGE`
+#   const most other grammar crates here export). Every baseline
+#   `commonlisp_*` array matched this grammar version exactly on
+#   cross-check -- Lisp-family grammars are unusually uniform (see
+#   `LangSpec::clojure`'s own doc comment for the same finding on a
+#   different language), so unlike most G2 languages there was very
+#   little for a grammar-version drift to land on here -- see
+#   `LangSpec::commonlisp`'s own doc comment.
+# - `tree-sitter-lean4` 0.3.0 (crates.io `repository`:
+#   github.com/wvhulle/tree-sitter-lean, the maintained modern Lean 4
+#   grammar). UNIQUELY among every grammar dependency in this crate,
+#   exports a bare `pub fn language() -> tree_sitter::Language` (not the
+#   `tree-sitter-language`/`LanguageFn`-returning shim every other
+#   grammar crate here uses) -- but its own `Cargo.toml` declares
+#   `tree-sitter = "0.25"` as a real NORMAL (non-dev) dependency, the
+#   EXACT SAME version this workspace's own core pins, so there is no
+#   ABI/dependency-graph risk despite the different binding shape (two
+#   crates both depending on the identical `tree-sitter = "0.25"` line
+#   share the same `tree_sitter::Language` type fine; the incompatibility
+#   class that forced Squirrel/COBOL to be vendored only arises when the
+#   VERSIONS genuinely differ). Baseline's own `lean_*` arrays needed
+#   substantial correction against this grammar version -- see
+#   `LangSpec::lean`'s own doc comment for the full findings, including a
+#   real self-correction (structure/inductive are each their own
+#   top-level node kind, not `[kind]`-field values on `definition` as a
+#   too-quick first read of a parse-tree dump wrongly concluded, caught
+#   and fixed against this crate's own `node-types.json` directly before
+#   landing).
+# - `tree-sitter-tlaplus` 1.5.0 (crates.io `repository`:
+#   github.com/tlaplus-community/tree-sitter-tlaplus, the TLA+ community
+#   org's own grammar). Depends on `tree-sitter-language` as its runtime
+#   binding; `tree-sitter = "0.23"` is only a `[dev-dependencies]` entry.
+#   Baseline's own `tlaplus_call_types` needed one correction (a bare
+#   `"call"` array entry that DOES exist in this grammar's own
+#   `node-types.json` but as an anonymous/unnamed token, not a real named
+#   call-expression node) plus one real addition this row's own first
+#   draft almost missed (`function_evaluation`, TLA+'s array-application
+#   syntax, IS real and reachable, contrary to that first draft's
+#   too-quick conclusion) -- see `LangSpec::tlaplus`'s own doc comment for
+#   the full, self-corrected finding.
+# - `tree-sitter-verilog` 1.0.3 (crates.io `repository`:
+#   github.com/tree-sitter-grammars/tree-sitter-verilog). Depends on
+#   `tree-sitter-language` as its runtime binding; `tree-sitter = "0.24"`
+#   is only a `[dev-dependencies]` entry. Baseline's own `verilog_*`
+#   arrays needed real correction, most notably a genuine, confirmed
+#   grammar LIMITATION (not a baseline error): a user-defined function/
+#   task call used as a bare top-level statement WITH parenthesized
+#   arguments (`helper(1);`) is a real PARSE ERROR in this grammar
+#   version, confirmed via a direct A/B test against
+#   `tree-sitter-systemverilog` (which parses the identical form cleanly)
+#   -- see `LangSpec::verilog`'s own doc comment for the full finding,
+#   including a real correctness bug this row's own first draft almost
+#   shipped (listing wrapper AND leaf call-node kinds together would have
+#   triple-recorded the same call; caught and fixed against this crate's
+#   own `node-types.json` before landing, not merely by inspection).
+# - `tree-sitter-vhdl` 1.4.0 (crates.io `repository`:
+#   github.com/teplyakovkonstantin/tree-sitter-vhdl). Depends on
+#   `tree-sitter-language` as its runtime binding; `tree-sitter = "0.26.6"`
+#   is only a `[dev-dependencies]` entry (a newer version than this
+#   workspace's own `0.25` core pins, but the same ABI-range-agnostic
+#   pattern applies since the runtime binding is the version-independent
+#   shim, not `tree-sitter` core itself). Baseline's own VHDL arrays
+#   confirmed the MOST accurate of this wave's HDL cluster -- see
+#   `LangSpec::vhdl`'s own doc comment, including one genuine self-
+#   correction (baseline's own `"function_call"`/
+#   `"procedure_call_statement"` array entries turned out to be entirely
+#   field-less wrappers with no callee of their own to record at all,
+#   caught against this crate's own `node-types.json` directly, not a
+#   dump-only spot-check, and fixed before landing).
+# - `tree-sitter-systemverilog` 0.3.1 (crates.io `repository`:
+#   github.com/tree-sitter-grammars/tree-sitter-systemverilog -- a
+#   GENUINELY DIFFERENT, more modern grammar than plain
+#   `tree-sitter-verilog` above, not a superset/reuse relationship the
+#   way this crate's own CUDA/GLSL rows are of C++/C -- confirmed via
+#   real parse-tree differences, not assumed from the language
+#   relationship alone (e.g. real, direct `[name]` fields on
+#   `class_declaration`/`module_declaration` that plain Verilog's own
+#   grammar lacks). Depends on `tree-sitter-language` as its runtime
+#   binding; `tree-sitter = "0.25.3"` is only a `[dev-dependencies]` entry.
+#   See `LangSpec::systemverilog`'s own doc comment for the same
+#   wrapper-nesting call-node-array correction plain Verilog's own row
+#   needed.
+#
+# COBOL: VENDORED, not a crates.io dependency at all -- see
+# `crates/enforcer-memory/vendor/tree-sitter-cobol-local/` (a local
+# path-dependency, added below). The crate literally named
+# `tree-sitter-cobol` (0.1.0, published 2025-08-22) ships NO usable Rust
+# API whatsoever -- confirmed by downloading and inspecting its published
+# `Cargo.toml`/source directly: it declares only a `[[bin]]` target
+# (`src/main.rs`), no `[lib]` section, and zero dependencies, so `cargo
+# build` against it fails outright ("ignoring invalid dependency
+# `tree-sitter-cobol` which is missing a lib target") -- a placeholder/
+# reserved-name publish, not a real grammar binding, and the exact
+# "unavailable" condition the language-parity campaign's own grammar-
+# sourcing fallback order (crate -> vendor -> defer) exists for. The real
+# grammar (`github.com/yutaro-sakamoto/tree-sitter-cobol`, unpublished to
+# crates.io) has an EXACT `tree_sitter_COBOL` symbol match against the C
+# baseline's own `lang_specs.c` reference (confirming identical grammar
+# lineage), MIT-licensed (its own `Cargo.toml` `repository` field points
+# at `github.com/tree-sitter/tree-sitter-COBOL`, the original, now-
+# archived official `tree-sitter` org grammar, copyright Max Brunsfeld --
+# tree-sitter's own creator). That repository's own `bindings/rust/lib.rs`
+# hard-pins `tree-sitter = "~0.20.3"` as a normal (non-dev) dependency and
+# returns a bare `tree_sitter::Language` typed against that old version --
+# the SAME two-different-major-versions-of-`tree-sitter`-cannot-coexist
+# incompatibility `tree_sitter_squirrel_local` (this workspace's other
+# vendored grammar) already documents, not a new problem class -- so this
+# crate re-vendors that repository's own `src/parser.c`/`src/scanner.c`/
+# `src/node-types.json` (ABI 14, confirmed compatible with this
+# workspace's `tree-sitter = "0.25"` core's 13-15 range) and binds them via
+# `tree-sitter-language` instead (see
+# `vendor/tree-sitter-cobol-local/src/lib.rs`'s own module doc for the
+# full rationale). ONE portability fix beyond the binding swap (unlike
+# Squirrel, which needed none): the vendored `scanner.c`'s
+# `start_with_word` helper declared two local arrays as C99
+# variable-length arrays (VLA) sized by a function PARAMETER -- valid
+# under GCC/Clang but rejected outright by MSVC's `cl.exe` ("error C2057:
+# expected constant expression"), confirmed via a real `cargo build`
+# failure on this workspace's Windows/MSVC toolchain before the fix (the
+# fix -- bounding both arrays to a small fixed size -- is documented
+# inline at its own edit site in the vendored `scanner.c` and is
+# behavior-preserving: the one real call site always passes the
+# compile-time constant 9). Verified end-to-end (real parse, no ABI
+# error, `has_error: false` on IDENTIFICATION/DATA/PROCEDURE DIVISION
+# source including CALL, IF, EVALUATE, PERFORM, and COPY statements) with
+# dedicated fixtures before being wired in.
+tree-sitter-commonlisp = "0.4"
+tree-sitter-lean4 = "0.3"
+tree-sitter-tlaplus = "1.5"
+tree-sitter-verilog = "1.0"
+tree-sitter-vhdl = "1.4"
+tree-sitter-systemverilog = "0.3"
+tree-sitter-cobol-local = { path = "vendor/tree-sitter-cobol-local" }
 
 [dev-dependencies]
 tempfile = "3"

@@ -387,13 +387,22 @@ pub enum Language {
     /// composition idiom as an INHERITS edge -- see
     /// [`crate::languages::spec::LangSpec::odin`]'s own doc comment.
     Odin,
-    /// Pascal (`.pas`/`.pp`/`.dpr`/`.dpk`/`.inc`). Language-parity
-    /// wave G2.2d. Baseline's own `EXT_TABLE` registers this same
-    /// extension set for `CBM_LANG_PASCAL` (Delphi/Free Pascal unit,
-    /// program, project, package, and include-file conventions
-    /// alike) -- see
-    /// [`crate::languages::spec::LangSpec::pascal`]'s own doc comment
-    /// for the grammar-shape findings.
+    /// Pascal (`.pas`/`.dpr`/`.lpr`). Language-parity wave G2.2d,
+    /// extension set CORRECTED in wave G2.3a: the ORIGINAL G2.2d doc
+    /// comment here claimed a "`.pas`/`.pp`/`.dpr`/`.dpk`/`.inc`" extension
+    /// set attributed to the baseline's own `EXT_TABLE` -- re-verified
+    /// directly against that real table (`src/discover/language.c`) during
+    /// G2.3a and found wrong on three of five entries: `.pp` is the
+    /// baseline's OWN `CBM_LANG_PUPPET` extension (:499, not Pascal's --
+    /// this crate's own [`Language::Puppet`] now claims it instead), `.inc`
+    /// is the baseline's own `CBM_LANG_BITBAKE` extension (:269, not
+    /// Pascal's), and `.dpk` has no baseline `EXT_TABLE` entry for ANY
+    /// language at all. The real baseline set is `.pas` (:478)/`.dpr`
+    /// (:349)/`.lpr` (:437, a Lazarus/Free Pascal project file the
+    /// original G2.2d set omitted) -- see
+    /// [`crate::languages::spec::LangSpec::pascal`]'s own doc comment for
+    /// the grammar-shape findings (unaffected by this extension-set-only
+    /// correction).
     Pascal,
     /// QML (Qt Modeling Language, `.qml`). Language-parity wave G2.2e.
     /// A genuine TypeScript-superset grammar (`tree-sitter-qmljs`) plus
@@ -421,9 +430,269 @@ pub enum Language {
     /// including the finding that this grammar is almost entirely
     /// field-free for the constructs this row cares about.
     Squirrel,
+    /// Sway (Fuel Labs' smart-contract language, `.sw`). Language-parity
+    /// wave G2.3e. Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-sway-local/`), not a
+    /// crates.io dependency -- no such release exists under any
+    /// discoverable name at all -- see
+    /// [`crate::languages::spec::LangSpec::sway`]'s own doc comment.
+    Sway,
+    /// Starlark (Bazel's Python-like config language, `.bzl`/`.star`).
+    /// Language-parity wave G2.3e. The baseline's own `EXT_TABLE`
+    /// additionally maps the bare FILENAMES `BUILD`/`BUILD.bazel`/
+    /// `WORKSPACE`/`WORKSPACE.bazel` (no extension at all) to
+    /// `CBM_LANG_STARLARK` too -- DEFERRED here, precisely: this crate's
+    /// own [`classify`] is purely extension-based
+    /// (`rel_path.rsplit('.')`), with no filename-only dispatch mechanism
+    /// anywhere in this crate yet (confirmed by grepping this whole module
+    /// for any Dockerfile/Makefile-style precedent -- none exists), so
+    /// adding one would be new shared dispatch infrastructure beyond this
+    /// wave's own data-row scope, not a one-line extension-table entry.
+    /// Every `.bzl`/`.star` file (the overwhelming majority of real-world
+    /// Starlark source) is still fully classified and extracted;
+    /// extensionless `BUILD`/`WORKSPACE` files fall through to
+    /// [`Language::TextOnly`] until a future wave adds filename-based
+    /// dispatch generally.
+    Starlark,
+    /// Templ (Go HTML-templating DSL, `.templ`). Language-parity wave
+    /// G2.3e.
+    Templ,
+    /// Typst (typesetting/markup language, `.typ`). Language-parity wave
+    /// G2.3e.
+    Typst,
+    /// WGSL (WebGPU Shading Language, `.wgsl`). Language-parity wave
+    /// G2.3e. Grammar sourced from `tree-sitter-wgsl-bevy` (a maintained
+    /// fork of `szebniok/tree-sitter-wgsl`, the SAME lineage the baseline
+    /// itself vendored) -- see
+    /// [`crate::languages::spec::LangSpec::wgsl`]'s own doc comment,
+    /// including the finding that the plain `tree-sitter-wgsl` crate name
+    /// on crates.io is stale/incompatible.
+    Wgsl,
+    /// Wolfram Language (Mathematica, `.wl`/`.wls`). Language-parity wave
+    /// G2.3e. Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-wolfram-local/`), not a
+    /// crates.io dependency -- no such release exists under any
+    /// discoverable name at all -- see
+    /// [`crate::languages::spec::LangSpec::wolfram`]'s own doc comment. No
+    /// `.m`: that extension is already claimed by [`Language::ObjectiveC`]
+    /// in this crate (see that variant's own doc comment) -- the
+    /// baseline's own `src/discover/language.c` `cbm_disambiguate_m`
+    /// content-sniff resolves this exact ambiguity for Objective-C vs.
+    /// MATLAB vs. Wolfram/Mathematica `.m` files there, but this crate has
+    /// no MATLAB extractor either, so there is nothing to disambiguate
+    /// `.m` FOR here yet -- deferring a Wolfram `.m` mapping until that
+    /// three-way ambiguity actually needs resolving, rather than silently
+    /// mis-routing every `.m` file already handled as Objective-C.
+    Wolfram,
+    /// Slang (shader language, superset of HLSL/GLSL-family syntax,
+    /// `.slang`). Language-parity wave G2.3e.
+    Slang,
+    /// SCSS (`.scss`). Language-parity wave G2.3a. Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-scss-local/`), not a
+    /// plain crates.io dependency -- the published `tree-sitter-scss`
+    /// 1.0.0 crate's own `build.rs` unconditionally passes a GCC/Clang-only
+    /// compiler flag with no MSVC guard, confirmed to fail a real
+    /// `cargo build` against this workspace's MSVC toolchain (an upstream
+    /// packaging bug, not a tree-sitter ABI incompatibility -- see
+    /// [`crate::languages::spec::LangSpec::scss`]'s own doc comment).
+    Scss,
+    /// CMake (`.cmake`). Language-parity wave G2.3a. No bare
+    /// `CMakeLists.txt` filename dispatch -- the baseline's own
+    /// `FILENAME_TABLE` (`src/discover/language.c`:633) maps that exact
+    /// extensionless filename to `CBM_LANG_CMAKE` too, but this crate's own
+    /// [`classify`] is purely extension-based with no filename-only
+    /// dispatch mechanism anywhere yet -- same deferral, same reasoning, as
+    /// [`Language::Starlark`]'s own `BUILD`/`WORKSPACE` doc comment. Every
+    /// `.cmake` helper-script file (a real, common convention for included
+    /// CMake modules, confirmed by the baseline's own `EXT_TABLE`
+    /// `{".cmake", CBM_LANG_CMAKE}` entry at `src/discover/language.c`:59)
+    /// is still fully classified and extracted; extensionless
+    /// `CMakeLists.txt` falls through to [`Language::TextOnly`] until a
+    /// future wave adds filename-based dispatch generally.
+    Cmake,
+    /// Makefile (`.mk`). Language-parity wave G2.3a. No bare
+    /// `Makefile`/`makefile`/`GNUmakefile` filename dispatch -- same
+    /// deferral, same reasoning, as [`Language::Cmake`] above (the
+    /// baseline's own `FILENAME_TABLE` maps all three extensionless
+    /// filenames to `CBM_LANG_MAKEFILE` too, `src/discover/language.c`:
+    /// 635-637). Every `.mk` include-fragment file (the baseline's own
+    /// `EXT_TABLE` `{".mk", CBM_LANG_MAKEFILE}` entry,
+    /// `src/discover/language.c`:176) is still fully classified and
+    /// extracted; the extensionless primary `Makefile` itself falls
+    /// through to [`Language::TextOnly`] until a future wave adds
+    /// filename-based dispatch generally.
+    Makefile,
+    /// Fortran (`.f90`, free-form modern Fortran). Language-parity wave
+    /// G2.3a. No `.f`/`.f77`/`.for` (fixed-form legacy Fortran): the
+    /// `tree-sitter-fortran` grammar this row binds targets free-form
+    /// syntax; fixed-form column-position-sensitive source is a
+    /// meaningfully different parse target this wave does not attempt --
+    /// see [`crate::languages::spec::LangSpec::fortran`]'s own doc comment.
+    Fortran,
+    /// VimScript (`.vim`). Language-parity wave G2.3a.
+    Vimscript,
+    /// Puppet (`.pp`). Language-parity wave G2.3a.
+    Puppet,
+    /// Elm (`.elm`). Language-parity wave G2.3a.
+    Elm,
+    /// Bicep (Azure IaC, `.bicep`). Language-parity wave G2.3c.
+    Bicep,
+    /// BitBake (Yocto build recipes, `.bb`/`.bbappend`/`.bbclass`/`.inc`).
+    /// Language-parity wave G2.3c. Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-bitbake-local/`), not a
+    /// plain crates.io dependency -- see
+    /// [`crate::languages::spec::LangSpec::bitbake`]'s own doc comment.
+    /// No plain `.bb` collision handling needed with any other registered
+    /// language here (the baseline's own `EXT_TABLE` registers `.bb` for
+    /// `CBM_LANG_BITBAKE` alone).
+    Bitbake,
+    /// Cairo (StarkNet smart contracts, `.cairo`). Language-parity wave
+    /// G2.3c. Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-cairo-local/`), not a
+    /// plain crates.io dependency -- see
+    /// [`crate::languages::spec::LangSpec::cairo`]'s own doc comment.
+    Cairo,
+    /// CFScript (ColdFusion/CFML script dialect, `.cfc`). Language-parity
+    /// wave G2.3c. No `.cfml`/`.cfm` (the CFML tag dialect): the baseline's
+    /// own `EXT_TABLE` maps those to a DIFFERENT registered language,
+    /// `CBM_LANG_CFML` (still unclaimed in this crate) -- CFML is a
+    /// distinct grammar/dialect from CFScript, not an alternate extension
+    /// for the same language.
+    Cfscript,
+    /// FunC (TON smart contracts, `.fc`). Language-parity wave G2.3c.
+    /// Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-func-local/`), not a
+    /// plain crates.io dependency -- see
+    /// [`crate::languages::spec::LangSpec::func`]'s own doc comment. No
+    /// `.func`: the baseline's own `EXT_TABLE` has no such entry for
+    /// `CBM_LANG_FUNC` either -- `.fc` is the only registered extension.
+    Func,
+    /// Move (Aptos/Sui smart contracts, `.move`). Language-parity wave
+    /// G2.3c. Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-move-local/`), not a
+    /// plain crates.io dependency -- see
+    /// [`crate::languages::spec::LangSpec::move_lang`]'s own doc comment.
+    Move,
+    /// Nickel (config language, `.ncl`). Language-parity wave G2.3c.
+    Nickel,
+    /// Jsonnet (JSON templating, `.jsonnet`/`.libsonnet`). Language-parity
+    /// wave G2.3c.
+    Jsonnet,
+    /// Just (task-runner justfiles, `.just`). Language-parity wave G2.3d.
+    /// No bare `justfile`/`Justfile`/`.justfile` filename dispatch -- same
+    /// deferral, same reasoning, as [`Language::Cmake`]'s own
+    /// `CMakeLists.txt` doc comment (the baseline's own `FILENAME_TABLE`
+    /// maps all three extensionless conventions to `CBM_LANG_JUST` too,
+    /// `src/discover/language.c`:652-654, in addition to its own
+    /// `EXT_TABLE`'s `.just` entry at :259). Every `.just` imported-recipe-
+    /// library file is still fully classified and extracted; the primary
+    /// extensionless `justfile` itself falls through to
+    /// [`Language::TextOnly`] until a future wave adds filename-based
+    /// dispatch generally.
+    Just,
+    /// HLSL (High-Level Shading Language, DirectX; `.fx`/`.hlsl`/
+    /// `.hlsli`). Language-parity wave G2.3d. See
+    /// [`crate::languages::spec::LangSpec::hlsl`]'s own doc comment for
+    /// the grammar-reuse rationale (a genuine `tree-sitter-cpp` fork) and
+    /// the top-level-`cbuffer`-block parse-gap finding.
+    Hlsl,
+    /// ISPC (Intel Implicit SPMD Program Compiler, `.ispc`). Language-
+    /// parity wave G2.3d. Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-ispc-local/`), not a
+    /// crates.io dependency -- see
+    /// [`crate::languages::spec::LangSpec::ispc`]'s own doc comment.
+    Ispc,
+    /// PureScript (Haskell-like, compiles to JS; `.purs`). Language-parity
+    /// wave G2.3d. Grammar sourced via a `git` dependency (crates.io has
+    /// no `tree-sitter-purescript` at all) -- see
+    /// [`crate::languages::spec::LangSpec::purescript`]'s own doc
+    /// comment, including the real baseline `module_types` correction
+    /// this row required.
+    Purescript,
+    /// Magma (computer algebra system scripting language, `.mag`/
+    /// `.magma`). Language-parity wave G2.3d. Grammar sourced via a `git`
+    /// dependency (crates.io has no `tree-sitter-magma` for this
+    /// language at all) -- see
+    /// [`crate::languages::spec::LangSpec::magma`]'s own doc comment,
+    /// including the real `call_types`/`module_types`/`import_types`
+    /// baseline corrections this row required (the baseline's own
+    /// `magma_call_types` names a node kind that is entirely absent from
+    /// this grammar).
+    Magma,
+    /// Hare (systems language, `.ha`). Language-parity wave G2.3d.
+    /// Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-hare-local/`), not a
+    /// crates.io dependency -- see
+    /// [`crate::languages::spec::LangSpec::hare`]'s own doc comment.
+    Hare,
+    /// Pony (actor-model systems language, `.pony`). Language-parity wave
+    /// G2.3d. Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-pony-local/`), not a
+    /// crates.io dependency -- see
+    /// [`crate::languages::spec::LangSpec::pony`]'s own doc comment,
+    /// including the real `actor ... is Base` INHERITS-edge improvement
+    /// this row adds (the baseline itself has no dedicated Pony
+    /// `extract_base_classes` walker at all).
+    Pony,
+    /// NASM (Netwide Assembler, x86 assembly; `.nasm`). Language-parity
+    /// wave G2.3d. Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-nasm-local/`), not a
+    /// crates.io dependency -- distinct from the generic, Tier-0 `.s`/`.S`
+    /// assembly path (out of this wave's own scope) -- see
+    /// [`crate::languages::spec::LangSpec::nasm`]'s own doc comment.
+    Nasm,
     /// Anything else: still indexed as a file node, but with no
     /// structural extraction -- see the workpack's "unsupported files
     /// become TextOnly nodes, never silent skip" hard requirement.
+    /// COBOL (`.cbl`/`.cob`). Language-parity wave G2.3b. Grammar
+    /// VENDORED (`crates/enforcer-memory/vendor/tree-sitter-cobol-local/`),
+    /// not a crates.io dependency -- see
+    /// [`crate::languages::spec::LangSpec::cobol`]'s own doc comment.
+    Cobol,
+    /// Common Lisp (`.cl`/`.lisp`/`.lsp`). Language-parity wave G2.3b.
+    Commonlisp,
+    /// Lean (`.lean`). Language-parity wave G2.3b.
+    Lean,
+    /// TLA+ (`.tla`). Language-parity wave G2.3b.
+    Tlaplus,
+    /// Verilog (`.v`). Language-parity wave G2.3b. Baseline's own
+    /// `EXT_TABLE` (`src/discover/language.c`:239-240) maps BOTH `.sv`
+    /// AND `.v` to `CBM_LANG_VERILOG` -- `CBM_LANG_SYSTEMVERILOG` is a
+    /// fully registered baseline language (its own `lang_specs.c` row,
+    /// display name, and dedicated `if (lang == CBM_LANG_VERILOG || lang
+    /// == CBM_LANG_SYSTEMVERILOG)` branches in `extract_defs.c`/
+    /// `extract_calls.c`) that the baseline's OWN file-discovery path
+    /// never actually reaches via any extension at all -- confirmed by an
+    /// exhaustive `grep` of `EXT_TABLE` finding no `.sv`-to-
+    /// `CBM_LANG_SYSTEMVERILOG` entry anywhere. This crate deliberately
+    /// does NOT reproduce that dead-path baseline quirk (see
+    /// [`Language::Systemverilog`]'s own doc comment for why `.sv` is
+    /// instead routed to the real, tested SystemVerilog grammar here) --
+    /// `.v` alone maps to this variant.
+    Verilog,
+    /// VHDL (`.vhd`/`.vhdl`). Language-parity wave G2.3b.
+    Vhdl,
+    /// SystemVerilog (`.sv`/`.svh`). Language-parity wave G2.3b. Baseline
+    /// itself never routes any file extension to `CBM_LANG_SYSTEMVERILOG`
+    /// at all (see [`Language::Verilog`]'s own doc comment for the full
+    /// finding) -- `.sv`/`.svh` are routed HERE rather than reproducing
+    /// that gap, a deliberate improvement: this crate's own
+    /// `tree-sitter-systemverilog` grammar is confirmed (via real
+    /// parse-tree dumps, see
+    /// [`crate::languages::spec::LangSpec::systemverilog`]'s own doc
+    /// comment) genuinely MORE complete for SystemVerilog source than the
+    /// plain-Verilog grammar is (e.g. real, direct `[name]` fields on
+    /// `class_declaration`/`module_declaration`, and a bare-statement
+    /// function-call form that is a parse ERROR in the plain-Verilog
+    /// grammar) -- routing `.sv` through the weaker grammar the way the
+    /// baseline's own dead extension table would (if it routed `.sv`
+    /// anywhere at all) would be strictly worse, not merely different.
+    /// No baseline extension exists for `.svh` either; assigned here by
+    /// the same real-file-extension convention every other language in
+    /// this crate already follows for a header/include-file variant
+    /// (mirrors [`Language::Cpp`]'s own multi-suffix header handling in
+    /// spirit) rather than leaving `.svh` unclassified.
+    Systemverilog,
     TextOnly,
 }
 
@@ -512,18 +781,98 @@ pub fn classify(rel_path: &str) -> Language {
         "clj" | "cljc" | "cljs" => Language::Clojure,
         "jl" => Language::Julia,
         "odin" => Language::Odin,
-        // Baseline `src/discover/language.c` `EXT_TABLE` registers this
-        // full Delphi/Free Pascal extension set for `CBM_LANG_PASCAL`:
-        // `.pas` (unit source), `.pp` (Free Pascal unit, an older/
-        // alternate convention), `.dpr` (Delphi project), `.dpk` (Delphi
-        // package), `.inc` (textually-included Pascal source fragment).
-        "pas" | "pp" | "dpr" | "dpk" | "inc" => Language::Pascal,
+        // Language-parity wave G2.3a correction: re-verified directly
+        // against the baseline's own `src/discover/language.c`
+        // `EXT_TABLE` (not re-transcribed from a prior wave's own doc
+        // comment) -- the REAL baseline entries for `CBM_LANG_PASCAL` are
+        // only `.pas` (:478), `.dpr` (:349), and `.lpr` (:437, a
+        // Lazarus/Free Pascal project file this crate's own G2.2d wave
+        // omitted entirely). `.pp` (:499) and `.inc` (:269) are baseline
+        // entries for OTHER languages (`CBM_LANG_PUPPET`/
+        // `CBM_LANG_BITBAKE` respectively, confirmed by grepping the exact
+        // same table) -- a real, confirmed transcription error in that
+        // prior wave's own doc comment (which claimed a "full Delphi/Free
+        // Pascal extension set" including `.pp`/`.dpk`/`.inc` with no
+        // baseline citation backing any of the three), discovered only
+        // because it silently made this wave's own
+        // `"pp" => Language::Puppet` arm below unreachable (a real
+        // `cargo check` failure, not a hypothetical) -- fixed here rather
+        // than left broken, per this wave's own "courtesy-fix a
+        // crate-wide blocker if trivial, document it, move on" mandate.
+        // `.dpk` (Delphi package) has NO entry anywhere in the baseline's
+        // own `EXT_TABLE` at all -- dropped rather than guessed at.
+        "pas" | "dpr" | "lpr" => Language::Pascal,
         "qml" => Language::Qml,
         "res" | "resi" => Language::Rescript,
         "nut" => Language::Squirrel,
+        "sw" => Language::Sway,
+        // No bare `BUILD`/`WORKSPACE` filename dispatch -- see
+        // `Language::Starlark`'s own doc comment for why.
+        "bzl" | "star" => Language::Starlark,
+        "templ" => Language::Templ,
+        "typ" => Language::Typst,
+        "wgsl" => Language::Wgsl,
+        // No ".m" -- see `Language::Wolfram`'s own doc comment (already
+        // claimed by `Language::ObjectiveC`).
+        "wl" | "wls" => Language::Wolfram,
+        "slang" => Language::Slang,
+        "scss" => Language::Scss,
+        // No bare "CMakeLists.txt" filename dispatch -- see
+        // `Language::Cmake`'s own doc comment.
+        "cmake" => Language::Cmake,
+        // No bare "Makefile"/"makefile"/"GNUmakefile" filename dispatch --
+        // see `Language::Makefile`'s own doc comment.
+        "mk" => Language::Makefile,
+        // No ".f"/".f77"/".for" (fixed-form) -- see `Language::Fortran`'s
+        // own doc comment.
+        "f90" => Language::Fortran,
+        "vim" => Language::Vimscript,
+        "pp" => Language::Puppet,
+        "elm" => Language::Elm,
+        "bicep" => Language::Bicep,
+        // Baseline `src/discover/language.c` `EXT_TABLE` registers this
+        // exact four-extension set for `CBM_LANG_BITBAKE` (`.bb` recipes,
+        // `.bbappend`/`.bbclass` Yocto layer-extension conventions,
+        // `.inc` textually-included recipe fragment).
+        "bb" | "bbappend" | "bbclass" | "inc" => Language::Bitbake,
+        "cairo" => Language::Cairo,
+        // `.cfc` only -- see `Language::Cfscript`'s own doc comment for
+        // why `.cfm` (CFML's own tag dialect) is NOT also mapped here.
+        "cfc" => Language::Cfscript,
+        // `.fc` only -- the baseline's own `EXT_TABLE` has no `.func`
+        // entry for `CBM_LANG_FUNC` at all.
+        "fc" => Language::Func,
+        "move" => Language::Move,
+        "ncl" => Language::Nickel,
+        "jsonnet" | "libsonnet" => Language::Jsonnet,
+        // No bare "justfile"/"Justfile"/".justfile" filename dispatch --
+        // see `Language::Just`'s own doc comment.
+        "just" => Language::Just,
+        "fx" | "hlsl" | "hlsli" => Language::Hlsl,
+        "ispc" => Language::Ispc,
+        "purs" => Language::Purescript,
+        "mag" | "magma" => Language::Magma,
+        "ha" => Language::Hare,
+        "pony" => Language::Pony,
+        "nasm" => Language::Nasm,
         "toml" => Language::ConfigToml,
         "json" => Language::ConfigJson,
         "yml" | "yaml" => Language::ConfigYaml,
+        "cbl" | "cob" => Language::Cobol,
+        "cl" | "lisp" | "lsp" => Language::Commonlisp,
+        "lean" => Language::Lean,
+        "tla" => Language::Tlaplus,
+        // See `Language::Verilog`'s own doc comment: baseline's own
+        // `.sv` -> `CBM_LANG_VERILOG` mapping is a dead-path quirk this
+        // crate deliberately does not reproduce -- `.v` alone lands
+        // here.
+        "v" => Language::Verilog,
+        "vhd" | "vhdl" => Language::Vhdl,
+        // See `Language::Systemverilog`'s own doc comment: `.sv`/`.svh`
+        // route to the real, more-complete SystemVerilog grammar here
+        // rather than the baseline's own (never-actually-reached) plain
+        // Verilog mapping.
+        "sv" | "svh" => Language::Systemverilog,
         _ => Language::TextOnly,
     }
 }
@@ -861,6 +1210,247 @@ pub fn parse_file(language: Language, source: &str, rel_path: &str) -> Option<Pa
             // generic spec-table engine (`languages::generic::
             // parse_squirrel`) -- see `tests/unit_languages_squirrel.rs`.
             Some(generic::parse_squirrel(source))
+        }
+        Language::Sway => {
+            // Language-parity wave G2.3e: onboarded directly through the
+            // generic spec-table engine (`languages::generic::parse_sway`)
+            // -- see `tests/unit_languages_sway.rs`.
+            Some(generic::parse_sway(source))
+        }
+        Language::Starlark => {
+            // Language-parity wave G2.3e: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_starlark`) -- see `tests/unit_languages_starlark.rs`.
+            Some(generic::parse_starlark(source))
+        }
+        Language::Templ => {
+            // Language-parity wave G2.3e: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_templ`) -- see `tests/unit_languages_templ.rs`.
+            Some(generic::parse_templ(source))
+        }
+        Language::Typst => {
+            // Language-parity wave G2.3e: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_typst`) -- see `tests/unit_languages_typst.rs`.
+            Some(generic::parse_typst(source))
+        }
+        Language::Wgsl => {
+            // Language-parity wave G2.3e: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_wgsl`) -- see `tests/unit_languages_wgsl.rs`.
+            Some(generic::parse_wgsl(source))
+        }
+        Language::Wolfram => {
+            // Language-parity wave G2.3e: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_wolfram`) -- see `tests/unit_languages_wolfram.rs`.
+            Some(generic::parse_wolfram(source))
+        }
+        Language::Slang => {
+            // Language-parity wave G2.3e: reuses the generic spec-table
+            // engine's own C++ path verbatim (`languages::generic::
+            // parse_slang`, itself C++'s own `cpp_quirks` with the grammar
+            // binding swapped -- see `LangSpec::slang`'s own doc comment)
+            // -- see `tests/unit_languages_slang.rs`.
+            Some(generic::parse_slang(source))
+        }
+        Language::Scss => {
+            // Language-parity wave G2.3a: onboarded directly through the
+            // generic spec-table engine (`languages::generic::parse_scss`)
+            // -- grammar VENDORED (see `Language::Scss`'s own doc comment)
+            // -- see `tests/unit_languages_scss.rs`.
+            Some(generic::parse_scss(source))
+        }
+        Language::Cmake => {
+            // Language-parity wave G2.3a: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_cmake`) -- see `tests/unit_languages_cmake.rs`.
+            Some(generic::parse_cmake(source))
+        }
+        Language::Makefile => {
+            // Language-parity wave G2.3a: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_makefile`) -- see `tests/unit_languages_makefile.rs`.
+            Some(generic::parse_makefile(source))
+        }
+        Language::Fortran => {
+            // Language-parity wave G2.3a: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_fortran`) -- see `tests/unit_languages_fortran.rs`.
+            Some(generic::parse_fortran(source))
+        }
+        Language::Vimscript => {
+            // Language-parity wave G2.3a: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_vimscript`) -- see `tests/unit_languages_vimscript.rs`.
+            Some(generic::parse_vimscript(source))
+        }
+        Language::Puppet => {
+            // Language-parity wave G2.3a: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_puppet`) -- see `tests/unit_languages_puppet.rs`.
+            Some(generic::parse_puppet(source))
+        }
+        Language::Elm => {
+            // Language-parity wave G2.3a: onboarded directly through the
+            // generic spec-table engine (`languages::generic::parse_elm`)
+            // -- see `tests/unit_languages_elm.rs`.
+            Some(generic::parse_elm(source))
+        }
+        Language::Bicep => {
+            // Language-parity wave G2.3c: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_bicep`) -- see `tests/unit_languages_bicep.rs`.
+            Some(generic::parse_bicep(source))
+        }
+        Language::Bitbake => {
+            // Language-parity wave G2.3c: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_bitbake`), grammar VENDORED (see `Language::Bitbake`'s
+            // own doc comment) -- see `tests/unit_languages_bitbake.rs`.
+            Some(generic::parse_bitbake(source))
+        }
+        Language::Cairo => {
+            // Language-parity wave G2.3c: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_cairo`), grammar VENDORED (see `Language::Cairo`'s own
+            // doc comment) -- see `tests/unit_languages_cairo.rs`.
+            Some(generic::parse_cairo(source))
+        }
+        Language::Cfscript => {
+            // Language-parity wave G2.3c: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_cfscript`) -- see `tests/unit_languages_cfscript.rs`.
+            Some(generic::parse_cfscript(source))
+        }
+        Language::Func => {
+            // Language-parity wave G2.3c: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_func`), grammar VENDORED (see `Language::Func`'s own
+            // doc comment) -- see `tests/unit_languages_func.rs`.
+            Some(generic::parse_func(source))
+        }
+        Language::Move => {
+            // Language-parity wave G2.3c: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_move`), grammar VENDORED (see `Language::Move`'s own
+            // doc comment) -- see `tests/unit_languages_move.rs`.
+            Some(generic::parse_move(source))
+        }
+        Language::Nickel => {
+            // Language-parity wave G2.3c: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_nickel`) -- see `tests/unit_languages_nickel.rs`.
+            Some(generic::parse_nickel(source))
+        }
+        Language::Jsonnet => {
+            // Language-parity wave G2.3c: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_jsonnet`) -- see `tests/unit_languages_jsonnet.rs`.
+            Some(generic::parse_jsonnet(source))
+        }
+        Language::Just => {
+            // Language-parity wave G2.3d: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_just`) -- see `tests/unit_languages_just.rs`.
+            Some(generic::parse_just(source))
+        }
+        Language::Hlsl => {
+            // Language-parity wave G2.3d: reuses the generic spec-table
+            // engine's own C++ path verbatim (`languages::generic::
+            // parse_hlsl`, itself C++'s own `cpp_quirks` with the grammar
+            // binding swapped -- see `LangSpec::hlsl`'s own doc comment)
+            // -- see `tests/unit_languages_hlsl.rs`.
+            Some(generic::parse_hlsl(source))
+        }
+        Language::Ispc => {
+            // Language-parity wave G2.3d: reuses the generic spec-table
+            // engine's own C path verbatim (`languages::generic::
+            // parse_ispc`, itself C's own `c_quirks` with the grammar
+            // binding swapped -- see `LangSpec::ispc`'s own doc comment),
+            // grammar VENDORED (see `Language::Ispc`'s own doc comment)
+            // -- see `tests/unit_languages_ispc.rs`.
+            Some(generic::parse_ispc(source))
+        }
+        Language::Purescript => {
+            // Language-parity wave G2.3d: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_purescript`) -- see
+            // `tests/unit_languages_purescript.rs`.
+            Some(generic::parse_purescript(source))
+        }
+        Language::Magma => {
+            // Language-parity wave G2.3d: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_magma`) -- see `tests/unit_languages_magma.rs`.
+            Some(generic::parse_magma(source))
+        }
+        Language::Hare => {
+            // Language-parity wave G2.3d: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_hare`), grammar VENDORED (see `Language::Hare`'s own
+            // doc comment) -- see `tests/unit_languages_hare.rs`.
+            Some(generic::parse_hare(source))
+        }
+        Language::Pony => {
+            // Language-parity wave G2.3d: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_pony`), grammar VENDORED (see `Language::Pony`'s own
+            // doc comment) -- see `tests/unit_languages_pony.rs`.
+            Some(generic::parse_pony(source))
+        }
+        Language::Nasm => {
+            // Language-parity wave G2.3d: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_nasm`), grammar VENDORED (see `Language::Nasm`'s own
+            // doc comment) -- see `tests/unit_languages_nasm.rs`.
+            Some(generic::parse_nasm(source))
+        }
+        Language::Cobol => {
+            // Language-parity wave G2.3b: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_cobol`), grammar VENDORED (see `Language::Cobol`'s
+            // own doc comment) -- see `tests/unit_languages_cobol.rs`.
+            Some(generic::parse_cobol(source))
+        }
+        Language::Commonlisp => {
+            // Language-parity wave G2.3b: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_commonlisp`) -- see
+            // `tests/unit_languages_commonlisp.rs`.
+            Some(generic::parse_commonlisp(source))
+        }
+        Language::Lean => {
+            // Language-parity wave G2.3b: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_lean`) -- see `tests/unit_languages_lean.rs`.
+            Some(generic::parse_lean(source))
+        }
+        Language::Tlaplus => {
+            // Language-parity wave G2.3b: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_tlaplus`) -- see `tests/unit_languages_tlaplus.rs`.
+            Some(generic::parse_tlaplus(source))
+        }
+        Language::Verilog => {
+            // Language-parity wave G2.3b: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_verilog`) -- see `tests/unit_languages_verilog.rs`.
+            Some(generic::parse_verilog(source))
+        }
+        Language::Vhdl => {
+            // Language-parity wave G2.3b: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_vhdl`) -- see `tests/unit_languages_vhdl.rs`.
+            Some(generic::parse_vhdl(source))
+        }
+        Language::Systemverilog => {
+            // Language-parity wave G2.3b: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_systemverilog`) -- see
+            // `tests/unit_languages_systemverilog.rs`.
+            Some(generic::parse_systemverilog(source))
         }
         Language::ConfigToml | Language::ConfigJson | Language::ConfigYaml | Language::TextOnly => {
             None

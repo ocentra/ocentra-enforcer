@@ -1,0 +1,20 @@
+@import "base";
+@use "sass:math";
+
+$primary: #333;
+
+@mixin flex-center {
+  display: flex;
+}
+
+@function double($x) {
+  @return $x * 2;
+}
+
+.widget {
+  @include flex-center;
+  color: double($primary);
+  @if $primary == #333 {
+    border: 1px solid black;
+  }
+}

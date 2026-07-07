@@ -1,0 +1,17 @@
+import "foo.m": bar;
+load "setup.m";
+
+function add(a, b)
+    return a + b;
+end function;
+
+procedure Greet(name)
+    print name;
+end procedure;
+
+Dog := recformat<name: MonStgElt, breed: MonStgElt>;
+
+x := add(1, 2);
+if x gt 0 then
+    print "positive";
+end if;

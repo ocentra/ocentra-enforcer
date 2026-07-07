@@ -51,8 +51,14 @@ Per language, resolve the tree-sitter grammar for Rust, in preference order:
   8 of 8 parallel workers hit a simultaneous session rate-limit wall mid-wave (see
   orchestration-lessons.md) — landed code was verified directly against tree+gates, not
   trusted from self-reports; orchestrator hand-fixed the resulting 12 clippy + 2 test errors.
-- **Next: G2.3** — Tier-1 (30) + Tier-0 (45) config/markup/shallow languages. Sizing the
-  next fan-out to 4-5 workers (not 8) per the session-limit lesson.
+- **Bookkeeping correction:** G2.2's "9 mainstream Tier-2" framing was wrong — Clojure is
+  actually Tier-1 (done anyway, no rework needed, just relabeling). True remaining count
+  after G2.1+G2.2: Tier-2 39 remaining (of 49; done: JS pre-existing, Ruby, Lua, Elixir,
+  Bash, Haskell, OCaml, Erlang, R, Perl = 10), Tier-1 29 remaining (of 30; done: Clojure),
+  Tier-0 45 remaining (of 45; none done). Total remaining: 113, not the 74 first assumed.
+- **Next: G2.3** — all 39 remaining Tier-2 languages (highest remaining depth), 5 workers
+  per the L47 session-limit-sizing lesson (not 8). Tier-1 (29) + Tier-0 (45) follow in
+  G2.4/G2.5.
 
 ## Fixtures & tests
 Per language: one small source file under `tests/fixtures/memory/lang_<x>/` exercising a

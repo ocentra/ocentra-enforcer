@@ -263,6 +263,109 @@ pub enum LanguageTag {
     /// Squirrel. Language-parity wave G2.2e. Courtesy addition, same
     /// reason as [`LanguageTag::Qml`] above.
     Squirrel,
+    /// Sway. Language-parity wave G2.3e. Courtesy addition, same reason as
+    /// [`LanguageTag::Qml`] above.
+    Sway,
+    /// Starlark. Language-parity wave G2.3e. Courtesy addition, same
+    /// reason as [`LanguageTag::Qml`] above.
+    Starlark,
+    /// Templ. Language-parity wave G2.3e. Courtesy addition, same reason
+    /// as [`LanguageTag::Qml`] above.
+    Templ,
+    /// Typst. Language-parity wave G2.3e. Courtesy addition, same reason
+    /// as [`LanguageTag::Qml`] above.
+    Typst,
+    /// WGSL. Language-parity wave G2.3e. Courtesy addition, same reason as
+    /// [`LanguageTag::Qml`] above.
+    Wgsl,
+    /// Wolfram. Language-parity wave G2.3e. Courtesy addition, same
+    /// reason as [`LanguageTag::Qml`] above.
+    Wolfram,
+    /// Slang. Language-parity wave G2.3e. Courtesy addition, same reason
+    /// as [`LanguageTag::Qml`] above.
+    Slang,
+    /// SCSS. Courtesy addition (this crate's own `code_graph.rs` needs one
+    /// `LanguageTag` variant per `Language` variant regardless of which
+    /// wave/worker landed it -- same reason as [`LanguageTag::Qml`] above).
+    Scss,
+    /// CMake. Courtesy addition, same reason as [`LanguageTag::Qml`]
+    /// above.
+    Cmake,
+    /// Makefile. Courtesy addition, same reason as [`LanguageTag::Qml`]
+    /// above.
+    Makefile,
+    /// Fortran. Courtesy addition, same reason as [`LanguageTag::Qml`]
+    /// above.
+    Fortran,
+    /// VimScript. Courtesy addition, same reason as [`LanguageTag::Qml`]
+    /// above.
+    Vimscript,
+    /// Puppet. Courtesy addition, same reason as [`LanguageTag::Qml`]
+    /// above.
+    Puppet,
+    /// Elm. Courtesy addition, same reason as [`LanguageTag::Qml`] above.
+    Elm,
+    /// Bicep. Language-parity wave G2.3c.
+    Bicep,
+    /// BitBake. Language-parity wave G2.3c.
+    Bitbake,
+    /// Cairo. Language-parity wave G2.3c.
+    Cairo,
+    /// CFScript. Language-parity wave G2.3c.
+    Cfscript,
+    /// FunC. Language-parity wave G2.3c.
+    Func,
+    /// Move. Language-parity wave G2.3c.
+    Move,
+    /// Nickel. Language-parity wave G2.3c.
+    Nickel,
+    /// Jsonnet. Language-parity wave G2.3c.
+    Jsonnet,
+    /// Just. Language-parity wave G2.3d. Courtesy addition, same reason as
+    /// [`LanguageTag::Qml`] above.
+    Just,
+    /// HLSL. Language-parity wave G2.3d. Courtesy addition, same reason as
+    /// [`LanguageTag::Qml`] above.
+    Hlsl,
+    /// ISPC. Language-parity wave G2.3d. Courtesy addition, same reason as
+    /// [`LanguageTag::Qml`] above.
+    Ispc,
+    /// PureScript. Language-parity wave G2.3d. Courtesy addition, same
+    /// reason as [`LanguageTag::Qml`] above.
+    Purescript,
+    /// Magma. Language-parity wave G2.3d. Courtesy addition, same reason
+    /// as [`LanguageTag::Qml`] above.
+    Magma,
+    /// Hare. Language-parity wave G2.3d. Courtesy addition, same reason as
+    /// [`LanguageTag::Qml`] above.
+    Hare,
+    /// Pony. Language-parity wave G2.3d. Courtesy addition, same reason as
+    /// [`LanguageTag::Qml`] above.
+    Pony,
+    /// NASM. Language-parity wave G2.3d. Courtesy addition, same reason as
+    /// [`LanguageTag::Qml`] above.
+    Nasm,
+    /// COBOL. Language-parity wave G2.3b. Courtesy addition, same reason as
+    /// [`LanguageTag::Qml`] above.
+    Cobol,
+    /// Common Lisp. Language-parity wave G2.3b. Courtesy addition, same
+    /// reason as [`LanguageTag::Qml`] above.
+    Commonlisp,
+    /// Lean. Language-parity wave G2.3b. Courtesy addition, same reason as
+    /// [`LanguageTag::Qml`] above.
+    Lean,
+    /// TLA+. Language-parity wave G2.3b. Courtesy addition, same reason as
+    /// [`LanguageTag::Qml`] above.
+    Tlaplus,
+    /// Verilog. Language-parity wave G2.3b. Courtesy addition, same reason
+    /// as [`LanguageTag::Qml`] above.
+    Verilog,
+    /// VHDL. Language-parity wave G2.3b. Courtesy addition, same reason as
+    /// [`LanguageTag::Qml`] above.
+    Vhdl,
+    /// SystemVerilog. Language-parity wave G2.3b. Courtesy addition, same
+    /// reason as [`LanguageTag::Qml`] above.
+    Systemverilog,
     ConfigToml,
     ConfigJson,
     ConfigYaml,
@@ -317,6 +420,43 @@ impl From<Language> for LanguageTag {
             Language::Qml => LanguageTag::Qml,
             Language::Rescript => LanguageTag::Rescript,
             Language::Squirrel => LanguageTag::Squirrel,
+            Language::Sway => LanguageTag::Sway,
+            Language::Starlark => LanguageTag::Starlark,
+            Language::Templ => LanguageTag::Templ,
+            Language::Typst => LanguageTag::Typst,
+            Language::Wgsl => LanguageTag::Wgsl,
+            Language::Wolfram => LanguageTag::Wolfram,
+            Language::Slang => LanguageTag::Slang,
+            Language::Scss => LanguageTag::Scss,
+            Language::Cmake => LanguageTag::Cmake,
+            Language::Makefile => LanguageTag::Makefile,
+            Language::Fortran => LanguageTag::Fortran,
+            Language::Vimscript => LanguageTag::Vimscript,
+            Language::Puppet => LanguageTag::Puppet,
+            Language::Elm => LanguageTag::Elm,
+            Language::Bicep => LanguageTag::Bicep,
+            Language::Bitbake => LanguageTag::Bitbake,
+            Language::Cairo => LanguageTag::Cairo,
+            Language::Cfscript => LanguageTag::Cfscript,
+            Language::Func => LanguageTag::Func,
+            Language::Move => LanguageTag::Move,
+            Language::Nickel => LanguageTag::Nickel,
+            Language::Jsonnet => LanguageTag::Jsonnet,
+            Language::Just => LanguageTag::Just,
+            Language::Hlsl => LanguageTag::Hlsl,
+            Language::Ispc => LanguageTag::Ispc,
+            Language::Purescript => LanguageTag::Purescript,
+            Language::Magma => LanguageTag::Magma,
+            Language::Hare => LanguageTag::Hare,
+            Language::Pony => LanguageTag::Pony,
+            Language::Nasm => LanguageTag::Nasm,
+            Language::Cobol => LanguageTag::Cobol,
+            Language::Commonlisp => LanguageTag::Commonlisp,
+            Language::Lean => LanguageTag::Lean,
+            Language::Tlaplus => LanguageTag::Tlaplus,
+            Language::Verilog => LanguageTag::Verilog,
+            Language::Vhdl => LanguageTag::Vhdl,
+            Language::Systemverilog => LanguageTag::Systemverilog,
             Language::ConfigToml => LanguageTag::ConfigToml,
             Language::ConfigJson => LanguageTag::ConfigJson,
             Language::ConfigYaml => LanguageTag::ConfigYaml,
@@ -1448,6 +1588,123 @@ fn complexity_language(language: Language) -> Option<crate::complexity::Complexi
         | Language::Qml
         | Language::Rescript
         | Language::Squirrel
+        // Language-parity wave G2.3e: same "not yet wired into
+        // `complexity.rs`" convention as every language above -- Sway/
+        // Starlark/Templ have real `branch_types` arrays and mostly
+        // ordinary `find_definition_node`-resolvable fields (a future pass
+        // COULD resolve their complexity depth), but Typst/WGSL/Wolfram's
+        // own defs are entirely quirk-claimed with no `name_field`
+        // `find_definition_node` could resolve at all without a dedicated
+        // fallback shape (Typst's `let`-nested-call-pattern name, WGSL's
+        // unfielded call-callee descent, Wolfram's fully positional,
+        // zero-field grammar), and Slang's `LangSpec` row itself declares
+        // its `name_field`/`body_field` unused (fully reusing `cpp_quirk`,
+        // whose own out-of-line-declarator resolution
+        // `find_definition_node` has no equivalent for) -- kept consistent
+        // with every language above rather than wiring the three simpler
+        // ones alone.
+        | Language::Sway
+        | Language::Starlark
+        | Language::Templ
+        | Language::Typst
+        | Language::Wgsl
+        | Language::Wolfram
+        | Language::Slang
+        // Courtesy addition (not this wave's own language assignment --
+        // added only to keep this match exhaustive after these `Language`
+        // variants landed from sibling workers): deferred to `None` for
+        // the same "not yet wired into `complexity.rs`" reason as every
+        // language above, pending whoever owns Scss/Cmake/Makefile/
+        // Fortran/Vimscript/Puppet/Elm to revisit if any warrants real
+        // complexity depth.
+        | Language::Scss
+        | Language::Cmake
+        | Language::Makefile
+        | Language::Fortran
+        | Language::Vimscript
+        | Language::Puppet
+        | Language::Elm
+        // Language-parity wave G2.3c: same "not yet wired into
+        // `complexity.rs`" convention as every language above -- deferred
+        // per this wave's own explicit "complexity extraction may be
+        // deferred (return None) this wave" allowance. Bicep has no
+        // branch-shaped nodes at all in its own grammar (a purely
+        // declarative IaC language, see `LangSpec::bicep`'s own doc
+        // comment); BitBake/FunC keep `branch_types` empty matching the
+        // C baseline's own choice for both; Cairo/CFScript/Move/Nickel/
+        // Jsonnet each have real `branch_types` entries a future pass
+        // COULD resolve, but every one of the eight also needs at least
+        // one dedicated quirk-claimed, unfielded-name definition shape
+        // (`function_definition`'s positional identifier for Cairo/
+        // BitBake, `fun_expr`'s parent-`let_binding` climb for Nickel,
+        // `bind`/`field`'s function-vs-value disambiguation for Jsonnet,
+        // ...) `find_definition_node` has no equivalent fallback for,
+        // well beyond this wave's own scope -- kept consistent with every
+        // language above rather than wiring any subset alone.
+        | Language::Bicep
+        | Language::Bitbake
+        | Language::Cairo
+        | Language::Cfscript
+        | Language::Func
+        | Language::Move
+        | Language::Nickel
+        | Language::Jsonnet
+        // Language-parity wave G2.3d: same "not yet wired into
+        // `complexity.rs`" convention as every language above -- deferred
+        // per this wave's own explicit "complexity extraction may be
+        // deferred (return None) this wave" allowance. Just/Magma both
+        // have real, `find_definition_node`-resolvable definition shapes
+        // (Magma's `function_definition`/`procedure_definition`/
+        // `intrinsic_definition` all have plain `"name"` fields; a future
+        // pass COULD wire either), but Just's own `recipe` needs its
+        // nested-`recipe_header` name climb, HLSL/ISPC both reuse C++/C's
+        // own out-of-line-declarator name resolution (the same "no
+        // `find_definition_node` equivalent" limit CUDA/GLSL/Slang's own
+        // doc comments above already establish for that identical reuse
+        // shape), PureScript's `function` needs its own `"rhs"`-not-
+        // `"body"` field name plus multi-child `"name"` filtering, Hare's
+        // `type_declaration`/Pony's every one of `method`/`constructor`/
+        // `actor_definition`/etc are entirely positional/unfielded, and
+        // NASM's own `label`/`preproc_def` have no branch-shaped body
+        // concept at all to begin with -- kept consistent with every
+        // language above rather than wiring Just/Magma alone.
+        | Language::Just
+        | Language::Hlsl
+        | Language::Ispc
+        | Language::Purescript
+        | Language::Magma
+        | Language::Hare
+        | Language::Pony
+        | Language::Nasm
+        // Language-parity wave G2.3b: same "not yet wired into
+        // `complexity.rs`" convention as every language above -- deferred
+        // per this wave's own explicit "complexity extraction may be
+        // deferred (return None) this wave" allowance. Every one of these
+        // seven has real, `branch_types`-array-driven decision points a
+        // future pass COULD wire (COBOL's `if_header`/`evaluate_header`/
+        // `perform_statement_call_proc`, Lean's `if`/`match`/`do`, TLA+'s
+        // `if_then_else`/`case`, Verilog/VHDL/SystemVerilog's own
+        // `conditional_statement`/`case_statement`/`loop_statement`
+        // families), but every one ALSO needs at least one dedicated
+        // quirk-claimed, unfielded/multiply-nested definition-name shape
+        // `find_definition_node` has no equivalent fallback for (COBOL's
+        // `program_definition` -> `identification_division` ->
+        // `program_name` two-level walk, Verilog's doubly-nested
+        // `function_identifier` wrapper, VHDL's declaration-keyword-to-
+        // field-name map, SystemVerilog's own real direct `[name]` field
+        // being the one partial exception -- but consistency with its own
+        // Verilog sibling matters more than wiring it alone) -- kept
+        // consistent with every language above rather than wiring any
+        // subset alone. Common Lisp's own `defun` likewise needs its own
+        // two-level `defun_header`/`function_name` walk this file's
+        // generic fallback cannot express either.
+        | Language::Cobol
+        | Language::Commonlisp
+        | Language::Lean
+        | Language::Tlaplus
+        | Language::Verilog
+        | Language::Vhdl
+        | Language::Systemverilog
         | Language::ConfigToml
         | Language::ConfigJson
         | Language::ConfigYaml

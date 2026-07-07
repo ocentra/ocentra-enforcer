@@ -5584,4 +5584,3949 @@ impl LangSpec {
             body_field: "UNUSED_SEE_SQUIRREL_QUIRK",
         }
     }
+
+    /// Sway (Fuel Labs' smart-contract language, `.sw`) -- language-parity
+    /// wave G2.3e. Grammar VENDORED (no crates.io release exists for
+    /// `tree-sitter-sway` at all -- see
+    /// `crates/enforcer-memory/vendor/tree-sitter-sway-local/`'s own doc
+    /// comment): FuelLabs' own published crate hard-pins `tree-sitter =
+    /// "~0.20.3"` as a normal runtime dependency (confirmed by fetching that
+    /// repo's own `bindings/rust/Cargo.toml` directly), the same
+    /// incompatible-ABI-generation blocker `tree-sitter-squirrel-local`
+    /// documents. Sway is heavily Rust-inspired -- confirmed via a real
+    /// `node-types.json` fetched from the upstream repo (pinned commit
+    /// `9b7845c`, ABI 14) -- and every node kind below uses the SAME
+    /// Rust-shaped fields this crate's own [`Self::rust`] row already
+    /// relies on (`name`/`body` on `function_item`, `function`/`arguments`
+    /// on `call_expression`, `argument` on `use_declaration`), so the ONLY
+    /// quirk this row needs at all is `impl_item`'s name (the baseline's own
+    /// `extract_defs.c:3669`'s `CBM_LANG_SWAY` case: "name is the
+    /// implemented type, field `type`" -- confirmed present on this
+    /// grammar's real `impl_item` node) plus the baseline's own
+    /// `extract_defs.c:3770` struct-vs-class relabeling (Sway/WGSL structs
+    /// get `SymbolKind::Struct`, Sway `abi_item` blocks get
+    /// `SymbolKind::Interface`). `sway_import_types` baseline array's
+    /// `"use_declaration"` entry is clean (real node, real `argument`
+    /// field) -- no correction needed there, unlike several other
+    /// languages' stale arrays this wave found. `closure_expression` is
+    /// listed in the baseline's own `sway_func_types` array but is
+    /// DELIBERATELY omitted here: an anonymous closure can never have a
+    /// `name_field` match (confirmed via `node-types.json`: this node kind
+    /// has no `name` field at all, only `parameters`/`body`), so including
+    /// it would only ever silently no-op through the generic func/method
+    /// branch's own `child_text(...).is_none()` fallthrough -- omitting it
+    /// entirely is equivalent in every observable output and avoids a
+    /// dead-looking array entry.
+    pub const fn sway() -> Self {
+        Self {
+            name: "sway",
+            func_types: &["function_item", "function_signature_item"],
+            method_types: &["function_item", "function_signature_item"],
+            class_types: &["struct_item", "enum_item", "trait_item", "abi_item"],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source_file"],
+            call_types: &["call_expression", "abi_call_expression"],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &["use_declaration"],
+            branch_types: &[
+                "if_expression",
+                "match_expression",
+                "while_expression",
+                "for_expression",
+            ],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Starlark (Bazel's Python-like config language, `.bzl`/`.bazel`/
+    /// `BUILD`/`WORKSPACE`) -- language-parity wave G2.3e. Grammar:
+    /// `tree-sitter-starlark` 1.3.0 (crates.io, `repository`:
+    /// github.com/tree-sitter-grammars/tree-sitter-starlark -- copyright
+    /// line "Amaan Qureshi" byte-matches this crate's own vendored
+    /// `internal/cbm/vendored/grammars/starlark/LICENSE` exactly, confirming
+    /// the identical grammar lineage the baseline itself vendored). Depends
+    /// on `tree-sitter-language` (not `tree-sitter` core) as its runtime
+    /// binding -- its own `Cargo.toml` declares `tree-sitter` only as a
+    /// `[dev-dependencies]` entry, same ABI-range-agnostic pattern as every
+    /// grammar this crate already depends on. `function_definition`'s
+    /// `name`/`body` fields and `call`'s `function`/`arguments` fields both
+    /// match this crate's own defaults exactly (confirmed via this grammar's
+    /// real `node-types.json`) -- no quirk needed for def/call extraction at
+    /// all. ONE real correction against the baseline's own `starlark_*`
+    /// arrays, found only by inspecting this grammar's actual node shape (a
+    /// baseline-array-name-existing-but-being-a-red-herring class of bug,
+    /// not a missing-node-kind one): `starlark_import_types`' sole entry
+    /// `"with_clause"` is a REAL node kind in this grammar, but it is the
+    /// child of an ordinary Python-style `with_statement` (context
+    /// managers) -- Starlark's actual import mechanism, `load("//path:file.bzl",
+    /// "symbol")`, is a plain `call` node whose `function` field text is the
+    /// literal string `"load"` (confirmed directly against this crate's own
+    /// baseline source, `extract_imports.c`'s `parse_starlark_imports`,
+    /// which implements exactly this `call`-node detection and never reads
+    /// `with_clause` for anything import-related at all -- the array entry
+    /// is dead code in the baseline's own extractor, evidently a copy/paste
+    /// artifact from a Python-family sibling row). This crate's own
+    /// `starlark_quirk` mirrors the baseline's REAL `load(...)`-detection
+    /// behavior rather than the baseline's stale array, so `import_types`
+    /// is deliberately left empty here (there is no distinct import-shaped
+    /// NODE KIND at all in this grammar -- `load(...)` is an ordinary
+    /// `call`, indistinguishable at the node-kind level from any other call,
+    /// so it is caught via [`crate::languages::generic::Quirks::call_override`]
+    /// instead of the flat `import_types` array mechanism).
+    pub const fn starlark() -> Self {
+        Self {
+            name: "starlark",
+            func_types: &["function_definition", "lambda"],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["module"],
+            call_types: &["call"],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            // See this const's own doc comment: `load(...)` is caught via
+            // `call_override`, not this array (no distinct import node kind
+            // exists in this grammar at all).
+            import_types: &[],
+            branch_types: &["if_statement", "for_statement"],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Templ (Go HTML-templating DSL, `.templ`) -- language-parity wave
+    /// G2.3e. Grammar: `tree-sitter-templ` 2.2.0 (crates.io, `repository`:
+    /// github.com/vrischmann/tree-sitter-templ -- copyright line "Vincent
+    /// Rischmann" byte-matches this crate's own vendored
+    /// `internal/cbm/vendored/grammars/templ/LICENSE` exactly). Depends on
+    /// `tree-sitter-language` as its runtime binding (`tree-sitter` core is
+    /// a `[dev-dependencies]`-only entry), same ABI-range-agnostic pattern
+    /// as every grammar here. This grammar is Go's OWN grammar plus
+    /// `templ`-specific `component_declaration`/`method_elem` nodes layered
+    /// on top (confirmed via a real `node-types.json` diff: `function_declaration`/
+    /// `method_declaration`/`type_declaration`/`import_declaration` all have
+    /// the IDENTICAL field shapes this crate's own [`Self::go`] row and
+    /// `generic::go_quirk` already handle byte-for-byte) -- def/call
+    /// extraction needs no quirk at all (`name`/`body` on
+    /// `function_declaration`/`method_declaration`, `function`/`arguments`
+    /// on `call_expression` all match this file's defaults directly).
+    /// TWO real corrections against the baseline's own `templ_*` arrays,
+    /// both found only via this grammar's actual `node-types.json` (not
+    /// assumed from the Go-grammar-reuse guess above): (1)
+    /// `templ_func_types`'s `"method_elem"` entry is real but describes an
+    /// INTERFACE method signature with no `body` field at all (confirmed:
+    /// `method_elem`'s own fields are `name`/`parameters`/`result` only) --
+    /// harmless to include since the generic func/method branch's
+    /// `child_by_field_name(body_field)` lookup simply returns `None` and
+    /// skips the body-recursion step, exactly the same as a Go bare
+    /// interface-method signature would; (2) `templ_import_types`'s
+    /// `"import"` entry is a PHANTOM: this grammar's own `node-types.json`
+    /// marks `"import"` `"named": false` (it is the bare keyword TOKEN
+    /// `import`, never a distinct AST node an extractor could ever match
+    /// against), leaving `"import_declaration"` (whose own `import_spec`/
+    /// `import_spec_list` children mirror Go's shape exactly) as the only
+    /// real import node kind -- caught by `generic::templ_quirk` reusing
+    /// [`crate::languages::generic::go_import_paths`]-equivalent logic
+    /// rather than the dead flat-array path, mirroring this same wave's
+    /// Starlark finding: baseline arrays for this wave's languages
+    /// contained more dead/phantom entries than clean ones once verified
+    /// against real grammars, not fewer.
+    pub const fn templ() -> Self {
+        Self {
+            name: "templ",
+            func_types: &["function_declaration", "method_elem"],
+            method_types: &["method_declaration", "method_elem"],
+            class_types: &["component_declaration", "type_spec"],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &["type_alias"],
+            field_types: &[],
+            module_types: &["source_file"],
+            call_types: &["call_expression"],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            // See this const's own doc comment: `"import"` is a phantom
+            // unnamed token in this grammar; `import_declaration` is
+            // claimed via `on_unmatched_node` (grouped-import shape),
+            // mirroring `generic::go_quirk`'s identical posture for Go's
+            // own `import_declaration`.
+            import_types: &[],
+            branch_types: &[
+                "if_statement",
+                "for_statement",
+                "expression_switch_statement",
+            ],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Typst (typesetting/markup language, `.typ`) -- language-parity wave
+    /// G2.3e. Grammar: `arborium-typst` 2.18.1 (crates.io, part of the
+    /// `bearcove/arborium` tree-sitter grammar bundle -- same bundle this
+    /// crate's own [`Self::rescript`] row already depends on via
+    /// `arborium-rescript`). Depends on `tree-sitter-language` as its
+    /// runtime binding. Cross-checked byte-for-byte against the sibling
+    /// `codebook-tree-sitter-typst` 0.12.1 crate (`repository`:
+    /// github.com/uben0/tree-sitter-typst) via a full `node-types.json`
+    /// diff -- IDENTICAL upstream grammar lineage, either would work;
+    /// `arborium-typst` chosen for this crate's own existing-dependency
+    /// precedent. Copyright on this crate's own vendored
+    /// `internal/cbm/vendored/grammars/typst/LICENSE` ("Gerbais-Nief Eddie")
+    /// does not byte-match either candidate's stated author, but the real
+    /// node-kind vocabulary (`let`/`call`/`import`/`include`/`set`, all
+    /// confirmed below) is unambiguous either way. TWO real, non-obvious
+    /// findings against the baseline's own `typst_*` arrays, both requiring
+    /// a real parse-tree/field dump (not `node-types.json` alone) to catch,
+    /// mirroring the baseline's OWN documented `extract_calls.c`/
+    /// `extract_defs.c` special-casing for this exact language (this is the
+    /// one language in this wave where the C baseline ITSELF already needed
+    /// dedicated non-generic code, confirming this grammar really is this
+    /// unusual): (1) `call`'s own field is named `item`, NOT `function` --
+    /// and `call` has NO separate `arguments` field at all (the whole
+    /// argument list is folded inside that same `item` sub-expression) --
+    /// `extract_typst_callee`'s own implementation confirms this exactly
+    /// (`ts_node_child_by_field_name(node, "item")`, no `arguments` field
+    /// read anywhere), so this row's `call_function_field`/
+    /// `call_arguments_field` are UNUSED placeholders and
+    /// [`crate::languages::generic::Quirks::call_override`] fully claims
+    /// `call` instead; (2) `typst_func_types`' `"let"` entry describes a
+    /// node that is ONLY a function definition when its OWN `pattern` field
+    /// is itself a nested `call` node (`#let greet(name) = ...`) -- a plain
+    /// `#let x = 1` binding is the exact same `let` node kind with a
+    /// non-call `pattern`, and the real function name then lives on THAT
+    /// nested call's own `item` field, not on the outer `let` at all
+    /// (confirmed via `extract_defs.c:935`'s dedicated `CBM_LANG_TYPST`
+    /// case, which implements exactly this nested-pattern-unwrap and
+    /// explicitly documents that a non-call pattern resolves to no name at
+    /// all, "keeping value bindings out of func_types"). Both quirks fully
+    /// claim their respective flat-array entries; `call_types`/
+    /// `func_types` below list the real node kinds anyway (matching every
+    /// other quirk-claimed row's convention, e.g. [`Self::c`]/[`Self::d`])
+    /// so a caller inspecting this table sees the true vocabulary even
+    /// though the generic engine's own default single-field reconstruction
+    /// never actually reaches them.
+    pub const fn typst() -> Self {
+        Self {
+            name: "typst",
+            func_types: &["let"],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source_file"],
+            call_types: &["call"],
+            // Unused placeholders -- see this const's own doc comment:
+            // `call` is fully claimed by `generic::typst_call_override`
+            // (its real field is `item`, with no separate `arguments`
+            // field to point at at all).
+            call_function_field: "UNUSED_SEE_TYPST_CALL_OVERRIDE",
+            call_arguments_field: "UNUSED_SEE_TYPST_CALL_OVERRIDE",
+            import_types: &["import", "include"],
+            branch_types: &["if", "for", "while"],
+            decorator_types: &[],
+            // Unused -- see this const's own doc comment: `let`'s naming
+            // is fully claimed by `generic::typst_quirk` (nested-`call`-
+            // pattern unwrap), never the flat `name_field` lookup.
+            name_field: "UNUSED_SEE_TYPST_QUIRK",
+            body_field: "UNUSED_SEE_TYPST_QUIRK",
+        }
+    }
+
+    /// WGSL (WebGPU Shading Language, `.wgsl`) -- language-parity wave
+    /// G2.3e. Grammar: `tree-sitter-wgsl-bevy` 0.1.4 (crates.io,
+    /// `repository`: github.com/tree-sitter-grammars/tree-sitter-wgsl-bevy,
+    /// an actively-maintained fork of `szebniok/tree-sitter-wgsl` --
+    /// copyright line "Konrad Bochnia" (szebniok's real name) byte-matches
+    /// this crate's own vendored `internal/cbm/vendored/grammars/wgsl/LICENSE`
+    /// exactly, confirming the identical grammar lineage the baseline itself
+    /// vendored; the PLAIN `tree-sitter-wgsl` crate name on crates.io is
+    /// REJECTED -- last published 2022-06 at v0.0.6, hard-pins `tree-sitter
+    /// ~0.20.6` as a normal runtime dependency, the same incompatible-ABI
+    /// blocker this wave's Sway/Wolfram grammars also hit). Depends on
+    /// `tree-sitter-language` as its runtime binding (`tree-sitter` core is
+    /// `[dev-dependencies]`-only). `function_declaration`/`struct_declaration`
+    /// DO have ordinary `name` fields, AND `function_declaration` has an
+    /// ordinary required `body` field (a `compound_statement`) -- confirmed
+    /// via a real `node-types.json` dump -- NOT the fully-unfielded posture
+    /// this crate's own [`Self::d`] row has), so def extraction needs no
+    /// quirk at all. THREE real corrections against the baseline's own
+    /// `wgsl_*` arrays: (1)
+    /// `wgsl_call_types`' sole entry,
+    /// `"type_constructor_or_function_call_expression"`, is real but has
+    /// ZERO fields of its own at all (confirmed: `"fields": {}`) -- the
+    /// callee is only reachable by descending through nested wrapper
+    /// children to the first `identifier` leaf, EXACTLY mirroring this
+    /// crate's own baseline source `extract_wgsl_callee`'s
+    /// `while (named_child_count > 0 && type != "identifier") head =
+    /// named_child(head, 0)` loop -- caught via `call_override`, this
+    /// row's `call_function_field`/`call_arguments_field` are unused
+    /// placeholders; (2) `wgsl_module_types`' `"translation_unit"` entry
+    /// does not exist anywhere in this grammar's real node-kind vocabulary
+    /// at all (confirmed via an exhaustive `node-types.json` scan) -- this
+    /// grammar's actual (and only) root rule is named `source_file`
+    /// (matching plain WGSL/Bevy-preprocessor source with no distinct
+    /// "translation unit" concept at all), corrected here rather than
+    /// copied blindly; (3) an implementation slip THIS row itself
+    /// initially introduced (caught only by actually RUNNING the
+    /// extractor against a real fixture with a call nested inside a
+    /// function body, not by `node-types.json` inspection alone):
+    /// `body_field` was first written as an unused placeholder string on
+    /// the mistaken assumption that this language's own def/call shapes
+    /// needed no body recursion at all -- in fact `function_declaration`
+    /// DOES have a real `body` field (see this doc comment's opening
+    /// sentence), and leaving it unset meant [`crate::languages::generic::walk`]'s
+    /// own func/method branch's `node.child_by_field_name(spec.body_field)`
+    /// lookup always returned `None`, silently never recursing into ANY
+    /// WGSL function body at all -- every call/branch/nested construct
+    /// inside a function was invisible until this was corrected to the
+    /// real `"body"` field name. Sway/WGSL additionally share the
+    /// baseline's own `extract_defs.c:3770` struct-vs-class relabeling
+    /// quirk (both languages' `struct_*` node emits
+    /// [`crate::parsers::SymbolKind::Struct`], not the generic class-shape
+    /// fallback's default `Class`) -- see [`Self::sway`]'s own doc comment
+    /// for the shared rationale.
+    pub const fn wgsl() -> Self {
+        Self {
+            name: "wgsl",
+            func_types: &["function_declaration"],
+            method_types: &[],
+            class_types: &[
+                "struct_declaration",
+                "type_alias_declaration",
+                "type_declaration",
+            ],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source_file"],
+            call_types: &["type_constructor_or_function_call_expression"],
+            // Unused placeholders -- see this const's own doc comment:
+            // fully claimed by `generic::wgsl_call_override` (deepest-
+            // identifier-descent reconstruction, no fields on this node
+            // kind at all).
+            call_function_field: "UNUSED_SEE_WGSL_CALL_OVERRIDE",
+            call_arguments_field: "UNUSED_SEE_WGSL_CALL_OVERRIDE",
+            import_types: &["enable_directive"],
+            branch_types: &[
+                "if_statement",
+                "switch_statement",
+                "for_statement",
+                "while_statement",
+                "loop_statement",
+            ],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Wolfram Language (Mathematica, `.wl`/`.wls`/`.m`) -- language-parity
+    /// wave G2.3e. Grammar VENDORED (no crates.io release exists under any
+    /// discoverable name -- confirmed via the crates.io sparse index, which
+    /// 404s on `tree-sitter-wolfram`): sourced from
+    /// `LumaKernel/tree-sitter-wolfram` (GitHub-only, MIT-licensed) --
+    /// confirmed the SAME grammar lineage this crate's own vendored
+    /// `internal/cbm/vendored/grammars/wolfram/parser.c` targets by directly
+    /// cross-checking that vendored `parser.c`'s own symbol table
+    /// (`sym_set_delayed_top`/`sym_set_top`/`sym_apply`/`sym_user_symbol`/
+    /// `sym_builtin_symbol`, ABI 13, `FIELD_COUNT 0`) against this repo's own
+    /// `grammar.js` rule names -- EXACT match on every symbol (the vendored
+    /// copy's own `LICENSE` copyright line, "DeusData" 2025, is the
+    /// baseline PROJECT's own re-license note when vendoring -- confirmed
+    /// via a web search that `DeusData/codebase-memory-mcp` on GitHub is
+    /// literally the baseline project's own upstream repo -- not a
+    /// competing/different upstream author, so it does not contradict this
+    /// match). This repo's own published `Cargo.toml` (last real release
+    /// 0.1.1, 2022) hard-pins `tree-sitter = ">= 0.19, < 0.21"` as a normal
+    /// runtime dependency AND was never even published to crates.io at all
+    /// (confirmed via the sparse index 404) -- bound via
+    /// `crates/enforcer-memory/vendor/tree-sitter-wolfram-local/`, the same
+    /// local-path-vendor pattern as `tree-sitter-squirrel-local`/
+    /// `tree-sitter-sway-local` (not a plain `git = "..."` dependency, unlike
+    /// Crystal's precedent: Crystal's own upstream `lib.rs` already used
+    /// `tree-sitter-language`, this repo's does not). This grammar is
+    /// ENTIRELY unfielded (`FIELD_COUNT 0` -- confirmed directly from the
+    /// vendored `parser.c`'s own `#define`, the most extreme case of this
+    /// posture in this wave, even more so than WGSL/D), so EVERY construct
+    /// below needs a full quirk claim, mirroring the baseline's OWN
+    /// dedicated non-generic code for this exact language (`extract_defs.c`'s
+    /// `resolve_wolfram_func_name`, `extract_calls.c`'s
+    /// `extract_wolfram_callee`, `extract_imports.c`'s
+    /// `process_wolfram_get_top`/`process_wolfram_needs`) -- confirmed via
+    /// this repo's own `grammar.js`: `set`/`set_delayed`/... are a bare
+    /// `seq(EXPR, operator_token, EXPR)` with no field names at all; `apply`
+    /// (Wolfram's `f[x]` call syntax) is `seq(EXPR, "[", EXPR, "]")`, same
+    /// positional shape. One behavior explicitly carried over from the
+    /// baseline rather than left to this crate's own default (documented so
+    /// it reads as a deliberate choice, not an oversight): `extract_defs.c`'s
+    /// own dispatcher (`descend_into_func`) explicitly lists
+    /// `CBM_LANG_WOLFRAM` alongside JS/TS/TSX as one of the few languages
+    /// whose function bodies get walked for NESTED named definitions too
+    /// (Wolfram's own idiom of a `Module[{...}, inner[x_] := ...]` local
+    /// helper pattern) -- `wolfram_quirk`'s own scoped-body walk mirrors
+    /// this by recursing into a `set`/`set_delayed`'s RHS unconditionally
+    /// (the generic engine's own func/method branch would otherwise never
+    /// reach it at all, since this whole construct is quirk-claimed, not
+    /// flat-array-dispatched). One real, non-obvious grammar-shape finding
+    /// caught only by running the extractor against a real fixture (not
+    /// `node-types.json`/`grammar.js` inspection alone): `apply`'s bracket
+    /// DELIMITER tokens (`apply_bracket_begin`/`apply_bracket_end`, the
+    /// `[`/`]` themselves) are ALSO marked `.named = true` in this
+    /// grammar's generated `parser.c` -- meaning a naive "every named
+    /// child after the callee head is an argument" positional scan wrongly
+    /// counts the brackets as extra "arguments", and the baseline's own
+    /// `process_wolfram_needs`'s hardcoded `SECOND_IDX = 1` read for
+    /// `Needs["pkg\`"]`'s import path actually lands on
+    /// `apply_bracket_begin`'s own `"["` text, not the real package
+    /// string -- a genuine baseline defect (confirmed against the
+    /// baseline's OWN vendored `parser.c`, which has the identical
+    /// `.named = true` metadata on that symbol, not merely a difference
+    /// between grammar copies). `generic::wolfram_needs_import_path`/
+    /// `generic::wolfram_apply_arg_texts` both fix this as a genuine,
+    /// documented improvement (find the `string`-kind child by KIND, and
+    /// exclude the two bracket-delimiter kinds from argument texts)
+    /// rather than reproducing it -- see those functions' own doc comments
+    /// for the full finding.
+    pub const fn wolfram() -> Self {
+        Self {
+            name: "wolfram",
+            func_types: &["set_delayed_top", "set_top", "set_delayed", "set"],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source_file"],
+            call_types: &["apply"],
+            // Unused placeholders -- see this const's own doc comment:
+            // `apply` is fully claimed by `generic::wolfram_call_override`
+            // (positional-child reconstruction, `FIELD_COUNT 0` in this
+            // grammar).
+            call_function_field: "UNUSED_SEE_WOLFRAM_CALL_OVERRIDE",
+            call_arguments_field: "UNUSED_SEE_WOLFRAM_CALL_OVERRIDE",
+            // `get_top`'s import detection needs a positional scan (see
+            // `generic::wolfram_quirk`'s own doc comment) -- this array is
+            // never consulted for Wolfram (the walker's own `import_types`
+            // branch expects a distinct import-shaped node kind AND relies
+            // on the quirk hook regardless, so leaving this non-empty would
+            // only cause `get_top` to be claimed twice); `apply`-where-
+            // head-is-`Needs` has no distinct node kind of its own at all
+            // (it is an ordinary `apply`), so it is caught in the SAME
+            // `call_types` branch as every other call, not via this array.
+            import_types: &["get_top"],
+            branch_types: &[],
+            decorator_types: &[],
+            // Unused placeholders -- see this const's own doc comment:
+            // `set`/`set_delayed`/... naming is fully claimed by
+            // `generic::wolfram_quirk` (positional-child reconstruction,
+            // `FIELD_COUNT 0` in this grammar).
+            name_field: "UNUSED_SEE_WOLFRAM_QUIRK",
+            body_field: "UNUSED_SEE_WOLFRAM_QUIRK",
+        }
+    }
+
+    /// Slang (shader language, superset of HLSL/GLSL-family syntax, `.slang`)
+    /// -- language-parity wave G2.3e. Grammar: `tree-sitter-slang` 0.3.1
+    /// (crates.io, `repository`: github.com/theHamsta/tree-sitter-slang --
+    /// copyright line "Stephan Seitz" byte-matches this crate's own
+    /// vendored `internal/cbm/vendored/grammars/slang/LICENSE` exactly;
+    /// this is the SAME author who also publishes this crate's own
+    /// [`Self::wgsl`] grammar dependency, `tree-sitter-wgsl-bevy`, though
+    /// the two are unrelated grammar lineages). Depends on
+    /// `tree-sitter-language` as its runtime binding. This grammar extends
+    /// tree-sitter-cpp's own grammar (Slang's real-world syntax is a C/C++-
+    /// family superset with shader-specific additions) -- confirmed via a
+    /// real `node-types.json` dump: every node kind below (`function_definition`/
+    /// `class_specifier`/`struct_specifier`/`enum_specifier`/`call_expression`)
+    /// uses the SAME C++-shaped fields this crate's own [`Self::cpp`] row
+    /// already handles via `generic::cpp_quirk`'s full claim. Unlike C/C++
+    /// (whose `function_definition` needs `cpp_quirk`'s dedicated declarator-
+    /// unwrap for out-of-line/templated definitions), this grammar's
+    /// `function_definition` has an ordinary `declarator`-nested `name`
+    /// resolvable the SAME way -- rather than duplicate `cpp_quirk`'s
+    /// C-declarator-unwrap logic for a language with no dedicated bespoke
+    /// extractor of its own to reproduce, this row reuses
+    /// [`crate::languages::generic::cpp_quirks`] verbatim (same posture as
+    /// [`Self::cuda`]/[`Self::glsl`]'s own documented C/C++-array-reuse
+    /// choice) -- confirmed via a real parse-tree dump that every field
+    /// `cpp_quirk` reads is shape-identical here. `module_declaration`
+    /// (this grammar's own namespace-like construct, absent from C++'s own
+    /// array) is the one Slang-specific addition beyond plain C++ -- added
+    /// to `class_types` here since its own `name` field resolves the SAME
+    /// way as a namespace name would, and [`crate::languages::generic::walk`]'s
+    /// own generic class-shape fallback (not a dedicated quirk) already
+    /// handles an unrecognized-by-quirk class-shaped node correctly via
+    /// plain `name_field` lookup. Every def/call array entry matched this
+    /// grammar's real vocabulary exactly on cross-check (the cleanest
+    /// def/call result of any language this wave researched), but
+    /// `import_types` needed a real, non-cosmetic correction found only
+    /// by RUNNING the resulting extractor against a real fixture (not
+    /// `node-types.json` inspection alone): a bare `cpp_quirks()` reuse
+    /// has NO import handling at all (C++ itself has no equivalent
+    /// construct in this shape, so `cpp_quirk`'s own `on_unmatched_node`
+    /// never claims `import_statement`/`import_declaration`, silently
+    /// dropping every Slang import edge) -- this row is now paired with a
+    /// dedicated `generic::slang_quirk` (composed on top of `cpp_quirk`
+    /// for every other construct, not a full reimplementation) rather
+    /// than the plain `cpp_quirks()` reuse this doc comment originally
+    /// described. `import_types`' `"import"` entry is additionally a
+    /// PHANTOM (this grammar's own `node-types.json` marks it
+    /// `"named": false` -- the bare keyword TOKEN, never a distinct AST
+    /// node any extractor could match against), the same class of dead
+    /// array entry this wave's Starlark/Templ rows also found -- see
+    /// `generic::slang_quirk`'s own doc comment for the full fix.
+    pub const fn slang() -> Self {
+        Self {
+            name: "slang",
+            func_types: &["function_definition", "lambda_expression"],
+            method_types: &["function_definition"],
+            class_types: &[
+                "class_specifier",
+                "enum_specifier",
+                "module_declaration",
+                "struct_specifier",
+                "type_definition",
+                "union_specifier",
+            ],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &[],
+            call_types: &["call_expression", "new_expression"],
+            call_function_field: "UNUSED_SEE_SLANG_CPP_REUSE",
+            call_arguments_field: "UNUSED_SEE_SLANG_CPP_REUSE",
+            import_types: &["import", "import_declaration", "import_statement"],
+            branch_types: &[
+                "if_statement",
+                "for_statement",
+                "while_statement",
+                "switch_statement",
+                "case_statement",
+                "&&",
+                "||",
+            ],
+            decorator_types: &[],
+            name_field: "UNUSED_SEE_SLANG_CPP_REUSE",
+            body_field: "UNUSED_SEE_SLANG_CPP_REUSE",
+        }
+    }
+
+    /// SCSS (`.scss`) -- language-parity wave G2.3a. Node kinds verified
+    /// directly against the `tree-sitter-scss` 1.0.0 crate's own
+    /// `src/node-types.json` PLUS a real parse-tree dump (`cargo run`
+    /// against a scratch crate depending on the vendored grammar directly
+    /// -- see [`crate::languages::generic::scss_quirks`]'s own doc comment
+    /// for why this grammar is vendored rather than a plain crates.io
+    /// dependency). Two real, confirmed corrections against the baseline's
+    /// own `scss_*` arrays (`codebase-memory-mcp/internal/cbm/
+    /// lang_specs.c`:641-647):
+    /// - The baseline's own `extract_defs.c` doc comment (:907-915) claims
+    ///   `function_statement`/`mixin_statement` have "no `name` field...
+    ///   the def name is a plain `name` child node" -- FALSE for this
+    ///   actual grammar version: `node-types.json` gives both node kinds a
+    ///   genuine `"name"` FIELD (not merely a same-named child), confirmed
+    ///   by the real parse-tree dump too (`name: identifier` shown with a
+    ///   real field label). This row's own `name_field: "name"` therefore
+    ///   works directly through the generic engine's ordinary
+    ///   `child_text(node, spec.name_field, ..)` path with NO quirk needed
+    ///   for the def-name case at all -- a genuine simplification the
+    ///   baseline's own comment did not anticipate.
+    /// - `mixin_statement`/`function_statement`'s own body-holding child is
+    ///   named `"block"` in the tree but is NOT a real field (`"fields":
+    ///   {}` for both in `node-types.json`; `block` is listed only under
+    ///   `"children"`) -- so [`Self::body_field`] below is a placeholder,
+    ///   never actually consulted:
+    ///   [`crate::languages::generic::scss_on_method_defined`] finds the
+    ///   `block` child by KIND (not field) and recurses into it itself,
+    ///   mirroring the baseline's own `include_statement`/`call_expression`
+    ///   posture of reaching an unfielded child by kind rather than
+    ///   assuming a field exists. This row's own FIRST implementation
+    ///   wired this recursion through
+    ///   [`crate::languages::generic::scss_quirk`]'s own
+    ///   `on_unmatched_node` hook instead -- a REAL, CONFIRMED bug (not a
+    ///   hypothetical): `walk`'s own func/method branch reaches
+    ///   `function_statement`/`mixin_statement` directly (this row's own
+    ///   `name_field: "name"` IS a real, working field), records the
+    ///   symbol, and returns BEFORE `on_unmatched_node` would ever run for
+    ///   either node kind -- `on_method_defined` (called unconditionally
+    ///   right before that same early return) is the correct seam
+    ///   instead, and is what this row now uses.
+    /// - `call_expression`'s callee is a `function_name` child (confirmed
+    ///   real via both `node-types.json` and the parse dump) -- also
+    ///   unfielded (`"fields": {}`), matching the baseline's own
+    ///   `extract_scss_callee`'s `cbm_find_child_by_kind(node,
+    ///   "function_name")` (NOT `ts_node_child_by_field_name`) exactly, so
+    ///   [`Self::call_function_field`] below is likewise a placeholder --
+    ///   [`crate::languages::generic::scss_call_override`] claims it via
+    ///   kind-search instead.
+    /// - `include_statement`'s target is a bare `identifier` child
+    ///   (unfielded, confirmed via both sources) -- matches the baseline's
+    ///   own `extract_scss_callee`'s `cbm_find_child_by_kind(node,
+    ///   "identifier")` exactly; also claimed by
+    ///   [`crate::languages::generic::scss_call_override`] (recorded as a
+    ///   call whose callee is the included mixin's own name, same
+    ///   "@include foo" -> CALLS "foo" convention the baseline's own
+    ///   `extract_scss_callee`'s `include_statement` branch already uses).
+    /// - `@import`/`@use` (this row's `import_types`) target a
+    ///   `string_value` node whose own text (quotes included, confirmed:
+    ///   no separate `string_content` child exists for a plain unquoted-
+    ///   looking literal like `"base"` in this grammar -- verified by the
+    ///   real parse dump, NOT assumed) needs manual quote-stripping --
+    ///   [`crate::languages::generic::scss_quirk`] finds `string_value` by
+    ///   kind-search and strips quote characters itself, mirroring the
+    ///   baseline's own `css_push_import_from_stmt`'s `strip_quotes`
+    ///   fallback path (`internal/cbm/extract_imports.c`:1987-1989) --
+    ///   this crate's own SCSS row does NOT reproduce that function's
+    ///   OTHER `string_content`-descendant-preferred branch, since this
+    ///   grammar's plain-literal shape never actually reaches it (dead
+    ///   code for this specific import-statement shape, confirmed by the
+    ///   dump, not merely assumed absent).
+    pub const fn scss() -> Self {
+        Self {
+            name: "scss",
+            func_types: &["function_statement", "mixin_statement"],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            // Intentionally empty, NOT `["stylesheet"]` -- the same
+            // root-node-as-module-clause bug [`Self::fortran`]'s/
+            // [`Self::elm`]'s/[`Self::vimscript`]'s own doc comments
+            // already document in full: `stylesheet` is this grammar's
+            // own ROOT node, so the generic engine's own `module_types`
+            // branch would grab whatever def/statement happens to come
+            // FIRST as a garbage "Module" symbol name -- SCSS has no
+            // repeatable, name-only module/namespace CLAUSE construct at
+            // all (its own `@use`/`@import` are already captured as
+            // IMPORTS above, not a separate module-declaration concept).
+            module_types: &[],
+            call_types: &["call_expression", "include_statement"],
+            // Never actually consulted -- see this const's own doc
+            // comment: `call_expression`'s real callee field is the
+            // unfielded `function_name` child, claimed by
+            // `generic::scss_call_override` via kind-search instead.
+            call_function_field: "UNUSED_SEE_SCSS_CALL_OVERRIDE",
+            call_arguments_field: "arguments",
+            import_types: &["import_statement", "use_statement"],
+            branch_types: &["if_statement"],
+            decorator_types: &[],
+            name_field: "name",
+            // Never actually consulted -- see this const's own doc
+            // comment: the real `block` child is unfielded, found by
+            // kind-search in `generic::scss_quirk` instead.
+            body_field: "UNUSED_SEE_SCSS_QUIRK",
+        }
+    }
+
+    /// CMake (`.cmake`/`CMakeLists.txt`) -- language-parity wave G2.3a.
+    /// Node kinds verified directly against the `tree-sitter-cmake` 0.7.2
+    /// crate's own `src/node-types.json` PLUS a real parse-tree dump.
+    /// This grammar is entirely FIELD-FREE for every construct this row
+    /// cares about (`node-types.json` gives every one of
+    /// `function_def`/`macro_def`/`function_command`/`macro_command`/
+    /// `normal_command` an empty `"fields": {}`, confirmed by the real
+    /// dump too -- no field label on ANY child of these node kinds) --
+    /// [`Self::name_field`]/[`Self::body_field`]/[`Self::call_function_field`]
+    /// below are consequently all placeholders, matching this row's own
+    /// [`crate::languages::generic::cmake_quirk`]/
+    /// [`crate::languages::generic::cmake_call_override`] fully claiming
+    /// every one of `func_types`/`call_types` via kind-search before the
+    /// generic engine's own field-keyed fallback would ever run -- same
+    /// "arrays exist purely as at-a-glance documentation" posture as
+    /// [`Self::c`]/[`Self::squirrel`]. Matches the baseline's own
+    /// `internal/cbm/extract_defs.c` CMake name-resolution comment
+    /// (:1056-1073, "the name is nested as *_command > argument_list >
+    /// argument > unquoted_argument"). CMake has no dedicated
+    /// `extract_*_callee` at all in the baseline -- a `normal_command`'s
+    /// callee is simply its own first named child, an `identifier`, which
+    /// this row's generic `call_types` dispatch reaches once
+    /// `generic::cmake_call_override` claims it. `branch_types` is
+    /// intentionally empty: the baseline's
+    /// own `cmake_*` arrays have no `branch_types` entry either (CMake's
+    /// `if_condition` is a control-flow wrapper this crate does not treat
+    /// as complexity-relevant for this Tier-2 scope, matching baseline
+    /// depth).
+    pub const fn cmake() -> Self {
+        Self {
+            name: "cmake",
+            func_types: &["function_def", "macro_def"],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            // Intentionally empty, NOT `["source_file"]` -- the same
+            // root-node-as-module-clause bug [`Self::fortran`]'s/
+            // [`Self::elm`]'s/[`Self::vimscript`]'s own doc comments
+            // already document in full: `source_file` is this grammar's
+            // own ROOT node, so the generic engine's own `module_types`
+            // branch would grab whatever def/statement happens to come
+            // FIRST as a garbage "Module" symbol name -- CMake has no
+            // repeatable, name-only module/namespace CLAUSE construct at
+            // all (confirmed via a real parse-tree dump of the fixture
+            // this row's own tests use).
+            module_types: &[],
+            call_types: &["normal_command"],
+            // Never actually consulted -- see this const's own doc
+            // comment.
+            call_function_field: "UNUSED_SEE_CMAKE_CALL_OVERRIDE",
+            call_arguments_field: "argument_list",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "UNUSED_SEE_CMAKE_QUIRK",
+            body_field: "UNUSED_SEE_CMAKE_QUIRK",
+        }
+    }
+
+    /// Makefile (`Makefile`/`makefile`/`GNUmakefile`/`*.mk`) --
+    /// language-parity wave G2.3a. Node kinds verified directly against
+    /// the `tree-sitter-make` 1.1.1 crate's own `src/node-types.json` PLUS
+    /// a real parse-tree dump. One real, confirmed correction against the
+    /// baseline's own `makefile_call_types` array
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:838): includes
+    /// `"shell_function"` (a real, distinct node kind for `$(shell ...)`,
+    /// confirmed) alongside `"function_call"` -- matches this row's own
+    /// `call_types` below exactly, no correction needed there. The real
+    /// correction is narrower: the baseline's own `extract_make_callee`
+    /// (`internal/cbm/extract_calls.c`:958-970) hardcodes the literal
+    /// string `"shell"` for a `shell_function` node's callee rather than
+    /// reading a field, on the assumption it has none -- but
+    /// `node-types.json` (and the real dump) confirm `shell_function`
+    /// genuinely DOES carry a real `"function"` FIELD (whose sole possible
+    /// child kind is the anonymous `shell` keyword token) -- the exact
+    /// same field name and shape as `function_call`'s own `"function"`
+    /// field, so this row's own [`Self::call_function_field`] reads BOTH
+    /// `function_call` and `shell_function` uniformly through the one real
+    /// `"function"` field via the generic engine's ordinary single-field
+    /// path -- a genuine simplification the baseline's own hardcoded-
+    /// string special case did not need to take.
+    /// - [`Self::call_arguments_field`] below is a placeholder, NOT a
+    ///   real fix: `node-types.json` confirms `function_call`/
+    ///   `shell_function` EACH have exactly ONE field, `"function"` --
+    ///   NEITHER has an `"arguments"` field at all (a real bug this row's
+    ///   own initial implementation had, assuming one existed without
+    ///   checking specifically for THIS grammar -- silently empty
+    ///   `arg_texts` for every Makefile call, caught only via a dedicated
+    ///   `arg_texts` assertion added during this same wave's cross-
+    ///   language field-vs-kind audit). The real `arguments`/
+    ///   `shell_command` child is unfielded, found by kind in
+    ///   [`crate::languages::generic::makefile_call_override`] instead --
+    ///   claimed in full (both the callee-text half, which the generic
+    ///   engine's own default path WOULD have gotten right on its own,
+    ///   and the arguments half, which it cannot express) rather than
+    ///   splitting the two into a field-based default plus a partial
+    ///   override.
+    /// - `rule`'s own target/name is NOT reachable via any field for the
+    ///   common `target: prereqs` shape (confirmed by the real dump: the
+    ///   `targets` child carries no field label) -- despite
+    ///   `node-types.json` listing singular `target`/`prerequisite` FIELDS
+    ///   on `rule`, those are for a different syntactic variant (a static
+    ///   pattern rule) this row's own fixture does not exercise; the
+    ///   common case genuinely has no working field, matching the
+    ///   baseline's own `resolve_makefile_func_name`
+    ///   (`internal/cbm/extract_defs.c`:394-400) exactly: find the
+    ///   `targets` child by KIND, take its own first named child (a
+    ///   `word`). [`crate::languages::generic::makefile_quirk`] mirrors
+    ///   this exactly.
+    /// - `include_directive`'s target is nested two levels deep
+    ///   (`filenames` field -> `list` -> `word`, confirmed by the real
+    ///   dump), not a direct field/child text -- also handled by
+    ///   [`crate::languages::generic::makefile_quirk`].
+    /// - The baseline's own `parse_generic_imports` default-case dispatch
+    ///   (Makefile is not in `extract_imports.c`'s explicit per-language
+    ///   switch, so it falls through to the generic, DIRECT-CHILDREN-OF-
+    ///   ROOT-ONLY scan) would still work correctly for `include_directive`
+    ///   specifically IF it always appears at the top level -- but this
+    ///   crate's own [`crate::languages::generic::walk`]/`walk_children`
+    ///   is unconditionally recursive regardless, so an `include_directive`
+    ///   nested inside a `conditional` block (common in real Makefiles) is
+    ///   still found here where the baseline's own root-direct-children-
+    ///   only scan would miss it -- same "this crate's recursive walk
+    ///   doesn't have that bug" precedent as [`Self::elixir`]'s own doc
+    ///   comment already documents for Elixir's `defmodule`-wrapping.
+    pub const fn makefile() -> Self {
+        Self {
+            name: "makefile",
+            func_types: &["rule"],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            // Intentionally empty, NOT `["makefile"]` -- the same
+            // root-node-as-module-clause bug [`Self::fortran`]'s/
+            // [`Self::elm`]'s/[`Self::vimscript`]'s own doc comments
+            // already document in full: `makefile` is this grammar's own
+            // ROOT node, so the generic engine's own `module_types`
+            // branch would grab whatever def/statement happens to come
+            // FIRST as a garbage "Module" symbol name -- Make has no
+            // repeatable, name-only module/namespace CLAUSE construct at
+            // all (confirmed via a real parse-tree dump of the fixture
+            // this row's own tests use).
+            module_types: &[],
+            call_types: &["function_call", "shell_function"],
+            // Both never actually consulted -- see this const's own doc
+            // comment: `generic::makefile_call_override` unconditionally
+            // claims every `call_types` entry (returns `true` for both
+            // `function_call`/`shell_function`), so `walk`'s own
+            // field-based fallback path (which these two constants feed)
+            // never runs for Makefile at all -- claimed in full rather
+            // than split between a working default callee-field path and
+            // an arguments-only override, since the override needs the
+            // node kind's own real `"function"` field read anyway to
+            // build one coherent `CallRef`.
+            call_function_field: "UNUSED_SEE_MAKEFILE_CALL_OVERRIDE",
+            call_arguments_field: "UNUSED_SEE_MAKEFILE_CALL_OVERRIDE",
+            import_types: &["include_directive"],
+            branch_types: &[],
+            decorator_types: &[],
+            // Never actually consulted -- see this const's own doc
+            // comment: `rule`'s real name comes from its unfielded
+            // `targets` child, found by kind-search in
+            // `generic::makefile_quirk` instead.
+            name_field: "UNUSED_SEE_MAKEFILE_QUIRK",
+            body_field: "UNUSED_SEE_MAKEFILE_QUIRK",
+        }
+    }
+
+    /// Fortran (`.f90`/free-form modern Fortran) -- language-parity wave
+    /// G2.3a. Node kinds verified directly against the `tree-sitter-fortran`
+    /// 0.6.0 crate's own `src/node-types.json` PLUS a real parse-tree dump.
+    /// One real, confirmed correction against the baseline's own
+    /// `fortran_call_types` array (`codebase-memory-mcp/internal/cbm/
+    /// lang_specs.c`:781): `["call_expression", "keyword_argument",
+    /// "call"]` -- `"call"` does not exist as a node kind in this grammar
+    /// at all (confirmed via `node-types.json`'s full node-kind list, not
+    /// merely absent from a small fixture), and while `"call_expression"`
+    /// IS real (a plain function-call expression, e.g. `a = helper(r) *
+    /// 2`, confirmed by the dump), a `call helper(x)` SUBROUTINE-CALL
+    /// STATEMENT -- extremely common, idiomatic Fortran, present in this
+    /// row's own fixture -- parses as a THIRD, entirely different node
+    /// kind, `"subroutine_call"`, which the baseline's own array omits
+    /// completely. This is a real baseline gap (not a deliberate scope
+    /// choice -- `call` statements are not an obscure edge case), so this
+    /// row's own `call_types` below ADDS `"subroutine_call"` alongside the
+    /// baseline's real `"call_expression"`, dropping only the baseline's
+    /// own dead `"keyword_argument"`/`"call"` entries (the former is a
+    /// real node kind in this grammar, confirmed, but for an entirely
+    /// unrelated construct -- a `key=value` argument inside a type-spec
+    /// like `character(len=*)`, never a call site -- including it in
+    /// `call_types` would silently emit bogus CALLS edges from ordinary
+    /// type declarations, so it is deliberately excluded here rather than
+    /// blindly transcribed). `call_expression`'s own callee is a real
+    /// `"function"` FIELD (confirmed) but `subroutine_call`'s own callee
+    /// field is instead named `"subroutine"` (also confirmed, distinct
+    /// field name for the same semantic role) -- the generic engine's
+    /// single [`Self::call_function_field`] cannot serve both node kinds
+    /// with one field name, so [`Self::call_function_field`] below is a
+    /// placeholder and [`crate::languages::generic::fortran_call_override`]
+    /// claims both kinds explicitly, reading whichever real field applies.
+    /// - `function`/`subroutine` (this row's own `func_types`, the OUTER
+    ///   wrapping node) have NO fields at all (confirmed, `"fields": {}`)
+    ///   -- the real name lives on the NESTED `function_statement`/
+    ///   `subroutine_statement` child's own genuine `"name"` field (a
+    ///   `name`-typed node), exactly matching the baseline's own
+    ///   documented quirk (`internal/cbm/extract_defs.c`:812-826, "the
+    ///   outer node walk_defs matched has no name itself"). This row's
+    ///   own [`Self::name_field`]/[`Self::body_field`] are consequently
+    ///   both placeholders -- [`crate::languages::generic::fortran_quirk`]
+    ///   fully claims `function`/`subroutine`, finding the inner
+    ///   `*_statement` child by kind, reading ITS real `"name"` field, and
+    ///   recursing into the OUTER node's own body content itself (the
+    ///   outer node's un-fielded remaining children after the
+    ///   `*_statement`/`end_*_statement` pair).
+    /// - `use_statement`'s own `module_name` child is real but unfielded
+    ///   (confirmed) -- the baseline is not in `extract_imports.c`'s
+    ///   explicit per-language switch, so it falls through to the
+    ///   generic, direct-children-of-root-only scan
+    ///   (`parse_generic_imports`) -- a real, confirmed miss for
+    ///   virtually all real Fortran files (this row's own fixture wraps
+    ///   everything in one top-level `module`, the same "everything
+    ///   nested one level down, root's own direct children never see it"
+    ///   shape as Elixir's `defmodule`-wrapping and Puppet's
+    ///   class/node-body nesting) -- this crate's own unconditionally
+    ///   recursive walk does not have that bug, same precedent as
+    ///   [`Self::elixir`]'s own doc comment.
+    pub const fn fortran() -> Self {
+        Self {
+            name: "fortran",
+            func_types: &["function", "subroutine"],
+            method_types: &[],
+            class_types: &["derived_type_definition"],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            // Intentionally empty, NOT `["translation_unit"]` -- see this
+            // const's own doc comment's own final paragraph for the full
+            // finding: the generic engine's own `module_types` branch
+            // (`walk`'s `first_named_child_text(node, ..)`) grabs the
+            // FIRST NAMED CHILD's entire text as the "module name",
+            // correct only for a real, repeatable, name-only module/
+            // namespace CLAUSE (Go's `package_clause`, C#'s
+            // `namespace_declaration`) -- `translation_unit` is this
+            // grammar's own ROOT node, whose first named child is
+            // whatever def/statement happens to come first (confirmed via
+            // a real parse-tree dump: a `module widget ... end module`
+            // wrapping everything produces a garbage "Module" symbol
+            // whose name is the ENTIRE multi-line `module` node's own
+            // text, not `"widget"`). Fortran's real, repeatable,
+            // Go-`package_clause`-equivalent construct (`module_statement`,
+            // confirmed via `node-types.json` to have a genuine own `name`
+            // child) is nested one level inside the outer `module` wrapper
+            // node this row's own `func_types` array does NOT list at all
+            // (only `function`/`subroutine` are, per this row's own doc
+            // comment) -- wiring it correctly would need a THIRD
+            // `on_unmatched_node` arm (claiming `module` itself) this
+            // wave's own Tier-2 scope (defs+calls+imports; Module symbols
+            // are bonus, not required) does not need; left as a genuine,
+            // documented gap rather than a plausible-looking but wrong
+            // symbol.
+            module_types: &[],
+            call_types: &["call_expression", "subroutine_call"],
+            // Never actually consulted -- see this const's own doc
+            // comment: the two real call-shaped node kinds use two
+            // DIFFERENT field names (`function` vs `subroutine`),
+            // claimed explicitly by `generic::fortran_call_override`.
+            call_function_field: "UNUSED_SEE_FORTRAN_CALL_OVERRIDE",
+            call_arguments_field: "argument_list",
+            import_types: &["use_statement", "include_statement"],
+            branch_types: &[
+                "if_statement",
+                "do_loop_statement",
+                "where_statement",
+                "select_case_statement",
+            ],
+            decorator_types: &[],
+            // Never actually consulted -- see this const's own doc
+            // comment: `function`/`subroutine` are fully claimed by
+            // `generic::fortran_quirk` before this file's own
+            // `name_field`/`body_field`-keyed fallback would ever run.
+            name_field: "UNUSED_SEE_FORTRAN_QUIRK",
+            body_field: "UNUSED_SEE_FORTRAN_QUIRK",
+        }
+    }
+
+    /// VimScript (`.vim`) -- language-parity wave G2.3a. Node kinds
+    /// verified directly against the `tree-sitter-vim` 0.4.0 crate's own
+    /// `src/node-types.json` PLUS a real parse-tree dump. Two real,
+    /// confirmed corrections against the baseline's own `vim_*` arrays
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:743-750):
+    /// - `vim_func_types = ["function_definition", "function_declaration",
+    ///   "lambda_expression"]` double-lists two node kinds that are NEVER
+    ///   independent top-level definitions: `function_declaration` (which
+    ///   DOES carry the real `name`/`parameters` fields, confirmed) is
+    ///   ALWAYS a nested, non-optional child of the OUTER
+    ///   `function_definition` wrapper (confirmed by both `node-types.json`
+    ///   -- `function_definition`'s own required-children list includes
+    ///   exactly one `function_declaration` -- and the real parse dump),
+    ///   and critically has NO `"body"` field of its own (the function's
+    ///   actual statement body is a SIBLING `body` child of the OUTER
+    ///   `function_definition`, not nested inside `function_declaration`
+    ///   at all). Listing both kinds in one flat `func_types` array would
+    ///   make the generic engine's own func/method branch try
+    ///   `function_declaration` as an independent def (succeeding at the
+    ///   name lookup, since its `name` field IS real) but then find no
+    ///   `body_field` match and silently skip recursing into the body --
+    ///   silently losing every call/nested-def inside every VimScript
+    ///   function in the whole crate, a severe correctness bug, not a
+    ///   cosmetic one. This row's own `func_types` below therefore lists
+    ///   ONLY the outer `"function_definition"`; `generic::vimscript_quirk`
+    ///   fully claims it, reading the name off the nested
+    ///   `function_declaration`'s own real `name` field and recursing into
+    ///   the OUTER node's own real `body` field. `lambda_expression` is
+    ///   dropped entirely (an anonymous closure literal with no name to
+    ///   recover -- matches this crate's "no recoverable name, no symbol"
+    ///   posture elsewhere, e.g. [`Self::lua`]'s unnamed-anonymous-function
+    ///   case).
+    /// - `vim_import_types = ["include"]` names a node kind that is
+    ///   `"named": false` in this grammar's own `node-types.json` --
+    ///   i.e. `"include"` is an ANONYMOUS KEYWORD TOKEN, never a real
+    ///   named AST node the generic engine's (or the baseline's own)
+    ///   kind-dispatch could ever match against via `.kind()`/
+    ///   `ts_node_type()` (both operate on named nodes; an anonymous
+    ///   token is not independently visited as a dispatch target the way
+    ///   a named statement node is). Cross-checked against this grammar's
+    ///   own full `script_file` statement-kind list (confirmed via
+    ///   `node-types.json`): there is no `include_statement` or
+    ///   equivalent named node anywhere -- classic Vimscript (as opposed
+    ///   to newer Vim9-script's own distinct `import`/`export` syntax,
+    ///   which this grammar version does not appear to model at all) has
+    ///   no dedicated import/include statement construct for this row to
+    ///   recognize. This row's own `import_types` below is consequently
+    ///   empty, matching the "dead/unreachable baseline array entry,
+    ///   documented rather than blindly transcribed" precedent
+    ///   [`Self::lua`]'s own doc comment already sets for a different
+    ///   reason (there, a real-but-double-listed node kind; here, a
+    ///   baseline entry that names no reachable node kind at all).
+    ///
+    /// `call_expression`'s own callee is a real `"function"` FIELD
+    /// (confirmed) -- no quirk needed for the call-callee case at all.
+    pub const fn vimscript() -> Self {
+        Self {
+            name: "vimscript",
+            func_types: &["function_definition"],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            // Intentionally empty, NOT `["script_file"]` -- a real,
+            // confirmed bug this row's own initial implementation had
+            // (the same root-node-as-module-clause mistake
+            // [`Self::fortran`]'s/[`Self::elm`]'s own doc comments
+            // already document for a different reason): `script_file` is
+            // this grammar's own ROOT node; the generic engine's own
+            // `module_types` branch (`first_named_child_text`) grabs the
+            // FIRST NAMED CHILD's entire text as the "module name" --
+            // whatever def/statement happens to come first, producing a
+            // garbage "Module" symbol whose name is an entire multi-line
+            // `function_definition`'s own text, not a real module/script
+            // name (VimScript has no repeatable, name-only module/
+            // namespace CLAUSE construct analogous to Go's
+            // `package_clause` at all -- there is nothing correct this
+            // row COULD point `module_types` at instead).
+            module_types: &[],
+            call_types: &["call_expression"],
+            call_function_field: "function",
+            call_arguments_field: "UNUSED_NO_ARGUMENTS_FIELD",
+            // See this const's own doc comment: intentionally empty, NOT
+            // `["include"]` (an anonymous token, not a real named node --
+            // dead baseline data for this grammar).
+            import_types: &[],
+            branch_types: &["if_statement", "for_loop", "while_loop", "try_statement"],
+            decorator_types: &[],
+            // Never actually consulted -- see this const's own doc
+            // comment: `function_definition` is fully claimed by
+            // `generic::vimscript_quirk` before this file's own
+            // `name_field`/`body_field`-keyed fallback would ever run.
+            name_field: "UNUSED_SEE_VIMSCRIPT_QUIRK",
+            body_field: "UNUSED_SEE_VIMSCRIPT_QUIRK",
+        }
+    }
+
+    /// Puppet (`.pp`) -- language-parity wave G2.3a. Node kinds verified
+    /// directly against the `tree-sitter-puppet` 1.3.0 crate's own
+    /// `src/node-types.json` PLUS a real parse-tree dump. This grammar is
+    /// entirely FIELD-FREE for every construct this row cares about
+    /// (`node-types.json` gives `class_definition`/`defined_resource_type`/
+    /// `function_declaration`/`node_definition`/`include_statement`/
+    /// `type_declaration`/`function_call` ALL an empty `"fields": {}`,
+    /// confirmed by the real dump too) -- matches the baseline's own
+    /// exclusively kind-search-based name/callee resolution exactly
+    /// (`internal/cbm/extract_defs.c`:1077-1086,3607-3614;
+    /// `extract_calls.c`:987-1000). One real, confirmed correction against
+    /// the baseline's own `puppet_class_types` array
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:1508-1509):
+    /// `["class_definition", "node_definition", "resource_declaration",
+    /// "type_declaration"]` omits `"defined_resource_type"` entirely --
+    /// Puppet's `define foo($x) { ... }` construct (a reusable,
+    /// parameterized resource template, callable by name exactly like a
+    /// class -- confirmed via the real parse dump to be a distinct,
+    /// common, idiomatic top-level construct, not an obscure corner of the
+    /// language) parses as this node kind and would be silently invisible
+    /// to the generic engine with the baseline's own array as-is. This is
+    /// a real baseline gap (defined types are a first-class, everyday
+    /// Puppet module-authoring construct, not a deliberate scope
+    /// limitation), so this row's own `class_types` below adds
+    /// `"defined_resource_type"` alongside the baseline's real four,
+    /// mirroring this crate's own "fill a confirmed baseline gap, document
+    /// it, do not silently drop the baseline's real depth" precedent (see
+    /// e.g. [`Self::elixir`]'s guard-clause-def fix, [`Self::fortran`]'s
+    /// `subroutine_call` addition above). Its own name resolution mirrors
+    /// `class_definition`'s exactly (a plain `identifier` or
+    /// `class_identifier` direct child, confirmed by both sources) --
+    /// [`crate::languages::generic::puppet_quirk`] shares one helper for
+    /// both node kinds.
+    /// - `resource_declaration` (e.g. `notify { "found": }`) has REAL
+    ///   fields (`type`/`title`, confirmed) unlike every other node kind
+    ///   this row cares about -- but its own "name" (the resource TYPE,
+    ///   e.g. `notify`) is semantically closer to a call-site than a
+    ///   definition (the baseline's own `puppet_call_types` array below
+    ///   already lists it too, matching this row's `call_types`) --
+    ///   this row records it purely as a Class-kind symbol keyed off its
+    ///   own `type` field (matching baseline depth: the baseline emits no
+    ///   richer resource-declaration-specific symbol kind either).
+    /// - The baseline is not in `extract_imports.c`'s explicit
+    ///   per-language switch (falls through to the generic,
+    ///   direct-children-of-root-only `parse_generic_imports` scan) -- a
+    ///   real, confirmed miss for virtually all real Puppet code (an
+    ///   `include_statement` is almost always nested inside a
+    ///   `class_definition`/`node_definition` body, confirmed by this
+    ///   row's own fixture, never bare at top level) -- this crate's own
+    ///   unconditionally recursive walk does not have that bug, same
+    ///   precedent as [`Self::elixir`]/[`Self::fortran`] above.
+    /// - `"include_statement"` is DELIBERATELY ABSENT from `call_types`
+    ///   below despite ALSO being an `import_types` entry (and despite
+    ///   also needing a CallRef, matching the baseline's own
+    ///   `puppet_call_types` array listing it too) -- a real, confirmed
+    ///   architectural finding: `walk`'s own `import_types` branch has an
+    ///   UNCONDITIONAL trailing `walk_children(..); return;` after its
+    ///   own `on_unmatched_node` call, regardless of that handler's own
+    ///   return value, so `walk`'s `call_types` check is NEVER reached
+    ///   for a node kind in BOTH arrays (confirmed by a real, initially-
+    ///   failing test -- the IMPORT half worked, the CALL half never
+    ///   fired). `resource_declaration`'s own identical-looking dual
+    ///   `class_types`+`call_types` membership does NOT share this
+    ///   problem (`walk`'s `class_types` branch has no equivalent
+    ///   unconditional trailing return, so it genuinely falls through to
+    ///   `call_types` when unclaimed) -- this row's own initial
+    ///   implementation assumed both dual-membership node kinds would
+    ///   behave symmetrically and was wrong. Both the IMPORT and the
+    ///   CALL are instead pushed together directly inside
+    ///   [`crate::languages::generic::puppet_quirk`]'s own
+    ///   `"include_statement"` arm (the only place actually reached for
+    ///   this node kind) -- see that arm's own doc comment for why the
+    ///   resulting CallRef's `from_symbol`/`from_symbol_line` are left
+    ///   `None` (a genuine, documented seam limitation, not a further
+    ///   bug).
+    pub const fn puppet() -> Self {
+        Self {
+            name: "puppet",
+            func_types: &["function_declaration"],
+            method_types: &[],
+            // See this const's own doc comment: `"defined_resource_type"`
+            // ADDED beyond the baseline's own four -- a real, confirmed
+            // gap, not a deliberate scope limitation.
+            class_types: &[
+                "class_definition",
+                "node_definition",
+                "resource_declaration",
+                "type_declaration",
+                "defined_resource_type",
+            ],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            // Intentionally empty, NOT `["source_file"]` -- the same
+            // root-node-as-module-clause bug [`Self::fortran`]'s/
+            // [`Self::elm`]'s/[`Self::vimscript`]'s own doc comments
+            // already document in full: `source_file` is this grammar's
+            // own ROOT node, so the generic engine's own `module_types`
+            // branch would grab whatever def/statement happens to come
+            // FIRST as a garbage "Module" symbol name -- Puppet's own
+            // module/namespace-like concepts (`class`/`node`) are already
+            // fully captured via `class_types` above; there is no
+            // SEPARATE, distinct "module clause" construct to point this
+            // at instead.
+            module_types: &[],
+            // Deliberately NOT `"include_statement"` -- see this const's
+            // own doc comment for the full "both import_types and
+            // call_types membership never reaches call_types at all"
+            // finding.
+            call_types: &["function_call", "resource_declaration"],
+            // Never actually consulted -- see this const's own doc
+            // comment.
+            call_function_field: "UNUSED_SEE_PUPPET_CALL_OVERRIDE",
+            call_arguments_field: "UNUSED_NO_ARGUMENTS_FIELD",
+            import_types: &["include_statement"],
+            branch_types: &["if_statement", "unless_statement", "case_statement"],
+            decorator_types: &[],
+            // Never actually consulted -- see this const's own doc
+            // comment: every one of `func_types`/`class_types` is fully
+            // claimed by `generic::puppet_quirk`.
+            name_field: "UNUSED_SEE_PUPPET_QUIRK",
+            body_field: "UNUSED_SEE_PUPPET_QUIRK",
+        }
+    }
+
+    /// Elm (`.elm`) -- language-parity wave G2.3a. Node kinds verified
+    /// directly against the `tree-sitter-elm` 5.9.0 crate's own
+    /// `src/node-types.json` PLUS a real parse-tree dump. No corrections
+    /// against the baseline's own `elm_*` arrays
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:766-772) -- every
+    /// one of `elm_func_types`/`elm_class_types`/`elm_call_types`/
+    /// `elm_import_types`/`elm_branch_types` names a real, confirmed node
+    /// kind used exactly as the baseline itself describes:
+    /// - `value_declaration` (this row's own `func_types`) genuinely has
+    ///   NO `"name"` field of its own (confirmed) -- the real name is the
+    ///   nested `functionDeclarationLeft` field's `function_declaration_left`
+    ///   child's own FIRST child, a bare `lower_case_identifier` (confirmed
+    ///   real, both by `node-types.json`'s `"children"` list and the real
+    ///   dump), matching the baseline's own `resolve_elm_func_name`
+    ///   (`internal/cbm/extract_defs.c`:957-971) exactly. Unlike most of
+    ///   this wave's other languages, `value_declaration` DOES have a real
+    ///   `"body"` FIELD (confirmed) -- [`crate::languages::generic::elm_quirk`]
+    ///   reads that real field directly (a genuine simplification over
+    ///   finding it by kind), rather than needing a kind-search fallback.
+    ///   [`Self::name_field`]/[`Self::body_field`] below remain
+    ///   placeholders purely because `value_declaration` still needs a
+    ///   full quirk claim for the NAME half (no working name field), even
+    ///   though the body half could technically use the generic engine's
+    ///   own `body_field` mechanism if reached -- it never is, since name
+    ///   resolution fails first in the generic engine's own func/method
+    ///   branch, so the quirk claims the whole node, not half of it.
+    /// - `function_call_expr`'s own `target`/`arg` fields are both real
+    ///   (confirmed) -- its `target` field is a `value_expr` wrapping a
+    ///   `name` field pointing at a `value_qid`, whose OWN last
+    ///   `lower_case_identifier` child (confirmed via the real dump's
+    ///   module-qualified `List.length` case: `value_qid` there has
+    ///   `upper_case_identifier`+`dot`+`lower_case_identifier` children,
+    ///   not merely a bare identifier) is the real callee name -- a
+    ///   module-qualified call's own `Module.` prefix is dropped, matching
+    ///   the baseline's own `extract_elm_callee`
+    ///   (`internal/cbm/extract_calls.c`:704-730) exactly (same
+    ///   qualifier-dropping depth as [`Self::erlang`]'s own `io:format`
+    ///   handling).
+    /// - `import_clause`'s own `moduleName` field is real (confirmed,
+    ///   points at an `upper_case_qid`) -- reached directly rather than
+    ///   the baseline's own more roundabout
+    ///   `find_first_descendant_of(node, "upper_case_qid", ..)`
+    ///   (`internal/cbm/extract_imports.c`:2481), since the real field
+    ///   already IS that exact node, confirmed by the real dump.
+    pub const fn elm() -> Self {
+        Self {
+            name: "elm",
+            func_types: &["value_declaration"],
+            method_types: &[],
+            class_types: &[
+                "type_declaration",
+                "type_alias_declaration",
+                "module_declaration",
+            ],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            // Intentionally empty, NOT `["file"]` -- a real, confirmed bug
+            // this row originally had (found only because
+            // `tests/unit_languages_elm.rs`'s own assertions on a Module/
+            // Class symbol caught it, not by inspection alone): the
+            // generic engine's own `module_types` branch
+            // (`first_named_child_text`) grabs the FIRST NAMED CHILD's
+            // entire text as the "module name", correct only for a real,
+            // repeatable, name-only module/namespace CLAUSE (Go's
+            // `package_clause`, C#'s `namespace_declaration`) --
+            // `file` is this grammar's own ROOT node, whose first named
+            // child is `module_declaration` (a real, structured, multi-
+            // field node, confirmed via `node-types.json`), so this
+            // produced a garbage "Module" symbol whose name was the
+            // ENTIRE `"module Widget exposing (area)"` line, not
+            // `"Widget"`. `module_declaration` is already listed in this
+            // row's own `class_types` above instead (a real node with its
+            // own genuine `name` field pointing at an `upper_case_qid`) --
+            // NOT yet actually wired to emit a symbol for it either
+            // (`class_types`' own generic dispatch also needs a working
+            // `name_field`, and this row's own [`Self::name_field`] is a
+            // placeholder for `value_declaration`'s sake -- `elm_quirk`
+            // does not claim `module_declaration`, so it currently falls
+            // through with no symbol emitted, just still recursed into) --
+            // left as a genuine, documented gap rather than a plausible-
+            // looking but wrong one; this wave's own Tier-2 scope
+            // (defs+calls+imports) does not require it.
+            module_types: &[],
+            call_types: &["function_call_expr"],
+            // Never actually consulted -- see this const's own doc
+            // comment: the real callee requires a multi-level unwrap
+            // (`target` -> `value_expr` -> `name` -> `value_qid`'s own
+            // last `lower_case_identifier`), claimed by
+            // `generic::elm_call_override` instead.
+            call_function_field: "UNUSED_SEE_ELM_CALL_OVERRIDE",
+            call_arguments_field: "UNUSED_NO_ARGUMENTS_FIELD",
+            import_types: &["import_clause"],
+            branch_types: &["case_of_expr", "if_else_expr"],
+            decorator_types: &[],
+            // A REAL field, unlike every other placeholder `name_field` in
+            // this wave's own batch -- confirmed via `node-types.json`:
+            // `type_declaration`/`type_alias_declaration`/
+            // `module_declaration` (this row's own `class_types` entries)
+            // ALL genuinely have their own `"name"` field, so this row's
+            // `class_types` dispatch correctly extracts a real Class
+            // symbol for each via the generic engine's own ordinary
+            // `child_text(node, spec.name_field, ..)` fallback path with
+            // NO quirk needed. Does not affect `value_declaration`'s own
+            // handling: that node kind has no `"name"` field at all
+            // (confirmed), so `walk`'s func/method branch's own identical
+            // `child_text` lookup fails regardless of what this constant
+            // is set to, falling through to `elm_quirk` exactly as
+            // intended either way -- a genuine, confirmed-safe
+            // simplification found only after `tests/unit_languages_elm.rs`
+            // caught `type_declaration`/`module_declaration` silently
+            // emitting NO symbol at all with the original placeholder
+            // value (this row originally copied the "fully quirk-claimed"
+            // placeholder convention from languages like R/Puppet without
+            // checking whether it was actually needed for every one of
+            // THIS row's own def-shaped node kinds, not just
+            // `value_declaration`).
+            name_field: "name",
+            body_field: "UNUSED_SEE_ELM_QUIRK",
+        }
+    }
+
+    /// Bicep (Azure IaC, `.bicep`). Language-parity wave G2.3c. Node
+    /// kinds copied from the baseline's `bicep_func_types`/
+    /// `bicep_class_types`/`bicep_import_types`/`bicep_var_types`/
+    /// `bicep_call_types`/`bicep_module_types`
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c:1361-1369`),
+    /// cross-checked node-kind-by-node-kind against the actual
+    /// `node-types.json` shipped in `tree-sitter-bicep` 1.1.0 (crates.io,
+    /// `tree-sitter-grammars/tree-sitter-bicep`) plus a real parse-tree
+    /// dump (`cargo run` against a scratch crate depending on
+    /// `tree-sitter-bicep` directly), which found real corrections:
+    /// - `module_types` is `["infrastructure"]`, NOT baseline's
+    ///   `["program"]`: this grammar's actual root node kind is
+    ///   `infrastructure` -- `"program"` does not appear anywhere in this
+    ///   grammar's own `node-types.json` at all.
+    /// - `branch_types` is EMPTY, matching the baseline's OWN choice
+    ///   (`bicep_branch_types` in `lang_specs.c` is itself `empty_types`)
+    ///   -- Bicep is a purely declarative IaC language with no
+    ///   branching/control-flow syntax at all (confirmed: no
+    ///   `if`/`for`-shaped statement node exists in this grammar either,
+    ///   only a `for` EXPRESSION used as a resource-loop VALUE, which is
+    ///   not a decision point in the cyclomatic-complexity sense).
+    /// - `resource_declaration`/`module_declaration`/`type_declaration`/
+    ///   `variable_declaration`/`output_declaration`/
+    ///   `parameter_declaration` all have `"fields": {}` in this
+    ///   grammar's own `node-types.json` -- NONE of the six exposes a
+    ///   `name` field the generic engine's own `name_field`-keyed
+    ///   fallback could read; every one of their own NAMES is instead a
+    ///   positional (unfielded) `identifier` child immediately following
+    ///   the declaration's leading keyword token. Only
+    ///   `user_defined_function` has a real `name` field (confirmed) --
+    ///   the odd one out, so `func_types` alone still uses the ordinary
+    ///   generic name-field path while `class_types`-shaped declarations
+    ///   are fully claimed by [`crate::languages::generic::bicep_quirk`]
+    ///   instead (same posture as [`Self::d`]'s all-unfielded-node-kinds
+    ///   row, just split per-array rather than crate-wide).
+    /// - `call_types`'s `call_expression` DOES have real, working
+    ///   `function`/`arguments` fields (confirmed) -- no override
+    ///   needed, the generic engine's own default reconstruction is
+    ///   correct unchanged.
+    /// - `import_types` keeps baseline's `import_statement`/
+    ///   `using_statement` (both real, confirmed via `node-types.json`);
+    ///   `module_declaration` is deliberately NOT also listed here
+    ///   despite baseline including it (a Bicep `module` block both
+    ///   DEFINES a deployment reference AND functions as an import-like
+    ///   reference to another `.bicep` file's outputs) -- this row
+    ///   instead classifies it purely as a [`SymbolKind::Class`]-shaped
+    ///   definition via the quirk (matching how every other declaration
+    ///   kind here is classified), rather than double-counting it as
+    ///   both a def AND an import edge, which the baseline's own flat
+    ///   array structure cannot avoid but this row can.
+    pub const fn bicep() -> Self {
+        Self {
+            name: "bicep",
+            func_types: &["user_defined_function"],
+            method_types: &[],
+            class_types: &[
+                "resource_declaration",
+                "type_declaration",
+                "module_declaration",
+            ],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["infrastructure"],
+            call_types: &["call_expression"],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &["import_statement", "using_statement"],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// BitBake (Yocto build recipes, `.bb`/`.bbappend`/`.bbclass`/`.inc`).
+    /// Language-parity wave G2.3c. Node kinds copied from the baseline's
+    /// `bitbake_func_types`/`bitbake_var_types`/`bitbake_call_types`/
+    /// `bitbake_import_types`/`bitbake_module_types`
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c:1437-1445`),
+    /// cross-checked against the actual `node-types.json` (vendored --
+    /// see this crate's own `Cargo.toml` for why: `tree-sitter-bitbake`
+    /// 1.1.0, the crates.io latest, hard-pins `tree-sitter = "~0.20.10"`
+    /// as a normal dependency) plus a real parse-tree dump, which found:
+    /// - `module_types` is `["recipe"]`, NOT baseline's `["source_file"]`:
+    ///   this grammar's actual root node kind is `recipe`.
+    /// - `function_definition`/`anonymous_python_function` both have
+    ///   `"fields": {}` -- NEITHER exposes a `name` field; a
+    ///   `function_definition`'s own name (`do_compile`, ...) and an
+    ///   `anonymous_python_function`'s own name (the task name following
+    ///   the `python` keyword) are both positional `identifier` children,
+    ///   and neither has a `body`-labelled field either (a
+    ///   `function_definition`'s shell-script body is a flat run of
+    ///   `shell_content`/other children straight after the `{`; an
+    ///   `anonymous_python_function`'s embedded-Python body is a
+    ///   positional `block` child) -- both fully claimed by
+    ///   [`crate::languages::generic::bitbake_quirk`].
+    /// - `import_types` ADDS two real, baseline-MISSING node kinds this
+    ///   grammar actually generates for BitBake's own dedicated
+    ///   directives -- `inherit_directive` (`inherit cmake`) and
+    ///   `require_directive` (`require common.inc`) -- neither appears
+    ///   anywhere in the baseline's own `bitbake_import_types` array at
+    ///   all, confirmed via a real parse-tree dump showing both as
+    ///   distinct, real, non-error node kinds with their own path child
+    ///   (`inherit_path`/`include_path` respectively); this is a genuine
+    ///   improvement over the baseline's own coverage, not merely a
+    ///   correction, since real-world BitBake recipes use `inherit`
+    ///   constantly (the Yocto class-mixin mechanism) and `require`
+    ///   routinely. `include_directive`/`export_statement` (both real,
+    ///   confirmed) are kept from baseline unchanged. Baseline's other
+    ///   four entries (`import`/`import_from_statement`/`import_statement`/
+    ///   `with_clause`, all bare-Python-import node-kind names that would
+    ///   only ever appear NESTED inside an `anonymous_python_function`'s
+    ///   embedded-Python body, e.g. a `python do_foo() { import os }`
+    ///   task) are kept too: this grammar genuinely re-parses that body
+    ///   region with an embedded Python-like sub-grammar (confirmed via
+    ///   the same parse-tree dump: a bare `def foo():`/`bb.note(...)`
+    ///   inside such a body parses as real `python_function_definition`/
+    ///   `call` nodes with real fields), so these ARE reachable real node
+    ///   kinds in principle even though this wave's own fixture does not
+    ///   happen to exercise one.
+    /// - `call_types`'s `call` node (the embedded-Python call-expression
+    ///   shape, confirmed real with working `function`/`arguments`
+    ///   fields) is kept from baseline unchanged -- no override needed.
+    pub const fn bitbake() -> Self {
+        Self {
+            name: "bitbake",
+            func_types: &["function_definition", "anonymous_python_function"],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["recipe"],
+            call_types: &["call"],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[
+                "export_statement",
+                "import",
+                "import_from_statement",
+                "import_statement",
+                "include_directive",
+                "inherit_directive",
+                "require_directive",
+                "with_clause",
+            ],
+            branch_types: &[],
+            decorator_types: &[],
+            // Never actually consulted for `func_types` (both node kinds
+            // fully claimed by `bitbake_quirk` -- see this const's own
+            // doc comment).
+            name_field: "UNUSED_SEE_BITBAKE_QUIRK",
+            body_field: "UNUSED_SEE_BITBAKE_QUIRK",
+        }
+    }
+
+    /// Cairo (StarkNet smart contracts, `.cairo`). Language-parity wave
+    /// G2.3c. Node kinds copied from the baseline's `cairo_func_types`/
+    /// `cairo_class_types`/`cairo_call_types`/`cairo_import_types`/
+    /// `cairo_branch_types`/`cairo_var_types`/`cairo_assign_types`
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c:1465-1475`),
+    /// cross-checked against the actual `node-types.json` shipped in
+    /// `tree-sitter-grammars/tree-sitter-cairo` (vendored -- see this
+    /// crate's own `Cargo.toml` for why: this repo's own `Cargo.toml`
+    /// still hard-pins `tree-sitter = "~0.20.10"` as a normal dependency
+    /// at HEAD, and crates.io only ever published the OLDER pre-Cairo1
+    /// `0.0.1` release of the SAME repo, never the modern one) plus a
+    /// real parse-tree dump, which found:
+    /// - `module_types` is `["program"]`, matching baseline -- but the
+    ///   PRACTICAL top-level container one level below `program` is
+    ///   `cairo_1_file` (a `cairo_0_file`/`cairo_1_file` split baseline
+    ///   never mentions at all, this grammar's own dual-dialect
+    ///   Cairo0/Cairo1 support) -- not added as its own module row since
+    ///   `program` already gives the generic walker a Module symbol at
+    ///   the true root and still recurses into `cairo_1_file`'s children
+    ///   generically regardless (an un-named-in-the-baseline wrapper
+    ///   layer, not a missed construct).
+    /// - `func_types` keeps baseline's `function_definition`/
+    ///   `function_signature` (both real, confirmed) -- but NEITHER has a
+    ///   `name` field on itself (`"fields"` only has `returns`) -- both
+    ///   fully claimed by [`crate::languages::generic::cairo_quirk`]
+    ///   (positional `identifier` child, same "unfielded name" shape as
+    ///   [`Self::d`]/[`Self::odin`]).
+    /// - `class_types` is `["struct_item", "enum_item", "trait_item",
+    ///   "mod_item"]`, NOT baseline's fuller `{"struct_definition",
+    ///   "enum_item", "trait_item", "impl_item", "struct_item",
+    ///   "type_definition"}`: `struct_definition`/`type_definition` do
+    ///   not exist anywhere in this grammar at all (the real struct-decl
+    ///   kind is `struct_item` only, and there is no dedicated type-alias
+    ///   node kind -- Cairo's `type X = Y;` parses as the CATCH-ALL
+    ///   `type_item`, not present in the baseline's own array either, so
+    ///   left off this row too rather than invented); `impl_item` is
+    ///   dropped -- confirmed `"fields": {}`, no `name` field AND no
+    ///   positional identifier child either (an `impl` block's own
+    ///   heading is a bare `Trait for Type`/`Trait<T>` type-expression
+    ///   sequence with no single canonical "name" at all, unlike Rust's
+    ///   `impl_item`, which this crate's own `LangSpec::rust` never lists
+    ///   as a class-shaped node for the identical reason) -- kept out
+    ///   entirely rather than emitting a wrong/empty name. `struct_item`/
+    ///   `enum_item`/`trait_item`/`mod_item` ALL have real, working
+    ///   `name` fields (confirmed) -- the ordinary generic name-field path
+    ///   handles every one unchanged, no quirk claim needed for these
+    ///   four despite `func_types` needing one.
+    /// - `call_types`'s `call_expression` needs
+    ///   [`crate::languages::generic::cairo_call_override`]: this
+    ///   grammar's `call_expression` has NO wrapping argument-list node at
+    ///   all (confirmed via a real parse-tree dump of `helper(1, 2, 3)`:
+    ///   the `(`/`number`/`,`/`number`/`,`/`number`/`)` tokens are ALL
+    ///   direct, positional children of `call_expression` itself) -- this
+    ///   crate's own `node-types.json` DOES list a same-named `"arguments"`
+    ///   node kind elsewhere in the grammar's vocabulary (a different
+    ///   call-shape entirely, not this one), which a first-pass
+    ///   implementation mistakenly assumed `call_expression` nested a
+    ///   child of -- caught by this row's own hard test
+    ///   (`extracts_call_with_multiple_args_via_by_kind_arguments_lookup`),
+    ///   which found `arg_texts` silently empty before the fix.
+    ///   [`crate::languages::generic::cairo_call_arg_texts`] instead walks
+    ///   `call_expression`'s own direct children, skipping the callee's
+    ///   own `[field=function]` child (by node identity, not kind, since
+    ///   an argument could itself happen to share the callee's node kind)
+    ///   and punctuation. Baseline's bare `["call"]` entry is dropped
+    ///   (does not exist in this grammar at all -- Cairo0-only legacy
+    ///   register-call syntax this grammar's own dual-dialect design
+    ///   keeps as a SEPARATE, distinct node kind never actually named
+    ///   `"call"`).
+    /// - `import_types`'s `use_declaration` ALSO needs
+    ///   [`crate::languages::generic::cairo_quirk`]'s own claim despite
+    ///   having a real, working `"argument"` field (confirmed): the
+    ///   generic walker's own `import_types` branch has no default
+    ///   fallback of its own at all (unlike its `call_types` branch's
+    ///   single-field reconstruction default) -- it ONLY ever calls
+    ///   `on_unmatched_node`, so every import-shaped language row needs a
+    ///   quirk claim regardless of how well-fielded the node itself is
+    ///   (caught by this row's own hard test
+    ///   `extracts_use_declaration_as_import`, which found the imports
+    ///   list silently empty before this arm was added).
+    /// - `branch_types`/`var_types` keep baseline's `{if_expression,
+    ///   match_expression, loop_expression}`/`let_declaration` unchanged
+    ///   (all real,
+    ///   confirmed with working fields) -- baseline's own
+    ///   `cairo_var_types` additionally lists `const_item`, also real and
+    ///   kept.
+    pub const fn cairo() -> Self {
+        Self {
+            name: "cairo",
+            func_types: &["function_definition", "function_signature"],
+            method_types: &[],
+            class_types: &["struct_item", "enum_item", "trait_item", "mod_item"],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["program"],
+            call_types: &["call_expression"],
+            call_function_field: "function",
+            call_arguments_field: "UNUSED_SEE_CAIRO_CALL_OVERRIDE",
+            import_types: &["use_declaration"],
+            branch_types: &["if_expression", "match_expression", "loop_expression"],
+            decorator_types: &["attribute_item"],
+            // Never actually consulted for `func_types` (both node kinds
+            // fully claimed by `cairo_quirk`); `class_types`' four node
+            // kinds all use the real `"name"` field directly, so this
+            // value IS live for those -- same "unused for some arrays,
+            // live for others" split as [`Self::gleam`].
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// CFScript (ColdFusion/CFML script dialect, `.cfc`). Language-parity
+    /// wave G2.3c. Node kinds copied from the baseline's
+    /// `cfscript_func_types`/`cfscript_field_types`/
+    /// `cfscript_import_types` plus the shared `js_module_types`/
+    /// `js_call_types`/`js_branch_types` arrays its own baseline row
+    /// reuses verbatim (`codebase-memory-mcp/internal/cbm/lang_specs.c:
+    /// 271-274, 2029-2034`, the row's own comment: "JS-like grammar ...
+    /// Reuses the JS call/branch/var/module arrays"), cross-checked
+    /// against the actual `node-types.json` shipped in the OFFICIAL
+    /// `tree-sitter-cfml` crate (crates.io, `cfmleditor/tree-sitter-cfml`,
+    /// which bundles CFML/CFScript/CFQuery as three SEPARATE grammars in
+    /// one crate/repo, exposing `LANGUAGE_CFML`/`LANGUAGE_CFSCRIPT`/
+    /// `LANGUAGE_CFQUERY` as three distinct `LanguageFn` consts -- this
+    /// row binds `LANGUAGE_CFSCRIPT` only, the baseline's own
+    /// `CBM_LANG_CFSCRIPT`; `CBM_LANG_CFML`'s separate tag-dialect row is
+    /// still unclaimed) plus a real parse-tree dump, which found:
+    /// - `field_types` is EMPTY, NOT baseline's `["property_declaration"]`:
+    ///   `property_declaration` does not exist ANYWHERE in this grammar's
+    ///   own `grammar.js`/`node-types.json` at all (confirmed via both) --
+    ///   ColdFusion's script-mode `property name="x" type="string";`
+    ///   declaration instead parses as an ordinary `tag_statement` (this
+    ///   grammar's general "any bare `identifier(args);` inside a
+    ///   component body that isn't a recognized statement" catch-all,
+    ///   also used for CFML's other pseudo-tag-like script constructs)
+    ///   whose own `tag` field is the identifier `property` and whose
+    ///   `arguments` field holds each `name="x"`/`type="string"` as its
+    ///   own `assignment_expression` -- fully claimed by
+    ///   [`crate::languages::generic::cfscript_quirk`] instead (this
+    ///   grammar has NO dedicated field-declaration node kind for
+    ///   CFScript at all, so there is no flat array value that could
+    ///   express it, same "quirk claims what the flat array cannot"
+    ///   posture as every other unfielded/irregular case in this file).
+    /// - `func_types` keeps baseline's `function_declaration`/
+    ///   `function_expression`/`arrow_function`/`method_definition` --
+    ///   all four real; `function_declaration`/`function_expression`/
+    ///   `method_definition` have working `name`/`parameters`/`body`
+    ///   fields (the ordinary generic path handles them unchanged);
+    ///   `arrow_function` has NO `name` field (a lambda, expected) but
+    ///   IS still listed here matching baseline, since the generic
+    ///   engine's own func/method branch degrades gracefully (no name
+    ///   found -> no symbol emitted, not a panic) for any node kind whose
+    ///   `name_field` lookup comes up empty, exactly the same as every
+    ///   other language row with an anonymous-function shape in its own
+    ///   `func_types` (e.g. [`Self::gleam`]'s `anonymous_function`).
+    /// - `import_types` keeps baseline's `import_statement` (real,
+    ///   confirmed with a working `source` field) -- baseline's OTHER
+    ///   entry, bare `"import"`, is dropped: confirmed via
+    ///   `node-types.json` this is an UNNAMED keyword token only
+    ///   (`{"type":"import","named":false}`, the `import.meta`/`new
+    ///   .target` meta-property keyword, never a real import-statement
+    ///   node a real `.kind()` match against an ordinary AST node could
+    ///   ever ambiguously collide with in practice, but also never
+    ///   itself the STATEMENT this array is meant to capture) -- keeping
+    ///   it would add a dead array entry with no behavior either way,
+    ///   same "prune the confirmed-dead entry" discipline as every other
+    ///   row's own baseline corrections in this file. `import_statement`
+    ///   ALSO still needs
+    ///   [`crate::languages::generic::cfscript_quirk`]'s own claim
+    ///   despite having a real, working `source` field: the generic
+    ///   walker's own `import_types` branch has no default fallback of
+    ///   its own at all (unlike its `call_types` branch's single-field
+    ///   reconstruction default) -- it ONLY ever calls
+    ///   `on_unmatched_node`, so every import-shaped language row in this
+    ///   whole file needs a quirk claim regardless of how well-fielded
+    ///   the node itself is (caught by this row's own hard test
+    ///   `extracts_import_statement`, which found the imports list
+    ///   silently empty before this arm was added -- the SAME class of
+    ///   bug this wave's Bicep/BitBake/Cairo rows independently hit and
+    ///   fixed too).
+    /// - `call_types`/`branch_types`/`module_types` (`call_expression`+
+    ///   `new_expression`/the full JS if/for/while/do/switch-case/&&/||
+    ///   set/`program`) are all real, confirmed, kept from the shared
+    ///   JS arrays unchanged, matching this baseline row's own explicit
+    ///   "reuses the JS arrays" design.
+    pub const fn cfscript() -> Self {
+        Self {
+            name: "cfscript",
+            func_types: &[
+                "function_declaration",
+                "function_expression",
+                "arrow_function",
+                "method_definition",
+            ],
+            method_types: &["method_definition"],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["program"],
+            call_types: &["call_expression", "new_expression"],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &["import_statement"],
+            branch_types: &[
+                "if_statement",
+                "for_statement",
+                "for_in_statement",
+                "while_statement",
+                "do_statement",
+                "switch_case",
+                "&&",
+                "||",
+            ],
+            decorator_types: &["decorator"],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// FunC (TON smart contracts, `.fc`/`.func`). Language-parity wave
+    /// G2.3c. Node kinds copied from the baseline's `func_func_types`/
+    /// `func_call_types`/`func_import_types`
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c:1497-1500`),
+    /// cross-checked against the actual `node-types.json` (vendored --
+    /// see this crate's own `Cargo.toml` for why: the crates.io
+    /// `tree-sitter-func` 1.0.0 hard-pins `tree-sitter = "~0.20.10"` as a
+    /// normal dependency) plus a real parse-tree dump, which found:
+    /// - `import_types` is EMPTY, NOT baseline's `["include_directive"]`:
+    ///   `include_directive` does not exist anywhere in this grammar at
+    ///   all -- confirmed via both `node-types.json` and a real parse
+    ///   dump showing `#include "stdlib.fc";` parses as a bare `ERROR`
+    ///   node (this grammar has NO preprocessor-directive support
+    ///   whatsoever, not even a differently-named one) -- there is
+    ///   consequently no real node kind this row could point at instead;
+    ///   FunC's own `#include`/`#pragma` lines are simply unextractable
+    ///   through this grammar, a genuine, confirmed grammar limitation
+    ///   (not a spec-writing gap) rather than something a quirk could
+    ///   work around (a quirk still needs SOME real, non-`ERROR` node to
+    ///   hang off).
+    /// - `call_types` keeps baseline's `method_call`/`function_application`
+    ///   (both real) but BOTH need
+    ///   [`crate::languages::generic::func_call_override`]: `method_call`'s
+    ///   own argument-list field is correctly spelled `"arguments"`, but
+    ///   `function_application`'s own is a CONFIRMED TYPO in this
+    ///   grammar's own generated field vocabulary -- `"agruments"`
+    ///   (missing the `n`), not `"arguments"` (verified twice: directly in
+    ///   `node-types.json`'s own `"fields"` key name, and again in a real
+    ///   parse-tree dump showing `[field=agruments]` verbatim on both
+    ///   `function_definition`'s own parameter-list field AND
+    ///   `function_application`'s own argument-list field -- the SAME
+    ///   typo appears on both node kinds in this grammar, not an isolated
+    ///   one-off) -- since [`crate::languages::spec::LangSpec`] has only
+    ///   ONE flat `call_arguments_field` string shared by every entry in
+    ///   `call_types`, it cannot itself hold two different field-name
+    ///   spellings for two different node kinds at once, so both are
+    ///   claimed by the override rather than splitting the array (which
+    ///   would still leave one of the two unhandled by the generic path
+    ///   alone). Both fields ALSO point at exactly ONE wrapper node whose
+    ///   own shape depends on argument COUNT, not a flat argument-list --
+    ///   confirmed via real parse-tree dumps of all three cases: zero
+    ///   arguments is a bare `unit_literal` (`()`); exactly one is a
+    ///   `parenthesized_expression`; two or more is a `tensor_expression`
+    ///   -- see [`crate::languages::generic::func_call_arg_texts`]'s own
+    ///   doc comment for the full finding (caught by this row's own hard
+    ///   test `extracts_function_application_call_despite_agruments_typo`,
+    ///   which found `arg_texts` come back as the WHOLE wrapper node's own
+    ///   text, e.g. `["(1, 2)"]` instead of `["1", "2"]`, before the fix).
+    /// - `func_types`/`module_types` keep baseline's `function_definition`/
+    ///   `["source_file"]`... corrected to `["translation_unit"]`: this
+    ///   grammar's real root node kind is `translation_unit`, NOT
+    ///   `source_file` (confirmed via a real parse dump) --
+    ///   `function_definition` itself is unchanged (real, confirmed) and
+    ///   has a real, working `name` field (`function_name`-typed) despite
+    ///   ALSO having the same `agruments` typo on its own parameter-list
+    ///   field -- irrelevant to definition extraction (which only reads
+    ///   `name_field`/`body_field`, both spelled correctly: `"name"`/
+    ///   `"body"`), so the ordinary generic path handles function
+    ///   definitions unchanged with no quirk needed there.
+    /// - `branch_types` is deliberately EMPTY, matching the baseline's OWN
+    ///   choice (`func_branch_types` in `lang_specs.c` is itself
+    ///   `empty_types`) even though this grammar DOES have real
+    ///   `if_statement`/`while_statement`/`repeat_statement` branch-shaped
+    ///   nodes (confirmed) -- this wave keeps Tier-2 parity with the
+    ///   baseline's own choice rather than adding complexity-extraction
+    ///   depth the baseline itself never wires for FunC (G3's job, if
+    ///   ever wanted, per this workpack's own "complexity extraction may
+    ///   be deferred this wave" allowance).
+    pub const fn func() -> Self {
+        Self {
+            name: "func",
+            func_types: &["function_definition"],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["translation_unit"],
+            call_types: &["method_call", "function_application"],
+            call_function_field: "UNUSED_SEE_FUNC_CALL_OVERRIDE",
+            call_arguments_field: "UNUSED_SEE_FUNC_CALL_OVERRIDE",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Move (Aptos/Sui smart contracts, `.move`). Language-parity wave
+    /// G2.3c. Node kinds copied from the baseline's `move_func_types`/
+    /// `move_call_types`/`move_import_types`/`move_branch_types`/
+    /// `move_var_types`/`move_module_types`
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c:1476-1486`),
+    /// cross-checked against the actual `node-types.json` (vendored --
+    /// see this crate's own `Cargo.toml` for why: `tzakian/tree-sitter-move`
+    /// has never published a crates.io release at all) plus a real
+    /// parse-tree dump, which found REAL, CONFIRMED CORRECTIONS -- this
+    /// grammar generation is considerably richer than the baseline's own
+    /// comment above `move_func_types` claims:
+    /// - `func_types` is `["function_definition"]`, NOT baseline's
+    ///   `["function_item"]`: `function_item` does not exist anywhere in
+    ///   this grammar at all -- the real function-definition node kind is
+    ///   `function_definition`, with REAL, working `name`
+    ///   (`function_identifier`-typed)/`parameters`/`body`/`return_type`
+    ///   fields (confirmed) -- the ordinary generic path handles this
+    ///   unchanged, no quirk needed for definitions at all.
+    /// - `class_types` is `["struct_definition", "enum_definition"]`, a
+    ///   DELIBERATE IMPROVEMENT over baseline's empty array: the
+    ///   baseline's own source comment claims "this vendored move grammar
+    ///   models only function_item + module as named defs; struct/enum
+    ///   exist only as anonymous keyword tokens, never as parent nodes" --
+    ///   this is CONFIRMED WRONG for this grammar generation: both
+    ///   `struct_definition` (`struct Counter has key { value: u64 }`) and
+    ///   `enum_definition` both have real, working `name`
+    ///   (`struct_identifier`/`enum_identifier`-typed) fields (confirmed
+    ///   via both `node-types.json` and a real parse-tree dump showing
+    ///   `Counter` resolves cleanly off `struct_definition`'s own `name`
+    ///   field) -- the ordinary generic path handles both unchanged too.
+    ///   Real-world Move contracts define resource structs constantly
+    ///   (the entire point of Move's resource-oriented type system), so
+    ///   this closes a genuine, high-value coverage gap the baseline's own
+    ///   stale comment left unaddressed rather than reproducing a
+    ///   confirmed-incorrect limitation.
+    /// - `call_types`'s `call_expression` needs
+    ///   [`crate::languages::generic::move_call_override`]: this node's
+    ///   own callee is a POSITIONAL (unfielded) `name_expression` child
+    ///   (itself wrapping a `module_access` -> `[field=member] identifier`
+    ///   chain for the actual dotted/qualified name text), not a field on
+    ///   `call_expression` itself -- only its OWN argument-list child is
+    ///   fielded (`"args"`, confirmed real). Baseline's `call_expression`
+    ///   node-kind-name guess is correct; only the field-name assumption
+    ///   the generic engine's default single-field reconstruction would
+    ///   otherwise make (a `"function"`-named field) does not hold.
+    /// - `import_types`'s `use_declaration` needs
+    ///   [`crate::languages::generic::move_quirk`]: this node has
+    ///   `"fields": {}` (confirmed) -- its own imported-module path is
+    ///   one of FOUR possible nested child shapes (`use_module`/
+    ///   `use_module_member`/`use_module_members`/`use_fun`), each with
+    ///   its own further-nested `module_identity` -- too irregular for a
+    ///   flat field-name assumption, same "vary too much across shapes,
+    ///   quirk owns it" rationale as Go's own import-path handling.
+    /// - `branch_types`/`var_types`/`module_types` keep baseline's
+    ///   `{if_expression, while_expression, loop_expression}`/`{let,
+    ///   const}`/`["source_file"]` UNCHANGED except `var_types`'s `let`
+    ///   entry is corrected to `let_statement` (the real node kind;
+    ///   bare `"let"` is only the keyword token) -- `const` similarly
+    ///   does not appear as its own top-level definition node in this
+    ///   grammar at MODULE level in the sampled fixture depth this wave's
+    ///   Tier-2 scope covers, so it is dropped rather than guessed; all
+    ///   three branch entries and `source_file` are real and confirmed
+    ///   unchanged.
+    pub const fn move_lang() -> Self {
+        Self {
+            name: "move",
+            func_types: &["function_definition"],
+            method_types: &[],
+            class_types: &["struct_definition", "enum_definition"],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source_file"],
+            call_types: &["call_expression"],
+            call_function_field: "UNUSED_SEE_MOVE_CALL_OVERRIDE",
+            call_arguments_field: "args",
+            import_types: &["use_declaration"],
+            branch_types: &["if_expression", "while_expression", "loop_expression"],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Nickel (config language, `.ncl`). Language-parity wave G2.3c.
+    /// Node kinds copied from the baseline's `nickel_func_types`/
+    /// `nickel_call_types`/`nickel_import_types`/`nickel_branch_types`/
+    /// `nickel_var_types`/`nickel_module_types`
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c:1185-1195`),
+    /// cross-checked against the actual `node-types.json` shipped in
+    /// `tree-sitter-nickel` 0.5.0 (crates.io, the OFFICIAL
+    /// `nickel-lang/tree-sitter-nickel` grammar) plus a real parse-tree
+    /// dump, which found this grammar generation has drifted
+    /// substantially from what the baseline's own arrays describe:
+    /// - `module_types` is EMPTY, NOT baseline's `["source_file"]` (nor
+    ///   the seemingly-obvious `["term"]`): this grammar's actual root
+    ///   node kind IS `term` (confirmed via both `node-types.json`'s own
+    ///   `"root": true` marker and a real parse dump; `source_file` does
+    ///   not exist anywhere in this grammar at all), BUT `term` is also
+    ///   this grammar's own wrapper for EVERY expression position, not
+    ///   merely the file root -- pointing `module_types` at it would tag
+    ///   every single nested expression as its own
+    ///   [`crate::parsers::SymbolKind::Module`] symbol (a real bug this
+    ///   row's own first-pass implementation had, caught by this row's
+    ///   own hard test `plain_value_binding_produces_no_symbol`) -- there
+    ///   is no analogous single, non-recursive "this is the file/module"
+    ///   node kind in this grammar at all.
+    /// - `func_types` keeps baseline's `["fun_expr"]` (real, confirmed) --
+    ///   but `fun_expr` genuinely has NO name field of its own at all
+    ///   (`"fields": {}`), matching the baseline's OWN source comment
+    ///   above this array verbatim ("its name lives on the enclosing
+    ///   let_binding's pat field") -- fully claimed by
+    ///   [`crate::languages::generic::nickel_quirk`], which additionally
+    ///   claims `let_binding`/`field_decl` themselves (a Nickel
+    ///   NAMED-function definition, `let f = fun x y => ...` OR a record
+    ///   field whose value is a `fun_expr`, is recognized by climbing
+    ///   from the binding/field to its own `pat`/`path` name -- see that
+    ///   function's own doc comment for the full three-shape walk).
+    /// - `call_types` keeps baseline's `["applicative"]` (real, confirmed,
+    ///   matching the baseline's own source comment: "A function
+    ///   application (f x y) is an applicative node") -- but needs
+    ///   [`crate::languages::generic::nickel_call_override`]: this
+    ///   grammar's CURRYING is structurally LEFT-RECURSIVE (`f a b c`
+    ///   parses as `applicative(t1=applicative(t1=applicative(t1=f,
+    ///   t2=a), t2=b), t2=c)`, confirmed via a real parse-tree dump of a
+    ///   deliberate 3-argument call) -- the true callee is only reachable
+    ///   by walking DOWN the `t1` chain until it stops being an
+    ///   `applicative` itself, which the generic engine's own
+    ///   single-field default reconstruction cannot express (there is no
+    ///   flat "the callee is always in field X" answer -- it depends on
+    ///   how deep the curry chain is).
+    /// - `import_types` is `["import"]` ONLY, NOT baseline's `["import",
+    ///   "include"]`: `import` is real -- confirmed as a genuine,
+    ///   DEDICATED unnamed keyword-token node kind
+    ///   (`{"type":"import","named":false}`) that appears as an
+    ///   `applicative`'s own POSITIONAL (unfielded) child specifically for
+    ///   the `import "path.ncl"` syntax (confirmed via a real parse-tree
+    ///   dump: `applicative` -> bare `import` token + `[field=s]
+    ///   static_string`, a DIFFERENT shape from the ordinary curried-call
+    ///   `t1`/`t2` fields `nickel_call_override` otherwise handles) --
+    ///   claimed by [`crate::languages::generic::nickel_quirk`]'s own
+    ///   `applicative` arm. Baseline's `"include"` is DROPPED: confirmed
+    ///   via TWO separate real parse-tree dumps (`include "foo.txt"` used
+    ///   both as a bare expression and inside a `let`) that `include` is
+    ///   ALWAYS a plain generic `ident` in this grammar version, matching
+    ///   the module's OWN `include` token-kind vocabulary entry (which
+    ///   does exist, `{"type":"include","named":false}`) NEVER actually
+    ///   being produced by any grammar rule that reaches it -- there is
+    ///   consequently no structural way to distinguish a real `include`
+    ///   "import" from an ordinary function call to a variable that
+    ///   happens to be named `include`, so keeping it would only ever
+    ///   match user code that shadows the name, never Nickel's own import
+    ///   mechanism (which does not appear to use this keyword in this
+    ///   grammar version's practice despite the vocabulary entry
+    ///   existing).
+    /// - `branch_types` is `["ite_expr"]`, NOT baseline's `["if", "match"]`:
+    ///   NEITHER `if` nor `match` exist as real node kinds in this
+    ///   grammar at all -- confirmed via both `node-types.json` and a real
+    ///   parse dump that `if ... then ... else ...` parses as `ite_expr`
+    ///   and Nickel's pattern-match construct parses as `match_expr`
+    ///   (dropped here rather than added: this wave's Tier-2 scope keeps
+    ///   complexity extraction minimal per this workpack's own "may be
+    ///   deferred" allowance, and `match_expr`'s own `cases` field shape
+    ///   would need its own quirk to walk correctly rather than being a
+    ///   flat decision-point match the way `ite_expr` already is).
+    /// - `var_types` keeps baseline's `["let"]` -- real, confirmed
+    ///   (`let_expr`'s own nested `let_in_block` -- the bare `let`
+    ///   keyword token itself, matching this row's own module-level
+    ///   local-binding intent).
+    pub const fn nickel() -> Self {
+        Self {
+            name: "nickel",
+            func_types: &["fun_expr"],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            // EMPTY, NOT `["term"]`: `term` is this grammar's own
+            // wrapper for EVERY expression position, not merely the
+            // file root (confirmed via every real parse-tree dump this
+            // row's own doc comment already includes -- `term` nests
+            // recursively at every sub-expression, not just once at the
+            // top) -- pointing `module_types` at it would tag every
+            // single nested expression as its own [`SymbolKind::Module`]
+            // symbol, caught by this row's own hard test
+            // `plain_value_binding_produces_no_symbol`, which found
+            // spurious Module symbols for `isProd`/`true`/the whole file
+            // alike before this fix. There is no analogous single,
+            // non-recursive "this is the file/module" node kind in this
+            // grammar at all (the true root is simply `term` -- see this
+            // row's own doc comment for the module_types finding).
+            module_types: &[],
+            call_types: &["applicative"],
+            call_function_field: "UNUSED_SEE_NICKEL_CALL_OVERRIDE",
+            call_arguments_field: "UNUSED_SEE_NICKEL_CALL_OVERRIDE",
+            import_types: &["import"],
+            branch_types: &["ite_expr"],
+            decorator_types: &[],
+            // Never actually consulted -- `fun_expr` is fully claimed by
+            // `nickel_quirk` (see this const's own doc comment).
+            name_field: "UNUSED_SEE_NICKEL_QUIRK",
+            body_field: "UNUSED_SEE_NICKEL_QUIRK",
+        }
+    }
+
+    /// Jsonnet (JSON templating, `.jsonnet`/`.libsonnet`). Language-parity
+    /// wave G2.3c. Node kinds copied from the baseline's
+    /// `jsonnet_func_types`/`jsonnet_call_types`/`jsonnet_import_types`/
+    /// `jsonnet_branch_types`/`jsonnet_var_types`/`jsonnet_module_types`
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c:1323-1328`),
+    /// cross-checked against the actual `node-types.json` shipped in
+    /// `tree-sitter-jsonnet` 0.0.1 (crates.io, published 2026-05-05 --
+    /// the newest grammar dependency in this whole crate) plus a real
+    /// parse-tree dump across THREE distinct function-definition shapes,
+    /// which found this grammar generation has drifted completely from
+    /// every node-kind name the baseline's own arrays list:
+    /// - `module_types` is `["source_file"]`, NOT baseline's
+    ///   `["document"]`: this grammar's actual root node kind is
+    ///   `source_file` -- `document` does not exist anywhere in this
+    ///   grammar at all.
+    /// - `func_types`/`class_types` are BOTH empty (no flat array can
+    ///   express this grammar's shape at all): baseline's
+    ///   `["anonymous_function", "bind"]` are WRONG -- `anonymous_function`
+    ///   does not exist anywhere in this grammar; `bind` is real but is
+    ///   NOT itself a function-shaped node -- it is the generic
+    ///   local-BINDING node (`local x = ...;`), used for BOTH a plain
+    ///   local variable AND a local function (there is no separate
+    ///   `function_expr`-wrapped shape at all in practice: confirmed via
+    ///   THREE separate real parse-tree dumps -- `local f = function(x)
+    ///   x + 1;`, an object method-sugar `fn(x): x + 1`, and an explicit
+    ///   `fn: function(x) x + 1` field value ALL flatten the `function`
+    ///   keyword token + `params` + body directly as POSITIONAL siblings
+    ///   of `bind`/`field` rather than ever wrapping them in the
+    ///   `function_expr` node `node-types.json`'s own "possible children"
+    ///   list claims exists as a legal child shape). Recognizing "is this
+    ///   bind/field actually a function" consequently requires scanning
+    ///   for a `function`-keyword-or-`params`-child sibling, which no flat
+    ///   array/single-field-name pair could express -- fully claimed by
+    ///   [`crate::languages::generic::jsonnet_quirk`] instead (its own
+    ///   `bind`/`field` arms), matching the baseline's own comment for
+    ///   this exact language ("the lambda node is fun_expr ... its name
+    ///   lives on the enclosing let_binding's pat field" -- Nickel's row
+    ///   above, but the identical shape recurs here for a DIFFERENT
+    ///   underlying reason: no wrapping node exists at all, not merely no
+    ///   name field on one that does).
+    /// - `call_types` is `["suffix_apply"]`, NOT baseline's
+    ///   `["functioncall"]`: `functioncall` does not exist anywhere in
+    ///   this grammar -- a call is instead `<callee-expr> suffix_apply`,
+    ///   where `suffix_apply` (the parenthesized argument list, confirmed
+    ///   real with a repeated, unfielded `arg` child list) is a SIBLING
+    ///   of its own callee, not a wrapping node with a callee field at
+    ///   all -- needs
+    ///   [`crate::languages::generic::jsonnet_call_override`], which reads
+    ///   the callee from `suffix_apply`'s own PRECEDING SIBLING (the
+    ///   generic engine's `walk` never visits a `suffix_apply` node with
+    ///   direct access to its sibling any other way).
+    /// - `import_types` is `["import_expr"]`, NOT baseline's `["import",
+    ///   "importstr"]`: NEITHER bare name exists as its own node kind --
+    ///   `import "other.libsonnet"` parses as a real, dedicated
+    ///   `import_expr` wrapper node (confirmed with a working nested
+    ///   `string`/`string_block`/`verbatim_string` child, found by kind
+    ///   since `import_expr` itself has `"fields": {}`) -- claimed by
+    ///   [`crate::languages::generic::jsonnet_quirk`]'s own arm.
+    ///   `importstr` (Jsonnet's raw-string-import variant) is dropped:
+    ///   this grammar has no separate node kind for it at all in this
+    ///   version (it appears to parse identically through `import_expr`
+    ///   with a plain string child, not a distinguishable second form).
+    /// - `branch_types` is `["if_then_else"]`, NOT baseline's
+    ///   `["conditional"]`: `conditional` does not exist anywhere in this
+    ///   grammar -- the real node kind is `if_then_else` (confirmed real,
+    ///   found generically as a decision point by node KIND alone the
+    ///   same way every other language's `branch_types` entry already
+    ///   works -- this row does not need the CONDITION's own value for
+    ///   anything, only the node's presence).
+    /// - `var_types` is `["bind"]`, NOT baseline's `["local_bind"]`:
+    ///   `local_bind` does not exist -- `bind` (the same node `func_types`
+    ///   discusses above) is Jsonnet's one local-binding node for both
+    ///   plain values and functions alike.
+    pub const fn jsonnet() -> Self {
+        Self {
+            name: "jsonnet",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source_file"],
+            call_types: &["suffix_apply"],
+            call_function_field: "UNUSED_SEE_JSONNET_CALL_OVERRIDE",
+            call_arguments_field: "UNUSED_SEE_JSONNET_CALL_OVERRIDE",
+            import_types: &["import_expr"],
+            branch_types: &["if_then_else"],
+            decorator_types: &[],
+            // Never actually consulted -- every function/binding shape is
+            // fully claimed by `jsonnet_quirk` (see this const's own doc
+            // comment).
+            name_field: "UNUSED_SEE_JSONNET_QUIRK",
+            body_field: "UNUSED_SEE_JSONNET_QUIRK",
+        }
+    }
+    // =====================================================================
+    // COMMON LISP (language-parity wave G2.3b)
+    // =====================================================================
+
+    /// Common Lisp: grammar is `tree-sitter-commonlisp` (crates.io,
+    /// `LANGUAGE_COMMONLISP` const via `tree-sitter-language`, verified
+    /// end-to-end with a real parse-tree dump before being added). Every
+    /// form is a `list_lit` (same Lisp-family uniformity
+    /// [`Self::clojure`]'s own doc comment already found) -- `defun`
+    /// itself IS a real, distinct node kind here (unlike Clojure, whose
+    /// grammar has no `defun`-shaped node at all), wrapping a
+    /// `defun_header` child that carries the real `function_name`/
+    /// `lambda_list` fields, confirmed via a real parse-tree dump
+    /// (`(defun helper (x) (+ x 1))` -> `list_lit > defun > defun_header
+    /// [function_name] sym_lit "helper"`). Baseline's own
+    /// `commonlisp_func_types = ["defun"]` and `commonlisp_call_types =
+    /// ["list_lit"]` both confirmed correct against this grammar version
+    /// -- this is the rare G2 language needing NO baseline corrections at
+    /// all (matches [`Self::clojure`]'s own "Lisp-family grammars are
+    /// unusually uniform" finding).
+    ///
+    /// `func_types`/`call_types` both fully claimed by
+    /// [`generic::commonlisp_quirk`]/[`generic::commonlisp_call_override`]
+    /// rather than this file's own `name_field`/`call_function_field`
+    /// mechanism: `defun`'s own name lives two levels down
+    /// (`defun_header`'s `function_name` field, not a field of `defun`
+    /// itself), and `list_lit`'s callee is its own first named child (no
+    /// field at all) -- the SAME two-hook shape [`Self::clojure`] already
+    /// uses for the identical reason, ported rather than reinvented.
+    /// UNLIKE Clojure, though (a real grammar-shape difference this row's
+    /// own first draft wrongly assumed away, caught by its own test suite
+    /// failing during this wave's verification, not by inspection): a
+    /// `defun`-headed `list_lit`'s first named child is the `defun` NODE
+    /// itself (a dedicated node type, not a bare `sym_lit`/`identifier`
+    /// symbol the way Clojure's uniform `list_lit(sym_lit "defn", ...)`
+    /// shape always is), so [`generic::commonlisp_call_override`]'s own
+    /// `sym_lit`/`identifier`-only head check correctly never records
+    /// `"defun"` itself as a callee -- ONLY the body expression's own
+    /// calls (reached via [`generic::commonlisp_quirk`]'s own
+    /// `defun`-handling arm, which must call [`generic::walk`] on the
+    /// resolved `[value]` body node directly rather than
+    /// [`generic::walk_children`] on it, since the body is itself often a
+    /// call-shaped `list_lit` needing its OWN top-level visit, not merely
+    /// its children's -- a second real bug this wave's own test suite
+    /// caught) are ever recorded.
+    ///
+    /// `import_types` deliberately empty, NOT baseline's own
+    /// `["with_clause"]`: a real parse-tree dump confirms `with_clause`
+    /// does not exist ANYWHERE in this grammar's `node-types.json` at all
+    /// (Common Lisp's `WITH-CLAUSE`... printer-control macro is not a
+    /// tree-sitter-grammar-visible node kind here, unlike e.g. VHDL's
+    /// unrelated same-named `with_clause`) -- porting it verbatim would be
+    /// dead data, not merely unused (same category of finding
+    /// [`Self::lua`]'s own doc comment already documents for a different
+    /// baseline array entry). IMPORTS are instead recognized via
+    /// [`generic::commonlisp_quirk`]'s dedicated `in-package`/`require`/
+    /// `use-package` head-symbol match, a real (if baseline-absent)
+    /// dependency-declaration idiom this grammar's `list_lit` shape makes
+    /// directly recognizable the same way [`Self::clojure`]'s own
+    /// `ns`/`:require` quirk already is.
+    pub const fn commonlisp() -> Self {
+        Self {
+            name: "commonlisp",
+            // See this const's own doc comment: fully claimed by
+            // `generic::commonlisp_quirk`, which finds `defun`'s real
+            // name via its `defun_header` child's `function_name` field.
+            func_types: &["defun"],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source"],
+            // See this const's own doc comment: fully claimed by
+            // `generic::commonlisp_call_override`, which records a
+            // `list_lit`'s head symbol as a callee ONLY when that head is
+            // itself a bare `sym_lit`/`identifier` -- a `defun`-headed
+            // `list_lit`'s own first named child is the `defun` NODE
+            // (never a bare symbol), so `"defun"` itself is correctly
+            // NEVER recorded as a callee, unlike Clojure's own uniform
+            // `list_lit(sym_lit "defn", ...)` shape.
+            call_types: &["list_lit"],
+            call_function_field: "UNUSED_SEE_COMMONLISP_CALL_OVERRIDE",
+            call_arguments_field: "UNUSED_SEE_COMMONLISP_CALL_OVERRIDE",
+            // See this const's own doc comment: intentionally empty --
+            // `in-package`/`require`/`use-package` IMPORTS are claimed by
+            // `generic::commonlisp_quirk` instead, not this file's flat
+            // array mechanism.
+            import_types: &[],
+            // Matches the baseline's own row exactly -- genuinely empty
+            // there too (Common Lisp has no baseline branch/decision-node
+            // array at all), not merely omitted.
+            branch_types: &[],
+            decorator_types: &[],
+            // Never actually consulted -- `defun` is fully claimed by
+            // `generic::commonlisp_quirk` before this file's own
+            // `name_field`-keyed fallback would ever run for it.
+            name_field: "UNUSED_SEE_COMMONLISP_QUIRK",
+            body_field: "UNUSED_SEE_COMMONLISP_QUIRK",
+        }
+    }
+
+    // =====================================================================
+    // LEAN (language-parity wave G2.3b)
+    // =====================================================================
+
+    /// Lean: grammar is `tree-sitter-lean4` (crates.io, `language()` fn
+    /// returning `tree_sitter::Language` directly -- NOT the
+    /// `tree-sitter-language`/`LanguageFn` shim every other grammar here
+    /// uses, but its own `Cargo.toml` declares `tree-sitter = "0.25"` as a
+    /// real NORMAL dependency, the exact same version this workspace's
+    /// own core pins, so there is no ABI/dependency-graph risk despite the
+    /// different binding shape -- verified end-to-end with real
+    /// parse-tree dumps, cross-checked against this crate's own
+    /// `node-types.json` directly (not dump-only), before being added).
+    ///
+    /// BASELINE IS SUBSTANTIALLY WRONG for this language: baseline's own
+    /// `lean_func_types = ["def", "theorem", "instance", "abbrev"]` names
+    /// FOUR node kinds that do not exist AT ALL in this grammar version --
+    /// `def helper ... := x + 1`, `theorem area_thm ... := rfl`, and
+    /// `instance : Inhabited Point := ...` all parse to the exact SAME
+    /// single node kind, `definition`, confirmed via both a real
+    /// parse-tree dump AND this crate's own `node-types.json` (`kind`
+    /// field, `required: false`, whose only possible VALUES are
+    /// `abbrev`/`def`/`lemma`/`theorem` -- note `instance` is NOT among
+    /// them: an `instance`-form `definition` genuinely has NO `kind`
+    /// field value at all, confirmed by both sources agreeing, an
+    /// `instance` keyword token appears as a plain unfielded child
+    /// instead). `structure`/`inductive`, in CONTRAST, are each their OWN
+    /// separate, real top-level node kind (NOT `[kind]`-field values on
+    /// `definition` -- an assumption this row's own first draft got wrong
+    /// from a too-quick dump read and corrected against
+    /// `node-types.json`'s own top-level `_declaration` supertype list,
+    /// which enumerates `definition`/`inductive`/`opaque`/`structure` as
+    /// FOUR SIBLING kinds), each with its own real, direct `name` field
+    /// (`identifier`) -- baseline's own `resolve_lean_func_name`
+    /// (`declId`-field-based, `extract_defs.c:341-357`) is ALSO stale
+    /// against this grammar version: none of `definition`/`structure`/
+    /// `inductive` has any `declId` wrapper at all, each carries its own
+    /// real, direct `name` field instead, confirmed via `node-types.json`.
+    /// `structure`/`inductive` both resolve correctly through this file's
+    /// ordinary generic class-branch path with no quirk needed (real
+    /// `name` field, no ambiguity, and neither has an executable body of
+    /// its own -- a field list / constructor list respectively, never
+    /// call-shaped). `definition` is DIFFERENT despite its own name field
+    /// working identically: this row's own first draft assumed
+    /// `definition` also needed no quirk, but the generic engine's own
+    /// SHARED func/method branch recurses into a resolved body via
+    /// `walk_children(body, ..)` -- which visits `body`'s own CHILDREN,
+    /// never `body` itself. For every OTHER language in this crate,
+    /// `body_field` always resolves to a `{ }`-style block wrapper never
+    /// itself call-shaped, so that distinction is invisible; Lean's own
+    /// `[body]` field is frequently the bare CALL EXPRESSION directly
+    /// (`def area (...) := helper shape`, `[body]` resolving straight to
+    /// the `application`-kind node this row's own `call_types` needs to
+    /// VISIT, not skip past to its children) -- a real, test-caught bug
+    /// (`application_call_uses_the_real_name_arguments_fields` failing
+    /// during this wave's own verification, not by inspection) fixed by
+    /// giving [`generic::lean_quirk`] a FULL claim of `definition`
+    /// instead, recursing via `walk` (not `walk_children`) on the
+    /// resolved body -- scoped entirely to this one language's own quirk
+    /// rather than changing the shared engine's own convention every
+    /// other onboarded language still depends on unchanged.
+    ///
+    /// `lean_call_types = ["apply", "command"]` is ALSO wrong: neither
+    /// `apply` nor `command` exists anywhere in this grammar's
+    /// `node-types.json` at all -- the real (and only) function-
+    /// application node kind is `application`, with real `[name]`/
+    /// `[arguments]` fields (`helper shape` -> `application [name]
+    /// identifier "helper" [arguments] identifier "shape"`), confirmed via
+    /// a real parse-tree dump AND `node-types.json`. No quirk/override
+    /// needed for calls at all: `application`'s own fields already match
+    /// this file's generic single-field reconstruction
+    /// (`call_function_field: "name"`), though its argument shape
+    /// (`arguments` field holding a single bare expression, not a
+    /// parenthesized list) means [`Self::call_arguments_field`]'s generic
+    /// `(`/`)`/`,`-child-skipping reconstruction only ever finds that one
+    /// argument -- acceptable at this Tier-2 depth (no dedicated richer
+    /// edge for this wave's languages).
+    ///
+    /// `lean_module_types = ["module"]` also needed correction: this
+    /// grammar's real ROOT node kind is `module` (confirmed the top-level
+    /// wrapper every fixture parses into), but `import Mathlib.Data...`
+    /// itself parses as a plain `import` node (not nested `module`
+    /// content needing a MODULE symbol of its own) -- `module_types` is
+    /// left EMPTY here rather than porting baseline's array verbatim,
+    /// since this file's own `module_types` handling would otherwise emit
+    /// a spurious top-level MODULE symbol for every Lean file's own root
+    /// wrapper node, which has no name field and is not a real
+    /// user-facing module declaration the way Rust's `mod_item` or Go's
+    /// `package_clause` are. IMPORTS are handled by
+    /// [`generic::lean_quirk`] instead, reading `import`'s dotted-path
+    /// children directly.
+    ///
+    /// `structure`'s own real `extends` field (confirmed via
+    /// `node-types.json`, a genuine Lean structure-extension/composition
+    /// idiom) is deliberately left unwired -- Tier-2 scope, no dedicated
+    /// richer edge for this wave's languages (same restraint
+    /// [`Self::systemverilog`]'s own `extends` finding notes).
+    pub const fn lean() -> Self {
+        Self {
+            name: "lean",
+            // See this const's own doc comment: baseline's four-entry
+            // array does not exist in this grammar at all -- the one real
+            // wrapper kind covering def/theorem/instance/abbrev is
+            // `definition`. Deliberately EMPTY here (NOT `&["definition"]`,
+            // this row's own first draft's real mistake): `definition`'s
+            // own direct `name` field DOES work via this file's ordinary
+            // `child_text` lookup, but `walk`'s own func/method branch
+            // checks (and, on success, `return`s from) THAT branch BEFORE
+            // ever consulting the bottom `on_unmatched_node` catch-all --
+            // so listing `"definition"` here would let the ordinary path
+            // claim it first, silently preventing `generic::lean_quirk`'s
+            // own FULL claim (needed for the body-recursion fix, see that
+            // quirk's own `"definition"` arm) from ever running at all.
+            // `definition` is instead left OFF every flat array entirely
+            // and claimed purely through the universal bottom catch-all,
+            // the same "not listed in any array, fully quirk-claimed"
+            // posture [`Self::c`]/[`Self::cpp`]/[`Self::squirrel`] already
+            // use for their own full-claim node kinds.
+            func_types: &[],
+            method_types: &[],
+            // `structure`/`inductive` are each their OWN real, separate
+            // top-level node kind (NOT `definition` variants -- see this
+            // const's own doc comment for the correction against a
+            // too-quick first read), each with a real, direct `name`
+            // field this file's ordinary generic class-branch path
+            // already resolves correctly.
+            class_types: &["structure", "inductive"],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            // See this const's own doc comment: intentionally empty, NOT
+            // baseline's `["module"]` -- this grammar's real `module` kind
+            // is the unnamed root wrapper, not a user-facing declaration.
+            module_types: &[],
+            // See this const's own doc comment: baseline's `"apply"`/
+            // `"command"` do not exist in this grammar -- the real (and
+            // only) call-shaped kind is `application`, with genuine
+            // `name`/`arguments` fields needing no override at all.
+            call_types: &["application"],
+            call_function_field: "name",
+            call_arguments_field: "arguments",
+            // See this const's own doc comment: IMPORTS claimed by
+            // `generic::lean_quirk` instead of this flat array (a bare
+            // `import` node's dotted-path children need dedicated
+            // reconstruction, not a single field lookup).
+            import_types: &["import"],
+            // Confirmed real via a real parse-tree dump: Lean's
+            // `if`/`match`/`do` all parse as named nodes matching
+            // baseline's own array exactly (no corrections needed here,
+            // unlike func/call/module above).
+            branch_types: &["if", "match", "do"],
+            decorator_types: &[],
+            // `definition`/`structure`/`inductive` all carry a real,
+            // direct `name` field (an `identifier`) -- NOT baseline's
+            // `declId`-wrapper assumption, confirmed via both a real
+            // parse-tree dump and this grammar's own `node-types.json`.
+            // Live for the ordinary generic func/class path; no quirk
+            // intervenes for name resolution at all for this language.
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    // =====================================================================
+    // TLA+ (language-parity wave G2.3b)
+    // =====================================================================
+
+    /// TLA+: grammar is `tree-sitter-tlaplus` (crates.io, `LANGUAGE` const
+    /// via `tree-sitter-language`, verified end-to-end with a real
+    /// parse-tree dump before being added).
+    ///
+    /// Baseline's `tlaplus_func_types = ["operator_definition",
+    /// "function_definition"]` confirmed CORRECT via real parse-tree
+    /// dumps of both forms: `Helper(x) == x + 1` is `operator_definition`
+    /// (real `[name]`/`[definition]` fields), and the array-valued form
+    /// `f[x \in Nat] == x + 1` is a genuinely distinct node kind,
+    /// `function_definition` (real `[name]` field too, but its own body
+    /// -- a `quantifier_bound` parameter list plus a `[definition]`
+    /// field -- has a different shape than `operator_definition`'s plain
+    /// paren-parameter list; both share the SAME `name`/`definition`
+    /// field names though, so no per-kind quirk branching is needed for
+    /// WHICH field to read). BOTH kinds, however, DO need a full
+    /// [`generic::tlaplus_quirk`] claim for a different reason this row's
+    /// own first draft missed: the generic engine's own SHARED func/
+    /// method branch recurses into a resolved body via
+    /// `walk_children(body, ..)`, which visits `body`'s own children,
+    /// never `body` itself -- invisible for every other language (whose
+    /// `body_field` always resolves to a block wrapper never itself
+    /// call-shaped), but real here: `Area(shape) == Helper(shape)`'s own
+    /// `[definition]` field resolves straight to the call-shaped
+    /// `bound_op` node itself, which this row's own `call_types` needs to
+    /// VISIT, not skip past to its children -- see
+    /// [`generic::tlaplus_quirk`]'s own `"operator_definition" |
+    /// "function_definition"` arm for the full, test-caught finding (the
+    /// SAME bug class, and the SAME scoped-to-this-language fix, as
+    /// [`Self::lean`]'s own `definition` finding).
+    ///
+    /// `tlaplus_call_types = ["function_evaluation", "call", "bound_op"]`
+    /// needed one correction, NOT the two this row's own first draft
+    /// wrongly concluded from a too-quick dump read (corrected against
+    /// `node-types.json` directly, the same discipline
+    /// [`Self::lean`]'s own doc comment's correction used): `bound_op`
+    /// (`Helper(shape)`, a paren-argument operator reference -- real
+    /// `[name]`/`[parameter]` fields, `name` resolving to `identifier_ref`)
+    /// AND `function_evaluation` (`f[shape]`, TLA+'s array-application
+    /// syntax -- real, `"fields": {}`, but genuinely field-less: its own
+    /// children are simply the callee `identifier_ref` followed by each
+    /// bracketed argument expression, confirmed via `node-types.json`
+    /// AND a real parse-tree dump) are BOTH real, confirmed-reachable
+    /// node kinds. Only baseline's bare `"call"` is genuinely unusable
+    /// -- it DOES exist in `node-types.json`, but as an ANONYMOUS
+    /// (`"named": false`) token, an unrelated keyword/punctuation literal
+    /// this grammar happens to also spell `call`, not a named
+    /// call-expression node the way baseline's own array intended --
+    /// confirmed by the same direct `node-types.json` cross-check.
+    /// Neither `bound_op` nor `function_evaluation` fits this file's
+    /// generic single-field `call_function_field`/`call_arguments_field`
+    /// mechanism (`bound_op`'s own `[parameter]` field is repeated, not
+    /// one list-node; `function_evaluation` has no field at all), so
+    /// [`generic::tlaplus_call_override`] reconstructs both directly --
+    /// left as a placeholder, matching this file's established
+    /// "UNUSED_SEE_..." convention for a fully quirk-claimed call shape
+    /// (e.g. [`Self::erlang`]/[`Self::clojure`]).
+    ///
+    /// `tlaplus_import_types = ["extends", "instance"]` confirmed correct:
+    /// both are real node kinds with an unfielded `identifier_ref` list of
+    /// extended/instantiated module names (`EXTENDS Naturals, Sequences`
+    /// -> `extends > identifier_ref "Naturals", identifier_ref
+    /// "Sequences"`), needing [`generic::tlaplus_quirk`] to walk the
+    /// repeated unfielded children (this file's flat-array dispatch alone
+    /// cannot; same rationale as every other language here needing an
+    /// `on_unmatched_node` hook for its own IMPORTS).
+    ///
+    /// `tlaplus_branch_types = ["if_then_else", "case"]` confirmed
+    /// correct via a real parse-tree dump (`IF shape > 0 THEN ... ELSE
+    /// ...` -> `if_then_else`, real `[if]`/`[then]`/`[else]` fields).
+    pub const fn tlaplus() -> Self {
+        Self {
+            name: "tlaplus",
+            // Deliberately EMPTY (NOT `&["operator_definition",
+            // "function_definition"]`, this row's own first draft's real
+            // mistake -- the exact same bug class
+            // [`Self::lean`]'s own `func_types` doc comment documents):
+            // both kinds' own `[name]` field DOES work via this file's
+            // ordinary `child_text` lookup, but `walk`'s own func/method
+            // branch would claim (and `return` from) them BEFORE the
+            // bottom `on_unmatched_node` catch-all ever runs, silently
+            // preventing `generic::tlaplus_quirk`'s own FULL claim (needed
+            // for the body-recursion fix) from ever firing. Both kinds are
+            // instead claimed purely through the universal bottom
+            // catch-all.
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source_file"],
+            // See this const's own doc comment: baseline's bare `"call"`
+            // is an anonymous token, not a real named node -- dropped.
+            // `bound_op`/`function_evaluation` both confirmed real and
+            // reachable, fully claimed by
+            // `generic::tlaplus_call_override` (neither fits the generic
+            // single-field mechanism: `bound_op`'s own `parameter` field
+            // is repeated, and `function_evaluation` has no field at
+            // all).
+            call_types: &["bound_op", "function_evaluation"],
+            call_function_field: "name",
+            call_arguments_field: "UNUSED_SEE_TLAPLUS_CALL_OVERRIDE",
+            // Confirmed correct via a real parse-tree dump -- both are
+            // real node kinds; claimed by `generic::tlaplus_quirk` since
+            // each holds a REPEATED unfielded `identifier_ref` list (not
+            // a single field this file's flat mechanism could read).
+            import_types: &["extends", "instance"],
+            branch_types: &["if_then_else", "case"],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "definition",
+        }
+    }
+
+    // =====================================================================
+    // VERILOG (language-parity wave G2.3b)
+    // =====================================================================
+
+    /// Verilog: grammar is `tree-sitter-verilog` (crates.io, `LANGUAGE`
+    /// const via `tree-sitter-language`, verified end-to-end with real
+    /// parse-tree dumps -- including several deliberately-varied call/
+    /// statement forms, since this grammar's expression-position-call
+    /// support turned out genuinely incomplete, see below -- before being
+    /// added).
+    ///
+    /// Baseline's `verilog_func_types = ["function_declaration",
+    /// "task_declaration", "function_body_declaration",
+    /// "function_statement"]` needed correction: `"function_statement"`
+    /// does not exist in this grammar's `node-types.json` at all (real
+    /// dump confirms no such kind anywhere); the real wrapper wiring is
+    /// `function_declaration`/`task_declaration` each containing exactly
+    /// one `function_body_declaration`/`task_body_declaration` child
+    /// (`task_body_declaration` -- ALSO absent from baseline's own
+    /// array -- confirmed as the real task-body wrapper kind via a
+    /// dedicated fixture). This file's `func_types` lists BOTH wrapper
+    /// AND inner-body kinds (baseline conflated the two into one flat
+    /// list already, so this is a data fix, not an architecture change);
+    /// [`generic::verilog_quirk`] resolves each kind's real, differently-
+    /// shaped name field (`function_body_declaration`'s own
+    /// `function_identifier` child wraps ANOTHER `function_identifier`
+    /// wrapping the real `simple_identifier` leaf -- a doubly-nested
+    /// wrapper, confirmed via a real dump, not baseline's assumed
+    /// `find_first_descendant_by_kind` shallow scan; `task_body_declaration`
+    /// analogous via `task_identifier`).
+    ///
+    /// `verilog_class_types = ["module_declaration", "class_declaration",
+    /// "interface_declaration", "package_declaration",
+    /// "type_declaration"]` confirmed correct as real node kinds, but
+    /// `module_declaration`'s own name is buried inside an UNFIELDED
+    /// `module_header` child's `simple_identifier` (no field on either
+    /// level) -- matches baseline's own `find_first_descendant_by_kind`
+    /// approach exactly for this specific kind (unlike func_types above),
+    /// confirmed via a real dump.
+    ///
+    /// `verilog_call_types = ["system_tf_call", "subroutine_call",
+    /// "function_subroutine_call", "method_call"]` -- all four confirmed
+    /// real `node-types.json` entries, BUT porting all four verbatim
+    /// would be a genuine correctness bug this row's own first draft
+    /// almost shipped: `function_subroutine_call` (`"fields": {}`) wraps
+    /// EXACTLY one `subroutine_call` child, which itself (`"fields": {}`)
+    /// wraps EXACTLY one `method_call`/`randomize_call`/`system_tf_call`/
+    /// `tf_call` child -- a THREE-DEEP wrapper chain for one real call
+    /// (confirmed via `node-types.json`, not merely a dump spot-check).
+    /// Since this file's own `walk` recurses into a claimed call node's
+    /// children regardless of whether `Quirks::call_override` claims it
+    /// (see `generic::walk`'s own `call_types` branch: `overridden ->
+    /// walk_children(...)` unconditionally), listing ALL FOUR in
+    /// `call_types` would record the SAME call up to three times (once
+    /// per nesting level) rather than once. `call_types` below lists ONLY
+    /// the genuinely LEAF/content-bearing kinds (`system_tf_call`,
+    /// `method_call`) plus `tf_call` (confirmed via `node-types.json`,
+    /// see [`Self::systemverilog`]'s own doc comment for its full field
+    /// shape) -- `subroutine_call`/`function_subroutine_call` are pure
+    /// wrappers with no content of their own to record and are
+    /// deliberately DROPPED from this array; generic recursion still
+    /// reaches the real inner call node regardless (an unlisted kind
+    /// simply falls through `walk`'s own dispatch to its final
+    /// `walk_children` call, unchanged).
+    ///
+    /// `system_tf_call` reachable directly as a full statement
+    /// (`$display(...)`); `tf_call` reachable as a full statement too
+    /// (`helper;`, the argument-less task-enable form) but NOT with
+    /// parenthesized arguments as a bare statement -- CRITICAL,
+    /// non-obvious finding from real fixtures, not baseline: a
+    /// user-defined function/task call used as a bare top-level STATEMENT
+    /// with parenthesized arguments (`helper(1);`) is a GENUINE PARSE
+    /// ERROR in this grammar version (`has_error: true`, produces an
+    /// `ERROR` node) -- only the expression/condition position (inside
+    /// `if(...)`, confirmed reachable via `tf_call` nested three levels
+    /// under `function_subroutine_call`/`subroutine_call`) actually
+    /// produces a recognizable call node for that form; a plain-
+    /// assignment RHS call expression (`y = helper(2);`) stays an opaque,
+    /// unexpanded `expression` leaf with no visible call node at all in
+    /// this grammar's incremental-parse recovery. This is a real,
+    /// plain-Verilog-only grammar gap (confirmed absent by direct A/B
+    /// testing against `tree-sitter-systemverilog`, which parses the
+    /// identical bare-statement call form cleanly via
+    /// `subroutine_call_statement` -- see [`Self::systemverilog`]'s own
+    /// doc comment) -- accepted as this wave's real, documented depth
+    /// rather than silently claimed as full parity with the baseline's
+    /// own (C-grammar-backed, presumably more complete) Verilog call
+    /// coverage.
+    ///
+    /// `verilog_import_types = ["extends", "import",
+    /// "package_import_declaration"]` confirmed correct (all three real
+    /// node kinds); `"extends"` specifically is Verilog's OOP-style class
+    /// inheritance keyword parsing as a bare token inside `class_item`'s
+    /// own `class_property`/`data_declaration` shape (not a dedicated
+    /// heritage-clause node the way SystemVerilog's `class_type` sibling
+    /// field is) -- left unclaimed at this Tier-2 depth (no INHERITS
+    /// wiring for this wave's languages, matching the task's own scope).
+    pub const fn verilog() -> Self {
+        Self {
+            name: "verilog",
+            // See this const's own doc comment: baseline's
+            // `"function_statement"` does not exist; the real inner-body
+            // wrapper kinds are `function_body_declaration`/
+            // `task_body_declaration` (neither in baseline's own array),
+            // added alongside the two real top-level wrapper kinds.
+            func_types: &[
+                "function_declaration",
+                "task_declaration",
+                "function_body_declaration",
+                "task_body_declaration",
+            ],
+            method_types: &[],
+            class_types: &[
+                "module_declaration",
+                "class_declaration",
+                "interface_declaration",
+                "package_declaration",
+                "type_declaration",
+            ],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source_file"],
+            // See this const's own doc comment: baseline's own
+            // `"subroutine_call"`/`"function_subroutine_call"` are pure,
+            // content-less WRAPPERS around one of these three real leaf
+            // kinds -- listing them too would triple-record the same
+            // call (this file's own `walk` still recurses into a claimed
+            // call node's children). Every one of these three is
+            // field-less, fully claimed by `generic::hdl_call_override`'s
+            // leaf-identifier scan (mirrors baseline's own
+            // `extract_hdl_callee`/`first_leaf_identifier` approach
+            // exactly).
+            call_types: &["system_tf_call", "tf_call", "method_call"],
+            call_function_field: "UNUSED_SEE_VERILOG_CALL_OVERRIDE",
+            call_arguments_field: "UNUSED_SEE_VERILOG_CALL_OVERRIDE",
+            import_types: &["extends", "import", "package_import_declaration"],
+            branch_types: &["conditional_statement", "case_statement", "loop_statement"],
+            decorator_types: &[],
+            // Never actually consulted for `func_types`/`class_types` --
+            // see this const's own doc comment: every real name shape
+            // (doubly-nested function-identifier wrapper, unfielded
+            // module_header descendant, ...) is fully claimed by
+            // `generic::verilog_quirk` before this file's own
+            // `name_field`-keyed fallback would ever run.
+            name_field: "UNUSED_SEE_VERILOG_QUIRK",
+            body_field: "UNUSED_SEE_VERILOG_QUIRK",
+        }
+    }
+
+    // =====================================================================
+    // VHDL (language-parity wave G2.3b)
+    // =====================================================================
+
+    /// VHDL: grammar is `tree-sitter-vhdl` (crates.io, `LANGUAGE` const
+    /// via `tree-sitter-language`, verified end-to-end with real
+    /// parse-tree dumps before being added).
+    ///
+    /// Baseline's own VHDL arrays confirmed the MOST accurate of this
+    /// wave's HDL cluster -- every field-name mapping baseline's own
+    /// `extract_defs.c:3622-3636` hand-codes (`entity_declaration`'s
+    /// `entity` field, `architecture_definition`'s `architecture` field,
+    /// `subprogram_declaration`/`_definition`'s nested
+    /// `function_specification`/`procedure_specification` child's own
+    /// `function`/`procedure` field) verified byte-for-byte correct
+    /// against this grammar version via real parse-tree dumps of an
+    /// entity+architecture+function+component-instantiation fixture, AND
+    /// cross-checked directly against `node-types.json`.
+    ///
+    /// `vhdl_call_types = ["function_call", "procedure_call_statement",
+    /// "component_instantiation_statement", "parenthesis_group"]` -- ALL
+    /// FOUR confirmed real via `node-types.json`, but a direct field-by-
+    /// field cross-check (not merely a real-dump spot-check, which this
+    /// row's own first draft relied on and wrongly concluded only
+    /// `parenthesis_group` needed a quirk) found `function_call`/
+    /// `procedure_call_statement` are BOTH ALSO entirely field-less
+    /// (`"fields": {}` -- `function_call`'s own children are just
+    /// `generic_map_aspect`/`parenthesis_group`, i.e. it merely WRAPS a
+    /// `parenthesis_group` rather than carrying a callee of its own at
+    /// all; `procedure_call_statement`'s are `label_declaration`/`name`,
+    /// no field distinguishing which is the callee). Only
+    /// `component_instantiation_statement` has a real, usable field of
+    /// its own (`[component]`, confirmed via `node-types.json`). Since
+    /// THREE of these four `call_types` entries cannot use this file's
+    /// generic single-field `call_function_field` mechanism at all (not
+    /// merely one, as this row's own first draft assumed), ALL FOUR are
+    /// instead claimed in full by [`generic::vhdl_quirk`] rather than
+    /// leaving three of them to silently fail a placeholder field lookup
+    /// -- `call_function_field`/`call_arguments_field` below are both
+    /// placeholders, matching this file's own "UNUSED_SEE_..."
+    /// convention for a fully quirk-claimed call shape (same posture as
+    /// [`Self::c`]/[`Self::cpp`]/[`Self::php`]'s own full-claim rows this
+    /// file's module doc already calls out). [`generic::vhdl_quirk`]
+    /// mirrors baseline's own dedicated `extract_vhdl_callee`
+    /// (`extract_calls.c`:842-857, the preceding-named-sibling lookup)
+    /// for `parenthesis_group` specifically, and reads
+    /// `component_instantiation_statement`'s own `[component]` field
+    /// directly; `function_call`/`procedure_call_statement` are left
+    /// UNCLAIMED (this row's `call_types` no longer lists either) since
+    /// neither ever carries a callee of its own to record -- recording a
+    /// callee-less `function_call`/`procedure_call_statement` symbol
+    /// would only ever produce an empty/wrong callee string, worse than
+    /// omitting the edge entirely; the REAL callee-bearing node in every
+    /// case is its own nested `parenthesis_group`, which this row's
+    /// `call_types` already lists and generic recursion still reaches
+    /// (neither wrapper is claimed as fully-handled, so recursion
+    /// continues into it regardless).
+    ///
+    /// `vhdl_import_types = ["library_clause", "use_clause"]` confirmed
+    /// correct as real node kinds via a real dump (`library IEEE;` /
+    /// `use IEEE.STD_LOGIC_1164.ALL;`), but NEITHER has a usable field of
+    /// its own for the imported path (`library_clause`'s
+    /// `logical_name_list` and `use_clause`'s `selected_name_list` are
+    /// both field-less children, confirmed via `node-types.json`) --
+    /// [`generic::vhdl_quirk`] reconstructs the dotted path from each
+    /// clause's own text directly rather than a field lookup.
+    pub const fn vhdl() -> Self {
+        Self {
+            name: "vhdl",
+            func_types: &["subprogram_declaration", "subprogram_definition"],
+            method_types: &[],
+            class_types: &[
+                "entity_declaration",
+                "architecture_definition",
+                "component_declaration",
+                "interface_declaration",
+                "package_declaration",
+                "protected_type_declaration",
+                "record_type_definition",
+                "type_declaration",
+            ],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["design_file"],
+            // See this const's own doc comment: baseline's own
+            // `"function_call"`/`"procedure_call_statement"` entries are
+            // BOTH entirely field-less wrappers with no callee of their
+            // own to record at all (confirmed via `node-types.json`) --
+            // dropped in favor of the two real, callee-bearing kinds:
+            // `component_instantiation_statement`'s own `[component]`
+            // field, and `parenthesis_group`'s own preceding-sibling
+            // callee (mirrors baseline's own `extract_vhdl_callee`
+            // exactly).
+            call_types: &["component_instantiation_statement", "parenthesis_group"],
+            call_function_field: "UNUSED_SEE_VHDL_CALL_OVERRIDE",
+            call_arguments_field: "UNUSED_SEE_VHDL_CALL_OVERRIDE",
+            // See this const's own doc comment: both real node kinds, but
+            // field-less for the imported path -- claimed by
+            // `generic::vhdl_quirk`, not this file's flat array
+            // mechanism.
+            import_types: &["library_clause", "use_clause"],
+            branch_types: &["if_statement", "case_statement", "loop_statement"],
+            decorator_types: &[],
+            // Never actually consulted for `class_types` (every one
+            // fully claimed by `generic::vhdl_quirk`'s declaration-
+            // keyword-to-field-name map, mirroring baseline's own
+            // `extract_defs.c:3622-3636` exactly); `func_types` uses the
+            // SAME quirk for its own nested-specification-child lookup.
+            name_field: "UNUSED_SEE_VHDL_QUIRK",
+            body_field: "UNUSED_SEE_VHDL_QUIRK",
+        }
+    }
+
+    // =====================================================================
+    // SYSTEMVERILOG (language-parity wave G2.3b)
+    // =====================================================================
+
+    /// SystemVerilog: grammar is `tree-sitter-systemverilog` (crates.io,
+    /// `LANGUAGE` const via `tree-sitter-language`, verified end-to-end
+    /// with real parse-tree dumps before being added) -- a GENUINELY
+    /// DIFFERENT, more modern grammar than plain `tree-sitter-verilog`
+    /// (not a superset/reuse relationship the way CUDA/GLSL are of C++/C
+    /// in this crate -- confirmed by real parse-tree differences below,
+    /// not assumed from the language relationship alone).
+    ///
+    /// Baseline's `systemverilog_func_types = ["function_declaration",
+    /// "task_declaration", "function_body_declaration",
+    /// "function_statement"]` needed the SAME `"function_statement"`
+    /// correction as plain Verilog (does not exist in this grammar
+    /// either), but this grammar's own `function_body_declaration`/
+    /// `class_method`-wrapped variant carries a REAL, DIRECT `[name]`
+    /// field (`simple_identifier`) -- a real, confirmed IMPROVEMENT over
+    /// plain Verilog's doubly-nested unfielded wrapper (see
+    /// [`Self::verilog`]'s own doc comment), needing NO quirk for name
+    /// resolution at all, just this file's ordinary generic `name_field`
+    /// path. `task_declaration`/`task_body_declaration` were NOT
+    /// independently re-verified for this specific grammar (no dedicated
+    /// SystemVerilog task fixture run) -- kept per baseline for
+    /// completeness, consistent with this row's own function-focused
+    /// verification depth.
+    ///
+    /// `systemverilog_class_types = ["class_declaration",
+    /// "module_declaration", "interface_declaration",
+    /// "library_declaration", "package_declaration", "type_declaration"]`
+    /// -- `class_declaration`/`function_body_declaration` (also in
+    /// `func_types`) both confirmed to carry a real, direct, POPULATED
+    /// `[name]` field via BOTH `node-types.json` AND a real parse-tree
+    /// dump, needing no quirk at all. TWO of the remaining members need a
+    /// dedicated [`generic::systemverilog_quirk`] this row's own first
+    /// draft initially missed for one and misdiagnosed for the other
+    /// (both caught only once this wave's own test suite ran the real
+    /// grammar, not by `node-types.json` inspection alone -- see that
+    /// quirk's own doc comment for the full finding):
+    /// - `type_declaration` names its own field `[type_name]`, NOT
+    ///   `[name]` at all.
+    /// - `module_declaration` DOES have its own real `[name]` field
+    ///   declared in `node-types.json`'s schema (this row's own first
+    ///   draft wrongly treated that schema-level declaration as proof the
+    ///   field is actually POPULATED), but a real parse-tree dump shows
+    ///   that field is NEVER populated for the ANSI-header module form
+    ///   (`module widget; ... endmodule`, the only form real source uses
+    ///   in practice) -- the name instead lives on a NESTED
+    ///   `module_ansi_header` child's OWN separate, real, `required: true`
+    ///   `[name]` field, a genuine grammar-generation improvement over
+    ///   plain Verilog's own unfielded `module_header` descendant scan,
+    ///   but one level deeper than this row's own first draft assumed.
+    ///
+    /// `interface_declaration`/`library_declaration`/`package_declaration`
+    /// remain on the unmodified generic `[name]`-field path (NOT
+    /// independently re-verified this wave against a real parse-tree dump
+    /// the way `class_declaration`/`module_declaration`/`type_declaration`
+    /// were -- kept per baseline for completeness, consistent with this
+    /// row's own function/module-focused verification depth). Also
+    /// confirmed: `class_declaration extends Base` parses the class-type
+    /// heritage directly as a sibling `class_type` node (NOT wrapped
+    /// inside a field-less `data_declaration` the way plain Verilog's
+    /// weaker `extends`-as-bare-token idiom is) -- a real, INHERITS-ready
+    /// signal this row deliberately does NOT wire (Tier-2 scope, no
+    /// dedicated richer edge for this wave's languages, matching the
+    /// task's own instruction, same restraint [`Self::cobol`]'s own doc
+    /// comment notes for COBOL's total absence of any heritage concept).
+    ///
+    /// `systemverilog_call_types = ["function_subroutine_call",
+    /// "system_tf_call", "method_call"]` -- CONFIRMED, via real dumps AND
+    /// `node-types.json`, this grammar's call coverage is genuinely MORE
+    /// complete than plain Verilog's: a bare top-level call statement
+    /// with arguments (`helper(1);`) parses CLEANLY here
+    /// (`subroutine_call_statement` -> `subroutine_call` -> `tf_call`,
+    /// real `hierarchical_identifier` callee) -- the exact form that is a
+    /// parse ERROR in plain Verilog (see [`Self::verilog`]'s own doc
+    /// comment for the direct A/B finding). BUT baseline's own
+    /// `"function_subroutine_call"` entry has the EXACT SAME
+    /// wrapper-nesting hazard [`Self::verilog`]'s own doc comment already
+    /// found and fixed there: a direct `node-types.json` cross-check
+    /// (this row's own first draft skipped, wrongly assuming the "closes
+    /// a real gap" framing extended to porting every wrapper kind too)
+    /// confirms `subroutine_call_statement`/`function_subroutine_call`/
+    /// `subroutine_call` are ALL pure, content-less wrappers nesting up
+    /// to FOUR deep around one real leaf call kind
+    /// (`method_call`/`system_tf_call`/`tf_call`/`randomize_call`) --
+    /// listing any wrapper alongside its own leaf descendant in
+    /// `call_types` would multiply-record the same call (this file's own
+    /// `walk` still recurses into a claimed call node's children
+    /// regardless of `Quirks::call_override`). `call_types` below lists
+    /// ONLY the three genuinely leaf/content-bearing kinds
+    /// (`system_tf_call`, `tf_call`, `method_call` -- `tf_call` closes
+    /// the one real gap baseline's own array is missing, matching
+    /// [`Self::verilog`]'s own corrected array exactly since both
+    /// grammars share this same leaf-kind vocabulary) -- every wrapper
+    /// kind is deliberately DROPPED, not merely deduplicated; generic
+    /// recursion still reaches the real inner call node regardless (an
+    /// unlisted kind simply falls through `walk`'s own dispatch to its
+    /// final `walk_children` call, unchanged). Every one of the three
+    /// leaf kinds is field-less, fully claimed by
+    /// [`generic::hdl_call_override`]'s leaf-identifier scan (SHARED with
+    /// plain Verilog, same `first_leaf_identifier` approach baseline's
+    /// own `extract_hdl_callee` already uses -- both grammars produce the
+    /// identical field-less leaf shape for these three kinds).
+    ///
+    /// `systemverilog_import_types` confirmed correct as real node kinds
+    /// (`package_import_declaration` reachable and real, real
+    /// `[name]`-less `package_import_item`); `systemverilog_var_types =
+    /// ["parameter", "localparam"]` NOT independently verified this wave
+    /// (complexity/var extraction deferred per the task's own
+    /// instruction) -- kept per baseline, unused by this file's own
+    /// extraction (this file has no `var_types` field at all; baseline's
+    /// concept there maps to nothing this crate's generic engine reads).
+    pub const fn systemverilog() -> Self {
+        Self {
+            name: "systemverilog",
+            func_types: &[
+                "function_declaration",
+                "task_declaration",
+                "function_body_declaration",
+                "task_body_declaration",
+            ],
+            method_types: &[],
+            class_types: &[
+                "class_declaration",
+                "module_declaration",
+                "interface_declaration",
+                "library_declaration",
+                "package_declaration",
+                "type_declaration",
+            ],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source_file"],
+            // See this const's own doc comment: baseline's own
+            // `"function_subroutine_call"` is a pure, content-less
+            // WRAPPER (confirmed via `node-types.json`) around one of
+            // these three real leaf kinds, nested up to four deep via
+            // `subroutine_call_statement`/`subroutine_call` too -- listing
+            // any wrapper here would multiply-record the same call. Only
+            // the three genuinely leaf/content-bearing kinds are listed
+            // (`tf_call` closes a real gap missing from baseline's own
+            // array); every one is field-less, claimed by
+            // `generic::hdl_call_override` (shared with plain Verilog).
+            call_types: &["system_tf_call", "tf_call", "method_call"],
+            call_function_field: "UNUSED_SEE_SYSTEMVERILOG_CALL_OVERRIDE",
+            call_arguments_field: "UNUSED_SEE_SYSTEMVERILOG_CALL_OVERRIDE",
+            import_types: &[
+                "package_import_declaration",
+                "extends",
+                "import",
+                "include",
+                "include_statement",
+                "instance",
+                "use_clause",
+            ],
+            branch_types: &["case_statement", "if"],
+            decorator_types: &[],
+            // Live for `func_types`/`class_types` (this grammar's real,
+            // direct `[name]` field, unlike plain Verilog) -- see this
+            // const's own doc comment.
+            name_field: "name",
+            body_field: "UNUSED_SEE_SYSTEMVERILOG_NO_BODY_FIELD",
+        }
+    }
+
+    // =====================================================================
+    // COBOL (language-parity wave G2.3b)
+    // =====================================================================
+
+    /// COBOL: grammar VENDORED, not a crates.io dependency -- see
+    /// `crates/enforcer-memory/vendor/tree-sitter-cobol-local/` (a local
+    /// path-dependency, added below in `Cargo.toml`'s own
+    /// `[dependencies]` table). The crate literally named
+    /// `tree-sitter-cobol` (0.1.0) ships NO usable Rust API at all (a
+    /// `[[bin]]`-only placeholder publish, confirmed by downloading and
+    /// inspecting its own `Cargo.toml`/source directly -- no `[lib]`
+    /// section, zero dependencies); the real grammar
+    /// (`github.com/yutaro-sakamoto/tree-sitter-cobol`, unpublished,
+    /// MIT-licensed, EXACT `tree_sitter_COBOL` symbol match against the C
+    /// baseline's own `lang_specs.c` reference) needed one small
+    /// portability fix (a C99 VLA MSVC's `cl.exe` rejects, documented at
+    /// its own edit site in the vendored `scanner.c`) before it would
+    /// compile at all on this workspace's Windows/MSVC toolchain -- see
+    /// `vendor/tree-sitter-cobol-local/src/lib.rs`'s own module doc for
+    /// the full grammar-sourcing rationale. Verified end-to-end (real
+    /// parse, no ABI error, `has_error: false`) with dedicated fixtures
+    /// covering IDENTIFICATION/DATA/PROCEDURE DIVISION, CALL, IF,
+    /// EVALUATE, PERFORM, and COPY before being wired in.
+    ///
+    /// Baseline's `cobol_func_types = ["program_definition"]` and its own
+    /// dedicated `extract_defs.c:882-892` name resolution
+    /// (`program_definition` has no `name` field; the real name is
+    /// `identification_division > program_name`, a field-less leaf) BOTH
+    /// confirmed byte-for-byte correct via a real parse-tree dump --
+    /// COBOL is the one language in this wave whose baseline logic needed
+    /// ZERO correction for its func/name handling specifically (unlike
+    /// every other language in this cluster).
+    ///
+    /// TWO real, confirmed baseline corrections found via dedicated
+    /// EVALUATE/PERFORM/data-description fixtures baseline's own arrays
+    /// do not cover precisely:
+    /// - `cobol_var_types = ["data_description_entry"]`: this exact node
+    ///   kind does not exist in this grammar at all -- the real kind is
+    ///   `data_description` (`01 X PIC 9(4)` -> `data_description
+    ///   [level_number] "01" [entry_name] "X" [picture_clause] ...`).
+    ///   Unused by this file's own extraction regardless (this file has
+    ///   no `var_types` field; kept as a documented finding only, not
+    ///   wired).
+    /// - `cobol_branch_types = ["if_statement", "evaluate_statement",
+    ///   "perform_statement"]`: NONE of the three names match this
+    ///   grammar's real kinds precisely -- `IF ... END-IF` parses as
+    ///   `if_header` (not `if_statement`, confirmed by two independent
+    ///   fixtures), `EVALUATE ... END-EVALUATE` FLATTENS into sibling
+    ///   `evaluate_header`/`when`/`when_other`/`END_EVALUATE` nodes at the
+    ///   SAME nesting level as everything else in `procedure_division`
+    ///   (there is no single `evaluate_statement` wrapper node AT ALL),
+    ///   and `PERFORM SUB-PARA` (the paragraph-call form, this crate's
+    ///   own fixture's only PERFORM variant exercised) is
+    ///   `perform_statement_call_proc` (not bare `perform_statement`,
+    ///   which may still be the real kind for OTHER perform forms --
+    ///   in-line `PERFORM ... END-PERFORM`, `PERFORM ... TIMES`, etc. --
+    ///   not independently verified this wave). `branch_types` below uses
+    ///   the three CONFIRMED-real kinds from this crate's own fixtures
+    ///   rather than porting the unverified baseline names verbatim.
+    ///
+    /// `cobol_import_types = ["open_statement", "use_statement",
+    /// "with_clause"]` -- all three confirmed as REAL node kinds via
+    /// `node-types.json`, but semantically weak: `open_statement` is
+    /// COBOL file-I/O (`OPEN INPUT foo-file`, field-less, only unnamed
+    /// `open_arg` children -- no dependency/module concept at all,
+    /// COBOL genuinely has none), `with_clause` is `DISPLAY ... WITH
+    /// ADVANCING`/`WITH NO` output-formatting syntax (confirmed via
+    /// `node-types.json`'s own child-type list -- `ADVANCING`/`NO`/
+    /// `disp_attr` -- utterly unrelated to any dependency concept, a
+    /// genuinely questionable baseline choice, not merely stale). This
+    /// row instead wires the real COBOL dependency mechanism baseline's
+    /// own array never lists at all: `copy_statement` (`COPY COMMONDEF.`
+    /// -> real, direct `[book]` field, confirmed via a dedicated
+    /// fixture), COBOL's actual "include this other source file" idiom --
+    /// a genuine improvement over baseline's own weaker choice, not a
+    /// baseline-parity regression, following this wave's own "verify,
+    /// don't blindly transcribe" mandate.
+    pub const fn cobol() -> Self {
+        Self {
+            name: "cobol",
+            func_types: &["program_definition"],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["identification_division"],
+            // COBOL's `CALL 'SUBPROG' USING X` names its callee via a
+            // STRING LITERAL (the called program's name), not an
+            // identifier expression -- fully claimed by
+            // `generic::cobol_call_override`, mirroring baseline's own
+            // `extract_cobol_callee` exactly (its `x` field holds the
+            // quoted program name, stripped of quotes).
+            call_types: &["call_statement"],
+            call_function_field: "UNUSED_SEE_COBOL_CALL_OVERRIDE",
+            call_arguments_field: "UNUSED_SEE_COBOL_CALL_OVERRIDE",
+            // See this const's own doc comment: baseline's own three-entry
+            // array replaced with the real COBOL dependency idiom this
+            // grammar exposes with a genuine, direct field
+            // (`copy_statement`'s `book` field) -- claimed by
+            // `generic::cobol_quirk`, not this file's flat single-field
+            // mechanism (the field name itself, `book`, IS usable
+            // directly, but this file's own `import_types` array has no
+            // per-kind field-name slot of its own the way `LangSpec`'s
+            // `call_function_field` does for calls -- the quirk hook
+            // reads it explicitly instead).
+            import_types: &["copy_statement"],
+            // See this const's own doc comment: baseline's own three
+            // names do not match this grammar's real kinds -- corrected
+            // to the confirmed-real `if_header`/`evaluate_header`/
+            // `perform_statement_call_proc` from this crate's own
+            // fixtures.
+            branch_types: &[
+                "if_header",
+                "evaluate_header",
+                "perform_statement_call_proc",
+            ],
+            decorator_types: &[],
+            // Never actually consulted -- `program_definition` is fully
+            // claimed by `generic::cobol_quirk`'s
+            // `identification_division > program_name` walk before this
+            // file's own `name_field`-keyed fallback would ever run.
+            name_field: "UNUSED_SEE_COBOL_QUIRK",
+            body_field: "UNUSED_SEE_COBOL_QUIRK",
+        }
+    }
+}
+
+/// Language-parity wave G2.3d: Just, HLSL, ISPC, PureScript, Magma,
+/// Hare, Pony, NASM -- appended as a separate `impl LangSpec` block
+/// (Rust supports multiple inherent-impl blocks for the same type in one
+/// module) rather than spliced into the primary block above, because
+/// that block's own tail is under heavy concurrent-append contention from
+/// several sibling G2.3 workers editing this same file in parallel this
+/// wave; appending a whole new block here was the only reliably
+/// land-able edit shape once every attempt at a mid-file splice kept
+/// losing the "file changed since read" race against those other
+/// workers' own concurrent tail-appends.
+impl LangSpec {
+    /// Just (`justfile`/`.just`). Language-parity wave G2.3d. Grammar:
+    /// `tree-sitter-just` (crates.io, `casey/tree-sitter-just` -- the
+    /// language's own creator's official grammar). Verified via a real
+    /// parse-tree dump (`cargo run` against a scratch crate depending on
+    /// this grammar directly): every baseline `just_*` array entry
+    /// (`internal/cbm/lang_specs.c`) matched this grammar version's real
+    /// node kinds exactly, with real, working fields throughout -- one of
+    /// the cleanest grammars this whole campaign has onboarded.
+    /// - `func_types` is `["recipe"]`, matching the baseline's
+    ///   `just_func_types` exactly. `recipe` has NO `name`/`body` fields
+    ///   of its own (confirmed: `{"type":"recipe","fields":{}}`) -- its
+    ///   own name lives on a NESTED `recipe_header`'s `"name"` field, and
+    ///   its body is the sibling `recipe_body` child -- handled by
+    ///   [`generic::just_quirk`] rather than this file's generic
+    ///   `name_field`/`body_field` mechanism.
+    /// - `class_types`/`interface_types`/`enum_types`/`alias_types`/
+    ///   `field_types` are all empty: justfiles have no product-type
+    ///   declaration syntax at all (matches the baseline's own
+    ///   `empty_types` for every one of these fields on `CBM_LANG_JUST`).
+    /// - `module_types` is `["source_file"]`, matching the baseline's
+    ///   `just_module_types` exactly and confirmed as this grammar's real
+    ///   root node kind via the parse-tree dump.
+    /// - `call_types` is `["function_call", "dependency"]`, matching the
+    ///   baseline's `just_call_types` exactly. `function_call` has real
+    ///   `"name"`/`"arguments"` fields (confirmed:
+    ///   `{"type":"function_call","fields":{"arguments":{...},"name":{...}}}`)
+    ///   -- NOT this file's usual `call_function_field`/
+    ///   `call_arguments_field` names (`"function"`/`"arguments"`), so
+    ///   `call_function_field` is set to `"name"` here (a real field name,
+    ///   just a different one than most other rows in this file use).
+    ///   `dependency` (a recipe listed as another recipe's prerequisite,
+    ///   `build: setup` -- `setup` is the dependency) has only a `"name"`
+    ///   field and no arguments at all -- handled by
+    ///   [`generic::just_call_override`] rather than the generic
+    ///   single-field reconstruction, since a bare dependency name is not
+    ///   really a "function call" in the ordinary sense but the baseline
+    ///   itself records it as a CALLS edge anyway (matching that choice
+    ///   rather than improving on it).
+    /// - `import_types` is `["import"]`, matching the baseline's
+    ///   `just_import_types` exactly -- confirmed present with no fields
+    ///   of its own (`{"type":"import","fields":{}}`); its own path is a
+    ///   `string` child, read via [`generic::just_quirk`].
+    /// - `branch_types` is `["if_expression"]`, matching the baseline's
+    ///   `just_branch_types` exactly -- confirmed present with real
+    ///   `"alternative"`/`"body"`/`"consequence"` fields.
+    /// - `decorator_types` is empty: justfiles have no decorator/
+    ///   attribute syntax the baseline itself records for this language
+    ///   (`CBM_LANG_JUST`'s own baseline row has no `decorator_node_types`
+    ///   entry either).
+    pub const fn just() -> Self {
+        Self {
+            name: "just",
+            func_types: &["recipe"],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source_file"],
+            call_types: &["function_call", "dependency"],
+            call_function_field: "name",
+            call_arguments_field: "arguments",
+            import_types: &["import"],
+            branch_types: &["if_expression"],
+            decorator_types: &[],
+            // Never actually consulted for a symbol name: `recipe` is
+            // fully claimed by `generic::just_quirk` (see this const's
+            // own doc comment on `func_types`).
+            name_field: "UNUSED_SEE_JUST_QUIRK",
+            body_field: "UNUSED_SEE_JUST_QUIRK",
+        }
+    }
+
+    /// HLSL (High-Level Shading Language, DirectX; `.fx`/`.hlsl`/
+    /// `.hlsli`). Language-parity wave G2.3d. Grammar: `tree-sitter-hlsl`
+    /// (crates.io, `theHamsta/tree-sitter-hlsl` -- the same author-lineage
+    /// vendored at
+    /// `codebase-memory-mcp/internal/cbm/vendored/grammars/hlsl/`, exact
+    /// copyright-line match "Max Brunsfeld"/"Stephan Seitz"). This grammar
+    /// is LITERALLY `tree-sitter-cpp`'s own grammar
+    /// (`const CPP = require("tree-sitter-cpp/grammar")` at this crate's
+    /// own `grammar.js:1`) with HLSL-specific extras layered on top
+    /// (`cbuffer_specifier`, `hlsl_attribute`, shader `semantics`
+    /// clauses, `register(...)`) -- confirmed via both this crate's own
+    /// `node-types.json` (every ordinary C/C++ construct
+    /// [`Self::cpp`]/[`generic::cpp_quirk`] already reads keeps the
+    /// identical node-kind name and field shape) and a real parse-tree
+    /// dump. Reuses [`Self::cpp`]'s own arrays and
+    /// [`generic::cpp_quirks`]'s declarator-unwrapping quirk UNCHANGED
+    /// (mirrors [`Self::cuda`]'s identical "genuinely dedicated grammar
+    /// that happens to be a strict C/C++ superset" reuse posture) --
+    /// `function_definition`'s own name lives on a nested
+    /// `function_declarator`'s `"declarator"` field exactly like C++'s
+    /// does, needing the SAME declarator-unwrap quirk rather than this
+    /// file's `name_field` mechanism.
+    /// - One real, non-obvious grammar-shape finding from the parse-tree
+    ///   dump: a TOP-LEVEL `cbuffer Name : register(b0) { ... }` block (the
+    ///   overwhelmingly common real-world shader-source shape) does NOT
+    ///   parse as the grammar's own dedicated `cbuffer_specifier` node at
+    ///   all -- that node kind is wired into this grammar's
+    ///   `_non_case_statement` extension point only (`grammar.js:49`,
+    ///   `choice($.discard_statement, $.cbuffer_specifier, original)`),
+    ///   which is reachable only from STATEMENT context (inside a
+    ///   function body), never from the file's own top-level item rule
+    ///   (`_top_level_item: (_, original) => original` at `grammar.js:11`
+    ///   leaves that rule fully unmodified from plain C++, which has no
+    ///   `cbuffer` keyword at all). A top-level `cbuffer` block instead
+    ///   parses as an ordinary `declaration` (whose own `type_identifier`
+    ///   happens to read the literal text `"cbuffer"`) immediately
+    ///   followed by a bare `compound_statement` sibling, with tree-sitter
+    ///   inserting a MISSING `;` token in between to recover -- confirmed
+    ///   directly in the dump, not merely inferred from the grammar
+    ///   source. This is a genuine, verified upstream grammar limitation
+    ///   (not a fixable quirk within this file's own scope -- the
+    ///   underlying grammar itself needs a parse fix), accepted as a
+    ///   documented gap: this crate's own function/struct/enum/call/
+    ///   `#include` extraction -- the actual Tier-2 defs+calls+imports
+    ///   promise -- is unaffected (confirmed working correctly around the
+    ///   cbuffer parse hiccup in the same dump), and cbuffer contents
+    ///   contain no function/call/import constructs of their own kind
+    ///   worth extracting regardless.
+    pub const fn hlsl() -> Self {
+        Self::cpp()
+    }
+
+    /// ISPC (Intel Implicit SPMD Program Compiler, `.ispc`). Language-
+    /// parity wave G2.3d. Grammar: `tree-sitter-ispc`
+    /// (`fab4100/tree-sitter-ispc`, formerly published under
+    /// `tree-sitter/tree-sitter-ispc` and now living at
+    /// `tree-sitter-grammars/tree-sitter-ispc` -- exact copyright-line
+    /// match "Fabian Wermelinger" against this crate's own vendored
+    /// `internal/cbm/vendored/grammars/ispc/LICENSE`, confirming the
+    /// identical grammar lineage the baseline itself vendored). VENDORED
+    /// via a `parser.c`-only build (no `scanner.c` for this grammar) --
+    /// not a crates.io dependency: the only crates.io-published version
+    /// (0.1.0, under the stale `tree-sitter/tree-sitter-ispc` repo name)
+    /// pins `tree-sitter = "~0.20.10"` as a genuine RUNTIME (non-dev)
+    /// dependency, and the live upstream repository's own
+    /// `bindings/rust/lib.rs` (confirmed by reading it directly, not
+    /// merely inferred from the crate metadata) STILL uses the old raw
+    /// `extern "C" fn tree_sitter_ispc() -> Language` binding shape too --
+    /// there is no newer, safely-`tree-sitter-language`-shimmed version to
+    /// prefer either as a crates.io upgrade or as a pinned git dependency,
+    /// unlike e.g. [`Self::crystal`]'s git-dependency precedent. This is
+    /// the exact "unavailable/broken ABI" condition the campaign's own
+    /// grammar-sourcing fallback order (crate -> vendor -> defer) exists
+    /// for; vendoring the C source and re-binding through
+    /// `tree-sitter-language` (this wave's own
+    /// `vendor/tree-sitter-ispc-local/`, mirroring
+    /// [`Self::squirrel`]'s identical vendoring precedent) is preferred
+    /// over deferring outright since the grammar itself parses cleanly
+    /// (verified via a real parse-tree dump against the vendored
+    /// `parser.c` directly, zero parse errors). This grammar is
+    /// documented upstream (per its own crate description, "ISPC grammar
+    /// for tree-sitter, based on C grammar") and confirmed via the dump to
+    /// be node-kind-and-field IDENTICAL to plain C for every construct
+    /// this file's [`Self::c`]/[`generic::c_quirk`] already reads
+    /// (`function_definition`'s nested `function_declarator.declarator`
+    /// name, `struct_specifier`'s `name`/`body` fields, `call_expression`'s
+    /// `function`/`arguments` fields, `preproc_include`'s `path` field) --
+    /// this row reuses [`Self::c`]'s own arrays and
+    /// [`generic::c_quirks`]'s declarator-unwrapping quirk UNCHANGED
+    /// (mirrors [`Self::cuda`]/[`Self::hlsl`]'s identical
+    /// "dedicated-grammar-happens-to-be-a-strict-superset" reuse
+    /// posture), with only ISPC's SPMD-specific `foreach`/`uniform`/
+    /// `varying`/`export` keyword extras layered on top -- none of which
+    /// this crate's own extraction scope (defs+calls+imports+branches)
+    /// needs to recognize specially: `foreach (i = 0 ... n) { ... }`
+    /// parses as an ordinary (if unfamiliar-looking) construct whose inner
+    /// `compound_statement` body is still reached by plain recursion, and
+    /// `export`-prefixed functions still parse as ordinary
+    /// `function_definition` nodes (confirmed in the dump: `export void
+    /// updateAll(...)` parses with an extra `storage_class_specifier`
+    /// sibling field the generic walk simply does not need to consult).
+    pub const fn ispc() -> Self {
+        Self::c()
+    }
+
+    /// PureScript (Haskell-like, compiles to JS; `.purs`). Language-parity
+    /// wave G2.3d. Grammar: `tree-sitter-purescript`
+    /// (`postsolar/tree-sitter-purescript`, the actively-maintained fork
+    /// the official tree-sitter wiki itself now lists as PureScript's
+    /// current parser -- exact copyright-line match "Maskhjarna,
+    /// postsolar" against this crate's own vendored
+    /// `internal/cbm/vendored/grammars/purescript/LICENSE`, confirming the
+    /// identical grammar lineage the baseline itself vendored). Not a
+    /// crates.io dependency (crates.io has no `tree-sitter-purescript` at
+    /// all -- confirmed via a direct crates.io API search returning zero
+    /// results) -- bound via a `git` dependency pinned to tag `v0.3.0`
+    /// instead (same "option 1, a maintained crate exists" sourcing this
+    /// wave's own [`Self::magma`] and G2.2a's Crystal precedent both use:
+    /// a real, well-formed `tree-sitter-language`-based crate that simply
+    /// has never been pushed to the registry). Verified via a real
+    /// parse-tree dump against this exact pinned tag (`cargo run` against
+    /// a scratch crate depending on it directly), zero parse errors.
+    /// - `func_types` is `["function"]`, matching the baseline's own
+    ///   `purescript_func_types` exactly. `function` has real `"name"`/
+    ///   `"pattern"`/`"patterns"`/`"rhs"` fields (confirmed:
+    ///   `{"type":"function","fields":{"name":{...},"pattern":{...},"patterns":{...},"rhs":{...}}}`)
+    ///   -- but its OWN "body" is the `"rhs"` field (an expression, not a
+    ///   block), not a field literally named `"body"` this file's generic
+    ///   `body_field` mechanism expects, and its `"name"` field's own
+    ///   `"types"` list additionally includes the UNNAMED `(`/`)` tokens
+    ///   (for an operator-style definition like `(<>) a b = ...`) --
+    ///   [`generic::purescript_quirk`] reads `"name"` filtered to only its
+    ///   NAMED child (a `variable`/`operator` node) and walks `"rhs"`
+    ///   directly as this function's own body, rather than this file's
+    ///   generic mechanism.
+    /// - `class_types` is `["class_declaration", "data", "newtype",
+    ///   "type_alias"]`, matching the baseline's `purescript_class_types`
+    ///   exactly -- EVERY one of these four confirmed present via the
+    ///   parse-tree dump (a prior WebFetch-summarization pass on this
+    ///   same grammar's `node-types.json` had INCORRECTLY reported
+    ///   `type_alias` as absent -- re-verified directly with a raw
+    ///   `node.js` JSON parse of the downloaded file itself, which is the
+    ///   ground truth this doc comment relies on, not that earlier
+    ///   summarization artifact). `data`/`newtype`/`type_alias` each have
+    ///   a real, working `"name"` field; `class_declaration` has NO
+    ///   fields of its own at all (`{"type":"class_declaration","fields":{}}`)
+    ///   -- its own name lives nested two levels down, on a
+    ///   `class_head`'s own `class_name` child's `type` grandchild --
+    ///   handled by [`generic::purescript_quirk`].
+    /// - `interface_types`/`enum_types`/`alias_types`/`field_types` are
+    ///   all empty: `type_alias` (which some languages would model as a
+    ///   dedicated `alias_types` entry) is instead folded into
+    ///   `class_types` here, matching the baseline's own identical choice
+    ///   verbatim (`purescript_class_types` is the ONE array the baseline
+    ///   itself lists `"type_alias"` in; it has no separate alias/
+    ///   interface/enum/field array of its own for this language at all).
+    /// - `module_types` is empty, NOT the baseline's own
+    ///   `purescript_module_types = {"module"}`. This is a real, verified
+    ///   baseline correction: the real grammar's `module` node kind is
+    ///   NOT a whole-file wrapping declaration at all -- it is the ALIASED
+    ///   qualified-module-NAME identifier itself (`_modid: $ => alias($.constructor,
+    ///   $.module)` in this grammar's own `grammar/module.js:8`), appearing
+    ///   over and over as a plain name reference (e.g. once per `import
+    ///   Effect.Console` qualifier segment), never as a container a
+    ///   "Module symbol" declaration could meaningfully be extracted from
+    ///   -- confirmed directly in the parse-tree dump, where `module
+    ///   Main where ...` produces `purescript { module "module"[keyword],
+    ///   field:name -> qualified_module { module "Main" } }`, i.e. the
+    ///   ACTUAL whole-file root node is named `purescript` (an entirely
+    ///   different, un-fielded node this baseline array never names at
+    ///   all either), and the `module` node instance inside it is merely
+    ///   the bare text `"Main"`. Porting the baseline's array verbatim
+    ///   would make this crate mint a spurious Module symbol on every
+    ///   qualified-name reference anywhere in a file (Prelude, Effect,
+    ///   Console, ... one per import line), which is wrong in a way this
+    ///   crate's [`generic::walk`] would actually observe (unlike
+    ///   [`Self::squirrel`]'s "provably inert due to a shallow-scan-depth
+    ///   baseline bug" class of dead array, this one IS reachable by this
+    ///   crate's own depth-first walk) -- left empty rather than ported.
+    /// - `call_types` is `["exp_apply"]`, matching the baseline's
+    ///   `purescript_call_types` exactly -- confirmed present via the
+    ///   dump (`log (show (add 1 2))` nests three `exp_apply` calls). No
+    ///   fields at all (`{"type":"exp_apply","fields":{}}`) -- the callee
+    ///   is always the FIRST named child, the remaining named children
+    ///   are positional arguments -- handled by
+    ///   [`generic::purescript_call_override`].
+    /// - `import_types` is `["import", "import_item", "instance"]`,
+    ///   matching the baseline's `purescript_import_types` exactly --
+    ///   EVERY one of these three confirmed present via the dump (a prior
+    ///   WebFetch-summarization pass had also incorrectly reported
+    ///   `instance` as absent; re-verified via the same raw JSON parse).
+    ///   `import` has real `"module"`/`"imports"`/`"import_rename"`
+    ///   fields; `import_item`/`instance` are not separately walked by
+    ///   this row's own quirk (matching the baseline's own choice to list
+    ///   them without any special per-kind handling of its own either --
+    ///   `import_item` is always a child of an already-recorded `import`
+    ///   node, and `instance` would need its own dedicated handling this
+    ///   wave's scope does not extend to; this grammar's real
+    ///   instance-declaration node kind is actually spelled
+    ///   `class_instance`, so the baseline's literal `"instance"` entry,
+    ///   while confirmed present as SOME node kind in this grammar's
+    ///   vocabulary, is not the node this grammar uses for a PureScript
+    ///   `instance ... where` block -- ported verbatim anyway per this
+    ///   row's "match the baseline's real array, corrected only where a
+    ///   named kind is provably absent rather than merely differently
+    ///   used" posture, since `"instance"` is not literally absent the
+    ///   way e.g. [`Self::purescript`]'s own `module_types` correction
+    ///   required).
+    /// - `branch_types` is `["exp_if", "exp_case", "exp_do"]`, matching
+    ///   the baseline's `purescript_branch_types` exactly -- all three
+    ///   confirmed present via the dump with real fields
+    ///   (`exp_if`'s `"if"`/`"then"`/`"else"`, `exp_case`'s
+    ///   `"condition"`).
+    /// - `decorator_types` is empty, matching the baseline's own
+    ///   `empty_types` for this field on `CBM_LANG_PURESCRIPT`.
+    pub const fn purescript() -> Self {
+        Self {
+            name: "purescript",
+            func_types: &["function"],
+            method_types: &[],
+            class_types: &["class_declaration", "data", "newtype", "type_alias"],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &[],
+            call_types: &["exp_apply"],
+            call_function_field: "UNUSED_SEE_PURESCRIPT_CALL_OVERRIDE",
+            call_arguments_field: "UNUSED_SEE_PURESCRIPT_CALL_OVERRIDE",
+            import_types: &["import", "import_item", "instance"],
+            branch_types: &["exp_if", "exp_case", "exp_do"],
+            decorator_types: &[],
+            // Never actually consulted: `function`/`class_declaration`
+            // are fully claimed by `generic::purescript_quirk` (see this
+            // const's own doc comment on `func_types`/`class_types`).
+            name_field: "UNUSED_SEE_PURESCRIPT_QUIRK",
+            body_field: "UNUSED_SEE_PURESCRIPT_QUIRK",
+        }
+    }
+
+    /// Magma (computer algebra system scripting language; `.mag`/
+    /// `.magma`). Language-parity wave G2.3d. Grammar: `tree-sitter-magma`
+    /// (`edgarcosta/tree-sitter-magma` -- no competing/alternate
+    /// `tree-sitter-magma` repository was found via a GitHub repository
+    /// search for the computer-algebra language; this is the sole
+    /// candidate). Not a crates.io dependency (crates.io has no
+    /// `tree-sitter-magma` at all -- confirmed via a direct crates.io API
+    /// search returning zero results for the computer-algebra language,
+    /// only unrelated GOST-cipher/game-engine/CLI-tool crates that happen
+    /// to also be named "magma") -- bound via a `git` dependency pinned to
+    /// a specific commit instead (same "option 1, a maintained crate
+    /// exists" sourcing as this wave's own [`Self::purescript`]). Verified
+    /// via a real parse-tree dump against this exact pinned commit, zero
+    /// parse errors on a fixture exercising every one of this row's own
+    /// arrays.
+    /// - `func_types` is `["function_definition", "procedure_definition",
+    ///   "intrinsic_definition"]`, NOT the baseline's own
+    ///   `magma_func_types = {"function_definition", "procedure_definition",
+    ///   "intrinsic_definition", "anonymous_function"}` -- `anonymous_function`
+    ///   is CONFIRMED ABSENT from this grammar's full 95-node-kind
+    ///   vocabulary (verified via an exhaustive listing, not a targeted
+    ///   probe), dropped rather than ported. The remaining three are all
+    ///   real, well-fielded (`"name"`/`"body"`/`"parameters"`, matching
+    ///   this file's own generic defaults exactly -- one of the few
+    ///   grammars in this whole exotic-tier batch that needs NO
+    ///   declarator-unwrapping or positional-child quirk for its own
+    ///   func-shape naming at all).
+    /// - `class_types`/`field_types` are BOTH empty, matching the
+    ///   baseline's own `empty_types` for `CBM_LANG_MAGMA` on both fields
+    ///   -- but this is a real, verified MISSED-OPPORTUNITY in the
+    ///   baseline itself, not a grammar limitation: this grammar has a
+    ///   genuine `type_declaration` node kind (Magma's `type Foo;` forward
+    ///   type-name declaration) with a `"supertype"` field, AND a
+    ///   dedicated `field_definition` node kind (used inside a
+    ///   `recformat<name: Type, ...>` record-format literal, e.g. `Dog :=
+    ///   recformat<name: MonStgElt, breed: MonStgElt>;`) with real
+    ///   `"name"`/`"type"` fields, confirmed via the dump -- BOTH left
+    ///   unclaimed here anyway, matching the baseline's real (if
+    ///   incomplete) depth rather than unilaterally improving on it per
+    ///   this campaign's own "baseline's real depth, not an idealized
+    ///   one" instruction; a `recformat` literal is in any case a VALUE
+    ///   expression assigned to a plain identifier (`Dog := recformat<...>;`,
+    ///   an `assignment`, not a declaration this file's own class-shape
+    ///   branch would ever reach), so this is a smaller gap than it first
+    ///   appears.
+    /// - `interface_types`/`enum_types`/`alias_types`/`decorator_types`
+    ///   are all empty, matching the baseline's own `empty_types` for
+    ///   every one of these fields on `CBM_LANG_MAGMA` (Magma's scripting
+    ///   language has no such declaration syntax at all).
+    /// - `module_types` is `["program"]`, NOT the baseline's own
+    ///   `magma_module_types = {"source_file"}` -- `source_file` is
+    ///   CONFIRMED ABSENT from this grammar's real node-kind vocabulary;
+    ///   its actual (and ONLY) root node kind is `program`, confirmed both
+    ///   in the full node-kind listing and directly as the dump's own
+    ///   outermost node.
+    /// - `call_types` is `["call"]`, NOT the baseline's own
+    ///   `magma_call_types = {"call_expression"}` -- `call_expression` is
+    ///   CONFIRMED ABSENT from this grammar entirely; the real (and only)
+    ///   call-shaped node kind is the short, unqualified `call`, with real
+    ///   `"function"`/`"arguments"` fields matching this file's own
+    ///   generic defaults exactly (confirmed via the dump: `add(1, 2)`
+    ///   parses as `call { field:function -> identifier "add",
+    ///   field:arguments -> argument_list { field:argument -> integer "1",
+    ///   field:argument -> integer "2" } }`) -- a real, load-bearing
+    ///   correction: without it, this row would extract ZERO call edges
+    ///   from any Magma source at all, defeating the Tier-2
+    ///   defs+calls+imports promise entirely.
+    /// - `import_types` is `["import_directive", "load_directive",
+    ///   "require_statement"]`, NOT the baseline's own
+    ///   `magma_import_types = {"load_statement", "require",
+    ///   "require_statement"}` -- `load_statement` and the bare `require`
+    ///   are BOTH confirmed absent from this grammar's real vocabulary
+    ///   (only `require_statement` of the baseline's three actually
+    ///   exists); the real load-a-file directive is spelled
+    ///   `load_directive` (fieldless: `load "setup.m";` -- its path is a
+    ///   bare `string` child, read via [`generic::magma_quirk`] since this
+    ///   file's generic import-edge mechanism has no field to key off
+    ///   either), and this grammar additionally has a THIRD, entirely
+    ///   baseline-unlisted import-shaped construct,
+    ///   `import_directive` (`import "foo.m": bar;` -- Magma's own
+    ///   variable-scoped file-import syntax), with real `"filename"`/
+    ///   `"variable"` fields -- confirmed via the dump, and included here
+    ///   as a genuine improvement over the baseline's own incomplete
+    ///   array (matching this campaign's precedent of closing verified
+    ///   real gaps, e.g. [`Self::pascal`]'s parenless-call-statement
+    ///   finding) rather than reproducing the baseline's own blind spot.
+    /// - `branch_types` is `["if_statement", "for_statement",
+    ///   "while_statement", "repeat_statement", "case_statement"]`,
+    ///   matching the baseline's own `magma_branch_types` exactly -- every
+    ///   one of these five confirmed present via the dump, each with real
+    ///   (if occasionally unusually-named) fields (`if_statement`'s
+    ///   `"condition"`/`"consequence"`/`"default"`/`"elif"`,
+    ///   `case_statement`'s `"matchee"`/`"else"`).
+    pub const fn magma() -> Self {
+        Self {
+            name: "magma",
+            func_types: &[
+                "function_definition",
+                "procedure_definition",
+                "intrinsic_definition",
+            ],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["program"],
+            call_types: &["call"],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &["import_directive", "load_directive", "require_statement"],
+            branch_types: &[
+                "if_statement",
+                "for_statement",
+                "while_statement",
+                "repeat_statement",
+                "case_statement",
+            ],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Hare (systems language, `.ha`). Language-parity wave G2.3d.
+    /// Grammar: `tree-sitter-hare` (originally `~ghishadow/tree-sitter-hare`
+    /// on sourcehut, now archived with its own description pointing at
+    /// that sourcehut location; sourced here from its own upstream fork
+    /// origin, `chenkeyv/tree-sitter-hare`, which still carries the
+    /// IDENTICAL grammar/parser sources -- exact copyright-line match
+    /// "Grenier Célestin" against this crate's own vendored
+    /// `internal/cbm/vendored/grammars/hare/LICENSE`, confirming the
+    /// identical grammar lineage the baseline itself vendored, and an
+    /// exhaustive node-kind-occurrence-count cross-check against that same
+    /// vendored `parser.c` -- `function_declaration`/`type_declaration`/
+    /// `use_statement`/`switch_expression`/`match_expression` combined
+    /// occur exactly as many times in the vendored copy as in this
+    /// sourced copy's own generated `parser.c`). VENDORED (no `scanner.c`
+    /// for this grammar) -- not a crates.io dependency: the only
+    /// crates.io-published version (0.20.7) pins `tree-sitter = "^0.20.6"`
+    /// as a genuine RUNTIME (non-dev) dependency, the same "unavailable/
+    /// broken ABI" condition [`Self::ispc`]'s own doc comment describes,
+    /// and no `tree-sitter-language`-shimmed successor exists to prefer
+    /// either as an upgrade or as a pinned git dependency. Verified via a
+    /// real parse-tree dump against the vendored `parser.c` directly, zero
+    /// parse errors.
+    /// - `func_types` is `["function_declaration"]`, matching the
+    ///   baseline's own `hare_func_types` exactly -- confirmed present via
+    ///   the dump with real, working `"name"`/`"returns"`/`"body"` fields
+    ///   (`"name"`/`"body"` matching this file's own generic defaults
+    ///   exactly; `"returns"` is this grammar's own name for a return-type
+    ///   annotation, not separately consulted by this row).
+    /// - `class_types` is `["type_declaration"]`, matching the baseline's
+    ///   own `hare_class_types` exactly -- confirmed present via the dump,
+    ///   but with NO fields of its own at all
+    ///   (`{"type":"type_declaration","fields":{}}`): its own name is a
+    ///   plain POSITIONAL `identifier` child immediately after the `type`
+    ///   keyword and before `=` (`type animal = struct {...};` parses as
+    ///   `type_declaration { "type", identifier "animal", "=",
+    ///   struct_type {...} }`), needing
+    ///   [`generic::hare_child_by_kind`]-based positional lookup (same
+    ///   mechanism as [`Self::d`]'s own identical "no fields anywhere"
+    ///   posture) via [`generic::hare_quirk`] rather than this file's
+    ///   generic `name_field` mechanism. This crate records EVERY
+    ///   `type_declaration` as a plain [`crate::parsers::SymbolKind::Class`]
+    ///   regardless of whether its own `=`-bound type expression is a
+    ///   `struct_type`/`union_type`/a plain alias to a builtin type --
+    ///   matching the baseline's own single flat `hare_class_types` entry,
+    ///   which draws no such distinction either (Hare's `type` keyword is
+    ///   genuinely overloaded across struct/union/enum/plain-alias
+    ///   declarations at the syntax level, and the baseline itself makes
+    ///   no attempt to disambiguate them for this language).
+    /// - `interface_types`/`enum_types`/`alias_types`/`field_types`/
+    ///   `decorator_types` are all empty, matching the baseline's own
+    ///   `empty_types` for every one of these fields on `CBM_LANG_HARE`.
+    /// - `module_types` is empty, NOT the baseline's own
+    ///   `hare_module_types = {"source_file"}` -- `source_file` is
+    ///   CONFIRMED ABSENT from this grammar; its real (and only) root node
+    ///   kind is `module`, confirmed both in the dump (the outermost node
+    ///   wraps an `imports` child plus a `declarations` child) and by
+    ///   inspecting the vendored `parser.h`'s own root-symbol definition.
+    ///   Left empty rather than corrected to `["module"]`: this crate's
+    ///   own generic module-handling branch
+    ///   ([`generic::walk`]'s `spec.module_types.contains(&kind)` check)
+    ///   would then push a Module symbol NAMED after the module node's own
+    ///   first named child, which for Hare's real `module` root is its
+    ///   `imports` child -- a spurious, meaningless "Module symbol named
+    ///   `imports`" on every single Hare file, which is wrong in a way
+    ///   this crate's walk would actually produce (same
+    ///   "provably-would-misfire-if-ported" reasoning
+    ///   [`Self::purescript`]'s own `module_types` doc comment gives for
+    ///   its own analogous correction) rather than a genuinely useful
+    ///   Module symbol; Hare source files have no separate, named
+    ///   `module foo;`-style declaration clause of their own for this row
+    ///   to extract in the first place (Hare's own module identity is
+    ///   purely directory-path-derived at the language level, invisible
+    ///   to a single file's own AST).
+    /// - `call_types` is `["call_expression"]`, matching the baseline's
+    ///   own `hare_call_types` exactly -- confirmed present via the dump
+    ///   with a real, working field, but that field is named `"callee"`
+    ///   (NOT `"function"`, this file's usual default) --
+    ///   `call_function_field` is set to `"callee"` here accordingly (a
+    ///   real field name, just a different one than most other rows use).
+    ///   The argument list is NOT a separate named field at all -- the
+    ///   parenthesized argument expressions are plain positional siblings
+    ///   of the callee inside the SAME `call_expression` node (confirmed:
+    ///   `add(1, 2)` parses as `call_expression { field:callee ->
+    ///   identifier "add", "(", number "1", ",", number "2", ")" }`, no
+    ///   wrapping arguments-list node at all) -- `call_arguments_field` is
+    ///   consequently a placeholder never actually consulted;
+    ///   [`generic::hare_call_override`] reconstructs `arg_texts` by
+    ///   scanning `call_expression`'s own remaining named children instead
+    ///   (skipping the callee itself), the same "no wrapping node, scan
+    ///   siblings directly" shape [`generic::pony_call_override`] (this
+    ///   same wave) and [`Self::d`]'s own `d_call_override` both need for
+    ///   an analogous reason.
+    /// - `import_types` is `["use_statement"]`, matching the baseline's
+    ///   own `hare_import_types` exactly -- confirmed present via the dump
+    ///   with a real, working POSITIONAL `identifier` child (no field of
+    ///   its own) holding the imported module path (`use fmt;` parses as
+    ///   `use_statement { "use", identifier "fmt", ";" }`) -- read via
+    ///   [`generic::hare_quirk`].
+    /// - `branch_types` is `["if_statement", "for_statement",
+    ///   "switch_expression", "match_expression"]`, matching the
+    ///   baseline's own `hare_branch_types` exactly -- every one of these
+    ///   four confirmed present via the dump (`if_statement`/
+    ///   `for_statement` with real `"condition"`/`"consequence"`/
+    ///   `"body"`/`"afterthought"` fields; `switch_expression`/
+    ///   `match_expression` not directly exercised in this row's own
+    ///   fixture but confirmed present in the vendored grammar's full
+    ///   node-kind vocabulary).
+    pub const fn hare() -> Self {
+        Self {
+            name: "hare",
+            func_types: &["function_declaration"],
+            method_types: &[],
+            class_types: &["type_declaration"],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &[],
+            call_types: &["call_expression"],
+            call_function_field: "callee",
+            call_arguments_field: "UNUSED_SEE_HARE_CALL_OVERRIDE",
+            import_types: &["use_statement"],
+            branch_types: &[
+                "if_statement",
+                "for_statement",
+                "switch_expression",
+                "match_expression",
+            ],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Pony (actor-model systems language, `.pony`). Language-parity wave
+    /// G2.3d. Grammar: `tree-sitter-pony` (`amaanq/tree-sitter-pony` --
+    /// exact copyright-line match "Amaan Qureshi"/"Matthias Wahl" against
+    /// this crate's own vendored `internal/cbm/vendored/grammars/pony/LICENSE`,
+    /// confirming the identical grammar lineage the baseline itself
+    /// vendored). VENDORED (WITH `scanner.c` -- this is the one language
+    /// in this wave's own vendored set that has an external hand-written
+    /// scanner) -- not a crates.io dependency: the only published version
+    /// (1.0.0) pins `tree-sitter = "~0.20.10"` as a genuine RUNTIME
+    /// (non-dev) dependency, and the live upstream repository's own
+    /// `bindings/rust/lib.rs` (confirmed by reading it directly off the
+    /// `master` branch, not merely inferred from the crate metadata)
+    /// STILL uses the old raw `extern "C" fn tree_sitter_pony() ->
+    /// Language` binding shape too -- the same "unavailable/broken ABI,
+    /// no newer safely-shimmed version exists either as an upgrade or as
+    /// a git dependency" condition [`Self::ispc`]/[`Self::hare`]'s own doc
+    /// comments describe. Verified via a real parse-tree dump against the
+    /// vendored `parser.c`+`scanner.c` directly, zero parse errors.
+    /// - `func_types` is `["method", "constructor", "ffi_method",
+    ///   "lambda_expression"]`, matching the baseline's own
+    ///   `pony_func_types` exactly. `method`/`constructor` are BOTH
+    ///   confirmed present via the dump but with NO `"name"` field of
+    ///   their own at all (`fun bark(): String => "..."` parses as
+    ///   `method { "fun", identifier "bark", parameters {...},
+    ///   field:returns -> base_type {...}, "=>", block {...} }` -- the
+    ///   name is a plain POSITIONAL `identifier` immediately after the
+    ///   `fun`/`new` keyword) -- handled via
+    ///   [`generic::pony_child_by_kind`]-based positional lookup through
+    ///   [`generic::pony_quirk`], the same "no fields at all for this
+    ///   shape" posture [`Self::d`]'s own `d_function_like` already
+    ///   established for an analogous systems language.
+    ///   `ffi_method`/`lambda_expression` were not directly exercised in
+    ///   this row's own fixture (Pony's C-FFI-declaration and inline-
+    ///   lambda syntax are both real but less common constructs) but are
+    ///   confirmed present in the vendored grammar's own full node-kind
+    ///   vocabulary, handled by the same positional-lookup quirk arm.
+    /// - `method_types` is empty: unlike most other languages in this
+    ///   file, Pony draws NO node-kind-level distinction between a
+    ///   free-standing function and a class/actor/primitive-scoped method
+    ///   at all -- `method` is the ONE node kind for both, and this row's
+    ///   own [`generic::pony_quirk`] always classifies it as
+    ///   [`crate::parsers::SymbolKind::Method`] regardless of lexical
+    ///   nesting (matching this grammar's own genuine actor-model
+    ///   convention, where EVERY behavior/function lives inside some
+    ///   class/actor/primitive/trait/interface body -- Pony has no
+    ///   top-level free-function syntax at all, confirmed by this
+    ///   grammar's own top-level `members`-only structure), so there is no
+    ///   free-function-vs-method AMBIGUITY for `func_types`/`method_types`
+    ///   overlap to resolve the way e.g. Rust's shared `function_item`
+    ///   kind needs.
+    /// - `class_types` is `["actor_definition", "class_definition",
+    ///   "struct_definition", "trait_definition", "interface_definition",
+    ///   "primitive_definition", "type_alias"]`, matching the baseline's
+    ///   own `pony_class_types` exactly. Every one of these SEVEN kinds
+    ///   has the SAME "no fields, positional `identifier` name
+    ///   immediately after the keyword" shape confirmed for `method`/
+    ///   `constructor` above (`class Animal` / `actor Dog is Animal` /
+    ///   `primitive Helpers` all confirmed via the dump) -- ALSO handled
+    ///   by [`generic::pony_quirk`]'s positional lookup rather than this
+    ///   file's generic `name_field` mechanism, additionally recording an
+    ///   INHERITS edge for `actor_definition`'s own `is`-clause heritage
+    ///   (`actor Dog is Animal` -- confirmed via the dump: a `base_type`
+    ///   FIELD-named `"name"` -- note, THIS specific field IS real and
+    ///   working, unlike the surrounding node's own top-level name --
+    ///   sibling of the actor's own positional name identifier) as a
+    ///   genuine improvement mirroring [`Self::odin`]'s own `using`-based
+    ///   INHERITS precedent (the baseline itself has no dedicated Pony
+    ///   `extract_base_classes` walker at all, matching every other
+    ///   language in this exotic-tier batch that lacks one).
+    /// - `interface_types`/`enum_types`/`alias_types`/`field_types` are
+    ///   all empty: `interface_definition`/`type_alias` are both folded
+    ///   into `class_types` here instead, matching the baseline's own
+    ///   identical choice verbatim (`pony_class_types` is the ONE array
+    ///   the baseline itself lists BOTH of these node kinds in; it has no
+    ///   separate interface/alias/field array of its own for this
+    ///   language at all). A class/actor/primitive body's own `field`
+    ///   member node (`var name: String` -- confirmed present via the
+    ///   dump, WITH a real, working `"name"` field this time) is
+    ///   similarly left unclaimed by a dedicated `field_types` entry,
+    ///   matching the baseline's own `empty_types` choice for this field
+    ///   on `CBM_LANG_PONY` exactly, even though (unlike the
+    ///   node-kind-name-level gaps corrected elsewhere in this file) this
+    ///   grammar's `field` node would in fact work cleanly through this
+    ///   file's OWN generic field-DEFINES mechanism if listed -- left out
+    ///   anyway per this campaign's "match the baseline's real depth, not
+    ///   an idealized one" instruction, since the baseline draws no
+    ///   distinction here either.
+    /// - `module_types` is `["source_file"]`, matching the baseline's own
+    ///   `pony_module_types` exactly and confirmed as this grammar's real
+    ///   root node kind via the dump.
+    /// - `call_types` is `["call_expression"]`, matching the baseline's
+    ///   own `pony_call_types` exactly -- confirmed present via the dump
+    ///   with a real, working `"callee"` field (the SAME field name
+    ///   [`Self::hare`]'s own `call_expression` uses, an independent
+    ///   coincidence of grammar-authoring convention rather than any
+    ///   shared lineage between the two grammars) -- but its own argument
+    ///   list is a SEPARATE, unfielded `arguments` sibling node (NOT a
+    ///   field of `call_expression` itself) whose OWN children are in
+    ///   turn each tagged with a field name literally called
+    ///   `"positional"` (confirmed via the dump: `add(1, 2)` parses as
+    ///   `call_expression { field:callee -> identifier "add", arguments {
+    ///   "(", field:positional -> number "1", ",", field:positional ->
+    ///   number "2", ")" } }`) -- `call_function_field` is set to
+    ///   `"callee"` accordingly, and
+    ///   [`generic::pony_call_override`] reconstructs `arg_texts` from the
+    ///   `arguments` sibling's own `"positional"`-tagged children directly
+    ///   (this file's usual single-field `call_arguments_field`
+    ///   mechanism has no field on `call_expression` itself to key off,
+    ///   the same "no field on the call node, must locate the arguments
+    ///   holder by kind first" shape [`generic::zig_builtin_arg_texts`]
+    ///   already established elsewhere in this file).
+    /// - `import_types` is `["use_statement"]`, matching the baseline's
+    ///   own `pony_import_types` exactly -- confirmed present via the
+    ///   dump, but its own imported-path child is a STRING LITERAL (`use
+    ///   "collections"`), not a bare identifier the way [`Self::hare`]'s
+    ///   OWN `use_statement` uses -- read via [`generic::pony_quirk`],
+    ///   which strips the surrounding quote characters from the string
+    ///   node's own text (matching every other language row's identical
+    ///   "record the path text without its own literal quote/angle-
+    ///   bracket delimiters" convention, e.g. [`generic::c_include_path`]).
+    /// - `branch_types` is `["if_statement", "match_statement",
+    ///   "for_statement", "while_statement", "repeat_statement",
+    ///   "try_statement"]`, matching the baseline's own `pony_branch_types`
+    ///   exactly -- every one of these six confirmed present in the
+    ///   vendored grammar's own full node-kind vocabulary (`if_statement`
+    ///   directly exercised in this row's own fixture; the remaining five
+    ///   confirmed present by name but not individually exercised, this
+    ///   array being documentation-only for [`crate::complexity::NodeKindTable`]
+    ///   consumption per this whole wave's deferred-complexity-extraction
+    ///   posture, matching G2.1's own convention).
+    /// - `decorator_types` is empty, matching the baseline's own
+    ///   `empty_types` for this field on `CBM_LANG_PONY` (Pony has no
+    ///   decorator/attribute-macro syntax the baseline itself records for
+    ///   this language).
+    pub const fn pony() -> Self {
+        Self {
+            name: "pony",
+            func_types: &["method", "constructor", "ffi_method", "lambda_expression"],
+            method_types: &[],
+            class_types: &[
+                "actor_definition",
+                "class_definition",
+                "struct_definition",
+                "trait_definition",
+                "interface_definition",
+                "primitive_definition",
+                "type_alias",
+            ],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source_file"],
+            call_types: &["call_expression"],
+            call_function_field: "callee",
+            call_arguments_field: "UNUSED_SEE_PONY_CALL_OVERRIDE",
+            import_types: &["use_statement"],
+            branch_types: &[
+                "if_statement",
+                "match_statement",
+                "for_statement",
+                "while_statement",
+                "repeat_statement",
+                "try_statement",
+            ],
+            decorator_types: &[],
+            // Never actually consulted: every one of `func_types`/
+            // `class_types` is fully claimed by `generic::pony_quirk` (see
+            // this const's own doc comment).
+            name_field: "UNUSED_SEE_PONY_QUIRK",
+            body_field: "UNUSED_SEE_PONY_QUIRK",
+        }
+    }
+
+    /// NASM (Netwide Assembler, x86 assembly; `.nasm`). Language-parity
+    /// wave G2.3d. Grammar: `tree-sitter-nasm` (`naclsn/tree-sitter-nasm`
+    /// -- exact copyright-line match "Grenier Célestin" against this
+    /// crate's own vendored `internal/cbm/vendored/grammars/nasm/LICENSE`
+    /// -- the SAME author as this wave's own [`Self::hare`] grammar, an
+    /// independently-confirmed coincidence of one grammar author having
+    /// written both, not a shared codebase between the two languages).
+    /// Distinct from [`crate::parsers::Language`]'s generic, Tier-0
+    /// `.s`/`.S` assembly path (`CBM_LANG_ASSEMBLY` in the baseline, out
+    /// of this wave's own scope) -- the baseline registers NO
+    /// `CBM_LANG_ASM` at all (confirmed via a direct search of the
+    /// baseline's own `cbm.h`/`lang_specs.c`/`language.c`: only
+    /// `CBM_LANG_ASSEMBLY` and `CBM_LANG_NASM` exist, no third generic-ASM
+    /// language), and the baseline's own `EXT_TABLE` maps `.nasm` to
+    /// `CBM_LANG_NASM` specifically, never to the generic Assembly
+    /// language. VENDORED (no `scanner.c` for this grammar) -- not a
+    /// crates.io dependency: this exact grammar/repository was never
+    /// published to crates.io at all (confirmed via a direct crates.io API
+    /// search for "tree-sitter-nasm" returning zero results, despite
+    /// several DIFFERENT tree-sitter-nasm grammars existing on GitHub
+    /// under other authors/orgs -- `naclsn`'s is the one matching the
+    /// baseline's own vendored copy by exact license-copyright fingerprint
+    /// and by an exhaustive field-by-field cross-check of its own
+    /// `node-types.json` against every one of this row's own arrays,
+    /// confirming it is the identical upstream the baseline itself
+    /// vendored, not merely a plausible substitute); its own
+    /// `bindings/rust/lib.rs` uses the old raw `extern "C" fn
+    /// tree_sitter_nasm() -> Language` binding shape, the same
+    /// "unavailable/broken ABI" condition every other vendored grammar in
+    /// this wave shares. Verified via a real parse-tree dump against the
+    /// vendored `parser.c` directly, zero parse errors.
+    /// - `func_types` is `["label", "preproc_def",
+    ///   "preproc_multiline_macro"]`, matching the baseline's own
+    ///   `nasm_func_types` exactly -- NASM has no function syntax in the
+    ///   ordinary sense; the baseline's own choice to model an assembly
+    ///   LABEL (`print_msg:`) as a "function" is preserved here verbatim,
+    ///   matching this campaign's "reproduce the baseline's real modeling
+    ///   choices" posture even where they read unusually for the target
+    ///   domain. `label` has a real, working `"name"` field (confirmed via
+    ///   the dump: `print_msg:` parses as `label { field:name -> word
+    ///   "print_msg", ":" }`, matching this file's own generic default
+    ///   exactly); `preproc_def`/`preproc_multiline_macro` both have real
+    ///   `"name"` fields too (`%define BUFSIZE 128` parses as
+    ///   `preproc_def { field:name -> word "BUFSIZE", field:value ->
+    ///   preproc_arg "128" }`), but NEITHER has a `"body"` field this
+    ///   file's generic `body_field` mechanism could recurse into for a
+    ///   preprocessor macro's own definition text (there is no nested
+    ///   block-shaped construct to recurse into in the first place -- a
+    ///   `%define`'s value is a flat token/expression, not a scope
+    ///   containing further nested defs/calls) -- left unclaimed by a
+    ///   dedicated quirk since there is genuinely nothing further for one
+    ///   to walk into for these two kinds specifically (only `label`
+    ///   needs no quirk at all: it has no body concept either, being a
+    ///   pure jump-target marker, so the generic engine's own
+    ///   `node.child_by_field_name(spec.body_field)` simply returning
+    ///   `None` for it is already the correct, harmless behavior).
+    /// - `class_types` is `["struc_declaration"]`, matching the baseline's
+    ///   own `nasm_class_types` exactly -- confirmed present in the
+    ///   vendored grammar's own full node-kind vocabulary (NASM's `struc`/
+    ///   `endstruc` directive pair for defining a memory-layout structure)
+    ///   though not directly exercised in this row's own fixture.
+    /// - `interface_types`/`enum_types`/`alias_types`/`field_types`/
+    ///   `decorator_types` are all empty, matching the baseline's own
+    ///   `empty_types` for every one of these fields on `CBM_LANG_NASM`.
+    /// - `module_types` is empty, NOT the baseline's own
+    ///   `nasm_module_types = {"source_file"}` -- `source_file` genuinely
+    ///   IS this grammar's real root node kind (confirmed via the dump),
+    ///   but porting the baseline's array verbatim here would be actively
+    ///   HARMFUL rather than merely redundant: this file's own
+    ///   `spec.module_types.contains(&kind)` check runs UNCONDITIONALLY at
+    ///   the very top of `generic::walk`, before ANY quirk hook (including
+    ///   [`generic::nasm_quirk`]'s own dedicated `"source_file"` handling)
+    ///   ever gets a chance to run -- a real, load-bearing hard-test
+    ///   failure caught this directly: with `["source_file"]` still set,
+    ///   this crate pushed a SPURIOUS Module symbol on every NASM file,
+    ///   named after `source_file`'s own first named child (confirmed to
+    ///   be the file's FIRST LABEL's own text, e.g. `"_start:"` complete
+    ///   with its own trailing colon -- `first_named_child_text`'s generic
+    ///   fallback has no NASM-specific knowledge that a label is not a
+    ///   module name). The SAME real bug additionally explains why
+    ///   `label`/`instruction` need [`generic::nasm_quirk`]'s own dedicated
+    ///   top-level scan at all in the first place: they are plain FLAT
+    ///   SIBLING `source_line` children of `source_file`, not nested
+    ///   inside each other, a shape this file's own ordinary lexical-
+    ///   nesting-based `FnScope` threading (every OTHER language in this
+    ///   file relies on it) has no tree structure to walk INTO to attribute
+    ///   a following instruction to its own preceding label -- see
+    ///   [`generic::nasm_walk_source_file`]'s own doc comment for the
+    ///   "most recently seen label becomes the ambient scope for following
+    ///   siblings" mechanism this required, now reachable at all only
+    ///   because this array is empty rather than short-circuited away.
+    /// - `call_types` is `["call_syntax_expression", "actual_instruction"]`,
+    ///   matching the baseline's own `nasm_call_types` exactly.
+    ///   `actual_instruction` is confirmed present via the dump with real,
+    ///   working `"instruction"`/`"operands"` fields (`call print_msg`
+    ///   parses as `instruction { actual_instruction { field:instruction
+    ///   -> word "call", field:operands -> operands { operand { word
+    ///   "print_msg" } } } }`) -- the baseline's own choice to record
+    ///   EVERY assembly instruction (not just literal `call`/`jmp`-family
+    ///   ones) as a CALLS edge is preserved here verbatim (matching this
+    ///   campaign's "reproduce the baseline's real modeling choices"
+    ///   posture again), with `call_function_field` set to `"instruction"`
+    ///   and `call_arguments_field` set to `"operands"` -- both REAL field
+    ///   names, just not this file's usual `"function"`/`"arguments"`
+    ///   defaults. `call_syntax_expression` (a value-position invocation,
+    ///   e.g. inside a `%define` macro body or an expression context) is
+    ///   confirmed present in the grammar's own vocabulary though not
+    ///   directly exercised in this row's own fixture.
+    /// - `import_types` is `["preproc_include"]`, matching the baseline's
+    ///   own `nasm_import_types` exactly -- confirmed present via the dump
+    ///   with a real, working `"path"` field (`%include "common.inc"`
+    ///   parses as `preproc_include { field:path -> string_literal
+    ///   "\"common.inc\"" }`) -- but this file's generic import-handling
+    ///   branch (`spec.import_types.contains(&kind)`) does not itself read
+    ///   ANY field automatically (see [`generic::walk`]'s own module doc:
+    ///   "generic import handling is intentionally minimal ... callers
+    ///   needing generic import edges supply an `on_unmatched_node`
+    ///   quirk"), so [`generic::nasm_quirk`] reads this `"path"` field
+    ///   directly and strips its own surrounding quote characters,
+    ///   matching every other language row's identical convention.
+    /// - `branch_types` is empty, NOT the baseline's own
+    ///   `nasm_branch_types` (the baseline in fact has NO
+    ///   `nasm_branch_types` array declared at all for this language --
+    ///   confirmed absent from `lang_specs.c`'s own NASM row, which lists
+    ///   `empty_types` for this field, matching this file's own choice
+    ///   here exactly -- assembly's own conditional-jump instructions
+    ///   (`je`/`jne`/...) are ordinary `actual_instruction` nodes
+    ///   syntactically indistinguishable at the node-KIND level from any
+    ///   other instruction, so there is no dedicated branch-shaped node
+    ///   kind for either this row or the baseline's own array to name in
+    ///   the first place).
+    pub const fn nasm() -> Self {
+        Self {
+            name: "nasm",
+            func_types: &["label", "preproc_def", "preproc_multiline_macro"],
+            method_types: &[],
+            class_types: &["struc_declaration"],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            // Empty, NOT `["source_file"]` -- see this const's own doc
+            // comment on `module_types`: the generic engine's own
+            // `spec.module_types.contains(&kind)` check runs BEFORE
+            // `nasm_quirk`'s own `"source_file"` arm would ever be
+            // reached at all (that check is unconditional at the very
+            // top of `generic::walk`, well before this file's usual
+            // quirk-hook catch-all), so listing `"source_file"` here
+            // would push a SPURIOUS Module symbol (named after
+            // `source_file`'s own first named child -- confirmed via a
+            // real hard-test failure to be the FIRST LABEL's own text,
+            // e.g. `"_start:"` complete with its own trailing colon) on
+            // every single NASM file, one this crate's own tests caught
+            // directly, before `nasm_quirk`'s dedicated top-level scan
+            // ([`generic::nasm_walk_source_file`]) ever got a chance to
+            // run at all.
+            module_types: &[],
+            call_types: &["call_syntax_expression", "actual_instruction"],
+            call_function_field: "instruction",
+            call_arguments_field: "operands",
+            import_types: &["preproc_include"],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
 }
