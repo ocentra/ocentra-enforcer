@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-dogfood",
-  "generatedAt": "2026-07-07T04:15:00Z",
+  "generatedAt": "2026-07-07T04:21:00Z",
   "hub": "ocentra-enforcer",
   "stateRoot": "E:/ocentra-enforcer/.ledger/ocentra-enforcer",
   "lane": "codex-x06-harvest-sync",
@@ -40,7 +40,16 @@
     "ocentra_enforcer_doctor scope=crate crateName=enforcer-memory ok",
     "ocentra_enforcer_check source-shape, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, placeholder-implementation, and secrets scope=files ok for QA-097/reranker proof files",
     "git diff --check ok",
-    "x06-rag-qa.json now records QA-097 pass with rerankerLift=0.4293582810446799 and total QA coverage 50/250 with 0 failures"
+    "x06-rag-qa.json now records QA-097 pass with rerankerLift=0.4293582810446799 and total QA coverage 50/250 with 0 failures",
+    "cargo test -p enforcer-memory --test feature_parity_harness passed after QA-213/QA-217/QA-218 token-reduction proof promotion",
+    "x06-rag-qa.json now records QA-213, QA-217, and QA-218 pass with recomputed tokenReductionRatio=24.7524752475 and total QA coverage 53/250 with 0 failures",
+    "cargo test -p enforcer-memory ok after token-reduction QA promotion",
+    "cargo test -p enforcer-memory --features ort-models ok with low-memory cargo settings",
+    "cargo clippy -p enforcer-memory --all-targets -- -D warnings ok after preserving TryFromIntError diagnostics",
+    "cargo fmt --package enforcer-memory --check ok",
+    "git diff --check ok",
+    "ocentra_enforcer_doctor scope=crate crateName=enforcer-memory ok",
+    "ocentra_enforcer_check source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, and placeholder-implementation scope=files ok for token-reduction QA proof files"
   ],
   "redOrPartialGates": [
     {
@@ -56,7 +65,7 @@
     {
       "gate": "ocentra_enforcer_scan scope=files changed source files",
       "classification": "mjs-enforcer",
-      "reason": "changed-file scan still expands into Cargo/build-script and strict baseline crate domain/dependency debt; latest changed-file scan returned 283 findings rooted in build.rs/Cargo.toml policy while narrower source-shape, validation-bypass, placeholder-implementation, secrets, no-test-doubles, weak-assertions, and skipped-focused-tests checks are clean"
+      "reason": "changed-file scan still expands into Cargo/build-script and strict baseline crate domain/dependency debt; latest changed-file scan returned 306 findings rooted in build.rs/Cargo.toml policy while narrower source-shape, validation-bypass, placeholder-implementation, secrets, no-test-doubles, weak-assertions, and skipped-focused-tests checks are clean"
     },
     {
       "gate": "ocentra_enforcer_check source-shape scope=diff base=origin/rust-build head=HEAD",
@@ -300,6 +309,30 @@
     {
       "shape": "t2",
       "evidence": "Exact named file-scope checks passed; ocentra_enforcer_scan scope=files reported 283 baseline findings rooted in crate metadata/build-script policy rather than the edited files."
+    },
+    {
+      "shape": "t0",
+      "incident": "Token-reduction QA rows stayed unrunnable even though x06-token-reduction.json had a green aggregate, because the artifact lacked row-specific recomputable evidence for 42-file, p95, and 1,000-query replay claims."
+    },
+    {
+      "shape": "t1",
+      "fix": "x06-token-reduction.json now carries qaEvidence for QA-213, QA-217, and QA-218; ExactQaEvidenceRunner recomputes token ratios, nearest-rank p95, and 1,000-query replay totals before returning pass."
+    },
+    {
+      "shape": "t2",
+      "evidence": "qa_token_reduction_rows_recompute_checked_in_ratios and qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split passed; x06-rag-qa.json now records 53 green, 197 unrunnable, 0 failed."
+    },
+    {
+      "shape": "t0",
+      "incident": "clippy -D warnings rejected the new token-reduction JSON integer helper because map_err discarded the TryFromIntError source."
+    },
+    {
+      "shape": "t1",
+      "fix": "json_usize now includes the original conversion error in the returned diagnostic instead of swallowing it."
+    },
+    {
+      "shape": "t2",
+      "evidence": "cargo clippy -p enforcer-memory --all-targets -- -D warnings passed after this fix."
     }
   ]
 }

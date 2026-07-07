@@ -1034,7 +1034,7 @@ pub struct ExactQaEvidenceRunner;
 
 const EXACT_QA_EVIDENCE_IDS: &[&str] = &[
     "QA-012", "QA-021", "QA-022", "QA-023", "QA-048", "QA-068", "QA-097", "QA-098", "QA-174",
-    "QA-226",
+    "QA-213", "QA-217", "QA-218", "QA-226",
 ];
 
 impl RowRunner for ExactQaEvidenceRunner {
@@ -1043,8 +1043,10 @@ impl RowRunner for ExactQaEvidenceRunner {
     }
 
     fn can_run(&self, row: &QaRow) -> bool {
-        matches!(row.category.as_str(), "Lessons" | "Learning")
-            && EXACT_QA_EVIDENCE_IDS.contains(&row.id.as_str())
+        matches!(
+            row.category.as_str(),
+            "Lessons" | "Learning" | "TokenReduction"
+        ) && EXACT_QA_EVIDENCE_IDS.contains(&row.id.as_str())
     }
 
     fn run(&self, row: &QaRow, fixtures: &Fixtures) -> RowResult {
@@ -1063,6 +1065,7 @@ impl RowRunner for ExactQaEvidenceRunner {
             ),
             "QA-097" => reranker_lift_probe(row),
             "QA-098" => token_reduction_probe(row),
+            "QA-213" | "QA-217" | "QA-218" => token_reduction_qa_evidence_probe(row),
             "QA-174" => lesson_recall_probe(
                 row,
                 fixtures,
@@ -1395,6 +1398,158 @@ fn token_reduction_probe(row: &QaRow) -> RowResult {
     )
 }
 
+fn json_number(object: &serde_json::Value, field: &str, artifact_rel: &str) -> Result<f64, String> {
+    object
+        .get(field)
+        .and_then(serde_json::Value::as_f64)
+        .filter(|value| value.is_finite())
+        .ok_or_else(|| format!("{artifact_rel} evidence lacks finite numeric {field}"))
+}
+
+fn json_usize(
+    object: &serde_json::Value,
+    field: &str,
+    artifact_rel: &str,
+) -> Result<usize, String> {
+    let value = object
+        .get(field)
+        .and_then(serde_json::Value::as_u64)
+        .ok_or_else(|| format!("{artifact_rel} evidence lacks integer {field}"))?;
+    usize::try_from(value)
+        .map_err(|error| format!("{artifact_rel} evidence {field} is too large: {error}"))
+}
+
+fn token_reduction_queries(artifact: &serde_json::Value, rel: &str) -> Result<Vec<f64>, String> {
+    let queries = artifact
+        .get("queries")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| format!("{rel} lacks queries"))?;
+    let mut ratios = Vec::new();
+    for query in queries {
+        let naive = json_usize(query, "naiveTokens", rel)?;
+        let context = json_usize(query, "contextTokens", rel)?;
+        let recorded = json_number(query, "reductionRatio", rel)?;
+        let recomputed = metrics::token_reduction_ratio(naive, context);
+        if (recomputed - recorded).abs() > 1e-9 {
+            return Err(format!(
+                "{rel} query reductionRatio does not match recomputed token ratio"
+            ));
+        }
+        ratios.push(recorded);
+    }
+    if ratios.is_empty() {
+        return Err(format!("{rel} contains no token-reduction queries"));
+    }
+    Ok(ratios)
+}
+
+fn percentile_nearest_rank(mut values: Vec<f64>, percentile: f64) -> Option<f64> {
+    if values.is_empty() || !percentile.is_finite() {
+        return None;
+    }
+    values.sort_by(|a, b| a.total_cmp(b));
+    let rank = ((percentile / 100.0) * values.len() as f64).ceil() as usize;
+    let index = rank.saturating_sub(1).min(values.len() - 1);
+    values.get(index).copied()
+}
+
+fn token_reduction_qa_evidence_probe(row: &QaRow) -> RowResult {
+    let root = super::queryset::workspace_root();
+    let rel = "proof/memory/x06-token-reduction.json";
+    let artifact: serde_json::Value = match std::fs::read_to_string(root.join(rel))
+        .and_then(|raw| serde_json::from_str(&raw).map_err(std::io::Error::other))
+    {
+        Ok(artifact) => artifact,
+        Err(error) => return unrunnable(row, &format!("failed to parse {rel}: {error}")),
+    };
+    let Some(qa_evidence) = artifact
+        .get("qaEvidence")
+        .and_then(|evidence| evidence.get(row.id.as_str()))
+    else {
+        return unrunnable(row, &format!("{rel} lacks qaEvidence for {}", row.id));
+    };
+    let ratios = match token_reduction_queries(&artifact, rel) {
+        Ok(ratios) => ratios,
+        Err(error) => return unrunnable(row, &error),
+    };
+
+    let minimum = qa_evidence
+        .get("minimumReductionRatio")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(10.0);
+    let evidence_ratio = match json_number(qa_evidence, "reductionRatio", rel) {
+        Ok(ratio) => ratio,
+        Err(error) => return unrunnable(row, &error),
+    };
+
+    let recomputed = match row.id.as_str() {
+        "QA-213" => {
+            let baseline = match json_usize(qa_evidence, "baselineFileReadTokens", rel) {
+                Ok(value) => value,
+                Err(error) => return unrunnable(row, &error),
+            };
+            let context = match json_usize(qa_evidence, "contextPackTokens", rel) {
+                Ok(value) => value,
+                Err(error) => return unrunnable(row, &error),
+            };
+            let opened = match json_usize(qa_evidence, "baselineFilesOpened", rel) {
+                Ok(value) => value,
+                Err(error) => return unrunnable(row, &error),
+            };
+            if opened != 42 {
+                return unrunnable(row, "QA-213 evidence must use the 42-file baseline");
+            }
+            metrics::token_reduction_ratio(baseline, context)
+        }
+        "QA-217" => match percentile_nearest_rank(ratios, 95.0) {
+            Some(value) => value,
+            None => return unrunnable(row, "QA-217 could not recompute p95 token reduction"),
+        },
+        "QA-218" => {
+            let replayed = match json_usize(qa_evidence, "replayedQueries", rel) {
+                Ok(value) => value,
+                Err(error) => return unrunnable(row, &error),
+            };
+            let baseline = match json_usize(qa_evidence, "baselineTokens", rel) {
+                Ok(value) => value,
+                Err(error) => return unrunnable(row, &error),
+            };
+            let context = match json_usize(qa_evidence, "contextTokens", rel) {
+                Ok(value) => value,
+                Err(error) => return unrunnable(row, &error),
+            };
+            if replayed != 1_000 {
+                return unrunnable(row, "QA-218 evidence must use a 1,000-query replay");
+            }
+            metrics::token_reduction_ratio(baseline, context)
+        }
+        _ => return unrunnable(row, "unsupported token-reduction QA evidence row"),
+    };
+
+    if (recomputed - evidence_ratio).abs() > 1e-9 {
+        return unrunnable(
+            row,
+            "token-reduction qaEvidence ratio does not match recomputed value",
+        );
+    }
+    if evidence_ratio < minimum {
+        return unrunnable(
+            row,
+            "token-reduction qaEvidence misses the minimum ratio gate",
+        );
+    }
+
+    let mut source_refs = json_string_array(qa_evidence, "sourceRefs", rel).unwrap_or_default();
+    source_refs.push(rel.to_string());
+    source_refs.sort();
+    source_refs.dedup();
+    let expected_id = qa_evidence
+        .get("expectedId")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("token-reduction:proof");
+    exact_pass_with_token_ratio(row, expected_id, source_refs, evidence_ratio)
+}
+
 fn learning_curve_ratchet_probe(row: &QaRow, fixtures: &Fixtures) -> RowResult {
     let curves = learning::learning_curve(&fixtures.memory_graph);
     if curves.is_empty() {
@@ -1589,6 +1744,13 @@ mod tests {
         let reranker_row = sample_row("QA-097", "Learning", "Prove reranker improved ranking.");
         assert!(ExactQaEvidenceRunner.can_run(&reranker_row));
 
+        let token_replay_row = sample_row(
+            "QA-218",
+            "TokenReduction",
+            "Report cumulative token savings over 1,000 replayed queries.",
+        );
+        assert!(ExactQaEvidenceRunner.can_run(&token_replay_row));
+
         let broad_lessons = sample_row("QA-999", "Lessons", "Find arbitrary lesson content.");
         assert!(!ExactQaEvidenceRunner.can_run(&broad_lessons));
     }
@@ -1630,6 +1792,21 @@ mod tests {
                 "Prove token reduction versus reading files.",
             ),
             sample_row(
+                "QA-213",
+                "TokenReduction",
+                "Prove MCP retrieval beats agent-opens-42-files.",
+            ),
+            sample_row(
+                "QA-217",
+                "TokenReduction",
+                "Report p95 token savings across the workpack query set.",
+            ),
+            sample_row(
+                "QA-218",
+                "TokenReduction",
+                "Report cumulative token savings over 1,000 replayed queries.",
+            ),
+            sample_row(
                 "QA-174",
                 "Lessons",
                 "Have we solved a domain-type issue before?",
@@ -1654,6 +1831,46 @@ mod tests {
                 "{} must carry source refs",
                 result.id
             );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn qa_token_reduction_rows_recompute_checked_in_ratios() -> TestResult {
+        let fixtures = super::super::build_fixtures()?;
+        let rows = [
+            sample_row(
+                "QA-213",
+                "TokenReduction",
+                "Prove MCP retrieval beats agent-opens-42-files.",
+            ),
+            sample_row(
+                "QA-217",
+                "TokenReduction",
+                "Report p95 token savings across the workpack query set.",
+            ),
+            sample_row(
+                "QA-218",
+                "TokenReduction",
+                "Report cumulative token savings over 1,000 replayed queries.",
+            ),
+        ];
+        let results = run_all(&rows, &fixtures);
+        assert_eq!(results.len(), rows.len());
+        for result in &results {
+            assert_eq!(result.verdict, "pass");
+            let Some(ratio) = result.token_reduction_ratio else {
+                return Err(format!("{} must report a token-reduction ratio", result.id).into());
+            };
+            assert!(
+                ratio >= 10.0,
+                "{} token-reduction ratio must satisfy the 10x gate, got {ratio}",
+                result.id
+            );
+            assert!(result
+                .source_refs
+                .iter()
+                .any(|source| source == "proof/memory/x06-token-reduction.json"));
         }
         Ok(())
     }

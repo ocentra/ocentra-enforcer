@@ -78,14 +78,14 @@
       "status": "red",
       "testName": "qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split",
       "artifactPath": "proof/memory/x06-rag-qa.json",
-      "failureReason": "200 of 250 rows unrunnable, 0 failed -- see x06-rag-qa.json"
+      "failureReason": "197 of 250 rows unrunnable, 0 failed -- see x06-rag-qa.json"
     },
     {
       "prefix": "LRN",
       "status": "red",
       "testName": "x06-learning-curve",
       "artifactPath": "proof/memory/x06-learning-curve.json",
-      "failureReason": "store-backed learning present, but follow-up remains: Checked-in real model runtime proofs remain host-local and non-CI-parity; rerun explicit probes when hardware, cache, or providers change.; QA coverage is 50/250 runnable with 0 failures; unsupported rows remain unrunnable rather than fake green."
+      "failureReason": "store-backed learning present, but follow-up remains: Checked-in real model runtime proofs remain host-local and non-CI-parity; rerun explicit probes when hardware, cache, or providers change.; QA coverage is 53/250 runnable with 0 failures; unsupported rows remain unrunnable rather than fake green."
     },
     {
       "prefix": "FED",
@@ -126,7 +126,7 @@
   ],
   "allMatrixPrefixesGreen": false,
   "qaRowsTotal": 250,
-  "qaRowsGreen": 50,
+  "qaRowsGreen": 53,
   "kgParityComparedAgainstBaseline": true,
   "mcpCliParity": true,
   "localDenseRetrievalPresent": true,

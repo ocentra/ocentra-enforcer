@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-token-reduction",
-  "generatedAt": "2026-07-07T01:20:00Z",
+  "generatedAt": "2026-07-07T04:20:00Z",
   "status": "green-fixture-proof",
   "sourceArtifact": "proof/memory/x06-retrieval-quality.json",
   "queries": [
@@ -28,9 +28,91 @@
     }
   ],
   "medianReductionRatio": 24.7524752475,
+  "distribution": {
+    "queryCount": 3,
+    "minimumReductionRatio": 24.7524752475,
+    "p50ReductionRatio": 24.7524752475,
+    "p95ReductionRatio": 24.7524752475,
+    "percentileMethod": "nearest-rank"
+  },
+  "replay": {
+    "querySet": "committed-fixture-token-reduction-queries",
+    "replayedQueries": 1000,
+    "baselineTokens": 2500000,
+    "contextTokens": 101000,
+    "reductionRatio": 24.7524752475,
+    "trend": [
+      {
+        "atQuery": 1,
+        "baselineTokens": 2500,
+        "contextTokens": 101,
+        "reductionRatio": 24.7524752475
+      },
+      {
+        "atQuery": 100,
+        "baselineTokens": 250000,
+        "contextTokens": 10100,
+        "reductionRatio": 24.7524752475
+      },
+      {
+        "atQuery": 1000,
+        "baselineTokens": 2500000,
+        "contextTokens": 101000,
+        "reductionRatio": 24.7524752475
+      }
+    ]
+  },
   "passes10xGate": true,
+  "qaEvidence": {
+    "QA-213": {
+      "queryId": "x06-qa-213-mcp-beats-agent-opens-42-files",
+      "expectedId": "token-reduction:mcp-beats-agent-42-files",
+      "baseline": "agent-opens-42-files",
+      "baselineFilesOpened": 42,
+      "baselineFileReadTokens": 2500,
+      "contextPackTokens": 101,
+      "reductionRatio": 24.7524752475,
+      "minimumReductionRatio": 10.0,
+      "scope": "fixture proof over committed retrieval-quality rows",
+      "sourceRefs": [
+        "crates/enforcer-memory/src/search/mod.rs",
+        "crates/enforcer-memory/tests/retrieval_stack.rs",
+        "proof/memory/x06-retrieval-quality.json"
+      ]
+    },
+    "QA-217": {
+      "queryId": "x06-qa-217-p95-token-savings",
+      "expectedId": "token-reduction:p95>=10x",
+      "querySet": "committed-fixture-token-reduction-queries",
+      "queryCount": 3,
+      "percentileMethod": "nearest-rank",
+      "reductionRatio": 24.7524752475,
+      "minimumReductionRatio": 10.0,
+      "scope": "fixture proof over committed retrieval-quality rows",
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/feature_parity/metrics.rs",
+        "proof/memory/x06-retrieval-quality.json"
+      ]
+    },
+    "QA-218": {
+      "queryId": "x06-qa-218-cumulative-1000-query-replay",
+      "expectedId": "token-reduction:1000-query-replay>=10x",
+      "querySet": "committed-fixture-token-reduction-queries",
+      "replayedQueries": 1000,
+      "baselineTokens": 2500000,
+      "contextTokens": 101000,
+      "reductionRatio": 24.7524752475,
+      "minimumReductionRatio": 10.0,
+      "scope": "deterministic replay cycling the committed fixture query set",
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/feature_parity/metrics.rs",
+        "proof/memory/x06-retrieval-quality.json"
+      ]
+    }
+  },
   "notes": [
     "Token reduction is proven on committed fixture retrieval rows, not on an external model provider.",
+    "QA-213, QA-217, and QA-218 are fixture-scope proof rows; they do not claim production-query distribution coverage.",
     "Reranker lift remains separately tracked because the current deterministic fixture reranker does not improve all rows."
   ]
 }
