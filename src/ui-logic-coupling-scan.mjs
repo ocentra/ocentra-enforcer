@@ -51,7 +51,7 @@ function extractImports(text) {
 function classifyBinding(name, text) {
   const callRe = new RegExp(`\\b${name}\\.\\w+\\s*\\(`);
   const hasCall = callRe.test(text);
-  if (!hasCall) return null;
+  if (!hasCall) return "none";
   if (ERROR_NAME_RE.test(name)) {
     const nonInstanceofCallRe = new RegExp(`(?<!instanceof\\s+)\\b${name}\\.\\w+\\s*\\(`);
     if (!nonInstanceofCallRe.test(text)) return "info";
@@ -68,7 +68,7 @@ function scanFile(relPath, text, businessLogicPatterns, eventSourcePatterns) {
     if (isBusinessLogic) {
       for (const name of imp.names) {
         const severity = classifyBinding(name, text);
-        if (!severity) continue;
+        if (severity === "none") continue;
         findings.push({
           file: relPath, kind: "business-logic-import", severity,
           source: imp.source, binding: name, hasDataFetchPrimitive,

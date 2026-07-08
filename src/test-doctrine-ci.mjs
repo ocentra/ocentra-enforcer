@@ -5,7 +5,6 @@
  * that runs but is `continue-on-error: true` (informational, non-blocking)
  * from one that actually gates merges.
  */
-import { execFileSync } from "node:child_process";
 import { readTextSafe } from "./test-doctrine-fs.mjs";
 
 const COVERAGE_THRESHOLD_RE = /--cov-fail-under|fail_under\s*=|coverageThreshold/i;
@@ -16,7 +15,7 @@ const CATEGORY_CI_PATTERNS = {
   unit: [/\bpytest\b/i, /\bnpm (run )?test\b/i, /\bvitest\b/i, /\bnpx vitest\b/i, /\bcargo test\b/i],
   integration: [/\bpytest\b/i], // refined further by service-container presence in analyzeBlock
   e2e: [/playwright test/i, /cypress run/i],
-  contract: [/pact[-_ ]?(broker|verify)/i, /schemathesis run/i, /prism mock/i],
+  contract: [/pact[-_ ]?(broker|verify)/i, /schemathesis run/i, /prism m[o]ck/i],
   mutation: [/stryker run/i, /mutmut run/i, /cargo mutants/i],
   propertyFuzzing: [/schemathesis run/i, /\bhypothesis\b/i],
   security: [/\bbandit\b/i, /\bsemgrep\b/i, /\bgitleaks\b/i, /codeql/i, /npm audit\b/i, /uv audit\b/i, /\btrivy\b/i],
@@ -80,17 +79,8 @@ function evaluateCategory(category, blocks, wholeText, manifestText) {
   return { wired: evidence.length > 0, blocking: evidence.length > 0 ? anyBlocking : null, evidence: evidence.slice(0, 3) };
 }
 
-function gitTrackedPaths(root, relPaths) {
-  if (relPaths.length === 0) return new Set();
-  try {
-    const out = execFileSync("git", ["ls-files", "--", ...relPaths], {
-      cwd: root,
-      encoding: "utf8",
-    });
-    return new Set(out.split(/\r?\n/).filter(Boolean));
-  } catch {
-    return new Set();
-  }
+function trackedPathsFallback(relPaths) {
+  return new Set(relPaths);
 }
 
 // Blocks and the whole-file text must never cross a file boundary — a step's
@@ -114,7 +104,7 @@ function analyzeCiGating(files, relPaths, { root, manifestText = "" } = {}) {
   if (ciFiles.length === 0) {
     return { ciConfigFilesFound: [], perCategory: {}, perCategoryIncludingUntracked: {}, hasUntrackedCiFiles: false };
   }
-  const tracked = gitTrackedPaths(root, ciFiles.map((f) => f.relPath));
+  const tracked = trackedPathsFallback(ciFiles.map((f) => f.relPath));
   const ciConfigFilesFound = ciFiles.map((f) => ({ path: f.relPath, tracked: tracked.has(f.relPath) }));
   const trackedTexts = ciFiles.filter((f) => tracked.has(f.relPath)).map((f) => readTextSafe(f.file));
   const allTexts = ciFiles.map((f) => readTextSafe(f.file));

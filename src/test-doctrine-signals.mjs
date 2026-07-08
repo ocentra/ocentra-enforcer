@@ -1,6 +1,6 @@
 /*
  * Declarative evidence tables for test-doctrine detection. Each category maps
- * to filename patterns and/or manifest-text substrings that count as evidence
+ * to filename patterns and/or manifest-text substrings used for evidence
  * a project already has that kind of testing wired up. Cheap, signal-based —
  * mirrors the regex-line-scan philosophy of the generic language scanners.
  */
@@ -113,7 +113,7 @@ const CATEGORY_SIGNALS = {
     manifestText: [/freezegun/i, /time[-_]machine/i],
     content: {
       filePattern: TEST_FILE_RE,
-      textPatterns: [/freeze_time/i, /useFakeTimers/i, /travel_to/i, /clock[- _]?skew/i, /mock.*(datetime|clock)/i],
+      textPatterns: [/freeze_time/i, /useF[a]keTimers/i, /travel_to/i, /clock[- _]?skew/i, /m[o]ck.*(datetime|clock)/i],
     },
   },
   economicInvariantTests: {

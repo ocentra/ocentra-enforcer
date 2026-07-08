@@ -2,10 +2,10 @@
  * Test-doctrine scanner: discovers what kinds of tests a target project actually
  * has (unit, integration, e2e, contract, mutation, property/fuzz, security,
  * snapshot, load) and what its "nature" implies it should have, then reports
- * the gap — including whether each category is actually wired to CI as a
+ * the gap, including whether each category is actually wired to CI through a
  * blocking gate, or just present locally with nothing enforcing it. Signal
  * based (file names, config files, dependency manifests, CI step text) — the
- * same philosophy as the generic regex scanners, not a language parser.
+ * signal-scanner approach used by generic regex scanners, not a language parser.
  *
  * Reusable across any target repo: `scanTestDoctrine({ root })`.
  */
