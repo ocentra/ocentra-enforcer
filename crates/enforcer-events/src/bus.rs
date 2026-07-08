@@ -197,10 +197,7 @@ impl EventBus {
     }
 
     fn ensure_active(&self) -> Result<(), EventingError> {
-        if *self
-            .shutdown
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
+        if *self.shutdown.lock().unwrap_or_else(PoisonError::into_inner)
             != EventBusLifecycleState::Active
         {
             return Err(EventingError::BusShutdown);
@@ -209,10 +206,7 @@ impl EventBus {
     }
 
     fn begin_shutdown(&self) -> bool {
-        let mut shutdown = self
-            .shutdown
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner);
+        let mut shutdown = self.shutdown.lock().unwrap_or_else(PoisonError::into_inner);
         match *shutdown {
             EventBusLifecycleState::Active => {
                 *shutdown = EventBusLifecycleState::ShuttingDown;
@@ -223,17 +217,12 @@ impl EventBus {
     }
 
     fn mark_shutdown(&self) {
-        *self
-            .shutdown
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner) = EventBusLifecycleState::Shutdown;
+        *self.shutdown.lock().unwrap_or_else(PoisonError::into_inner) =
+            EventBusLifecycleState::Shutdown;
     }
 
     fn rollback_shutdown(&self) {
-        let mut shutdown = self
-            .shutdown
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner);
+        let mut shutdown = self.shutdown.lock().unwrap_or_else(PoisonError::into_inner);
         if *shutdown == EventBusLifecycleState::ShuttingDown {
             *shutdown = EventBusLifecycleState::Active;
         }

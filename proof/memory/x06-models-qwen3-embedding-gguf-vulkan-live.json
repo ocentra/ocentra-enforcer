@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "runtimeMode": "probe",
+  "proofScope": {
+    "arch": "x86_64",
+    "capability": "windows-x86_64",
+    "ciParity": false,
+    "localHardwareRequired": true,
+    "platform": "windows",
+    "portability": "local-runtime-proof",
+    "reason": "probe mode proves this host runtime only; CI parity requires its own platform proof or zero-network degraded contract"
+  },
+  "allowNetwork": true,
+  "probeExecutionPolicy": {
+    "allowMultiProbe": false,
+    "cpuFirst": true,
+    "defaultProbeFilter": "chat",
+    "gpuAndNpuRequireProviderProbe": true,
+    "killOnTimeout": true,
+    "minimumChatTokensPerSecond": 10,
+    "modelProbeTimeoutMs": 120000,
+    "oneModelAtATime": true,
+    "probeOrder": [
+      "chat-generation-gguf",
+      "qwen-embedding-onnx",
+      "qwen-reranker-onnx",
+      "qwen-embedding-gguf"
+    ],
+    "providerProbeTimeoutMs": 5000,
+    "reason": "one model at a time; CPU first; GPU/NPU only after provider probes pass; timeout kills the child process",
+    "requestedProbeFilter": "embedding-gguf",
+    "selectedProbes": [
+      "qwen-embedding-gguf"
+    ],
+    "targetChatTokensPerSecondHigh": 60,
+    "targetChatTokensPerSecondLow": 40
+  },
+  "cacheRoot": "<repo>/model",
+  "cacheRootPolicy": {
+    "mode": "dev-repo-local",
+    "reason": "dev mode keeps downloaded models in the repository-local model directory",
+    "root": "<repo>/model"
+  },
+  "serviceConfig": {
+    "bindHost": "127.0.0.1",
+    "cacheRoot": "<repo>/model",
+    "exposeLlamaServer": false,
+    "port": 8766,
+    "routes": [
+      "health",
+      "models",
+      "load-model",
+      "unload-model",
+      "chat",
+      "embeddings",
+      "rerank"
+    ]
+  },
+  "chatThroughputPolicy": {
+    "minTokensPerSecond": 10.0,
+    "targetTokensPerSecondLow": 40.0,
+    "targetTokensPerSecondHigh": 60.0
+  },
+  "chatModelSelection": {
+    "enabled": false,
+    "reason": "chat-generation-gguf not selected by ENFORCER_X06_PROBE_FILTER",
+    "selected": {
+      "acceleration": "auto",
+      "backend": "llama-cpp",
+      "files": [
+        {
+          "kind": "model",
+          "path": "ornith-1.0-9b-Q4_K_M.gguf"
+        }
+      ],
+      "modelId": "deepreinforce-ai/Ornith-1.0-9B-GGUF",
+      "repoId": "deepreinforce-ai/Ornith-1.0-9B-GGUF",
+      "revision": "main",
+      "task": "summarization"
+    }
+  },
+  "chatGenerationGguf": {
+    "ok": false,
+    "operation": "chat-generation-gguf",
+    "reason": "not selected by ENFORCER_X06_PROBE_FILTER",
+    "skipped": true
+  },
+  "qwenEmbeddingGguf": {
+    "loaded": true,
+    "ok": true,
+    "operation": "qwen-embedding-gguf",
+    "report": {
+      "backendHint": "vulkan",
+      "binaryPath": "<repo>/model/bin/llama-b9904-bin-win-vulkan-x64/llama-server.exe",
+      "durationMs": 2440,
+      "executionRoute": "llama-server-v1-embeddings",
+      "exitCode": 0,
+      "fallbackFromBinaryPath": null,
+      "fallbackReason": "llama-embedding executable not configured/found; using llama-server /v1/embeddings",
+      "kind": "embedding",
+      "loadState": "loaded",
+      "measuredTokensPerSecond": null,
+      "modelPath": "<repo>/model/hf/Qwen--Qwen3-Embedding-0.6B-GGUF/main/Qwen3-Embedding-0.6B-Q8_0.gguf",
+      "outputDimensions": 1024,
+      "requestedAcceleration": "gpu",
+      "stderrExcerpt": "0.00.125.712 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)\r\n0.00.131.456 W srv  llama_server: embeddings enabled with n_batch (2048) > n_ubatch (512)\r\n0.00.131.466 W srv  llama_server: setting n_batch = n_ubatch = 512 to avoid assertion failure\r\n0.00.148.242 I srv    load_model: loading model '<repo>/model/hf/Qwen--Qwen3-Embedding-0.6B-GGUF/main/Qwen3-Embedding-0.6B-Q8_0.gguf'\r\n0.00.839.066 W load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden\r\n0.01.273.686 W llama_init_from_model: model default pooling_type is [3], but [1] was specified\r\n0.01.706.522 I srv    load_model: initializing, n_slots = 4, n_ctx_slot = 32768, kv_unified = 'true'\r\n0.01.718.846 I srv  llama_server: model loaded\r\n0.01.718.856 I srv  llama_server: listening on http://127.0.0.1:55883\r\n0.01.803.159 I slot get_availabl: id  3 | task -1 | selected slot by LRU, t_last = -1\r\n0.01.803.174 I slot launch_slot_: id  3 | task 0 | processing task, is_child = 0\r\n0.01.831.973 I slot      release: id  3 | task 0 | stop processing: n_tokens = 10, truncated = 0\r\n",
+      "stdoutExcerpt": "embedding dimensions: 1024; sample: [0.003304, -0.037107, -0.014370, -0.162274, -0.005565, -0.025017, 0.020886, 0.057926]",
+      "timedOut": false
+    },
+    "usability": {
+      "measuredTokensPerSecond": null,
+      "minChatTokensPerSecond": null,
+      "ok": true,
+      "reason": "embedding usable: dimensions 1024 matched expected 1024",
+      "targetChatTokensPerSecondHigh": null,
+      "targetChatTokensPerSecondLow": null
+    }
+  },
+  "qwenEmbeddingOnnx": {
+    "ok": false,
+    "operation": "qwen-embedding-onnx",
+    "reason": "not selected by ENFORCER_X06_PROBE_FILTER",
+    "skipped": true
+  },
+  "qwenRerankerOnnx": {
+    "ok": false,
+    "operation": "qwen-reranker-onnx",
+    "reason": "not selected by ENFORCER_X06_PROBE_FILTER",
+    "skipped": true
+  },
+  "observations": [
+    {
+      "schemaVersion": 1,
+      "observedAt": "manual-runtime-probe",
+      "source": "x06-model-runtime-probe",
+      "runId": "x06-model-runtime-probe",
+      "candidate": {
+        "observationKind": "successful-local-load",
+        "modelId": "Qwen/Qwen3-Embedding-0.6B-GGUF",
+        "task": "embedding",
+        "provider": "vulkan",
+        "loadedFromLocalCache": true
+      }
+    }
+  ]
+}

@@ -282,9 +282,7 @@ impl ScanRequest {
     ) -> Result<ScopeRequest, ScanModeError> {
         match self.explicit_scope_request(repo_root)? {
             Some(request) => Ok(request),
-            None => Ok(ScopeRequest::Paths(vec![PathBuf::from(
-                cwd_scope.as_str(),
-            )])),
+            None => Ok(ScopeRequest::Paths(vec![PathBuf::from(cwd_scope.as_str())])),
         }
     }
 

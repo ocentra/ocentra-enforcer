@@ -53,7 +53,9 @@ impl DomainEvent for TestEvent {
     }
 }
 
-pub(super) fn test_event(label: TestText) -> Result<TestEvent, Box<dyn std::error::Error + Send + Sync>> {
+pub(super) fn test_event(
+    label: TestText,
+) -> Result<TestEvent, Box<dyn std::error::Error + Send + Sync>> {
     test_event_with_aggregate(label, TestText(TEST_AGGREGATE.to_owned()))
 }
 
@@ -110,7 +112,9 @@ pub(super) fn test_event_for_type_with_aggregate_and_idempotency(
     })
 }
 
-pub(super) fn metadata(target: TestText) -> Result<EventMetadata, Box<dyn std::error::Error + Send + Sync>> {
+pub(super) fn metadata(
+    target: TestText,
+) -> Result<EventMetadata, Box<dyn std::error::Error + Send + Sync>> {
     metadata_with_event_id(target, TestText(TEST_EVENT_ID.to_owned()))
 }
 

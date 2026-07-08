@@ -125,9 +125,30 @@ pub fn sessionstart_hook_config(enforcer_binary_path: &Path) -> SessionStartHook
     }
 }
 
+/// Render [`SessionStartHookConfig`] into the exact `serde_json::Value`
+/// Claude's `hooks.SessionStart[]` array entry expects: `{"matcher":
+/// ..., "hooks": [{"type": "command", "command": "...",
+/// "additionalContext": "..."}]}`.
+#[must_use]
+pub fn render_settings_entry(config: &SessionStartHookConfig) -> serde_json::Value {
+    serde_json::json!({
+        "matcher": config.matcher,
+        "hooks": [
+            {
+                "type": "command",
+                "command": config.command,
+                "additionalContext": config.reminder_body,
+            }
+        ]
+    })
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{reminder_body, sessionstart_hook_config, HookEvent, ENFORCER_FIRST_MARKER};
+    use super::{
+        reminder_body, render_settings_entry, sessionstart_hook_config, HookEvent,
+        ENFORCER_FIRST_MARKER,
+    };
     use crate::hooks::{TIER_T1_TOKEN, TIER_T2_TOKEN, TIER_T3_TOKEN};
     use std::path::{Path, PathBuf};
 
@@ -233,5 +254,28 @@ mod tests {
         let back: super::SessionStartHookConfig = serde_json::from_str(&wire)?;
         assert_eq!(back, config);
         Ok(())
+    }
+
+    #[test]
+    fn render_settings_entry_shapes_a_claude_hooks_array_entry(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let config = sessionstart_hook_config(&sample_binary_path());
+        let value = render_settings_entry(&config);
+        assert_eq!(value["matcher"], "");
+        let hooks = value["hooks"].as_array().ok_or("expected a hooks array")?;
+        assert_eq!(hooks.len(), 1);
+        assert_eq!(hooks[0]["type"], "command");
+        assert_eq!(hooks[0]["command"], config.command);
+        assert_eq!(hooks[0]["additionalContext"], config.reminder_body);
+        Ok(())
+    }
+
+    #[test]
+    fn render_settings_entry_is_idempotent_to_render_twice() {
+        let config = sessionstart_hook_config(&sample_binary_path());
+        assert_eq!(
+            render_settings_entry(&config),
+            render_settings_entry(&config)
+        );
     }
 }

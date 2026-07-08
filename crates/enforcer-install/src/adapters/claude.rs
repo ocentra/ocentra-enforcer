@@ -40,6 +40,13 @@ use crate::backup::backup_before_write;
 use crate::cli_contract::RequestContext;
 use crate::core::HarnessAdapter;
 use crate::error::{InstallError, InstallResult};
+use crate::hooks::pretooluse::{
+    build_hook_config as build_pretooluse_hook_config,
+    render_settings_entry as render_pretooluse_settings_entry,
+};
+use crate::hooks::sessionstart::{
+    render_settings_entry as render_sessionstart_settings_entry, sessionstart_hook_config,
+};
 use crate::managed_block::upsert_block;
 use crate::report::{AppliedChange, ApplyResult, ArtifactKind, InstallReport, PlannedChange};
 use crate::report::{VerifyCheck, VerifyReport};
@@ -59,6 +66,8 @@ const HARNESS_KEY: &str = "claude";
 
 /// The managed-block marker name this adapter upserts into `CLAUDE.md`.
 const CLAUDE_MD_BLOCK_NAME: &str = "claude-doctrine";
+const SESSION_START_EVENT: &str = "SessionStart";
+const PRE_TOOL_USE_EVENT: &str = "PreToolUse";
 
 /// The Claude Code [`HarnessAdapter`]. Rooted at a `home` directory (the
 /// parent of both `~/.claude.json` and `~/.claude/`) and a `binary_path`
@@ -185,6 +194,14 @@ impl ClaudeAdapter {
         })
     }
 
+    fn desired_sessionstart_hook(binary_path: &Path) -> Value {
+        render_sessionstart_settings_entry(&sessionstart_hook_config(binary_path))
+    }
+
+    fn desired_pretooluse_hook(binary_path: &Path) -> Value {
+        render_pretooluse_settings_entry(&build_pretooluse_hook_config(binary_path))
+    }
+
     /// True when `existing_root`'s `mcpServers[<SERVER_NAME>]` entry
     /// already equals `desired` — the idempotent-reinstall no-op signal.
     fn entry_matches(existing_root: &Value, desired: &Value) -> bool {
@@ -192,6 +209,37 @@ impl ClaudeAdapter {
             .get("mcpServers")
             .and_then(|servers| servers.get(SERVER_NAME))
             == Some(desired)
+    }
+
+    fn hook_entry_command(entry: &Value) -> Option<&str> {
+        entry
+            .get("hooks")
+            .and_then(Value::as_array)
+            .and_then(|hooks| hooks.first())
+            .and_then(|hook| hook.get("command"))
+            .and_then(Value::as_str)
+    }
+
+    fn hook_entry_matches(existing_root: &Value, event_name: &str, desired: &Value) -> bool {
+        existing_root
+            .get("hooks")
+            .and_then(Value::as_object)
+            .and_then(|hooks| hooks.get(event_name))
+            .and_then(Value::as_array)
+            .is_some_and(|entries| entries.iter().any(|entry| entry == desired))
+    }
+
+    fn hook_command_present(existing_root: &Value, event_name: &str, command: &str) -> bool {
+        existing_root
+            .get("hooks")
+            .and_then(Value::as_object)
+            .and_then(|hooks| hooks.get(event_name))
+            .and_then(Value::as_array)
+            .is_some_and(|entries| {
+                entries
+                    .iter()
+                    .any(|entry| Self::hook_entry_command(entry) == Some(command))
+            })
     }
 
     /// Value-merge `desired` into `existing_root`'s top-level
@@ -224,6 +272,134 @@ impl ClaudeAdapter {
             .and_then(Value::as_object_mut)
         {
             servers.remove(SERVER_NAME);
+            if servers.is_empty() {
+                if let Some(root) = existing_root.as_object_mut() {
+                    root.remove("mcpServers");
+                }
+            }
+        }
+    }
+
+    fn merge_hook_entry(existing_root: &mut Value, event_name: &str, desired: Value) {
+        if !existing_root.is_object() {
+            *existing_root = Value::Object(Map::new());
+        }
+        let Some(root) = existing_root.as_object_mut() else {
+            return;
+        };
+        let hooks = root
+            .entry("hooks")
+            .or_insert_with(|| Value::Object(Map::new()));
+        if !hooks.is_object() {
+            *hooks = Value::Object(Map::new());
+        }
+        let Some(hooks_map) = hooks.as_object_mut() else {
+            return;
+        };
+        let entries = hooks_map
+            .entry(event_name.to_owned())
+            .or_insert_with(|| Value::Array(Vec::new()));
+        if !entries.is_array() {
+            *entries = Value::Array(Vec::new());
+        }
+        let Some(entries) = entries.as_array_mut() else {
+            return;
+        };
+        let desired_command = Self::hook_entry_command(&desired).map(str::to_owned);
+        let mut exact_present = false;
+        let mut retained = Vec::with_capacity(entries.len() + 1);
+        for entry in entries.drain(..) {
+            if entry == desired {
+                if !exact_present {
+                    exact_present = true;
+                    retained.push(entry);
+                }
+                continue;
+            }
+            let same_command = desired_command
+                .as_deref()
+                .is_some_and(|command| Self::hook_entry_command(&entry) == Some(command));
+            if same_command {
+                continue;
+            }
+            retained.push(entry);
+        }
+        if !exact_present {
+            retained.push(desired);
+        }
+        *entries = retained;
+    }
+
+    fn remove_hook_entry(existing_root: &mut Value, event_name: &str, command: &str) {
+        let Some(root) = existing_root.as_object_mut() else {
+            return;
+        };
+        let Some(hooks) = root.get_mut("hooks").and_then(Value::as_object_mut) else {
+            return;
+        };
+        let mut remove_event = false;
+        if let Some(entries) = hooks.get_mut(event_name).and_then(Value::as_array_mut) {
+            entries.retain(|entry| Self::hook_entry_command(entry) != Some(command));
+            remove_event = entries.is_empty();
+        }
+        if remove_event {
+            hooks.remove(event_name);
+        }
+        if hooks.is_empty() {
+            root.remove("hooks");
+        }
+    }
+
+    fn verify_hook_check(
+        existing_root: &Value,
+        claude_json_path: &Path,
+        event_name: &str,
+        check_name: &str,
+        desired: &Value,
+    ) -> VerifyCheck {
+        let expected_command = Self::hook_entry_command(desired).unwrap_or("<unknown>");
+        let detail = if existing_root.get("hooks").is_none() {
+            Some(format!(
+                "`hooks` missing from `{}`",
+                claude_json_path.display()
+            ))
+        } else if !existing_root.get("hooks").is_some_and(Value::is_object) {
+            Some(format!(
+                "`hooks` in `{}` is not an object",
+                claude_json_path.display()
+            ))
+        } else {
+            let entries = existing_root
+                .get("hooks")
+                .and_then(Value::as_object)
+                .and_then(|hooks| hooks.get(event_name))
+                .and_then(Value::as_array);
+            match entries {
+                None => Some(format!(
+                    "hooks.{event_name} missing from `{}`",
+                    claude_json_path.display()
+                )),
+                Some(entries) if entries.iter().any(|entry| entry == desired) => None,
+                Some(entries)
+                    if entries
+                        .iter()
+                        .any(|entry| Self::hook_entry_command(entry) == Some(expected_command)) =>
+                {
+                    Some(format!(
+                        "hooks.{event_name} contains an enforcer command `{expected_command}` but \
+                         the entry drifted from the expected config"
+                    ))
+                }
+                Some(_) => Some(format!(
+                    "hooks.{event_name} missing expected enforcer command `{expected_command}`"
+                )),
+            }
+        };
+        VerifyCheck {
+            harness: HARNESS_KEY.to_owned(),
+            name: check_name.to_owned(),
+            passed: detail.is_none(),
+            detail: detail.unwrap_or_default(),
         }
     }
 
@@ -357,6 +533,8 @@ impl HarnessAdapter for ClaudeAdapter {
         self.check_ctx_consistency(ctx)?;
         let existing = self.read_claude_json()?;
         let desired = Self::desired_entry(&self.binary_path);
+        let desired_sessionstart = Self::desired_sessionstart_hook(&self.binary_path);
+        let desired_pretooluse = Self::desired_pretooluse_hook(&self.binary_path);
         let mut planned_changes = Vec::new();
         let mut warnings = Vec::new();
 
@@ -369,6 +547,19 @@ impl HarnessAdapter for ClaudeAdapter {
                 description: format!(
                     "upsert mcpServers[\"{SERVER_NAME}\"] in ~/.claude.json (user/global scope)"
                 ),
+                is_update: claude_json_is_update,
+            });
+        }
+        if !Self::hook_entry_matches(&existing, SESSION_START_EVENT, &desired_sessionstart)
+            || !Self::hook_entry_matches(&existing, PRE_TOOL_USE_EVENT, &desired_pretooluse)
+        {
+            planned_changes.push(PlannedChange {
+                harness: HARNESS_KEY.to_owned(),
+                kind: ArtifactKind::HarnessSpecific,
+                path: Self::repo_root(&self.claude_json_path())?,
+                description:
+                    "upsert Claude SessionStart and PreToolUse hook entries in ~/.claude.json"
+                        .to_owned(),
                 is_update: claude_json_is_update,
             });
         }
@@ -461,6 +652,20 @@ impl HarnessAdapter for ClaudeAdapter {
                     Self::merge_mcp_server(&mut existing, Self::desired_entry(&self.binary_path));
                     self.write_claude_json(&existing)?;
                 }
+                ArtifactKind::HarnessSpecific if target == self.claude_json_path() => {
+                    let mut existing = self.read_claude_json()?;
+                    Self::merge_hook_entry(
+                        &mut existing,
+                        SESSION_START_EVENT,
+                        Self::desired_sessionstart_hook(&self.binary_path),
+                    );
+                    Self::merge_hook_entry(
+                        &mut existing,
+                        PRE_TOOL_USE_EVENT,
+                        Self::desired_pretooluse_hook(&self.binary_path),
+                    );
+                    self.write_claude_json(&existing)?;
+                }
                 ArtifactKind::HarnessSpecific if target == self.skill_md_path() => {
                     std::fs::write(&target, Self::skill_md_content())
                         .map_err(|e| Self::io_err(&target, e))?;
@@ -516,50 +721,60 @@ impl HarnessAdapter for ClaudeAdapter {
         // ("Fail-closed on malformed JSON or a missing/corrupt
         // descriptor" — distinct from a check that runs and finds a real
         // mismatch, which DOES render as `passed: false`).
-        let mcp_check = match self.read_claude_json() {
-            Err(e) => return Err(e),
-            Ok(root) => {
-                let entry = root.get("mcpServers").and_then(|s| s.get(SERVER_NAME));
-                match entry {
-                    None => VerifyCheck {
+        let root = self.read_claude_json()?;
+        let entry = root.get("mcpServers").and_then(|s| s.get(SERVER_NAME));
+        let mcp_check = match entry {
+            None => VerifyCheck {
+                harness: HARNESS_KEY.to_owned(),
+                name: "mcp-registration-present".to_owned(),
+                passed: false,
+                detail: format!(
+                    "mcpServers.{SERVER_NAME} missing from `{}`",
+                    claude_json_path.display()
+                ),
+            },
+            Some(entry) => {
+                let command = entry.get("command").and_then(Value::as_str);
+                let expected = ctx.binary_path.display().to_string();
+                match command {
+                    Some(c) if c == expected => VerifyCheck {
+                        harness: HARNESS_KEY.to_owned(),
+                        name: "mcp-registration-present".to_owned(),
+                        passed: true,
+                        detail: String::new(),
+                    },
+                    Some(c) => VerifyCheck {
                         harness: HARNESS_KEY.to_owned(),
                         name: "mcp-registration-present".to_owned(),
                         passed: false,
                         detail: format!(
-                            "mcpServers.{SERVER_NAME} missing from `{}`",
-                            claude_json_path.display()
+                            "mcpServers.{SERVER_NAME}.command = `{c}`, expected `{expected}`"
                         ),
                     },
-                    Some(entry) => {
-                        let command = entry.get("command").and_then(Value::as_str);
-                        let expected = ctx.binary_path.display().to_string();
-                        match command {
-                            Some(c) if c == expected => VerifyCheck {
-                                harness: HARNESS_KEY.to_owned(),
-                                name: "mcp-registration-present".to_owned(),
-                                passed: true,
-                                detail: String::new(),
-                            },
-                            Some(c) => VerifyCheck {
-                                harness: HARNESS_KEY.to_owned(),
-                                name: "mcp-registration-present".to_owned(),
-                                passed: false,
-                                detail: format!(
-                                    "mcpServers.{SERVER_NAME}.command = `{c}`, expected `{expected}`"
-                                ),
-                            },
-                            None => VerifyCheck {
-                                harness: HARNESS_KEY.to_owned(),
-                                name: "mcp-registration-present".to_owned(),
-                                passed: false,
-                                detail: format!("mcpServers.{SERVER_NAME} has no `command` field"),
-                            },
-                        }
-                    }
+                    None => VerifyCheck {
+                        harness: HARNESS_KEY.to_owned(),
+                        name: "mcp-registration-present".to_owned(),
+                        passed: false,
+                        detail: format!("mcpServers.{SERVER_NAME} has no `command` field"),
+                    },
                 }
             }
         };
         checks.push(mcp_check);
+        checks.push(Self::verify_hook_check(
+            &root,
+            &claude_json_path,
+            SESSION_START_EVENT,
+            "sessionstart-hook-present",
+            &Self::desired_sessionstart_hook(&ctx.binary_path),
+        ));
+        checks.push(Self::verify_hook_check(
+            &root,
+            &claude_json_path,
+            PRE_TOOL_USE_EVENT,
+            "pretooluse-hook-present",
+            &Self::desired_pretooluse_hook(&ctx.binary_path),
+        ));
 
         let descriptor_path = self.agent_descriptor_path();
         let descriptor_check = if !descriptor_path.is_file() {
@@ -619,6 +834,14 @@ impl ClaudeAdapter {
         self.check_ctx_consistency(ctx)?;
         let existing = self.read_claude_json()?;
         let mut planned_changes = Vec::new();
+        let sessionstart_command =
+            Self::hook_entry_command(&Self::desired_sessionstart_hook(&self.binary_path))
+                .unwrap_or_default()
+                .to_owned();
+        let pretooluse_command =
+            Self::hook_entry_command(&Self::desired_pretooluse_hook(&self.binary_path))
+                .unwrap_or_default()
+                .to_owned();
 
         let has_entry = existing
             .get("mcpServers")
@@ -630,6 +853,19 @@ impl ClaudeAdapter {
                 kind: ArtifactKind::McpRegistration,
                 path: Self::repo_root(&self.claude_json_path())?,
                 description: format!("remove mcpServers[\"{SERVER_NAME}\"] from ~/.claude.json"),
+                is_update: true,
+            });
+        }
+        if Self::hook_command_present(&existing, SESSION_START_EVENT, &sessionstart_command)
+            || Self::hook_command_present(&existing, PRE_TOOL_USE_EVENT, &pretooluse_command)
+        {
+            planned_changes.push(PlannedChange {
+                harness: HARNESS_KEY.to_owned(),
+                kind: ArtifactKind::HarnessSpecific,
+                path: Self::repo_root(&self.claude_json_path())?,
+                description:
+                    "remove enforcer SessionStart and PreToolUse hook entries from ~/.claude.json"
+                        .to_owned(),
                 is_update: true,
             });
         }
@@ -668,6 +904,14 @@ impl ClaudeAdapter {
     /// Returns [`InstallError::Io`] if a removal fails.
     pub fn apply_uninstall(&self, report: &InstallReport) -> InstallResult<ApplyResult> {
         let mut applied = Vec::with_capacity(report.planned_changes.len());
+        let sessionstart_command =
+            Self::hook_entry_command(&Self::desired_sessionstart_hook(&self.binary_path))
+                .unwrap_or_default()
+                .to_owned();
+        let pretooluse_command =
+            Self::hook_entry_command(&Self::desired_pretooluse_hook(&self.binary_path))
+                .unwrap_or_default()
+                .to_owned();
         for change in &report.planned_changes {
             let target = PathBuf::from(change.path.as_str());
             let backup_path = backup_before_write(&target)?;
@@ -676,6 +920,16 @@ impl ClaudeAdapter {
                 ArtifactKind::McpRegistration => {
                     let mut existing = self.read_claude_json()?;
                     Self::remove_mcp_server(&mut existing);
+                    self.write_claude_json(&existing)?;
+                }
+                ArtifactKind::HarnessSpecific if target == self.claude_json_path() => {
+                    let mut existing = self.read_claude_json()?;
+                    Self::remove_hook_entry(
+                        &mut existing,
+                        SESSION_START_EVENT,
+                        &sessionstart_command,
+                    );
+                    Self::remove_hook_entry(&mut existing, PRE_TOOL_USE_EVENT, &pretooluse_command);
                     self.write_claude_json(&existing)?;
                 }
                 _ => {
@@ -716,7 +970,7 @@ mod tests {
         let adapter = ClaudeAdapter::new(home.path(), &binary);
         let report = adapter.plan(&ctx(&binary))?;
         assert!(!report.is_noop());
-        assert_eq!(report.planned_changes.len(), 4);
+        assert_eq!(report.planned_changes.len(), 5);
         Ok(())
     }
 
@@ -775,6 +1029,11 @@ mod tests {
             "/usr/bin/codebase-memory-mcp"
         );
         assert_eq!(mid["unrelatedTopLevelKey"], "keep-me");
+        assert_eq!(mid["hooks"]["SessionStart"][0]["matcher"], "");
+        assert_eq!(
+            mid["hooks"]["PreToolUse"][0]["matcher"],
+            "Edit|Write|MultiEdit"
+        );
         assert!(mid["mcpServers"][SERVER_NAME].is_object());
 
         let uninstall_plan = adapter.plan_uninstall(&ctx(&binary))?;
@@ -794,6 +1053,27 @@ mod tests {
 
         assert!(!adapter.skill_md_path().is_file());
         assert!(!adapter.agent_descriptor_path().is_file());
+        Ok(())
+    }
+
+    #[test]
+    fn empty_home_round_trip_drops_empty_json_scaffolding() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let home = fixture_home()?;
+        let binary = home.path().join("bin").join("enforcer");
+        fs::create_dir_all(binary.parent().ok_or("expected a parent dir")?)?;
+        fs::write(&binary, b"fake-binary")?;
+        fs::write(
+            home.path().join(".claude.json"),
+            serde_json::to_string_pretty(&serde_json::json!({}))?,
+        )?;
+
+        let adapter = ClaudeAdapter::new(home.path(), &binary);
+        adapter.apply(&adapter.plan(&ctx(&binary))?)?;
+        adapter.apply_uninstall(&adapter.plan_uninstall(&ctx(&binary))?)?;
+
+        let restored: Value = serde_json::from_slice(&fs::read(home.path().join(".claude.json"))?)?;
+        assert_eq!(restored, serde_json::json!({}));
         Ok(())
     }
 
@@ -856,6 +1136,16 @@ mod tests {
         let binary = home.path().join("bin").join("enforcer");
         let mut root = serde_json::json!({});
         ClaudeAdapter::merge_mcp_server(&mut root, ClaudeAdapter::desired_entry(&binary));
+        ClaudeAdapter::merge_hook_entry(
+            &mut root,
+            SESSION_START_EVENT,
+            ClaudeAdapter::desired_sessionstart_hook(&binary),
+        );
+        ClaudeAdapter::merge_hook_entry(
+            &mut root,
+            PRE_TOOL_USE_EVENT,
+            ClaudeAdapter::desired_pretooluse_hook(&binary),
+        );
         fs::write(
             home.path().join(".claude.json"),
             serde_json::to_string(&root)?,
@@ -878,6 +1168,16 @@ mod tests {
         let binary = home.path().join("bin").join("enforcer");
         let mut root = serde_json::json!({});
         ClaudeAdapter::merge_mcp_server(&mut root, ClaudeAdapter::desired_entry(&binary));
+        ClaudeAdapter::merge_hook_entry(
+            &mut root,
+            SESSION_START_EVENT,
+            ClaudeAdapter::desired_sessionstart_hook(&binary),
+        );
+        ClaudeAdapter::merge_hook_entry(
+            &mut root,
+            PRE_TOOL_USE_EVENT,
+            ClaudeAdapter::desired_pretooluse_hook(&binary),
+        );
         fs::write(
             home.path().join(".claude.json"),
             serde_json::to_string(&root)?,
@@ -891,6 +1191,118 @@ mod tests {
         let adapter = ClaudeAdapter::new(home.path(), &binary);
         let report = adapter.verify(&ctx(&binary))?;
         assert!(!report.all_passed());
+        Ok(())
+    }
+
+    #[test]
+    fn verify_fails_when_hook_entries_are_missing() -> Result<(), Box<dyn std::error::Error>> {
+        let home = fixture_home()?;
+        let binary = home.path().join("bin").join("enforcer");
+        let mut root = serde_json::json!({});
+        ClaudeAdapter::merge_mcp_server(&mut root, ClaudeAdapter::desired_entry(&binary));
+        fs::write(
+            home.path().join(".claude.json"),
+            serde_json::to_string(&root)?,
+        )?;
+        let agents_dir = home.path().join(".claude").join("agents");
+        fs::create_dir_all(&agents_dir)?;
+        fs::write(
+            agents_dir.join(format!("{SERVER_NAME}.md")),
+            ClaudeAdapter::render_agent_descriptor(),
+        )?;
+        let adapter = ClaudeAdapter::new(home.path(), &binary);
+        let report = adapter.verify(&ctx(&binary))?;
+        assert!(!report.all_passed());
+        let sessionstart = report
+            .checks
+            .iter()
+            .find(|c| c.name == "sessionstart-hook-present")
+            .ok_or("expected a sessionstart-hook-present check")?;
+        assert!(!sessionstart.passed);
+        let pretooluse = report
+            .checks
+            .iter()
+            .find(|c| c.name == "pretooluse-hook-present")
+            .ok_or("expected a pretooluse-hook-present check")?;
+        assert!(!pretooluse.passed);
+        Ok(())
+    }
+
+    #[test]
+    fn hook_merge_preserves_unrelated_entries_and_replaces_stale_enforcer_entries(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut root = serde_json::json!({
+            "hooks": {
+                "SessionStart": [
+                    {
+                        "matcher": "resume",
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": "/usr/bin/other-session",
+                                "additionalContext": "keep me"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": "",
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": "/abs/enforcer hooks sessionstart",
+                                "additionalContext": "stale"
+                            }
+                        ]
+                    }
+                ],
+                "PreToolUse": [
+                    {
+                        "matcher": "Read",
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": "/usr/bin/other-pretooluse",
+                                "timeout": 5
+                            }
+                        ]
+                    }
+                ]
+            }
+        });
+        ClaudeAdapter::merge_hook_entry(
+            &mut root,
+            SESSION_START_EVENT,
+            ClaudeAdapter::desired_sessionstart_hook(Path::new("/abs/enforcer")),
+        );
+        ClaudeAdapter::merge_hook_entry(
+            &mut root,
+            PRE_TOOL_USE_EVENT,
+            ClaudeAdapter::desired_pretooluse_hook(Path::new("/abs/enforcer")),
+        );
+        let session_entries = root["hooks"]["SessionStart"]
+            .as_array()
+            .ok_or("expected SessionStart array")?;
+        assert_eq!(session_entries.len(), 2);
+        assert_eq!(
+            session_entries[0]["hooks"][0]["command"],
+            "/usr/bin/other-session"
+        );
+        assert_eq!(
+            session_entries[1]["hooks"][0]["additionalContext"],
+            crate::hooks::sessionstart::reminder_body(Path::new("/abs/enforcer"))
+        );
+        let pretool_entries = root["hooks"]["PreToolUse"]
+            .as_array()
+            .ok_or("expected PreToolUse array")?;
+        assert_eq!(pretool_entries.len(), 2);
+        assert_eq!(
+            pretool_entries[0]["hooks"][0]["command"],
+            "/usr/bin/other-pretooluse"
+        );
+        assert_eq!(
+            pretool_entries[1]["hooks"][0]["command"],
+            "/abs/enforcer check --hook-mode=pretooluse"
+        );
         Ok(())
     }
 

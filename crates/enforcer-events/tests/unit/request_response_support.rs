@@ -136,7 +136,9 @@ impl DomainEvent for TestResultEvent {
     }
 }
 
-pub(super) fn test_request(label: TestText) -> Result<TestRequestEvent, Box<dyn std::error::Error + Send + Sync>> {
+pub(super) fn test_request(
+    label: TestText,
+) -> Result<TestRequestEvent, Box<dyn std::error::Error + Send + Sync>> {
     test_request_with_id(label, TestText(REQUEST_ID.to_owned()))
 }
 

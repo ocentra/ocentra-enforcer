@@ -69,7 +69,11 @@ impl std::fmt::Display for SkipReason {
 /// resolve to exactly one of these — there is no code path that drops a
 /// target without recording either `Ran` or `Skipped`.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ts_rs::TS)]
-#[serde(rename_all = "camelCase", rename_all_fields = "camelCase", tag = "kind")]
+#[serde(
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase",
+    tag = "kind"
+)]
 pub enum Outcome {
     /// The target was dispatched to at least a router decision and
     /// validators actually ran against it (`validator_count` may be zero
@@ -172,8 +176,7 @@ mod tests {
     }
 
     #[test]
-    fn outcome_rejects_smuggled_empty_reason_on_decode() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn outcome_rejects_smuggled_empty_reason_on_decode() -> Result<(), Box<dyn std::error::Error>> {
         let outcome = Outcome::skipped("real reason")?;
         let wire = serde_json::to_string(&outcome)?;
         let smuggled = wire.replace("real reason", "");

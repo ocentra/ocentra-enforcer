@@ -203,8 +203,8 @@ impl Validator for ComponentsFeatureInversionValidator {
             if is_comment_only_line(line.text) {
                 continue;
             }
-            let imports_feature = import_target(line.text)
-                .is_some_and(|target| target.contains("@/features/"));
+            let imports_feature =
+                import_target(line.text).is_some_and(|target| target.contains("@/features/"));
             let calls_data_fetch = DATA_FETCH_MARKERS
                 .iter()
                 .any(|marker| line.text.contains(marker));
@@ -704,7 +704,10 @@ impl Validator for NoExplicitAnyValidator {
                 continue;
             }
             let waived = idx > 0
-                && all_lines[idx - 1].text.trim_start().starts_with("// waiver: any")
+                && all_lines[idx - 1]
+                    .text
+                    .trim_start()
+                    .starts_with("// waiver: any")
                 && all_lines[idx - 1].text.contains("// reason:");
             if waived {
                 continue;
@@ -845,7 +848,8 @@ impl Validator for ExplicitFsmTransitionsValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let has_transition_map = input.source.contains("as const")
-            && (input.source.contains("transitions = {") || input.source.contains("transitions: {"));
+            && (input.source.contains("transitions = {")
+                || input.source.contains("transitions: {"));
         let routes_through_assert = ASSERT_TRANSITION_MARKERS
             .iter()
             .any(|m| input.source.contains(m));
@@ -1099,8 +1103,8 @@ mod tests {
     /// AND lives at `.../lib/env.ts`, so it must stay clean precisely
     /// because of its path, not because the detector is broken.
     #[test]
-    fn fe_cfg_env_centralization_lib_env_itself_is_exempt(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn fe_cfg_env_centralization_lib_env_itself_is_exempt() -> Result<(), Box<dyn std::error::Error>>
+    {
         let validator = EnvCentralizationValidator::new()?;
         let repo_root = manifest_dir();
         let rel = "tests/fixtures/frontend_react/cfg-1.1/lib/env.ts";

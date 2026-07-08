@@ -110,7 +110,10 @@ impl EventBus {
         })
     }
 
-    pub(in crate::bus) fn subscribers_for(&self, stored: &StoredEventEnvelope) -> Vec<SubscriberRecord> {
+    pub(in crate::bus) fn subscribers_for(
+        &self,
+        stored: &StoredEventEnvelope,
+    ) -> Vec<SubscriberRecord> {
         let registry = self.registry.lock().unwrap_or_else(PoisonError::into_inner);
         let subscribers = registry
             .get(&stored.contract.event_type)

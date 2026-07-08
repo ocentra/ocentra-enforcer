@@ -336,6 +336,14 @@ fn checked_in_real_model_proofs_do_not_hardcode_machine_absolute_paths() {
             include_str!("../../../proof/memory/x06-models.json"),
         ),
         (
+            "x06-models-chat-plan.json",
+            include_str!("../../../proof/memory/x06-models-chat-plan.json"),
+        ),
+        (
+            "x06-models-multi-probe-plan.json",
+            include_str!("../../../proof/memory/x06-models-multi-probe-plan.json"),
+        ),
+        (
             "x06-models-qwen3-4b-download-local.json",
             include_str!("../../../proof/memory/x06-models-qwen3-4b-download-local.json"),
         ),
@@ -348,8 +356,24 @@ fn checked_in_real_model_proofs_do_not_hardcode_machine_absolute_paths() {
             include_str!("../../../proof/memory/x06-models-qwen3-4b-vulkan-windows-local.json"),
         ),
         (
+            "x06-models-chat-auto-gpu.json",
+            include_str!("../../../proof/memory/x06-models-chat-auto-gpu.json"),
+        ),
+        (
+            "x06-models-gemma3-4b-vulkan-live.json",
+            include_str!("../../../proof/memory/x06-models-gemma3-4b-vulkan-live.json"),
+        ),
+        (
             "x06-models-qwen3-embedding-download.json",
             include_str!("../../../proof/memory/x06-models-qwen3-embedding-download.json"),
+        ),
+        (
+            "x06-models-gemma3-4b-download-live.json",
+            include_str!("../../../proof/memory/x06-models-gemma3-4b-download-live.json"),
+        ),
+        (
+            "x06-models-qwen3-embedding-gguf-vulkan-live.json",
+            include_str!("../../../proof/memory/x06-models-qwen3-embedding-gguf-vulkan-live.json"),
         ),
         (
             "x06-models-qwen3-embedding-ort-cpu.json",
@@ -401,10 +425,16 @@ fn checked_in_real_model_proofs_do_not_hardcode_machine_absolute_paths() {
 fn checked_in_real_model_proofs_are_not_claimed_as_ci_parity() -> TestResult {
     let proof_files = [
         include_str!("../../../proof/memory/x06-models.json"),
+        include_str!("../../../proof/memory/x06-models-chat-plan.json"),
+        include_str!("../../../proof/memory/x06-models-multi-probe-plan.json"),
         include_str!("../../../proof/memory/x06-models-qwen3-4b-download-local.json"),
         include_str!("../../../proof/memory/x06-models-qwen3-4b-cpu-windows-local.json"),
         include_str!("../../../proof/memory/x06-models-qwen3-4b-vulkan-windows-local.json"),
+        include_str!("../../../proof/memory/x06-models-chat-auto-gpu.json"),
+        include_str!("../../../proof/memory/x06-models-gemma3-4b-vulkan-live.json"),
         include_str!("../../../proof/memory/x06-models-qwen3-embedding-download.json"),
+        include_str!("../../../proof/memory/x06-models-gemma3-4b-download-live.json"),
+        include_str!("../../../proof/memory/x06-models-qwen3-embedding-gguf-vulkan-live.json"),
         include_str!("../../../proof/memory/x06-models-qwen3-embedding-ort-cpu.json"),
         include_str!("../../../proof/memory/x06-models-qwen3-reranker-download.json"),
         include_str!("../../../proof/memory/x06-models-qwen3-reranker-ort-cpu.json"),
@@ -553,6 +583,326 @@ fn checked_in_qwen3_cpu_chat_probe_records_below_floor_failure() -> TestResult {
 }
 
 #[test]
+fn checked_in_auto_gpu_chat_probe_selects_qwen_and_is_usable() -> TestResult {
+    let proof: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../proof/memory/x06-models-chat-auto-gpu.json"
+    ))?;
+    let plan = &proof["probeExecutionPolicy"];
+    let selection = &proof["chatModelSelection"];
+    let chat = &proof["chatGenerationGguf"];
+    let report = &chat["report"];
+    let usability = &chat["usability"];
+
+    assert_eq!(proof["runtimeMode"], "probe");
+    assert_eq!(proof["proofScope"]["portability"], "local-runtime-proof");
+    assert_eq!(proof["proofScope"]["localHardwareRequired"], true);
+    assert_eq!(proof["proofScope"]["ciParity"], false);
+    assert_eq!(proof["allowNetwork"], true);
+    assert_eq!(proof["cacheRoot"], "<repo>/model");
+    assert_eq!(proof["serviceConfig"]["exposeLlamaServer"], false);
+
+    assert_eq!(plan["allowMultiProbe"], false);
+    assert_eq!(plan["cpuFirst"], true);
+    assert_eq!(plan["oneModelAtATime"], true);
+    assert_eq!(plan["gpuAndNpuRequireProviderProbe"], true);
+    assert_eq!(plan["selectedProbes"][0], "chat-generation-gguf");
+
+    assert_eq!(selection["requestedBackendHint"], "auto");
+    assert_eq!(selection["requestedAcceleration"], "gpu");
+    assert_eq!(selection["resolvedAcceleration"], "gpu");
+    assert_eq!(selection["providerProbePassed"], true);
+    assert_eq!(selection["selectedDeviceId"], "Vulkan0");
+    assert_eq!(
+        selection["selection"]["selected"]["repoId"],
+        "Qwen/Qwen3-4B-GGUF"
+    );
+    assert_eq!(selection["selection"]["selectedQuantization"], "Q4_K_M");
+
+    assert_eq!(chat["operation"], "chat-generation-gguf");
+    assert_eq!(chat["loaded"], true);
+    assert_eq!(chat["ok"], true);
+    assert_eq!(report["kind"], "generate");
+    assert_eq!(report["backendHint"], "vulkan");
+    assert_eq!(report["requestedAcceleration"], "gpu");
+    assert_eq!(
+        report["modelPath"],
+        "<repo>/model/hf/Qwen--Qwen3-4B-GGUF/main/Qwen3-4B-Q4_K_M.gguf"
+    );
+
+    let measured = usability["measuredTokensPerSecond"]
+        .as_f64()
+        .ok_or("missing auto-gpu chat throughput measurement")?;
+    assert!(measured >= DEFAULT_MIN_CHAT_TOKENS_PER_SECOND);
+    assert!(measured >= TARGET_CHAT_TOKENS_PER_SECOND_HIGH);
+    assert_eq!(usability["ok"], true);
+
+    let observation = &proof["observations"][0]["candidate"];
+    assert_eq!(observation["observationKind"], "successful-local-load");
+    assert_eq!(observation["modelId"], "Qwen/Qwen3-4B-GGUF");
+    assert_eq!(observation["provider"], "vulkan");
+    assert_eq!(observation["loadedFromLocalCache"], true);
+    Ok(())
+}
+
+#[test]
+fn checked_in_gemma_vulkan_chat_probe_is_real_usable_local_gguf() -> TestResult {
+    let proof: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../proof/memory/x06-models-gemma3-4b-vulkan-live.json"
+    ))?;
+    let chat = &proof["chatGenerationGguf"];
+    let report = &chat["report"];
+    let usability = &chat["usability"];
+
+    assert_eq!(proof["runtimeMode"], "probe");
+    assert_eq!(proof["allowNetwork"], false);
+    assert_eq!(proof["proofScope"]["portability"], "local-runtime-proof");
+    assert_eq!(proof["proofScope"]["localHardwareRequired"], true);
+    assert_eq!(proof["proofScope"]["ciParity"], false);
+    assert_eq!(
+        proof["chatModelSelection"]["selected"]["repoId"],
+        "bartowski/google_gemma-3-4b-it-GGUF"
+    );
+
+    assert_eq!(chat["operation"], "chat-generation-gguf");
+    assert_eq!(chat["loaded"], true);
+    assert_eq!(chat["ok"], true);
+    assert_eq!(report["kind"], "generate");
+    assert_eq!(report["backendHint"], "vulkan");
+    assert_eq!(report["requestedAcceleration"], "gpu");
+    assert_eq!(
+        report["modelPath"],
+        "<repo>/model/hf/bartowski--google_gemma-3-4b-it-GGUF/main/google_gemma-3-4b-it-Q4_K_M.gguf"
+    );
+    assert!(report["stdoutExcerpt"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("Say hello from the local chat model in one short sentence."));
+
+    let measured = usability["measuredTokensPerSecond"]
+        .as_f64()
+        .ok_or("missing gemma chat throughput measurement")?;
+    assert!(measured >= DEFAULT_MIN_CHAT_TOKENS_PER_SECOND);
+    assert!(measured >= TARGET_CHAT_TOKENS_PER_SECOND_LOW);
+    assert_eq!(usability["ok"], true);
+
+    let observation = &proof["observations"][0]["candidate"];
+    assert_eq!(observation["observationKind"], "successful-local-load");
+    assert_eq!(
+        observation["modelId"],
+        "bartowski/google_gemma-3-4b-it-GGUF"
+    );
+    assert_eq!(observation["provider"], "vulkan");
+    assert_eq!(observation["loadedFromLocalCache"], true);
+    Ok(())
+}
+
+#[test]
+fn checked_in_gemma_download_proof_records_repo_local_cache_acquisition() -> TestResult {
+    let proof: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../proof/memory/x06-models-gemma3-4b-download-live.json"
+    ))?;
+    let chat = &proof["chatGenerationGguf"];
+
+    assert_eq!(proof["runtimeMode"], "download");
+    assert_eq!(proof["allowNetwork"], true);
+    assert_eq!(proof["proofScope"]["portability"], "cache-artifact-proof");
+    assert_eq!(proof["proofScope"]["localHardwareRequired"], false);
+    assert_eq!(proof["proofScope"]["ciParity"], false);
+    assert_eq!(
+        proof["chatModelSelection"]["selection"]["selected"]["repoId"],
+        "bartowski/google_gemma-3-4b-it-GGUF"
+    );
+
+    assert_eq!(chat["operation"], "chat-generation-cache");
+    assert_eq!(chat["ok"], true);
+    assert_eq!(
+        chat["cacheDir"],
+        "<repo>/model/hf/bartowski--google_gemma-3-4b-it-GGUF/main"
+    );
+    assert_eq!(
+        chat["manifestPath"],
+        "<repo>/model/hf/bartowski--google_gemma-3-4b-it-GGUF/main/manifest.json"
+    );
+    assert_eq!(
+        chat["downloadedFiles"][0]["localPath"],
+        "<repo>/model/hf/bartowski--google_gemma-3-4b-it-GGUF/main/google_gemma-3-4b-it-Q4_K_M.gguf"
+    );
+    assert_eq!(
+        chat["downloadedFiles"][0]["streamingManifestPath"],
+        serde_json::Value::Null
+    );
+    Ok(())
+}
+
+#[test]
+fn checked_in_qwen3_chat_download_proof_records_repo_local_cache_acquisition() -> TestResult {
+    let proof: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../proof/memory/x06-models-qwen3-4b-download-local.json"
+    ))?;
+    let chat = &proof["chatGenerationGguf"];
+
+    assert_eq!(proof["runtimeMode"], "download");
+    assert_eq!(proof["allowNetwork"], true);
+    assert_eq!(proof["proofScope"]["portability"], "cache-artifact-proof");
+    assert_eq!(proof["proofScope"]["localHardwareRequired"], false);
+    assert_eq!(proof["proofScope"]["ciParity"], false);
+    assert_eq!(proof["chatModelSelection"]["enabled"], false);
+    assert_eq!(
+        proof["chatModelSelection"]["selected"]["repoId"],
+        "Qwen/Qwen3-4B-GGUF"
+    );
+
+    assert_eq!(chat["operation"], "chat-generation-cache");
+    assert_eq!(chat["ok"], true);
+    assert_eq!(chat["cacheDir"], "<repo>/model/hf/Qwen--Qwen3-4B-GGUF/main");
+    assert_eq!(
+        chat["manifestPath"],
+        "<repo>/model/hf/Qwen--Qwen3-4B-GGUF/main/manifest.json"
+    );
+    assert_eq!(
+        chat["downloadedFiles"][0]["localPath"],
+        "<repo>/model/hf/Qwen--Qwen3-4B-GGUF/main/Qwen3-4B-Q4_K_M.gguf"
+    );
+    assert_eq!(
+        chat["downloadedFiles"][0]["streamingManifestPath"],
+        serde_json::Value::Null
+    );
+    Ok(())
+}
+
+#[test]
+fn checked_in_qwen3_embedding_download_proof_records_repo_local_cache_acquisition() -> TestResult {
+    let proof: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../proof/memory/x06-models-qwen3-embedding-download.json"
+    ))?;
+    let embedding = &proof["qwenEmbeddingOnnx"];
+
+    assert_eq!(proof["runtimeMode"], "download");
+    assert_eq!(proof["allowNetwork"], true);
+    assert_eq!(proof["proofScope"]["portability"], "cache-artifact-proof");
+    assert_eq!(proof["proofScope"]["localHardwareRequired"], false);
+    assert_eq!(proof["proofScope"]["ciParity"], false);
+    assert_eq!(proof["chatModelSelection"]["enabled"], false);
+    assert_eq!(
+        proof["probeExecutionPolicy"]["selectedProbes"][0],
+        "qwen-embedding-onnx"
+    );
+
+    assert_eq!(embedding["operation"], "qwen-embedding-onnx-cache");
+    assert_eq!(embedding["ok"], true);
+    assert_eq!(
+        embedding["cacheDir"],
+        "<repo>/model/hf/onnx-community--Qwen3-Embedding-0.6B-ONNX/main"
+    );
+    assert_eq!(
+        embedding["manifestPath"],
+        "<repo>/model/hf/onnx-community--Qwen3-Embedding-0.6B-ONNX/main/manifest.json"
+    );
+    assert_eq!(
+        embedding["downloadedFiles"][0]["localPath"],
+        "<repo>/model/hf/onnx-community--Qwen3-Embedding-0.6B-ONNX/main/onnx/model_q4.onnx"
+    );
+    assert_eq!(
+        embedding["downloadedFiles"][1]["localPath"],
+        "<repo>/model/hf/onnx-community--Qwen3-Embedding-0.6B-ONNX/main/tokenizer.json"
+    );
+    Ok(())
+}
+
+#[test]
+fn checked_in_qwen3_reranker_download_proof_records_repo_local_cache_acquisition() -> TestResult {
+    let proof: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../proof/memory/x06-models-qwen3-reranker-download.json"
+    ))?;
+    let reranker = &proof["qwenRerankerOnnx"];
+
+    assert_eq!(proof["runtimeMode"], "download");
+    assert_eq!(proof["allowNetwork"], true);
+    assert_eq!(proof["proofScope"]["portability"], "cache-artifact-proof");
+    assert_eq!(proof["proofScope"]["localHardwareRequired"], false);
+    assert_eq!(proof["proofScope"]["ciParity"], false);
+    assert_eq!(proof["chatModelSelection"]["enabled"], false);
+    assert_eq!(
+        proof["probeExecutionPolicy"]["selectedProbes"][0],
+        "qwen-reranker-onnx"
+    );
+
+    assert_eq!(reranker["operation"], "qwen-reranker-onnx-cache");
+    assert_eq!(reranker["ok"], true);
+    assert_eq!(
+        reranker["cacheDir"],
+        "<repo>/model/hf/onnx-community--Qwen3-Reranker-0.6B-ONNX/main"
+    );
+    assert_eq!(
+        reranker["manifestPath"],
+        "<repo>/model/hf/onnx-community--Qwen3-Reranker-0.6B-ONNX/main/manifest.json"
+    );
+    assert_eq!(
+        reranker["downloadedFiles"][0]["localPath"],
+        "<repo>/model/hf/onnx-community--Qwen3-Reranker-0.6B-ONNX/main/onnx/model_q4.onnx"
+    );
+    assert_eq!(
+        reranker["downloadedFiles"][1]["localPath"],
+        "<repo>/model/hf/onnx-community--Qwen3-Reranker-0.6B-ONNX/main/tokenizer.json"
+    );
+    Ok(())
+}
+
+#[test]
+fn checked_in_qwen3_embedding_gguf_probe_is_real_usable_local_runtime() -> TestResult {
+    let proof: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../proof/memory/x06-models-qwen3-embedding-gguf-vulkan-live.json"
+    ))?;
+    let embedding = &proof["qwenEmbeddingGguf"];
+    let report = &embedding["report"];
+    let usability = &embedding["usability"];
+
+    assert_eq!(proof["runtimeMode"], "probe");
+    assert_eq!(proof["allowNetwork"], true);
+    assert_eq!(proof["proofScope"]["portability"], "local-runtime-proof");
+    assert_eq!(proof["proofScope"]["localHardwareRequired"], true);
+    assert_eq!(proof["proofScope"]["ciParity"], false);
+
+    assert_eq!(embedding["operation"], "qwen-embedding-gguf");
+    assert_eq!(embedding["loaded"], true);
+    assert_eq!(embedding["ok"], true);
+    assert_eq!(report["kind"], "embedding");
+    assert_eq!(report["backendHint"], "vulkan");
+    assert_eq!(
+        report["binaryPath"],
+        "<repo>/model/bin/llama-b9904-bin-win-vulkan-x64/llama-server.exe"
+    );
+    assert_eq!(report["executionRoute"], "llama-server-v1-embeddings");
+    assert_eq!(
+        report["fallbackReason"],
+        "llama-embedding executable not configured/found; using llama-server /v1/embeddings"
+    );
+    assert_eq!(report["fallbackFromBinaryPath"], serde_json::Value::Null);
+    assert_eq!(report["requestedAcceleration"], "gpu");
+    assert_eq!(
+        report["modelPath"],
+        "<repo>/model/hf/Qwen--Qwen3-Embedding-0.6B-GGUF/main/Qwen3-Embedding-0.6B-Q8_0.gguf"
+    );
+    assert_eq!(report["outputDimensions"], 1024);
+    assert!(report["stdoutExcerpt"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("embedding dimensions: 1024"));
+    assert_eq!(
+        usability["reason"],
+        "embedding usable: dimensions 1024 matched expected 1024"
+    );
+    assert_eq!(usability["ok"], true);
+
+    let observation = &proof["observations"][0]["candidate"];
+    assert_eq!(observation["observationKind"], "successful-local-load");
+    assert_eq!(observation["modelId"], "Qwen/Qwen3-Embedding-0.6B-GGUF");
+    assert_eq!(observation["provider"], "vulkan");
+    assert_eq!(observation["loadedFromLocalCache"], true);
+    Ok(())
+}
+
+#[test]
 fn checked_in_negative_mismatch_proofs_emit_learning_observations() -> TestResult {
     let proof_files = [
         (
@@ -603,12 +953,42 @@ fn checked_in_negative_mismatch_proofs_emit_learning_observations() -> TestResul
 fn portable_plan_proof_does_not_probe_local_hardware() -> TestResult {
     let proof: serde_json::Value =
         serde_json::from_str(include_str!("../../../proof/memory/x06-models.json"))?;
+    let chat_plan: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../proof/memory/x06-models-chat-plan.json"
+    ))?;
+    let multi_probe_plan: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../proof/memory/x06-models-multi-probe-plan.json"
+    ))?;
 
     assert_eq!(proof["runtimeMode"], "plan");
     assert_eq!(proof["proofScope"]["portability"], "portable-contract");
     assert_eq!(proof["proofScope"]["ciParity"], false);
     assert!(proof["chatModelSelection"]["deviceReport"].is_null());
     assert_eq!(proof["cacheRoot"], "<repo>/model");
+    assert_eq!(
+        proof["linkedProofArtifacts"]["planningProofs"][0]["artifactPath"],
+        "proof/memory/x06-models-chat-plan.json"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["planningProofs"][0]["status"],
+        "chat-plan-variant"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["planningProofs"][0]["runtimeMode"],
+        "plan"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["planningProofs"][1]["artifactPath"],
+        "proof/memory/x06-models-multi-probe-plan.json"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["planningProofs"][1]["status"],
+        "multi-probe-plan-variant"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["planningProofs"][1]["runtimeMode"],
+        "plan"
+    );
     assert_eq!(
         proof["linkedProofArtifacts"]["localRuntimeProofs"][0]["artifactPath"],
         "proof/memory/x06-models-qwen3-4b-vulkan-windows-local.json"
@@ -626,8 +1006,92 @@ fn portable_plan_proof_does_not_probe_local_hardware() -> TestResult {
         101.9
     );
     assert_eq!(
+        proof["linkedProofArtifacts"]["localRuntimeProofs"][1]["artifactPath"],
+        "proof/memory/x06-models-chat-auto-gpu.json"
+    );
+    assert_eq!(
         proof["linkedProofArtifacts"]["localRuntimeProofs"][1]["status"],
+        "usable-local-chat-auto-select"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["localRuntimeProofs"][1]["measuredTokensPerSecond"],
+        107.8
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["localRuntimeProofs"][2]["status"],
         "below-chat-floor"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["localRuntimeProofs"][3]["artifactPath"],
+        "proof/memory/x06-models-gemma3-4b-vulkan-live.json"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["localRuntimeProofs"][3]["status"],
+        "usable-local-chat"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["localRuntimeProofs"][3]["measuredTokensPerSecond"],
+        78.3
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["cacheAcquisitionProofs"][0]["artifactPath"],
+        "proof/memory/x06-models-qwen3-4b-download-local.json"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["cacheAcquisitionProofs"][0]["status"],
+        "repo-local-cache-acquired"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["cacheAcquisitionProofs"][0]["runtimeMode"],
+        "download"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["cacheAcquisitionProofs"][1]["artifactPath"],
+        "proof/memory/x06-models-gemma3-4b-download-live.json"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["cacheAcquisitionProofs"][1]["status"],
+        "repo-local-cache-acquired"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["cacheAcquisitionProofs"][1]["runtimeMode"],
+        "download"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["cacheAcquisitionProofs"][2]["artifactPath"],
+        "proof/memory/x06-models-qwen3-embedding-download.json"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["cacheAcquisitionProofs"][2]["status"],
+        "repo-local-cache-acquired"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["cacheAcquisitionProofs"][2]["runtimeMode"],
+        "download"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["cacheAcquisitionProofs"][3]["artifactPath"],
+        "proof/memory/x06-models-qwen3-reranker-download.json"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["cacheAcquisitionProofs"][3]["status"],
+        "repo-local-cache-acquired"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["cacheAcquisitionProofs"][3]["runtimeMode"],
+        "download"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["ggufRuntimeProofs"][0]["artifactPath"],
+        "proof/memory/x06-models-qwen3-embedding-gguf-vulkan-live.json"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["ggufRuntimeProofs"][0]["status"],
+        "usable-local-embedding"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["ggufRuntimeProofs"][0]["runtimeMode"],
+        "probe"
     );
     assert_eq!(
         proof["linkedProofArtifacts"]["ortRuntimeProofs"][0]["artifactPath"],
@@ -652,6 +1116,44 @@ fn portable_plan_proof_does_not_probe_local_hardware() -> TestResult {
     assert_eq!(
         proof["linkedProofArtifacts"]["negativeLearningProofs"][1]["observationKind"],
         "tokenizer-hash-mismatch"
+    );
+    assert_eq!(chat_plan["runtimeMode"], "plan");
+    assert_eq!(chat_plan["allowNetwork"], false);
+    assert_eq!(chat_plan["probeExecutionPolicy"]["allowMultiProbe"], false);
+    assert_eq!(
+        chat_plan["probeExecutionPolicy"]["selectedProbes"][0],
+        "chat-generation-gguf"
+    );
+    assert_eq!(
+        chat_plan["chatModelSelection"]["requestedAcceleration"],
+        "gpu"
+    );
+    assert_eq!(
+        chat_plan["chatModelSelection"]["selection"]["selected"]["repoId"],
+        "bartowski/google_gemma-3-4b-it-GGUF"
+    );
+    assert_eq!(multi_probe_plan["runtimeMode"], "plan");
+    assert_eq!(multi_probe_plan["allowNetwork"], false);
+    assert_eq!(
+        multi_probe_plan["probeExecutionPolicy"]["allowMultiProbe"],
+        true
+    );
+    assert_eq!(
+        multi_probe_plan["probeExecutionPolicy"]["requestedProbeFilter"],
+        "all"
+    );
+    assert_eq!(
+        multi_probe_plan["probeExecutionPolicy"]["selectedProbes"],
+        serde_json::json!([
+            "chat-generation-gguf",
+            "qwen-embedding-onnx",
+            "qwen-reranker-onnx",
+            "qwen-embedding-gguf"
+        ])
+    );
+    assert_eq!(
+        multi_probe_plan["probeExecutionPolicy"]["reason"],
+        "multi-probe explicitly enabled"
     );
     Ok(())
 }
@@ -727,6 +1229,14 @@ fn real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in() {
         &[
             "[string]$Acceleration = 'cpu'",
             "[switch]$AllowMultiProbe",
+            "[string]$LlamaServer = ''",
+            "[string]$LlamaEmbedding = ''",
+            "[string]$DownloadLlamaUrl",
+            "[string]$DownloadLlamaArchiveName",
+            "[string]$ImportLlamaToolchainPath = ''",
+            "Invoke-WebRequest -Uri $DownloadLlamaUrl -OutFile $archivePath",
+            "Expand-Archive -LiteralPath $archivePath -DestinationPath $extractDir -Force",
+            "Import-LlamaToolchain -SourcePath $extractDir -RepoRoot $RepoRoot",
             "$env:ENFORCER_X06_ALLOW_MULTI_PROBE",
         ],
     );
@@ -749,6 +1259,12 @@ fn real_model_probe_can_import_external_chat_assets_into_repo_model_cache() {
             "repo_relative_display(repo_root, &report.binary_path)",
             "repo_path_redacted_text(repo_root, &report.stdout_excerpt)",
             "hf_downloaded_files_proof(repo_root, &report.downloaded_files)",
+            "ENFORCER_X06_LLAMA_SERVER",
+            "/v1/embeddings",
+            "--embeddings",
+            "--pooling",
+            "mean",
+            "invalid argument: --embedding",
         ],
     );
     assert_contract_terms(
@@ -756,7 +1272,12 @@ fn real_model_probe_can_import_external_chat_assets_into_repo_model_cache() {
         &[
             "[string]$ImportChatModelPath",
             "[string]$ImportLlamaCliPath",
+            "[string]$ImportLlamaToolchainPath",
             "$env:ENFORCER_X06_ORT_TIMEOUT_MS",
+            "$env:ENFORCER_X06_LLAMA_SERVER",
+            "$env:ENFORCER_X06_LLAMA_EMBEDDING",
+            "Find-RepoLlamaBinary -Root (Join-Path $RepoRoot 'model\\bin') -BinaryName 'llama-server.exe'",
+            "Find-RepoLlamaBinary -Root (Join-Path $RepoRoot 'model\\bin') -BinaryName 'llama-embedding.exe'",
             "Filter '*.dll'",
             "model\\local\\chat",
             "model\\bin",

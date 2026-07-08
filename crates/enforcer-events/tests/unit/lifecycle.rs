@@ -155,7 +155,10 @@ async fn nested_publish_uses_context_publisher_without_deadlock(
                 field: "nested_metadata",
                 value: e.to_string(),
             })?;
-            context.publisher().publish(nested_event, nested_metadata).await?;
+            context
+                .publisher()
+                .publish(nested_event, nested_metadata)
+                .await?;
             Ok(())
         },
     )
@@ -190,7 +193,8 @@ async fn nested_publish_uses_context_publisher_without_deadlock(
 }
 
 #[tokio::test]
-async fn detached_publish_returns_observable_report() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn detached_publish_returns_observable_report(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
     bus.subscribe::<TestEvent, _, _>(
         subscriber(
@@ -215,8 +219,8 @@ async fn detached_publish_returns_observable_report() -> Result<(), Box<dyn std:
 }
 
 #[tokio::test]
-async fn sync_subscriber_adapter_uses_typed_dispatch_path() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
-{
+async fn sync_subscriber_adapter_uses_typed_dispatch_path(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
     let handled = Arc::new(StdMutex::new(Vec::new()));
     let handled_clone = Arc::clone(&handled);
@@ -259,8 +263,8 @@ async fn sync_subscriber_adapter_uses_typed_dispatch_path() -> Result<(), Box<dy
 }
 
 #[tokio::test]
-async fn panicking_handler_isolated_as_dead_letter_report() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
-{
+async fn panicking_handler_isolated_as_dead_letter_report(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
     bus.subscribe::<TestEvent, _, _>(
         subscriber(
@@ -296,7 +300,8 @@ async fn panicking_handler_isolated_as_dead_letter_report() -> Result<(), Box<dy
 }
 
 #[tokio::test]
-async fn subscription_handle_drop_unsubscribes_handler() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn subscription_handle_drop_unsubscribes_handler(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
     let handled = Arc::new(Mutex::new(0_usize));
     let handled_clone = Arc::clone(&handled);
@@ -337,8 +342,8 @@ async fn subscription_handle_drop_unsubscribes_handler() -> Result<(), Box<dyn s
 }
 
 #[tokio::test]
-async fn registrar_dispose_removes_all_owned_subscriptions() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
-{
+async fn registrar_dispose_removes_all_owned_subscriptions(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
     let mut registrar = EventRegistrar::new();
     registrar

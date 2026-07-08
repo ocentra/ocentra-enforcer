@@ -82,10 +82,7 @@ impl EventBus {
     }
 
     fn clear_subscriptions_for_shutdown(&self) -> usize {
-        let mut registry = self
-            .registry
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner);
+        let mut registry = self.registry.lock().unwrap_or_else(PoisonError::into_inner);
         let subscription_count = registry.values().map(Vec::len).sum();
         registry.clear();
         subscription_count
@@ -103,10 +100,7 @@ impl EventBus {
 
     pub async fn clear_for_test(&self) -> EventBusClearReport {
         let subscription_count = {
-            let mut registry = self
-                .registry
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner);
+            let mut registry = self.registry.lock().unwrap_or_else(PoisonError::into_inner);
             let subscription_count = registry.values().map(Vec::len).sum();
             registry.clear();
             subscription_count

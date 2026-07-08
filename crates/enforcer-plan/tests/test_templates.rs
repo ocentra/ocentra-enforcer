@@ -1,4 +1,9 @@
-#![allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::redundant_clone)]
+#![allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::redundant_clone
+)]
 //! Integration tests for plan template rendering and snapshot matching.
 //!
 //! These tests verify that:

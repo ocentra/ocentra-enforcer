@@ -232,6 +232,24 @@
   },
   "observations": [],
   "linkedProofArtifacts": {
+    "planningProofs": [
+      {
+        "artifactPath": "proof/memory/x06-models-chat-plan.json",
+        "ciParity": false,
+        "localHardwareRequired": false,
+        "provider": "portable-plan",
+        "status": "chat-plan-variant",
+        "runtimeMode": "plan"
+      },
+      {
+        "artifactPath": "proof/memory/x06-models-multi-probe-plan.json",
+        "ciParity": false,
+        "localHardwareRequired": false,
+        "provider": "portable-plan",
+        "status": "multi-probe-plan-variant",
+        "runtimeMode": "plan"
+      }
+    ],
     "localRuntimeProofs": [
       {
         "artifactPath": "proof/memory/x06-models-qwen3-4b-vulkan-windows-local.json",
@@ -244,6 +262,16 @@
         "minimumTokensPerSecond": 10.0
       },
       {
+        "artifactPath": "proof/memory/x06-models-chat-auto-gpu.json",
+        "ciParity": false,
+        "localHardwareRequired": true,
+        "modelId": "Qwen/Qwen3-4B-GGUF",
+        "provider": "vulkan",
+        "status": "usable-local-chat-auto-select",
+        "measuredTokensPerSecond": 107.8,
+        "minimumTokensPerSecond": 10.0
+      },
+      {
         "artifactPath": "proof/memory/x06-models-qwen3-4b-cpu-windows-local.json",
         "ciParity": false,
         "localHardwareRequired": true,
@@ -252,6 +280,65 @@
         "status": "below-chat-floor",
         "measuredTokensPerSecond": 8.5,
         "minimumTokensPerSecond": 10.0
+      },
+      {
+        "artifactPath": "proof/memory/x06-models-gemma3-4b-vulkan-live.json",
+        "ciParity": false,
+        "localHardwareRequired": true,
+        "modelId": "bartowski/google_gemma-3-4b-it-GGUF",
+        "provider": "vulkan",
+        "status": "usable-local-chat",
+        "measuredTokensPerSecond": 78.3,
+        "minimumTokensPerSecond": 10.0
+      }
+    ],
+    "cacheAcquisitionProofs": [
+      {
+        "artifactPath": "proof/memory/x06-models-qwen3-4b-download-local.json",
+        "ciParity": false,
+        "localHardwareRequired": false,
+        "modelId": "Qwen/Qwen3-4B-GGUF",
+        "provider": "network-local",
+        "status": "repo-local-cache-acquired",
+        "runtimeMode": "download"
+      },
+      {
+        "artifactPath": "proof/memory/x06-models-gemma3-4b-download-live.json",
+        "ciParity": false,
+        "localHardwareRequired": false,
+        "modelId": "bartowski/google_gemma-3-4b-it-GGUF",
+        "provider": "network-local",
+        "status": "repo-local-cache-acquired",
+        "runtimeMode": "download"
+      },
+      {
+        "artifactPath": "proof/memory/x06-models-qwen3-embedding-download.json",
+        "ciParity": false,
+        "localHardwareRequired": false,
+        "modelId": "onnx-community/Qwen3-Embedding-0.6B-ONNX",
+        "provider": "network-local",
+        "status": "repo-local-cache-acquired",
+        "runtimeMode": "download"
+      },
+      {
+        "artifactPath": "proof/memory/x06-models-qwen3-reranker-download.json",
+        "ciParity": false,
+        "localHardwareRequired": false,
+        "modelId": "onnx-community/Qwen3-Reranker-0.6B-ONNX",
+        "provider": "network-local",
+        "status": "repo-local-cache-acquired",
+        "runtimeMode": "download"
+      }
+    ],
+    "ggufRuntimeProofs": [
+      {
+        "artifactPath": "proof/memory/x06-models-qwen3-embedding-gguf-vulkan-live.json",
+        "ciParity": false,
+        "localHardwareRequired": true,
+        "modelId": "Qwen/Qwen3-Embedding-0.6B-GGUF",
+        "provider": "vulkan",
+        "status": "usable-local-embedding",
+        "runtimeMode": "probe"
       }
     ],
     "ortRuntimeProofs": [

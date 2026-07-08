@@ -845,25 +845,57 @@ fn push_unique(providers: &mut Vec<ProviderKind>, provider: ProviderKind) {
     }
 }
 
+fn degraded_cache_contract(
+    source_policy: SourcePolicy,
+) -> (
+    CacheState,
+    CacheHealth,
+    ManifestIntegrity,
+    Option<CacheUnavailableReason>,
+) {
+    match source_policy {
+        SourcePolicy::Unavailable => (
+            CacheState::Unavailable,
+            CacheHealth::Unavailable,
+            ManifestIntegrity::Unavailable,
+            Some(CacheUnavailableReason::ModelSourceUnconfigured),
+        ),
+        SourcePolicy::LocalCache => (
+            CacheState::Unavailable,
+            CacheHealth::Unavailable,
+            ManifestIntegrity::Unavailable,
+            Some(CacheUnavailableReason::ArtifactNotInstalled),
+        ),
+        SourcePolicy::Bundled | SourcePolicy::ParentInstalled => (
+            CacheState::CacheDegraded,
+            CacheHealth::Degraded,
+            ManifestIntegrity::Unchecked,
+            Some(CacheUnavailableReason::IntegrityUnverified),
+        ),
+    }
+}
+
 pub fn degraded_capability_report(
     task: ModelTask,
     source_policy: SourcePolicy,
     reason: impl Into<String>,
 ) -> ModelCapabilityReport {
+    let (cache_state, cache_health, manifest_integrity, unavailable_reason) =
+        degraded_cache_contract(source_policy);
     ModelCapabilityReport {
         task,
         load_state: LoadState::Degraded(DegradedState::ProviderUnavailable).into(),
         resource_class: ResourceClass::Cpu.into(),
         provider: None,
-        manifest_integrity: ManifestIntegrity::Unchecked,
-        cache_state: CacheState::ArtifactMissing,
+        manifest_integrity,
+        cache_state,
         source_policy,
-        cache_health: CacheHealth::Unavailable,
+        cache_health,
         download_enabled: false,
         download_status: DownloadStatus::DownloadDisabled,
         cache_byte_size: 0,
         checked_at: "unavailable".to_owned(),
-        unavailable_reason: Some(CacheUnavailableReason::ArtifactNotInstalled),
+        unavailable_reason,
         storage_error: None,
         corruption_reason: None,
         reason: Some(reason.into()),

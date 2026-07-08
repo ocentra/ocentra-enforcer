@@ -53,7 +53,8 @@ async fn replay_cursor_and_filters_read_ordered_projection_records(
 }
 
 #[tokio::test]
-async fn replay_corrupt_line_is_reported_explicitly() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn replay_corrupt_line_is_reported_explicitly(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let path = journal_path(SupportText("corrupt-line".to_owned()));
     tokio::fs::write(&path, "not-json\n").await?;
     let journal = NdjsonEventJournal::new(&path);
@@ -69,7 +70,8 @@ async fn replay_corrupt_line_is_reported_explicitly() -> Result<(), Box<dyn std:
 }
 
 #[tokio::test]
-async fn replay_rejects_tampered_hash_chain_payload() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn replay_rejects_tampered_hash_chain_payload(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let path = journal_path(SupportText("replay-tampered-hash-chain".to_owned()));
     let journal = NdjsonEventJournal::with_options(&path, NdjsonJournalOptions::hash_chain());
     journal
@@ -98,8 +100,8 @@ async fn replay_rejects_tampered_hash_chain_payload() -> Result<(), Box<dyn std:
 }
 
 #[tokio::test]
-async fn action_replay_dispatches_queued_drain_event_once() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
-{
+async fn action_replay_dispatches_queued_drain_event_once(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let path = journal_path(SupportText("queued-drain-action-replay".to_owned()));
     let journal = NdjsonEventJournal::new(&path);
     let bus = EventBus::with_journal_and_queue_policy(

@@ -84,10 +84,9 @@ fn delivery_rejects_live_external_or_authority_claims_without_artifact_path(
 #[test]
 fn delivery_decision_allows_local_first_route_with_filter_and_backpressure(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let proof = decide_event_delivery_route(network_local_input(
-        EventDeliveryRouteKind::LocalInProcess,
-    )?)
-    .map_err(|error| format!("local in-process event route should be ready: {error:?}"))?;
+    let proof =
+        decide_event_delivery_route(network_local_input(EventDeliveryRouteKind::LocalInProcess)?)
+            .map_err(|error| format!("local in-process event route should be ready: {error:?}"))?;
 
     assert_eq!(proof.route_kind, EventDeliveryRouteKind::LocalInProcess);
     assert_eq!(
@@ -409,7 +408,9 @@ fn network_event_namespace() -> Result<EventNamespace, Box<dyn std::error::Error
     Ok(EventNamespace::parse(NETWORK_NAMESPACE)?)
 }
 
-fn network_event_type(value: TestText) -> Result<EventType, Box<dyn std::error::Error + Send + Sync>> {
+fn network_event_type(
+    value: TestText,
+) -> Result<EventType, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventType::parse(value.0)?)
 }
 

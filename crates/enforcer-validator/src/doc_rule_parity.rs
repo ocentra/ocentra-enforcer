@@ -251,8 +251,8 @@ pub fn find_undocumented_rules<'a>(
 #[cfg(test)]
 mod tests {
     use super::{check_doc_against_registry, doc_parity_finding_rule_id, find_undocumented_rules};
-    use enforcer_rules::registry::{FixtureRef, RuleRecord, RuleRegistry, ValidatorRef};
     use enforcer_domain::severity::Tier;
+    use enforcer_rules::registry::{FixtureRef, RuleRecord, RuleRegistry, ValidatorRef};
 
     #[test]
     fn doc_parity_rule_id_literal_is_valid() -> Result<(), Box<dyn std::error::Error>> {
@@ -339,7 +339,10 @@ mod tests {
         let advisory_path = "docs/agents".parse()?;
         let findings = find_undocumented_rules(std::iter::empty(), &registry, &advisory_path);
         assert_eq!(findings.len(), 1);
-        assert_eq!(findings[0].severity, enforcer_domain::severity::Severity::Warning);
+        assert_eq!(
+            findings[0].severity,
+            enforcer_domain::severity::Severity::Warning
+        );
         Ok(())
     }
 

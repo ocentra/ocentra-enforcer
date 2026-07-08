@@ -10,10 +10,7 @@ pub(super) struct ActiveDispatchTracker {
 
 impl ActiveDispatchTracker {
     pub(super) fn enter(&self) -> ActiveDispatchGuard {
-        *self
-            .state
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner) += 1;
+        *self.state.lock().unwrap_or_else(PoisonError::into_inner) += 1;
         ActiveDispatchGuard {
             tracker: self.clone(),
             active: true,

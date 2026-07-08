@@ -92,8 +92,7 @@ async fn ndjson_journal_reopen_rejects_tampered_hash_chain_payload(
         )?)?)
         .await?;
     drop(first_journal);
-    tamper_first_journal_payload_label(path.clone(), TestText("tampered event".to_owned()))
-        .await?;
+    tamper_first_journal_payload_label(path.clone(), TestText("tampered event".to_owned())).await?;
     let reopened = NdjsonEventJournal::with_options(&path, NdjsonJournalOptions::hash_chain());
 
     let result = reopened

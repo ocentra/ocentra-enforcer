@@ -10,7 +10,10 @@ const FRONTEND_REACT_JSON: &str = include_str!("../rules/frontend-react.json");
 
 fn frontend_react_records(
 ) -> Result<Vec<enforcer_rules::registry::RuleRecord>, Box<dyn std::error::Error>> {
-    Ok(parse_catalog(FRONTEND_REACT_JSON, "rules/frontend-react.json")?)
+    Ok(parse_catalog(
+        FRONTEND_REACT_JSON,
+        "rules/frontend-react.json",
+    )?)
 }
 
 #[test]
@@ -46,9 +49,7 @@ fn every_frontend_react_record_links_to_enforcer_lang_ts_with_full_linkage(
             .fixtures
             .pass
             .starts_with("crates/enforcer-lang-ts/tests/fixtures/frontend_react/"));
-        assert!(record
-            .doc_anchor
-            .contains("e-pack-frontend-react.md"));
+        assert!(record.doc_anchor.contains("e-pack-frontend-react.md"));
     }
     Ok(())
 }
@@ -66,7 +67,10 @@ fn frontend_react_tier_split_matches_workpack_twelve_t1_one_t2(
         .filter(|r| r.tier == enforcer_domain::severity::Tier::T2)
         .count();
     assert_eq!(t1, 12, "expected 12 T1 blocking frontend-react rules");
-    assert_eq!(t2, 1, "expected 1 T2 scored frontend-react rule (FE-ARCH-1.4)");
+    assert_eq!(
+        t2, 1,
+        "expected 1 T2 scored frontend-react rule (FE-ARCH-1.4)"
+    );
     Ok(())
 }
 
@@ -93,8 +97,7 @@ fn fe_arch_1_4_is_the_sole_t2_scored_advisory() -> Result<(), Box<dyn std::error
 /// Pins the doctrine-divergence rule mechanically: `FE-EFFECT-1.1` must be
 /// present, T1, and linked to the `EffectNotZodValidator`.
 #[test]
-fn fe_effect_1_1_divergence_rule_is_present_and_linked(
-) -> Result<(), Box<dyn std::error::Error>> {
+fn fe_effect_1_1_divergence_rule_is_present_and_linked() -> Result<(), Box<dyn std::error::Error>> {
     let records = frontend_react_records()?;
     let record = records
         .iter()

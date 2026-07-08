@@ -138,7 +138,9 @@ async fn publish_request_waits_for_typed_subscriber_response(
     let bus = EventBus::new();
 
     bus.subscribe::<AwaitableRequestEvent, _, _>(request_subscriber()?, |context| async move {
-        context.complete_request(awaitable_response_event()?).await?;
+        context
+            .complete_request(awaitable_response_event()?)
+            .await?;
         Ok(())
     })
     .await?;

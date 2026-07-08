@@ -124,7 +124,8 @@ fn topology_manifest_records_family_variants_and_sorted_descriptors(
 }
 
 #[test]
-fn topology_manifest_renders_deterministic_markdown() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+fn topology_manifest_renders_deterministic_markdown(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let registry = topology_registry()?;
     let manifest = EventTopologyManifest::from_registry(
         &registry,

@@ -86,9 +86,7 @@ async fn family_subscriber_receives_typed_enum_variants_without_downcast(
                 let DecisionFamilyEvent::Approved(payload) = context.payload() else {
                     return Err(EventingError::InvalidValue {
                         field: "family_variant",
-                        value: String::from(
-                            "approved subscriber received a non-approved variant",
-                        ),
+                        value: String::from("approved subscriber received a non-approved variant"),
                     });
                 };
                 record_payload(&approved_seen, payload)
@@ -109,9 +107,7 @@ async fn family_subscriber_receives_typed_enum_variants_without_downcast(
                 let DecisionFamilyEvent::Rejected(payload) = context.payload() else {
                     return Err(EventingError::InvalidValue {
                         field: "family_variant",
-                        value: String::from(
-                            "rejected subscriber received a non-rejected variant",
-                        ),
+                        value: String::from("rejected subscriber received a non-rejected variant"),
                     });
                 };
                 record_payload(&rejected_seen, payload)

@@ -8,11 +8,11 @@
     "localHardwareRequired": false,
     "platform": "any",
     "portability": "portable-contract",
-    "reason": "chat plan mode proves portable chat-selection and service-shape policy only, not local runtime parity"
+    "reason": "multi-probe plan mode proves the explicit allowMultiProbe contract shape only, not local runtime parity"
   },
   "allowNetwork": false,
   "probeExecutionPolicy": {
-    "allowMultiProbe": false,
+    "allowMultiProbe": true,
     "defaultProbeFilter": "chat",
     "probeOrder": [
       "chat-generation-gguf",
@@ -20,10 +20,13 @@
       "qwen-reranker-onnx",
       "qwen-embedding-gguf"
     ],
-    "reason": "one real model probe at a time by default to avoid resource contention or host instability",
-    "requestedProbeFilter": "chat",
+    "reason": "multi-probe explicitly enabled",
+    "requestedProbeFilter": "all",
     "selectedProbes": [
-      "chat-generation-gguf"
+      "chat-generation-gguf",
+      "qwen-embedding-onnx",
+      "qwen-reranker-onnx",
+      "qwen-embedding-gguf"
     ]
   },
   "cacheRoot": "<repo>/model",

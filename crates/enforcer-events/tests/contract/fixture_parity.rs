@@ -63,7 +63,8 @@ struct InvalidTextScalar {
 }
 
 #[test]
-fn rust_newtypes_accept_shared_valid_parity_fixture() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+fn rust_newtypes_accept_shared_valid_parity_fixture(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let valid = fixture()?.valid;
 
     assert_eq!(
@@ -94,8 +95,8 @@ fn rust_newtypes_accept_shared_valid_parity_fixture() -> Result<(), Box<dyn std:
 }
 
 #[test]
-fn rust_newtypes_reject_shared_invalid_text_fixture_values() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
-{
+fn rust_newtypes_reject_shared_invalid_text_fixture_values(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     for invalid in fixture()?.invalid_text {
         let field = invalid.field;
         let value = invalid.value;
@@ -106,7 +107,8 @@ fn rust_newtypes_reject_shared_invalid_text_fixture_values() -> Result<(), Box<d
 }
 
 #[test]
-fn rust_schema_version_rejects_shared_invalid_versions() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+fn rust_schema_version_rejects_shared_invalid_versions(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     for value in fixture()?.invalid_schema_versions {
         assert_eq!(
             SchemaVersion::new(value),

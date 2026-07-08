@@ -6,8 +6,8 @@ use enforcer_rules::loader::parse_catalog;
 
 const OWNERSET_JSON: &str = include_str!("../rules/ownerset.json");
 
-fn ownerset_records() -> Result<Vec<enforcer_rules::registry::RuleRecord>, Box<dyn std::error::Error>>
-{
+fn ownerset_records(
+) -> Result<Vec<enforcer_rules::registry::RuleRecord>, Box<dyn std::error::Error>> {
     Ok(parse_catalog(OWNERSET_JSON, "rules/ownerset.json")?)
 }
 
@@ -19,8 +19,8 @@ fn ownerset_catalog_loads_one_record() -> Result<(), Box<dyn std::error::Error>>
 }
 
 #[test]
-fn ownerset_catalog_loads_into_registry_with_no_duplicates() -> Result<(), Box<dyn std::error::Error>>
-{
+fn ownerset_catalog_loads_into_registry_with_no_duplicates(
+) -> Result<(), Box<dyn std::error::Error>> {
     let records = ownerset_records()?;
     let registry = enforcer_rules::loader::load_registry_from_records(records)?;
     assert_eq!(registry.len(), 1);

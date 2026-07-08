@@ -23,8 +23,8 @@ fn event_type_and_namespace_reject_empty_or_malformed_taxonomy() {
 }
 
 #[test]
-fn event_namespace_matches_exact_and_child_event_types_only() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
-{
+fn event_namespace_matches_exact_and_child_event_types_only(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let namespace = EventNamespace::parse("tracking")?;
     let exact = EventType::parse("tracking")?;
     let child = EventType::parse(format!("{}.{}", namespace.as_str(), "location.observed"))?;
@@ -37,8 +37,8 @@ fn event_namespace_matches_exact_and_child_event_types_only() -> Result<(), Box<
 }
 
 #[test]
-fn schema_version_rejects_zero_and_preserves_nonzero_value() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
-{
+fn schema_version_rejects_zero_and_preserves_nonzero_value(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     assert_eq!(SchemaVersion::new(0), Err(EventingError::InvalidVersion));
     assert_eq!(SchemaVersion::new(3)?.value(), 3);
     let error = match serde_json::from_str::<SchemaVersion>("0") {
@@ -89,8 +89,8 @@ fn strong_identifier_wrappers_reject_whitespace_values() {
 }
 
 #[test]
-fn routing_and_source_wrappers_accept_existing_repo_values() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
-{
+fn routing_and_source_wrappers_accept_existing_repo_values(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     assert_eq!(
         SubscriberId::parse("subscriber.app.observer")?.as_str(),
         "subscriber.app.observer"

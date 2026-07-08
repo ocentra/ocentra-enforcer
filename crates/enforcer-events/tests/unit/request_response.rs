@@ -132,8 +132,10 @@ async fn publish_retention_probe_request(
         RequestText(label.to_owned()),
         RequestText(request_id.to_owned()),
     )?;
-    let request_metadata =
-        metadata_with_event_id(TestText(TEST_TARGET.to_owned()), TestText(event_id.to_owned()))?;
+    let request_metadata = metadata_with_event_id(
+        TestText(TEST_TARGET.to_owned()),
+        TestText(event_id.to_owned()),
+    )?;
     let request_timeout = RequestOptions::with_timeout(Duration::from_millis(50))?;
     bus.publish_request(request_event, request_metadata, request_timeout)
         .await?;
@@ -222,7 +224,8 @@ async fn request_timeout_reports_late_response_without_mutating_result(
 }
 
 #[tokio::test]
-async fn request_timeout_covers_slow_handler_dispatch() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn request_timeout_covers_slow_handler_dispatch(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = crate::EventBus::new();
     let outcomes = Arc::new(Mutex::new(Vec::new()));
     let outcomes_clone = Arc::clone(&outcomes);
@@ -333,7 +336,8 @@ async fn publish_request_cancels_registry_entry_when_publish_fails(
 }
 
 #[tokio::test]
-async fn double_completion_is_ignored_and_reported() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn double_completion_is_ignored_and_reported(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = crate::EventBus::new();
     let outcomes = Arc::new(Mutex::new(Vec::new()));
     let outcomes_clone = Arc::clone(&outcomes);

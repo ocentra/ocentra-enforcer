@@ -56,8 +56,7 @@ async fn manual_clock_advances_registered_sleepers_without_wall_clock_sleep(
 async fn manual_clock_expires_queued_ttl_without_wall_clock_sleep(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let clock = ManualEventClock::new();
-    let policy = EventQueuePolicy::no_subscriber_queue(2)?
-        .with_ttl(Duration::from_millis(10))?;
+    let policy = EventQueuePolicy::no_subscriber_queue(2)?.with_ttl(Duration::from_millis(10))?;
     let bus = EventBus::with_queue_policy_and_clock(policy, clock.shared());
 
     bus.publish(
@@ -154,7 +153,8 @@ async fn manual_clock_drives_handler_timeout_retries_without_wall_clock_sleep(
     let publish_bus = bus.clone();
     let publish_event = test_event(TestText(TEST_LABEL.to_owned()))?;
     let publish_metadata = metadata(TestText(TEST_TARGET.to_owned()))?;
-    let publish = tokio::spawn(async move { publish_bus.publish(publish_event, publish_metadata).await });
+    let publish =
+        tokio::spawn(async move { publish_bus.publish(publish_event, publish_metadata).await });
 
     yield_until(|| attempts.load(Ordering::SeqCst) == 1 && clock.pending_sleep_count() >= 2)
         .await?;
@@ -206,7 +206,8 @@ async fn manual_clock_stops_retry_when_deadline_expires_between_attempts(
     let publish_bus = bus.clone();
     let publish_event = test_event(TestText(TEST_LABEL.to_owned()))?;
     let publish_metadata = metadata(TestText(TEST_TARGET.to_owned()))?.with_deadline(deadline);
-    let publish = tokio::spawn(async move { publish_bus.publish(publish_event, publish_metadata).await });
+    let publish =
+        tokio::spawn(async move { publish_bus.publish(publish_event, publish_metadata).await });
 
     yield_until(|| clock.pending_sleep_count() >= 1).await?;
     clock.advance(Duration::from_millis(1));

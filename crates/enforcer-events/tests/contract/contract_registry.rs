@@ -49,15 +49,16 @@ fn contract_registry_generates_markdown_in_event_type_order(
 }
 
 #[test]
-fn contract_registry_rejects_duplicate_event_type() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+fn contract_registry_rejects_duplicate_event_type(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut registry = EventContractRegistry::new();
     registry.register_event(&test_event(&SupportText("first".to_owned()))?)?;
 
-    let duplicate = match registry.register_event(&test_event(&SupportText("duplicate".to_owned()))?)
-    {
-        Ok(_) => return Err("duplicate event type registration unexpectedly succeeded".into()),
-        Err(error) => error,
-    };
+    let duplicate =
+        match registry.register_event(&test_event(&SupportText("duplicate".to_owned()))?) {
+            Ok(_) => return Err("duplicate event type registration unexpectedly succeeded".into()),
+            Err(error) => error,
+        };
     assert_eq!(
         duplicate,
         EventingError::DuplicateEventContract {

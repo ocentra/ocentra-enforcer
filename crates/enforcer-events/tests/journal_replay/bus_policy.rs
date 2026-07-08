@@ -19,12 +19,13 @@ async fn bus_journal_policy_honors_before_after_and_selected_journaling(
     Ok(())
 }
 
-async fn assert_before_dispatch_selected_type() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn assert_before_dispatch_selected_type(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let before_log = shared_log();
     let before_bus = bus_with_recording_journal(
-        JournalPolicy::before_dispatch(JournalSelector::EventTypes(vec![event_type(
-            TestText(TEST_EVENT_TYPE.to_owned()),
-        )?])),
+        JournalPolicy::before_dispatch(JournalSelector::EventTypes(vec![event_type(TestText(
+            TEST_EVENT_TYPE.to_owned(),
+        ))?])),
         Arc::clone(&before_log),
     );
     subscribe_log_handler(&before_bus, Arc::clone(&before_log)).await?;
@@ -44,7 +45,8 @@ async fn assert_before_dispatch_selected_type() -> Result<(), Box<dyn std::error
     Ok(())
 }
 
-async fn assert_after_dispatch_selected_namespace() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn assert_after_dispatch_selected_namespace(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let after_log = shared_log();
     let after_bus = bus_with_recording_journal(
         JournalPolicy::after_dispatch(JournalSelector::Namespaces(vec![EventNamespace::parse(
@@ -69,7 +71,8 @@ async fn assert_after_dispatch_selected_namespace() -> Result<(), Box<dyn std::e
     Ok(())
 }
 
-async fn assert_before_and_after_dispatch_allowlist() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn assert_before_and_after_dispatch_allowlist(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let both_log = shared_log();
     let both_bus = bus_with_recording_journal(
         JournalPolicy::before_and_after_dispatch(JournalSelector::ContractAllowlist(vec![

@@ -79,8 +79,7 @@ fn marker_lines(source: &str) -> Vec<String> {
 /// protect is not a violation). New marker lines added in `head` with no
 /// counterpart in `base` are never flagged.
 pub fn check_ownerset(base: &str, head: &str, path: &RelPath, rule_id: &RuleId) -> Vec<Finding> {
-    let head_markers: std::collections::BTreeSet<String> =
-        marker_lines(head).into_iter().collect();
+    let head_markers: std::collections::BTreeSet<String> = marker_lines(head).into_iter().collect();
     marker_lines(base)
         .into_iter()
         .filter(|base_line| !head_markers.contains(base_line))
@@ -217,10 +216,13 @@ mod tests {
 
     #[test]
     fn no_markers_in_base_is_clean() -> Result<(), enforcer_core::error::DecodeError> {
-        assert!(
-            check_ownerset("plain doc\n", "plain doc, hardened\n", &path("f.md")?, &rule_id()?)
-                .is_empty()
-        );
+        assert!(check_ownerset(
+            "plain doc\n",
+            "plain doc, hardened\n",
+            &path("f.md")?,
+            &rule_id()?
+        )
+        .is_empty());
         Ok(())
     }
 
@@ -257,8 +259,7 @@ mod tests {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let validator = OwnersetValidator::new()?;
         let source = std::fs::read_to_string(
-            manifest_dir()
-                .join("tests/fixtures/change_discipline/ownerset_unrelated_edit/good.md"),
+            manifest_dir().join("tests/fixtures/change_discipline/ownerset_unrelated_edit/good.md"),
         )?;
         let findings = validator.validate(ValidationInput {
             file: &path("tests/fixtures/change_discipline/ownerset_unrelated_edit/good.md")?,
@@ -303,7 +304,9 @@ mod tests {
                 Vec::new()
             }
         }
-        let never_fires = NeverFiresValidator { rule_id: rule_id()? };
+        let never_fires = NeverFiresValidator {
+            rule_id: rule_id()?,
+        };
         let result = run_fixture_parity(
             &never_fires,
             &manifest_dir(),
@@ -329,9 +332,8 @@ mod tests {
             .and_then(|p| p.parent())
             .map(std::path::Path::to_path_buf)
             .ok_or("could not resolve repo root from CARGO_MANIFEST_DIR")?;
-        let x06 = repo_root.join(
-            "docs/plans/enforcer-selfhost-plan/workpacks/x06-harness-memory-graph.md",
-        );
+        let x06 = repo_root
+            .join("docs/plans/enforcer-selfhost-plan/workpacks/x06-harness-memory-graph.md");
         let source = std::fs::read_to_string(&x06)?;
         let count = marker_lines(&source).len();
         assert!(

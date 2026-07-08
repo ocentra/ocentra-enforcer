@@ -160,7 +160,8 @@ async fn production_shutdown_waits_for_active_dispatch_before_clearing_state(
     let publish_bus = bus.clone();
     let publish_event = test_event(TestText(TEST_LABEL.to_owned()))?;
     let publish_metadata = metadata(TestText(TEST_TARGET.to_owned()))?;
-    let publish = tokio::spawn(async move { publish_bus.publish(publish_event, publish_metadata).await });
+    let publish =
+        tokio::spawn(async move { publish_bus.publish(publish_event, publish_metadata).await });
     handler_started.notified().await;
     let shutdown_bus = bus.clone();
     let shutdown = tokio::spawn(async move { shutdown_bus.shutdown(ShutdownMode::Drain).await });

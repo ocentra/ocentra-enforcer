@@ -58,6 +58,7 @@ pub struct LlamaCppProbeReport {
     pub backend_hint: LlamaCppBackendHint,
     pub requested_acceleration: LocalRuntimeAcceleration,
     pub binary_path: PathBuf,
+    pub execution_route: String,
     pub model_path: PathBuf,
     pub exit_code: Option<i32>,
     pub stdout_excerpt: String,
@@ -66,6 +67,9 @@ pub struct LlamaCppProbeReport {
     pub measured_tokens_per_second: Option<f64>,
     pub load_state: String,
     pub timed_out: bool,
+    pub fallback_reason: Option<String>,
+    pub fallback_from_binary_path: Option<PathBuf>,
+    pub output_dimensions: Option<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -108,7 +112,7 @@ pub struct LlamaCppExecutionResolution {
 
 impl LlamaCppProbeReport {
     pub fn loaded(&self) -> bool {
-        self.exit_code == Some(0)
+        self.exit_code == Some(0) && self.load_state == "loaded"
     }
 
     pub fn state(&self) -> LoadState {
@@ -389,6 +393,7 @@ pub fn run_llama_cpp_probe(config: &LlamaCppProbeConfig) -> Result<LlamaCppProbe
         backend_hint: config.backend_hint,
         requested_acceleration: config.acceleration,
         binary_path: config.binary_path.clone(),
+        execution_route: probe_execution_route(&config.binary_path, config.kind),
         model_path: config.model_path.clone(),
         exit_code,
         stdout_excerpt,
@@ -397,6 +402,13 @@ pub fn run_llama_cpp_probe(config: &LlamaCppProbeConfig) -> Result<LlamaCppProbe
         measured_tokens_per_second,
         load_state,
         timed_out,
+        fallback_reason: None,
+        fallback_from_binary_path: None,
+        output_dimensions: parse_embedding_dimensions_from_output(
+            config.kind,
+            &String::from_utf8_lossy(&output.stdout),
+            &String::from_utf8_lossy(&output.stderr),
+        ),
     })
 }
 
@@ -521,6 +533,46 @@ fn excerpt_tail(text: &str, max_chars: usize) -> String {
     chars[start..].iter().collect()
 }
 
+fn probe_execution_route(binary_path: &Path, kind: LlamaCppProbeKind) -> String {
+    let file_name = binary_path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    if file_name.contains("llama-server") && kind == LlamaCppProbeKind::Embedding {
+        "llama-server-v1-embeddings".to_owned()
+    } else if file_name.contains("llama-embedding") {
+        "llama-embedding-cli".to_owned()
+    } else {
+        "llama-cli".to_owned()
+    }
+}
+
+fn parse_embedding_dimensions_from_output(
+    kind: LlamaCppProbeKind,
+    stdout: &str,
+    stderr: &str,
+) -> Option<usize> {
+    if kind != LlamaCppProbeKind::Embedding {
+        return None;
+    }
+    parse_embedding_dimensions(stdout).or_else(|| parse_embedding_dimensions(stderr))
+}
+
+fn parse_embedding_dimensions(text: &str) -> Option<usize> {
+    text.lines().find_map(|line| {
+        let marker = "embedding dimensions:";
+        let index = line.find(marker)?;
+        let suffix = &line[index + marker.len()..];
+        let digits: String = suffix
+            .chars()
+            .skip_while(|ch| ch.is_whitespace())
+            .take_while(|ch| ch.is_ascii_digit())
+            .collect();
+        digits.parse().ok()
+    })
+}
+
 fn parse_llama_cpp_device_line(line: &str) -> Option<LlamaCppDevice> {
     let trimmed = line.trim();
     let (id, rest) = trimmed.split_once(':')?;
@@ -594,6 +646,11 @@ fn configure_llama_child_process(command: &mut Command, binary_path: &Path) {
         command.current_dir(parent);
     }
     configure_platform_child_process(command);
+}
+
+#[cfg(feature = "real-models")]
+pub(crate) fn configure_llama_child_process_for_runtime(command: &mut Command, binary_path: &Path) {
+    configure_llama_child_process(command, binary_path);
 }
 
 #[cfg(windows)]

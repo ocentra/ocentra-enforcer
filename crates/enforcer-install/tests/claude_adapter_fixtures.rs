@@ -78,6 +78,11 @@ fn pass_fixture_install_then_verify_is_all_green() -> Result<(), Box<dyn std::er
         "/usr/local/bin/codebase-memory-mcp"
     );
     assert_eq!(value["someUnrelatedTopLevelKey"], "keep-me");
+    assert_eq!(value["hooks"]["SessionStart"][0]["matcher"], "");
+    assert_eq!(
+        value["hooks"]["PreToolUse"][0]["matcher"],
+        "Edit|Write|MultiEdit"
+    );
 
     // Descriptor exists and parses.
     assert!(adapter.agent_descriptor_path().is_file());
@@ -111,7 +116,9 @@ fn descriptor_fail_fixture_verify_returns_a_failed_check_not_a_skip(
         .find(|c| c.name == "agent-descriptor-present")
         .ok_or("expected an agent-descriptor-present check to be present, not skipped")?;
     assert!(!descriptor_check.passed);
-    assert!(!descriptor_check.detail.is_empty());
+    assert!(descriptor_check
+        .detail
+        .contains("missing opening `---` frontmatter fence"));
     Ok(())
 }
 
@@ -165,5 +172,68 @@ fn pass_fixture_round_trip_install_uninstall_restores_byte_for_byte(
     );
     assert!(!adapter.agent_descriptor_path().is_file());
     assert!(!adapter.skill_md_path().is_file());
+    Ok(())
+}
+
+#[test]
+fn pass_fixture_preserves_unrelated_hook_entries_and_removes_only_enforcer_hooks(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let (home, binary) = isolated_fixture("pass")?;
+    let claude_json_path = home.path().join(".claude.json");
+    let mut value: serde_json::Value = serde_json::from_slice(&std::fs::read(&claude_json_path)?)?;
+    value["hooks"] = serde_json::json!({
+        "SessionStart": [
+            {
+                "matcher": "resume",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "/usr/local/bin/other-sessionstart",
+                        "additionalContext": "keep-me"
+                    }
+                ]
+            }
+        ],
+        "PreToolUse": [
+            {
+                "matcher": "Read",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "/usr/local/bin/other-pretooluse",
+                        "timeout": 5
+                    }
+                ]
+            }
+        ]
+    });
+    std::fs::write(&claude_json_path, serde_json::to_string_pretty(&value)?)?;
+    let pre_value: serde_json::Value = serde_json::from_slice(&std::fs::read(&claude_json_path)?)?;
+
+    let adapter = ClaudeAdapter::new(home.path(), &binary);
+    let ctx = RequestContext::with_defaults(binary.clone());
+
+    adapter.apply(&adapter.plan(&ctx)?)?;
+    let mid: serde_json::Value = serde_json::from_slice(&std::fs::read(&claude_json_path)?)?;
+    assert_eq!(
+        mid["hooks"]["SessionStart"][0]["hooks"][0]["command"],
+        "/usr/local/bin/other-sessionstart"
+    );
+    assert_eq!(
+        mid["hooks"]["PreToolUse"][0]["hooks"][0]["command"],
+        "/usr/local/bin/other-pretooluse"
+    );
+    assert_eq!(
+        mid["hooks"]["SessionStart"][1]["hooks"][0]["command"],
+        format!("{} hooks sessionstart", binary.display())
+    );
+    assert_eq!(
+        mid["hooks"]["PreToolUse"][1]["hooks"][0]["command"],
+        format!("{} check --hook-mode=pretooluse", binary.display())
+    );
+
+    adapter.apply_uninstall(&adapter.plan_uninstall(&ctx)?)?;
+    let post_value: serde_json::Value = serde_json::from_slice(&std::fs::read(&claude_json_path)?)?;
+    assert_eq!(post_value, pre_value);
     Ok(())
 }

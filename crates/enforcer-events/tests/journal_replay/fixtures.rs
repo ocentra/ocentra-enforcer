@@ -52,7 +52,9 @@ impl DomainEvent for TestEvent {
     }
 }
 
-pub(super) fn test_event(label: TestText) -> Result<TestEvent, Box<dyn std::error::Error + Send + Sync>> {
+pub(super) fn test_event(
+    label: TestText,
+) -> Result<TestEvent, Box<dyn std::error::Error + Send + Sync>> {
     test_event_for_type_with_idempotency(
         label,
         TestText(TEST_EVENT_TYPE.to_owned()),
@@ -91,7 +93,9 @@ fn test_event_for_type_with_idempotency(
     })
 }
 
-pub(super) fn metadata(target: TestText) -> Result<EventMetadata, Box<dyn std::error::Error + Send + Sync>> {
+pub(super) fn metadata(
+    target: TestText,
+) -> Result<EventMetadata, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventMetadata::from_parts(
         EventId::parse(TEST_EVENT_ID)?,
         CorrelationId::parse(TEST_CORRELATION_ID)?,

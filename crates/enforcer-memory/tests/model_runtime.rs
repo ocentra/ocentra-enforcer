@@ -7,11 +7,12 @@
 
 use enforcer_memory::error::MemoryError;
 use enforcer_memory::model_runtime::{
-    default_provider_order, default_zero_network_proof, discover_onnx_artifacts,
-    ort_feature_compiled, validate_embedding_output, validate_reranker_scores, validate_sha256_hex,
-    CacheCorruptionReasonCode, CacheHealth, CacheState, CacheStorageErrorCode,
-    CacheUnavailableReason, DownloadStatus, LoadStateReport, ManifestIntegrity, ModelCacheStatus,
-    ModelRuntimeFile, ModelRuntimeObservationKind, ProviderKind, SourcePolicy,
+    default_provider_order, default_zero_network_proof, degraded_capability_report,
+    discover_onnx_artifacts, ort_feature_compiled, validate_embedding_output,
+    validate_reranker_scores, validate_sha256_hex, CacheCorruptionReasonCode, CacheHealth,
+    CacheState, CacheStorageErrorCode, CacheUnavailableReason, DownloadStatus, LoadStateReport,
+    ManifestIntegrity, ModelCacheStatus, ModelRuntimeFile, ModelRuntimeObservationKind, ModelTask,
+    ProviderKind, SourcePolicy,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -38,6 +39,16 @@ fn zero_network_default_proof_records_learning_observation_kinds() {
     assert_eq!(proof.probe_plan.target_chat_tokens_per_second_high, 60);
     assert!(proof.probe_plan.kill_on_timeout);
     assert_eq!(proof.embedding.source_policy, SourcePolicy::LocalCache);
+    assert_eq!(proof.embedding.cache_state, CacheState::Unavailable);
+    assert_eq!(proof.embedding.cache_health, CacheHealth::Unavailable);
+    assert_eq!(
+        proof.embedding.manifest_integrity,
+        ManifestIntegrity::Unavailable
+    );
+    assert_eq!(
+        proof.embedding.unavailable_reason,
+        Some(CacheUnavailableReason::ArtifactNotInstalled)
+    );
     assert!(proof
         .embedding
         .reason
@@ -45,6 +56,11 @@ fn zero_network_default_proof_records_learning_observation_kinds() {
         .unwrap_or_default()
         .contains("provider probes remain unavailable"));
     assert_eq!(proof.reranker.source_policy, SourcePolicy::LocalCache);
+    assert_eq!(proof.reranker.cache_state, CacheState::Unavailable);
+    assert_eq!(
+        proof.reranker.unavailable_reason,
+        Some(CacheUnavailableReason::ArtifactNotInstalled)
+    );
     assert!(proof
         .learning_observation_kinds
         .contains(&ModelRuntimeObservationKind::ArtifactHashMismatch));
@@ -54,6 +70,70 @@ fn zero_network_default_proof_records_learning_observation_kinds() {
     assert!(proof
         .learning_observation_kinds
         .contains(&ModelRuntimeObservationKind::LocalLoadSucceeded));
+}
+
+#[test]
+fn degraded_capability_report_tracks_source_policy_cache_semantics() {
+    let unavailable = degraded_capability_report(
+        ModelTask::Embedding,
+        SourcePolicy::Unavailable,
+        "model source missing",
+    );
+    assert_eq!(unavailable.cache_state, CacheState::Unavailable);
+    assert_eq!(unavailable.cache_health, CacheHealth::Unavailable);
+    assert_eq!(
+        unavailable.manifest_integrity,
+        ManifestIntegrity::Unavailable
+    );
+    assert_eq!(
+        unavailable.unavailable_reason,
+        Some(CacheUnavailableReason::ModelSourceUnconfigured)
+    );
+
+    let local_cache = degraded_capability_report(
+        ModelTask::Embedding,
+        SourcePolicy::LocalCache,
+        "provider unavailable",
+    );
+    assert_eq!(local_cache.cache_state, CacheState::Unavailable);
+    assert_eq!(local_cache.cache_health, CacheHealth::Unavailable);
+    assert_eq!(
+        local_cache.manifest_integrity,
+        ManifestIntegrity::Unavailable
+    );
+    assert_eq!(
+        local_cache.unavailable_reason,
+        Some(CacheUnavailableReason::ArtifactNotInstalled)
+    );
+
+    let bundled = degraded_capability_report(
+        ModelTask::Embedding,
+        SourcePolicy::Bundled,
+        "provider unavailable",
+    );
+    assert_eq!(bundled.cache_state, CacheState::CacheDegraded);
+    assert_eq!(bundled.cache_health, CacheHealth::Degraded);
+    assert_eq!(bundled.manifest_integrity, ManifestIntegrity::Unchecked);
+    assert_eq!(
+        bundled.unavailable_reason,
+        Some(CacheUnavailableReason::IntegrityUnverified)
+    );
+
+    let parent_installed = degraded_capability_report(
+        ModelTask::Embedding,
+        SourcePolicy::ParentInstalled,
+        "provider unavailable",
+    );
+    assert_eq!(parent_installed.cache_state, CacheState::CacheDegraded);
+    assert_eq!(parent_installed.cache_health, CacheHealth::Degraded);
+    assert_eq!(
+        parent_installed.manifest_integrity,
+        ManifestIntegrity::Unchecked
+    );
+    assert_eq!(
+        parent_installed.unavailable_reason,
+        Some(CacheUnavailableReason::IntegrityUnverified)
+    );
 }
 
 #[test]

@@ -139,7 +139,8 @@ async fn concurrent_dispatch_records_handler_dead_letter_without_losing_journal(
 }
 
 #[tokio::test]
-async fn duplicate_subscriber_ids_are_rejected() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn duplicate_subscriber_ids_are_rejected(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
     let duplicate = subscriber(
         &TestText(TEST_SUBSCRIBER.to_owned()),
@@ -176,8 +177,8 @@ fn eventing_newtypes_reject_empty_values_and_zero_versions(
 }
 
 #[test]
-fn event_namespaces_match_dot_and_slash_event_taxonomy() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
-{
+fn event_namespaces_match_dot_and_slash_event_taxonomy(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let slash_event = EventType::parse("network/transport/observed")?;
     let dot_event = EventType::parse("network.transport.observed")?;
     let network_namespace = EventNamespace::parse("network")?;
@@ -192,7 +193,8 @@ fn event_namespaces_match_dot_and_slash_event_taxonomy() -> Result<(), Box<dyn s
 }
 
 #[test]
-fn stored_decode_rejects_contract_mismatch() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+fn stored_decode_rejects_contract_mismatch() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
+{
     let envelope = EventEnvelope::from_event(
         test_event(&TestText(TEST_LABEL.to_owned()))?,
         metadata(&TestText(TEST_TARGET.to_owned()))?,

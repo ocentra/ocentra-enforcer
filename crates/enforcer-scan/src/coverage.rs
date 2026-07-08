@@ -143,8 +143,8 @@ mod tests {
     }
 
     #[test]
-    fn mixed_ran_and_skipped_passes_gate_and_surfaces_skips() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn mixed_ran_and_skipped_passes_gate_and_surfaces_skips(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let outcomes = vec![
             target("src/a.rs", Outcome::ran(3))?,
             target("src/b.bin", Outcome::skipped("unmatched extension")?)?,

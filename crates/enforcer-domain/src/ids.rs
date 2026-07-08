@@ -259,8 +259,7 @@ mod tests {
     /// this property: its `BTreeMap<RuleId, RuleRecord>` and `get(&RuleId)`
     /// accept the branded type only.
     #[test]
-    fn rule_id_required_at_a_registry_shaped_boundary_not_bare_string() -> Result<(), DecodeError>
-    {
+    fn rule_id_required_at_a_registry_shaped_boundary_not_bare_string() -> Result<(), DecodeError> {
         use std::collections::BTreeMap;
 
         fn lookup<'a>(map: &'a BTreeMap<RuleId, &'static str>, id: &RuleId) -> Option<&'a str> {

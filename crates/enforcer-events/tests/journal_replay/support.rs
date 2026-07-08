@@ -19,7 +19,6 @@ use super::fixtures::{
 #[derive(Clone, Debug)]
 pub(super) struct TestText(pub(super) String);
 
-
 #[derive(Clone, Debug)]
 pub(super) struct JournalPath(pub(super) PathBuf);
 
@@ -116,10 +115,15 @@ pub(super) async fn subscribe_log_handler(
 pub(super) fn stored_event(
     event: TestEvent,
 ) -> Result<StoredEventEnvelope, Box<dyn std::error::Error + Send + Sync>> {
-    Ok(EventEnvelope::from_event(event, metadata(FixtureText(TEST_TARGET.to_owned()))?)?.store()?)
+    Ok(
+        EventEnvelope::from_event(event, metadata(FixtureText(TEST_TARGET.to_owned()))?)?
+            .store()?,
+    )
 }
 
-pub(super) fn event_type(value: TestText) -> Result<EventType, Box<dyn std::error::Error + Send + Sync>> {
+pub(super) fn event_type(
+    value: TestText,
+) -> Result<EventType, Box<dyn std::error::Error + Send + Sync>> {
     Ok(EventType::parse(value.0)?)
 }
 
@@ -200,7 +204,10 @@ impl EventJournal for RecordingJournal {
                 .map_err(|e| EventingError::InvalidHandlerPolicy {
                     reason: e.to_string(),
                 })?;
-            log.push(JournalLine(format!("journal:{}", envelope.contract.event_type.as_str())));
+            log.push(JournalLine(format!(
+                "journal:{}",
+                envelope.contract.event_type.as_str()
+            )));
             Ok(JournalAppend {
                 sequence: log.len() as u64,
                 previous_hash: None,
