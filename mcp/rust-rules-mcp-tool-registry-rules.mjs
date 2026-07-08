@@ -155,4 +155,19 @@ export const RULE_TOOLS = [
       },
     },
   },
+  {
+    name: "ocentra_enforcer_ui_logic_coupling_scan",
+    description:
+      "Scan a target repo for presentation-layer files (pages, components, views, screens) that call a business-logic/API module directly instead of through a hook/composable, or that subscribe to an event/WS source directly. Mechanical, signal-based (imports + naming conventions) — every finding is evidence for human/AI review, not a certified defect.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        root: {
+          type: "string",
+          description: "Target repository root to scan. Defaults to the MCP server working directory.",
+        },
+      },
+    },
+  },
 ];
