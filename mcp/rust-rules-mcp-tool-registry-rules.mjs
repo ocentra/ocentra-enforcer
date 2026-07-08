@@ -140,4 +140,19 @@ export const RULE_TOOLS = [
       "Explain one Ocentra Enforcer rule ID and give the docs anchor/fix hint.",
     inputSchema: EXPLAIN_INPUT_SCHEMA,
   },
+  {
+    name: "ocentra_enforcer_test_doctrine_scan",
+    description:
+      "Scan a target repo for what kinds of tests it has (unit, integration, e2e, contract, mutation, property/fuzz, security, snapshot, load) and what its detected nature (web API, frontend UI, async workers, money-critical surface, multi-service boundaries) implies it's missing. Heuristic and signal-based, not a certification.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        root: {
+          type: "string",
+          description: "Target repository root to scan. Defaults to the MCP server working directory.",
+        },
+      },
+    },
+  },
 ];

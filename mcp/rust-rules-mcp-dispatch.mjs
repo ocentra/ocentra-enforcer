@@ -66,6 +66,7 @@ import {
   latestValidationSummary,
   runCli,
 } from "./rust-rules-mcp-runner.mjs";
+import { scanTestDoctrine } from "../src/test-doctrine-scan.mjs";
 
 const {
   decodeCheckToolArguments,
@@ -85,6 +86,7 @@ const TOOL_HANDLERS = new Map([
   ["ocentra_enforcer_check", checkTool],
   ["ocentra_enforcer_doctor", doctorTool],
   ["ocentra_enforcer_explain", explainTool],
+  ["ocentra_enforcer_test_doctrine_scan", testDoctrineScanTool],
   ["ocentra_enforcer_run", runTool],
   ["ocentra_enforcer_run_status", runStatusTool],
   ["ocentra_enforcer_diagnostics", diagnosticsTool],
@@ -170,6 +172,10 @@ function doctorTool(args) {
 
 function explainTool(args) {
   return runCli("explain", decodeExplainToolArguments(args));
+}
+
+function testDoctrineScanTool(args) {
+  return toolJson(scanTestDoctrine({ root: args.root ?? SERVER_ROOT }));
 }
 
 function runTool(args) {
