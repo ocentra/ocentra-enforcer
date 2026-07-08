@@ -123,7 +123,7 @@ function reasonFor(category, nature) {
     concurrencyRaceTests: `No tests found exercising parallel/concurrent requests — race conditions (double-processing, lost updates) only show up under real concurrency, never in sequential tests.${moneyNote}`,
     idempotencyReplayTests: `No tests found asserting that repeating a request doesn't repeat its effect — without this, retries and duplicate deliveries are unverified.${moneyNote}`,
     rollbackCompensationTests: "No tests found for rollback/compensation logic — partial-failure recovery paths are exactly where bugs hide because they're rarely exercised.",
-    timeClockTests: "No tests found manipulating time/clock (freezegun, fake timers) — expiry, cooldown, and scheduling logic is untested against clock skew or boundary timing.",
+    timeClockTests: "No tests found manipulating time/clock (freezegun, synthetic timers) — expiry, cooldown, and scheduling logic is untested against clock skew or boundary timing.",
     economicInvariantTests: `Money-critical files were detected but no tests assert an explicit invariant (balance conservation, no double-charge) — these are the tests that catch a state bug before it costs money.${moneyNote}`,
     killSwitchTests: "Money-critical files were detected but no tests exercise a kill-switch/circuit-breaker/emergency-disable path — an untested emergency control is a control you can't trust when you need it.",
   };
@@ -131,8 +131,7 @@ function reasonFor(category, nature) {
 }
 
 function ciInfoFor(category, ci) {
-  if (!ci.perCategory[category]) return null;
-  return ci.perCategory[category];
+  return ci.perCategory[category] ?? { wired: false, blocking: false, evidence: [] };
 }
 
 function ciGapReasonFor(category, ciInfo, ciInfoIncludingUntracked) {

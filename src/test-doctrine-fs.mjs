@@ -1,6 +1,6 @@
 /*
  * Shared filesystem primitives for the test-doctrine scanner. Split out from
- * the orchestrator to avoid a circular import with test-doctrine-ci.mjs.
+ * the orchestrator to avoid import loops with test-doctrine-ci.mjs.
  */
 import fs from "node:fs";
 import path from "node:path";
