@@ -795,9 +795,11 @@ impl RowRunner for CliRunner {
 /// workspace, and no per-file git history). Claims only rows whose
 /// query text contains an
 /// `enforcer-<name>` crate reference this harness can resolve to a real
-/// `crates/<name>/src` directory that exists on disk -- rows that
-/// reference doc sections, workpack ids, or Cargo.toml-only facts with
-/// no `build_report` aspect answering them stay unrunnable. Symbol and
+/// `crates/<name>/src` directory that exists on disk, or one of the
+/// fixture-shaped repo queries that deliberately fall back to the
+/// `enforcer-memory` crate's `src/` tree. Rows that reference doc
+/// sections, workpack ids, or Cargo.toml-only facts with no
+/// `build_report` aspect answering them stay unrunnable. Symbol and
 /// CodeGraph rows are deliberately excluded: a crate mention alone does
 /// not prove an architecture overview answers a symbol-level query.
 pub struct ArchitectureRepositoryRunner;
@@ -828,6 +830,28 @@ fn resolve_crate_reference(text: &str, workspace_root: &Path) -> Option<PathBuf>
     None
 }
 
+fn resolve_architecture_repository_target(row: &QaRow, workspace_root: &Path) -> Option<PathBuf> {
+    let text = format!("{} {}", row.query, row.expectation);
+    if let Some(src_dir) = resolve_crate_reference(&text, workspace_root) {
+        return Some(src_dir);
+    }
+
+    let lowered = text.to_lowercase();
+    let wants_default_fixture = matches!(row.category.as_str(), "Architecture" | "Repository")
+        && (lowered.contains("this crate")
+            || lowered.contains("public api surface")
+            || lowered.contains("modules inside this crate"));
+    if !wants_default_fixture {
+        return None;
+    }
+
+    let default_src = workspace_root
+        .join("crates")
+        .join("enforcer-memory")
+        .join("src");
+    default_src.is_dir().then_some(default_src)
+}
+
 impl RowRunner for ArchitectureRepositoryRunner {
     fn name(&self) -> &'static str {
         "ArchitectureRepositoryRunner"
@@ -835,19 +859,13 @@ impl RowRunner for ArchitectureRepositoryRunner {
 
     fn can_run(&self, row: &QaRow) -> bool {
         matches!(row.category.as_str(), "Architecture" | "Repository")
-            && resolve_crate_reference(
-                &format!("{} {}", row.query, row.expectation),
-                &super::queryset::workspace_root(),
-            )
-            .is_some()
+            && resolve_architecture_repository_target(row, &super::queryset::workspace_root())
+                .is_some()
     }
 
     fn run(&self, row: &QaRow, _fixtures: &Fixtures) -> RowResult {
         let workspace_root = super::queryset::workspace_root();
-        let Some(src_dir) = resolve_crate_reference(
-            &format!("{} {}", row.query, row.expectation),
-            &workspace_root,
-        ) else {
+        let Some(src_dir) = resolve_architecture_repository_target(row, &workspace_root) else {
             return unrunnable(row, "row names no resolvable real crate src/ directory");
         };
 
@@ -1833,6 +1851,38 @@ mod tests {
             results[0].verdict,
             "unrunnable: no wired runner for category Architecture"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn repository_rows_with_fixture_shaped_queries_use_the_default_workspace_crate() -> TestResult {
+        let row = sample_row_with_expectation(
+            "QA-ARCH-3",
+            "Repository",
+            "Find all modules inside this crate.",
+            "",
+        );
+        let fixtures = super::super::build_fixtures()?;
+        let results = run_all(&[row], &fixtures);
+        assert_eq!(results.len(), 1);
+        assert!(!results[0].is_unrunnable());
+        assert_eq!(results[0].verdict, "pass");
+        Ok(())
+    }
+
+    #[test]
+    fn architecture_rows_with_public_api_queries_use_the_default_workspace_crate() -> TestResult {
+        let row = sample_row_with_expectation(
+            "QA-ARCH-4",
+            "Architecture",
+            "Find the public API surface of this crate.",
+            "",
+        );
+        let fixtures = super::super::build_fixtures()?;
+        let results = run_all(&[row], &fixtures);
+        assert_eq!(results.len(), 1);
+        assert!(!results[0].is_unrunnable());
+        assert_eq!(results[0].verdict, "pass");
         Ok(())
     }
 

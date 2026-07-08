@@ -1,8 +1,8 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 60,
+  "rowsGreen": 62,
   "rowsFailed": 0,
-  "rowsUnrunnable": 190,
+  "rowsUnrunnable": 188,
   "rows": [
     {
       "id": "QA-001",
@@ -112,27 +112,43 @@
       "id": "QA-009",
       "category": "Repository",
       "query": "Find all modules inside this crate.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Repository",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "crates/enforcer-memory/src"
+      ],
+      "actualIds": [
+        "crates/enforcer-memory/src"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/architecture.rs",
+        "crates/enforcer-memory/src",
+        "bounded sample: 16 Rust files"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-010",
       "category": "Repository",
       "query": "Find the public API surface of this crate.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Repository",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "crates/enforcer-memory/src"
+      ],
+      "actualIds": [
+        "crates/enforcer-memory/src"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/architecture.rs",
+        "crates/enforcer-memory/src",
+        "bounded sample: 16 Rust files"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-011",
