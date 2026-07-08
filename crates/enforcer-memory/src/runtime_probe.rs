@@ -29,13 +29,13 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
         X06ModelLineup,
     };
     use crate::llama_cpp::{
-        list_llama_cpp_devices, run_llama_cpp_probe, LlamaCppBackendHint, LlamaCppProbeConfig,
-        LlamaCppProbeKind,
+        list_llama_cpp_devices, resolve_llama_cpp_execution, run_llama_cpp_probe,
+        LlamaCppBackendHint, LlamaCppExecutionResolution, LlamaCppProbeConfig, LlamaCppProbeKind,
     };
     use crate::local_runtime::LocalRuntimeAcceleration;
     use crate::model_observations::{
         LocalLoadSucceeded, ModelLoadFailure, ModelRuntimeObservationCandidate,
-        ModelRuntimeObservationRecord,
+        ModelRuntimeObservationRecord, ProviderDowngrade,
     };
     use crate::model_runtime::{
         default_model_runtime_probe_plan, evaluate_chat_usability, loaded_non_chat_usability,
@@ -79,18 +79,20 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
     #[derive(Debug, Clone, Copy)]
     struct ChatSelectionContext<'a> {
         repo_root: &'a Path,
-        backend_hint: LlamaCppBackendHint,
-        requested_acceleration: LocalRuntimeAcceleration,
-        resolved_acceleration: LocalRuntimeAcceleration,
+        requested_backend_hint: LlamaCppBackendHint,
+        execution: &'a LlamaCppExecutionResolution,
         chat_probe_selected: bool,
         device_report: Option<&'a crate::llama_cpp::LlamaCppDeviceReport>,
     }
 
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug, Clone)]
     struct LlamaRunContext<'a> {
         repo_root: &'a Path,
         backend_hint: LlamaCppBackendHint,
         acceleration: LocalRuntimeAcceleration,
+        selected_device_id: Option<String>,
+        selected_main_gpu: Option<usize>,
+        default_split_mode: Option<String>,
         observed_at: &'a str,
         run_id: &'a str,
     }
@@ -153,17 +155,18 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
     let mut lineup = X06ModelLineup::from_env()?;
     let chat_probe_selected = should_run_probe(&probe_filter, "chat-generation-gguf");
     let device_report = maybe_llama_device_report(runtime_mode == "probe");
-    let provider_probe_passed = device_report
-        .as_ref()
-        .map(|report| !report.devices.is_empty())
-        .unwrap_or(false);
-    let resolved_llama_acceleration =
-        resolve_llama_acceleration(requested_llama_acceleration, provider_probe_passed);
+    let llama_execution = resolve_llama_cpp_execution(
+        llama_backend_hint,
+        requested_llama_acceleration,
+        device_report
+            .as_ref()
+            .map(|report| report.devices.as_slice())
+            .unwrap_or(&[]),
+    );
     let chat_selection_context = ChatSelectionContext {
         repo_root: &repo_root,
-        backend_hint: llama_backend_hint,
-        requested_acceleration: requested_llama_acceleration,
-        resolved_acceleration: resolved_llama_acceleration,
+        requested_backend_hint: llama_backend_hint,
+        execution: &llama_execution,
         chat_probe_selected,
         device_report: device_report.as_ref(),
     };
@@ -171,12 +174,24 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
         maybe_select_chat_model_for_hardware(&mut lineup, chat_selection_context);
     let llama_run_context = LlamaRunContext {
         repo_root: &repo_root,
-        backend_hint: llama_backend_hint,
-        acceleration: resolved_llama_acceleration,
+        backend_hint: llama_execution.backend_hint,
+        acceleration: llama_execution.resolved_acceleration,
+        selected_device_id: llama_execution.selected_device_id.clone(),
+        selected_main_gpu: llama_execution.selected_main_gpu,
+        default_split_mode: default_split_mode_for_execution(&llama_execution),
         observed_at: &observed_at,
         run_id: &run_id,
     };
     let mut observations = Vec::new();
+    if let Some(observation) = provider_downgrade_observation(
+        &llama_execution,
+        &lineup.chat_generation.model_id,
+        ModelTask::Summarization,
+        &observed_at,
+        &run_id,
+    ) {
+        observations.push(observation);
+    }
 
     if runtime_mode == "plan" {
         let proof = RuntimeProbeProof {
@@ -262,9 +277,9 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
         match maybe_direct_chat_model_report(&cache_root)
             .or_else(|| maybe_download(&lineup.chat_generation, &cache_root, allow_network).ok())
         {
-            Some(report) => run_llama_generation(&report, llama_run_context, &mut observations),
+            Some(report) => run_llama_generation(&report, &llama_run_context, &mut observations),
             None => match maybe_download(&lineup.chat_generation, &cache_root, allow_network) {
-                Ok(report) => run_llama_generation(&report, llama_run_context, &mut observations),
+                Ok(report) => run_llama_generation(&report, &llama_run_context, &mut observations),
                 Err(error) => {
                     observations.push(load_failure_observation(LoadFailureInput {
                         observed_at: &observed_at,
@@ -284,7 +299,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
 
     let qwen_embedding_gguf_proof = if should_run_probe(&probe_filter, "qwen-embedding-gguf") {
         match maybe_download(&lineup.embedding_gguf, &cache_root, allow_network) {
-            Ok(report) => run_llama_embedding(&report, llama_run_context, &mut observations),
+            Ok(report) => run_llama_embedding(&report, &llama_run_context, &mut observations),
             Err(error) => {
                 observations.push(load_failure_observation(LoadFailureInput {
                     observed_at: &observed_at,
@@ -593,24 +608,6 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
         .ok()
     }
 
-    fn resolve_llama_acceleration(
-        requested: LocalRuntimeAcceleration,
-        provider_probe_passed: bool,
-    ) -> LocalRuntimeAcceleration {
-        match requested {
-            LocalRuntimeAcceleration::Cpu => LocalRuntimeAcceleration::Cpu,
-            LocalRuntimeAcceleration::Gpu | LocalRuntimeAcceleration::Npu
-                if provider_probe_passed =>
-            {
-                requested
-            }
-            LocalRuntimeAcceleration::Gpu | LocalRuntimeAcceleration::Npu => {
-                LocalRuntimeAcceleration::Cpu
-            }
-            LocalRuntimeAcceleration::Auto => LocalRuntimeAcceleration::Cpu,
-        }
-    }
-
     fn maybe_select_chat_model_for_hardware(
         lineup: &mut X06ModelLineup,
         context: ChatSelectionContext<'_>,
@@ -637,30 +634,20 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
             });
         }
 
-        let provider_probe_passed = context
-            .device_report
-            .map(|report| !report.devices.is_empty())
-            .unwrap_or(false);
-        let detected_free_vram_mib = match (context.backend_hint, context.resolved_acceleration) {
-            (LlamaCppBackendHint::OpenVino, LocalRuntimeAcceleration::Npu)
-            | (_, LocalRuntimeAcceleration::Npu)
-            | (_, LocalRuntimeAcceleration::Cpu) => None,
-            _ => context.device_report.and_then(|report| {
-                report
-                    .devices
-                    .iter()
-                    .map(|device| device.free_memory_mib)
-                    .max()
-            }),
-        };
+        let provider_probe_passed = context.execution.provider_probe_passed;
+        let detected_free_vram_mib = context.execution.detected_free_vram_mib;
         let selection = select_x06_chat_model_for_hardware(detected_free_vram_mib);
         lineup.chat_generation = selection.selected.clone();
         serde_json::json!({
             "enabled": true,
-            "backendHint": context.backend_hint,
-            "requestedAcceleration": context.requested_acceleration,
-            "resolvedAcceleration": context.resolved_acceleration,
+            "requestedBackendHint": context.requested_backend_hint,
+            "backendHint": context.execution.backend_hint,
+            "requestedAcceleration": context.execution.requested_acceleration,
+            "resolvedAcceleration": context.execution.resolved_acceleration,
             "providerProbePassed": provider_probe_passed,
+            "selectedDeviceId": context.execution.selected_device_id.clone(),
+            "selectedMainGpu": context.execution.selected_main_gpu,
+            "downgradeReason": context.execution.downgrade_reason.clone(),
             "providerProbeTimeoutMs": env_u64("ENFORCER_X06_DEVICE_TIMEOUT_MS")
                 .unwrap_or_else(|| default_model_runtime_probe_plan().provider_probe_timeout_ms),
             "deviceReport": context.device_report.map(|report| {
@@ -694,7 +681,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
 
     fn run_llama_generation(
         report: &HfDownloadReport,
-        context: LlamaRunContext<'_>,
+        context: &LlamaRunContext<'_>,
         observations: &mut Vec<ModelRuntimeObservationRecord>,
     ) -> serde_json::Value {
         let Some(model) = first_model_file(report) else {
@@ -716,9 +703,13 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
             backend_hint: context.backend_hint,
             acceleration: context.acceleration,
             gpu_layers: env_usize("ENFORCER_X06_LLAMA_GPU_LAYERS"),
-            device: std::env::var("ENFORCER_X06_LLAMA_DEVICE").ok(),
-            main_gpu: env_usize("ENFORCER_X06_LLAMA_MAIN_GPU"),
-            split_mode: std::env::var("ENFORCER_X06_LLAMA_SPLIT_MODE").ok(),
+            device: std::env::var("ENFORCER_X06_LLAMA_DEVICE")
+                .ok()
+                .or_else(|| context.selected_device_id.clone()),
+            main_gpu: env_usize("ENFORCER_X06_LLAMA_MAIN_GPU").or(context.selected_main_gpu),
+            split_mode: std::env::var("ENFORCER_X06_LLAMA_SPLIT_MODE")
+                .ok()
+                .or_else(|| context.default_split_mode.clone()),
             tensor_split: std::env::var("ENFORCER_X06_LLAMA_TENSOR_SPLIT").ok(),
             fit: env_optional_bool("ENFORCER_X06_LLAMA_FIT").or(Some(true)),
             context_size: env_usize("ENFORCER_X06_LLAMA_CONTEXT"),
@@ -743,7 +734,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
 
     fn run_llama_embedding(
         report: &HfDownloadReport,
-        context: LlamaRunContext<'_>,
+        context: &LlamaRunContext<'_>,
         observations: &mut Vec<ModelRuntimeObservationRecord>,
     ) -> serde_json::Value {
         let Some(model) = first_model_file(report) else {
@@ -765,9 +756,13 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
             backend_hint: context.backend_hint,
             acceleration: context.acceleration,
             gpu_layers: env_usize("ENFORCER_X06_LLAMA_GPU_LAYERS"),
-            device: std::env::var("ENFORCER_X06_LLAMA_DEVICE").ok(),
-            main_gpu: env_usize("ENFORCER_X06_LLAMA_MAIN_GPU"),
-            split_mode: std::env::var("ENFORCER_X06_LLAMA_SPLIT_MODE").ok(),
+            device: std::env::var("ENFORCER_X06_LLAMA_DEVICE")
+                .ok()
+                .or_else(|| context.selected_device_id.clone()),
+            main_gpu: env_usize("ENFORCER_X06_LLAMA_MAIN_GPU").or(context.selected_main_gpu),
+            split_mode: std::env::var("ENFORCER_X06_LLAMA_SPLIT_MODE")
+                .ok()
+                .or_else(|| context.default_split_mode.clone()),
             tensor_split: std::env::var("ENFORCER_X06_LLAMA_TENSOR_SPLIT").ok(),
             fit: env_optional_bool("ENFORCER_X06_LLAMA_FIT").or(Some(true)),
             context_size: env_usize("ENFORCER_X06_LLAMA_CONTEXT"),
@@ -1384,6 +1379,39 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
                 ProviderKind::Cpu
             }
         }
+    }
+
+    fn default_split_mode_for_execution(execution: &LlamaCppExecutionResolution) -> Option<String> {
+        (execution.resolved_acceleration == LocalRuntimeAcceleration::Gpu)
+            .then(|| "layer".to_owned())
+    }
+
+    fn provider_downgrade_observation(
+        execution: &LlamaCppExecutionResolution,
+        model_id: &str,
+        task: ModelTask,
+        observed_at: &str,
+        run_id: &str,
+    ) -> Option<ModelRuntimeObservationRecord> {
+        let reason = execution.downgrade_reason.clone()?;
+        let requested_provider = provider_kind_for_llama(
+            execution.requested_backend_hint,
+            execution.requested_acceleration,
+        );
+        let fallback_provider =
+            provider_kind_for_llama(execution.backend_hint, execution.resolved_acceleration);
+        Some(ModelRuntimeObservationRecord::new(
+            observed_at,
+            "x06-model-runtime-probe",
+            run_id,
+            ModelRuntimeObservationCandidate::ProviderDowngrade(ProviderDowngrade {
+                model_id: model_id.to_owned(),
+                task,
+                requested_provider,
+                fallback_provider,
+                reason,
+            }),
+        ))
     }
 
     fn env_path(name: &str) -> Option<PathBuf> {

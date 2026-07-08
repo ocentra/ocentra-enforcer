@@ -6,8 +6,9 @@ use enforcer_memory::hf_cache::{
     HfRepoFile, HfRepoMetadata, HfSingleFileSpecInput, X06ModelLineup,
 };
 use enforcer_memory::llama_cpp::{
-    llama_cpp_command_plan, parse_llama_cpp_devices, validate_executable, validate_model,
-    LlamaCppBackendHint, LlamaCppProbeConfig, LlamaCppProbeKind,
+    llama_cpp_command_plan, parse_llama_cpp_devices, resolve_llama_cpp_execution,
+    validate_executable, validate_model, LlamaCppBackendHint, LlamaCppDevice, LlamaCppProbeConfig,
+    LlamaCppProbeKind,
 };
 use enforcer_memory::local_runtime::LocalRuntimeAcceleration;
 use enforcer_memory::model_runtime::{
@@ -159,6 +160,86 @@ fn chat_model_selector_retains_ornith_as_dense_fallback_candidate() {
         .candidates
         .iter()
         .any(|candidate| candidate.spec.repo_id == DEFAULT_ORNITH_GGUF_REPO));
+}
+
+#[test]
+fn auto_llama_execution_prefers_best_gpu_and_backend_from_device_probe() {
+    let devices = vec![
+        LlamaCppDevice {
+            id: "Vulkan0".to_owned(),
+            name: "GeForce RTX 2070 SUPER".to_owned(),
+            total_memory_mib: 8_257,
+            free_memory_mib: 7_484,
+        },
+        LlamaCppDevice {
+            id: "Vulkan1".to_owned(),
+            name: "GeForce GTX 760".to_owned(),
+            total_memory_mib: 2_007,
+            free_memory_mib: 1_706,
+        },
+    ];
+
+    let resolution = resolve_llama_cpp_execution(
+        LlamaCppBackendHint::Auto,
+        LocalRuntimeAcceleration::Auto,
+        &devices,
+    );
+
+    assert_eq!(resolution.backend_hint, LlamaCppBackendHint::Vulkan);
+    assert_eq!(
+        resolution.resolved_acceleration,
+        LocalRuntimeAcceleration::Gpu
+    );
+    assert_eq!(resolution.selected_device_id.as_deref(), Some("Vulkan0"));
+    assert_eq!(resolution.selected_main_gpu, Some(0));
+    assert_eq!(resolution.detected_free_vram_mib, Some(7_484));
+    assert_eq!(resolution.downgrade_reason, None);
+}
+
+#[test]
+fn requested_gpu_without_provider_probe_downgrades_to_cpu() {
+    let resolution = resolve_llama_cpp_execution(
+        LlamaCppBackendHint::Auto,
+        LocalRuntimeAcceleration::Gpu,
+        &[],
+    );
+
+    assert_eq!(resolution.backend_hint, LlamaCppBackendHint::Native);
+    assert_eq!(
+        resolution.resolved_acceleration,
+        LocalRuntimeAcceleration::Cpu
+    );
+    assert_eq!(resolution.selected_device_id, None);
+    assert!(resolution
+        .downgrade_reason
+        .as_deref()
+        .unwrap_or_default()
+        .contains("requested GPU acceleration"));
+}
+
+#[test]
+fn requested_npu_prefers_openvino_when_npu_device_is_reported() {
+    let devices = vec![LlamaCppDevice {
+        id: "NPU0".to_owned(),
+        name: "Intel NPU".to_owned(),
+        total_memory_mib: 1_024,
+        free_memory_mib: 768,
+    }];
+
+    let resolution = resolve_llama_cpp_execution(
+        LlamaCppBackendHint::Auto,
+        LocalRuntimeAcceleration::Npu,
+        &devices,
+    );
+
+    assert_eq!(resolution.backend_hint, LlamaCppBackendHint::OpenVino);
+    assert_eq!(
+        resolution.resolved_acceleration,
+        LocalRuntimeAcceleration::Npu
+    );
+    assert_eq!(resolution.selected_device_id.as_deref(), Some("NPU0"));
+    assert_eq!(resolution.selected_main_gpu, None);
+    assert_eq!(resolution.detected_free_vram_mib, Some(768));
 }
 
 #[test]

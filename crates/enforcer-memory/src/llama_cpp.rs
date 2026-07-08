@@ -92,6 +92,20 @@ pub struct LlamaCppDeviceReport {
     pub timed_out: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LlamaCppExecutionResolution {
+    pub requested_backend_hint: LlamaCppBackendHint,
+    pub requested_acceleration: LocalRuntimeAcceleration,
+    pub backend_hint: LlamaCppBackendHint,
+    pub resolved_acceleration: LocalRuntimeAcceleration,
+    pub provider_probe_passed: bool,
+    pub selected_device_id: Option<String>,
+    pub selected_main_gpu: Option<usize>,
+    pub detected_free_vram_mib: Option<u64>,
+    pub downgrade_reason: Option<String>,
+}
+
 impl LlamaCppProbeReport {
     pub fn loaded(&self) -> bool {
         self.exit_code == Some(0)
@@ -162,6 +176,142 @@ pub fn parse_llama_cpp_devices(output: &str) -> Vec<LlamaCppDevice> {
         .lines()
         .filter_map(parse_llama_cpp_device_line)
         .collect()
+}
+
+pub fn resolve_llama_cpp_execution(
+    requested_backend_hint: LlamaCppBackendHint,
+    requested_acceleration: LocalRuntimeAcceleration,
+    devices: &[LlamaCppDevice],
+) -> LlamaCppExecutionResolution {
+    let provider_probe_passed = !devices.is_empty();
+    let selected_gpu = devices
+        .iter()
+        .filter(|device| !device_looks_like_npu(device))
+        .max_by_key(|device| device.free_memory_mib);
+    let selected_npu = devices.iter().find(|device| device_looks_like_npu(device));
+
+    match requested_acceleration {
+        LocalRuntimeAcceleration::Cpu => LlamaCppExecutionResolution {
+            requested_backend_hint,
+            requested_acceleration,
+            backend_hint: resolve_backend_hint(
+                requested_backend_hint,
+                None,
+                requested_acceleration,
+            ),
+            resolved_acceleration: LocalRuntimeAcceleration::Cpu,
+            provider_probe_passed,
+            selected_device_id: None,
+            selected_main_gpu: None,
+            detected_free_vram_mib: None,
+            downgrade_reason: None,
+        },
+        LocalRuntimeAcceleration::Gpu => {
+            if let Some(device) = selected_gpu {
+                return LlamaCppExecutionResolution {
+                    requested_backend_hint,
+                    requested_acceleration,
+                    backend_hint: resolve_backend_hint(
+                        requested_backend_hint,
+                        Some(device),
+                        requested_acceleration,
+                    ),
+                    resolved_acceleration: LocalRuntimeAcceleration::Gpu,
+                    provider_probe_passed,
+                    selected_device_id: Some(device.id.clone()),
+                    selected_main_gpu: parse_device_index(&device.id),
+                    detected_free_vram_mib: Some(device.free_memory_mib),
+                    downgrade_reason: None,
+                };
+            }
+            LlamaCppExecutionResolution {
+                requested_backend_hint,
+                requested_acceleration,
+                backend_hint: LlamaCppBackendHint::Native,
+                resolved_acceleration: LocalRuntimeAcceleration::Cpu,
+                provider_probe_passed,
+                selected_device_id: None,
+                selected_main_gpu: None,
+                detected_free_vram_mib: None,
+                downgrade_reason: Some(
+                    "requested GPU acceleration but llama.cpp provider probe did not report a usable GPU device"
+                        .to_owned(),
+                ),
+            }
+        }
+        LocalRuntimeAcceleration::Npu => {
+            if let Some(device) = selected_npu {
+                return LlamaCppExecutionResolution {
+                    requested_backend_hint,
+                    requested_acceleration,
+                    backend_hint: LlamaCppBackendHint::OpenVino,
+                    resolved_acceleration: LocalRuntimeAcceleration::Npu,
+                    provider_probe_passed,
+                    selected_device_id: Some(device.id.clone()),
+                    selected_main_gpu: None,
+                    detected_free_vram_mib: Some(device.free_memory_mib),
+                    downgrade_reason: None,
+                };
+            }
+            LlamaCppExecutionResolution {
+                requested_backend_hint,
+                requested_acceleration,
+                backend_hint: LlamaCppBackendHint::Native,
+                resolved_acceleration: LocalRuntimeAcceleration::Cpu,
+                provider_probe_passed,
+                selected_device_id: None,
+                selected_main_gpu: None,
+                detected_free_vram_mib: None,
+                downgrade_reason: Some(
+                    "requested NPU acceleration but llama.cpp provider probe did not report an NPU/OpenVINO device"
+                        .to_owned(),
+                ),
+            }
+        }
+        LocalRuntimeAcceleration::Auto => {
+            if let Some(device) = selected_gpu {
+                return LlamaCppExecutionResolution {
+                    requested_backend_hint,
+                    requested_acceleration,
+                    backend_hint: resolve_backend_hint(
+                        requested_backend_hint,
+                        Some(device),
+                        LocalRuntimeAcceleration::Gpu,
+                    ),
+                    resolved_acceleration: LocalRuntimeAcceleration::Gpu,
+                    provider_probe_passed,
+                    selected_device_id: Some(device.id.clone()),
+                    selected_main_gpu: parse_device_index(&device.id),
+                    detected_free_vram_mib: Some(device.free_memory_mib),
+                    downgrade_reason: None,
+                };
+            }
+            if let Some(device) = selected_npu {
+                return LlamaCppExecutionResolution {
+                    requested_backend_hint,
+                    requested_acceleration,
+                    backend_hint: LlamaCppBackendHint::OpenVino,
+                    resolved_acceleration: LocalRuntimeAcceleration::Npu,
+                    provider_probe_passed,
+                    selected_device_id: Some(device.id.clone()),
+                    selected_main_gpu: None,
+                    detected_free_vram_mib: Some(device.free_memory_mib),
+                    downgrade_reason: None,
+                };
+            }
+            LlamaCppExecutionResolution {
+                requested_backend_hint,
+                requested_acceleration,
+                backend_hint: LlamaCppBackendHint::Native,
+                resolved_acceleration: LocalRuntimeAcceleration::Cpu,
+                provider_probe_passed,
+                selected_device_id: None,
+                selected_main_gpu: None,
+                detected_free_vram_mib: None,
+                downgrade_reason: None,
+            }
+        }
+    }
 }
 
 pub fn run_llama_cpp_probe(config: &LlamaCppProbeConfig) -> Result<LlamaCppProbeReport> {
@@ -385,6 +535,54 @@ fn parse_llama_cpp_device_line(line: &str) -> Option<LlamaCppDevice> {
         total_memory_mib,
         free_memory_mib,
     })
+}
+
+fn device_looks_like_npu(device: &LlamaCppDevice) -> bool {
+    let id = device.id.to_ascii_lowercase();
+    let name = device.name.to_ascii_lowercase();
+    id.contains("npu") || name.contains("npu") || name.contains("neural")
+}
+
+fn resolve_backend_hint(
+    requested_backend_hint: LlamaCppBackendHint,
+    device: Option<&LlamaCppDevice>,
+    acceleration: LocalRuntimeAcceleration,
+) -> LlamaCppBackendHint {
+    if requested_backend_hint != LlamaCppBackendHint::Auto {
+        return requested_backend_hint;
+    }
+    match acceleration {
+        LocalRuntimeAcceleration::Npu => LlamaCppBackendHint::OpenVino,
+        LocalRuntimeAcceleration::Gpu => match device {
+            Some(device) => {
+                let id = device.id.to_ascii_lowercase();
+                let name = device.name.to_ascii_lowercase();
+                if id.contains("vulkan") || name.contains("vulkan") {
+                    LlamaCppBackendHint::Vulkan
+                } else if id.contains("openvino") || name.contains("openvino") {
+                    LlamaCppBackendHint::OpenVino
+                } else {
+                    LlamaCppBackendHint::Native
+                }
+            }
+            None => LlamaCppBackendHint::Native,
+        },
+        LocalRuntimeAcceleration::Auto | LocalRuntimeAcceleration::Cpu => {
+            LlamaCppBackendHint::Native
+        }
+    }
+}
+
+fn parse_device_index(device_id: &str) -> Option<usize> {
+    let digits_rev: String = device_id
+        .chars()
+        .rev()
+        .take_while(|ch| ch.is_ascii_digit())
+        .collect();
+    if digits_rev.is_empty() {
+        return None;
+    }
+    digits_rev.chars().rev().collect::<String>().parse().ok()
 }
 
 fn parse_mib(value: &str) -> Option<u64> {
