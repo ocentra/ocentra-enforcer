@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-dogfood",
-  "generatedAt": "2026-07-07T07:45:00Z",
+  "generatedAt": "2026-07-07T23:50:00Z",
   "hub": "ocentra-enforcer",
   "stateRoot": "E:/ocentra-enforcer/.ledger/ocentra-enforcer",
   "lane": "codex-x06-harvest-sync",
@@ -135,7 +135,13 @@
     "final ocentra_enforcer_check source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, placeholder-implementation, and generated-artifacts scope=files ok over the seven changed files",
     "cargo test -p enforcer-memory --test feature_parity_harness --quiet passed after token-reduction QA tranche promotion",
     "x06-rag-qa.json now records QA-214, QA-215, QA-216, and QA-219 pass with recomputed fixture-scoped token-reduction ratios; total QA coverage is 60/250 with 0 failures",
-    "x06-feature-parity.json now records QA as the only red matrix prefix with 190 unrunnable rows and 0 failed rows"
+    "x06-feature-parity.json now records QA as the only red matrix prefix with 190 unrunnable rows and 0 failed rows",
+    "git rebase origin/rust-build completed cleanly onto eb81916 after Claude G2.1-G2.3 language-parity waves",
+    "cargo metadata --locked --format-version 1 --no-deps passed after the G2 language dependency lockfile refresh",
+    "cargo test -p enforcer-memory --test feature_parity_harness --quiet passed after rebasing onto origin/rust-build@eb81916",
+    "cargo test -p enforcer-memory --test unit_languages_makefile --quiet -j 1 passed after the default-parallel OOM identified this as an environment/parallelism issue",
+    "cargo test -p enforcer-memory --quiet -j 1 passed after G2 language expansion and Cargo.lock refresh",
+    "cargo clippy -p enforcer-memory --all-targets -- -D warnings passed after G2 language expansion and Cargo.lock refresh"
   ],
   "redOrPartialGates": [
     {
@@ -212,6 +218,11 @@
       "gate": "QA full green",
       "classification": "proof-only",
       "reason": "QA improved from 56/250 to 60/250 with 0 failures; 190 rows remain honestly unrunnable because no exact row runner/proof exists yet"
+    },
+    {
+      "gate": "cargo test -p enforcer-memory --quiet default parallelism after G2 language expansion",
+      "classification": "environment",
+      "reason": "default-parallel cargo/rustc hit Windows paging-file exhaustion after the large language grammar expansion (os error 1455, rustc allocation failure, STATUS_STACK_BUFFER_OVERRUN); the same suite passed with -j 1"
     },
     {
       "gate": "ocentra_enforcer_check architecture-policy scope=files QA/GPH proof slice",
@@ -731,6 +742,18 @@
     {
       "shape": "t2",
       "evidence": "feature_parity_harness passed and regenerated x06-rag-qa.json with 60 green rows, 190 unrunnable rows, and 0 failed rows."
+    },
+    {
+      "shape": "t0",
+      "incident": "Rebasing onto Claude's G2.1-G2.3 language-parity waves expanded enforcer-memory to many new tree-sitter grammars, and the default full cargo test run exhausted Windows paging-file memory during parallel rustc compilation."
+    },
+    {
+      "shape": "t1",
+      "fix": "Kept the upstream language work, refreshed Cargo.lock for the new grammar dependency graph, and reran the failing target plus the full enforcer-memory suite with cargo build parallelism capped to one job."
+    },
+    {
+      "shape": "t2",
+      "evidence": "cargo test -p enforcer-memory --test unit_languages_makefile --quiet -j 1 passed, then cargo test -p enforcer-memory --quiet -j 1 passed end-to-end while default parallelism remained classified as environment-only."
     }
   ]
 }
