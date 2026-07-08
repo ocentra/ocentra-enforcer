@@ -103,6 +103,13 @@ function scanUiLogicCoupling({
   const filesWithHardFindings = new Set(hard.map((f) => f.file));
   return {
     root: resolvedRoot,
+    rule: {
+      id: "ARCH-1.16",
+      title: "Presentation/UI cannot call business logic directly",
+      doc: "rules/common/architecture.md#covered-rules",
+      aka: "Humble Object pattern / UI half of Hexagonal (Ports-and-Adapters) architecture / the boundary unidirectional-data-flow (Flux/Redux/Elm) architectures enforce",
+      why: "Lets a UI shell be replaced (web/mobile/desktop) without touching business logic, lets business logic be tested without rendering anything, and gives the boundary something to contract-test instead of testing everything through the UI.",
+    },
     caveat:
       "Mechanical, signal-based (import paths + naming conventions) — not an AST parser. "
       + "Every finding is evidence for human/AI review, not a certified defect. Run a second pass "

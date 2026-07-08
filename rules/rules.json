@@ -228,6 +228,31 @@
       "doc": "rules/common/architecture.md#covered-rules"
     },
     {
+      "id": "ARCH-1.16",
+      "language": "common",
+      "family": "source-shape",
+      "severity": "error",
+      "title": "Presentation/UI cannot call business logic directly",
+      "snippet": "Route presentation files (pages/components/views/screens) through a hook/composable boundary instead of importing a business-logic/API module or event/WS source directly. The UI-side counterpart to ARCH-1.2.",
+      "lockLevel": "advisory",
+      "canDisable": true,
+      "canDowngrade": true,
+      "requiresFailFixture": false,
+      "requiresPassFixture": false,
+      "appliesTo": [
+        "*.ts",
+        "*.tsx",
+        "*.js",
+        "*.jsx",
+        "*.vue"
+      ],
+      "triggers": [
+        "Presentation/UI cannot call business logic directly"
+      ],
+      "validator": "common/ui-logic-coupling-scan",
+      "doc": "rules/common/architecture.md#covered-rules"
+    },
+    {
       "id": "ARCH-1.2",
       "language": "common",
       "family": "source-shape",

@@ -21,6 +21,10 @@ function parseArgs(argv) {
 
 function printText(report) {
   console.log(`UI/logic coupling scan: ${report.root}`);
+  console.log(`Rule ${report.rule.id} — ${report.rule.title} (${report.rule.doc})`);
+  console.log(`aka: ${report.rule.aka}`);
+  console.log(`why: ${report.rule.why}`);
+  console.log("");
   console.log(`Total findings: ${report.summary.totalFindings} (${report.summary.hardFindings} hard, ${report.summary.infoFindings} info) across ${report.summary.filesWithHardFindings} files`);
   console.log("");
   console.log("Hard findings (business logic called directly from presentation):");

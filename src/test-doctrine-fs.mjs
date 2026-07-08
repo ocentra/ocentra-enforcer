@@ -10,6 +10,8 @@ const IGNORE_DIRS = new Set([
   ".pytest_cache", ".mypy_cache", ".ruff_cache", ".hypothesis",
   "dist", "build", "target", ".next", "coverage", ".enforce", ".turbo",
   "out", ".cache", "vendor", ".stryker-tmp",
+  // Agent/editor tooling scratch space — never part of the product being scanned.
+  ".claude", ".cursor", ".idea", ".vscode", ".hub", ".harness-archive", "worktrees",
 ]);
 
 const MAX_FILES = 40000;

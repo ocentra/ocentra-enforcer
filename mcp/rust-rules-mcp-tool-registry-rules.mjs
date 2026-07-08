@@ -158,7 +158,7 @@ export const RULE_TOOLS = [
   {
     name: "ocentra_enforcer_ui_logic_coupling_scan",
     description:
-      "Scan a target repo for presentation-layer files (pages, components, views, screens) that call a business-logic/API module directly instead of through a hook/composable, or that subscribe to an event/WS source directly. Mechanical, signal-based (imports + naming conventions) — every finding is evidence for human/AI review, not a certified defect.",
+      "Enforces rule ARCH-1.16 (rules/common/architecture.md) — the UI-side counterpart to ARCH-1.2 (Domain cannot import UI). Also known as the Humble Object pattern / the UI half of Hexagonal (Ports-and-Adapters) architecture / the boundary unidirectional-data-flow architectures (Flux/Redux/Elm) rely on. Scans a target repo for presentation-layer files (pages, components, views, screens) that call a business-logic/API module directly instead of through a hook/composable, or that subscribe to an event/WS source directly. Mechanical, signal-based (imports + naming conventions) — every finding is evidence for human/AI review, not a certified defect.",
     inputSchema: {
       type: "object",
       additionalProperties: false,
