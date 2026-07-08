@@ -33,11 +33,6 @@ export const PythonRuleFamilySchema = Schema.Literal(
   "toolchain",
 );
 
-export const IacRuleFamilySchema = Schema.Literal(
-  "infra-security",
-  "infra-toolchain",
-);
-
 export const CommonRuleFamilySchema = Schema.Literal(
   "source",
   "security",
