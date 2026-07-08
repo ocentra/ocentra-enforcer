@@ -1,8 +1,11 @@
-function collectFilteredFindings(report, { allowedRuleIds, excludedPathTokens = [] }) {
+function collectFilteredFindings(report, { allowedRuleIds, excludedPathTokens = [], excludedPathPatterns = [] }) {
   const allowed = new Set(allowedRuleIds);
   const matchesExcludedPath = (finding) => {
     const file = String(finding.file ?? "");
-    return excludedPathTokens.some((token) => file.includes(token));
+    return (
+      excludedPathTokens.some((token) => file.includes(token)) ||
+      excludedPathPatterns.some((pattern) => pattern.test(file))
+    );
   };
   const findings = [...(report.violations ?? []), ...(report.warnings ?? [])].filter(
     (finding) => allowed.has(finding.ruleId) && !matchesExcludedPath(finding),
@@ -34,7 +37,16 @@ function buildFilteredReport({ checkName, report, findings, waived, languages, c
   );
 }
 
-function runFilteredScannerCheck({ checkName, config, rawScope, root, scannerLanguages, allowedRuleIds, excludedPathTokens }, deps) {
+function runFilteredScannerCheck({
+  checkName,
+  config,
+  rawScope,
+  root,
+  scannerLanguages,
+  allowedRuleIds,
+  excludedPathTokens,
+  excludedPathPatterns,
+}, deps) {
   const report = deps.runEnforcerScan(
     {
       root,
@@ -49,6 +61,7 @@ function runFilteredScannerCheck({ checkName, config, rawScope, root, scannerLan
   const { findings, waived } = collectFilteredFindings(report, {
     allowedRuleIds,
     excludedPathTokens,
+    excludedPathPatterns,
   });
   return buildFilteredReport(
     {
@@ -73,6 +86,7 @@ export function runNoNakedDomainStringsCheck(context, deps) {
       scannerLanguages: ["rust", "typescript", "python", "common"],
       allowedRuleIds: ["RR-6.1", "RR-6.5", "RR-18.16", "TS-1.3", "PY-1.3"],
       excludedPathTokens: ["/generated/", "\\generated\\"],
+      excludedPathPatterns: [/(?:^|[/\\])generated-[^/\\]+\.(?:ts|tsx|js|jsx|mjs|cjs)$/u],
     },
     deps,
   );

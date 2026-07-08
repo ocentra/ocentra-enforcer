@@ -45,6 +45,33 @@ test("Effect Schema decodes valid registry, config, route, init, and reports", (
   assert.equal(registry.languages.includes("rust"), true);
   assert.equal(registry.languages.includes("typescript"), true);
   assert.equal(registry.languages.includes("python"), true);
+  assert.equal(
+    decodeRuleRegistry({
+      schemaVersion: 2,
+      productName: "ocentra-enforcer",
+      languages: ["rust", "typescript", "python", "common", "iac"],
+      rules: [
+        {
+          id: "IAC-1.1",
+          language: "iac",
+          family: "infra-security",
+          severity: "error",
+          title: "Terraform S3 buckets require encryption",
+          snippet: "Enable server-side encryption on S3 buckets.",
+          lockLevel: "immutable",
+          canDisable: false,
+          canDowngrade: false,
+          requiresFailFixture: true,
+          requiresPassFixture: true,
+          appliesTo: ["*.tf"],
+          triggers: ["server_side_encryption_configuration"],
+          validator: "iac/terraform-s3-encryption",
+          doc: "rules/iac/terraform.md#covered-rules",
+        },
+      ],
+    }).languages.includes("iac"),
+    true,
+  );
 
   const proofRegistry = decodeProofRegistry(
     JSON.parse(

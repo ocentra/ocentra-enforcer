@@ -27,6 +27,7 @@
 - `ARCH-1.13`: Public facades can expose only stable APIs.
 - `ARCH-1.14`: Internal modules cannot leak through public types.
 - `ARCH-1.15`: Package/crate ownership files are required.
+- `ARCH-1.16`: Presentation/UI must not call business logic directly — route through a hook/composable boundary instead. The UI-side counterpart to ARCH-1.2 (which forbids the domain importing UI); together they make the dependency one-directional in both readings. Established pattern, several names for the same idea: the Humble Object pattern, the UI half of Hexagonal/Ports-and-Adapters architecture, and the boundary unidirectional-data-flow architectures (Flux/Redux/Elm) rely on. Rationale: it lets a UI shell be replaced (web → mobile → desktop) without touching business logic, lets business logic be tested without rendering anything, and gives the boundary itself something to write a contract test against instead of testing everything through the UI.
 
 ## Enforcement
 
@@ -42,12 +43,14 @@ ocentra-enforcer check architecture-policy --root <repo> --files <changed-files>
 - Domain source imports UI, database, HTTP, adapter, or infrastructure modules.
 - Boundary files accept raw inputs without conversion, lack invariants, or leak DTOs.
 - Public facades expose internal/unstable APIs.
+- (ARCH-1.16) A presentation-layer file (page/component/view/screen, excluding hooks/composables) imports a business-logic/API module directly, or subscribes to an event/WS source directly.
 
 ## Passes
 
 - Boundaries convert raw inputs and return typed domain values/errors.
 - Domain modules stay independent of boundary, UI, infrastructure, database, and HTTP layers.
 - Packages and crates have explicit ownership metadata.
+- (ARCH-1.16) Presentation files reach business logic only through a dedicated hook/composable boundary.
 
 ## Fix Recipe
 
@@ -55,8 +58,11 @@ ocentra-enforcer check architecture-policy --root <repo> --files <changed-files>
 2. Move domain decisions to domain owners.
 3. Expose public APIs through stable, owned facades only.
 4. Add ownership files for package and crate roots.
+5. (ARCH-1.16) Extract an inline `useQuery`/`useMutation`/business-logic call out of the presentation file into a hook/composable; have the component call the hook, not the API/service module.
 
 ## Validator
 
-- scanner: `common/architecture`
-- command: `ocentra-enforcer scan --root <repo> --languages common --files <changed-files>`
+- scanner: `common/architecture` — covers ARCH-1.1–ARCH-1.15 and all BOUND-1.* rules.
+- scanner: `common/ui-logic-coupling-scan` — covers **ARCH-1.16 only**. A distinct, standalone tool, not yet integrated into the `common/architecture` pass or the `architecture-policy` check — run it separately via the `ocentra_enforcer_ui_logic_coupling_scan` MCP tool or `node scripts/ui-logic-coupling-scan.mjs --root <repo>`. Signal-based (import paths + naming conventions, not an AST parser); `lockLevel: advisory`, no fail/pass fixtures yet — treat findings as evidence for review, not a certified defect.
+- command (ARCH-1.1–1.15, BOUND-1.*): `ocentra-enforcer scan --root <repo> --languages common --files <changed-files>`
+- command (ARCH-1.16): `node scripts/ui-logic-coupling-scan.mjs --root <repo> --json`

@@ -1,11 +1,52 @@
+import process from "node:process";
+
+function scopeLabel(scope) {
+  if (!scope || scope.mode === "all") return "workspace";
+  if (scope.mode === "files") return `${scope.files?.length ?? 0} file(s)`;
+  if (scope.mode === "crate") return `crate ${scope.crateName ?? "unknown"}`;
+  if (scope.mode === "diff") return `diff ${scope.base ?? "base"}..${scope.head ?? "head"}`;
+  return scope.mode;
+}
+
+function shouldReportArchitectureProgress(context) {
+  if (context.options?.json) return false;
+  if (process.env.OCENTRA_ENFORCER_PROGRESS === "0") return false;
+  if (process.env.OCENTRA_ENFORCER_PROGRESS === "1") return true;
+  return context.rawScope?.mode === "all";
+}
+
+function createArchitectureProgressReporter(context, checks) {
+  if (!shouldReportArchitectureProgress(context)) return () => {};
+  const started = Date.now();
+  const scope = scopeLabel(context.rawScope);
+  process.stderr.write(
+    `[ocentra-enforcer] architecture-policy: ${checks.length} check(s), scope=${scope}\n`,
+  );
+  return (event, payload = {}) => {
+    const elapsed = ((Date.now() - started) / 1000).toFixed(1);
+    if (event === "start") {
+      process.stderr.write(
+        `[ocentra-enforcer] architecture-policy: ${payload.index}/${checks.length} start ${payload.check} elapsed=${elapsed}s\n`,
+      );
+      return;
+    }
+    if (event === "done") {
+      process.stderr.write(
+        `[ocentra-enforcer] architecture-policy: ${payload.index}/${checks.length} done ${payload.check} ok=${payload.ok} violations=${payload.violations} warnings=${payload.warnings} elapsed=${elapsed}s\n`,
+      );
+    }
+  };
+}
+
 export function runArchitecturePolicyCheck(context, deps) {
   const checks =
     context.config.architecturePolicyChecks ??
     deps.DEFAULT_ARCHITECTURE_POLICY_CHECKS;
-  const reports = checks
-    .filter((check) => check !== "architecture-policy")
-    .map((check) =>
-      deps.runEnforcerCheck(
+  const routedChecks = checks.filter((check) => check !== "architecture-policy");
+  const progress = createArchitectureProgressReporter(context, routedChecks);
+  const reports = routedChecks.map((check, index) => {
+    progress("start", { check, index: index + 1 });
+    const report = deps.runEnforcerCheck(
         {
           ...context.options,
           root: context.root,
@@ -20,8 +61,16 @@ export function runArchitecturePolicyCheck(context, deps) {
           strictEmptyTestTrees: context.decoded.strictEmptyTestTrees,
         },
         deps,
-      ),
-    );
+      );
+    progress("done", {
+      check,
+      index: index + 1,
+      ok: report.ok,
+      violations: report.violations?.length ?? 0,
+      warnings: report.warnings?.length ?? 0,
+    });
+    return report;
+  });
   const findings = reports.flatMap((report) => [
     ...(report.violations ?? []),
     ...(report.warnings ?? []),

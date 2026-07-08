@@ -419,6 +419,44 @@ function loadContract(root, rawContract) {
   };
 }
 
+function contractShapeForPathChecks(root, rawContract) {
+  return typeof rawContract === "string"
+    ? JSON.parse(fs.readFileSync(path.join(root, rawContract), "utf8"))
+    : rawContract;
+}
+
+function requiredContractPaths(root, rawContract) {
+  const contract = contractShapeForPathChecks(root, rawContract);
+  return [
+    contract.ownerPath,
+    ...(contract.mirrors ?? []).map((mirror) => mirror.path),
+  ]
+    .filter(Boolean)
+    .map((entry) => entry.replaceAll("\\", "/"));
+}
+
+function missingRequiredContractPaths(root, rawContract) {
+  return requiredContractPaths(root, rawContract).filter(
+    (entry) => !fs.existsSync(repoAbsolute(root, entry)),
+  );
+}
+
+function recordMissingContractPaths(root, rawContract, missingPaths, findings) {
+  const contract = contractShapeForPathChecks(root, rawContract);
+  for (const rel of missingPaths) {
+    findings.push(
+      finding(
+        root,
+        repoAbsolute(root, rel),
+        1,
+        "CONTRACT-1.1",
+        `single-source contract ${contract.name ?? "(unnamed)"} references missing required path ${rel}; update the contract manifest or limit the check to existing files`,
+        null,
+      ),
+    );
+  }
+}
+
 function collectContractScanFiles(root, contract, config) {
   return collectFiles(
     root,
@@ -813,12 +851,14 @@ export {
   markdownAnchors,
   maxBraceNestingDepth,
   maxPythonIndentDepth,
+  missingRequiredContractPaths,
   parseUtcDate,
   readRawConfigObject,
   reportScope,
   resolveCommand,
   resolveContractConfigPath,
   resolvePackRoot,
+  recordMissingContractPaths,
   scopedProjectRoots,
   scopeEntries,
   scopeFilesByExtensions,

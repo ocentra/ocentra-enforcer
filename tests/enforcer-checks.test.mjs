@@ -67,6 +67,23 @@ test('check no-naked-domain-strings ignores generated TypeScript DTO folders', (
   assert.deepEqual(report.violations, []);
 });
 
+test('check no-naked-domain-strings ignores root-level generated TypeScript mirrors', () => {
+  const project = makeProject({
+    'packages/schema-domain/src/generated-contracts.ts': 'export type GeneratedDeviceId = string;\n',
+  });
+  const result = run(project, [
+    'check',
+    'no-naked-domain-strings',
+    '--json',
+    '--files',
+    'packages/schema-domain/src/generated-contracts.ts',
+  ]);
+  assert.equal(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.ok, true);
+  assert.deepEqual(report.violations, []);
+});
+
 test('check source-shape applies project-configured shape policies', () => {
   const project = makeProject({
     'ocentra-enforcer.config.json': JSON.stringify({
@@ -441,6 +458,26 @@ test('check architecture-policy aggregates configured reusable checks', () => {
   assert.equal(report.violations.some((violation) => violation.ruleId === 'TS-1.2'), true);
 });
 
+test('check architecture-policy reports progress for non-json workspace runs', () => {
+  const project = makeProject({
+    'ocentra-enforcer.config.json': JSON.stringify({
+      profileName: 'architecture-progress-test',
+      architecturePolicyChecks: ['no-zod-source'],
+    }),
+    'src/index.ts': 'export const value = 1;\n',
+  });
+  const text = run(project, ['check', 'architecture-policy']);
+  assert.equal(text.status, 0, text.stdout || text.stderr);
+  assert.match(text.stderr, /architecture-policy: 1 check\(s\), scope=workspace/u);
+  assert.match(text.stderr, /start no-zod-source/u);
+  assert.match(text.stderr, /done no-zod-source ok=true/u);
+
+  const json = run(project, ['check', 'architecture-policy', '--json']);
+  assert.equal(json.status, 0, json.stdout || json.stderr);
+  assert.doesNotMatch(json.stderr, /architecture-policy:/u);
+  assert.equal(JSON.parse(json.stdout).ok, true);
+});
+
 test('check architecture-policy keeps file scope when --files is passed as one comma-separated argument', () => {
   const project = makeProject({
     'ocentra-enforcer.config.json': JSON.stringify({
@@ -508,6 +545,63 @@ test('check architecture-policy accepts file scope from a manifest file', () => 
     ]);
     assert.deepEqual(report.violations, []);
   }
+});
+
+test('check architecture-policy skips stale missing contract owners outside explicit file manifest scope', () => {
+  const project = makeProject({
+    'ocentra-enforcer.config.json': JSON.stringify({
+      profileName: 'architecture-stale-contract-scope-test',
+      architecturePolicyChecks: ['single-source-contracts'],
+    }),
+    'contracts.json': JSON.stringify({
+      contracts: [
+        {
+          name: 'stale-contract-owner',
+          ownerPath: 'src/deleted-owner.ts',
+          scanRoots: ['src'],
+          values: [
+            {
+              name: 'eventName',
+              sourceObjectPath: 'RuntimeEvent.Name',
+            },
+          ],
+        },
+      ],
+    }),
+    'src/current.ts': 'export const current = "current";\n',
+    'scope-files.json': JSON.stringify({ files: ['src/current.ts'] }),
+  });
+  const result = run(project, [
+    'check',
+    'architecture-policy',
+    '--json',
+    '--check-config',
+    'contracts.json',
+    '--files-from',
+    'scope-files.json',
+  ]);
+  assert.equal(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.ok, true);
+  assert.deepEqual(report.violations, []);
+
+  const workspace = run(project, [
+    'check',
+    'architecture-policy',
+    '--json',
+    '--check-config',
+    'contracts.json',
+  ]);
+  assert.notEqual(workspace.status, 0, workspace.stdout || workspace.stderr);
+  const workspaceReport = JSON.parse(workspace.stdout);
+  assert.equal(
+    workspaceReport.violations.some(
+      (violation) =>
+        violation.ruleId === 'CONTRACT-1.1' &&
+        String(violation.message ?? violation.detail ?? '').includes('src/deleted-owner.ts'),
+    ),
+    true,
+  );
 });
 
 test('architecture check now routes to full architecture-policy instead of reexports only', () => {

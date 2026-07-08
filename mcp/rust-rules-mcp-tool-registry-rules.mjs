@@ -140,4 +140,34 @@ export const RULE_TOOLS = [
       "Explain one Ocentra Enforcer rule ID and give the docs anchor/fix hint.",
     inputSchema: EXPLAIN_INPUT_SCHEMA,
   },
+  {
+    name: "ocentra_enforcer_test_doctrine_scan",
+    description:
+      "Scan a target repo for what kinds of tests it has (unit, integration, e2e, contract, mutation, property/fuzz, security, snapshot, load) and what its detected nature (web API, frontend UI, async workers, money-critical surface, multi-service boundaries) implies it's missing. Heuristic and signal-based, not a certification.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        root: {
+          type: "string",
+          description: "Target repository root to scan. Defaults to the MCP server working directory.",
+        },
+      },
+    },
+  },
+  {
+    name: "ocentra_enforcer_ui_logic_coupling_scan",
+    description:
+      "Enforces rule ARCH-1.16 (rules/common/architecture.md) — the UI-side counterpart to ARCH-1.2 (Domain cannot import UI). Also known as the Humble Object pattern / the UI half of Hexagonal (Ports-and-Adapters) architecture / the boundary unidirectional-data-flow architectures (Flux/Redux/Elm) rely on. Scans a target repo for presentation-layer files (pages, components, views, screens) that call a business-logic/API module directly instead of through a hook/composable, or that subscribe to an event/WS source directly. Mechanical, signal-based (imports + naming conventions) — every finding is evidence for human/AI review, not a certified defect.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        root: {
+          type: "string",
+          description: "Target repository root to scan. Defaults to the MCP server working directory.",
+        },
+      },
+    },
+  },
 ];

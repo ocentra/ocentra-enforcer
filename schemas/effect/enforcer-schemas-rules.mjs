@@ -60,6 +60,11 @@ export const CommonRuleFamilySchema = Schema.Literal(
   "package",
 );
 
+export const IacRuleFamilySchema = Schema.Literal(
+  "infra-security",
+  "infra-toolchain",
+);
+
 export const RuleFamilySchema = Schema.Union(
   RustRuleFamilySchema,
   TypeScriptRuleFamilySchema,
