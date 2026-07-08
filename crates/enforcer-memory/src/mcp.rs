@@ -138,6 +138,7 @@ use crate::search::search_graph::{
     search_graph_with_semantic, NodeLabel as SearchGraphNodeLabel, SearchGraphSpec,
 };
 use crate::snippet;
+use crate::store::manifest::write_index_manifest;
 use crate::store::sqlite::OperationalGraph;
 use crate::store::Store;
 use crate::traces::{TraceRecord, TraceStore};
@@ -279,7 +280,7 @@ fn tool_input_schema(name: &str) -> Value {
                 "repoPath": { "type": "string", "description": "Absolute path to the repository root." },
                 "mode": { "type": "string", "enum": ["full", "moderate", "fast", "cross-repo-intelligence"], "default": "full", "description": "\"cross-repo-intelligence\" short-circuits before any indexing pipeline (baseline §9.2): matches this project's outbound HTTP call sites against target_projects' declared routes. See crate::cross_repo for the exact heuristic." },
                 "targetProjects": { "type": "array", "items": { "type": "string" }, "description": "Required only for mode=\"cross-repo-intelligence\": project ids (resolved via storesDir) or, if storesDir is omitted, literal repo paths to match against. [\"*\"] means every project storesDir knows about." },
-                "storesDir": { "type": "string", "description": "cross-repo-intelligence only: the project registry directory (crate::projects) targetProjects ids are resolved against. Omit to pass targetProjects as literal repo paths instead." },
+                "storesDir": { "type": "string", "description": "Optional Store registry root. In cross-repo-intelligence mode this resolves targetProjects ids. In plain index mode it primes a fresh Store-backed operational graph projection for repoPath; append/refresh into an already-populated graph-event log is rejected until delete/reset graph-event semantics are implemented." },
                 "name": { "type": "string", "description": "cross-repo-intelligence only: the current project's own name as reported in the response's \"project\" field; defaults to repoPath if omitted." }
             }
         }),
@@ -771,11 +772,16 @@ fn handle_index_repository(args: &Value) -> Value {
         Ok(pair) => pair,
         Err(source) => return tool_error("index_repository", format!("index failed: {source}")),
     };
+    let store_projection = match persist_store_projection(repo_path, args, &graph) {
+        Ok(report) => report,
+        Err(err) => return err,
+    };
     json!({
         "ok": true,
         "filesIndexed": files.len(),
         "nodeCount": graph.nodes().len(),
         "manifestEntryCount": manifest.entries.len(),
+        "graphPersistence": store_projection,
         "report": {
             "unchanged": report.unchanged,
             "changed": report.changed,
@@ -783,6 +789,113 @@ fn handle_index_repository(args: &Value) -> Value {
             "deleted": report.deleted,
         }
     })
+}
+
+fn persist_store_projection(
+    repo_path: &str,
+    args: &Value,
+    graph: &CodeGraph,
+) -> Result<Value, Value> {
+    let Some(stores_dir) = args.get("storesDir").and_then(Value::as_str) else {
+        return Ok(json!({ "enabled": false }));
+    };
+
+    let repo_root = crate::ids::repo_root(repo_path)
+        .map_err(|source| tool_error("index_repository", format!("invalid repoPath: {source}")))?;
+    let ts = opaque_store_timestamp_now();
+    let stores_root = Path::new(stores_dir);
+    let mut store = match Store::open(stores_root, &repo_root) {
+        Ok(store) => store,
+        Err(crate::error::MemoryError::UnknownProject { .. }) => {
+            Store::init(stores_root, &repo_root, &ts).map_err(|source| {
+                tool_error(
+                    "index_repository",
+                    format!("failed to initialize Store projection: {source}"),
+                )
+            })?
+        }
+        Err(source) => {
+            return Err(tool_error(
+                "index_repository",
+                format!("failed to open Store projection: {source}"),
+            ))
+        }
+    };
+
+    let existing = store.read_graph_event_entries().map_err(|source| {
+        tool_error(
+            "index_repository",
+            format!("failed to inspect Store graph-event log: {source}"),
+        )
+    })?;
+    if !existing.entries.is_empty() {
+        return Err(tool_error(
+            "index_repository",
+            "storesDir project already has graph events; refresh/reindex over an existing Store projection is refused until graph delete/reset semantics are implemented, because appending a second full snapshot would make query_graph stale",
+        ));
+    }
+
+    let persisted = graph
+        .append_store_projection_events(&mut store, &ts)
+        .map_err(|source| {
+            tool_error(
+                "index_repository",
+                format!("failed to append Store graph projection events: {source}"),
+            )
+        })?;
+    let entries = store.read_graph_event_entries().map_err(|source| {
+        tool_error(
+            "index_repository",
+            format!("failed to read Store graph-event log back: {source}"),
+        )
+    })?;
+    let sqlite_path = store.sqlite_path();
+    let store_root = store.root().to_path_buf();
+    let project_id = store.project_id().as_str().to_owned();
+    drop(store);
+
+    let mut operational = OperationalGraph::open(&sqlite_path).map_err(|source| {
+        tool_error(
+            "index_repository",
+            format!("failed to open Store operational graph: {source}"),
+        )
+    })?;
+    operational.rebuild(&entries.entries).map_err(|source| {
+        tool_error(
+            "index_repository",
+            format!("failed to rebuild Store operational graph: {source}"),
+        )
+    })?;
+    write_index_manifest(
+        &store_root.join("graph-events.index-manifest.json"),
+        "graph-event",
+        entries.entries.len() as u64,
+        &ts,
+    )
+    .map_err(|source| {
+        tool_error(
+            "index_repository",
+            format!("failed to write graph-events index manifest: {source}"),
+        )
+    })?;
+
+    Ok(json!({
+        "enabled": true,
+        "projectId": project_id,
+        "nodeEvents": persisted.node_events,
+        "edgeEvents": persisted.edge_events,
+        "graphEventEntries": entries.entries.len(),
+        "sqlitePath": sqlite_path,
+        "refreshMode": "fresh-store-only"
+    }))
+}
+
+fn opaque_store_timestamp_now() -> String {
+    let seconds = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or_default();
+    format!("unix:{seconds}")
 }
 
 // ---------------------------------------------------------------------

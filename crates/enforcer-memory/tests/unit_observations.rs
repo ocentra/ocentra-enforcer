@@ -90,6 +90,9 @@ fn procedural_and_route_records_replay_from_store() -> Result<(), Box<dyn std::e
     assert_eq!(graph.route_traces().len(), 1);
     let entries = store.read_observation_entries()?;
     assert_eq!(entries.entries.len(), 2);
+    let procedural_entries = store.read_procedural_entries()?;
+    assert_eq!(procedural_entries.entries.len(), 1);
+    assert_eq!(procedural_entries.entries[0].lesson_id, "L1");
     let missing_payload_seqs: Vec<u64> = entries
         .entries
         .iter()
@@ -97,11 +100,92 @@ fn procedural_and_route_records_replay_from_store() -> Result<(), Box<dyn std::e
         .map(|entry| entry.seq)
         .collect();
     assert_eq!(missing_payload_seqs, Vec::<u64>::new());
+    let route_entries = store.read_route_trace_entries()?;
+    assert_eq!(route_entries.entries.len(), 1);
+    assert_eq!(route_entries.entries[0].route, "hybrid-search");
 
     let mut replayed = MemoryGraph::new();
     let replay_count = replay_procedural_and_routes_from_store(&store, &mut replayed)?;
     assert_eq!(replay_count, 2);
     assert_eq!(replayed.procedural_records().len(), 1);
     assert_eq!(replayed.route_traces().len(), 1);
+    Ok(())
+}
+
+#[test]
+fn procedural_replay_falls_back_to_legacy_observation_payload_when_native_log_is_empty(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempfile::tempdir()?;
+    let root: RepoRoot = "C:/Projects/x06-procedural-legacy-fallback".parse()?;
+    let mut store = Store::init(dir.path(), &root, "2026-07-04T00:00:00Z")?;
+    let mut graph = MemoryGraph::new();
+
+    store.append_observation_entry(|seq| enforcer_memory::schema::ObservationLogEntry {
+        schema_version: enforcer_memory::schema::SCHEMA_VERSION,
+        seq,
+        id: format!("proc-{seq:04}"),
+        lesson_id: "L1".to_owned(),
+        rule_id: None,
+        fault_class: Some("fix-success".to_owned()),
+        repo_context: "applied idempotent-init fix".to_owned(),
+        clean: true,
+        source_surface: "procedural-memory".to_owned(),
+        ts: "2026-07-04T00:00:00Z".to_owned(),
+        supersedes_seq: None,
+        payload_kind: Some("procedural-memory".to_owned()),
+        payload: Some(serde_json::json!({
+            "id": format!("proc-{seq:04}"),
+            "lesson_id": "L1",
+            "outcome": "fix-success",
+            "detail": "applied idempotent-init fix",
+            "ts": "2026-07-04T00:00:00Z"
+        })),
+    })?;
+
+    assert!(store.read_procedural_entries()?.entries.is_empty());
+
+    let replay_count = replay_procedural_and_routes_from_store(&store, &mut graph)?;
+    assert_eq!(replay_count, 1);
+    assert_eq!(graph.procedural_records().len(), 1);
+    assert_eq!(graph.procedural_records()[0].lesson_id, "L1");
+    Ok(())
+}
+
+#[test]
+fn route_trace_replay_falls_back_to_legacy_observation_payload_when_native_log_is_empty(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempfile::tempdir()?;
+    let root: RepoRoot = "C:/Projects/x06-route-trace-legacy-fallback".parse()?;
+    let mut store = Store::init(dir.path(), &root, "2026-07-04T00:00:00Z")?;
+    let mut graph = MemoryGraph::new();
+
+    store.append_observation_entry(|seq| enforcer_memory::schema::ObservationLogEntry {
+        schema_version: enforcer_memory::schema::SCHEMA_VERSION,
+        seq,
+        id: format!("route-{seq:04}"),
+        lesson_id: String::new(),
+        rule_id: None,
+        fault_class: Some("route-choice".to_owned()),
+        repo_context: "idempotent init".to_owned(),
+        clean: true,
+        source_surface: "route-choice".to_owned(),
+        ts: "2026-07-04T00:00:01Z".to_owned(),
+        supersedes_seq: None,
+        payload_kind: Some("route-choice".to_owned()),
+        payload: Some(serde_json::json!({
+            "id": format!("route-{seq:04}"),
+            "query": "idempotent init",
+            "route": "hybrid-search",
+            "confidence": 0.91,
+            "ts": "2026-07-04T00:00:01Z"
+        })),
+    })?;
+
+    assert!(store.read_route_trace_entries()?.entries.is_empty());
+
+    let replay_count = replay_procedural_and_routes_from_store(&store, &mut graph)?;
+    assert_eq!(replay_count, 1);
+    assert_eq!(graph.route_traces().len(), 1);
+    assert_eq!(graph.route_traces()[0].route, "hybrid-search");
     Ok(())
 }

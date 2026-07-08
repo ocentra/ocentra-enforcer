@@ -184,6 +184,7 @@ pub fn ingest_model_runtime_observation(
     graph: &mut MemoryGraph,
     record: ModelRuntimeObservationRecord,
 ) -> Result<String> {
+    store.append_model_observation(record.clone())?;
     let kind = record.candidate.kind();
     let observation = Observation {
         lesson_id: match &record.candidate {
@@ -214,6 +215,7 @@ pub fn record_model_runtime_observation_in_store(
     store: &mut Store,
     record: &ModelRuntimeObservationRecord,
 ) -> Result<String> {
+    store.append_model_observation(record.clone())?;
     let kind = record.candidate.kind();
     let payload = serde_json::to_value(record)?;
     let payload_kind = format!("model-runtime:{}", kind.as_str());
@@ -257,6 +259,26 @@ pub fn record_model_runtime_observation_in_store(
 /// Rebuild a deterministic, read-only projection of model-runtime
 /// observations from the canonical store log.
 pub fn project_model_runtime_observations_from_store(
+    store: &Store,
+) -> Result<Vec<ModelRuntimeObservationRecord>> {
+    let native = store.read_model_observation_entries()?;
+    if !native.entries.is_empty() {
+        return Ok(native
+            .entries
+            .into_iter()
+            .map(|entry| ModelRuntimeObservationRecord {
+                schema_version: entry.schema_version,
+                observed_at: entry.observed_at,
+                source: entry.source,
+                run_id: entry.run_id,
+                candidate: entry.candidate,
+            })
+            .collect());
+    }
+    project_model_runtime_observations_from_legacy_observation_log(store)
+}
+
+fn project_model_runtime_observations_from_legacy_observation_log(
     store: &Store,
 ) -> Result<Vec<ModelRuntimeObservationRecord>> {
     let outcome = store.read_observation_entries()?;

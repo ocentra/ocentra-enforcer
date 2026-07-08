@@ -254,6 +254,26 @@
         "minimumTokensPerSecond": 10.0
       }
     ],
+    "ortRuntimeProofs": [
+      {
+        "artifactPath": "proof/memory/x06-models-qwen3-embedding-ort-cpu.json",
+        "ciParity": false,
+        "localHardwareRequired": true,
+        "modelId": "Qwen/Qwen3-Embedding-0.6B",
+        "provider": "cpu",
+        "status": "usable-local-embedding",
+        "runtimeMode": "probe"
+      },
+      {
+        "artifactPath": "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
+        "ciParity": false,
+        "localHardwareRequired": true,
+        "modelId": "Qwen/Qwen3-Reranker-0.6B",
+        "provider": "cpu",
+        "status": "usable-local-reranker",
+        "runtimeMode": "probe"
+      }
+    ],
     "negativeLearningProofs": [
       {
         "artifactPath": "proof/memory/x06-models-hash-mismatch.json",

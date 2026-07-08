@@ -272,6 +272,7 @@ pub mod redaction;
 pub mod rerank;
 pub mod resolution;
 pub mod retriever;
+pub mod runtime_probe;
 pub mod schema;
 pub mod search;
 pub mod sessionstart;

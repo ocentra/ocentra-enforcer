@@ -991,6 +991,43 @@ impl CodeGraph {
         Ok((manifest, report))
     }
 
+    /// Append the current graph snapshot into `store` as graph events,
+    /// one `NodeAdded` per node plus the derived projection edges needed
+    /// by the Store-backed operational graph. This is additive-only: it
+    /// records the graph as it exists now, but it does not attempt to
+    /// delete or supersede an older persisted snapshot.
+    pub fn append_store_projection_events(
+        &self,
+        store: &mut crate::store::Store,
+        ts: &str,
+    ) -> crate::error::Result<StoreProjectionPersistReport> {
+        let mut node_events = 0_u64;
+        for node in &self.nodes {
+            store.append_graph_event(
+                crate::schema::GraphEventKind::NodeAdded {
+                    node_id: node.id().to_owned(),
+                    node_kind: store_projection_node_kind(node).to_owned(),
+                },
+                ts.to_owned(),
+            )?;
+            node_events += 1;
+        }
+
+        let mut edge_events = 0_u64;
+        for (from, to, label) in self.store_projection_edges() {
+            store.append_graph_event(
+                crate::schema::GraphEventKind::EdgeAdded { from, to, label },
+                ts.to_owned(),
+            )?;
+            edge_events += 1;
+        }
+
+        Ok(StoreProjectionPersistReport {
+            node_events,
+            edge_events,
+        })
+    }
+
     /// Repopulate this (assumed-empty, freshly constructed) graph from a
     /// previously exported [`crate::artifacts::GraphSnapshot`] -- the
     /// "reconstruct node/edge counts" half of bootstrap-on-index. Kept
@@ -1465,10 +1502,117 @@ impl CodeGraph {
 
         (file_id, chunk_ids)
     }
+
+    fn store_projection_edges(&self) -> Vec<(String, String, String)> {
+        let mut edges = Vec::new();
+
+        for symbol in self.symbol_nodes() {
+            edges.push((
+                symbol.file_id.clone(),
+                symbol.id.clone(),
+                "contains".to_owned(),
+            ));
+        }
+
+        for import in &self.imports {
+            edges.push((
+                import.from_file_id.clone(),
+                import.module_path.clone(),
+                "imports".to_owned(),
+            ));
+        }
+
+        for (call, resolved) in self.calls.iter().zip(self.resolved_calls.iter()) {
+            let from = resolved
+                .from_symbol_id
+                .clone()
+                .unwrap_or_else(|| call.from_file_id.clone());
+            for target in &resolved.candidates {
+                edges.push((from.clone(), target.clone(), "calls".to_owned()));
+            }
+        }
+
+        for route in &self.routes {
+            edges.push((
+                route.from_file_id.clone(),
+                format!("route:{} {}", route.method, route.path),
+                "routes".to_owned(),
+            ));
+        }
+
+        for inherits in &self.inherits {
+            edges.push((
+                inherits.sub_id.clone(),
+                inherits.super_name.clone(),
+                "inherits".to_owned(),
+            ));
+        }
+
+        for implements in &self.implements {
+            edges.push((
+                implements.type_id.clone(),
+                implements.trait_name.clone(),
+                "implements".to_owned(),
+            ));
+        }
+
+        for decorates in &self.decorates {
+            edges.push((
+                decorates.target_id.clone(),
+                decorates.decorator_name.clone(),
+                "decorates".to_owned(),
+            ));
+        }
+
+        for type_ref in &self.type_refs {
+            edges.push((
+                type_ref.from_id.clone(),
+                type_ref.type_name.clone(),
+                "type_refs".to_owned(),
+            ));
+        }
+
+        for defines in &self.defines {
+            edges.push((
+                defines.container_id.clone(),
+                defines.member_id.clone(),
+                "defines".to_owned(),
+            ));
+        }
+
+        edges
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct StoreProjectionPersistReport {
+    pub node_events: u64,
+    pub edge_events: u64,
 }
 
 fn file_id_for(rel_path: &str) -> String {
     format!("file:{rel_path}")
+}
+
+fn store_projection_node_kind(node: &CodeNode) -> &'static str {
+    match node {
+        CodeNode::File(_) => "File",
+        CodeNode::Function(_) => "Function",
+        CodeNode::Type(_) => "Type",
+        CodeNode::Test(_) => "Test",
+        CodeNode::TextOnly(_) => "TextOnly",
+        CodeNode::Tombstone(_) => "Tombstone",
+        CodeNode::Method(_) => "Method",
+        CodeNode::Class(_) => "Class",
+        CodeNode::Struct(_) => "Struct",
+        CodeNode::Interface(_) => "Interface",
+        CodeNode::Enum(_) => "Enum",
+        CodeNode::TypeAlias(_) => "TypeAlias",
+        CodeNode::Module(_) => "Module",
+        CodeNode::Lambda(_) => "Lambda",
+        CodeNode::Variable(_) => "Variable",
+        CodeNode::Constant(_) => "Constant",
+    }
 }
 
 fn code_node_from_store_projection(node_id: &str, node_kind: &str) -> CodeNode {

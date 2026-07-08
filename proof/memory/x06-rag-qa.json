@@ -1,47 +1,69 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 62,
+  "rowsGreen": 75,
   "rowsFailed": 0,
-  "rowsUnrunnable": 188,
+  "rowsUnrunnable": 175,
   "rows": [
     {
       "id": "QA-001",
       "category": "Symbol",
       "query": "Find all tests directly connected to this function.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Symbol",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "sym:widgets.rs:18:list_widgets_returns_empty_by_default"
+      ],
+      "actualIds": [
+        "sym:widgets.rs:18:list_widgets_returns_empty_by_default"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/widgets.rs",
+        "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/router.ts"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-002",
       "category": "Symbol",
       "query": "Find all indirect tests affected by this function.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Symbol",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "sym:widgets.rs:18:list_widgets_returns_empty_by_default"
+      ],
+      "actualIds": [
+        "sym:widgets.rs:18:list_widgets_returns_empty_by_default"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/widgets.rs",
+        "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/router.ts"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-003",
       "category": "CodeGraph",
       "query": "Find every caller of this function.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category CodeGraph",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "file:widgets.rs"
+      ],
+      "actualIds": [
+        "file:widgets.rs",
+        "sym:widgets.rs:10:load_from_disk",
+        "sym:widgets.rs:5:list_widgets"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/widgets.rs"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-004",
@@ -60,14 +82,22 @@
       "id": "QA-005",
       "category": "CodeGraph",
       "query": "Find every downstream function this function calls.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category CodeGraph",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "sym:widgets.rs:10:load_from_disk",
+        "sym:widgets.rs:15:validate"
+      ],
+      "actualIds": [
+        "sym:widgets.rs:10:load_from_disk",
+        "sym:widgets.rs:15:validate"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/widgets.rs"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-006",
@@ -199,40 +229,58 @@
       "id": "QA-014",
       "category": "CodeGraph",
       "query": "Find all imports of this module.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category CodeGraph",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "std::fs"
+      ],
+      "actualIds": [
+        "std::fs"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/widgets.rs"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-015",
       "category": "Symbol",
       "query": "Find all files importing this symbol.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Symbol",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "file:router.ts"
+      ],
+      "actualIds": [
+        "file:router.ts"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/router.ts"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-016",
       "category": "Symbol",
       "query": "Find all routes handled by this module.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Symbol",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "GET /widgets"
+      ],
+      "actualIds": [
+        "GET /widgets"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/router.ts"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-017",
@@ -251,40 +299,71 @@
       "id": "QA-018",
       "category": "Repository",
       "query": "Find all event producers for this event.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Repository",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "file:service.rs"
+      ],
+      "actualIds": [
+        "file:service.rs"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/fixtures/memory/parity_trace_tools/service.rs"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-019",
       "category": "Repository",
       "query": "Find all event consumers for this event.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Repository",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "file:client.ts",
+        "file:service_test.rs"
+      ],
+      "actualIds": [
+        "file:client.ts",
+        "file:service_test.rs"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/fixtures/memory/parity_trace_tools/client.ts",
+        "crates/enforcer-memory/tests/fixtures/memory/parity_trace_tools/service_test.rs"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-020",
       "category": "Symbol",
       "query": "Find the full event flow from producer to consumer.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Symbol",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "file:router.ts",
+        "file:service.rs",
+        "sym:service.rs:1:handler",
+        "sym:service.rs:5:process",
+        "sym:service.rs:9:persist"
+      ],
+      "actualIds": [
+        "file:router.ts",
+        "file:service.rs",
+        "sym:service.rs:1:handler",
+        "sym:service.rs:5:process",
+        "sym:service.rs:9:persist"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/fixtures/memory/parity_trace_tools/client.ts",
+        "crates/enforcer-memory/tests/fixtures/memory/parity_trace_tools/router.ts",
+        "crates/enforcer-memory/tests/fixtures/memory/parity_trace_tools/service.rs"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-021",
@@ -389,14 +468,26 @@
       "id": "QA-026",
       "category": "CodeGraph",
       "query": "Explain what this crate does.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category CodeGraph",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "file:router.ts",
+        "file:unrelated.rs",
+        "file:widgets.rs"
+      ],
+      "actualIds": [
+        "file:router.ts",
+        "file:unrelated.rs",
+        "file:widgets.rs"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/widgets.rs",
+        "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/router.ts",
+        "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/unrelated.rs"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-027",
@@ -773,14 +864,20 @@
       "id": "QA-055",
       "category": "Symbol",
       "query": "Find all files changed without tests.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Symbol",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "widgets.rs"
+      ],
+      "actualIds": [
+        "widgets.rs"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/widgets.rs"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-056",
@@ -825,14 +922,21 @@
       "id": "QA-059",
       "category": "Symbol",
       "query": "Find architecture impact of this diff.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Symbol",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "file:router.ts"
+      ],
+      "actualIds": [
+        "file:router.ts"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/widgets.rs",
+        "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/router.ts"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-060",

@@ -185,6 +185,78 @@ fn query_graph_prefers_store_projection_when_stores_dir_is_available() -> TestRe
 }
 
 #[test]
+fn index_repository_with_stores_dir_primes_a_fresh_store_projection() -> TestResult {
+    let repo_dir = tempfile::tempdir()?;
+    let stores_dir = tempfile::tempdir()?;
+    std::fs::write(
+        repo_dir.path().join("widget.rs"),
+        "fn helper() {}\nfn caller() { helper(); }\n",
+    )?;
+
+    let indexed = dispatch_tool(
+        "index_repository",
+        &json!({
+            "repoPath": repo_dir.path().to_string_lossy(),
+            "storesDir": stores_dir.path().to_string_lossy()
+        }),
+    );
+    assert_eq!(indexed["ok"], json!(true));
+    assert_eq!(indexed["graphPersistence"]["enabled"], json!(true));
+    assert_eq!(
+        indexed["graphPersistence"]["refreshMode"],
+        json!("fresh-store-only")
+    );
+
+    let queried = dispatch_tool(
+        "query_graph",
+        &json!({
+            "repoPath": repo_dir.path().to_string_lossy(),
+            "storesDir": stores_dir.path().to_string_lossy(),
+            "query": "MATCH (f:Function) RETURN f.name ORDER BY f.name"
+        }),
+    );
+    assert_eq!(queried["ok"], json!(true));
+    assert_eq!(queried["graphSource"], json!("storeProjection"));
+    assert_eq!(queried["rowCount"], json!(2));
+
+    Ok(())
+}
+
+#[test]
+fn index_repository_rejects_appending_into_an_existing_store_projection() -> TestResult {
+    let repo_dir = tempfile::tempdir()?;
+    let stores_dir = tempfile::tempdir()?;
+    std::fs::write(repo_dir.path().join("widget.rs"), "fn helper() {}\n")?;
+
+    let first = dispatch_tool(
+        "index_repository",
+        &json!({
+            "repoPath": repo_dir.path().to_string_lossy(),
+            "storesDir": stores_dir.path().to_string_lossy()
+        }),
+    );
+    assert_eq!(first["ok"], json!(true));
+
+    let second = dispatch_tool(
+        "index_repository",
+        &json!({
+            "repoPath": repo_dir.path().to_string_lossy(),
+            "storesDir": stores_dir.path().to_string_lossy()
+        }),
+    );
+    assert_eq!(second["ok"], json!(false));
+    let message = second["error"]["message"]
+        .as_str()
+        .ok_or("index_repository error message must be a string")?;
+    assert!(
+        message.contains("refresh/reindex over an existing Store projection is refused"),
+        "{message}"
+    );
+
+    Ok(())
+}
+
+#[test]
 fn get_architecture_rejects_unknown_aspect() -> TestResult {
     let dir = tempfile::tempdir()?;
     let result = dispatch_tool(

@@ -63,9 +63,14 @@ fn qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split() -> T
         document.rows_green + document.rows_failed + document.rows_unrunnable,
         250
     );
+    let failed_rows: Vec<String> = results
+        .iter()
+        .filter(|result| result.verdict == "fail")
+        .map(|result| result.id.clone())
+        .collect();
     assert_eq!(
         document.rows_failed, 0,
-        "fixture-backed default QA runners should either pass or stay unrunnable; failures usually mean an over-broad runner claim"
+        "fixture-backed default QA runners should either pass or stay unrunnable; failures usually mean an over-broad runner claim: {failed_rows:?}"
     );
     for install_hook_row in ["QA-135", "QA-247"] {
         let Some(result) = results.iter().find(|result| result.id == install_hook_row) else {

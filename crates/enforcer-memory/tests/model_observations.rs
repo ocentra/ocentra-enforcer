@@ -14,6 +14,7 @@ use enforcer_memory::model_observations::{
     RetrievalQualityProof, RouteChoiceImprovement, TokenReductionProof,
 };
 use enforcer_memory::model_runtime::{ModelTask, ProviderKind};
+use enforcer_memory::schema::{ObservationLogEntry, SCHEMA_VERSION};
 use enforcer_memory::store::Store;
 
 #[test]
@@ -230,7 +231,7 @@ fn model_runtime_observation_persists_to_store_and_graph() -> Result<(), Box<dyn
         }),
     );
 
-    let id = ingest_model_runtime_observation(&mut store, &mut graph, record)?;
+    let id = ingest_model_runtime_observation(&mut store, &mut graph, record.clone())?;
     assert!(id.starts_with("obs-x06-model-runtime-proof-"));
     assert_eq!(graph.len(), 1);
 
@@ -248,6 +249,9 @@ fn model_runtime_observation_persists_to_store_and_graph() -> Result<(), Box<dyn
         }),
         Some("degraded-fallback")
     );
+    let native_entries = store.read_model_observation_entries()?;
+    assert_eq!(native_entries.entries.len(), 1);
+    assert_eq!(native_entries.entries[0].candidate, record.candidate);
     Ok(())
 }
 
@@ -278,10 +282,54 @@ fn store_backed_model_runtime_observation_replays_without_duplicate_writes(
         entries.entries[0].payload_kind.as_deref(),
         Some("model-runtime:successful-local-load")
     );
+    let native_entries = store.read_model_observation_entries()?;
+    assert_eq!(native_entries.entries.len(), 1);
+    assert_eq!(native_entries.entries[0].run_id, "run-2");
 
     let replayed = project_model_runtime_observations_from_store(&store)?;
     assert_eq!(replayed, vec![record.clone()]);
     let replayed_again = project_model_runtime_observations_from_store(&store)?;
     assert_eq!(replayed_again, replayed);
+    Ok(())
+}
+
+#[test]
+fn projection_falls_back_to_legacy_observation_payloads_when_native_log_is_empty(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempfile::tempdir()?;
+    let root: RepoRoot = "C:/Projects/x06-model-observation-legacy-fallback".parse()?;
+    let mut store = Store::init(dir.path(), &root, "2026-07-05T12:00:00Z")?;
+    let record = ModelRuntimeObservationRecord::new(
+        "2026-07-05T12:00:00Z",
+        "x06-model-runtime-proof",
+        "run-legacy",
+        ModelRuntimeObservationCandidate::DegradedFallback(DegradedFallback {
+            model_id: "Qwen/Qwen3-Embedding-0.6B".to_string(),
+            task: ModelTask::Embedding,
+            fallback_reason: "provider unavailable".to_string(),
+        }),
+    );
+    let payload = serde_json::to_value(&record)?;
+    store.append_observation_entry(|seq| ObservationLogEntry {
+        schema_version: SCHEMA_VERSION,
+        seq,
+        id: format!("obs-{seq:04}"),
+        lesson_id: String::new(),
+        rule_id: None,
+        fault_class: Some("degraded-fallback".to_string()),
+        repo_context: "Qwen/Qwen3-Embedding-0.6B".to_string(),
+        clean: false,
+        source_surface: "x06-model-runtime-proof".to_string(),
+        ts: "2026-07-05T12:00:00Z".to_string(),
+        supersedes_seq: None,
+        payload_kind: Some("model-runtime:degraded-fallback".to_string()),
+        payload: Some(payload),
+    })?;
+
+    let native_entries = store.read_model_observation_entries()?;
+    assert!(native_entries.entries.is_empty());
+
+    let replayed = project_model_runtime_observations_from_store(&store)?;
+    assert_eq!(replayed, vec![record]);
     Ok(())
 }

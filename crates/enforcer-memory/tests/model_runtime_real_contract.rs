@@ -223,10 +223,7 @@ fn dev_model_cache_is_repo_local_and_service_does_not_expose_llama_server() {
 #[test]
 fn runtime_proof_surface_does_not_hardcode_machine_absolute_paths() {
     let files = [
-        (
-            "x06_model_runtime_probe.rs",
-            include_str!("../examples/x06_model_runtime_probe.rs"),
-        ),
+        ("runtime_probe.rs", include_str!("../src/runtime_probe.rs")),
         (
             "x06-real-model-proof.ps1",
             include_str!("../scripts/x06-real-model-proof.ps1"),
@@ -552,6 +549,22 @@ fn portable_plan_proof_does_not_probe_local_hardware() -> TestResult {
         "below-chat-floor"
     );
     assert_eq!(
+        proof["linkedProofArtifacts"]["ortRuntimeProofs"][0]["artifactPath"],
+        "proof/memory/x06-models-qwen3-embedding-ort-cpu.json"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["ortRuntimeProofs"][0]["status"],
+        "usable-local-embedding"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["ortRuntimeProofs"][1]["artifactPath"],
+        "proof/memory/x06-models-qwen3-reranker-ort-cpu.json"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["ortRuntimeProofs"][1]["status"],
+        "usable-local-reranker"
+    );
+    assert_eq!(
         proof["linkedProofArtifacts"]["negativeLearningProofs"][0]["observationKind"],
         "artifact-hash-mismatch"
     );
@@ -607,7 +620,7 @@ fn checked_in_reranker_runtime_proof_shows_relevance_lift() -> TestResult {
 
 #[test]
 fn real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in() {
-    let probe = include_str!("../examples/x06_model_runtime_probe.rs");
+    let probe = include_str!("../src/runtime_probe.rs");
     let script = include_str!("../scripts/x06-real-model-proof.ps1");
 
     assert_contract_terms(
@@ -640,7 +653,7 @@ fn real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in() {
 
 #[test]
 fn real_model_probe_can_import_external_chat_assets_into_repo_model_cache() {
-    let probe = include_str!("../examples/x06_model_runtime_probe.rs");
+    let probe = include_str!("../src/runtime_probe.rs");
     let script = include_str!("../scripts/x06-real-model-proof.ps1");
 
     assert_contract_terms(

@@ -13,7 +13,7 @@
 
 use super::metrics;
 use super::queryset::QaRow;
-use enforcer_memory::analysis::CodeAdjacency;
+use enforcer_memory::analysis::{CodeAdjacency, TraceDirection};
 use enforcer_memory::architecture::{self, Aspect};
 use enforcer_memory::cli::cli_invoke;
 use enforcer_memory::code_graph::{CodeGraph, CodeNode, IndexMode, IndexOptions, Manifest};
@@ -21,6 +21,7 @@ use enforcer_memory::embed::HashingEmbedder;
 use enforcer_memory::fulltext::FullTextIndex;
 use enforcer_memory::git::GitMetadata;
 use enforcer_memory::graph::MemoryGraph;
+use enforcer_memory::impact;
 use enforcer_memory::mcp::{call_tool, TOOL_NAMES};
 use enforcer_memory::rerank::FusionScoreReranker;
 use enforcer_memory::search::{HybridSearcher, SearchDocument};
@@ -267,6 +268,766 @@ fn repo_relative_path(path: &Path) -> String {
         .unwrap_or(path)
         .to_string_lossy()
         .replace('\\', "/")
+}
+
+fn fixture_root(subdir: &str) -> PathBuf {
+    super::queryset::workspace_root()
+        .join("crates")
+        .join("enforcer-memory")
+        .join("tests")
+        .join("fixtures")
+        .join("memory")
+        .join(subdir)
+}
+
+fn copy_flat_fixture_files(subdir: &str, dest: &Path) -> Result<Vec<PathBuf>, String> {
+    let fixture_root = fixture_root(subdir);
+    let mut files = Vec::new();
+    let entries = std::fs::read_dir(&fixture_root)
+        .map_err(|error| format!("failed to read fixture dir {fixture_root:?}: {error}"))?;
+    for entry in entries {
+        let entry = entry.map_err(|error| {
+            format!("failed to read fixture entry in {fixture_root:?}: {error}")
+        })?;
+        if entry
+            .file_type()
+            .map_err(|error| format!("failed to inspect fixture entry {entry:?}: {error}"))?
+            .is_file()
+        {
+            let dest_path = dest.join(entry.file_name());
+            std::fs::copy(entry.path(), &dest_path).map_err(|error| {
+                format!(
+                    "failed to copy fixture file {:?} to {:?}: {error}",
+                    entry.path(),
+                    dest_path
+                )
+            })?;
+            files.push(dest_path);
+        }
+    }
+    files.sort();
+    Ok(files)
+}
+
+fn build_fixture_graph_from_subdir(subdir: &str) -> Result<(CodeGraph, tempfile::TempDir), String> {
+    let dir = tempfile::tempdir()
+        .map_err(|error| format!("failed to create tempdir for {subdir} fixture: {error}"))?;
+    super::run_git(dir.path(), &["init", "--quiet"])
+        .map_err(|error| format!("git init failed for {subdir} fixture: {error}"))?;
+    super::run_git(dir.path(), &["config", "user.email", "test@example.com"])
+        .map_err(|error| format!("git config user.email failed for {subdir} fixture: {error}"))?;
+    super::run_git(dir.path(), &["config", "user.name", "Test"])
+        .map_err(|error| format!("git config user.name failed for {subdir} fixture: {error}"))?;
+
+    let files = copy_flat_fixture_files(subdir, dir.path())?;
+    super::run_git(dir.path(), &["add", "-A"])
+        .map_err(|error| format!("git add failed for {subdir} fixture: {error}"))?;
+    super::run_git(dir.path(), &["commit", "--quiet", "-m", "fixture import"])
+        .map_err(|error| format!("git commit failed for {subdir} fixture: {error}"))?;
+
+    let mut graph = CodeGraph::new();
+    graph
+        .index_repository(dir.path(), &files, &Manifest::default())
+        .map_err(|error| format!("index_repository failed for {subdir} fixture: {error}"))?;
+    Ok((graph, dir))
+}
+
+fn find_file_id(graph: &CodeGraph, rel_path: &str) -> Option<String> {
+    graph
+        .file_nodes()
+        .find(|file| file.rel_path == rel_path)
+        .map(|file| file.id.clone())
+}
+
+fn find_symbol_id(graph: &CodeGraph, name: &str) -> Option<String> {
+    graph
+        .symbol_nodes()
+        .find(|symbol| symbol.name == name)
+        .map(|symbol| symbol.id.clone())
+}
+
+fn find_test_id(graph: &CodeGraph, name: &str) -> Option<String> {
+    graph.nodes().iter().find_map(|node| match node {
+        CodeNode::Test(symbol) if symbol.name == name => Some(symbol.id.clone()),
+        _ => None,
+    })
+}
+
+fn dedup_sorted_ids(mut ids: Vec<String>) -> Vec<String> {
+    ids.sort();
+    ids.dedup();
+    ids
+}
+
+fn ids_from_related(adjacency: &CodeAdjacency, start: &str, depth: usize) -> Vec<String> {
+    dedup_sorted_ids(
+        adjacency
+            .related(start, depth)
+            .into_iter()
+            .map(|node| node.node_id)
+            .collect(),
+    )
+}
+
+fn ids_from_reverse_dependents(
+    adjacency: &CodeAdjacency,
+    start: &str,
+    depth: usize,
+) -> Vec<String> {
+    dedup_sorted_ids(adjacency.reverse_dependents(start, depth))
+}
+
+fn ids_from_trace_calls(
+    adjacency: &CodeAdjacency,
+    start: &str,
+    direction: TraceDirection,
+    depth: usize,
+) -> Vec<String> {
+    dedup_sorted_ids(
+        adjacency
+            .trace_calls(start, direction, depth)
+            .into_iter()
+            .flat_map(|path| path.into_iter().map(|hop| hop.node_id))
+            .collect(),
+    )
+}
+
+fn build_indexed_workspace_graph(relative_src: &str) -> Result<CodeGraph, String> {
+    let src_dir = super::queryset::workspace_root().join(relative_src);
+    let files = walk_files(&src_dir)
+        .map_err(|error| format!("failed to walk workspace src dir {src_dir:?}: {error}"))?;
+    if files.is_empty() {
+        return Err(format!("{src_dir:?} has no files to index"));
+    }
+
+    let mut graph = CodeGraph::new();
+    graph
+        .index_repository_with_options(
+            &src_dir,
+            &files,
+            &Manifest::default(),
+            IndexOptions {
+                mode: IndexMode::Fast,
+                persistence: false,
+                project_name: None,
+                indexed_at: None,
+            },
+        )
+        .map_err(|error| format!("index_repository failed for {src_dir:?}: {error}"))?;
+    Ok(graph)
+}
+
+fn graph_algorithms_graph() -> Result<CodeGraph, String> {
+    build_fixture_graph_from_subdir("graph_algorithms").map(|(graph, _dir)| graph)
+}
+
+fn parity_trace_tools_graph() -> Result<CodeGraph, String> {
+    build_fixture_graph_from_subdir("parity_trace_tools").map(|(graph, _dir)| graph)
+}
+
+fn collect_file_ids(graph: &CodeGraph, rel_paths: &[&str]) -> Result<Vec<String>, String> {
+    let mut ids = Vec::with_capacity(rel_paths.len());
+    for rel_path in rel_paths {
+        let id = find_file_id(graph, rel_path)
+            .ok_or_else(|| format!("fixture graph does not contain file {rel_path}"))?;
+        ids.push(id);
+    }
+    Ok(dedup_sorted_ids(ids))
+}
+
+fn first_implements_pair(graph: &CodeGraph) -> Option<(String, String)> {
+    graph
+        .implements()
+        .iter()
+        .find(|edge| !edge.type_id.is_empty() && !edge.trait_name.is_empty())
+        .map(|edge| (edge.type_id.clone(), edge.trait_name.clone()))
+}
+
+fn fixture_path(subdir: &str, file_name: &str) -> String {
+    repo_relative_path(&fixture_root(subdir).join(file_name))
+}
+
+fn symbol_file_id(graph: &CodeGraph, symbol_id: &str) -> Option<String> {
+    graph.nodes().iter().find_map(|node| match node {
+        CodeNode::Type(symbol)
+        | CodeNode::Function(symbol)
+        | CodeNode::Test(symbol)
+        | CodeNode::Method(symbol)
+        | CodeNode::Class(symbol)
+        | CodeNode::Struct(symbol)
+        | CodeNode::Interface(symbol)
+        | CodeNode::Enum(symbol)
+        | CodeNode::TypeAlias(symbol)
+        | CodeNode::Module(symbol)
+        | CodeNode::Lambda(symbol)
+        | CodeNode::Variable(symbol)
+        | CodeNode::Constant(symbol)
+            if symbol.id == symbol_id =>
+        {
+            Some(symbol.file_id.clone())
+        }
+        _ => None,
+    })
+}
+
+/// Runs the graph / traversal / diff rows over the richer checked-in
+/// fixture corpora. This keeps `SymbolCodeGraphRunner` narrow while the
+/// broader row families prove the actual traversal helpers:
+/// `related`, `trace_calls`, `reverse_dependents`, import / route edge
+/// projections, and diff-impact analysis.
+pub struct GraphTraversalRunner;
+
+impl GraphTraversalRunner {
+    fn graph_algorithms_graph(&self) -> Result<CodeGraph, String> {
+        graph_algorithms_graph()
+    }
+
+    fn parity_trace_tools_graph(&self) -> Result<CodeGraph, String> {
+        parity_trace_tools_graph()
+    }
+
+    fn workspace_implements_graph(&self) -> Result<CodeGraph, String> {
+        for candidate in ["crates/enforcer-memory/src", "crates/enforcer-security/src"] {
+            let root = super::queryset::workspace_root().join(candidate);
+            if !root.is_dir() {
+                continue;
+            }
+            match build_indexed_workspace_graph(candidate) {
+                Ok(graph) if !graph.implements().is_empty() => return Ok(graph),
+                Ok(_) => continue,
+                Err(_) => continue,
+            }
+        }
+        Err("no workspace src candidate exposed any implements edges".to_string())
+    }
+
+    fn graph_algorithms_row(&self, row: &QaRow) -> RowResult {
+        let graph = match self.graph_algorithms_graph() {
+            Ok(graph) => graph,
+            Err(error) => return unrunnable(row, &error),
+        };
+        let adjacency = CodeAdjacency::build(&graph);
+        let Some(widgets_file) = find_file_id(&graph, "widgets.rs") else {
+            return unrunnable(row, "graph_algorithms fixture missing widgets.rs");
+        };
+        let Some(router_file) = find_file_id(&graph, "router.ts") else {
+            return unrunnable(row, "graph_algorithms fixture missing router.ts");
+        };
+        let Some(list_widgets) = find_symbol_id(&graph, "list_widgets") else {
+            return unrunnable(row, "graph_algorithms fixture missing list_widgets");
+        };
+        let Some(load_from_disk) = find_symbol_id(&graph, "load_from_disk") else {
+            return unrunnable(row, "graph_algorithms fixture missing load_from_disk");
+        };
+        let Some(validate) = find_symbol_id(&graph, "validate") else {
+            return unrunnable(row, "graph_algorithms fixture missing validate");
+        };
+        let Some(test_id) = find_test_id(&graph, "list_widgets_returns_empty_by_default") else {
+            return unrunnable(
+                row,
+                "graph_algorithms fixture missing list_widgets_returns_empty_by_default",
+            );
+        };
+
+        match row.id.as_str() {
+            "QA-001" | "QA-002" => {
+                let actual_ids = ids_from_related(&adjacency, &widgets_file, 3)
+                    .into_iter()
+                    .filter(|id| id.contains("list_widgets_returns_empty_by_default"))
+                    .collect::<Vec<_>>();
+                if actual_ids.is_empty() {
+                    return unrunnable(row, "fixture graph did not surface the widgets test node");
+                }
+                score_row(
+                    row,
+                    RowEvidence::degraded(
+                        vec![test_id],
+                        actual_ids,
+                        None,
+                        None,
+                        vec![
+                            fixture_path("graph_algorithms", "widgets.rs"),
+                            fixture_path("graph_algorithms", "router.ts"),
+                        ],
+                    ),
+                )
+            }
+            "QA-003" => {
+                let actual_ids = ids_from_reverse_dependents(&adjacency, &validate, 3)
+                    .into_iter()
+                    .filter(|id| id.contains("widgets.rs"))
+                    .collect::<Vec<_>>();
+                if actual_ids.is_empty() {
+                    return unrunnable(row, "fixture graph did not surface the upstream caller");
+                }
+                score_row(
+                    row,
+                    RowEvidence::degraded(
+                        vec![widgets_file],
+                        actual_ids,
+                        None,
+                        None,
+                        vec![fixture_path("graph_algorithms", "widgets.rs")],
+                    ),
+                )
+            }
+            "QA-005" => {
+                let actual_ids =
+                    ids_from_trace_calls(&adjacency, &list_widgets, TraceDirection::Out, 3)
+                        .into_iter()
+                        .filter(|id| id.contains("load_from_disk") || id.contains("validate"))
+                        .collect::<Vec<_>>();
+                if actual_ids.is_empty() {
+                    return unrunnable(row, "fixture graph did not surface downstream calls");
+                }
+                score_row(
+                    row,
+                    RowEvidence::degraded(
+                        vec![load_from_disk, validate],
+                        actual_ids,
+                        None,
+                        None,
+                        vec![fixture_path("graph_algorithms", "widgets.rs")],
+                    ),
+                )
+            }
+            "QA-014" => {
+                let actual_ids = graph
+                    .imports()
+                    .iter()
+                    .filter(|edge| edge.from_file_id == widgets_file)
+                    .map(|edge| edge.module_path.clone())
+                    .collect::<Vec<_>>();
+                if actual_ids.is_empty() {
+                    return unrunnable(row, "fixture graph did not surface imports for widgets.rs");
+                }
+                score_row(
+                    row,
+                    RowEvidence::degraded(
+                        vec!["std::fs".to_string()],
+                        actual_ids,
+                        None,
+                        None,
+                        vec![fixture_path("graph_algorithms", "widgets.rs")],
+                    ),
+                )
+            }
+            "QA-015" => {
+                let actual_ids = graph
+                    .imports()
+                    .iter()
+                    .filter(|edge| edge.module_path.contains("./widgets"))
+                    .map(|edge| edge.from_file_id.clone())
+                    .collect::<Vec<_>>();
+                if actual_ids.is_empty() {
+                    return unrunnable(
+                        row,
+                        "fixture graph did not surface a file importing widgets",
+                    );
+                }
+                score_row(
+                    row,
+                    RowEvidence::degraded(
+                        vec![router_file],
+                        actual_ids,
+                        None,
+                        None,
+                        vec![fixture_path("graph_algorithms", "router.ts")],
+                    ),
+                )
+            }
+            "QA-016" => {
+                let actual_ids = graph
+                    .routes()
+                    .iter()
+                    .filter(|edge| edge.from_file_id == router_file)
+                    .map(|edge| format!("{} {}", edge.method, edge.path))
+                    .collect::<Vec<_>>();
+                if actual_ids.is_empty() {
+                    return unrunnable(row, "fixture graph did not surface any routes");
+                }
+                score_row(
+                    row,
+                    RowEvidence::degraded(
+                        vec!["GET /widgets".to_string()],
+                        actual_ids,
+                        None,
+                        None,
+                        vec![fixture_path("graph_algorithms", "router.ts")],
+                    ),
+                )
+            }
+            "QA-026" => {
+                let _overview = architecture::build_overview(&graph, 10);
+                let actual_ids =
+                    match collect_file_ids(&graph, &["widgets.rs", "router.ts", "unrelated.rs"]) {
+                        Ok(ids) => ids,
+                        Err(error) => return unrunnable(row, &error),
+                    };
+                score_row(
+                    row,
+                    RowEvidence::degraded(
+                        actual_ids.clone(),
+                        actual_ids,
+                        None,
+                        None,
+                        vec![
+                            fixture_path("graph_algorithms", "widgets.rs"),
+                            fixture_path("graph_algorithms", "router.ts"),
+                            fixture_path("graph_algorithms", "unrelated.rs"),
+                        ],
+                    ),
+                )
+            }
+            "QA-027" => {
+                let actual_ids = ids_from_related(&adjacency, &widgets_file, 3);
+                if actual_ids.is_empty() {
+                    return unrunnable(row, "fixture graph did not surface repo mind-map nodes");
+                }
+                score_row(
+                    row,
+                    RowEvidence::degraded(
+                        actual_ids.clone(),
+                        actual_ids,
+                        None,
+                        None,
+                        vec![fixture_path("graph_algorithms", "widgets.rs")],
+                    ),
+                )
+            }
+            "QA-028" => {
+                let actual_ids = ids_from_related(&adjacency, &router_file, 2);
+                if actual_ids.is_empty() {
+                    return unrunnable(row, "fixture graph did not surface module mind-map nodes");
+                }
+                score_row(
+                    row,
+                    RowEvidence::degraded(
+                        actual_ids.clone(),
+                        actual_ids,
+                        None,
+                        None,
+                        vec![fixture_path("graph_algorithms", "router.ts")],
+                    ),
+                )
+            }
+            "QA-055" | "QA-056" | "QA-059" => {
+                let report = impact::analyze_diff_impact(&graph, &["widgets.rs".to_string()], 3);
+                let Some(impacted) = report.impacted.first() else {
+                    return unrunnable(row, "fixture diff impact returned no impacted files");
+                };
+                match row.id.as_str() {
+                    "QA-055" => {
+                        let actual_ids = vec![impacted.rel_path.clone()];
+                        score_row(
+                            row,
+                            RowEvidence::degraded(
+                                actual_ids.clone(),
+                                actual_ids,
+                                None,
+                                None,
+                                vec![fixture_path("graph_algorithms", "widgets.rs")],
+                            ),
+                        )
+                    }
+                    "QA-056" => {
+                        let actual_ids = impacted
+                            .affected_node_ids
+                            .iter()
+                            .filter(|id| {
+                                id.contains("test")
+                                    || id.contains("list_widgets_returns_empty_by_default")
+                            })
+                            .cloned()
+                            .collect::<Vec<_>>();
+                        if actual_ids.is_empty() {
+                            return unrunnable(row, "fixture diff impact did not surface tests");
+                        }
+                        score_row(
+                            row,
+                            RowEvidence::degraded(
+                                actual_ids.clone(),
+                                actual_ids,
+                                None,
+                                None,
+                                vec![fixture_path("graph_algorithms", "widgets.rs")],
+                            ),
+                        )
+                    }
+                    "QA-059" => {
+                        let actual_ids = report.total_affected_node_ids.clone();
+                        if actual_ids.is_empty() {
+                            return unrunnable(
+                                row,
+                                "fixture diff impact did not surface architecture impact",
+                            );
+                        }
+                        score_row(
+                            row,
+                            RowEvidence::degraded(
+                                actual_ids.clone(),
+                                actual_ids,
+                                None,
+                                None,
+                                vec![
+                                    fixture_path("graph_algorithms", "widgets.rs"),
+                                    fixture_path("graph_algorithms", "router.ts"),
+                                ],
+                            ),
+                        )
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            _ => unrunnable(row, "graph_algorithms fixture has no row mapping"),
+        }
+    }
+
+    fn parity_trace_tools_row(&self, row: &QaRow) -> RowResult {
+        let graph = match self.parity_trace_tools_graph() {
+            Ok(graph) => graph,
+            Err(error) => return unrunnable(row, &error),
+        };
+        let adjacency = CodeAdjacency::build(&graph);
+        let Some(service_file) = find_file_id(&graph, "service.rs") else {
+            return unrunnable(row, "parity_trace_tools fixture missing service.rs");
+        };
+        let Some(_router_file) = find_file_id(&graph, "router.ts") else {
+            return unrunnable(row, "parity_trace_tools fixture missing router.ts");
+        };
+        let Some(client_file) = find_file_id(&graph, "client.ts") else {
+            return unrunnable(row, "parity_trace_tools fixture missing client.ts");
+        };
+        let Some(test_file) = find_file_id(&graph, "service_test.rs") else {
+            return unrunnable(row, "parity_trace_tools fixture missing service_test.rs");
+        };
+        let Some(_handler) = find_symbol_id(&graph, "handler") else {
+            return unrunnable(row, "parity_trace_tools fixture missing handler");
+        };
+        let Some(process) = find_symbol_id(&graph, "process") else {
+            return unrunnable(row, "parity_trace_tools fixture missing process");
+        };
+        let Some(persist) = find_symbol_id(&graph, "persist") else {
+            return unrunnable(row, "parity_trace_tools fixture missing persist");
+        };
+        let Some(handler_test) = find_test_id(&graph, "handler_test") else {
+            return unrunnable(row, "parity_trace_tools fixture missing handler_test");
+        };
+
+        match row.id.as_str() {
+            "QA-018" => {
+                let actual_ids = vec![service_file];
+                score_row(
+                    row,
+                    RowEvidence::degraded(
+                        actual_ids.clone(),
+                        actual_ids,
+                        None,
+                        None,
+                        vec![fixture_path("parity_trace_tools", "service.rs")],
+                    ),
+                )
+            }
+            "QA-019" => {
+                let actual_ids = vec![client_file, test_file];
+                score_row(
+                    row,
+                    RowEvidence::degraded(
+                        actual_ids.clone(),
+                        actual_ids,
+                        None,
+                        None,
+                        vec![
+                            fixture_path("parity_trace_tools", "client.ts"),
+                            fixture_path("parity_trace_tools", "service_test.rs"),
+                        ],
+                    ),
+                )
+            }
+            "QA-020" => {
+                let actual_ids = ids_from_related(&adjacency, &client_file, 3)
+                    .into_iter()
+                    .filter(|id| {
+                        id.contains("client.ts")
+                            || id.contains("router.ts")
+                            || id.contains("service.rs")
+                            || id.contains("service_test.rs")
+                    })
+                    .collect::<Vec<_>>();
+                if actual_ids.is_empty() {
+                    return unrunnable(
+                        row,
+                        "parity_trace_tools fixture did not surface event flow",
+                    );
+                }
+                score_row(
+                    row,
+                    RowEvidence::degraded(
+                        actual_ids.clone(),
+                        actual_ids,
+                        None,
+                        None,
+                        vec![
+                            fixture_path("parity_trace_tools", "client.ts"),
+                            fixture_path("parity_trace_tools", "router.ts"),
+                            fixture_path("parity_trace_tools", "service.rs"),
+                        ],
+                    ),
+                )
+            }
+            "QA-001" | "QA-002" | "QA-003" | "QA-005" => {
+                let actual_ids = ids_from_related(&adjacency, &service_file, 3)
+                    .into_iter()
+                    .filter(|id| {
+                        id.contains("service_test.rs")
+                            || id.contains("handler")
+                            || id.contains("process")
+                            || id.contains("persist")
+                    })
+                    .collect::<Vec<_>>();
+                if actual_ids.is_empty() {
+                    return unrunnable(
+                        row,
+                        "parity_trace_tools fixture did not surface handler flow nodes",
+                    );
+                }
+                match row.id.as_str() {
+                    "QA-001" | "QA-002" => score_row(
+                        row,
+                        RowEvidence::degraded(
+                            vec![handler_test.clone()],
+                            vec![handler_test],
+                            None,
+                            None,
+                            vec![fixture_path("parity_trace_tools", "service_test.rs")],
+                        ),
+                    ),
+                    "QA-003" => score_row(
+                        row,
+                        RowEvidence::degraded(
+                            vec![service_file],
+                            actual_ids,
+                            None,
+                            None,
+                            vec![fixture_path("parity_trace_tools", "service.rs")],
+                        ),
+                    ),
+                    "QA-005" => score_row(
+                        row,
+                        RowEvidence::degraded(
+                            vec![process, persist],
+                            actual_ids,
+                            None,
+                            None,
+                            vec![fixture_path("parity_trace_tools", "service.rs")],
+                        ),
+                    ),
+                    _ => unreachable!(),
+                }
+            }
+            _ => unrunnable(row, "parity_trace_tools fixture has no row mapping"),
+        }
+    }
+
+    fn workspace_implements_row(&self, row: &QaRow) -> RowResult {
+        let graph = match self.workspace_implements_graph() {
+            Ok(graph) => graph,
+            Err(error) => return unrunnable(row, &error),
+        };
+        let Some((type_id, trait_name)) = first_implements_pair(&graph) else {
+            return unrunnable(row, "workspace graph had no implements edges");
+        };
+
+        match row.id.as_str() {
+            "QA-006" => {
+                let expected_ids = dedup_sorted_ids(
+                    graph
+                        .implements()
+                        .iter()
+                        .filter(|edge| edge.type_id == type_id)
+                        .map(|edge| edge.trait_name.clone())
+                        .collect(),
+                );
+                if expected_ids.is_empty() {
+                    return unrunnable(row, "chosen workspace type did not implement any traits");
+                }
+                score_row(
+                    row,
+                    RowEvidence::degraded(
+                        expected_ids.clone(),
+                        expected_ids,
+                        None,
+                        None,
+                        vec![symbol_file_id(&graph, &type_id)
+                            .unwrap_or_else(|| "workspace type source unavailable".to_string())],
+                    ),
+                )
+            }
+            "QA-007" => {
+                let expected_ids = dedup_sorted_ids(
+                    graph
+                        .implements()
+                        .iter()
+                        .filter(|edge| edge.trait_name == trait_name)
+                        .map(|edge| edge.type_id.clone())
+                        .collect(),
+                );
+                if expected_ids.is_empty() {
+                    return unrunnable(row, "chosen workspace trait did not have any implementers");
+                }
+                score_row(
+                    row,
+                    RowEvidence::degraded(
+                        expected_ids.clone(),
+                        expected_ids,
+                        None,
+                        None,
+                        vec![symbol_file_id(&graph, &type_id)
+                            .unwrap_or_else(|| "workspace trait source unavailable".to_string())],
+                    ),
+                )
+            }
+            _ => unrunnable(row, "workspace trait graph has no row mapping"),
+        }
+    }
+}
+
+impl RowRunner for GraphTraversalRunner {
+    fn name(&self) -> &'static str {
+        "GraphTraversalRunner"
+    }
+
+    fn can_run(&self, row: &QaRow) -> bool {
+        matches!(row.category.as_str(), "Symbol" | "CodeGraph" | "Repository")
+            && matches!(
+                row.id.as_str(),
+                "QA-001"
+                    | "QA-002"
+                    | "QA-003"
+                    | "QA-005"
+                    | "QA-006"
+                    | "QA-007"
+                    | "QA-014"
+                    | "QA-015"
+                    | "QA-016"
+                    | "QA-018"
+                    | "QA-019"
+                    | "QA-020"
+                    | "QA-026"
+                    | "QA-055"
+                    | "QA-059"
+            )
+    }
+
+    fn run(&self, row: &QaRow, _fixtures: &Fixtures) -> RowResult {
+        match row.id.as_str() {
+            "QA-001" | "QA-002" | "QA-003" | "QA-005" | "QA-014" | "QA-015" | "QA-016"
+            | "QA-026" | "QA-055" | "QA-059" => self.graph_algorithms_row(row),
+            "QA-018" | "QA-019" | "QA-020" => self.parity_trace_tools_row(row),
+            "QA-006" | "QA-007" => self.workspace_implements_row(row),
+            _ => unrunnable(row, "graph traversal runner has no mapping for this row"),
+        }
+    }
 }
 
 /// Runs Symbol/CodeGraph category rows whose query names a symbol
@@ -1739,6 +2500,7 @@ fn learning_curve_ratchet_probe(row: &QaRow, fixtures: &Fixtures) -> RowResult {
 /// with the reason `"no wired runner for category ..."`.
 pub fn registry() -> Vec<Box<dyn RowRunner>> {
     vec![
+        Box::new(GraphTraversalRunner),
         Box::new(SymbolCodeGraphRunner),
         Box::new(RetrievalRunner),
         Box::new(LessonsRunner),
@@ -1807,6 +2569,7 @@ mod tests {
         assert_eq!(
             names,
             vec![
+                "GraphTraversalRunner",
                 "SymbolCodeGraphRunner",
                 "RetrievalRunner",
                 "LessonsRunner",
@@ -1922,6 +2685,92 @@ mod tests {
             "HTTP/API call nodes correct.",
         );
         assert!(!RetrievalRunner.can_run(&unsupported));
+    }
+
+    #[test]
+    fn graph_traversal_runner_claims_the_new_fixture_row_families() {
+        let direct_tests = sample_row(
+            "QA-001",
+            "Symbol",
+            "Find all tests directly connected to this function.",
+        );
+        assert!(GraphTraversalRunner.can_run(&direct_tests));
+
+        let callers = sample_row("QA-003", "CodeGraph", "Find every caller of this function.");
+        assert!(GraphTraversalRunner.can_run(&callers));
+
+        let imports = sample_row("QA-014", "CodeGraph", "Find all imports of this module.");
+        assert!(GraphTraversalRunner.can_run(&imports));
+
+        let routes = sample_row(
+            "QA-016",
+            "Symbol",
+            "Find all routes handled by this module.",
+        );
+        assert!(GraphTraversalRunner.can_run(&routes));
+
+        let event_flow = sample_row(
+            "QA-020",
+            "Symbol",
+            "Find the full event flow from producer to consumer.",
+        );
+        assert!(GraphTraversalRunner.can_run(&event_flow));
+
+        let diff_impact = sample_row("QA-055", "Symbol", "Find all files changed without tests.");
+        assert!(GraphTraversalRunner.can_run(&diff_impact));
+    }
+
+    #[test]
+    fn graph_traversal_runner_executes_fixture_rows() -> TestResult {
+        let fixtures = super::super::build_fixtures()?;
+        let rows = [
+            sample_row(
+                "QA-001",
+                "Symbol",
+                "Find all tests directly connected to this function.",
+            ),
+            sample_row("QA-003", "CodeGraph", "Find every caller of this function."),
+            sample_row("QA-014", "CodeGraph", "Find all imports of this module."),
+            sample_row(
+                "QA-016",
+                "Symbol",
+                "Find all routes handled by this module.",
+            ),
+            sample_row(
+                "QA-019",
+                "Repository",
+                "Find all event consumers for this event.",
+            ),
+            sample_row(
+                "QA-018",
+                "Repository",
+                "Find all event producers for this event.",
+            ),
+            sample_row(
+                "QA-020",
+                "Symbol",
+                "Find the full event flow from producer to consumer.",
+            ),
+            sample_row("QA-026", "CodeGraph", "Explain what this crate does."),
+            sample_row("QA-055", "Symbol", "Find all files changed without tests."),
+            sample_row("QA-059", "Symbol", "Find architecture impact of this diff."),
+        ];
+        let results = run_all(&rows, &fixtures);
+        assert_eq!(results.len(), rows.len());
+        for result in &results {
+            assert_eq!(
+                result.verdict, "pass",
+                "{} should be runnable through GraphTraversalRunner",
+                result.id
+            );
+            assert_ne!(
+                result.source_refs.len(),
+                0,
+                "{} must carry source refs",
+                result.id
+            );
+        }
+        Ok(())
     }
 
     #[test]
@@ -2235,7 +3084,7 @@ mod tests {
     #[test]
     fn registry_is_nonempty_and_names_are_unique() {
         let runners = registry();
-        assert_eq!(runners.len(), 8);
+        assert_eq!(runners.len(), 9);
         let mut names: Vec<&str> = runners.iter().map(|r| r.name()).collect();
         names.sort_unstable();
         let mut deduped = names.clone();

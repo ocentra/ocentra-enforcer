@@ -232,6 +232,7 @@ pub fn record_procedural_in_store(
             reason: "append did not assign a procedural record".to_owned(),
         });
     };
+    store.append_procedural(record.clone())?;
     graph.ingest_procedural(record);
     Ok(assigned_id)
 }
@@ -306,11 +307,77 @@ pub fn record_route_choice_in_store(
             reason: "append did not assign a route trace".to_owned(),
         });
     };
+    store.append_route_trace(trace.clone())?;
     graph.ingest_route_trace(trace);
     Ok(assigned_id)
 }
 
 pub fn replay_procedural_and_routes_from_store(
+    store: &Store,
+    graph: &mut MemoryGraph,
+) -> Result<usize> {
+    let mut count = replay_procedural_from_native_log(store, graph)?;
+    count += replay_route_traces_from_native_log(store, graph)?;
+    count += replay_procedural_and_routes_from_legacy_observation_log(store, graph)?;
+    Ok(count)
+}
+
+fn replay_procedural_from_native_log(store: &Store, graph: &mut MemoryGraph) -> Result<usize> {
+    let outcome = store.read_procedural_entries()?;
+    let mut count = 0;
+    for entry in outcome.entries {
+        let record = ProceduralRecord {
+            id: entry.id,
+            lesson_id: entry.lesson_id,
+            outcome: match entry.outcome {
+                crate::schema::ProceduralOutcomeWire::RetrievalSuccess => {
+                    ProceduralOutcome::RetrievalSuccess
+                }
+                crate::schema::ProceduralOutcomeWire::RetrievalFailure => {
+                    ProceduralOutcome::RetrievalFailure
+                }
+                crate::schema::ProceduralOutcomeWire::FixSuccess => ProceduralOutcome::FixSuccess,
+                crate::schema::ProceduralOutcomeWire::FixFailure => ProceduralOutcome::FixFailure,
+            },
+            detail: entry.detail,
+            ts: entry.ts,
+        };
+        if !graph
+            .procedural_records()
+            .iter()
+            .any(|existing| existing.id == record.id)
+        {
+            graph.ingest_procedural(record);
+            count += 1;
+        }
+    }
+    Ok(count)
+}
+
+fn replay_route_traces_from_native_log(store: &Store, graph: &mut MemoryGraph) -> Result<usize> {
+    let outcome = store.read_route_trace_entries()?;
+    let mut count = 0;
+    for entry in outcome.entries {
+        let trace = RouteTrace {
+            id: entry.id,
+            query: entry.query,
+            route: entry.route,
+            confidence: entry.confidence,
+            ts: entry.ts,
+        };
+        if !graph
+            .route_traces()
+            .iter()
+            .any(|existing| existing.id == trace.id)
+        {
+            graph.ingest_route_trace(trace);
+            count += 1;
+        }
+    }
+    Ok(count)
+}
+
+fn replay_procedural_and_routes_from_legacy_observation_log(
     store: &Store,
     graph: &mut MemoryGraph,
 ) -> Result<usize> {
