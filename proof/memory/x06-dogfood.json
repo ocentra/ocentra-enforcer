@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-dogfood",
-  "generatedAt": "2026-07-09T11:31:29.153Z",
+  "generatedAt": "2026-07-09T11:35:24.358Z",
   "hub": "ocentra-enforcer",
   "stateRoot": "<ledger>/ocentra-enforcer",
   "lane": "codex-x06-harvest-sync",
@@ -123,6 +123,8 @@
     "cargo test -p enforcer-memory --test local_runtime --quiet -j 1 passed after adding the executable ORT worker command seam",
     "cargo clippy -p enforcer-memory --test local_runtime -- -D warnings passed after adding the executable ORT worker command seam",
     "cargo check -p enforcer-memory --features real-models --example x06_model_runtime_probe passed after deriving runtimeBackendContract from typed local-runtime ownership and restoring the local llama binary-name helper",
+    "node scripts/x06-enforcer-memory-sharded-test.mjs --list --write-proof proof/memory/x06-test-shards.json passed and discovered 232 current enforcer-memory integration test targets across deterministic categories",
+    "node scripts/x06-enforcer-memory-sharded-test.mjs --only local --write-proof proof/memory/x06-test-shards-local-exec.json passed and executed cargo test -p enforcer-memory --test local_runtime --quiet -j 1 through the sharded runner",
     "cargo test -p enforcer-memory --test unit_store_sqlite store_backed_projection_rebuilds_from_a_real_code_graph_fixture -- --exact passed after GPH Store-backed projection proof",
     "cargo test -p enforcer-memory --test unit_store_sqlite --quiet passed after GPH Store-backed projection proof",
     "hardcoded-path scan over changed QA/GPH proof files returned no drive-root, user-profile, or rust-build-sync machine-path matches after source refs were normalized to repo-relative paths",
@@ -1196,6 +1198,18 @@
     {
       "shape": "t2",
       "evidence": "cargo test -p enforcer-memory --test local_runtime --quiet -j 1 passed with runtime_backend_contract_is_derived_from_typed_runtime_ownership; cargo check -p enforcer-memory --features real-models --example x06_model_runtime_probe passed; cargo fmt -p enforcer-memory --check passed."
+    },
+    {
+      "shape": "t0",
+      "incident": "The monolithic cargo test -p enforcer-memory --quiet -j 1 gate exceeded local command timeouts because enforcer-memory currently has 232 integration test targets, including 153 language parser targets."
+    },
+    {
+      "shape": "t1",
+      "fix": "Added a cross-platform Node sharded gate that discovers crates/enforcer-memory/tests/*.rs at runtime, categorizes targets, supports --shard N/M and --only filters, runs one cargo test target per process, and emits machine-neutral proof JSON."
+    },
+    {
+      "shape": "t2",
+      "evidence": "node scripts/x06-enforcer-memory-sharded-test.mjs --list --write-proof proof/memory/x06-test-shards.json produced a 232-target deterministic manifest; node scripts/x06-enforcer-memory-sharded-test.mjs --only local --write-proof proof/memory/x06-test-shards-local-exec.json executed the local_runtime target successfully. This proves the replacement gate shape, not a full all-shard execution."
     }
   ]
 }
