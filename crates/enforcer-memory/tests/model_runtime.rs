@@ -7,10 +7,10 @@
 
 use enforcer_memory::error::MemoryError;
 use enforcer_memory::model_runtime::{
-    default_provider_order, default_zero_network_proof, degraded_capability_report,
-    discover_onnx_artifacts, ort_feature_compiled, validate_embedding_output,
-    validate_model_artifacts, validate_reranker_scores, validate_sha256_hex,
-    CacheCorruptionReasonCode, CacheHealth, CacheState, CacheStorageErrorCode,
+    default_model_runtime_probe_plan, default_provider_order, default_zero_network_proof,
+    degraded_capability_report, discover_onnx_artifacts, ort_feature_compiled,
+    validate_embedding_output, validate_model_artifacts, validate_reranker_scores,
+    validate_sha256_hex, CacheCorruptionReasonCode, CacheHealth, CacheState, CacheStorageErrorCode,
     CacheUnavailableReason, DownloadStatus, LoadStateReport, ManifestIntegrity, ModelCacheStatus,
     ModelRuntimeFile, ModelRuntimeObservationKind, ModelSpec, ModelTask, ProviderKind,
     SourcePolicy,
@@ -30,6 +30,24 @@ fn write_temp(contents: &[u8]) -> Result<(NamedTempFile, String), Box<dyn std::e
     })?;
     let digest = enforcer_memory::model_runtime::sha256_file(file.path())?;
     Ok((file, digest))
+}
+
+#[test]
+fn default_model_runtime_probe_plan_pins_safe_chat_probe_policy() {
+    let plan = default_model_runtime_probe_plan();
+
+    assert_eq!(plan.default_probe_filter, "chat");
+    assert!(plan.one_model_at_a_time);
+    assert!(plan.cpu_first);
+    assert!(plan.gpu_and_npu_require_provider_probe);
+    assert!(plan.kill_on_timeout);
+    assert_eq!(plan.minimum_chat_tokens_per_second, 10);
+    assert_eq!(plan.target_chat_tokens_per_second_low, 40);
+    assert_eq!(plan.target_chat_tokens_per_second_high, 60);
+    assert!(
+        plan.provider_probe_timeout_ms < plan.model_probe_timeout_ms,
+        "provider probes must fail fast before any model load attempt"
+    );
 }
 
 #[test]

@@ -232,6 +232,38 @@ fn chat_model_selector_prefers_q4_model_that_fits_detected_hardware() {
 }
 
 #[test]
+fn chat_model_selector_uses_smallest_q4_fallback_without_gpu_memory_report() {
+    let selection = select_x06_chat_model_for_hardware(None);
+
+    assert_eq!(
+        selection.selected.model_id,
+        "bartowski/google_gemma-3-4b-it-GGUF:Q4_K_M"
+    );
+    assert_eq!(selection.selected_quantization, "Q4_K_M");
+    assert_eq!(selection.detected_free_vram_mib, None);
+    assert_eq!(
+        selection.reason,
+        "selected smallest Q4 chat fallback bartowski/google_gemma-3-4b-it-GGUF:Q4_K_M because no llama.cpp GPU memory report was available"
+    );
+}
+
+#[test]
+fn chat_model_selector_falls_back_to_smallest_q4_when_reported_vram_is_below_floor() {
+    let selection = select_x06_chat_model_for_hardware(Some(512));
+
+    assert_eq!(
+        selection.selected.model_id,
+        "bartowski/google_gemma-3-4b-it-GGUF:Q4_K_M"
+    );
+    assert_eq!(selection.selected_quantization, "Q4_K_M");
+    assert_eq!(selection.detected_free_vram_mib, Some(512));
+    assert_eq!(
+        selection.reason,
+        "selected smallest Q4 chat fallback bartowski/google_gemma-3-4b-it-GGUF:Q4_K_M because detected free VRAM is only 512 MiB"
+    );
+}
+
+#[test]
 fn chat_model_selector_prefers_moe_when_vram_can_fit_it() {
     let selection = select_x06_chat_model_for_hardware(Some(24_000));
 
