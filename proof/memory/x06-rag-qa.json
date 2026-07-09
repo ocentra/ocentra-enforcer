@@ -4,8 +4,8 @@
   "rowsTotal": 250,
   "rowsGreen": 250,
   "rowsGreenReal": 0,
-  "rowsGreenHostLocalProof": 56,
-  "rowsGreenDegraded": 194,
+  "rowsGreenHostLocalProof": 75,
+  "rowsGreenDegraded": 175,
   "rowsFailed": 0,
   "rowsUnrunnable": 0,
   "rows": [
@@ -27,7 +27,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/router.ts"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-002",
@@ -47,7 +47,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/router.ts"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-003",
@@ -68,7 +68,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/widgets.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-004",
@@ -89,7 +89,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/widgets.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-005",
@@ -110,7 +110,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/widgets.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-006",
@@ -129,7 +129,7 @@
         "crates/enforcer-memory/src/analysis/query.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-007",
@@ -152,7 +152,7 @@
         "crates/enforcer-memory/src/analysis/query.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-008",
@@ -334,7 +334,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/widgets.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-015",
@@ -353,7 +353,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/router.ts"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-016",
@@ -372,7 +372,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/router.ts"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-017",
@@ -416,7 +416,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/parity_trace_tools/service.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-019",
@@ -438,7 +438,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/parity_trace_tools/service_test.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-020",
@@ -467,7 +467,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/parity_trace_tools/service.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-021",
@@ -611,7 +611,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/unrelated.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-027",
@@ -640,7 +640,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/widgets.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-028",
@@ -669,7 +669,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/router.ts"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-029",
@@ -1367,7 +1367,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/widgets.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-056",
@@ -1386,7 +1386,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/widgets.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-057",
@@ -1446,7 +1446,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/router.ts"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-060",
@@ -1550,17 +1550,17 @@
       "query": "Summarize last 20 commits for this module.",
       "expectedIds": [
         "module:enforcer-memory-src:last-20-commits:20",
+        "commit:a1b4c0a7268c",
         "commit:f518af8abf22",
         "commit:0c21464bc311",
-        "commit:666270342e12",
-        "commit:b89f330b277f"
+        "commit:666270342e12"
       ],
       "actualIds": [
         "module:enforcer-memory-src:last-20-commits:20",
+        "commit:a1b4c0a7268c",
         "commit:f518af8abf22",
         "commit:0c21464bc311",
-        "commit:666270342e12",
-        "commit:b89f330b277f"
+        "commit:666270342e12"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -1568,6 +1568,7 @@
       "sourceRefs": [
         "crates/enforcer-memory/src",
         "git:log:-20:crates/enforcer-memory/src",
+        "commit-summary:a1b4c0a7268c:test(memory): expose runtime workload admission proof",
         "commit-summary:f518af8abf22:test(memory): reject absolute llama gguf paths",
         "commit-summary:0c21464bc311:test(memory): reject absolute ort worker paths",
         "commit-summary:666270342e12:feat(memory): enforce ort session execution policy",
@@ -1586,8 +1587,7 @@
         "commit-summary:3175bf552688:test(memory): add ORT lifecycle contract",
         "commit-summary:cd24988b8bce:test(memory): prove owned model backends",
         "commit-summary:6b5e22e12fe5:test(memory): harden ORT runtime ownership contract",
-        "commit-summary:2532e7ad2121:test(memory): harden runtime control ownership",
-        "commit-summary:f9e11e79c9ce:feat(memory): control ORT worker runtime plan"
+        "commit-summary:2532e7ad2121:test(memory): harden runtime control ownership"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -1598,16 +1598,16 @@
       "query": "Find files with highest churn.",
       "expectedIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:62",
-        "churn:proof/memory/x06-feature-parity.json:59",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:55",
+        "churn:proof/memory/x06-rag-qa.json:63",
+        "churn:proof/memory/x06-feature-parity.json:60",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:56",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
       ],
       "actualIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:62",
-        "churn:proof/memory/x06-feature-parity.json:59",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:55",
+        "churn:proof/memory/x06-rag-qa.json:63",
+        "churn:proof/memory/x06-feature-parity.json:60",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:56",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
       ],
       "recallAt5": 1.0,
@@ -2169,15 +2169,15 @@
         "crates/enforcer-memory/src/hf_cache.rs:346::select_x06_chat_model_for_hardware",
         "crates/enforcer-memory/src/hf_cache.rs:378::q4-chat-fallback",
         "crates/enforcer-memory/src/hf_cache.rs:382::no-probe-chat-fallback",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:222::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:249::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:223::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:250::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
       ],
       "actualIds": [
         "crates/enforcer-memory/src/hf_cache.rs:346::select_x06_chat_model_for_hardware",
         "crates/enforcer-memory/src/hf_cache.rs:378::q4-chat-fallback",
         "crates/enforcer-memory/src/hf_cache.rs:382::no-probe-chat-fallback",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:222::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:249::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:223::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:250::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,

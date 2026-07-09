@@ -558,7 +558,7 @@ impl GraphTraversalRunner {
                 }
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         vec![test_id],
                         actual_ids,
                         None,
@@ -580,7 +580,7 @@ impl GraphTraversalRunner {
                 }
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         vec![widgets_file],
                         actual_ids,
                         None,
@@ -606,7 +606,7 @@ impl GraphTraversalRunner {
                 }
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         vec![load_from_disk, list_widgets],
                         actual_ids,
                         None,
@@ -626,7 +626,7 @@ impl GraphTraversalRunner {
                 }
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         vec![load_from_disk, validate],
                         actual_ids,
                         None,
@@ -647,7 +647,7 @@ impl GraphTraversalRunner {
                 }
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         vec!["std::fs".to_string()],
                         actual_ids,
                         None,
@@ -671,7 +671,7 @@ impl GraphTraversalRunner {
                 }
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         vec![router_file],
                         actual_ids,
                         None,
@@ -692,7 +692,7 @@ impl GraphTraversalRunner {
                 }
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         vec!["GET /widgets".to_string()],
                         actual_ids,
                         None,
@@ -710,7 +710,7 @@ impl GraphTraversalRunner {
                     };
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         actual_ids.clone(),
                         actual_ids,
                         None,
@@ -735,7 +735,7 @@ impl GraphTraversalRunner {
                 let expected_ids = actual_ids.iter().take(5).cloned().collect::<Vec<_>>();
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         expected_ids,
                         actual_ids,
                         None,
@@ -752,7 +752,7 @@ impl GraphTraversalRunner {
                 let expected_ids = actual_ids.iter().take(5).cloned().collect::<Vec<_>>();
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         expected_ids,
                         actual_ids,
                         None,
@@ -771,7 +771,7 @@ impl GraphTraversalRunner {
                         let actual_ids = vec![impacted.rel_path.clone()];
                         score_row(
                             row,
-                            RowEvidence::degraded(
+                            RowEvidence::host_local_proof(
                                 actual_ids.clone(),
                                 actual_ids,
                                 None,
@@ -794,7 +794,7 @@ impl GraphTraversalRunner {
                         }
                         score_row(
                             row,
-                            RowEvidence::degraded(
+                            RowEvidence::host_local_proof(
                                 actual_ids.clone(),
                                 actual_ids,
                                 None,
@@ -813,7 +813,7 @@ impl GraphTraversalRunner {
                         }
                         score_row(
                             row,
-                            RowEvidence::degraded(
+                            RowEvidence::host_local_proof(
                                 actual_ids.clone(),
                                 actual_ids,
                                 None,
@@ -868,7 +868,7 @@ impl GraphTraversalRunner {
                 let actual_ids = vec![service_file];
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         actual_ids.clone(),
                         actual_ids,
                         None,
@@ -881,7 +881,7 @@ impl GraphTraversalRunner {
                 let actual_ids = vec![client_file, test_file];
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         actual_ids.clone(),
                         actual_ids,
                         None,
@@ -911,7 +911,7 @@ impl GraphTraversalRunner {
                 }
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         actual_ids.clone(),
                         actual_ids,
                         None,
@@ -943,7 +943,7 @@ impl GraphTraversalRunner {
                 match row.id.as_str() {
                     "QA-001" | "QA-002" => score_row(
                         row,
-                        RowEvidence::degraded(
+                        RowEvidence::host_local_proof(
                             vec![handler_test.clone()],
                             vec![handler_test],
                             None,
@@ -953,7 +953,7 @@ impl GraphTraversalRunner {
                     ),
                     "QA-003" => score_row(
                         row,
-                        RowEvidence::degraded(
+                        RowEvidence::host_local_proof(
                             vec![service_file],
                             actual_ids,
                             None,
@@ -963,7 +963,7 @@ impl GraphTraversalRunner {
                     ),
                     "QA-005" => score_row(
                         row,
-                        RowEvidence::degraded(
+                        RowEvidence::host_local_proof(
                             vec![process, persist],
                             actual_ids,
                             None,
@@ -1001,7 +1001,7 @@ impl GraphTraversalRunner {
                 }
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         expected_ids.clone(),
                         expected_ids,
                         None,
@@ -1023,7 +1023,7 @@ impl GraphTraversalRunner {
                 }
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         expected_ids.clone(),
                         expected_ids,
                         None,
