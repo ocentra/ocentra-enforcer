@@ -55,7 +55,7 @@
       "chat-history-policy",
       "workload-admission"
     ],
-    "ortOwnership": "enforcer-in-process",
+    "ortOwnership": "enforcer-isolated-worker",
     "port": 8766,
     "routes": [
       "health",

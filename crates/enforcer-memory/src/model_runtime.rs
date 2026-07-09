@@ -316,7 +316,7 @@ impl ModelRuntimeServiceConfig {
             cache_root: dev_model_cache_root(repo_root),
             expose_llama_server: false,
             llama_cpp_ownership: RuntimeOwnershipMode::EnforcerSubprocess,
-            ort_ownership: RuntimeOwnershipMode::EnforcerInProcess,
+            ort_ownership: RuntimeOwnershipMode::EnforcerIsolatedWorker,
             managed_capabilities: default_model_service_managed_capabilities(),
             routes: default_model_service_routes(),
         }

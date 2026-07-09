@@ -114,6 +114,7 @@ pub struct RuntimeArbitrationDecision {
 #[serde(rename_all = "kebab-case")]
 pub enum RuntimeOwnershipMode {
     EnforcerSubprocess,
+    EnforcerIsolatedWorker,
     EnforcerInProcess,
     ExternalServer,
     Unmanaged,
@@ -121,7 +122,10 @@ pub enum RuntimeOwnershipMode {
 
 impl RuntimeOwnershipMode {
     pub fn is_enforcer_owned(self) -> bool {
-        matches!(self, Self::EnforcerSubprocess | Self::EnforcerInProcess)
+        matches!(
+            self,
+            Self::EnforcerSubprocess | Self::EnforcerIsolatedWorker | Self::EnforcerInProcess
+        )
     }
 }
 
@@ -242,8 +246,8 @@ impl LocalRuntimeControlPlane {
     pub fn onnx_ort_managed() -> Self {
         Self {
             backend: LocalRuntimeKind::OnnxOrt,
-            ownership: RuntimeOwnershipMode::EnforcerInProcess,
-            spawn_controlled: false,
+            ownership: RuntimeOwnershipMode::EnforcerIsolatedWorker,
+            spawn_controlled: true,
             stop_supported: true,
             timeout_kill_supported: true,
             cache_policy_enforced: true,

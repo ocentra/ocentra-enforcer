@@ -306,7 +306,7 @@ fn dev_model_cache_is_repo_local_and_service_does_not_expose_llama_server() {
     );
     assert_eq!(
         service.ort_ownership,
-        RuntimeOwnershipMode::EnforcerInProcess
+        RuntimeOwnershipMode::EnforcerIsolatedWorker
     );
     assert_eq!(
         service.managed_capabilities,
