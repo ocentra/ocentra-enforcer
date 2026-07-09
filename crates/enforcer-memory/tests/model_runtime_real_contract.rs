@@ -746,6 +746,54 @@ fn checked_in_auto_gpu_chat_probe_selects_qwen_and_is_usable() -> TestResult {
 }
 
 #[test]
+fn checked_in_model_plan_proves_owned_gguf_and_ort_backends() -> TestResult {
+    let proof: serde_json::Value =
+        serde_json::from_str(include_str!("../../../proof/memory/x06-models.json"))?;
+    let contract = &proof["runtimeBackendContract"];
+
+    assert_eq!(proof["runtimeMode"], "plan");
+    assert_eq!(proof["allowNetwork"], false);
+    assert_eq!(proof["proofScope"]["portability"], "portable-contract");
+    assert_eq!(proof["proofScope"]["ciParity"], false);
+    assert_eq!(proof["serviceConfig"]["exposeLlamaServer"], false);
+    assert_eq!(
+        proof["serviceConfig"]["externalRuntimeServersAllowed"],
+        false
+    );
+
+    assert_eq!(contract["llamaCpp"]["backend"], "gguf");
+    assert_eq!(contract["llamaCpp"]["ownership"], "enforcer-subprocess");
+    assert_eq!(contract["llamaCpp"]["requestProtocol"], "enforcer-stdio");
+    assert_eq!(contract["llamaCpp"]["externalHttpAllowed"], false);
+    assert_eq!(contract["llamaCpp"]["portBindingAllowed"], false);
+    assert_eq!(
+        contract["llamaCpp"]["serverSurfaceAcceptedForParity"],
+        false
+    );
+    assert_eq!(
+        contract["llamaCpp"]["route"],
+        "enforcer-managed-llama-cpp-subprocess"
+    );
+    assert!(contract["llamaCpp"]["managedByService"]
+        .as_array()
+        .ok_or("llama.cpp managed service list missing")?
+        .contains(&serde_json::json!("chat")));
+
+    assert_eq!(contract["ort"]["backend"], "onnx");
+    assert_eq!(contract["ort"]["ownership"], "enforcer-isolated-worker");
+    assert_eq!(contract["ort"]["requestProtocol"], "enforcer-worker-env");
+    assert_eq!(contract["ort"]["externalHttpAllowed"], false);
+    assert_eq!(contract["ort"]["portBindingAllowed"], false);
+    assert_eq!(contract["ort"]["serverSurfaceAcceptedForParity"], false);
+    assert_eq!(contract["ort"]["route"], "enforcer-isolated-ort-worker");
+    assert!(contract["ort"]["managedByService"]
+        .as_array()
+        .ok_or("ORT managed service list missing")?
+        .contains(&serde_json::json!("rerank")));
+    Ok(())
+}
+
+#[test]
 fn checked_in_gemma_vulkan_chat_probe_is_real_usable_local_gguf() -> TestResult {
     let proof: serde_json::Value = serde_json::from_str(include_str!(
         "../../../proof/memory/x06-models-gemma3-4b-vulkan-live.json"

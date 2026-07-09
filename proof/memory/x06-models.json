@@ -44,8 +44,8 @@
   "serviceConfig": {
     "bindHost": "127.0.0.1",
     "cacheRoot": "<repo>/model",
-    "externalRuntimeServersAllowed": false,
     "exposeLlamaServer": false,
+    "externalRuntimeServersAllowed": false,
     "llamaCppExecutionRoute": "enforcer-managed-llama-cpp-subprocess",
     "llamaCppOwnership": "enforcer-subprocess",
     "managedCapabilities": [
@@ -70,19 +70,51 @@
       "rerank"
     ]
   },
+  "runtimeBackendContract": {
+    "llamaCpp": {
+      "backend": "gguf",
+      "externalHttpAllowed": false,
+      "managedByService": [
+        "chat",
+        "embeddings"
+      ],
+      "ownership": "enforcer-subprocess",
+      "portBindingAllowed": false,
+      "requestProtocol": "enforcer-stdio",
+      "route": "enforcer-managed-llama-cpp-subprocess",
+      "serverSurfaceAcceptedForParity": false
+    },
+    "ort": {
+      "backend": "onnx",
+      "externalHttpAllowed": false,
+      "managedByService": [
+        "embeddings",
+        "rerank"
+      ],
+      "ownership": "enforcer-isolated-worker",
+      "portBindingAllowed": false,
+      "requestProtocol": "enforcer-worker-env",
+      "route": "enforcer-isolated-ort-worker",
+      "serverSurfaceAcceptedForParity": false
+    }
+  },
   "chatThroughputPolicy": {
-    "minTokensPerSecond": 10,
-    "targetTokensPerSecondLow": 40,
-    "targetTokensPerSecondHigh": 60
+    "minTokensPerSecond": 10.0,
+    "targetTokensPerSecondLow": 40.0,
+    "targetTokensPerSecondHigh": 60.0
   },
   "chatModelSelection": {
-    "backendHint": "auto",
+    "backendHint": "native",
     "deviceReport": null,
+    "downgradeReason": null,
     "enabled": true,
     "providerProbePassed": false,
     "providerProbeTimeoutMs": 5000,
     "requestedAcceleration": "cpu",
+    "requestedBackendHint": "auto",
     "resolvedAcceleration": "cpu",
+    "selectedDeviceId": null,
+    "selectedMainGpu": null,
     "selection": {
       "candidates": [
         {
@@ -246,66 +278,6 @@
   },
   "observations": [],
   "linkedProofArtifacts": {
-    "planningProofs": [
-      {
-        "artifactPath": "proof/memory/x06-models-chat-plan.json",
-        "ciParity": false,
-        "localHardwareRequired": false,
-        "provider": "portable-plan",
-        "status": "chat-plan-variant",
-        "runtimeMode": "plan"
-      },
-      {
-        "artifactPath": "proof/memory/x06-models-multi-probe-plan.json",
-        "ciParity": false,
-        "localHardwareRequired": false,
-        "provider": "portable-plan",
-        "status": "multi-probe-plan-variant",
-        "runtimeMode": "plan"
-      }
-    ],
-    "localRuntimeProofs": [
-      {
-        "artifactPath": "proof/memory/x06-models-qwen3-4b-vulkan-windows-local.json",
-        "ciParity": false,
-        "localHardwareRequired": true,
-        "modelId": "Qwen/Qwen3-4B-GGUF",
-        "provider": "vulkan",
-        "status": "usable-local-chat",
-        "measuredTokensPerSecond": 101.9,
-        "minimumTokensPerSecond": 10
-      },
-      {
-        "artifactPath": "proof/memory/x06-models-chat-auto-gpu.json",
-        "ciParity": false,
-        "localHardwareRequired": true,
-        "modelId": "Qwen/Qwen3-4B-GGUF",
-        "provider": "vulkan",
-        "status": "usable-local-chat-auto-select",
-        "measuredTokensPerSecond": 107.8,
-        "minimumTokensPerSecond": 10
-      },
-      {
-        "artifactPath": "proof/memory/x06-models-qwen3-4b-cpu-windows-local.json",
-        "ciParity": false,
-        "localHardwareRequired": true,
-        "modelId": "Qwen/Qwen3-4B-GGUF",
-        "provider": "cpu",
-        "status": "below-chat-floor",
-        "measuredTokensPerSecond": 8.5,
-        "minimumTokensPerSecond": 10
-      },
-      {
-        "artifactPath": "proof/memory/x06-models-gemma3-4b-vulkan-live.json",
-        "ciParity": false,
-        "localHardwareRequired": true,
-        "modelId": "bartowski/google_gemma-3-4b-it-GGUF",
-        "provider": "vulkan",
-        "status": "usable-local-chat",
-        "measuredTokensPerSecond": 78.3,
-        "minimumTokensPerSecond": 10
-      }
-    ],
     "cacheAcquisitionProofs": [
       {
         "artifactPath": "proof/memory/x06-models-qwen3-4b-download-local.json",
@@ -313,8 +285,8 @@
         "localHardwareRequired": false,
         "modelId": "Qwen/Qwen3-4B-GGUF",
         "provider": "network-local",
-        "status": "repo-local-cache-acquired",
-        "runtimeMode": "download"
+        "runtimeMode": "download",
+        "status": "repo-local-cache-acquired"
       },
       {
         "artifactPath": "proof/memory/x06-models-gemma3-4b-download-live.json",
@@ -322,8 +294,8 @@
         "localHardwareRequired": false,
         "modelId": "bartowski/google_gemma-3-4b-it-GGUF",
         "provider": "network-local",
-        "status": "repo-local-cache-acquired",
-        "runtimeMode": "download"
+        "runtimeMode": "download",
+        "status": "repo-local-cache-acquired"
       },
       {
         "artifactPath": "proof/memory/x06-models-qwen3-embedding-download.json",
@@ -331,8 +303,8 @@
         "localHardwareRequired": false,
         "modelId": "onnx-community/Qwen3-Embedding-0.6B-ONNX",
         "provider": "network-local",
-        "status": "repo-local-cache-acquired",
-        "runtimeMode": "download"
+        "runtimeMode": "download",
+        "status": "repo-local-cache-acquired"
       },
       {
         "artifactPath": "proof/memory/x06-models-qwen3-reranker-download.json",
@@ -340,8 +312,8 @@
         "localHardwareRequired": false,
         "modelId": "onnx-community/Qwen3-Reranker-0.6B-ONNX",
         "provider": "network-local",
-        "status": "repo-local-cache-acquired",
-        "runtimeMode": "download"
+        "runtimeMode": "download",
+        "status": "repo-local-cache-acquired"
       }
     ],
     "ggufRuntimeProofs": [
@@ -351,28 +323,50 @@
         "localHardwareRequired": true,
         "modelId": "Qwen/Qwen3-Embedding-0.6B-GGUF",
         "provider": "vulkan",
-        "status": "rejected-runtime-boundary",
-        "runtimeMode": "probe"
+        "runtimeMode": "probe",
+        "status": "rejected-runtime-boundary"
       }
     ],
-    "ortRuntimeProofs": [
+    "localRuntimeProofs": [
       {
-        "artifactPath": "proof/memory/x06-models-qwen3-embedding-ort-cpu.json",
+        "artifactPath": "proof/memory/x06-models-qwen3-4b-vulkan-windows-local.json",
         "ciParity": false,
         "localHardwareRequired": true,
-        "modelId": "Qwen/Qwen3-Embedding-0.6B",
-        "provider": "cpu",
-        "status": "usable-local-embedding",
-        "runtimeMode": "probe"
+        "measuredTokensPerSecond": 101.9,
+        "minimumTokensPerSecond": 10,
+        "modelId": "Qwen/Qwen3-4B-GGUF",
+        "provider": "vulkan",
+        "status": "usable-local-chat"
       },
       {
-        "artifactPath": "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
+        "artifactPath": "proof/memory/x06-models-chat-auto-gpu.json",
         "ciParity": false,
         "localHardwareRequired": true,
-        "modelId": "Qwen/Qwen3-Reranker-0.6B",
+        "measuredTokensPerSecond": 107.8,
+        "minimumTokensPerSecond": 10,
+        "modelId": "Qwen/Qwen3-4B-GGUF",
+        "provider": "vulkan",
+        "status": "usable-local-chat-auto-select"
+      },
+      {
+        "artifactPath": "proof/memory/x06-models-qwen3-4b-cpu-windows-local.json",
+        "ciParity": false,
+        "localHardwareRequired": true,
+        "measuredTokensPerSecond": 8.5,
+        "minimumTokensPerSecond": 10,
+        "modelId": "Qwen/Qwen3-4B-GGUF",
         "provider": "cpu",
-        "status": "usable-local-reranker",
-        "runtimeMode": "probe"
+        "status": "below-chat-floor"
+      },
+      {
+        "artifactPath": "proof/memory/x06-models-gemma3-4b-vulkan-live.json",
+        "ciParity": false,
+        "localHardwareRequired": true,
+        "measuredTokensPerSecond": 78.3,
+        "minimumTokensPerSecond": 10,
+        "modelId": "bartowski/google_gemma-3-4b-it-GGUF",
+        "provider": "vulkan",
+        "status": "usable-local-chat"
       }
     ],
     "negativeLearningProofs": [
@@ -389,6 +383,44 @@
         "localHardwareRequired": false,
         "observationKind": "tokenizer-hash-mismatch",
         "status": "portable-negative-contract"
+      }
+    ],
+    "ortRuntimeProofs": [
+      {
+        "artifactPath": "proof/memory/x06-models-qwen3-embedding-ort-cpu.json",
+        "ciParity": false,
+        "localHardwareRequired": true,
+        "modelId": "Qwen/Qwen3-Embedding-0.6B",
+        "provider": "cpu",
+        "runtimeMode": "probe",
+        "status": "usable-local-embedding"
+      },
+      {
+        "artifactPath": "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
+        "ciParity": false,
+        "localHardwareRequired": true,
+        "modelId": "Qwen/Qwen3-Reranker-0.6B",
+        "provider": "cpu",
+        "runtimeMode": "probe",
+        "status": "usable-local-reranker"
+      }
+    ],
+    "planningProofs": [
+      {
+        "artifactPath": "proof/memory/x06-models-chat-plan.json",
+        "ciParity": false,
+        "localHardwareRequired": false,
+        "provider": "portable-plan",
+        "runtimeMode": "plan",
+        "status": "chat-plan-variant"
+      },
+      {
+        "artifactPath": "proof/memory/x06-models-multi-probe-plan.json",
+        "ciParity": false,
+        "localHardwareRequired": false,
+        "provider": "portable-plan",
+        "runtimeMode": "plan",
+        "status": "multi-probe-plan-variant"
       }
     ]
   }

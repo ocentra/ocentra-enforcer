@@ -63,6 +63,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
         cache_root: String,
         cache_root_policy: serde_json::Value,
         service_config: serde_json::Value,
+        runtime_backend_contract: serde_json::Value,
         chat_throughput_policy: ChatThroughputPolicy,
         chat_model_selection: serde_json::Value,
         chat_generation_gguf: serde_json::Value,
@@ -208,6 +209,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
             cache_root: repo_relative_display(&repo_root, &cache_root),
             cache_root_policy: cache_root_policy_proof(&repo_root, &cache_root_policy)?,
             service_config: service_config_proof(&repo_root, &service_config)?,
+            runtime_backend_contract: runtime_backend_contract_proof(),
             chat_throughput_policy,
             chat_model_selection,
             chat_generation_gguf: proof_skipped_reason(
@@ -250,6 +252,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
             cache_root: repo_relative_display(&repo_root, &cache_root),
             cache_root_policy: cache_root_policy_proof(&repo_root, &cache_root_policy)?,
             service_config: service_config_proof(&repo_root, &service_config)?,
+            runtime_backend_contract: runtime_backend_contract_proof(),
             chat_throughput_policy,
             chat_model_selection,
             chat_generation_gguf: if should_run_probe(&probe_filter, "chat-generation-gguf") {
@@ -368,6 +371,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
         cache_root: repo_relative_display(&repo_root, &cache_root),
         cache_root_policy: cache_root_policy_proof(&repo_root, &cache_root_policy)?,
         service_config: service_config_proof(&repo_root, &service_config)?,
+        runtime_backend_contract: runtime_backend_contract_proof(),
         chat_throughput_policy,
         chat_model_selection,
         chat_generation_gguf,
@@ -457,6 +461,31 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
             );
         }
         Ok(value)
+    }
+
+    fn runtime_backend_contract_proof() -> serde_json::Value {
+        serde_json::json!({
+            "llamaCpp": {
+                "backend": "gguf",
+                "ownership": "enforcer-subprocess",
+                "requestProtocol": "enforcer-stdio",
+                "externalHttpAllowed": false,
+                "portBindingAllowed": false,
+                "serverSurfaceAcceptedForParity": false,
+                "route": "enforcer-managed-llama-cpp-subprocess",
+                "managedByService": ["chat", "embeddings"]
+            },
+            "ort": {
+                "backend": "onnx",
+                "ownership": "enforcer-isolated-worker",
+                "requestProtocol": "enforcer-worker-env",
+                "externalHttpAllowed": false,
+                "portBindingAllowed": false,
+                "serverSurfaceAcceptedForParity": false,
+                "route": "enforcer-isolated-ort-worker",
+                "managedByService": ["embeddings", "rerank"]
+            }
+        })
     }
 
     fn repo_relative_display(repo_root: &Path, path: &Path) -> String {
