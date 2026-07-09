@@ -2249,7 +2249,7 @@ fn qa_capability_artifact_probe(row: &QaRow) -> RowResult {
     )
 }
 
-fn exact_pass_with_token_ratio(
+fn host_local_proof_pass_with_token_ratio(
     row: &QaRow,
     id: &str,
     source_refs: Vec<String>,
@@ -2257,7 +2257,7 @@ fn exact_pass_with_token_ratio(
 ) -> RowResult {
     score_row(
         row,
-        RowEvidence::degraded(
+        RowEvidence::host_local_proof(
             vec![id.to_string()],
             vec![id.to_string()],
             None,
@@ -8633,7 +8633,7 @@ fn token_reduction_probe(row: &QaRow) -> RowResult {
     if !passes || median < 10.0 {
         return unrunnable(row, "x06-token-reduction proof does not pass the 10x gate");
     }
-    exact_pass_with_token_ratio(
+    host_local_proof_pass_with_token_ratio(
         row,
         "token-reduction:median>=10x",
         vec![rel.to_string()],
@@ -8710,7 +8710,7 @@ fn retrieval_after_lessons_probe(row: &QaRow) -> RowResult {
             );
         }
     }
-    exact_pass_with_token_ratio(
+    host_local_proof_pass_with_token_ratio(
         row,
         "retrieval-after-lessons:quality-observations-plus-token-gate",
         vec![
@@ -8929,7 +8929,7 @@ fn token_reduction_qa_evidence_probe(row: &QaRow) -> RowResult {
         .get("expectedId")
         .and_then(serde_json::Value::as_str)
         .unwrap_or("token-reduction:proof");
-    exact_pass_with_token_ratio(row, expected_id, source_refs, evidence_ratio)
+    host_local_proof_pass_with_token_ratio(row, expected_id, source_refs, evidence_ratio)
 }
 
 fn repository_fixture_convention_probe(row: &QaRow) -> RowResult {

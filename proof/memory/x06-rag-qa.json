@@ -4,8 +4,8 @@
   "rowsTotal": 250,
   "rowsGreen": 250,
   "rowsGreenReal": 0,
-  "rowsGreenHostLocalProof": 12,
-  "rowsGreenDegraded": 238,
+  "rowsGreenHostLocalProof": 22,
+  "rowsGreenDegraded": 228,
   "rowsFailed": 0,
   "rowsUnrunnable": 0,
   "rows": [
@@ -720,7 +720,7 @@
         "proof/memory/x06-token-reduction.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-031",
@@ -1598,17 +1598,17 @@
       "query": "Find files with highest churn.",
       "expectedIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:53",
-        "churn:proof/memory/x06-feature-parity.json:51",
+        "churn:proof/memory/x06-rag-qa.json:54",
+        "churn:proof/memory/x06-feature-parity.json:52",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:46"
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:47"
       ],
       "actualIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:53",
-        "churn:proof/memory/x06-feature-parity.json:51",
+        "churn:proof/memory/x06-rag-qa.json:54",
+        "churn:proof/memory/x06-feature-parity.json:52",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:46"
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:47"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -2448,7 +2448,7 @@
         "proof/memory/x06-token-reduction.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-099",
@@ -2471,7 +2471,7 @@
         "crates/enforcer-memory/tests/x06_retrieval_quality.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-100",
@@ -5719,7 +5719,7 @@
         "proof/memory/x06-token-reduction.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-214",
@@ -5741,7 +5741,7 @@
         "proof/memory/x06-token-reduction.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-215",
@@ -5764,7 +5764,7 @@
         "proof/memory/x06-token-reduction.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-216",
@@ -5786,7 +5786,7 @@
         "proof/memory/x06-token-reduction.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-217",
@@ -5808,7 +5808,7 @@
         "proof/memory/x06-token-reduction.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-218",
@@ -5830,7 +5830,7 @@
         "proof/memory/x06-token-reduction.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-219",
@@ -5852,7 +5852,7 @@
         "proof/memory/x06-token-reduction.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-220",
