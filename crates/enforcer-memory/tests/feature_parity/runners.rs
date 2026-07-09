@@ -2362,7 +2362,7 @@ fn validator_impls_probe(row: &QaRow) -> RowResult {
     }
     refs.sort();
     refs.dedup();
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec!["symbol:validator-impls:workspace-scan".to_string()],
         refs,
@@ -2383,7 +2383,7 @@ fn mcp_public_api_surface_probe(row: &QaRow) -> RowResult {
     if pub_mods == 0 {
         return unrunnable(row, "enforcer-mcp lib.rs no longer exports public modules");
     }
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec![format!("symbol:enforcer-mcp:pub-mods:{pub_mods}")],
         vec![
@@ -2395,7 +2395,7 @@ fn mcp_public_api_surface_probe(row: &QaRow) -> RowResult {
 }
 
 fn repo_root_construction_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -2435,7 +2435,7 @@ fn sha256_contract_probe(row: &QaRow) -> RowResult {
         && source.contains("impl std::fmt::Display for Sha256")
         && source.contains("fn sha256_brand_decode()")
     {
-        return exact_pass(
+        return host_local_proof_pass(
             row,
             vec!["crates/enforcer-domain/src/hashes.rs::Sha256".to_string()],
             vec![rel.to_string()],
@@ -2515,7 +2515,7 @@ fn enforcer_domain_decode_error_boundaries_probe(row: &QaRow) -> RowResult {
     }
     refs.sort();
     refs.dedup();
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec![
             "symbol:decodeerror:ids:branded-identifier-boundaries".to_string(),
@@ -2712,7 +2712,7 @@ fn dependency_path_enforcer_mcp_to_core_probe(row: &QaRow) -> RowResult {
     }
     refs.sort();
     refs.dedup();
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec![
             "codegraph:dep-path:enforcer-mcp->enforcer-core:length-1".to_string(),
@@ -2827,7 +2827,7 @@ fn workspace_crate_cycle_probe(row: &QaRow) -> RowResult {
     } else {
         cycle_ids
     };
-    exact_pass(
+    host_local_proof_pass(
         row,
         ids,
         vec!["Cargo.toml".to_string(), QA_BENCHMARK_REL.to_string()],
@@ -3040,7 +3040,7 @@ fn scan_module_dependency_tree_probe(row: &QaRow) -> RowResult {
     }
     refs.sort();
     refs.dedup();
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec![
             "codegraph:module-tree:enforcer-scan:engine".to_string(),
@@ -3106,7 +3106,7 @@ fn scan_hot_path_probe(row: &QaRow) -> RowResult {
     }
     refs.sort();
     refs.dedup();
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec![
             "codegraph:hot-path:commands->engine::build_family_validators".to_string(),
@@ -3198,7 +3198,7 @@ fn environment_variable_probe(row: &QaRow) -> RowResult {
     }
     refs.sort();
     refs.dedup();
-    exact_pass(row, ids, refs)
+    host_local_proof_pass(row, ids, refs)
 }
 
 fn sqlite_table_probe(row: &QaRow) -> RowResult {
@@ -3244,7 +3244,7 @@ fn sqlite_table_probe(row: &QaRow) -> RowResult {
     }
     refs.sort();
     refs.dedup();
-    exact_pass(row, ids, refs)
+    host_local_proof_pass(row, ids, refs)
 }
 
 fn proof_gap_probe(row: &QaRow) -> RowResult {
@@ -3507,7 +3507,7 @@ fn enforcer_core_result_callers_probe(row: &QaRow) -> RowResult {
         .collect();
     refs.sort();
     refs.dedup();
-    exact_pass(row, ids, refs)
+    host_local_proof_pass(row, ids, refs)
 }
 
 fn repository_crates_probe(row: &QaRow) -> RowResult {
