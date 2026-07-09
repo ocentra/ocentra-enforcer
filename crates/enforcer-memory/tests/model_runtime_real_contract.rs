@@ -58,6 +58,31 @@ fn assert_model_runtime_error(
     }
 }
 
+#[test]
+fn ort_runtime_session_uses_enforcer_owned_execution_policy() {
+    let runtime = include_str!("../src/ort_runtime.rs");
+
+    assert_contract_terms(
+        runtime,
+        &[
+            ".with_execution_providers(&providers)",
+            ".with_optimization_level(GraphOptimizationLevel::Level3)",
+            ".with_intra_threads(4)",
+            ".with_inter_threads(2)",
+            ".with_parallel_execution(true)",
+            ".with_memory_pattern(true)",
+            "\"configure-ort-providers\"",
+            "\"configure-ort-optimization\"",
+            "\"configure-ort-intra-threads\"",
+            "\"configure-ort-inter-threads\"",
+            "\"configure-ort-parallel-execution\"",
+            "\"configure-ort-memory-pattern\"",
+            ".commit_from_file(model_path)",
+            "\"load-ort-model\"",
+        ],
+    );
+}
+
 fn string_has_machine_absolute_path(value: &str) -> bool {
     let chars: Vec<char> = value.chars().collect();
     for index in 0..chars.len().saturating_sub(2) {
