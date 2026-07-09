@@ -1238,6 +1238,13 @@ fn real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in() {
             "runtime_mode == \"probe\"",
             "\"reranker\" | \"ranker\" | \"reranker-onnx\"",
             "one model at a time; CPU first; GPU/NPU only after provider probes pass; timeout kills the child process",
+            "fn run_ort_child_probe(",
+            "Command::new(std::env::current_exe()",
+            ".env(\"ENFORCER_X06_ORT_CHILD_TASK\", child_task)",
+            "let _ = child.kill();",
+            "\"ORT child probe timed out during load or inference\"",
+            "OrtEmbedder::load(&spec, ProviderKind::Cpu)",
+            "OrtReranker::load(&spec, ProviderKind::Cpu)",
         ],
     );
     assert_contract_terms(
