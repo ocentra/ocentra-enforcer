@@ -194,6 +194,55 @@ pub struct OrtWorkerExecutionPlan {
     pub env: Vec<(String, String)>,
 }
 
+/// Owned ORT worker lifecycle state.
+///
+/// This is a control-plane state machine. It does not claim inference
+/// parity; it proves Enforcer owns the lifecycle transitions that will
+/// later wrap the real ORT worker process.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum OrtWorkerLifecycleState {
+    Idle,
+    Loading,
+    Ready,
+    EmbeddingActive,
+    RerankingActive,
+    PausedEmbedding,
+    PausedReranking,
+    Cancelled,
+    TimedOut,
+    Unloaded,
+}
+
+/// Lifecycle actions Enforcer may apply to an owned ORT worker.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum OrtWorkerLifecycleAction {
+    Load,
+    MarkReady,
+    StartEmbedding,
+    StartReranker,
+    Pause,
+    Resume,
+    Cancel,
+    TimeoutKill,
+    Unload,
+}
+
+/// Auditable result of one ORT lifecycle transition.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrtWorkerLifecycleTransition {
+    pub before: OrtWorkerLifecycleState,
+    pub action: OrtWorkerLifecycleAction,
+    pub after: OrtWorkerLifecycleState,
+    pub activity: RuntimeActivityState,
+    pub ownership: RuntimeOwnershipMode,
+    pub request_protocol: RuntimeRequestProtocol,
+    pub kill_on_timeout: bool,
+    pub reason: String,
+}
+
 pub const REQUIRED_MANAGED_CAPABILITIES: &[RuntimeManagedCapability] = &[
     RuntimeManagedCapability::LoadUnload,
     RuntimeManagedCapability::PauseResumeCancel,
@@ -286,6 +335,20 @@ impl OrtWorkerExecutionPlan {
             .iter()
             .find(|(candidate, _)| candidate == key)
             .map(|(_, value)| value.as_str())
+    }
+}
+
+impl OrtWorkerLifecycleState {
+    pub const fn activity(self) -> RuntimeActivityState {
+        match self {
+            Self::Idle | Self::Ready | Self::Cancelled | Self::TimedOut | Self::Unloaded => {
+                RuntimeActivityState::Idle
+            }
+            Self::Loading => RuntimeActivityState::Loading,
+            Self::EmbeddingActive => RuntimeActivityState::EmbeddingActive,
+            Self::RerankingActive => RuntimeActivityState::RerankingActive,
+            Self::PausedEmbedding | Self::PausedReranking => RuntimeActivityState::Paused,
+        }
     }
 }
 
@@ -585,6 +648,103 @@ pub fn validate_ort_worker_execution_plan(plan: &OrtWorkerExecutionPlan) -> Resu
         }
     }
     Ok(())
+}
+
+pub fn transition_ort_worker_lifecycle(
+    plan: &OrtWorkerExecutionPlan,
+    before: OrtWorkerLifecycleState,
+    action: OrtWorkerLifecycleAction,
+) -> Result<OrtWorkerLifecycleTransition> {
+    validate_ort_worker_execution_plan(plan)?;
+    let (after, reason) = match (before, action) {
+        (
+            OrtWorkerLifecycleState::Idle | OrtWorkerLifecycleState::Unloaded,
+            OrtWorkerLifecycleAction::Load,
+        ) => (
+            OrtWorkerLifecycleState::Loading,
+            "Enforcer starts the isolated ORT worker load path",
+        ),
+        (OrtWorkerLifecycleState::Loading, OrtWorkerLifecycleAction::MarkReady) => (
+            OrtWorkerLifecycleState::Ready,
+            "ORT worker reported model and tokenizer ready",
+        ),
+        (OrtWorkerLifecycleState::Ready, OrtWorkerLifecycleAction::StartEmbedding) => (
+            OrtWorkerLifecycleState::EmbeddingActive,
+            "Enforcer admitted an embedding request to the ready ORT worker",
+        ),
+        (OrtWorkerLifecycleState::Ready, OrtWorkerLifecycleAction::StartReranker) => (
+            OrtWorkerLifecycleState::RerankingActive,
+            "Enforcer admitted a reranker request to the ready ORT worker",
+        ),
+        (OrtWorkerLifecycleState::EmbeddingActive, OrtWorkerLifecycleAction::Pause) => (
+            OrtWorkerLifecycleState::PausedEmbedding,
+            "Enforcer paused background embedding work",
+        ),
+        (OrtWorkerLifecycleState::RerankingActive, OrtWorkerLifecycleAction::Pause) => (
+            OrtWorkerLifecycleState::PausedReranking,
+            "Enforcer paused background reranker work",
+        ),
+        (OrtWorkerLifecycleState::PausedEmbedding, OrtWorkerLifecycleAction::Resume) => (
+            OrtWorkerLifecycleState::EmbeddingActive,
+            "Enforcer resumed paused embedding work",
+        ),
+        (OrtWorkerLifecycleState::PausedReranking, OrtWorkerLifecycleAction::Resume) => (
+            OrtWorkerLifecycleState::RerankingActive,
+            "Enforcer resumed paused reranker work",
+        ),
+        (
+            OrtWorkerLifecycleState::Loading
+            | OrtWorkerLifecycleState::EmbeddingActive
+            | OrtWorkerLifecycleState::RerankingActive
+            | OrtWorkerLifecycleState::PausedEmbedding
+            | OrtWorkerLifecycleState::PausedReranking,
+            OrtWorkerLifecycleAction::Cancel,
+        ) => (
+            OrtWorkerLifecycleState::Cancelled,
+            "Enforcer cancelled the owned ORT worker operation",
+        ),
+        (
+            OrtWorkerLifecycleState::Loading
+            | OrtWorkerLifecycleState::EmbeddingActive
+            | OrtWorkerLifecycleState::RerankingActive
+            | OrtWorkerLifecycleState::PausedEmbedding
+            | OrtWorkerLifecycleState::PausedReranking,
+            OrtWorkerLifecycleAction::TimeoutKill,
+        ) => (
+            OrtWorkerLifecycleState::TimedOut,
+            "Enforcer killed the owned ORT worker after timeout",
+        ),
+        (
+            OrtWorkerLifecycleState::Ready
+            | OrtWorkerLifecycleState::EmbeddingActive
+            | OrtWorkerLifecycleState::RerankingActive
+            | OrtWorkerLifecycleState::PausedEmbedding
+            | OrtWorkerLifecycleState::PausedReranking
+            | OrtWorkerLifecycleState::Cancelled
+            | OrtWorkerLifecycleState::TimedOut,
+            OrtWorkerLifecycleAction::Unload,
+        ) => (
+            OrtWorkerLifecycleState::Unloaded,
+            "Enforcer unloaded the ORT worker and released runtime ownership",
+        ),
+        _ => {
+            return Err(model_runtime_error(
+                "transition-ort-worker-lifecycle",
+                format!("invalid ORT lifecycle transition: {before:?} + {action:?}"),
+            ));
+        }
+    };
+
+    Ok(OrtWorkerLifecycleTransition {
+        before,
+        action,
+        after,
+        activity: after.activity(),
+        ownership: plan.ownership,
+        request_protocol: plan.request_protocol,
+        kill_on_timeout: plan.kill_on_timeout,
+        reason: reason.to_owned(),
+    })
 }
 
 pub fn provider_env_value(provider: ProviderKind) -> &'static str {

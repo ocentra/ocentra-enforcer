@@ -9,9 +9,9 @@ use enforcer_memory::local_runtime::{
     arbitrate_runtime_workload, onnx_ort_feature_compiled, ort_worker_execution_plan,
     provider_from_env_value, provider_order, validate_control_plane, validate_fixture,
     validate_ort_worker_execution_plan, BackendReadiness, LocalRuntimeControlPlane,
-    LocalRuntimeFixture, LocalRuntimeKind, OrtWorkerTask, RuntimeActivityState, RuntimeAdmission,
-    RuntimeManagedCapability, RuntimeOwnershipMode, RuntimeRequestProtocol, RuntimeWorkload,
-    REQUIRED_MANAGED_CAPABILITIES,
+    LocalRuntimeFixture, LocalRuntimeKind, OrtWorkerLifecycleAction, OrtWorkerLifecycleState,
+    OrtWorkerTask, RuntimeActivityState, RuntimeAdmission, RuntimeManagedCapability,
+    RuntimeOwnershipMode, RuntimeRequestProtocol, RuntimeWorkload, REQUIRED_MANAGED_CAPABILITIES,
 };
 use enforcer_memory::model_runtime::{ModelSpec, ProviderKind};
 use serde_json::Value;
@@ -67,6 +67,35 @@ fn checked_in_runtime_control_plane_proof_matches_contract() -> TestResult {
         assert!(
             ort_env.iter().any(|value| value.as_str() == Some(key)),
             "missing ORT child env key {key}"
+        );
+    }
+    let lifecycle = &proof["runtimePolicy"]["onnxOrt"]["lifecycle"];
+    assert_eq!(lifecycle["stateMachine"], "enforcer-owned-ort-worker");
+    assert_eq!(lifecycle["timeoutKillRequired"], true);
+    assert_eq!(lifecycle["externalPlanRejectedBeforeTransition"], true);
+    assert_eq!(lifecycle["invalidTransitionRejected"], true);
+    for state in [
+        "loading",
+        "ready",
+        "paused-embedding",
+        "timed-out",
+        "unloaded",
+    ] {
+        assert!(
+            lifecycle["states"].as_array().is_some_and(|states| states
+                .iter()
+                .any(|candidate| candidate.as_str() == Some(state))),
+            "missing ORT lifecycle state {state}"
+        );
+    }
+    for action in ["load", "pause", "resume", "timeout-kill", "unload"] {
+        assert!(
+            lifecycle["actions"]
+                .as_array()
+                .is_some_and(|actions| actions
+                    .iter()
+                    .any(|candidate| candidate.as_str() == Some(action))),
+            "missing ORT lifecycle action {action}"
         );
     }
     assert!(
@@ -354,6 +383,169 @@ fn ort_worker_plan_materializes_enforcer_owned_child_env_contract() -> TestResul
         Some("model/hf/qwen/tokenizer.json")
     );
     assert_eq!(plan.env_value("ENFORCER_X06_ORT_TIMEOUT_MS"), Some("30000"));
+    Ok(())
+}
+
+#[test]
+fn ort_worker_lifecycle_load_pause_resume_cancel_and_unload_are_owned() -> TestResult {
+    let spec = ModelSpec::qwen3_embedding(
+        "model/hf/qwen/model.onnx",
+        "abc123",
+        "model/hf/qwen/tokenizer.json",
+        "def456",
+    );
+    let plan = ort_worker_execution_plan(
+        "target/debug/x06_model_runtime_probe",
+        OrtWorkerTask::Embedding,
+        &spec,
+        ProviderKind::Cpu,
+        30_000,
+    )?;
+
+    let load = enforcer_memory::local_runtime::transition_ort_worker_lifecycle(
+        &plan,
+        OrtWorkerLifecycleState::Idle,
+        OrtWorkerLifecycleAction::Load,
+    )?;
+    assert_eq!(load.after, OrtWorkerLifecycleState::Loading);
+    assert_eq!(load.activity, RuntimeActivityState::Loading);
+    assert_eq!(load.ownership, RuntimeOwnershipMode::EnforcerIsolatedWorker);
+    assert_eq!(
+        load.request_protocol,
+        RuntimeRequestProtocol::EnforcerWorkerEnv
+    );
+
+    let ready = enforcer_memory::local_runtime::transition_ort_worker_lifecycle(
+        &plan,
+        load.after,
+        OrtWorkerLifecycleAction::MarkReady,
+    )?;
+    assert_eq!(ready.after, OrtWorkerLifecycleState::Ready);
+    assert_eq!(ready.activity, RuntimeActivityState::Idle);
+
+    let active = enforcer_memory::local_runtime::transition_ort_worker_lifecycle(
+        &plan,
+        ready.after,
+        OrtWorkerLifecycleAction::StartEmbedding,
+    )?;
+    assert_eq!(active.after, OrtWorkerLifecycleState::EmbeddingActive);
+    assert_eq!(active.activity, RuntimeActivityState::EmbeddingActive);
+
+    let paused = enforcer_memory::local_runtime::transition_ort_worker_lifecycle(
+        &plan,
+        active.after,
+        OrtWorkerLifecycleAction::Pause,
+    )?;
+    assert_eq!(paused.after, OrtWorkerLifecycleState::PausedEmbedding);
+    assert_eq!(paused.activity, RuntimeActivityState::Paused);
+
+    let resumed = enforcer_memory::local_runtime::transition_ort_worker_lifecycle(
+        &plan,
+        paused.after,
+        OrtWorkerLifecycleAction::Resume,
+    )?;
+    assert_eq!(resumed.after, OrtWorkerLifecycleState::EmbeddingActive);
+
+    let cancelled = enforcer_memory::local_runtime::transition_ort_worker_lifecycle(
+        &plan,
+        resumed.after,
+        OrtWorkerLifecycleAction::Cancel,
+    )?;
+    assert_eq!(cancelled.after, OrtWorkerLifecycleState::Cancelled);
+    assert_eq!(cancelled.activity, RuntimeActivityState::Idle);
+
+    let unloaded = enforcer_memory::local_runtime::transition_ort_worker_lifecycle(
+        &plan,
+        cancelled.after,
+        OrtWorkerLifecycleAction::Unload,
+    )?;
+    assert_eq!(unloaded.after, OrtWorkerLifecycleState::Unloaded);
+    assert_eq!(unloaded.activity, RuntimeActivityState::Idle);
+    Ok(())
+}
+
+#[test]
+fn ort_worker_lifecycle_timeout_kill_requires_owned_plan() -> TestResult {
+    let spec = ModelSpec::qwen3_reranker(
+        "model/hf/qwen-reranker/model.onnx",
+        "abc123",
+        "model/hf/qwen-reranker/tokenizer.json",
+        "def456",
+    );
+    let mut plan = ort_worker_execution_plan(
+        "target/debug/x06_model_runtime_probe",
+        OrtWorkerTask::Reranker,
+        &spec,
+        ProviderKind::Cpu,
+        30_000,
+    )?;
+
+    let timeout = enforcer_memory::local_runtime::transition_ort_worker_lifecycle(
+        &plan,
+        OrtWorkerLifecycleState::RerankingActive,
+        OrtWorkerLifecycleAction::TimeoutKill,
+    )?;
+    assert_eq!(timeout.after, OrtWorkerLifecycleState::TimedOut);
+    assert!(timeout.kill_on_timeout);
+    assert_eq!(
+        timeout.reason,
+        "Enforcer killed the owned ORT worker after timeout"
+    );
+
+    plan.request_protocol = RuntimeRequestProtocol::ExternalHttp;
+    let err = match enforcer_memory::local_runtime::transition_ort_worker_lifecycle(
+        &plan,
+        OrtWorkerLifecycleState::RerankingActive,
+        OrtWorkerLifecycleAction::TimeoutKill,
+    ) {
+        Ok(transition) => {
+            return Err(format!("external HTTP lifecycle should fail, got {transition:?}").into());
+        }
+        Err(err) => err,
+    };
+    assert!(matches!(
+        err,
+        MemoryError::ModelRuntime {
+            operation: "validate-ort-worker-execution-plan",
+            ..
+        }
+    ));
+    Ok(())
+}
+
+#[test]
+fn ort_worker_lifecycle_rejects_invalid_transition() -> TestResult {
+    let spec = ModelSpec::qwen3_embedding(
+        "model/hf/qwen/model.onnx",
+        "abc123",
+        "model/hf/qwen/tokenizer.json",
+        "def456",
+    );
+    let plan = ort_worker_execution_plan(
+        "target/debug/x06_model_runtime_probe",
+        OrtWorkerTask::Embedding,
+        &spec,
+        ProviderKind::Cpu,
+        30_000,
+    )?;
+
+    let err = match enforcer_memory::local_runtime::transition_ort_worker_lifecycle(
+        &plan,
+        OrtWorkerLifecycleState::Idle,
+        OrtWorkerLifecycleAction::StartEmbedding,
+    ) {
+        Ok(transition) => {
+            return Err(format!("idle start should fail, got {transition:?}").into());
+        }
+        Err(err) => err,
+    };
+    assert!(matches!(
+        err,
+        MemoryError::ModelRuntime {
+            operation: "transition-ort-worker-lifecycle",
+            ..
+        }
+    ));
     Ok(())
 }
 

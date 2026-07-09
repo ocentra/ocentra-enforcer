@@ -45,7 +45,36 @@
         "ENFORCER_X06_CHILD_TOKENIZER_PATH",
         "ENFORCER_X06_CHILD_TOKENIZER_SHA256",
         "ENFORCER_X06_ORT_TIMEOUT_MS"
-      ]
+      ],
+      "lifecycle": {
+        "stateMachine": "enforcer-owned-ort-worker",
+        "states": [
+          "idle",
+          "loading",
+          "ready",
+          "embedding-active",
+          "reranking-active",
+          "paused-embedding",
+          "paused-reranking",
+          "cancelled",
+          "timed-out",
+          "unloaded"
+        ],
+        "actions": [
+          "load",
+          "mark-ready",
+          "start-embedding",
+          "start-reranker",
+          "pause",
+          "resume",
+          "cancel",
+          "timeout-kill",
+          "unload"
+        ],
+        "timeoutKillRequired": true,
+        "externalPlanRejectedBeforeTransition": true,
+        "invalidTransitionRejected": true
+      }
     }
   },
   "testCommand": "cargo test -p enforcer-memory --test local_runtime",
@@ -54,12 +83,17 @@
     "x06_runtime_control_plane_rejects_external_server_ownership",
     "x06_runtime_control_plane_rejects_backend_wrong_ownership_mode",
     "ort_worker_plan_materializes_enforcer_owned_child_env_contract",
-    "ort_worker_plan_rejects_external_http_or_port_binding"
+    "ort_worker_plan_rejects_external_http_or_port_binding",
+    "ort_worker_lifecycle_load_pause_resume_cancel_and_unload_are_owned",
+    "ort_worker_lifecycle_timeout_kill_requires_owned_plan",
+    "ort_worker_lifecycle_rejects_invalid_transition"
   ],
   "learningSignals": [
     "external-server-runtime-rejected",
     "ort-in-process-parity-rejected",
     "ort-external-http-port-binding-rejected",
-    "backend-specific-ownership-required"
+    "backend-specific-ownership-required",
+    "ort-lifecycle-owned-state-machine-required",
+    "ort-invalid-lifecycle-transition-rejected"
   ]
 }
