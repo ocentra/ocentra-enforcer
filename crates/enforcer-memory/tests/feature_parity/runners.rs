@@ -1898,24 +1898,24 @@ impl RowRunner for GitHistoryRunner {
 pub struct ExactQaEvidenceRunner;
 
 const EXACT_QA_EVIDENCE_IDS: &[&str] = &[
-    "QA-008", "QA-012", "QA-017", "QA-021", "QA-022", "QA-023", "QA-030", "QA-035", "QA-036",
-    "QA-037", "QA-040", "QA-041", "QA-042", "QA-043", "QA-046", "QA-048", "QA-049", "QA-050",
-    "QA-051", "QA-052", "QA-053", "QA-054", "QA-060", "QA-061", "QA-062", "QA-068", "QA-069",
-    "QA-070", "QA-071", "QA-072", "QA-073", "QA-074", "QA-075", "QA-076", "QA-077", "QA-078",
-    "QA-080", "QA-081", "QA-082", "QA-083", "QA-084", "QA-085", "QA-086", "QA-087", "QA-088",
-    "QA-089", "QA-090", "QA-091", "QA-092", "QA-093", "QA-094", "QA-095", "QA-096", "QA-097",
-    "QA-098", "QA-099", "QA-100", "QA-102", "QA-103", "QA-104", "QA-105", "QA-106", "QA-108",
-    "QA-110", "QA-111", "QA-112", "QA-113", "QA-115", "QA-117", "QA-118", "QA-119", "QA-120",
-    "QA-126", "QA-129", "QA-135", "QA-138", "QA-139", "QA-140", "QA-142", "QA-145", "QA-146",
-    "QA-147", "QA-148", "QA-149", "QA-150", "QA-152", "QA-155", "QA-156", "QA-159", "QA-160",
-    "QA-162", "QA-163", "QA-164", "QA-165", "QA-166", "QA-167", "QA-168", "QA-169", "QA-170",
-    "QA-171", "QA-172", "QA-173", "QA-174", "QA-186", "QA-189", "QA-191", "QA-192", "QA-193",
-    "QA-194", "QA-195", "QA-196", "QA-197", "QA-198", "QA-199", "QA-200", "QA-201", "QA-202",
-    "QA-203", "QA-204", "QA-205", "QA-206", "QA-207", "QA-208", "QA-209", "QA-210", "QA-211",
-    "QA-212", "QA-213", "QA-214", "QA-215", "QA-216", "QA-217", "QA-218", "QA-219", "QA-226",
-    "QA-229", "QA-230", "QA-231", "QA-232", "QA-233", "QA-234", "QA-235", "QA-236", "QA-237",
-    "QA-238", "QA-239", "QA-240", "QA-241", "QA-242", "QA-243", "QA-244", "QA-245", "QA-246",
-    "QA-247", "QA-248", "QA-249", "QA-250",
+    "QA-008", "QA-012", "QA-017", "QA-021", "QA-022", "QA-023", "QA-029", "QA-030", "QA-035",
+    "QA-036", "QA-037", "QA-040", "QA-041", "QA-042", "QA-043", "QA-046", "QA-048", "QA-049",
+    "QA-050", "QA-051", "QA-052", "QA-053", "QA-054", "QA-060", "QA-061", "QA-062", "QA-068",
+    "QA-069", "QA-070", "QA-071", "QA-072", "QA-073", "QA-074", "QA-075", "QA-076", "QA-077",
+    "QA-078", "QA-080", "QA-081", "QA-082", "QA-083", "QA-084", "QA-085", "QA-086", "QA-087",
+    "QA-088", "QA-089", "QA-090", "QA-091", "QA-092", "QA-093", "QA-094", "QA-095", "QA-096",
+    "QA-097", "QA-098", "QA-099", "QA-100", "QA-102", "QA-103", "QA-104", "QA-105", "QA-106",
+    "QA-108", "QA-110", "QA-111", "QA-112", "QA-113", "QA-115", "QA-117", "QA-118", "QA-119",
+    "QA-120", "QA-126", "QA-129", "QA-135", "QA-138", "QA-139", "QA-140", "QA-142", "QA-145",
+    "QA-146", "QA-147", "QA-148", "QA-149", "QA-150", "QA-152", "QA-155", "QA-156", "QA-159",
+    "QA-160", "QA-162", "QA-163", "QA-164", "QA-165", "QA-166", "QA-167", "QA-168", "QA-169",
+    "QA-170", "QA-171", "QA-172", "QA-173", "QA-174", "QA-186", "QA-189", "QA-191", "QA-192",
+    "QA-193", "QA-194", "QA-195", "QA-196", "QA-197", "QA-198", "QA-199", "QA-200", "QA-201",
+    "QA-202", "QA-203", "QA-204", "QA-205", "QA-206", "QA-207", "QA-208", "QA-209", "QA-210",
+    "QA-211", "QA-212", "QA-213", "QA-214", "QA-215", "QA-216", "QA-217", "QA-218", "QA-219",
+    "QA-226", "QA-229", "QA-230", "QA-231", "QA-232", "QA-233", "QA-234", "QA-235", "QA-236",
+    "QA-237", "QA-238", "QA-239", "QA-240", "QA-241", "QA-242", "QA-243", "QA-244", "QA-245",
+    "QA-246", "QA-247", "QA-248", "QA-249", "QA-250",
 ];
 
 impl RowRunner for ExactQaEvidenceRunner {
@@ -1935,6 +1935,7 @@ impl RowRunner for ExactQaEvidenceRunner {
             "QA-021" => config_file_probe(row),
             "QA-022" => environment_variable_probe(row),
             "QA-023" => sqlite_table_probe(row),
+            "QA-029" => startup_lifecycle_probe(row),
             "QA-030" => token_reduction_qa_evidence_probe(row),
             "QA-035" => cli_telemetry_probe(row),
             "QA-036" => mcp_deferred_markers_probe(row),
@@ -6908,6 +6909,75 @@ fn startup_env_reader_probe(row: &QaRow) -> RowResult {
                 ],
             ),
         ],
+    )
+}
+
+fn startup_lifecycle_probe(row: &QaRow) -> RowResult {
+    let checks = [
+        (
+            QA_PROOF_GATE_REL,
+            [
+                "| QA-029 | Explain how startup works.",
+                "Entrypoint path correct.",
+            ]
+            .as_slice(),
+        ),
+        (
+            QA_BENCHMARK_REL,
+            [
+                "| QA-157 | Repository | What is the startup order of the `enforcer-cli` binary? |",
+                "Return `main.rs` -> cli.rs parse -> commands.rs dispatch sequence",
+            ]
+            .as_slice(),
+        ),
+        (
+            "crates/enforcer-cli/src/main.rs",
+            [
+                "fn main() -> ProcessExitCode {",
+                "std::panic::set_hook",
+                "let exit = std::panic::catch_unwind(run).unwrap_or(ExitCode::InternalError);",
+                "fn run() -> ExitCode {",
+                "let cli = match Cli::try_parse() {",
+                "dispatch(&cli.command)",
+                "fn dispatch(command: &Command) -> ExitCode {",
+                "Command::Check(scope) | Command::Scan(scope) => commands::run_scoped_check(scope),",
+                "Command::Verify(args) => commands::run_verify(args),",
+            ]
+            .as_slice(),
+        ),
+        (
+            "crates/enforcer-cli/src/cli.rs",
+            ["pub struct Cli {", "pub command: Command,"].as_slice(),
+        ),
+    ];
+    let root = super::queryset::workspace_root();
+    let mut refs = Vec::new();
+    for (rel, needles) in checks {
+        let source = match std::fs::read_to_string(root.join(rel)) {
+            Ok(source) => source,
+            Err(error) => return unrunnable(row, &format!("failed to read {rel}: {error}")),
+        };
+        for needle in needles {
+            if !source.contains(needle) {
+                return unrunnable(
+                    row,
+                    &format!("{rel} does not contain expected evidence marker {needle}"),
+                );
+            }
+        }
+        refs.push(rel.to_string());
+    }
+    refs.sort();
+    refs.dedup();
+    exact_pass(
+        row,
+        vec![
+            "retrieval:startup-proof-gate".to_string(),
+            "retrieval:startup-benchmark".to_string(),
+            "retrieval:startup-main-parse-dispatch".to_string(),
+            "retrieval:startup-cli-definition".to_string(),
+        ],
+        refs,
     )
 }
 

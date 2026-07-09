@@ -1,10 +1,10 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 218,
+  "rowsGreen": 219,
   "rowsGreenReal": 0,
-  "rowsGreenDegraded": 218,
+  "rowsGreenDegraded": 219,
   "rowsFailed": 0,
-  "rowsUnrunnable": 32,
+  "rowsUnrunnable": 31,
   "rows": [
     {
       "id": "QA-001",
@@ -631,14 +631,29 @@
       "id": "QA-029",
       "category": "Retrieval",
       "query": "Explain how startup works.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Retrieval",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "retrieval:startup-proof-gate",
+        "retrieval:startup-benchmark",
+        "retrieval:startup-main-parse-dispatch",
+        "retrieval:startup-cli-definition"
+      ],
+      "actualIds": [
+        "retrieval:startup-proof-gate",
+        "retrieval:startup-benchmark",
+        "retrieval:startup-main-parse-dispatch",
+        "retrieval:startup-cli-definition"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-cli/src/cli.rs",
+        "crates/enforcer-cli/src/main.rs",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-030",
@@ -2228,8 +2243,8 @@
         "proof/memory/x06-feature-parity.json",
         "proof/memory/x06-rag-qa.json",
         "proof/memory/x06-kg-parity.json",
-        "qa:rows-green:218",
-        "qa:rows-unrunnable:32"
+        "qa:rows-green:219",
+        "qa:rows-unrunnable:31"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
