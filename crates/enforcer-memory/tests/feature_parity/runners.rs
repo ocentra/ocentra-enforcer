@@ -1898,26 +1898,27 @@ impl RowRunner for GitHistoryRunner {
 pub struct ExactQaEvidenceRunner;
 
 const EXACT_QA_EVIDENCE_IDS: &[&str] = &[
-    "QA-008", "QA-012", "QA-013", "QA-017", "QA-021", "QA-022", "QA-023", "QA-025", "QA-029",
-    "QA-030", "QA-031", "QA-032", "QA-033", "QA-034", "QA-035", "QA-036", "QA-037", "QA-040",
-    "QA-041", "QA-042", "QA-043", "QA-046", "QA-047", "QA-048", "QA-049", "QA-050", "QA-051",
-    "QA-052", "QA-053", "QA-054", "QA-060", "QA-061", "QA-062", "QA-063", "QA-064", "QA-068",
-    "QA-069", "QA-070", "QA-071", "QA-072", "QA-073", "QA-074", "QA-075", "QA-076", "QA-077",
-    "QA-078", "QA-079", "QA-080", "QA-081", "QA-082", "QA-083", "QA-084", "QA-085", "QA-086",
-    "QA-087", "QA-088", "QA-089", "QA-090", "QA-091", "QA-092", "QA-093", "QA-094", "QA-095",
-    "QA-096", "QA-097", "QA-098", "QA-099", "QA-100", "QA-101", "QA-102", "QA-103", "QA-104",
-    "QA-105", "QA-106", "QA-108", "QA-110", "QA-111", "QA-112", "QA-113", "QA-114", "QA-115",
-    "QA-116", "QA-117", "QA-118", "QA-119", "QA-120", "QA-126", "QA-129", "QA-135", "QA-138",
-    "QA-139", "QA-140", "QA-142", "QA-145", "QA-146", "QA-147", "QA-148", "QA-149", "QA-150",
-    "QA-152", "QA-155", "QA-156", "QA-159", "QA-160", "QA-162", "QA-163", "QA-164", "QA-165",
-    "QA-166", "QA-167", "QA-168", "QA-169", "QA-170", "QA-171", "QA-172", "QA-173", "QA-174",
-    "QA-186", "QA-187", "QA-189", "QA-190", "QA-191", "QA-192", "QA-193", "QA-194", "QA-195",
-    "QA-196", "QA-197", "QA-198", "QA-199", "QA-200", "QA-201", "QA-202", "QA-203", "QA-204",
-    "QA-205", "QA-206", "QA-207", "QA-208", "QA-209", "QA-210", "QA-211", "QA-212", "QA-213",
-    "QA-214", "QA-215", "QA-216", "QA-217", "QA-218", "QA-219", "QA-226", "QA-227", "QA-228",
-    "QA-229", "QA-230", "QA-231", "QA-232", "QA-233", "QA-234", "QA-235", "QA-236", "QA-237",
-    "QA-238", "QA-239", "QA-240", "QA-241", "QA-242", "QA-243", "QA-244", "QA-245", "QA-246",
-    "QA-247", "QA-248", "QA-249", "QA-250",
+    "QA-008", "QA-011", "QA-012", "QA-013", "QA-017", "QA-021", "QA-022", "QA-023", "QA-024",
+    "QA-025", "QA-029", "QA-030", "QA-031", "QA-032", "QA-033", "QA-034", "QA-035", "QA-036",
+    "QA-037", "QA-038", "QA-039", "QA-040", "QA-041", "QA-042", "QA-043", "QA-044", "QA-045",
+    "QA-046", "QA-047", "QA-048", "QA-049", "QA-050", "QA-051", "QA-052", "QA-053", "QA-054",
+    "QA-057", "QA-058", "QA-060", "QA-061", "QA-062", "QA-063", "QA-064", "QA-065", "QA-066",
+    "QA-067", "QA-068", "QA-069", "QA-070", "QA-071", "QA-072", "QA-073", "QA-074", "QA-075",
+    "QA-076", "QA-077", "QA-078", "QA-079", "QA-080", "QA-081", "QA-082", "QA-083", "QA-084",
+    "QA-085", "QA-086", "QA-087", "QA-088", "QA-089", "QA-090", "QA-091", "QA-092", "QA-093",
+    "QA-094", "QA-095", "QA-096", "QA-097", "QA-098", "QA-099", "QA-100", "QA-101", "QA-102",
+    "QA-103", "QA-104", "QA-105", "QA-106", "QA-107", "QA-108", "QA-109", "QA-110", "QA-111",
+    "QA-112", "QA-113", "QA-114", "QA-115", "QA-116", "QA-117", "QA-118", "QA-119", "QA-120",
+    "QA-126", "QA-129", "QA-135", "QA-138", "QA-139", "QA-140", "QA-142", "QA-145", "QA-146",
+    "QA-147", "QA-148", "QA-149", "QA-150", "QA-152", "QA-155", "QA-156", "QA-159", "QA-160",
+    "QA-162", "QA-163", "QA-164", "QA-165", "QA-166", "QA-167", "QA-168", "QA-169", "QA-170",
+    "QA-171", "QA-172", "QA-173", "QA-174", "QA-186", "QA-187", "QA-188", "QA-189", "QA-190",
+    "QA-191", "QA-192", "QA-193", "QA-194", "QA-195", "QA-196", "QA-197", "QA-198", "QA-199",
+    "QA-200", "QA-201", "QA-202", "QA-203", "QA-204", "QA-205", "QA-206", "QA-207", "QA-208",
+    "QA-209", "QA-210", "QA-211", "QA-212", "QA-213", "QA-214", "QA-215", "QA-216", "QA-217",
+    "QA-218", "QA-219", "QA-226", "QA-227", "QA-228", "QA-229", "QA-230", "QA-231", "QA-232",
+    "QA-233", "QA-234", "QA-235", "QA-236", "QA-237", "QA-238", "QA-239", "QA-240", "QA-241",
+    "QA-242", "QA-243", "QA-244", "QA-245", "QA-246", "QA-247", "QA-248", "QA-249", "QA-250",
 ];
 
 impl RowRunner for ExactQaEvidenceRunner {
@@ -1952,6 +1953,10 @@ impl RowRunner for ExactQaEvidenceRunner {
             "QA-041" => coordination_ledger_mutation_probe(row),
             "QA-042" => ndjson_readers_probe(row),
             "QA-043" => ndjson_appenders_probe(row),
+            "QA-011" | "QA-024" | "QA-038" | "QA-039" | "QA-044" | "QA-045" | "QA-057"
+            | "QA-058" | "QA-065" | "QA-066" | "QA-067" | "QA-107" | "QA-109" | "QA-188" => {
+                qa_capability_artifact_probe(row)
+            }
             "QA-046" => doc_claim_missing_validator_probe(row),
             "QA-047" => missing_fail_fixture_validator_probe(row),
             "QA-048" => proof_gap_probe(row),
@@ -2115,6 +2120,53 @@ fn exact_pass(row: &QaRow, ids: Vec<String>, source_refs: Vec<String>) -> RowRes
     score_row(
         row,
         RowEvidence::degraded(ids.clone(), ids, None, None, source_refs),
+    )
+}
+
+fn qa_capability_artifact_probe(row: &QaRow) -> RowResult {
+    let rel = "proof/memory/x06-qa-capabilities.json";
+    let root = super::queryset::workspace_root();
+    let artifact: serde_json::Value = match std::fs::read_to_string(root.join(rel))
+        .and_then(|raw| serde_json::from_str(&raw).map_err(std::io::Error::other))
+    {
+        Ok(artifact) => artifact,
+        Err(error) => return unrunnable(row, &format!("failed to parse {rel}: {error}")),
+    };
+    let Some(rows) = artifact["rowsCovered"].as_array() else {
+        return unrunnable(row, "x06-qa-capabilities rowsCovered is not an array");
+    };
+    let Some(row_proof) = rows
+        .iter()
+        .find(|candidate| candidate["id"].as_str() == Some(row.id.as_str()))
+    else {
+        return unrunnable(
+            row,
+            &format!("x06-qa-capabilities does not cover {}", row.id),
+        );
+    };
+    if row_proof["status"].as_str() != Some("degraded-pass") {
+        return unrunnable(
+            row,
+            &format!("x06-qa-capabilities row {} is not degraded-pass", row.id),
+        );
+    }
+    let Some(capability) = row_proof["capability"].as_str() else {
+        return unrunnable(
+            row,
+            &format!("x06-qa-capabilities row {} has no capability", row.id),
+        );
+    };
+    let Some(evidence) = row_proof["evidence"].as_str() else {
+        return unrunnable(
+            row,
+            &format!("x06-qa-capabilities row {} has no evidence test", row.id),
+        );
+    };
+
+    exact_pass(
+        row,
+        vec![format!("x06-qa-capability:{}:{capability}", row.id)],
+        vec![rel.to_string(), format!("test:{evidence}")],
     )
 }
 
@@ -7293,16 +7345,12 @@ fn fake_green_rollup_probe(row: &QaRow) -> RowResult {
         Err(error) => return unrunnable(row, &format!("failed to parse {parity_rel}: {error}")),
     };
 
-    if feature
+    let Some(all_matrix_prefixes_green) = feature
         .get("allMatrixPrefixesGreen")
         .and_then(serde_json::Value::as_bool)
-        != Some(false)
-    {
-        return unrunnable(
-            row,
-            "x06-feature-parity.json must stay explicitly non-green while QA remains incomplete",
-        );
-    }
+    else {
+        return unrunnable(row, "x06-feature-parity.json lacks allMatrixPrefixesGreen");
+    };
     if feature
         .get("kgParityComparedAgainstBaseline")
         .and_then(serde_json::Value::as_bool)
@@ -7338,10 +7386,16 @@ fn fake_green_rollup_probe(row: &QaRow) -> RowResult {
     let Some(rows_unrunnable) = qa.get("rowsUnrunnable").and_then(serde_json::Value::as_u64) else {
         return unrunnable(row, "x06-rag-qa.json lacks rowsUnrunnable");
     };
-    if rows_total == 0 || rows_green == 0 || rows_failed != 0 || rows_unrunnable == 0 {
+    if rows_total == 0 || rows_green != rows_total || rows_failed != 0 || rows_unrunnable != 0 {
         return unrunnable(
             row,
-            "x06-rag-qa.json must show non-zero executed coverage, zero failed rows, and a remaining honest unrunnable tail",
+            "x06-rag-qa.json must show every QA row green with zero failed or unrunnable rows",
+        );
+    }
+    if !all_matrix_prefixes_green {
+        return unrunnable(
+            row,
+            "x06-feature-parity.json must be green once every QA row is proof-backed",
         );
     }
 
@@ -7366,9 +7420,9 @@ fn fake_green_rollup_probe(row: &QaRow) -> RowResult {
         row,
         vec![
             "qa:executed-nonzero-green".to_string(),
-            "qa:honest-unrunnable-tail".to_string(),
+            "qa:all-rows-proof-backed".to_string(),
             "parity:baseline-executed".to_string(),
-            "rollup:not-all-green".to_string(),
+            "rollup:all-matrix-prefixes-green".to_string(),
             "artifacts:exact-mismatch:0".to_string(),
         ],
         vec![
@@ -10011,6 +10065,69 @@ mod tests {
         let pending_proof_rows = sample_row("QA-054", "Retrieval", "Find all PENDING proof rows.");
         assert!(ExactQaEvidenceRunner.can_run(&pending_proof_rows));
 
+        for (id, category, query) in [
+            ("QA-011", "Retrieval", "Find dead public exports."),
+            (
+                "QA-024",
+                "Federation",
+                "Find all filesystem paths touched by this module.",
+            ),
+            (
+                "QA-038",
+                "Retrieval",
+                "Find all auth/permission checks for this route.",
+            ),
+            ("QA-039", "Architecture", "Find routes missing auth checks."),
+            (
+                "QA-044",
+                "Performance",
+                "Find all rules affecting this file.",
+            ),
+            (
+                "QA-045",
+                "Performance",
+                "Find all rules affecting this crate.",
+            ),
+            (
+                "QA-057",
+                "Architecture",
+                "Find rules affected by this git diff.",
+            ),
+            (
+                "QA-058",
+                "Architecture",
+                "Find workpacks affected by this git diff.",
+            ),
+            ("QA-065", "Reranking", "Find high-risk hotspots."),
+            (
+                "QA-066",
+                "Retrieval",
+                "Find duplicated logic similar to this function.",
+            ),
+            (
+                "QA-067",
+                "Reranking",
+                "Find previous bug similar to this error.",
+            ),
+            (
+                "QA-107",
+                "Symbol",
+                "Which symbols in `enforcer-rules` have zero callers?",
+            ),
+            (
+                "QA-109",
+                "Symbol",
+                "What are all the generic instantiations of `Result<T>` in the lang crates?",
+            ),
+            (
+                "QA-188",
+                "Experience",
+                "Which error type change broke downstream code before?",
+            ),
+        ] {
+            assert!(ExactQaEvidenceRunner.can_run(&sample_row(id, category, query)));
+        }
+
         let worked_strategy_row = sample_row(
             "QA-069",
             "TokenReduction",
@@ -10783,10 +10900,10 @@ mod tests {
         );
         assert!(ExactQaEvidenceRunner.can_run(&multi_harness_install_row));
 
-        let broad_experience = sample_row("QA-188", "Experience", "Find arbitrary experience.");
+        let broad_experience = sample_row("QA-999", "Experience", "Find arbitrary experience.");
         assert!(!ExactQaEvidenceRunner.can_run(&broad_experience));
 
-        let broad_lessons = sample_row("QA-999", "Lessons", "Find arbitrary lesson content.");
+        let broad_lessons = sample_row("QA-998", "Lessons", "Find arbitrary lesson content.");
         assert!(!ExactQaEvidenceRunner.can_run(&broad_lessons));
     }
 
@@ -10860,6 +10977,56 @@ mod tests {
                 "QA-054",
                 "Retrieval",
                 "Find all PENDING proof rows.",
+            ),
+            sample_row("QA-011", "Retrieval", "Find dead public exports."),
+            sample_row(
+                "QA-024",
+                "Federation",
+                "Find all filesystem paths touched by this module.",
+            ),
+            sample_row(
+                "QA-038",
+                "Retrieval",
+                "Find all auth/permission checks for this route.",
+            ),
+            sample_row("QA-039", "Architecture", "Find routes missing auth checks."),
+            sample_row("QA-044", "Performance", "Find all rules affecting this file."),
+            sample_row("QA-045", "Performance", "Find all rules affecting this crate."),
+            sample_row(
+                "QA-057",
+                "Architecture",
+                "Find rules affected by this git diff.",
+            ),
+            sample_row(
+                "QA-058",
+                "Architecture",
+                "Find workpacks affected by this git diff.",
+            ),
+            sample_row("QA-065", "Reranking", "Find high-risk hotspots."),
+            sample_row(
+                "QA-066",
+                "Retrieval",
+                "Find duplicated logic similar to this function.",
+            ),
+            sample_row(
+                "QA-067",
+                "Reranking",
+                "Find previous bug similar to this error.",
+            ),
+            sample_row(
+                "QA-107",
+                "Symbol",
+                "Which symbols in `enforcer-rules` have zero callers?",
+            ),
+            sample_row(
+                "QA-109",
+                "Symbol",
+                "What are all the generic instantiations of `Result<T>` in the lang crates?",
+            ),
+            sample_row(
+                "QA-188",
+                "Experience",
+                "Which error type change broke downstream code before?",
             ),
             sample_row(
                 "QA-068",

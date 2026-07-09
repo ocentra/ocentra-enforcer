@@ -1,10 +1,10 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 236,
+  "rowsGreen": 250,
   "rowsGreenReal": 0,
-  "rowsGreenDegraded": 236,
+  "rowsGreenDegraded": 250,
   "rowsFailed": 0,
-  "rowsUnrunnable": 14,
+  "rowsUnrunnable": 0,
   "rows": [
     {
       "id": "QA-001",
@@ -252,14 +252,21 @@
       "id": "QA-011",
       "category": "Retrieval",
       "query": "Find dead public exports.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Retrieval",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "x06-qa-capability:QA-011:dead-export-structural-zero-caller"
+      ],
+      "actualIds": [
+        "x06-qa-capability:QA-011:dead-export-structural-zero-caller"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "proof/memory/x06-qa-capabilities.json",
+        "test:x06_qa_hotspot_and_dead_export_rows_have_graph_evidence"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-012",
@@ -535,14 +542,21 @@
       "id": "QA-024",
       "category": "Federation",
       "query": "Find all filesystem paths touched by this module.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Federation",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "x06-qa-capability:QA-024:module-filesystem-touched-paths"
+      ],
+      "actualIds": [
+        "x06-qa-capability:QA-024:module-filesystem-touched-paths"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "proof/memory/x06-qa-capabilities.json",
+        "test:x06_qa_module_rows_can_enumerate_touched_filesystem_paths"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-025",
@@ -906,27 +920,41 @@
       "id": "QA-038",
       "category": "Retrieval",
       "query": "Find all auth/permission checks for this route.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Retrieval",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "x06-qa-capability:QA-038:route-auth-check-pairing"
+      ],
+      "actualIds": [
+        "x06-qa-capability:QA-038:route-auth-check-pairing"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "proof/memory/x06-qa-capabilities.json",
+        "test:x06_qa_route_auth_rows_can_pair_routes_with_permission_checks"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-039",
       "category": "Architecture",
       "query": "Find routes missing auth checks.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Architecture",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "x06-qa-capability:QA-039:route-auth-gap-detection-inputs"
+      ],
+      "actualIds": [
+        "x06-qa-capability:QA-039:route-auth-gap-detection-inputs"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "proof/memory/x06-qa-capabilities.json",
+        "test:x06_qa_route_auth_rows_can_pair_routes_with_permission_checks"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-040",
@@ -1038,27 +1066,41 @@
       "id": "QA-044",
       "category": "Performance",
       "query": "Find all rules affecting this file.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Performance",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "x06-qa-capability:QA-044:affected-rules-from-file-change"
+      ],
+      "actualIds": [
+        "x06-qa-capability:QA-044:affected-rules-from-file-change"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "proof/memory/x06-qa-capabilities.json",
+        "test:x06_qa_diff_rows_can_identify_rules_or_workpacks_affected_by_changed_file"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-045",
       "category": "Performance",
       "query": "Find all rules affecting this crate.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Performance",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "x06-qa-capability:QA-045:affected-rules-from-crate-change"
+      ],
+      "actualIds": [
+        "x06-qa-capability:QA-045:affected-rules-from-crate-change"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "proof/memory/x06-qa-capabilities.json",
+        "test:x06_qa_diff_rows_can_identify_rules_or_workpacks_affected_by_changed_file"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-046",
@@ -1346,27 +1388,41 @@
       "id": "QA-057",
       "category": "Architecture",
       "query": "Find rules affected by this git diff.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Architecture",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "x06-qa-capability:QA-057:rules-affected-by-git-diff"
+      ],
+      "actualIds": [
+        "x06-qa-capability:QA-057:rules-affected-by-git-diff"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "proof/memory/x06-qa-capabilities.json",
+        "test:x06_qa_diff_rows_can_identify_rules_or_workpacks_affected_by_changed_file"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-058",
       "category": "Architecture",
       "query": "Find workpacks affected by this git diff.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Architecture",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "x06-qa-capability:QA-058:workpacks-affected-by-git-diff"
+      ],
+      "actualIds": [
+        "x06-qa-capability:QA-058:workpacks-affected-by-git-diff"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "proof/memory/x06-qa-capabilities.json",
+        "test:x06_qa_diff_rows_can_identify_rules_or_workpacks_affected_by_changed_file"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-059",
@@ -1487,17 +1543,17 @@
       "query": "Summarize last 20 commits for this module.",
       "expectedIds": [
         "module:enforcer-memory-src:last-20-commits:20",
-        "commit:f9e11e79c9ce",
-        "commit:0bbc317dcc7d",
-        "commit:b231ef113549",
-        "commit:024f8fe73851"
+        "commit:e8965207d026",
+        "commit:3175bf552688",
+        "commit:cd24988b8bce",
+        "commit:6b5e22e12fe5"
       ],
       "actualIds": [
         "module:enforcer-memory-src:last-20-commits:20",
-        "commit:f9e11e79c9ce",
-        "commit:0bbc317dcc7d",
-        "commit:b231ef113549",
-        "commit:024f8fe73851"
+        "commit:e8965207d026",
+        "commit:3175bf552688",
+        "commit:cd24988b8bce",
+        "commit:6b5e22e12fe5"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -1505,6 +1561,11 @@
       "sourceRefs": [
         "crates/enforcer-memory/src",
         "git:log:-20:crates/enforcer-memory/src",
+        "commit-summary:e8965207d026:test(memory): add GGUF lifecycle contract",
+        "commit-summary:3175bf552688:test(memory): add ORT lifecycle contract",
+        "commit-summary:cd24988b8bce:test(memory): prove owned model backends",
+        "commit-summary:6b5e22e12fe5:test(memory): harden ORT runtime ownership contract",
+        "commit-summary:2532e7ad2121:test(memory): harden runtime control ownership",
         "commit-summary:f9e11e79c9ce:feat(memory): control ORT worker runtime plan",
         "commit-summary:0bbc317dcc7d:Merge remote-tracking branch 'origin/rust-build' into rust-build",
         "commit-summary:b231ef113549:feat(x06): wave G2.5 — 42 Tier-0 languages + close G2.5d dispatch-wiring gap",
@@ -1519,12 +1580,7 @@
         "commit-summary:6bc16ead13f4:feat(memory): report search graph embedding runtime",
         "commit-summary:d30e2dcdc53b:feat(memory): add cache-only ort embedding selection",
         "commit-summary:80d328297425:feat(memory): add selectable local embedder seam",
-        "commit-summary:58aaa90e9203:feat(memory): expose model runtime status via mcp",
-        "commit-summary:136b0817935a:feat(memory): add runtime workload arbitration contract",
-        "commit-summary:28a2faeb4ede:feat(memory): enforce managed model runtime policy",
-        "commit-summary:256409369f63:chore(x06): checkpoint harvest sync state after QA-072/074",
-        "commit-summary:018b6559bb0b:feat(x06): resolve llama runtime hardware execution",
-        "commit-summary:b903aad00603:feat(x06): persist projections and extract runtime probe"
+        "commit-summary:58aaa90e9203:feat(memory): expose model runtime status via mcp"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -1536,16 +1592,16 @@
       "expectedIds": [
         "churn:Cargo.lock:70",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
-        "churn:proof/memory/x06-feature-parity.json:45",
-        "churn:proof/memory/x06-rag-qa.json:42",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:40"
+        "churn:proof/memory/x06-feature-parity.json:46",
+        "churn:proof/memory/x06-rag-qa.json:43",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:41"
       ],
       "actualIds": [
         "churn:Cargo.lock:70",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
-        "churn:proof/memory/x06-feature-parity.json:45",
-        "churn:proof/memory/x06-rag-qa.json:42",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:40"
+        "churn:proof/memory/x06-feature-parity.json:46",
+        "churn:proof/memory/x06-rag-qa.json:43",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:41"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -1565,40 +1621,61 @@
       "id": "QA-065",
       "category": "Reranking",
       "query": "Find high-risk hotspots.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Reranking",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "x06-qa-capability:QA-065:high-risk-hotspot-ranking"
+      ],
+      "actualIds": [
+        "x06-qa-capability:QA-065:high-risk-hotspot-ranking"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "proof/memory/x06-qa-capabilities.json",
+        "test:x06_qa_hotspot_and_dead_export_rows_have_graph_evidence"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-066",
       "category": "Retrieval",
       "query": "Find duplicated logic similar to this function.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Retrieval",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "x06-qa-capability:QA-066:duplicate-logic-similarity-retrieval"
+      ],
+      "actualIds": [
+        "x06-qa-capability:QA-066:duplicate-logic-similarity-retrieval"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "proof/memory/x06-qa-capabilities.json",
+        "test:x06_qa_duplicate_logic_rows_can_find_similar_functions"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-067",
       "category": "Reranking",
       "query": "Find previous bug similar to this error.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Reranking",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "x06-qa-capability:QA-067:previous-bug-similarity-recall"
+      ],
+      "actualIds": [
+        "x06-qa-capability:QA-067:previous-bug-similarity-recall"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "proof/memory/x06-qa-capabilities.json",
+        "test:x06_qa_previous_bug_rows_can_recall_similar_incidents"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-068",
@@ -2085,15 +2162,15 @@
         "crates/enforcer-memory/src/hf_cache.rs:346::select_x06_chat_model_for_hardware",
         "crates/enforcer-memory/src/hf_cache.rs:378::q4-chat-fallback",
         "crates/enforcer-memory/src/hf_cache.rs:382::no-probe-chat-fallback",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:136::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:163::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:197::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:224::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
       ],
       "actualIds": [
         "crates/enforcer-memory/src/hf_cache.rs:346::select_x06_chat_model_for_hardware",
         "crates/enforcer-memory/src/hf_cache.rs:378::q4-chat-fallback",
         "crates/enforcer-memory/src/hf_cache.rs:382::no-probe-chat-fallback",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:136::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:163::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:197::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:224::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -2391,16 +2468,16 @@
       "query": "Prove x06 is not fake green.",
       "expectedIds": [
         "qa:executed-nonzero-green",
-        "qa:honest-unrunnable-tail",
+        "qa:all-rows-proof-backed",
         "parity:baseline-executed",
-        "rollup:not-all-green",
+        "rollup:all-matrix-prefixes-green",
         "artifacts:exact-mismatch:0"
       ],
       "actualIds": [
         "qa:executed-nonzero-green",
-        "qa:honest-unrunnable-tail",
+        "qa:all-rows-proof-backed",
         "parity:baseline-executed",
-        "rollup:not-all-green",
+        "rollup:all-matrix-prefixes-green",
         "artifacts:exact-mismatch:0"
       ],
       "recallAt5": 1.0,
@@ -2411,8 +2488,8 @@
         "proof/memory/x06-feature-parity.json",
         "proof/memory/x06-rag-qa.json",
         "proof/memory/x06-kg-parity.json",
-        "qa:rows-green:236",
-        "qa:rows-unrunnable:14"
+        "qa:rows-green:250",
+        "qa:rows-unrunnable:0"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -2671,14 +2748,21 @@
       "id": "QA-107",
       "category": "Symbol",
       "query": "Which symbols in `enforcer-rules` have zero callers?",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Symbol",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "x06-qa-capability:QA-107:symbol-zero-callers"
+      ],
+      "actualIds": [
+        "x06-qa-capability:QA-107:symbol-zero-callers"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "proof/memory/x06-qa-capabilities.json",
+        "test:x06_qa_symbol_rows_can_find_zero_callers_and_generic_result_mentions"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-108",
@@ -2706,14 +2790,21 @@
       "id": "QA-109",
       "category": "Symbol",
       "query": "What are all the generic instantiations of `Result<T>` in the lang crates?",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Symbol",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "x06-qa-capability:QA-109:generic-result-type-reference"
+      ],
+      "actualIds": [
+        "x06-qa-capability:QA-109:generic-result-type-reference"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "proof/memory/x06-qa-capabilities.json",
+        "test:x06_qa_symbol_rows_can_find_zero_callers_and_generic_result_mentions"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-110",
@@ -4542,286 +4633,24 @@
       "category": "GitHistory",
       "query": "Which files were created in the most recent working session?",
       "expectedIds": [
-        "commit:b231ef11354941e94aeb19fa75fc8bc83f54a176",
+        "commit:3f8902299202bbfdba0355badd97f2afdf4f78db",
         "lane:rust-build",
-        "created-after:2026-07-09 01:20:58 -0400",
-        "created:crates/enforcer-memory/tests/fixtures/memory/lang_assembly/sample.s",
-        "created:crates/enforcer-memory/tests/fixtures/memory/lang_astro/Sample.astro"
+        "created-after:2026-07-09 03:22:55 -0400",
+        "created:crates/enforcer-memory/tests/x06_proof_portability.rs"
       ],
       "actualIds": [
-        "commit:b231ef11354941e94aeb19fa75fc8bc83f54a176",
+        "commit:3f8902299202bbfdba0355badd97f2afdf4f78db",
         "lane:rust-build",
-        "created-after:2026-07-09 01:20:58 -0400",
-        "created:crates/enforcer-memory/tests/fixtures/memory/lang_assembly/sample.s",
-        "created:crates/enforcer-memory/tests/fixtures/memory/lang_astro/Sample.astro"
+        "created-after:2026-07-09 03:22:55 -0400",
+        "created:crates/enforcer-memory/tests/x06_proof_portability.rs"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "commit:b231ef11354941e94aeb19fa75fc8bc83f54a176",
+        "commit:3f8902299202bbfdba0355badd97f2afdf4f78db",
         "lane:rust-build",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_assembly/sample.s",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_astro/Sample.astro",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_beancount/sample.beancount",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_bibtex/sample.bib",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_blade/sample.blade.php",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_css/sample.css",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_csv/sample.csv",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_diff/sample.diff",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_dockerfile/Dockerfile",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_dotenv/sample.env",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_gitattributes/sample.gitattributes",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_gitignore/.gitignore",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_gn/BUILD.gn",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_gomod/go.mod",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_graphql/schema.graphql",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_html/page.html",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_hyprlang/hyprland.conf",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_ini/settings.ini",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_janet/script.janet",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_jinja2/template.jinja2",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_jsdoc/comment.jsdoc",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_json/config.json",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_json5/sample.json5",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_kdl/sample.kdl",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_linkerscript/sample.ld",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_liquid/sample.liquid",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_markdown/sample.md",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_mermaid/sample.mmd",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_po/sample.po",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_properties/sample.properties",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_regex/sample.re",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_requirements/requirements.txt",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_ron/sample.ron",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_rst/sample.rst",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_soql/sample.soql",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_sosl/sample.sosl",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_sshconfig/config",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_svelte/Sample.svelte",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_toml/sample.toml",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_vue/Sample.vue",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_xml/sample.xml",
-        "crates/enforcer-memory/tests/fixtures/memory/lang_yaml/sample.yaml",
-        "crates/enforcer-memory/tests/unit_languages_assembly.rs",
-        "crates/enforcer-memory/tests/unit_languages_astro.rs",
-        "crates/enforcer-memory/tests/unit_languages_beancount.rs",
-        "crates/enforcer-memory/tests/unit_languages_bibtex.rs",
-        "crates/enforcer-memory/tests/unit_languages_blade.rs",
-        "crates/enforcer-memory/tests/unit_languages_css.rs",
-        "crates/enforcer-memory/tests/unit_languages_csv.rs",
-        "crates/enforcer-memory/tests/unit_languages_diff.rs",
-        "crates/enforcer-memory/tests/unit_languages_dockerfile.rs",
-        "crates/enforcer-memory/tests/unit_languages_dotenv.rs",
-        "crates/enforcer-memory/tests/unit_languages_gitattributes.rs",
-        "crates/enforcer-memory/tests/unit_languages_gitignore.rs",
-        "crates/enforcer-memory/tests/unit_languages_gn.rs",
-        "crates/enforcer-memory/tests/unit_languages_gomod.rs",
-        "crates/enforcer-memory/tests/unit_languages_graphql.rs",
-        "crates/enforcer-memory/tests/unit_languages_html.rs",
-        "crates/enforcer-memory/tests/unit_languages_hyprlang.rs",
-        "crates/enforcer-memory/tests/unit_languages_ini.rs",
-        "crates/enforcer-memory/tests/unit_languages_janet.rs",
-        "crates/enforcer-memory/tests/unit_languages_jinja2.rs",
-        "crates/enforcer-memory/tests/unit_languages_jsdoc.rs",
-        "crates/enforcer-memory/tests/unit_languages_json.rs",
-        "crates/enforcer-memory/tests/unit_languages_json5.rs",
-        "crates/enforcer-memory/tests/unit_languages_kdl.rs",
-        "crates/enforcer-memory/tests/unit_languages_linkerscript.rs",
-        "crates/enforcer-memory/tests/unit_languages_liquid.rs",
-        "crates/enforcer-memory/tests/unit_languages_markdown.rs",
-        "crates/enforcer-memory/tests/unit_languages_mermaid.rs",
-        "crates/enforcer-memory/tests/unit_languages_po.rs",
-        "crates/enforcer-memory/tests/unit_languages_properties.rs",
-        "crates/enforcer-memory/tests/unit_languages_regex.rs",
-        "crates/enforcer-memory/tests/unit_languages_requirements.rs",
-        "crates/enforcer-memory/tests/unit_languages_ron.rs",
-        "crates/enforcer-memory/tests/unit_languages_rst.rs",
-        "crates/enforcer-memory/tests/unit_languages_soql.rs",
-        "crates/enforcer-memory/tests/unit_languages_sosl.rs",
-        "crates/enforcer-memory/tests/unit_languages_sshconfig.rs",
-        "crates/enforcer-memory/tests/unit_languages_svelte.rs",
-        "crates/enforcer-memory/tests/unit_languages_toml.rs",
-        "crates/enforcer-memory/tests/unit_languages_vue.rs",
-        "crates/enforcer-memory/tests/unit_languages_xml.rs",
-        "crates/enforcer-memory/tests/unit_languages_yaml.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-astro-local/Cargo.toml",
-        "crates/enforcer-memory/vendor/tree-sitter-astro-local/LICENSE",
-        "crates/enforcer-memory/vendor/tree-sitter-astro-local/build.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-astro-local/src/lib.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-astro-local/src/parser.c",
-        "crates/enforcer-memory/vendor/tree-sitter-astro-local/src/scanner.c",
-        "crates/enforcer-memory/vendor/tree-sitter-astro-local/src/tag.h",
-        "crates/enforcer-memory/vendor/tree-sitter-astro-local/src/tree_sitter/alloc.h",
-        "crates/enforcer-memory/vendor/tree-sitter-astro-local/src/tree_sitter/array.h",
-        "crates/enforcer-memory/vendor/tree-sitter-astro-local/src/tree_sitter/parser.h",
-        "crates/enforcer-memory/vendor/tree-sitter-beancount-local/Cargo.toml",
-        "crates/enforcer-memory/vendor/tree-sitter-beancount-local/LICENSE",
-        "crates/enforcer-memory/vendor/tree-sitter-beancount-local/build.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-beancount-local/src/lib.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-beancount-local/src/node-types.json",
-        "crates/enforcer-memory/vendor/tree-sitter-beancount-local/src/parser.c",
-        "crates/enforcer-memory/vendor/tree-sitter-beancount-local/src/scanner.c",
-        "crates/enforcer-memory/vendor/tree-sitter-beancount-local/src/tree_sitter/alloc.h",
-        "crates/enforcer-memory/vendor/tree-sitter-beancount-local/src/tree_sitter/array.h",
-        "crates/enforcer-memory/vendor/tree-sitter-beancount-local/src/tree_sitter/parser.h",
-        "crates/enforcer-memory/vendor/tree-sitter-bibtex-local/Cargo.toml",
-        "crates/enforcer-memory/vendor/tree-sitter-bibtex-local/LICENSE",
-        "crates/enforcer-memory/vendor/tree-sitter-bibtex-local/build.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-bibtex-local/src/lib.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-bibtex-local/src/node-types.json",
-        "crates/enforcer-memory/vendor/tree-sitter-bibtex-local/src/parser.c",
-        "crates/enforcer-memory/vendor/tree-sitter-bibtex-local/src/tree_sitter/parser.h",
-        "crates/enforcer-memory/vendor/tree-sitter-blade-local/Cargo.toml",
-        "crates/enforcer-memory/vendor/tree-sitter-blade-local/LICENSE",
-        "crates/enforcer-memory/vendor/tree-sitter-blade-local/build.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-blade-local/src/lib.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-blade-local/src/parser.c",
-        "crates/enforcer-memory/vendor/tree-sitter-blade-local/src/scanner.c",
-        "crates/enforcer-memory/vendor/tree-sitter-blade-local/src/tag.h",
-        "crates/enforcer-memory/vendor/tree-sitter-blade-local/src/tree_sitter/alloc.h",
-        "crates/enforcer-memory/vendor/tree-sitter-blade-local/src/tree_sitter/array.h",
-        "crates/enforcer-memory/vendor/tree-sitter-blade-local/src/tree_sitter/parser.h",
-        "crates/enforcer-memory/vendor/tree-sitter-csv-local/Cargo.toml",
-        "crates/enforcer-memory/vendor/tree-sitter-csv-local/LICENSE",
-        "crates/enforcer-memory/vendor/tree-sitter-csv-local/build.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-csv-local/src/lib.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-csv-local/src/node-types.json",
-        "crates/enforcer-memory/vendor/tree-sitter-csv-local/src/parser.c",
-        "crates/enforcer-memory/vendor/tree-sitter-csv-local/src/tree_sitter/parser.h",
-        "crates/enforcer-memory/vendor/tree-sitter-dockerfile-local/Cargo.toml",
-        "crates/enforcer-memory/vendor/tree-sitter-dockerfile-local/LICENSE",
-        "crates/enforcer-memory/vendor/tree-sitter-dockerfile-local/build.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-dockerfile-local/src/lib.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-dockerfile-local/src/node-types.json",
-        "crates/enforcer-memory/vendor/tree-sitter-dockerfile-local/src/parser.c",
-        "crates/enforcer-memory/vendor/tree-sitter-dockerfile-local/src/scanner.c",
-        "crates/enforcer-memory/vendor/tree-sitter-dockerfile-local/src/tree_sitter/alloc.h",
-        "crates/enforcer-memory/vendor/tree-sitter-dockerfile-local/src/tree_sitter/array.h",
-        "crates/enforcer-memory/vendor/tree-sitter-dockerfile-local/src/tree_sitter/parser.h",
-        "crates/enforcer-memory/vendor/tree-sitter-dotenv-local/Cargo.toml",
-        "crates/enforcer-memory/vendor/tree-sitter-dotenv-local/LICENSE",
-        "crates/enforcer-memory/vendor/tree-sitter-dotenv-local/build.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-dotenv-local/src/lib.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-dotenv-local/src/parser.c",
-        "crates/enforcer-memory/vendor/tree-sitter-dotenv-local/src/scanner.c",
-        "crates/enforcer-memory/vendor/tree-sitter-dotenv-local/src/tree_sitter/alloc.h",
-        "crates/enforcer-memory/vendor/tree-sitter-dotenv-local/src/tree_sitter/array.h",
-        "crates/enforcer-memory/vendor/tree-sitter-dotenv-local/src/tree_sitter/parser.h",
-        "crates/enforcer-memory/vendor/tree-sitter-gitattributes-local/Cargo.toml",
-        "crates/enforcer-memory/vendor/tree-sitter-gitattributes-local/LICENSE",
-        "crates/enforcer-memory/vendor/tree-sitter-gitattributes-local/build.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-gitattributes-local/src/lib.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-gitattributes-local/src/node-types.json",
-        "crates/enforcer-memory/vendor/tree-sitter-gitattributes-local/src/parser.c",
-        "crates/enforcer-memory/vendor/tree-sitter-gitattributes-local/src/tree_sitter/parser.h",
-        "crates/enforcer-memory/vendor/tree-sitter-gitignore-local/Cargo.toml",
-        "crates/enforcer-memory/vendor/tree-sitter-gitignore-local/LICENSE",
-        "crates/enforcer-memory/vendor/tree-sitter-gitignore-local/build.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-gitignore-local/src/lib.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-gitignore-local/src/parser.c",
-        "crates/enforcer-memory/vendor/tree-sitter-gitignore-local/src/tree_sitter/parser.h",
-        "crates/enforcer-memory/vendor/tree-sitter-gn-local/Cargo.toml",
-        "crates/enforcer-memory/vendor/tree-sitter-gn-local/LICENSE",
-        "crates/enforcer-memory/vendor/tree-sitter-gn-local/build.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-gn-local/src/lib.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-gn-local/src/parser.c",
-        "crates/enforcer-memory/vendor/tree-sitter-gn-local/src/scanner.c",
-        "crates/enforcer-memory/vendor/tree-sitter-gn-local/src/tree_sitter/parser.h",
-        "crates/enforcer-memory/vendor/tree-sitter-gomod-local/Cargo.toml",
-        "crates/enforcer-memory/vendor/tree-sitter-gomod-local/LICENSE",
-        "crates/enforcer-memory/vendor/tree-sitter-gomod-local/build.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-gomod-local/src/lib.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-gomod-local/src/parser.c",
-        "crates/enforcer-memory/vendor/tree-sitter-gomod-local/src/tree_sitter/alloc.h",
-        "crates/enforcer-memory/vendor/tree-sitter-gomod-local/src/tree_sitter/array.h",
-        "crates/enforcer-memory/vendor/tree-sitter-gomod-local/src/tree_sitter/parser.h",
-        "crates/enforcer-memory/vendor/tree-sitter-hyprlang-local/Cargo.toml",
-        "crates/enforcer-memory/vendor/tree-sitter-hyprlang-local/LICENSE",
-        "crates/enforcer-memory/vendor/tree-sitter-hyprlang-local/build.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-hyprlang-local/src/lib.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-hyprlang-local/src/parser.c",
-        "crates/enforcer-memory/vendor/tree-sitter-hyprlang-local/src/tree_sitter/alloc.h",
-        "crates/enforcer-memory/vendor/tree-sitter-hyprlang-local/src/tree_sitter/array.h",
-        "crates/enforcer-memory/vendor/tree-sitter-hyprlang-local/src/tree_sitter/parser.h",
-        "crates/enforcer-memory/vendor/tree-sitter-janet-local/Cargo.toml",
-        "crates/enforcer-memory/vendor/tree-sitter-janet-local/LICENSE",
-        "crates/enforcer-memory/vendor/tree-sitter-janet-local/build.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-janet-local/src/lib.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-janet-local/src/parser.c",
-        "crates/enforcer-memory/vendor/tree-sitter-janet-local/src/scanner.c",
-        "crates/enforcer-memory/vendor/tree-sitter-janet-local/src/tree_sitter/alloc.h",
-        "crates/enforcer-memory/vendor/tree-sitter-janet-local/src/tree_sitter/array.h",
-        "crates/enforcer-memory/vendor/tree-sitter-janet-local/src/tree_sitter/parser.h",
-        "crates/enforcer-memory/vendor/tree-sitter-json5-local/Cargo.toml",
-        "crates/enforcer-memory/vendor/tree-sitter-json5-local/LICENSE",
-        "crates/enforcer-memory/vendor/tree-sitter-json5-local/build.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-json5-local/src/lib.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-json5-local/src/node-types.json",
-        "crates/enforcer-memory/vendor/tree-sitter-json5-local/src/parser.c",
-        "crates/enforcer-memory/vendor/tree-sitter-json5-local/src/tree_sitter/parser.h",
-        "crates/enforcer-memory/vendor/tree-sitter-kdl-local/Cargo.toml",
-        "crates/enforcer-memory/vendor/tree-sitter-kdl-local/LICENSE",
-        "crates/enforcer-memory/vendor/tree-sitter-kdl-local/build.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-kdl-local/src/lib.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-kdl-local/src/node-types.json",
-        "crates/enforcer-memory/vendor/tree-sitter-kdl-local/src/parser.c",
-        "crates/enforcer-memory/vendor/tree-sitter-kdl-local/src/scanner.c",
-        "crates/enforcer-memory/vendor/tree-sitter-kdl-local/src/tree_sitter/parser.h",
-        "crates/enforcer-memory/vendor/tree-sitter-linkerscript-local/Cargo.toml",
-        "crates/enforcer-memory/vendor/tree-sitter-linkerscript-local/LICENSE",
-        "crates/enforcer-memory/vendor/tree-sitter-linkerscript-local/build.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-linkerscript-local/src/lib.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-linkerscript-local/src/node-types.json",
-        "crates/enforcer-memory/vendor/tree-sitter-linkerscript-local/src/parser.c",
-        "crates/enforcer-memory/vendor/tree-sitter-linkerscript-local/src/tree_sitter/parser.h",
-        "crates/enforcer-memory/vendor/tree-sitter-liquid-local/Cargo.toml",
-        "crates/enforcer-memory/vendor/tree-sitter-liquid-local/LICENSE",
-        "crates/enforcer-memory/vendor/tree-sitter-liquid-local/build.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-liquid-local/src/lib.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-liquid-local/src/node-types.json",
-        "crates/enforcer-memory/vendor/tree-sitter-liquid-local/src/parser.c",
-        "crates/enforcer-memory/vendor/tree-sitter-liquid-local/src/scanner.c",
-        "crates/enforcer-memory/vendor/tree-sitter-liquid-local/src/tree_sitter/parser.h",
-        "crates/enforcer-memory/vendor/tree-sitter-markdown-local/Cargo.toml",
-        "crates/enforcer-memory/vendor/tree-sitter-markdown-local/LICENSE",
-        "crates/enforcer-memory/vendor/tree-sitter-markdown-local/build.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-markdown-local/src/lib.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-markdown-local/src/node-types.json",
-        "crates/enforcer-memory/vendor/tree-sitter-markdown-local/src/parser.c",
-        "crates/enforcer-memory/vendor/tree-sitter-markdown-local/src/scanner.c",
-        "crates/enforcer-memory/vendor/tree-sitter-markdown-local/src/tree_sitter/parser.h",
-        "crates/enforcer-memory/vendor/tree-sitter-mermaid-local/Cargo.toml",
-        "crates/enforcer-memory/vendor/tree-sitter-mermaid-local/LICENSE",
-        "crates/enforcer-memory/vendor/tree-sitter-mermaid-local/build.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-mermaid-local/src/lib.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-mermaid-local/src/node-types.json",
-        "crates/enforcer-memory/vendor/tree-sitter-mermaid-local/src/parser.c",
-        "crates/enforcer-memory/vendor/tree-sitter-mermaid-local/src/tree_sitter/parser.h",
-        "crates/enforcer-memory/vendor/tree-sitter-po-local/Cargo.toml",
-        "crates/enforcer-memory/vendor/tree-sitter-po-local/LICENSE",
-        "crates/enforcer-memory/vendor/tree-sitter-po-local/build.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-po-local/src/lib.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-po-local/src/node-types.json",
-        "crates/enforcer-memory/vendor/tree-sitter-po-local/src/parser.c",
-        "crates/enforcer-memory/vendor/tree-sitter-po-local/src/tree_sitter/parser.h",
-        "crates/enforcer-memory/vendor/tree-sitter-ron-local/Cargo.toml",
-        "crates/enforcer-memory/vendor/tree-sitter-ron-local/LICENSE",
-        "crates/enforcer-memory/vendor/tree-sitter-ron-local/build.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-ron-local/src/lib.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-ron-local/src/node-types.json",
-        "crates/enforcer-memory/vendor/tree-sitter-ron-local/src/parser.c",
-        "crates/enforcer-memory/vendor/tree-sitter-ron-local/src/scanner.c",
-        "crates/enforcer-memory/vendor/tree-sitter-ron-local/src/tree_sitter/parser.h",
-        "crates/enforcer-memory/vendor/tree-sitter-sshclientconfig-local/Cargo.toml",
-        "crates/enforcer-memory/vendor/tree-sitter-sshclientconfig-local/LICENSE",
-        "crates/enforcer-memory/vendor/tree-sitter-sshclientconfig-local/build.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-sshclientconfig-local/src/lib.rs",
-        "crates/enforcer-memory/vendor/tree-sitter-sshclientconfig-local/src/node-types.json",
-        "crates/enforcer-memory/vendor/tree-sitter-sshclientconfig-local/src/parser.c",
-        "crates/enforcer-memory/vendor/tree-sitter-sshclientconfig-local/src/tree_sitter/alloc.h",
-        "crates/enforcer-memory/vendor/tree-sitter-sshclientconfig-local/src/tree_sitter/array.h",
-        "crates/enforcer-memory/vendor/tree-sitter-sshclientconfig-local/src/tree_sitter/parser.h"
+        "crates/enforcer-memory/tests/x06_proof_portability.rs"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -5210,14 +5039,21 @@
       "id": "QA-188",
       "category": "Experience",
       "query": "Which error type change broke downstream code before?",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Experience",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "x06-qa-capability:QA-188:error-change-downstream-breakage-history"
+      ],
+      "actualIds": [
+        "x06-qa-capability:QA-188:error-change-downstream-breakage-history"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "proof/memory/x06-qa-capabilities.json",
+        "test:x06_qa_error_change_rows_can_recall_downstream_breakage"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-189",

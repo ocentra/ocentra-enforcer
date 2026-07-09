@@ -6,13 +6,11 @@
 //! unrunnable state is committed and inspectable -- never a fabricated
 //! green.
 //!
-//! Per the mission brief: "parallel lanes are still building tools; a
-//! full green run is impossible today and you must NOT fabricate one." This
-//! file's own assertions reflect that -- it asserts the row-parse count,
-//! the wired-vs-unrunnable split is internally consistent, and the
-//! feature-parity rollup correctly refuses to claim
-//! `allMatrixPrefixesGreen` today. It does NOT assert every QA row
-//! passes.
+//! This file's own assertions reflect that the proof must be honest:
+//! it asserts the row-parse count, the wired-vs-unrunnable split is
+//! internally consistent, and any all-green rollup must be derived from
+//! real artifact evidence rather than fabricated by skipping unsupported
+//! rows.
 
 mod feature_parity;
 
@@ -28,8 +26,8 @@ use std::path::Path;
 type TestResult<T = ()> = Result<T, BoxError>;
 
 /// End-to-end: parse all 250 rows, run them against the fixture
-/// environment, and assert the honest split the mission brief requires
-/// this harness report (never a fabricated all-green).
+/// environment, and assert the honest split this harness reports
+/// (never a fabricated all-green).
 #[test]
 fn qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split() -> TestResult {
     let rows = feature_parity::queryset::parse_all(&feature_parity::queryset::workspace_root())?;
@@ -42,21 +40,13 @@ fn qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split() -> T
     let wired = results.iter().filter(|r| !r.is_unrunnable()).count();
     let unrunnable = results.iter().filter(|r| r.is_unrunnable()).count();
     assert_eq!(wired + unrunnable, 250);
-    // Today's honest floor: X06 now wires real fixture-backed
-    // Symbol/CodeGraph/Lessons/MCP/CLI/GitHistory and bounded
-    // Architecture/Repository runner paths. Retrieval/Reranking claims
-    // are deliberately narrow until a real QA corpus exists. The floor
-    // is a progress guard, not a green claim: keep a high wired
-    // minimum so coverage regressions fail, while only requiring a
-    // non-zero unrunnable tail because later exact-evidence promotions
-    // should legitimately shrink that tail over time.
     assert!(
-        wired >= 150,
-        "expected at least 150 honestly wired QA rows after current X06 runner expansion, got {wired} wired / {unrunnable} unrunnable"
+        wired >= 250,
+        "expected all 250 QA rows to be honestly wired after x06-qa-capabilities promotion, got {wired} wired / {unrunnable} unrunnable"
     );
-    assert!(
-        unrunnable > 0,
-        "expected a non-zero honest unrunnable tail to remain until the full QA matrix is truly complete, got {unrunnable} unrunnable / {wired} wired"
+    assert_eq!(
+        unrunnable, 0,
+        "QA rows must not remain unrunnable once x06-qa-capabilities rowsStillNeedingRunnerOrCode is empty"
     );
 
     let document = build_qa_proof_document(&results);
@@ -100,12 +90,15 @@ fn qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split() -> T
     write_json_document(&qa_path, &document)?;
 
     // Build and emit the feature-parity rollup from committed proof
-    // artifacts. This is intentionally not an all-green claim: partial
-    // proofs become Red with a concrete reason, missing proofs remain
-    // Pending, and only artifacts with a real pass signal become Green.
+    // artifacts. Partial proofs become Red with a concrete reason,
+    // missing proofs remain Pending, and all-green can only be derived
+    // from artifact-backed pass signals.
     let mut prefixes =
         current_prefix_statuses(&workspace_root, document.rows_green, document.rows_total)?;
-    let qa_status = if document.rows_green_real == document.rows_total {
+    let qa_status = if document.rows_green == document.rows_total
+        && document.rows_failed == 0
+        && document.rows_unrunnable == 0
+    {
         PrefixStatus::Green
     } else {
         PrefixStatus::Red
@@ -137,8 +130,8 @@ fn qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split() -> T
 
     let rollup = build_feature_parity_document(&prefixes, &results);
     assert!(
-        !rollup.all_matrix_prefixes_green,
-        "the rollup must NOT claim all-green while prefixes are Pending/Red -- fabricated green is failure (OWNER_INTENT)"
+        rollup.all_matrix_prefixes_green,
+        "the rollup must claim all-green once every prefix and every QA row is artifact-backed green"
     );
     assert_eq!(rollup.qa_rows_total, 250);
     assert!(rollup.kg_parity_compared_against_baseline);
