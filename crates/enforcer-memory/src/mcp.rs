@@ -1285,6 +1285,7 @@ struct SearchGraphEmbedderResolution {
     resolved_backend: &'static str,
     requested_provider: Option<crate::model_runtime::ProviderKind>,
     resolved_provider: Option<crate::model_runtime::ProviderKind>,
+    fallback_kind: Option<&'static str>,
     fallback_reason: Option<String>,
 }
 
@@ -1292,6 +1293,7 @@ impl SearchGraphEmbedderResolution {
     fn hashing(
         requested_backend: &'static str,
         requested_provider: Option<crate::model_runtime::ProviderKind>,
+        fallback_kind: Option<&'static str>,
         fallback_reason: Option<String>,
     ) -> Self {
         Self {
@@ -1300,6 +1302,7 @@ impl SearchGraphEmbedderResolution {
             resolved_backend: "hashing",
             requested_provider,
             resolved_provider: None,
+            fallback_kind,
             fallback_reason,
         }
     }
@@ -1314,6 +1317,7 @@ impl SearchGraphEmbedderResolution {
             resolved_backend: "ort",
             requested_provider: Some(provider),
             resolved_provider: Some(provider),
+            fallback_kind: None,
             fallback_reason: None,
         }
     }
@@ -1351,6 +1355,7 @@ impl SearchGraphEmbedderResolution {
             "resolvedBackend": self.resolved_backend,
             "requestedProvider": self.requested_provider.map(provider_json),
             "resolvedProvider": self.resolved_provider.map(provider_json),
+            "fallbackKind": self.fallback_kind,
             "state": state,
             "resourceClass": resource_class,
             "model": {
@@ -1379,13 +1384,19 @@ fn resolve_search_graph_embedder(args: &Value) -> SearchGraphEmbedderResolution 
         {
             Ok(provider) => provider.unwrap_or(crate::model_runtime::ProviderKind::Cpu),
             Err(reason) => {
-                return SearchGraphEmbedderResolution::hashing("ort", None, Some(reason));
+                return SearchGraphEmbedderResolution::hashing(
+                    "ort",
+                    None,
+                    Some("invalid-provider"),
+                    Some(reason),
+                );
             }
         };
         let Some(cache_root) = args.get("embeddingCacheRoot").and_then(Value::as_str) else {
             return SearchGraphEmbedderResolution::hashing(
                 "ort",
                 Some(provider),
+                Some("cache-root-missing"),
                 Some("embeddingBackend=ort requires embeddingCacheRoot; no network fallback attempted".to_owned()),
             );
         };
@@ -1405,6 +1416,7 @@ fn resolve_search_graph_embedder(args: &Value) -> SearchGraphEmbedderResolution 
                 return SearchGraphEmbedderResolution::hashing(
                     "ort",
                     Some(provider),
+                    Some("cache-missing-or-invalid"),
                     Some(format!(
                         "cache-only ORT model resolution failed; degraded hashing fallback used: {err}"
                     )),
@@ -1417,6 +1429,7 @@ fn resolve_search_graph_embedder(args: &Value) -> SearchGraphEmbedderResolution 
                 return SearchGraphEmbedderResolution::hashing(
                     "ort",
                     Some(provider),
+                    Some("provider-load-failed"),
                     Some(format!(
                         "cache-only ORT provider load failed; degraded hashing fallback used: {err}"
                     )),
@@ -1424,7 +1437,7 @@ fn resolve_search_graph_embedder(args: &Value) -> SearchGraphEmbedderResolution 
             }
         }
     }
-    SearchGraphEmbedderResolution::hashing("hashing", None, None)
+    SearchGraphEmbedderResolution::hashing("hashing", None, None, None)
 }
 
 fn parse_provider_kind(

@@ -30,6 +30,7 @@
     "typedToolErrors": "covered",
     "searchGraphSemanticRuntimeTelemetry": "covered",
     "cacheOnlyOrtEmbeddingFallback": "covered",
-    "ortProviderSelectionTelemetry": "covered"
+    "ortProviderSelectionTelemetry": "covered",
+    "ortFallbackKindTelemetry": "covered"
   }
 }

@@ -107,6 +107,10 @@ fn x06_mcp_proof_names_search_graph_runtime_telemetry_evidence() -> TestResult {
         proof["hardRequirements"]["ortProviderSelectionTelemetry"],
         json!("covered")
     );
+    assert_eq!(
+        proof["hardRequirements"]["ortFallbackKindTelemetry"],
+        json!("covered")
+    );
     Ok(())
 }
 
@@ -417,6 +421,10 @@ fn tools_call_search_graph_ort_embedding_missing_cache_falls_back_without_networ
     assert_eq!(
         structured["embeddingRuntime"]["resolvedProvider"],
         json!(null)
+    );
+    assert_eq!(
+        structured["embeddingRuntime"]["fallbackKind"],
+        json!("cache-missing-or-invalid")
     );
     assert_eq!(
         structured["embeddingRuntime"]["state"],
