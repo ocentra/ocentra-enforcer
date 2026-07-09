@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "artifact": "x06-learning-curve",
   "workpack": "x06-models-harvest",
-  "generatedAt": "2026-07-08T16:39:13.8481304Z",
-  "status": "store-backed-projection",
+  "generatedAt": "2026-07-09T10:02:48.717Z",
+  "status": "store-backed-projection-policy-clean-focused-gates",
   "learningCurve": {
     "present": true,
     "reason": "durable observation, procedural, route-choice, trace, and model-runtime observation records append to Store logs; project_learning_from_store now replays those logs into a deterministic Store-derived learning and recurrence projection",
@@ -462,13 +462,24 @@
         "proof/memory/x06-dogfood.json"
       ],
       "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-040",
+      "lesson": "Dependency-policy exceptions must be executable policy, not prose-only policy. If deny.toml records a narrow RUSTSEC exception, the Enforcer runner must pass that exact exception to cargo audit and keep unmaintained=deny for everything else.",
+      "evidence": [
+        "current .mjs Enforcer src/check-governance-dependency.mjs",
+        "current .mjs Enforcer tests/dependency-policy.test.mjs",
+        "deny.toml",
+        "proof/memory/x06-dogfood.json"
+      ],
+      "status": "learned"
     }
   ],
   "blockers": [],
   "followUps": [
     "Checked-in real model runtime proofs remain host-local and non-CI-parity; rerun explicit probes when hardware, cache, or providers change.",
-    "QA coverage is 205/250 green with 0 failures and 45 intentionally unrunnable rows; unsupported rows remain unrunnable rather than fake green.",
-    "Crate-scope required-tests still fails on pre-existing inline test debt across enforcer-memory src files, and dependency-policy still reports Cargo.lock advisories outside this X06 exact-evidence slice."
+    "QA coverage is 250/250 green with 0 failures in proof/memory/x06-rag-qa.json and proof/memory/x06-feature-parity.json; keep unsupported future install-hook rows outside X06 memory scope unless new code lands.",
+    "Full cargo test -p enforcer-memory --quiet -j 1 exceeded the 20 minute local timeout; keep using focused suites as evidence until the broad package suite is split or its long-running case is isolated."
   ],
   "recurrenceNotes": [
     "t0 events now have durable Store append paths for observations and model-runtime incidents.",
