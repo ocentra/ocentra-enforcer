@@ -76,6 +76,7 @@ fn checked_in_x06_qa_capabilities_proof_matches_fixture_tests() -> TestResult {
                             | "x06_qa_duplicate_logic_rows_can_find_similar_functions"
                             | "x06_qa_module_rows_can_enumerate_touched_filesystem_paths"
                             | "x06_qa_previous_bug_rows_can_recall_similar_incidents"
+                            | "x06_qa_error_change_rows_can_recall_downstream_breakage"
                             | "x06_qa_symbol_rows_can_find_zero_callers_and_generic_result_mentions"
                     )
                 })
@@ -87,7 +88,7 @@ fn checked_in_x06_qa_capabilities_proof_matches_fixture_tests() -> TestResult {
         covered_ids,
         BTreeSet::from([
             "QA-011", "QA-024", "QA-038", "QA-039", "QA-044", "QA-045", "QA-057", "QA-058",
-            "QA-065", "QA-066", "QA-067", "QA-107", "QA-109"
+            "QA-065", "QA-066", "QA-067", "QA-107", "QA-109", "QA-188"
         ])
     );
 
@@ -105,12 +106,95 @@ fn checked_in_x06_qa_capabilities_proof_matches_fixture_tests() -> TestResult {
                 .ok_or("still-needed row id must be a string")
         })
         .collect::<Result<BTreeSet<_>, _>>()?;
-    assert_eq!(still_needed, BTreeSet::from(["QA-188"]));
+    assert!(
+        still_needed.is_empty(),
+        "all capability rows should be covered"
+    );
     assert!(
         proof["lessons"]
             .as_array()
             .is_some_and(|lessons| !lessons.is_empty()),
         "proof must carry durable learning evidence"
+    );
+    Ok(())
+}
+
+#[test]
+fn x06_qa_error_change_rows_can_recall_downstream_breakage() -> TestResult {
+    let mut graph = MemoryGraph::new();
+    graph.ingest_lesson_row(LessonRow {
+        id: "lesson-decode-error-downstream-break".to_owned(),
+        date: "2026-07-09".to_owned(),
+        observed: "changing DecodeError from enum variant to struct broke downstream match arms"
+            .to_owned(),
+        lesson:
+            "before changing public error type shape, find downstream constructors and match arms"
+                .to_owned(),
+        landed_at: "commit error-type-breakage-proof".to_owned(),
+        ships_via: "x06-qa".to_owned(),
+    });
+    ingest_observation(
+        &mut graph,
+        Observation {
+            lesson_id: "lesson-decode-error-downstream-break".to_owned(),
+            rule_id: Some("QA-188".to_owned()),
+            fault_class: Some("error-type-downstream-breakage".to_owned()),
+            repo_context:
+                "DecodeError shape change broke enforcer-mcp match arms and CLI conversion"
+                    .to_owned(),
+            clean: false,
+            source_surface: "fixture:error-history".to_owned(),
+            ts: "2026-07-09T00:00:00Z".to_owned(),
+        },
+    );
+    graph.ingest_lesson_row(LessonRow {
+        id: "lesson-unrelated-route-policy".to_owned(),
+        date: "2026-07-09".to_owned(),
+        observed: "route auth policy missed public endpoint coverage".to_owned(),
+        lesson: "pair route extraction with auth-call evidence".to_owned(),
+        landed_at: "commit unrelated-route-proof".to_owned(),
+        ships_via: "x06-qa".to_owned(),
+    });
+
+    let docs = graph
+        .nodes()
+        .iter()
+        .map(|node| SearchDocument::new(node.id(), DocumentKind::Lesson, node.searchable_text()))
+        .collect::<Vec<_>>();
+    let index = FullTextIndex::build(&docs)?;
+    let hits = index.search(
+        "DecodeError shape broke downstream match arms conversion",
+        5,
+    )?;
+
+    assert_eq!(
+        hits.first().map(|hit| hit.doc_id.as_str()),
+        Some("obs-fixture:error-history-0001"),
+        "error-change history should retrieve the exact downstream breakage incident first, got {hits:?}"
+    );
+    assert!(
+        hits.iter()
+            .any(|hit| hit.doc_id == "lesson-decode-error-downstream-break"),
+        "error-change history should also return the landed lesson context, got {hits:?}"
+    );
+    let incidents = graph.incidents_for_lesson("lesson-decode-error-downstream-break");
+    assert!(
+        incidents
+            .iter()
+            .any(|incident| incident.fault_class.as_deref()
+                == Some("error-type-downstream-breakage")),
+        "error-change lesson must carry typed fault-class evidence, got {incidents:?}"
+    );
+    assert!(
+        incidents.iter().any(|incident| incident
+            .repo_context
+            .contains("broke enforcer-mcp match arms")),
+        "error-change lesson must name downstream breakage context, got {incidents:?}"
+    );
+    assert!(
+        hits.iter()
+            .all(|hit| hit.doc_id != "lesson-unrelated-route-policy"),
+        "unrelated route-policy lesson must not satisfy error-change history query, got {hits:?}"
     );
     Ok(())
 }
