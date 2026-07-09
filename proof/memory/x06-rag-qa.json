@@ -4,8 +4,8 @@
   "rowsTotal": 250,
   "rowsGreen": 250,
   "rowsGreenReal": 0,
-  "rowsGreenHostLocalProof": 22,
-  "rowsGreenDegraded": 228,
+  "rowsGreenHostLocalProof": 28,
+  "rowsGreenDegraded": 222,
   "rowsFailed": 0,
   "rowsUnrunnable": 0,
   "rows": [
@@ -1598,17 +1598,17 @@
       "query": "Find files with highest churn.",
       "expectedIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:54",
-        "churn:proof/memory/x06-feature-parity.json:52",
-        "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:47"
+        "churn:proof/memory/x06-rag-qa.json:55",
+        "churn:proof/memory/x06-feature-parity.json:53",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:48",
+        "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
       ],
       "actualIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:54",
-        "churn:proof/memory/x06-feature-parity.json:52",
-        "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:47"
+        "churn:proof/memory/x06-rag-qa.json:55",
+        "churn:proof/memory/x06-feature-parity.json:53",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:48",
+        "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -1617,8 +1617,8 @@
         "Cargo.lock",
         "proof/memory/x06-rag-qa.json",
         "proof/memory/x06-feature-parity.json",
-        "docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md",
         "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md",
         "git:log:name-only"
       ],
       "verdict": "pass",
@@ -1727,7 +1727,7 @@
         "proof/memory/x06-learning-curve.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-070",
@@ -1752,7 +1752,7 @@
         "proof/memory/x06-learning-curve.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-071",
@@ -1777,7 +1777,7 @@
         "proof/memory/x06-learning-curve.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-072",
@@ -1826,7 +1826,7 @@
         "proof/memory/x06-learning-curve.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-074",
@@ -1916,7 +1916,7 @@
         "proof/memory/x06-learning-curve.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-078",
@@ -1941,7 +1941,7 @@
         "proof/memory/x06-learning-curve.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-079",

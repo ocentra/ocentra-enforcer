@@ -6097,7 +6097,7 @@ fn hot_memory_probe(row: &QaRow) -> RowResult {
 }
 
 fn worked_fix_strategy_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -6128,7 +6128,7 @@ fn worked_fix_strategy_probe(row: &QaRow) -> RowResult {
 }
 
 fn failed_fix_strategy_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -6157,7 +6157,7 @@ fn failed_fix_strategy_probe(row: &QaRow) -> RowResult {
 }
 
 fn workpack_lessons_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -6251,7 +6251,7 @@ fn rule_lessons_probe(row: &QaRow) -> RowResult {
 }
 
 fn file_lessons_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -6608,7 +6608,7 @@ fn conflicting_lessons_probe(row: &QaRow) -> RowResult {
 }
 
 fn strongest_evidence_lesson_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -6631,7 +6631,7 @@ fn strongest_evidence_lesson_probe(row: &QaRow) -> RowResult {
 }
 
 fn recurrence_reduction_lesson_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
