@@ -543,6 +543,63 @@ fn checked_in_real_model_proofs_are_not_claimed_as_ci_parity() -> TestResult {
 }
 
 #[test]
+fn model_rollup_linked_artifacts_exist_and_are_not_ci_parity() -> TestResult {
+    let workspace_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .ok_or("failed to resolve workspace root from CARGO_MANIFEST_DIR")?;
+    let rollup: serde_json::Value =
+        serde_json::from_str(include_str!("../../../proof/memory/x06-models.json"))?;
+    let linked = rollup["linkedProofArtifacts"]
+        .as_object()
+        .ok_or("x06-models linkedProofArtifacts must be an object")?;
+    let expected_groups = [
+        "cacheAcquisitionProofs",
+        "ggufRuntimeProofs",
+        "localRuntimeProofs",
+        "negativeLearningProofs",
+        "ortRuntimeProofs",
+        "planningProofs",
+    ];
+
+    for group in expected_groups {
+        let entries = linked
+            .get(group)
+            .and_then(serde_json::Value::as_array)
+            .ok_or_else(|| format!("{group} must be present as an array"))?;
+        assert!(
+            !entries.is_empty(),
+            "{group} must not be an empty rollup bucket"
+        );
+
+        for entry in entries {
+            assert_eq!(entry["ciParity"], false, "{group} must stay non-CI proof");
+            let artifact_path = entry["artifactPath"]
+                .as_str()
+                .ok_or_else(|| format!("{group} entry must include artifactPath"))?;
+            assert!(
+                artifact_path.starts_with("proof/memory/x06-models"),
+                "{artifact_path} must stay inside the X06 model proof namespace"
+            );
+
+            let proof_path = workspace_root.join(artifact_path);
+            assert!(
+                proof_path.is_file(),
+                "{artifact_path} is linked from x06-models.json but missing on disk"
+            );
+            let proof: serde_json::Value =
+                serde_json::from_str(&std::fs::read_to_string(&proof_path)?)?;
+            assert_eq!(
+                proof["proofScope"]["ciParity"], false,
+                "{artifact_path} must not claim portable CI model parity"
+            );
+        }
+    }
+
+    Ok(())
+}
+
+#[test]
 fn checked_in_cache_only_proofs_are_zero_network_and_path_redacted() -> TestResult {
     let missing: serde_json::Value = serde_json::from_str(include_str!(
         "../../../proof/memory/x06-models-cache-only-missing.json"
