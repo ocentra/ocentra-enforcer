@@ -4,8 +4,8 @@
   "rowsTotal": 250,
   "rowsGreen": 250,
   "rowsGreenReal": 0,
-  "rowsGreenHostLocalProof": 105,
-  "rowsGreenDegraded": 145,
+  "rowsGreenHostLocalProof": 109,
+  "rowsGreenDegraded": 141,
   "rowsFailed": 0,
   "rowsUnrunnable": 0,
   "rows": [
@@ -1598,16 +1598,16 @@
       "query": "Find files with highest churn.",
       "expectedIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:66",
-        "churn:proof/memory/x06-feature-parity.json:63",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:59",
+        "churn:proof/memory/x06-rag-qa.json:67",
+        "churn:proof/memory/x06-feature-parity.json:64",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:60",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
       ],
       "actualIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:66",
-        "churn:proof/memory/x06-feature-parity.json:63",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:59",
+        "churn:proof/memory/x06-rag-qa.json:67",
+        "churn:proof/memory/x06-feature-parity.json:64",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:60",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
       ],
       "recallAt5": 1.0,
@@ -1801,7 +1801,7 @@
         "crates/enforcer-memory/src/observations.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-073",
@@ -1871,7 +1871,7 @@
         "crates/enforcer-memory/src/learning.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-076",
@@ -1894,7 +1894,7 @@
         "crates/enforcer-memory/src/learning.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-077",
@@ -2010,7 +2010,7 @@
         "crates/enforcer-memory/src/evidence.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-082",

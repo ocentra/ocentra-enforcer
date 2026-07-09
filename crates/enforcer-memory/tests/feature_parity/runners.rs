@@ -6238,7 +6238,7 @@ fn rule_lessons_probe(row: &QaRow) -> RowResult {
             &format!("unexpected active lesson ids for CL-UNKNOWN-RULE: {actual_ids:?}"),
         );
     }
-    exact_pass(
+    host_local_proof_pass(
         row,
         actual_ids,
         vec![
@@ -6563,7 +6563,7 @@ fn stale_lessons_probe(row: &QaRow) -> RowResult {
             "inactive imported lesson unexpectedly appears in active_lessons",
         );
     }
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec!["mem-cl-0004".to_string()],
         vec![
@@ -6593,7 +6593,7 @@ fn conflicting_lessons_probe(row: &QaRow) -> RowResult {
     }
     score_row(
         row,
-        RowEvidence::degraded(
+        RowEvidence::host_local_proof(
             vec!["mem-cl-0002".to_string(), "mem-cl-0003".to_string()],
             vec!["mem-cl-0002".to_string(), "mem-cl-0003".to_string()],
             None,
@@ -6801,7 +6801,7 @@ fn clean_scans_after_landing_probe(row: &QaRow) -> RowResult {
             )
         }
     }
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec![incident_id],
         vec![
