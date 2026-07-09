@@ -484,6 +484,64 @@ fn ort_worker_plan_materializes_enforcer_owned_child_env_contract() -> TestResul
 }
 
 #[test]
+fn ort_worker_plan_rejects_absolute_model_or_tokenizer_paths_before_spawn() -> TestResult {
+    let absolute_model = ModelSpec::qwen3_embedding(
+        "C:/Users/sujan/model/qwen/model.onnx",
+        "abc123",
+        "model/hf/qwen/tokenizer.json",
+        "def456",
+    );
+    let model_error = match ort_worker_execution_plan(
+        "target/debug/x06_model_runtime_probe",
+        OrtWorkerTask::Embedding,
+        &absolute_model,
+        ProviderKind::Cpu,
+        30_000,
+    ) {
+        Ok(plan) => {
+            return Err(
+                format!("absolute model path admitted into ORT worker plan: {plan:?}").into(),
+            )
+        }
+        Err(error) => error,
+    };
+    assert!(
+        model_error
+            .to_string()
+            .contains("ENFORCER_X06_CHILD_ARTIFACT_PATH must be cache-relative/repo-local"),
+        "unexpected absolute model path error: {model_error}"
+    );
+
+    let absolute_tokenizer = ModelSpec::qwen3_embedding(
+        "model/hf/qwen/model.onnx",
+        "abc123",
+        "/home/sujan/model/qwen/tokenizer.json",
+        "def456",
+    );
+    let tokenizer_error = match ort_worker_execution_plan(
+        "target/debug/x06_model_runtime_probe",
+        OrtWorkerTask::Embedding,
+        &absolute_tokenizer,
+        ProviderKind::Cpu,
+        30_000,
+    ) {
+        Ok(plan) => {
+            return Err(
+                format!("absolute tokenizer path admitted into ORT worker plan: {plan:?}").into(),
+            )
+        }
+        Err(error) => error,
+    };
+    assert!(
+        tokenizer_error
+            .to_string()
+            .contains("ENFORCER_X06_CHILD_TOKENIZER_PATH must be cache-relative/repo-local"),
+        "unexpected absolute tokenizer path error: {tokenizer_error}"
+    );
+    Ok(())
+}
+
+#[test]
 fn ort_worker_command_uses_owned_worker_args_and_env_without_server_surface() -> TestResult {
     let spec = ModelSpec::qwen3_reranker(
         "model/hf/qwen-reranker/model.onnx",

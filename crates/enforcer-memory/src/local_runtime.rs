@@ -675,7 +675,7 @@ pub fn ort_worker_execution_plan_with_provider_resolution(
             timeout_ms.to_string(),
         ),
     ];
-    Ok(OrtWorkerExecutionPlan {
+    let plan = OrtWorkerExecutionPlan {
         executable_path: executable_path.into(),
         task,
         provider: provider_resolution.resolved_provider,
@@ -687,7 +687,9 @@ pub fn ort_worker_execution_plan_with_provider_resolution(
         port_binding_allowed: false,
         kill_on_timeout: control.timeout_kill_supported,
         env,
-    })
+    };
+    validate_ort_worker_execution_plan(&plan)?;
+    Ok(plan)
 }
 
 pub fn validate_ort_worker_execution_plan(plan: &OrtWorkerExecutionPlan) -> Result<()> {
@@ -744,7 +746,38 @@ pub fn validate_ort_worker_execution_plan(plan: &OrtWorkerExecutionPlan) -> Resu
             "accelerated ORT provider requires positive provider probe evidence",
         ));
     }
+    for key in [
+        "ENFORCER_X06_CHILD_ARTIFACT_PATH",
+        "ENFORCER_X06_CHILD_TOKENIZER_PATH",
+    ] {
+        let value = plan.env_value(key).ok_or_else(|| {
+            model_runtime_error(
+                "validate-ort-worker-execution-plan",
+                format!("ORT worker plan missing required env {key}"),
+            )
+        })?;
+        if path_value_is_absolute(value) {
+            return Err(model_runtime_error(
+                "validate-ort-worker-execution-plan",
+                format!(
+                    "ORT worker {key} must be cache-relative/repo-local, not an absolute or hardcoded machine path"
+                ),
+            ));
+        }
+    }
     Ok(())
+}
+
+fn path_value_is_absolute(value: &str) -> bool {
+    let normalized = value.replace('\\', "/");
+    PathBuf::from(value).is_absolute()
+        || normalized.starts_with('/')
+        || normalized.starts_with("//")
+        || normalized
+            .as_bytes()
+            .get(1)
+            .copied()
+            .is_some_and(|byte| byte == b':')
 }
 
 pub fn resolve_ort_provider(
