@@ -4,8 +4,8 @@
   "rowsTotal": 250,
   "rowsGreen": 250,
   "rowsGreenReal": 0,
-  "rowsGreenHostLocalProof": 3,
-  "rowsGreenDegraded": 247,
+  "rowsGreenHostLocalProof": 11,
+  "rowsGreenDegraded": 239,
   "rowsFailed": 0,
   "rowsUnrunnable": 0,
   "rows": [
@@ -1550,17 +1550,17 @@
       "query": "Summarize last 20 commits for this module.",
       "expectedIds": [
         "module:enforcer-memory-src:last-20-commits:20",
-        "commit:061c2a6ba2d3",
-        "commit:0bf1ce0ef899",
-        "commit:e8eb90bd56a1",
-        "commit:42b153185160"
+        "commit:666270342e12",
+        "commit:b89f330b277f",
+        "commit:3661ec9b5377",
+        "commit:061c2a6ba2d3"
       ],
       "actualIds": [
         "module:enforcer-memory-src:last-20-commits:20",
-        "commit:061c2a6ba2d3",
-        "commit:0bf1ce0ef899",
-        "commit:e8eb90bd56a1",
-        "commit:42b153185160"
+        "commit:666270342e12",
+        "commit:b89f330b277f",
+        "commit:3661ec9b5377",
+        "commit:061c2a6ba2d3"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -1568,6 +1568,9 @@
       "sourceRefs": [
         "crates/enforcer-memory/src",
         "git:log:-20:crates/enforcer-memory/src",
+        "commit-summary:666270342e12:feat(memory): enforce ort session execution policy",
+        "commit-summary:b89f330b277f:test(memory): expand ort provider fallback order",
+        "commit-summary:3661ec9b5377:test(memory): retain ort failure proof contract",
         "commit-summary:061c2a6ba2d3:docs(memory): align model observation persistence contract",
         "commit-summary:0bf1ce0ef899:feat(memory): preserve graph artifact symbol kinds",
         "commit-summary:e8eb90bd56a1:test(memory): pin runtime isolation contract",
@@ -1584,10 +1587,7 @@
         "commit-summary:2532e7ad2121:test(memory): harden runtime control ownership",
         "commit-summary:f9e11e79c9ce:feat(memory): control ORT worker runtime plan",
         "commit-summary:0bbc317dcc7d:Merge remote-tracking branch 'origin/rust-build' into rust-build",
-        "commit-summary:b231ef113549:feat(x06): wave G2.5 — 42 Tier-0 languages + close G2.5d dispatch-wiring gap",
-        "commit-summary:024f8fe73851:test(memory): lock model runtime ownership routes",
-        "commit-summary:c87f2b5392fe:feat(memory): model ORT as managed worker runtime",
-        "commit-summary:82b3091bca8d:feat(memory): enforce managed local runtime control"
+        "commit-summary:b231ef113549:feat(x06): wave G2.5 — 42 Tier-0 languages + close G2.5d dispatch-wiring gap"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -1598,15 +1598,15 @@
       "query": "Find files with highest churn.",
       "expectedIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:51",
-        "churn:proof/memory/x06-feature-parity.json:49",
+        "churn:proof/memory/x06-rag-qa.json:52",
+        "churn:proof/memory/x06-feature-parity.json:50",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
         "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:45"
       ],
       "actualIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:51",
-        "churn:proof/memory/x06-feature-parity.json:49",
+        "churn:proof/memory/x06-rag-qa.json:52",
+        "churn:proof/memory/x06-feature-parity.json:50",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
         "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:45"
       ],
@@ -2169,15 +2169,15 @@
         "crates/enforcer-memory/src/hf_cache.rs:346::select_x06_chat_model_for_hardware",
         "crates/enforcer-memory/src/hf_cache.rs:378::q4-chat-fallback",
         "crates/enforcer-memory/src/hf_cache.rs:382::no-probe-chat-fallback",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:197::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:224::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:222::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:249::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
       ],
       "actualIds": [
         "crates/enforcer-memory/src/hf_cache.rs:346::select_x06_chat_model_for_hardware",
         "crates/enforcer-memory/src/hf_cache.rs:378::q4-chat-fallback",
         "crates/enforcer-memory/src/hf_cache.rs:382::no-probe-chat-fallback",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:197::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:224::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:222::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:249::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -2424,10 +2424,11 @@
         "crates/enforcer-memory/src/ranking.rs",
         "crates/enforcer-memory/src/search/mod.rs",
         "crates/enforcer-memory/tests/retrieval_stack.rs",
+        "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
         "proof/memory/x06-reranker.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-098",
@@ -5533,11 +5534,12 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/ranking.rs",
         "crates/enforcer-memory/tests/retrieval_stack.rs",
+        "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
         "proof/memory/x06-rag.json",
         "proof/memory/x06-reranker.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-207",
@@ -5560,11 +5562,12 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/ranking.rs",
         "crates/enforcer-memory/src/search/mod.rs",
+        "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
         "proof/memory/x06-reranker.json",
         "proof/memory/x06-retrieval-quality.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-208",
@@ -5587,11 +5590,12 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/ranking.rs",
         "crates/enforcer-memory/tests/retrieval_stack.rs",
+        "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
         "proof/memory/x06-rag.json",
         "proof/memory/x06-reranker.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-209",
@@ -5606,13 +5610,15 @@
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
+      "rerankerLift": -0.4293582810446799,
       "sourceRefs": [
         "crates/enforcer-memory/tests/feature_parity/metrics.rs",
         "crates/enforcer-memory/tests/retrieval_stack.rs",
+        "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
         "proof/memory/x06-reranker.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-210",
@@ -5635,11 +5641,12 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/ranking.rs",
         "crates/enforcer-memory/src/search/mod.rs",
+        "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
         "proof/memory/x06-rag.json",
         "proof/memory/x06-reranker.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-211",
@@ -5662,11 +5669,12 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/ranking.rs",
         "crates/enforcer-memory/src/search/mod.rs",
+        "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
         "proof/memory/x06-reranker.json",
         "proof/memory/x06-token-reduction.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-212",
@@ -5684,10 +5692,11 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/ranking.rs",
         "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
         "proof/memory/x06-reranker.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-213",

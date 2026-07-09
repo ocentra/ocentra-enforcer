@@ -2151,6 +2151,57 @@ fn host_local_proof_pass(row: &QaRow, ids: Vec<String>, source_refs: Vec<String>
     )
 }
 
+fn append_validated_ort_reranker_proof(
+    row: &QaRow,
+    source_refs: &mut Vec<String>,
+) -> Option<RowResult> {
+    let root = super::queryset::workspace_root();
+    let rel = "proof/memory/x06-models-qwen3-reranker-ort-cpu.json";
+    let proof: serde_json::Value = match std::fs::read_to_string(root.join(rel))
+        .and_then(|raw| serde_json::from_str(&raw).map_err(std::io::Error::other))
+    {
+        Ok(proof) => proof,
+        Err(error) => return Some(unrunnable(row, &format!("failed to parse {rel}: {error}"))),
+    };
+    let runtime = &proof["qwenRerankerOnnx"];
+    let expected = [
+        (&proof["runtimeMode"], serde_json::json!("probe")),
+        (&runtime["ok"], serde_json::json!(true)),
+        (
+            &runtime["operation"],
+            serde_json::json!("qwen-reranker-onnx"),
+        ),
+        (
+            &runtime["ownership"],
+            serde_json::json!("enforcer-isolated-worker"),
+        ),
+        (
+            &runtime["requestProtocol"],
+            serde_json::json!("enforcer-worker-env"),
+        ),
+        (&runtime["externalServerAllowed"], serde_json::json!(false)),
+        (&runtime["portBindingAllowed"], serde_json::json!(false)),
+        (
+            &runtime["providerResolution"]["resolvedProvider"],
+            serde_json::json!("cpu"),
+        ),
+        (
+            &runtime["providerResolution"]["providerProbePassed"],
+            serde_json::json!(true),
+        ),
+    ];
+    for (actual, expected) in expected {
+        if actual != &expected {
+            return Some(unrunnable(
+                row,
+                &format!("{rel} does not prove expected ORT reranker runtime field {expected}"),
+            ));
+        }
+    }
+    source_refs.push(rel.to_string());
+    None
+}
+
 fn qa_capability_artifact_probe(row: &QaRow) -> RowResult {
     let rel = "proof/memory/x06-qa-capabilities.json";
     let root = super::queryset::workspace_root();
@@ -8429,11 +8480,14 @@ fn reranker_lift_probe(row: &QaRow) -> RowResult {
 
     let mut source_refs = json_string_array(evidence, "sourceRefs", rel).unwrap_or_default();
     source_refs.push(rel.to_string());
+    if let Some(result) = append_validated_ort_reranker_proof(row, &mut source_refs) {
+        return result;
+    }
     source_refs.sort();
     source_refs.dedup();
     score_row(
         row,
-        RowEvidence::degraded(
+        RowEvidence::host_local_proof(
             expected_ids,
             post_rerank_ids,
             Some(lift_score),
@@ -8498,12 +8552,20 @@ fn reranker_degraded_query_probe(row: &QaRow) -> RowResult {
     }
     let mut source_refs = json_string_array(&evidence, "sourceRefs", rel).unwrap_or_default();
     source_refs.push(rel.to_string());
+    if let Some(result) = append_validated_ort_reranker_proof(row, &mut source_refs) {
+        return result;
+    }
     source_refs.sort();
     source_refs.dedup();
-    exact_pass(
+    score_row(
         row,
-        vec!["reranker:degraded-query-detected".to_string()],
-        source_refs,
+        RowEvidence::host_local_proof(
+            vec!["reranker:degraded-query-detected".to_string()],
+            vec!["reranker:degraded-query-detected".to_string()],
+            Some(lift_score),
+            None,
+            source_refs,
+        ),
     )
 }
 
@@ -8536,9 +8598,12 @@ fn reranker_latency_probe(row: &QaRow) -> RowResult {
     }
     let mut source_refs = json_string_array(&evidence, "sourceRefs", rel).unwrap_or_default();
     source_refs.push(rel.to_string());
+    if let Some(result) = append_validated_ort_reranker_proof(row, &mut source_refs) {
+        return result;
+    }
     source_refs.sort();
     source_refs.dedup();
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec!["reranker:top100-latency-within-gate".to_string()],
         source_refs,
