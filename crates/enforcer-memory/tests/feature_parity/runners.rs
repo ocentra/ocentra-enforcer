@@ -5904,7 +5904,7 @@ fn local_model_loader_probe(row: &QaRow) -> RowResult {
                 &[
                     "//! `llama.cpp` process runner for GGUF proof.",
                     "pub fn run_llama_cpp_probe(config: &LlamaCppProbeConfig) -> Result<LlamaCppProbeReport> {",
-                    "pub fn llama_cpp_command_plan(config: &LlamaCppProbeConfig) -> LlamaCppCommandPlan {",
+                    "pub fn llama_cpp_command_plan(config: &LlamaCppProbeConfig) -> Result<LlamaCppCommandPlan> {",
                 ],
             ),
             (
@@ -5994,7 +5994,7 @@ fn local_model_loader_semantic_probe(row: &QaRow) -> RowResult {
                 &[
                     "//! `llama.cpp` process runner for GGUF proof.",
                     "pub fn run_llama_cpp_probe(config: &LlamaCppProbeConfig) -> Result<LlamaCppProbeReport> {",
-                    "pub fn llama_cpp_command_plan(config: &LlamaCppProbeConfig) -> LlamaCppCommandPlan {",
+                    "pub fn llama_cpp_command_plan(config: &LlamaCppProbeConfig) -> Result<LlamaCppCommandPlan> {",
                 ],
             ),
             (

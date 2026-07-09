@@ -1550,17 +1550,17 @@
       "query": "Summarize last 20 commits for this module.",
       "expectedIds": [
         "module:enforcer-memory-src:last-20-commits:20",
+        "commit:f518af8abf22",
+        "commit:0c21464bc311",
         "commit:666270342e12",
-        "commit:b89f330b277f",
-        "commit:3661ec9b5377",
-        "commit:061c2a6ba2d3"
+        "commit:b89f330b277f"
       ],
       "actualIds": [
         "module:enforcer-memory-src:last-20-commits:20",
+        "commit:f518af8abf22",
+        "commit:0c21464bc311",
         "commit:666270342e12",
-        "commit:b89f330b277f",
-        "commit:3661ec9b5377",
-        "commit:061c2a6ba2d3"
+        "commit:b89f330b277f"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -1568,6 +1568,8 @@
       "sourceRefs": [
         "crates/enforcer-memory/src",
         "git:log:-20:crates/enforcer-memory/src",
+        "commit-summary:f518af8abf22:test(memory): reject absolute llama gguf paths",
+        "commit-summary:0c21464bc311:test(memory): reject absolute ort worker paths",
         "commit-summary:666270342e12:feat(memory): enforce ort session execution policy",
         "commit-summary:b89f330b277f:test(memory): expand ort provider fallback order",
         "commit-summary:3661ec9b5377:test(memory): retain ort failure proof contract",
@@ -1585,9 +1587,7 @@
         "commit-summary:cd24988b8bce:test(memory): prove owned model backends",
         "commit-summary:6b5e22e12fe5:test(memory): harden ORT runtime ownership contract",
         "commit-summary:2532e7ad2121:test(memory): harden runtime control ownership",
-        "commit-summary:f9e11e79c9ce:feat(memory): control ORT worker runtime plan",
-        "commit-summary:0bbc317dcc7d:Merge remote-tracking branch 'origin/rust-build' into rust-build",
-        "commit-summary:b231ef113549:feat(x06): wave G2.5 — 42 Tier-0 languages + close G2.5d dispatch-wiring gap"
+        "commit-summary:f9e11e79c9ce:feat(memory): control ORT worker runtime plan"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -1598,16 +1598,16 @@
       "query": "Find files with highest churn.",
       "expectedIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:59",
-        "churn:proof/memory/x06-feature-parity.json:57",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:52",
+        "churn:proof/memory/x06-rag-qa.json:60",
+        "churn:proof/memory/x06-feature-parity.json:58",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:53",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
       ],
       "actualIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:59",
-        "churn:proof/memory/x06-feature-parity.json:57",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:52",
+        "churn:proof/memory/x06-rag-qa.json:60",
+        "churn:proof/memory/x06-feature-parity.json:58",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:53",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
       ],
       "recallAt5": 1.0,
