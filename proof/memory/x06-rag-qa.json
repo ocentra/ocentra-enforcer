@@ -1,10 +1,10 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 230,
+  "rowsGreen": 231,
   "rowsGreenReal": 0,
-  "rowsGreenDegraded": 230,
+  "rowsGreenDegraded": 231,
   "rowsFailed": 0,
-  "rowsUnrunnable": 20,
+  "rowsUnrunnable": 19,
   "rows": [
     {
       "id": "QA-001",
@@ -1441,14 +1441,49 @@
       "id": "QA-063",
       "category": "Federation",
       "query": "Summarize last 20 commits for this module.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Federation",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "module:enforcer-memory:last-20-commits:20",
+        "commit:31c6db725237",
+        "commit:271ce774ea20",
+        "commit:60a540004e93",
+        "commit:024f8fe73851"
+      ],
+      "actualIds": [
+        "module:enforcer-memory:last-20-commits:20",
+        "commit:31c6db725237",
+        "commit:271ce774ea20",
+        "commit:60a540004e93",
+        "commit:024f8fe73851"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory",
+        "git:log:-20:crates/enforcer-memory",
+        "commit-summary:31c6db725237:test(memory): prove highest churn QA row",
+        "commit-summary:271ce774ea20:test(memory): prove missing fail fixture QA row",
+        "commit-summary:60a540004e93:test(memory): prove longitudinal performance QA rows",
+        "commit-summary:024f8fe73851:test(memory): lock model runtime ownership routes",
+        "commit-summary:3db132bf59e4:test(memory): prove cyclic dependency experience QA row",
+        "commit-summary:c46cb7f3b303:test(memory): prove no-effect lesson QA row",
+        "commit-summary:a3ed5dd94b88:test(memory): prove scan proof event flow QA row",
+        "commit-summary:b8d3f7996859:test(memory): prove core Result caller QA row",
+        "commit-summary:2b0a5466ead4:test(memory): prove cyclic dependency QA row",
+        "commit-summary:c87f2b5392fe:feat(memory): model ORT as managed worker runtime",
+        "commit-summary:82b3091bca8d:feat(memory): enforce managed local runtime control",
+        "commit-summary:f31c92b21ae1:Merge remote-tracking branch 'origin/rust-build' into rust-build",
+        "commit-summary:c377e6909312:test(memory): prove runtime initialization qa row",
+        "commit-summary:65094bd63419:Merge remote-tracking branch 'origin/rust-build' into rust-build",
+        "commit-summary:a532ec2ff14c:test(memory): prove error constructor qa row",
+        "commit-summary:7b0ec237a5d7:feat(x06): wave G2.4 — onboard all remaining Tier-1 languages, completing 103/158 baseline languages",
+        "commit-summary:fcb65967c518:test(memory): prove startup qa row",
+        "commit-summary:1948d5074cd0:test(memory): prove shutdown token reduction qa row",
+        "commit-summary:195da0313fce:test(memory): prove file lesson qa row",
+        "commit-summary:ab8ccea66166:test(memory): prove remaining reranker qa rows"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-064",
@@ -1458,15 +1493,15 @@
         "churn:Cargo.lock:69",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
         "churn:docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md:40",
-        "churn:proof/memory/x06-feature-parity.json:39",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:33"
+        "churn:proof/memory/x06-feature-parity.json:40",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:34"
       ],
       "actualIds": [
         "churn:Cargo.lock:69",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
         "churn:docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md:40",
-        "churn:proof/memory/x06-feature-parity.json:39",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:33"
+        "churn:proof/memory/x06-feature-parity.json:40",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:34"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -2332,8 +2367,8 @@
         "proof/memory/x06-feature-parity.json",
         "proof/memory/x06-rag-qa.json",
         "proof/memory/x06-kg-parity.json",
-        "qa:rows-green:230",
-        "qa:rows-unrunnable:20"
+        "qa:rows-green:231",
+        "qa:rows-unrunnable:19"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
