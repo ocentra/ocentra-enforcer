@@ -1,10 +1,10 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 220,
+  "rowsGreen": 221,
   "rowsGreenReal": 0,
-  "rowsGreenDegraded": 220,
+  "rowsGreenDegraded": 221,
   "rowsFailed": 0,
-  "rowsUnrunnable": 30,
+  "rowsUnrunnable": 29,
   "rows": [
     {
       "id": "QA-001",
@@ -682,14 +682,31 @@
       "id": "QA-031",
       "category": "Reranking",
       "query": "Find initialization order.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Reranking",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "init-order:runtime-policy-cpu-first",
+        "init-order:chat-generation-gguf",
+        "init-order:qwen-embedding-onnx",
+        "init-order:qwen-reranker-onnx",
+        "init-order:qwen-embedding-gguf"
+      ],
+      "actualIds": [
+        "init-order:runtime-policy-cpu-first",
+        "init-order:chat-generation-gguf",
+        "init-order:qwen-embedding-onnx",
+        "init-order:qwen-reranker-onnx",
+        "init-order:qwen-embedding-gguf"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/runtime_probe.rs",
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md",
+        "proof/memory/x06-models.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-032",
@@ -2259,8 +2276,8 @@
         "proof/memory/x06-feature-parity.json",
         "proof/memory/x06-rag-qa.json",
         "proof/memory/x06-kg-parity.json",
-        "qa:rows-green:220",
-        "qa:rows-unrunnable:30"
+        "qa:rows-green:221",
+        "qa:rows-unrunnable:29"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
