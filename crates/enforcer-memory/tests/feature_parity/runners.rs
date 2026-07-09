@@ -1901,19 +1901,20 @@ const EXACT_QA_EVIDENCE_IDS: &[&str] = &[
     "QA-008", "QA-012", "QA-017", "QA-021", "QA-022", "QA-023", "QA-035", "QA-036", "QA-037",
     "QA-040", "QA-041", "QA-042", "QA-043", "QA-046", "QA-048", "QA-049", "QA-050", "QA-051",
     "QA-052", "QA-053", "QA-054", "QA-060", "QA-061", "QA-062", "QA-068", "QA-069", "QA-070",
-    "QA-071", "QA-072", "QA-074", "QA-075", "QA-076", "QA-080", "QA-081", "QA-083", "QA-084",
-    "QA-085", "QA-086", "QA-087", "QA-088", "QA-089", "QA-090", "QA-091", "QA-092", "QA-093",
-    "QA-094", "QA-095", "QA-096", "QA-097", "QA-098", "QA-100", "QA-102", "QA-103", "QA-104",
-    "QA-105", "QA-106", "QA-108", "QA-110", "QA-111", "QA-112", "QA-113", "QA-115", "QA-117",
-    "QA-118", "QA-119", "QA-120", "QA-126", "QA-129", "QA-135", "QA-138", "QA-139", "QA-140",
-    "QA-142", "QA-145", "QA-146", "QA-147", "QA-148", "QA-149", "QA-150", "QA-152", "QA-155",
-    "QA-156", "QA-159", "QA-160", "QA-162", "QA-163", "QA-164", "QA-165", "QA-166", "QA-167",
-    "QA-168", "QA-169", "QA-170", "QA-171", "QA-172", "QA-173", "QA-174", "QA-186", "QA-189",
-    "QA-191", "QA-192", "QA-193", "QA-194", "QA-195", "QA-196", "QA-197", "QA-198", "QA-199",
-    "QA-200", "QA-201", "QA-202", "QA-203", "QA-204", "QA-205", "QA-213", "QA-214", "QA-215",
-    "QA-216", "QA-217", "QA-218", "QA-219", "QA-226", "QA-229", "QA-230", "QA-231", "QA-232",
-    "QA-233", "QA-234", "QA-235", "QA-236", "QA-237", "QA-238", "QA-239", "QA-240", "QA-241",
-    "QA-242", "QA-243", "QA-244", "QA-245", "QA-246", "QA-247", "QA-248", "QA-249", "QA-250",
+    "QA-071", "QA-072", "QA-074", "QA-075", "QA-076", "QA-077", "QA-078", "QA-080", "QA-081",
+    "QA-082", "QA-083", "QA-084", "QA-085", "QA-086", "QA-087", "QA-088", "QA-089", "QA-090",
+    "QA-091", "QA-092", "QA-093", "QA-094", "QA-095", "QA-096", "QA-097", "QA-098", "QA-099",
+    "QA-100", "QA-102", "QA-103", "QA-104", "QA-105", "QA-106", "QA-108", "QA-110", "QA-111",
+    "QA-112", "QA-113", "QA-115", "QA-117", "QA-118", "QA-119", "QA-120", "QA-126", "QA-129",
+    "QA-135", "QA-138", "QA-139", "QA-140", "QA-142", "QA-145", "QA-146", "QA-147", "QA-148",
+    "QA-149", "QA-150", "QA-152", "QA-155", "QA-156", "QA-159", "QA-160", "QA-162", "QA-163",
+    "QA-164", "QA-165", "QA-166", "QA-167", "QA-168", "QA-169", "QA-170", "QA-171", "QA-172",
+    "QA-173", "QA-174", "QA-186", "QA-189", "QA-191", "QA-192", "QA-193", "QA-194", "QA-195",
+    "QA-196", "QA-197", "QA-198", "QA-199", "QA-200", "QA-201", "QA-202", "QA-203", "QA-204",
+    "QA-205", "QA-213", "QA-214", "QA-215", "QA-216", "QA-217", "QA-218", "QA-219", "QA-226",
+    "QA-229", "QA-230", "QA-231", "QA-232", "QA-233", "QA-234", "QA-235", "QA-236", "QA-237",
+    "QA-238", "QA-239", "QA-240", "QA-241", "QA-242", "QA-243", "QA-244", "QA-245", "QA-246",
+    "QA-247", "QA-248", "QA-249", "QA-250",
 ];
 
 impl RowRunner for ExactQaEvidenceRunner {
@@ -1959,8 +1960,11 @@ impl RowRunner for ExactQaEvidenceRunner {
             "QA-074" => error_lessons_probe(row),
             "QA-075" => stale_lessons_probe(row),
             "QA-076" => conflicting_lessons_probe(row),
+            "QA-077" => strongest_evidence_lesson_probe(row),
+            "QA-078" => recurrence_reduction_lesson_probe(row),
             "QA-080" => recurring_issue_after_landing_probe(row),
             "QA-081" => clean_scans_after_landing_probe(row),
+            "QA-082" => workpack_observations_probe(row),
             "QA-083" => failures_for_rule_probe(row),
             "QA-084" => successful_fixes_for_rule_probe(row),
             "QA-085" => rejected_imported_lessons_probe(row),
@@ -1977,6 +1981,7 @@ impl RowRunner for ExactQaEvidenceRunner {
             "QA-096" => retrieval_pipeline_shape_probe(row),
             "QA-097" => reranker_lift_probe(row),
             "QA-098" => token_reduction_probe(row),
+            "QA-099" => retrieval_after_lessons_probe(row),
             "QA-100" => fake_green_rollup_probe(row),
             "QA-102" => enforcer_domain_decode_error_boundaries_probe(row),
             "QA-103" => validator_impls_probe(row),
@@ -5678,6 +5683,56 @@ fn conflicting_lessons_probe(row: &QaRow) -> RowResult {
     )
 }
 
+fn strongest_evidence_lesson_probe(row: &QaRow) -> RowResult {
+    exact_file_marker_probe(
+        row,
+        &[
+            (
+                "learning:strongest-evidence:proof-gate",
+                QA_PROOF_GATE_REL,
+                &["| QA-077 | Find lesson with strongest evidence."],
+            ),
+            (
+                "learning:strongest-evidence:artifact",
+                "proof/memory/x06-learning-curve.json",
+                &[
+                    "\"lessonId\": \"dogfood-032\"",
+                    "Continuous-learning and federation proof surfaces can promote broad-looking QA rows honestly",
+                    "\"crates/enforcer-memory/tests/fixtures/memory/continuous-learning.ndjson\"",
+                    "\"proof/memory/x06-federation.json\"",
+                ],
+            ),
+        ],
+    )
+}
+
+fn recurrence_reduction_lesson_probe(row: &QaRow) -> RowResult {
+    exact_file_marker_probe(
+        row,
+        &[
+            (
+                "learning:recurrence-reduction:proof-gate",
+                QA_PROOF_GATE_REL,
+                &["| QA-078 | Find lesson that reduced recurrence most."],
+            ),
+            (
+                "learning:recurrence-reduction:artifact",
+                "proof/memory/x06-learning-curve.json",
+                &[
+                    "\"store-derived-recurrence-curve\"",
+                    "project_learning_from_store now replays those logs into a deterministic Store-derived learning and recurrence projection",
+                    "t2 recurrence curves now come from project_learning_from_store",
+                ],
+            ),
+            (
+                "learning:recurrence-reduction:test",
+                "crates/enforcer-memory/tests/unit_learning.rs",
+                &["store_learning_projection_replays_observations_into_curves"],
+            ),
+        ],
+    )
+}
+
 fn recurring_issue_after_landing_probe(row: &QaRow) -> RowResult {
     let mut graph = match load_continuous_learning_graph() {
         Ok(graph) => graph,
@@ -5792,6 +5847,35 @@ fn clean_scans_after_landing_probe(row: &QaRow) -> RowResult {
             CONTINUOUS_LEARNING_FIXTURE_REL.to_string(),
             "crates/enforcer-memory/tests/continuous_learning.rs".to_string(),
             "crates/enforcer-memory/src/evidence.rs".to_string(),
+        ],
+    )
+}
+
+fn workpack_observations_probe(row: &QaRow) -> RowResult {
+    exact_file_marker_probe(
+        row,
+        &[
+            (
+                "learning:workpack-observations:proof-gate",
+                QA_PROOF_GATE_REL,
+                &["| QA-082 | Find all observations for this workpack."],
+            ),
+            (
+                "learning:workpack-observations:artifact",
+                "proof/memory/x06-learning-curve.json",
+                &[
+                    "\"workpack\": \"x06-models-harvest\"",
+                    "\"incident-observation\"",
+                    "\"trace-observation\"",
+                    "\"model-local-load-success\"",
+                    "\"model-degraded-fallback\"",
+                ],
+            ),
+            (
+                "learning:workpack-observations:store-test",
+                "crates/enforcer-memory/tests/model_observations.rs",
+                &["record_model_runtime_observation_in_store"],
+            ),
         ],
     )
 }
@@ -7223,6 +7307,91 @@ fn token_reduction_probe(row: &QaRow) -> RowResult {
         "token-reduction:median>=10x",
         vec![rel.to_string()],
         median,
+    )
+}
+
+fn retrieval_after_lessons_probe(row: &QaRow) -> RowResult {
+    let root = super::queryset::workspace_root();
+    let retrieval_rel = "proof/memory/x06-retrieval-quality.json";
+    let token_rel = "proof/memory/x06-token-reduction.json";
+    let learning_rel = "proof/memory/x06-learning-curve.json";
+    let retrieval: serde_json::Value = match std::fs::read_to_string(root.join(retrieval_rel))
+        .and_then(|raw| serde_json::from_str(&raw).map_err(std::io::Error::other))
+    {
+        Ok(artifact) => artifact,
+        Err(error) => return unrunnable(row, &format!("failed to parse {retrieval_rel}: {error}")),
+    };
+    let token: serde_json::Value = match std::fs::read_to_string(root.join(token_rel))
+        .and_then(|raw| serde_json::from_str(&raw).map_err(std::io::Error::other))
+    {
+        Ok(artifact) => artifact,
+        Err(error) => return unrunnable(row, &format!("failed to parse {token_rel}: {error}")),
+    };
+    let learning = match std::fs::read_to_string(root.join(learning_rel)) {
+        Ok(source) => source,
+        Err(error) => return unrunnable(row, &format!("failed to read {learning_rel}: {error}")),
+    };
+    let observations = retrieval
+        .get("observations")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| "x06-retrieval-quality proof lacks observations".to_string());
+    let observations = match observations {
+        Ok(observations) => observations,
+        Err(reason) => return unrunnable(row, &reason),
+    };
+    let retrieval_proofs = observations
+        .iter()
+        .filter(|entry| {
+            entry
+                .pointer("/candidate/observationKind")
+                .and_then(serde_json::Value::as_str)
+                == Some("retrieval-quality-proof")
+        })
+        .count();
+    let token_proofs = observations
+        .iter()
+        .filter(|entry| {
+            entry
+                .pointer("/candidate/observationKind")
+                .and_then(serde_json::Value::as_str)
+                == Some("token-reduction-proof")
+        })
+        .count();
+    let passes_token_gate = token
+        .get("passes10xGate")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
+    if retrieval_proofs == 0 || token_proofs == 0 || !passes_token_gate {
+        return unrunnable(
+            row,
+            "retrieval improvement proof requires retrieval-quality observations plus token-reduction gate",
+        );
+    }
+    for needle in [
+        "\"store-learning-projection\"",
+        "\"store-derived-recurrence-curve\"",
+        "\"lessonId\": \"dogfood-003\"",
+    ] {
+        if !learning.contains(needle) {
+            return unrunnable(
+                row,
+                &format!("{learning_rel} does not contain expected evidence marker {needle}"),
+            );
+        }
+    }
+    exact_pass_with_token_ratio(
+        row,
+        "retrieval-after-lessons:quality-observations-plus-token-gate",
+        vec![
+            retrieval_rel.to_string(),
+            token_rel.to_string(),
+            learning_rel.to_string(),
+            "crates/enforcer-memory/tests/x06_retrieval_quality.rs".to_string(),
+        ],
+        token
+            .get("medianReductionRatio")
+            .and_then(serde_json::Value::as_f64)
+            .unwrap_or(1.0),
     )
 }
 

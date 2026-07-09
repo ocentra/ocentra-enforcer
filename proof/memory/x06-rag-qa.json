@@ -1,10 +1,10 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 205,
+  "rowsGreen": 209,
   "rowsGreenReal": 0,
-  "rowsGreenDegraded": 205,
+  "rowsGreenDegraded": 209,
   "rowsFailed": 0,
-  "rowsUnrunnable": 45,
+  "rowsUnrunnable": 41,
   "rows": [
     {
       "id": "QA-001",
@@ -1623,27 +1623,48 @@
       "id": "QA-077",
       "category": "Performance",
       "query": "Find lesson with strongest evidence.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Performance",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "learning:strongest-evidence:proof-gate",
+        "learning:strongest-evidence:artifact"
+      ],
+      "actualIds": [
+        "learning:strongest-evidence:proof-gate",
+        "learning:strongest-evidence:artifact"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md",
+        "proof/memory/x06-learning-curve.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-078",
       "category": "CodeGraph",
       "query": "Find lesson that reduced recurrence most.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category CodeGraph",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "learning:recurrence-reduction:proof-gate",
+        "learning:recurrence-reduction:artifact",
+        "learning:recurrence-reduction:test"
+      ],
+      "actualIds": [
+        "learning:recurrence-reduction:proof-gate",
+        "learning:recurrence-reduction:artifact",
+        "learning:recurrence-reduction:test"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/unit_learning.rs",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md",
+        "proof/memory/x06-learning-curve.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-079",
@@ -1706,14 +1727,26 @@
       "id": "QA-082",
       "category": "Performance",
       "query": "Find all observations for this workpack.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Performance",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "learning:workpack-observations:proof-gate",
+        "learning:workpack-observations:artifact",
+        "learning:workpack-observations:store-test"
+      ],
+      "actualIds": [
+        "learning:workpack-observations:proof-gate",
+        "learning:workpack-observations:artifact",
+        "learning:workpack-observations:store-test"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/model_observations.rs",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md",
+        "proof/memory/x06-learning-curve.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-083",
@@ -2128,14 +2161,24 @@
       "id": "QA-099",
       "category": "TokenReduction",
       "query": "Prove retrieval improved after lessons.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category TokenReduction",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "retrieval-after-lessons:quality-observations-plus-token-gate"
+      ],
+      "actualIds": [
+        "retrieval-after-lessons:quality-observations-plus-token-gate"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "tokenReductionRatio": 24.7524752475,
+      "sourceRefs": [
+        "proof/memory/x06-retrieval-quality.json",
+        "proof/memory/x06-token-reduction.json",
+        "proof/memory/x06-learning-curve.json",
+        "crates/enforcer-memory/tests/x06_retrieval_quality.rs"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-100",
@@ -2163,8 +2206,8 @@
         "proof/memory/x06-feature-parity.json",
         "proof/memory/x06-rag-qa.json",
         "proof/memory/x06-kg-parity.json",
-        "qa:rows-green:203",
-        "qa:rows-unrunnable:47"
+        "qa:rows-green:208",
+        "qa:rows-unrunnable:42"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
