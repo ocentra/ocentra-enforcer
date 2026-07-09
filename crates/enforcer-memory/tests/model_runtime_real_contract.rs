@@ -1218,6 +1218,26 @@ fn portable_plan_proof_does_not_probe_local_hardware() -> TestResult {
         "plan"
     );
     assert_eq!(
+        proof["linkedProofArtifacts"]["planningProofs"][2]["artifactPath"],
+        "proof/memory/x06-models-ort-provider-policy.json"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["planningProofs"][2]["status"],
+        "cpu-gpu-npu-provider-policy"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["planningProofs"][2]["provider"],
+        "portable-ort-provider-policy"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["planningProofs"][2]["runtimeMode"],
+        "plan"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["planningProofs"][2]["localHardwareRequired"],
+        false
+    );
+    assert_eq!(
         proof["linkedProofArtifacts"]["localRuntimeProofs"][0]["artifactPath"],
         "proof/memory/x06-models-qwen3-4b-vulkan-windows-local.json"
     );
