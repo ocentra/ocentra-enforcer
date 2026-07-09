@@ -5,7 +5,6 @@ param(
     [string]$RepoRoot = '',
     [string]$ModelCache = '',
     [string]$LlamaCli = '',
-    [string]$LlamaServer = '',
     [string]$LlamaEmbedding = '',
     [string]$DownloadLlamaUrl = '',
     [string]$DownloadLlamaArchiveName = '',
@@ -86,7 +85,6 @@ function Import-LlamaToolchain {
 
     return @{
         LlamaCli = Find-RepoLlamaBinary -Root $binDir -BinaryName 'llama-cli.exe'
-        LlamaServer = Find-RepoLlamaBinary -Root $binDir -BinaryName 'llama-server.exe'
         LlamaEmbedding = Find-RepoLlamaBinary -Root $binDir -BinaryName 'llama-embedding.exe'
     }
 }
@@ -121,9 +119,6 @@ if ([string]::IsNullOrWhiteSpace($LlamaCli)) {
         if ([string]::IsNullOrWhiteSpace($LlamaCli)) {
             $LlamaCli = $toolchain.LlamaCli
         }
-        if ([string]::IsNullOrWhiteSpace($LlamaServer)) {
-            $LlamaServer = $toolchain.LlamaServer
-        }
         if ([string]::IsNullOrWhiteSpace($LlamaEmbedding)) {
             $LlamaEmbedding = $toolchain.LlamaEmbedding
         }
@@ -134,9 +129,6 @@ if ([string]::IsNullOrWhiteSpace($LlamaCli)) {
     if (-not [string]::IsNullOrWhiteSpace($ImportLlamaToolchainPath)) {
         $toolchain = Import-LlamaToolchain -SourcePath $ImportLlamaToolchainPath -RepoRoot $RepoRoot
         $LlamaCli = $toolchain.LlamaCli
-        if ([string]::IsNullOrWhiteSpace($LlamaServer)) {
-            $LlamaServer = $toolchain.LlamaServer
-        }
         if ([string]::IsNullOrWhiteSpace($LlamaEmbedding)) {
             $LlamaEmbedding = $toolchain.LlamaEmbedding
         }
@@ -156,9 +148,6 @@ if ([string]::IsNullOrWhiteSpace($LlamaCli)) {
             ForEach-Object {
                 Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $binDir $_.Name) -Force
             }
-        if ([string]::IsNullOrWhiteSpace($LlamaServer)) {
-            $LlamaServer = Find-RepoLlamaBinary -Root $binDir -BinaryName 'llama-server.exe'
-        }
         if ([string]::IsNullOrWhiteSpace($LlamaEmbedding)) {
             $LlamaEmbedding = Find-RepoLlamaBinary -Root $binDir -BinaryName 'llama-embedding.exe'
         }
@@ -182,9 +171,6 @@ if ([string]::IsNullOrWhiteSpace($ChatModelPath)) {
 if ([string]::IsNullOrWhiteSpace($LlamaCli)) {
     $LlamaCli = Find-RepoLlamaBinary -Root (Join-Path $RepoRoot 'model\bin') -BinaryName 'llama-cli.exe'
 }
-if ([string]::IsNullOrWhiteSpace($LlamaServer)) {
-    $LlamaServer = Find-RepoLlamaBinary -Root (Join-Path $RepoRoot 'model\bin') -BinaryName 'llama-server.exe'
-}
 if ([string]::IsNullOrWhiteSpace($LlamaEmbedding)) {
     $LlamaEmbedding = Find-RepoLlamaBinary -Root (Join-Path $RepoRoot 'model\bin') -BinaryName 'llama-embedding.exe'
 }
@@ -206,11 +192,7 @@ if (-not [string]::IsNullOrWhiteSpace($LlamaCli)) {
 } else {
     Remove-Item Env:\ENFORCER_X06_LLAMA_CLI -ErrorAction SilentlyContinue
 }
-if (-not [string]::IsNullOrWhiteSpace($LlamaServer)) {
-    $env:ENFORCER_X06_LLAMA_SERVER = $LlamaServer
-} else {
-    Remove-Item Env:\ENFORCER_X06_LLAMA_SERVER -ErrorAction SilentlyContinue
-}
+Remove-Item Env:\ENFORCER_X06_LLAMA_SERVER -ErrorAction SilentlyContinue
 if (-not [string]::IsNullOrWhiteSpace($LlamaEmbedding)) {
     $env:ENFORCER_X06_LLAMA_EMBEDDING = $LlamaEmbedding
 } else {

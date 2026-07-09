@@ -29,7 +29,7 @@
 //! rerank/HNSW machinery end-to-end with zero network and zero model
 //! weights.
 
-use crate::error::{MemoryError, Result};
+use crate::error::Result;
 use crate::fulltext::tokenize;
 
 /// Embedding dimension the default hashing embedder produces. Any real
@@ -228,7 +228,7 @@ impl LocalEmbedder {
         _spec: &crate::model_runtime::ModelSpec,
         _provider: crate::model_runtime::ProviderKind,
     ) -> Result<Self> {
-        Err(MemoryError::ModelRuntime {
+        Err(crate::error::MemoryError::ModelRuntime {
             operation: "load-local-ort-embedder",
             reason: "ort-models feature is not compiled; default retrieval remains degraded/provider-unavailable".to_owned(),
         })
@@ -351,7 +351,7 @@ mod tests {
 
         assert!(matches!(
             result,
-            Err(MemoryError::ModelRuntime {
+            Err(crate::error::MemoryError::ModelRuntime {
                 operation: "load-local-ort-embedder",
                 ..
             })

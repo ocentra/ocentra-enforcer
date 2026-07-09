@@ -862,7 +862,7 @@ fn checked_in_qwen3_reranker_download_proof_records_repo_local_cache_acquisition
 }
 
 #[test]
-fn checked_in_qwen3_embedding_gguf_probe_is_real_usable_local_runtime() -> TestResult {
+fn checked_in_qwen3_embedding_gguf_server_fallback_is_rejected_runtime_boundary() -> TestResult {
     let proof: serde_json::Value = serde_json::from_str(include_str!(
         "../../../proof/memory/x06-models-qwen3-embedding-gguf-vulkan-live.json"
     ))?;
@@ -878,7 +878,12 @@ fn checked_in_qwen3_embedding_gguf_probe_is_real_usable_local_runtime() -> TestR
 
     assert_eq!(embedding["operation"], "qwen-embedding-gguf");
     assert_eq!(embedding["loaded"], true);
-    assert_eq!(embedding["ok"], true);
+    assert_eq!(embedding["ok"], false);
+    assert_eq!(embedding["runtimeBoundaryAccepted"], false);
+    assert_eq!(
+        embedding["rejectionReason"],
+        "llama-server /v1/embeddings is not accepted for X06 GGUF embedding proof; Enforcer must own the runtime surface and use llama-embedding or another direct subprocess route"
+    );
     assert_eq!(report["kind"], "embedding");
     assert_eq!(report["backendHint"], "vulkan");
     assert_eq!(
@@ -889,11 +894,6 @@ fn checked_in_qwen3_embedding_gguf_probe_is_real_usable_local_runtime() -> TestR
         )
     );
     assert_eq!(report["executionRoute"], "llama-server-v1-embeddings");
-    assert_eq!(
-        report["fallbackReason"],
-        "llama-embedding executable not configured/found; using llama-server /v1/embeddings"
-    );
-    assert_eq!(report["fallbackFromBinaryPath"], serde_json::Value::Null);
     assert_eq!(report["requestedAcceleration"], "gpu");
     assert_eq!(
         report["modelPath"],
@@ -906,15 +906,17 @@ fn checked_in_qwen3_embedding_gguf_probe_is_real_usable_local_runtime() -> TestR
         .contains("embedding dimensions: 1024"));
     assert_eq!(
         usability["reason"],
-        "embedding usable: dimensions 1024 matched expected 1024"
+        "embedding rejected: llama-server /v1/embeddings is not an accepted Enforcer-owned GGUF embedding runtime route"
     );
-    assert_eq!(usability["ok"], true);
+    assert_eq!(usability["ok"], false);
 
     let observation = &proof["observations"][0]["candidate"];
-    assert_eq!(observation["observationKind"], "successful-local-load");
+    assert_eq!(observation["observationKind"], "model-load-failure");
     assert_eq!(observation["modelId"], "Qwen/Qwen3-Embedding-0.6B-GGUF");
-    assert_eq!(observation["provider"], "vulkan");
-    assert_eq!(observation["loadedFromLocalCache"], true);
+    assert_eq!(
+        observation["failureReason"],
+        "llama-server /v1/embeddings is not accepted for X06 GGUF embedding proof"
+    );
     Ok(())
 }
 
@@ -1103,7 +1105,7 @@ fn portable_plan_proof_does_not_probe_local_hardware() -> TestResult {
     );
     assert_eq!(
         proof["linkedProofArtifacts"]["ggufRuntimeProofs"][0]["status"],
-        "usable-local-embedding"
+        "rejected-runtime-boundary"
     );
     assert_eq!(
         proof["linkedProofArtifacts"]["ggufRuntimeProofs"][0]["runtimeMode"],
@@ -1252,7 +1254,6 @@ fn real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in() {
         &[
             "[string]$Acceleration = 'cpu'",
             "[switch]$AllowMultiProbe",
-            "[string]$LlamaServer = ''",
             "[string]$LlamaEmbedding = ''",
             "[string]$DownloadLlamaUrl",
             "[string]$DownloadLlamaArchiveName",
@@ -1269,12 +1270,7 @@ fn real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in() {
 fn real_model_probe_can_import_external_chat_assets_into_repo_model_cache() {
     let probe = include_str!("../src/runtime_probe.rs");
     let script = include_str!("../scripts/x06-real-model-proof.ps1");
-    let llama_server_binary = llama_binary_name("llama-server");
     let llama_embedding_binary = llama_binary_name("llama-embedding");
-    let llama_server_term = format!(
-        "Find-RepoLlamaBinary -Root (Join-Path $RepoRoot 'model\\bin') -BinaryName '{}'",
-        llama_server_binary
-    );
     let llama_embedding_term = format!(
         "Find-RepoLlamaBinary -Root (Join-Path $RepoRoot 'model\\bin') -BinaryName '{}'",
         llama_embedding_binary
@@ -1292,13 +1288,17 @@ fn real_model_probe_can_import_external_chat_assets_into_repo_model_cache() {
             "repo_relative_display(repo_root, &report.binary_path)",
             "repo_path_redacted_text(repo_root, &report.stdout_excerpt)",
             "hf_downloaded_files_proof(repo_root, &report.downloaded_files)",
-            "ENFORCER_X06_LLAMA_SERVER",
-            "/v1/embeddings",
-            "--embeddings",
-            "--pooling",
-            "mean",
-            "invalid argument: --embedding",
+            "qwen-embedding-gguf-llama-embedding",
+            "Enforcer does not fall back to llama-server for X06 GGUF embedding proof",
         ],
+    );
+    assert!(
+        !probe.contains("ENFORCER_X06_LLAMA_SERVER"),
+        "runtime probe must not expose llama-server as an accepted GGUF embedding route"
+    );
+    assert!(
+        !probe.contains("/v1/embeddings"),
+        "runtime probe must not call llama.cpp's server API for embedding proof"
     );
     assert_contract_terms(
         script,
@@ -1307,14 +1307,16 @@ fn real_model_probe_can_import_external_chat_assets_into_repo_model_cache() {
             "[string]$ImportLlamaCliPath",
             "[string]$ImportLlamaToolchainPath",
             "$env:ENFORCER_X06_ORT_TIMEOUT_MS",
-            "$env:ENFORCER_X06_LLAMA_SERVER",
             "$env:ENFORCER_X06_LLAMA_EMBEDDING",
-            llama_server_term.as_str(),
             llama_embedding_term.as_str(),
             "Filter '*.dll'",
             "model\\local\\chat",
             "model\\bin",
         ],
+    );
+    assert!(
+        !script.contains("$env:ENFORCER_X06_LLAMA_SERVER"),
+        "proof script must not route GGUF embedding through llama-server"
     );
 }
 

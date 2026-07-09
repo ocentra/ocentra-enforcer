@@ -337,7 +337,7 @@
         "localHardwareRequired": true,
         "modelId": "Qwen/Qwen3-Embedding-0.6B-GGUF",
         "provider": "vulkan",
-        "status": "usable-local-embedding",
+        "status": "rejected-runtime-boundary",
         "runtimeMode": "probe"
       }
     ],

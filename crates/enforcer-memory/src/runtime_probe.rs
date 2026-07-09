@@ -18,7 +18,6 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(feature = "real-models")]
 pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
     use std::io::Write as _;
-    use std::net::TcpListener;
     use std::path::{Path, PathBuf};
     use std::process::{Command, Stdio};
     use std::time::Duration;
@@ -30,9 +29,9 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
         X06ModelLineup,
     };
     use crate::llama_cpp::{
-        configure_llama_child_process_for_runtime, list_llama_cpp_devices, llama_binary_name,
-        llama_cpp_command_plan, resolve_llama_cpp_execution, run_llama_cpp_probe,
-        LlamaCppBackendHint, LlamaCppExecutionResolution, LlamaCppProbeConfig, LlamaCppProbeKind,
+        list_llama_cpp_devices, llama_binary_name, resolve_llama_cpp_execution,
+        run_llama_cpp_probe, LlamaCppBackendHint, LlamaCppExecutionResolution, LlamaCppProbeConfig,
+        LlamaCppProbeKind,
     };
     use crate::local_runtime::LocalRuntimeAcceleration;
     use crate::model_observations::{
@@ -770,29 +769,15 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
                 .unwrap_or_else(|| default_model_runtime_probe_plan().model_probe_timeout_ms),
         };
         let result = if config.binary_path.is_file() {
-            match run_llama_cpp_probe(&config) {
-                Ok(report) => {
-                    if let Some(reason) = should_retry_embedding_with_llama_server(&report) {
-                        run_llama_server_embedding(
-                            &config,
-                            Some(reason),
-                            Some(config.binary_path.clone()),
-                        )
-                    } else {
-                        Ok(report)
-                    }
-                }
-                Err(error) => Err(error),
-            }
+            run_llama_cpp_probe(&config)
         } else {
-            run_llama_server_embedding(
-                &config,
-                Some(
-                    "llama-embedding executable not configured/found; using llama-server /v1/embeddings"
-                        .to_owned(),
+            Err(crate::error::MemoryError::ModelRuntime {
+                operation: "qwen-embedding-gguf-llama-embedding",
+                reason: format!(
+                    "llama-embedding executable not configured/found at {}; Enforcer does not fall back to llama-server for X06 GGUF embedding proof",
+                    config.binary_path.display()
                 ),
-                None,
-            )
+            })
         };
         llama_result_json(
             LlamaResultInput {
@@ -807,226 +792,6 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
             },
             observations,
         )
-    }
-
-    fn run_llama_server_embedding(
-        config: &LlamaCppProbeConfig,
-        fallback_reason: Option<String>,
-        fallback_from_binary_path: Option<PathBuf>,
-    ) -> crate::error::Result<crate::llama_cpp::LlamaCppProbeReport> {
-        let server_binary = env_path("ENFORCER_X06_LLAMA_SERVER")
-            .or_else(default_llama_server)
-            .ok_or_else(|| crate::error::MemoryError::ModelRuntime {
-                operation: "qwen-embedding-gguf-llama-server",
-                reason: "llama-server executable not configured/found".to_owned(),
-            })?;
-        let listener =
-            TcpListener::bind("127.0.0.1:0").map_err(|source| crate::error::MemoryError::Io {
-                path: server_binary.clone(),
-                source,
-            })?;
-        let port = listener
-            .local_addr()
-            .map_err(|source| crate::error::MemoryError::Io {
-                path: server_binary.clone(),
-                source,
-            })?
-            .port();
-        drop(listener);
-
-        let server_plan = llama_cpp_server_embedding_plan(config, port);
-        let mut command = Command::new(&server_binary);
-        command
-            .args(&server_plan.args)
-            .envs(server_plan.env.iter().map(|(k, v)| (k, v)))
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-        configure_llama_child_process_for_runtime(&mut command, &server_binary);
-
-        let started = Instant::now();
-        let mut child = command
-            .spawn()
-            .map_err(|source| crate::error::MemoryError::Io {
-                path: server_binary.clone(),
-                source,
-            })?;
-        let client = reqwest::blocking::Client::builder()
-            .timeout(Duration::from_secs(2))
-            .build()
-            .map_err(|error| crate::error::MemoryError::ModelRuntime {
-                operation: "qwen-embedding-gguf-http-client",
-                reason: error.to_string(),
-            })?;
-        let timeout = Duration::from_millis(config.timeout_ms);
-        let endpoint = format!("http://127.0.0.1:{port}/v1/embeddings");
-        let payload = serde_json::json!({
-            "input": config.prompt,
-            "encoding_format": "float"
-        });
-        let repo_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-
-        loop {
-            if started.elapsed() >= timeout {
-                let _ = child.kill();
-                let output =
-                    child
-                        .wait_with_output()
-                        .map_err(|source| crate::error::MemoryError::Io {
-                            path: server_binary.clone(),
-                            source,
-                        })?;
-                return Ok(crate::llama_cpp::LlamaCppProbeReport {
-                    kind: LlamaCppProbeKind::Embedding,
-                    backend_hint: config.backend_hint,
-                    requested_acceleration: config.acceleration,
-                    binary_path: server_binary,
-                    execution_route: "llama-server-v1-embeddings".to_owned(),
-                    model_path: config.model_path.clone(),
-                    exit_code: output.status.code(),
-                    stdout_excerpt: repo_path_redacted_text(
-                        &repo_root,
-                        &excerpt_tail(&String::from_utf8_lossy(&output.stdout), 4096),
-                    ),
-                    stderr_excerpt: repo_path_redacted_text(
-                        &repo_root,
-                        &excerpt_tail(&String::from_utf8_lossy(&output.stderr), 4096),
-                    ),
-                    duration_ms: started.elapsed().as_millis(),
-                    measured_tokens_per_second: None,
-                    load_state: "degraded-model-load-failed".to_owned(),
-                    timed_out: true,
-                    fallback_reason,
-                    fallback_from_binary_path,
-                    output_dimensions: None,
-                });
-            }
-            if let Some(status) =
-                child
-                    .try_wait()
-                    .map_err(|source| crate::error::MemoryError::Io {
-                        path: server_binary.clone(),
-                        source,
-                    })?
-            {
-                let output =
-                    child
-                        .wait_with_output()
-                        .map_err(|source| crate::error::MemoryError::Io {
-                            path: server_binary.clone(),
-                            source,
-                        })?;
-                return Ok(crate::llama_cpp::LlamaCppProbeReport {
-                    kind: LlamaCppProbeKind::Embedding,
-                    backend_hint: config.backend_hint,
-                    requested_acceleration: config.acceleration,
-                    binary_path: server_binary,
-                    execution_route: "llama-server-v1-embeddings".to_owned(),
-                    model_path: config.model_path.clone(),
-                    exit_code: status.code(),
-                    stdout_excerpt: repo_path_redacted_text(
-                        &repo_root,
-                        &excerpt_tail(&String::from_utf8_lossy(&output.stdout), 4096),
-                    ),
-                    stderr_excerpt: repo_path_redacted_text(
-                        &repo_root,
-                        &excerpt_tail(&String::from_utf8_lossy(&output.stderr), 4096),
-                    ),
-                    duration_ms: started.elapsed().as_millis(),
-                    measured_tokens_per_second: None,
-                    load_state: "degraded-model-load-failed".to_owned(),
-                    timed_out: false,
-                    fallback_reason,
-                    fallback_from_binary_path,
-                    output_dimensions: None,
-                });
-            }
-
-            if let Ok(response) = client.post(&endpoint).json(&payload).send() {
-                let status = response.status();
-                let body = response.text().unwrap_or_default();
-                if status.is_success() {
-                    let parsed: serde_json::Value =
-                        serde_json::from_str(&body).map_err(|error| {
-                            crate::error::MemoryError::ModelRuntime {
-                                operation: "qwen-embedding-gguf-v1-embeddings-parse",
-                                reason: error.to_string(),
-                            }
-                        })?;
-                    let embedding = parsed["data"]
-                        .as_array()
-                        .and_then(|rows| rows.first())
-                        .and_then(|row| row["embedding"].as_array())
-                        .ok_or_else(|| crate::error::MemoryError::ModelRuntime {
-                            operation: "qwen-embedding-gguf-v1-embeddings-parse",
-                            reason: "response did not contain an embedding array".to_owned(),
-                        })?;
-                    let embedding_len = embedding.len();
-                    if embedding_len != EXPECTED_QWEN_EMBEDDING_DIMENSIONS {
-                        let _ = child.kill();
-                        let _ = child.wait_with_output();
-                        return Err(crate::error::MemoryError::ModelRuntime {
-                            operation: "qwen-embedding-gguf-v1-embeddings-dimensions",
-                            reason: format!(
-                                "embedding dimensions mismatch: expected {EXPECTED_QWEN_EMBEDDING_DIMENSIONS}, got {embedding_len}"
-                            ),
-                        });
-                    }
-                    if embedding.iter().any(|value| {
-                        value
-                            .as_f64()
-                            .map(|number| !number.is_finite())
-                            .unwrap_or(true)
-                    }) {
-                        let _ = child.kill();
-                        let _ = child.wait_with_output();
-                        return Err(crate::error::MemoryError::ModelRuntime {
-                            operation: "qwen-embedding-gguf-v1-embeddings-values",
-                            reason: "embedding response contained non-finite or non-numeric values"
-                                .to_owned(),
-                        });
-                    }
-                    let sample = embedding
-                        .iter()
-                        .take(8)
-                        .filter_map(|value| value.as_f64())
-                        .map(|value| format!("{value:.6}"))
-                        .collect::<Vec<_>>()
-                        .join(", ");
-                    let _ = child.kill();
-                    let output = child.wait_with_output().map_err(|source| {
-                        crate::error::MemoryError::Io {
-                            path: server_binary.clone(),
-                            source,
-                        }
-                    })?;
-                    return Ok(crate::llama_cpp::LlamaCppProbeReport {
-                        kind: LlamaCppProbeKind::Embedding,
-                        backend_hint: config.backend_hint,
-                        requested_acceleration: config.acceleration,
-                        binary_path: server_binary,
-                        execution_route: "llama-server-v1-embeddings".to_owned(),
-                        model_path: config.model_path.clone(),
-                        exit_code: Some(0),
-                        stdout_excerpt: format!(
-                            "embedding dimensions: {embedding_len}; sample: [{sample}]"
-                        ),
-                        stderr_excerpt: repo_path_redacted_text(
-                            &repo_root,
-                            &excerpt_tail(&String::from_utf8_lossy(&output.stderr), 4096),
-                        ),
-                        duration_ms: started.elapsed().as_millis(),
-                        measured_tokens_per_second: None,
-                        load_state: "loaded".to_owned(),
-                        timed_out: false,
-                        fallback_reason,
-                        fallback_from_binary_path,
-                        output_dimensions: Some(embedding_len),
-                    });
-                }
-            }
-
-            std::thread::sleep(Duration::from_millis(200));
-        }
     }
 
     fn llama_result_json(
@@ -1232,35 +997,6 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
                 target_chat_tokens_per_second_high: None,
                 measured_tokens_per_second: report.measured_tokens_per_second,
             },
-        }
-    }
-
-    fn should_retry_embedding_with_llama_server(
-        report: &crate::llama_cpp::LlamaCppProbeReport,
-    ) -> Option<String> {
-        if report.kind != LlamaCppProbeKind::Embedding || report.loaded() {
-            return None;
-        }
-        let stderr = report.stderr_excerpt.to_ascii_lowercase();
-        let stdout = report.stdout_excerpt.to_ascii_lowercase();
-        let patterns = [
-            "invalid argument: --embedding",
-            "unknown argument: --embedding",
-            "unknown argument '--embedding'",
-            "unrecognized option '--embedding'",
-            "unrecognized argument '--embedding'",
-            "unknown option --embedding",
-        ];
-        if patterns
-            .iter()
-            .any(|pattern| stderr.contains(pattern) || stdout.contains(pattern))
-        {
-            Some(
-                "llama-embedding execution rejected the embedding flag; retrying with llama-server /v1/embeddings"
-                    .to_owned(),
-            )
-        } else {
-            None
         }
     }
 
@@ -1854,53 +1590,6 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
 
     fn default_llama_embedding() -> Option<PathBuf> {
         first_existing_model_bin(&llama_binary_name("llama-embedding"))
-    }
-
-    fn default_llama_server() -> Option<PathBuf> {
-        first_existing_model_bin(&llama_binary_name("llama-server"))
-    }
-
-    fn llama_cpp_server_embedding_plan(
-        config: &LlamaCppProbeConfig,
-        port: u16,
-    ) -> crate::llama_cpp::LlamaCppCommandPlan {
-        let mut base = llama_cpp_command_plan(&LlamaCppProbeConfig {
-            prompt: String::new(),
-            max_tokens: 0,
-            kind: LlamaCppProbeKind::Embedding,
-            ..config.clone()
-        });
-        let mut args = Vec::new();
-        let mut skip_next = false;
-        for argument in base.args.drain(..) {
-            if skip_next {
-                skip_next = false;
-                continue;
-            }
-            if argument == "-p" {
-                skip_next = true;
-                continue;
-            }
-            if argument == "--embedding" {
-                continue;
-            }
-            if argument == "--embd-output-format" {
-                skip_next = true;
-                continue;
-            }
-            args.push(argument);
-        }
-        args.push("--host".to_owned());
-        args.push("127.0.0.1".to_owned());
-        args.push("--port".to_owned());
-        args.push(port.to_string());
-        args.push("--embeddings".to_owned());
-        args.push("--pooling".to_owned());
-        args.push("mean".to_owned());
-        crate::llama_cpp::LlamaCppCommandPlan {
-            args,
-            env: base.env,
-        }
     }
 
     fn first_existing_model_bin(file_name: &str) -> Option<PathBuf> {

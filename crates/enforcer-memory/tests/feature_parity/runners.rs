@@ -5151,7 +5151,7 @@ fn local_model_loader_probe(row: &QaRow) -> RowResult {
                     "fn dev_model_cache_is_repo_local_and_service_does_not_expose_llama_server() {",
                     "fn checked_in_qwen3_vulkan_chat_probe_is_real_usable_local_gguf() -> TestResult {",
                     "fn checked_in_gemma_download_proof_records_repo_local_cache_acquisition() -> TestResult {",
-                    "fn checked_in_qwen3_embedding_gguf_probe_is_real_usable_local_runtime() -> TestResult {",
+                    "fn checked_in_qwen3_embedding_gguf_server_fallback_is_rejected_runtime_boundary() -> TestResult {",
                 ],
             ),
         ],

@@ -653,11 +653,6 @@ fn configure_llama_child_process(command: &mut Command, binary_path: &Path) {
     configure_platform_child_process(command);
 }
 
-#[cfg(feature = "real-models")]
-pub(crate) fn configure_llama_child_process_for_runtime(command: &mut Command, binary_path: &Path) {
-    configure_llama_child_process(command, binary_path);
-}
-
 #[cfg(windows)]
 fn configure_platform_child_process(command: &mut Command) {
     const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
