@@ -1,10 +1,10 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 231,
+  "rowsGreen": 232,
   "rowsGreenReal": 0,
-  "rowsGreenDegraded": 231,
+  "rowsGreenDegraded": 232,
   "rowsFailed": 0,
-  "rowsUnrunnable": 19,
+  "rowsUnrunnable": 18,
   "rows": [
     {
       "id": "QA-001",
@@ -548,14 +548,27 @@
       "id": "QA-025",
       "category": "Retrieval",
       "query": "Find all network calls made by this crate.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Retrieval",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "network:hf-cache:model-downloads-feature-client",
+        "network:hf-cache:model-file-download",
+        "network:hf-cache:default-download-disabled",
+        "network:model-runtime:zero-network-default"
+      ],
+      "actualIds": [
+        "network:hf-cache:model-downloads-feature-client",
+        "network:hf-cache:model-file-download",
+        "network:hf-cache:default-download-disabled",
+        "network:model-runtime:zero-network-default"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/hf_cache.rs",
+        "crates/enforcer-memory/src/model_runtime.rs"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-026",
@@ -1494,14 +1507,14 @@
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
         "churn:proof/memory/x06-feature-parity.json:41",
         "churn:docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md:40",
-        "churn:proof/memory/x06-rag-qa.json:36"
+        "churn:proof/memory/x06-rag-qa.json:37"
       ],
       "actualIds": [
         "churn:Cargo.lock:70",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
         "churn:proof/memory/x06-feature-parity.json:41",
         "churn:docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md:40",
-        "churn:proof/memory/x06-rag-qa.json:36"
+        "churn:proof/memory/x06-rag-qa.json:37"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
