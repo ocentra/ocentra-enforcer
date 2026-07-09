@@ -64,6 +64,46 @@ pub enum LocalRuntimeAcceleration {
     Npu,
 }
 
+/// Runtime workload class for resource arbitration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuntimeWorkload {
+    Chat,
+    Embedding,
+    Reranking,
+}
+
+/// Current runtime activity used to decide whether new work may run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuntimeActivityState {
+    Idle,
+    Loading,
+    ChatActive,
+    EmbeddingActive,
+    RerankingActive,
+    Paused,
+}
+
+/// Admission result for a requested runtime workload.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuntimeAdmission {
+    Admit,
+    Queue,
+    PauseBackgroundThenAdmit,
+}
+
+/// Deterministic resource-arbitration result for the runtime manager.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeArbitrationDecision {
+    pub active: RuntimeActivityState,
+    pub requested: RuntimeWorkload,
+    pub admission: RuntimeAdmission,
+    pub reason: String,
+}
+
 /// Who owns the runtime lifecycle for a backend.
 ///
 /// X06 requires Enforcer-owned lifecycle control. External servers can
@@ -335,6 +375,50 @@ pub fn validate_fixture(
     }
 
     Ok(report)
+}
+
+pub fn arbitrate_runtime_workload(
+    active: RuntimeActivityState,
+    requested: RuntimeWorkload,
+) -> RuntimeArbitrationDecision {
+    let (admission, reason) = match (active, requested) {
+        (RuntimeActivityState::Idle | RuntimeActivityState::Paused, _) => (
+            RuntimeAdmission::Admit,
+            "runtime is available for requested workload",
+        ),
+        (RuntimeActivityState::Loading, _) => (
+            RuntimeAdmission::Queue,
+            "model load is exclusive; queue requested workload",
+        ),
+        (RuntimeActivityState::ChatActive, RuntimeWorkload::Chat) => (
+            RuntimeAdmission::Queue,
+            "chat is already active; queue the next chat turn",
+        ),
+        (RuntimeActivityState::ChatActive, _) => (
+            RuntimeAdmission::Queue,
+            "chat has priority; queue background model work",
+        ),
+        (
+            RuntimeActivityState::EmbeddingActive | RuntimeActivityState::RerankingActive,
+            RuntimeWorkload::Chat,
+        ) => (
+            RuntimeAdmission::PauseBackgroundThenAdmit,
+            "chat request preempts background retrieval work",
+        ),
+        (
+            RuntimeActivityState::EmbeddingActive | RuntimeActivityState::RerankingActive,
+            RuntimeWorkload::Embedding | RuntimeWorkload::Reranking,
+        ) => (
+            RuntimeAdmission::Queue,
+            "background retrieval work is already active; queue requested workload",
+        ),
+    };
+    RuntimeArbitrationDecision {
+        active,
+        requested,
+        admission,
+        reason: reason.to_owned(),
+    }
 }
 
 /// Validate that a runtime backend is acceptable for X06 product parity.

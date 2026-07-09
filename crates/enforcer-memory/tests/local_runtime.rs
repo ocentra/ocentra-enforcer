@@ -6,8 +6,9 @@
 
 use enforcer_memory::error::MemoryError;
 use enforcer_memory::local_runtime::{
-    onnx_ort_feature_compiled, provider_order, validate_control_plane, validate_fixture,
-    BackendReadiness, LocalRuntimeControlPlane, LocalRuntimeFixture, LocalRuntimeKind,
+    arbitrate_runtime_workload, onnx_ort_feature_compiled, provider_order, validate_control_plane,
+    validate_fixture, BackendReadiness, LocalRuntimeControlPlane, LocalRuntimeFixture,
+    LocalRuntimeKind, RuntimeActivityState, RuntimeAdmission, RuntimeWorkload,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -120,4 +121,47 @@ fn x06_runtime_control_plane_rejects_external_server_ownership() -> TestResult {
         }
     ));
     Ok(())
+}
+
+#[test]
+fn runtime_arbitration_admits_idle_workloads() {
+    let decision =
+        arbitrate_runtime_workload(RuntimeActivityState::Idle, RuntimeWorkload::Embedding);
+
+    assert_eq!(decision.admission, RuntimeAdmission::Admit);
+    assert_eq!(decision.requested, RuntimeWorkload::Embedding);
+}
+
+#[test]
+fn runtime_arbitration_keeps_model_load_exclusive() {
+    let decision = arbitrate_runtime_workload(RuntimeActivityState::Loading, RuntimeWorkload::Chat);
+
+    assert_eq!(decision.admission, RuntimeAdmission::Queue);
+    assert!(decision.reason.contains("model load is exclusive"));
+}
+
+#[test]
+fn runtime_arbitration_chat_preempts_background_retrieval() {
+    let embedding =
+        arbitrate_runtime_workload(RuntimeActivityState::EmbeddingActive, RuntimeWorkload::Chat);
+    let reranking =
+        arbitrate_runtime_workload(RuntimeActivityState::RerankingActive, RuntimeWorkload::Chat);
+
+    assert_eq!(
+        embedding.admission,
+        RuntimeAdmission::PauseBackgroundThenAdmit
+    );
+    assert_eq!(
+        reranking.admission,
+        RuntimeAdmission::PauseBackgroundThenAdmit
+    );
+}
+
+#[test]
+fn runtime_arbitration_chat_queues_background_work() {
+    let decision =
+        arbitrate_runtime_workload(RuntimeActivityState::ChatActive, RuntimeWorkload::Reranking);
+
+    assert_eq!(decision.admission, RuntimeAdmission::Queue);
+    assert!(decision.reason.contains("chat has priority"));
 }
