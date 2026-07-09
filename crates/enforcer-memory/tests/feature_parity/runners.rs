@@ -1910,13 +1910,13 @@ const EXACT_QA_EVIDENCE_IDS: &[&str] = &[
     "QA-135", "QA-138", "QA-139", "QA-140", "QA-142", "QA-145", "QA-146", "QA-147", "QA-148",
     "QA-149", "QA-150", "QA-152", "QA-155", "QA-156", "QA-159", "QA-160", "QA-162", "QA-163",
     "QA-164", "QA-165", "QA-166", "QA-167", "QA-168", "QA-169", "QA-170", "QA-171", "QA-172",
-    "QA-173", "QA-174", "QA-186", "QA-189", "QA-191", "QA-192", "QA-193", "QA-194", "QA-195",
-    "QA-196", "QA-197", "QA-198", "QA-199", "QA-200", "QA-201", "QA-202", "QA-203", "QA-204",
-    "QA-205", "QA-206", "QA-207", "QA-208", "QA-209", "QA-210", "QA-211", "QA-212", "QA-213",
-    "QA-214", "QA-215", "QA-216", "QA-217", "QA-218", "QA-219", "QA-226", "QA-229", "QA-230",
-    "QA-231", "QA-232", "QA-233", "QA-234", "QA-235", "QA-236", "QA-237", "QA-238", "QA-239",
-    "QA-240", "QA-241", "QA-242", "QA-243", "QA-244", "QA-245", "QA-246", "QA-247", "QA-248",
-    "QA-249", "QA-250",
+    "QA-173", "QA-174", "QA-186", "QA-187", "QA-189", "QA-191", "QA-192", "QA-193", "QA-194",
+    "QA-195", "QA-196", "QA-197", "QA-198", "QA-199", "QA-200", "QA-201", "QA-202", "QA-203",
+    "QA-204", "QA-205", "QA-206", "QA-207", "QA-208", "QA-209", "QA-210", "QA-211", "QA-212",
+    "QA-213", "QA-214", "QA-215", "QA-216", "QA-217", "QA-218", "QA-219", "QA-226", "QA-229",
+    "QA-230", "QA-231", "QA-232", "QA-233", "QA-234", "QA-235", "QA-236", "QA-237", "QA-238",
+    "QA-239", "QA-240", "QA-241", "QA-242", "QA-243", "QA-244", "QA-245", "QA-246", "QA-247",
+    "QA-248", "QA-249", "QA-250",
 ];
 
 impl RowRunner for ExactQaEvidenceRunner {
@@ -2073,6 +2073,7 @@ impl RowRunner for ExactQaEvidenceRunner {
                 vec!["crates/enforcer-memory/src/ids.rs".to_string()],
             ),
             "QA-186" => parse_boundary_strategy_probe(row),
+            "QA-187" => previous_cyclic_dependency_issue_probe(row),
             "QA-189" => new_language_crate_strategy_probe(row),
             "QA-191" => multi_harness_install_pattern_probe(row),
             "QA-226" => learning_curve_ratchet_probe(row, fixtures),
@@ -5797,6 +5798,39 @@ fn new_language_crate_strategy_probe(row: &QaRow) -> RowResult {
                     "There is **zero CFML/ColdFusion**:",
                     "This pack builds its OWN crate skeleton since no arc-* pack pre-builds it.",
                     "each new-language crate (this one, `enforcer-lang-dart`) declares its own extensions within its own crate",
+                ],
+            ),
+        ],
+    )
+}
+
+fn previous_cyclic_dependency_issue_probe(row: &QaRow) -> RowResult {
+    exact_file_marker_probe(
+        row,
+        &[
+            (
+                "experience:cyclic-dependency:benchmark",
+                QA_BENCHMARK_REL,
+                &[("| QA-187 | Experience | Find previous instances of cyclic dependency issues. |")],
+            ),
+            (
+                "experience:cyclic-dependency:incident",
+                "proof/ui/g01-serve.json",
+                &[
+                    "\"crates/enforcer-ui/Cargo.toml\"",
+                    "removed an unused enforcer-mcp dependency",
+                    "it created a Cargo cyclic-dependency error",
+                    "once enforcer-mcp needed to depend on enforcer-ui for the ui tool",
+                    "added thiserror",
+                ],
+            ),
+            (
+                "experience:cyclic-dependency:prevention",
+                "proof/ui/g01-serve.json",
+                &[
+                    "\"crates/enforcer-ui/src/lib.rs\"",
+                    "doc comment describing the dependency direction",
+                    "no module-list change",
                 ],
             ),
         ],
@@ -10151,7 +10185,7 @@ mod tests {
         );
         assert!(ExactQaEvidenceRunner.can_run(&multi_harness_install_row));
 
-        let broad_experience = sample_row("QA-187", "Experience", "Find arbitrary experience.");
+        let broad_experience = sample_row("QA-188", "Experience", "Find arbitrary experience.");
         assert!(!ExactQaEvidenceRunner.can_run(&broad_experience));
 
         let broad_lessons = sample_row("QA-999", "Lessons", "Find arbitrary lesson content.");
