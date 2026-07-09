@@ -93,6 +93,35 @@ fn x06_dogfood_and_learning_proofs_do_not_leak_machine_paths() -> TestResult {
 }
 
 #[test]
+fn x06_rag_rollup_proofs_do_not_leak_machine_paths() -> TestResult {
+    for (artifact, body) in [
+        (
+            "proof/memory/x06-feature-parity.json",
+            include_str!("../../../proof/memory/x06-feature-parity.json"),
+        ),
+        (
+            "proof/memory/x06-rag-qa.json",
+            include_str!("../../../proof/memory/x06-rag-qa.json"),
+        ),
+        (
+            "proof/memory/x06-rag.json",
+            include_str!("../../../proof/memory/x06-rag.json"),
+        ),
+        (
+            "proof/memory/x06-retrieval-quality.json",
+            include_str!("../../../proof/memory/x06-retrieval-quality.json"),
+        ),
+        (
+            "proof/memory/x06-token-reduction.json",
+            include_str!("../../../proof/memory/x06-token-reduction.json"),
+        ),
+    ] {
+        assert_json_portable(artifact, body)?;
+    }
+    Ok(())
+}
+
+#[test]
 fn x06_parity_trace_log_does_not_leak_machine_paths() -> TestResult {
     assert_ndjson_portable(
         "proof/memory/x06-parity/tool-results.ndjson",
