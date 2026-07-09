@@ -28,6 +28,11 @@
 //! without an `#[allow(...)]`.
 
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
+use enforcer_memory::embed::{Embedder, HashingEmbedder};
+use enforcer_memory::fulltext::FullTextIndex;
+use enforcer_memory::rerank::FusionScoreReranker;
+use enforcer_memory::search::{DocumentKind, HybridSearcher, SearchDocument};
+use enforcer_memory::vector::{embed_documents, VectorIndex};
 use std::error::Error;
 use std::io::Write;
 use std::path::PathBuf;
@@ -104,6 +109,13 @@ struct BenchSample {
     incremental_noop_index_ms: f64,
 }
 
+struct RetrievalLatencySample {
+    tier: &'static str,
+    file_count: usize,
+    p50_ms: f64,
+    p95_ms: f64,
+}
+
 fn run_sample(file_count: usize) -> Result<BenchSample, BoxError> {
     let dir = tempfile::tempdir()?;
     let files = synthetic_repo_files(file_count);
@@ -138,6 +150,78 @@ fn run_sample(file_count: usize) -> Result<BenchSample, BoxError> {
     })
 }
 
+fn synthetic_search_corpus(file_count: usize) -> Vec<SearchDocument> {
+    (0..file_count)
+        .map(|i| {
+            let id = format!("sym:gen_{i:04}.rs:1:gen_{i:04}");
+            let previous = if i == 0 {
+                "root function".to_owned()
+            } else {
+                format!("calls gen_{:04}", i - 1)
+            };
+            SearchDocument::new(
+                id,
+                DocumentKind::Function,
+                format!(
+                    "pub fn gen_{i:04} handles synthetic retrieval tier file {i} {previous} config widget route policy"
+                ),
+            )
+        })
+        .collect()
+}
+
+fn percentile(sorted: &[f64], quantile: f64) -> Result<f64, BoxError> {
+    if sorted.is_empty() {
+        return Err("cannot compute percentile for empty sample".into());
+    }
+    let last = sorted.len() - 1;
+    let index = ((last as f64) * quantile).ceil() as usize;
+    sorted
+        .get(index.min(last))
+        .copied()
+        .ok_or_else(|| "percentile index out of bounds".into())
+}
+
+fn run_retrieval_latency_sample(
+    tier: &'static str,
+    file_count: usize,
+) -> Result<RetrievalLatencySample, BoxError> {
+    let corpus = synthetic_search_corpus(file_count);
+    let fulltext = FullTextIndex::build(&corpus)?;
+    let embedder = HashingEmbedder::new();
+    let doc_texts: Vec<(String, String)> = corpus
+        .iter()
+        .map(|doc| (doc.id.clone(), doc.text.clone()))
+        .collect();
+    let entries = embed_documents(&embedder, &doc_texts)?;
+    let vector = VectorIndex::build(&entries, embedder.model_info());
+    let reranker = FusionScoreReranker::new();
+    let searcher = HybridSearcher::new(&fulltext, &vector, &embedder, &reranker);
+    let queries = [
+        "config widget policy",
+        "synthetic retrieval route",
+        "gen function calls previous",
+        "file tier route policy",
+        "widget route config",
+    ];
+    let mut latencies = Vec::new();
+    for query in queries.iter().cycle().take(20) {
+        let start = Instant::now();
+        let result = searcher.search(query, &corpus, &[])?;
+        if result.context.is_empty() {
+            return Err(format!("retrieval query {query:?} returned no context").into());
+        }
+        latencies.push(start.elapsed().as_secs_f64() * 1000.0);
+    }
+    latencies.sort_by(f64::total_cmp);
+    Ok(RetrievalLatencySample {
+        tier,
+        file_count,
+        p50_ms: percentile(&latencies, 0.50)?,
+        p95_ms: percentile(&latencies, 0.95)?,
+    })
+}
+
 fn main() -> Result<(), BoxError> {
     let mut stdout = std::io::stdout();
     // Deterministic corpus sizes -- the longitudinal §3 "index rebuild
@@ -158,5 +242,17 @@ fn main() -> Result<(), BoxError> {
             sample.file_count, sample.full_index_ms, sample.incremental_noop_index_ms, speedup
         )?;
     }
+    let baseline = run_retrieval_latency_sample("baseline", 10)?;
+    let large = run_retrieval_latency_sample("large-synthetic", 100)?;
+    writeln!(
+        stdout,
+        "x06.9 retrieval latency: tier={} files={} p50_ms={:.3} p95_ms={:.3}",
+        baseline.tier, baseline.file_count, baseline.p50_ms, baseline.p95_ms
+    )?;
+    writeln!(
+        stdout,
+        "x06.9 retrieval latency: tier={} files={} p50_ms={:.3} p95_ms={:.3}",
+        large.tier, large.file_count, large.p50_ms, large.p95_ms
+    )?;
     Ok(())
 }

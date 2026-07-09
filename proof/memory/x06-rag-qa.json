@@ -1,10 +1,10 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 226,
+  "rowsGreen": 228,
   "rowsGreenReal": 0,
-  "rowsGreenDegraded": 226,
+  "rowsGreenDegraded": 228,
   "rowsFailed": 0,
-  "rowsUnrunnable": 24,
+  "rowsUnrunnable": 22,
   "rows": [
     {
       "id": "QA-001",
@@ -2301,8 +2301,8 @@
         "proof/memory/x06-feature-parity.json",
         "proof/memory/x06-rag-qa.json",
         "proof/memory/x06-kg-parity.json",
-        "qa:rows-green:226",
-        "qa:rows-unrunnable:24"
+        "qa:rows-green:228",
+        "qa:rows-unrunnable:22"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -5910,27 +5910,41 @@
       "id": "QA-227",
       "category": "Performance",
       "query": "Compare full index rebuild vs incremental update on the synthetic corpus.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Performance",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "longitudinal:indexing:incremental-wins:7.8x-min"
+      ],
+      "actualIds": [
+        "longitudinal:indexing:incremental-wins:7.8x-min"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "proof/memory/x06-longitudinal.json",
+        "crates/enforcer-memory/benches/x06_9_longitudinal.rs"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-228",
       "category": "Performance",
       "query": "Measure retrieval p50/p95 latency at the large synthetic graph tier vs baseline tier.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Performance",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "longitudinal:retrieval-latency:p50-3.36x:p95-2.12x"
+      ],
+      "actualIds": [
+        "longitudinal:retrieval-latency:p50-3.36x:p95-2.12x"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "proof/memory/x06-longitudinal.json",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-229",

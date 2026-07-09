@@ -1913,10 +1913,10 @@ const EXACT_QA_EVIDENCE_IDS: &[&str] = &[
     "QA-173", "QA-174", "QA-186", "QA-187", "QA-189", "QA-191", "QA-192", "QA-193", "QA-194",
     "QA-195", "QA-196", "QA-197", "QA-198", "QA-199", "QA-200", "QA-201", "QA-202", "QA-203",
     "QA-204", "QA-205", "QA-206", "QA-207", "QA-208", "QA-209", "QA-210", "QA-211", "QA-212",
-    "QA-213", "QA-214", "QA-215", "QA-216", "QA-217", "QA-218", "QA-219", "QA-226", "QA-229",
-    "QA-230", "QA-231", "QA-232", "QA-233", "QA-234", "QA-235", "QA-236", "QA-237", "QA-238",
-    "QA-239", "QA-240", "QA-241", "QA-242", "QA-243", "QA-244", "QA-245", "QA-246", "QA-247",
-    "QA-248", "QA-249", "QA-250",
+    "QA-213", "QA-214", "QA-215", "QA-216", "QA-217", "QA-218", "QA-219", "QA-226", "QA-227",
+    "QA-228", "QA-229", "QA-230", "QA-231", "QA-232", "QA-233", "QA-234", "QA-235", "QA-236",
+    "QA-237", "QA-238", "QA-239", "QA-240", "QA-241", "QA-242", "QA-243", "QA-244", "QA-245",
+    "QA-246", "QA-247", "QA-248", "QA-249", "QA-250",
 ];
 
 impl RowRunner for ExactQaEvidenceRunner {
@@ -2077,6 +2077,8 @@ impl RowRunner for ExactQaEvidenceRunner {
             "QA-189" => new_language_crate_strategy_probe(row),
             "QA-191" => multi_harness_install_pattern_probe(row),
             "QA-226" => learning_curve_ratchet_probe(row, fixtures),
+            "QA-227" => longitudinal_indexing_probe(row),
+            "QA-228" => longitudinal_retrieval_latency_probe(row),
             "QA-229" | "QA-230" | "QA-231" | "QA-232" | "QA-233" => federation_bundle_probe(row),
             "QA-234" => mcp_scan_handler_probe(row),
             "QA-235" => mcp_check_tool_schema_probe(row),
@@ -9017,6 +9019,111 @@ fn learning_curve_ratchet_probe(row: &QaRow, fixtures: &Fixtures) -> RowResult {
         row,
         vec!["learning-curve:nondecreasing-cumulative-incidents".to_string()],
         refs,
+    )
+}
+
+fn longitudinal_artifact() -> Result<(serde_json::Value, &'static str), String> {
+    let rel = "proof/memory/x06-longitudinal.json";
+    let root = super::queryset::workspace_root();
+    std::fs::read_to_string(root.join(rel))
+        .and_then(|raw| serde_json::from_str(&raw).map_err(std::io::Error::other))
+        .map(|artifact| (artifact, rel))
+        .map_err(|error| format!("failed to parse {rel}: {error}"))
+}
+
+fn longitudinal_indexing_probe(row: &QaRow) -> RowResult {
+    let (artifact, rel) = match longitudinal_artifact() {
+        Ok(artifact) => artifact,
+        Err(error) => return unrunnable(row, &error),
+    };
+    let indexing = &artifact["indexing"];
+    let wins_all = indexing
+        .get("incrementalWinsAllTiers")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
+    let change_set_percent = indexing
+        .get("changeSetPercent")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(f64::INFINITY);
+    let minimum_speedup = indexing
+        .get("minimumSpeedup")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(0.0);
+    let samples = indexing
+        .get("samples")
+        .and_then(serde_json::Value::as_array)
+        .map(Vec::len)
+        .unwrap_or(0);
+    if !wins_all || change_set_percent >= 5.0 || minimum_speedup <= 1.0 || samples < 3 {
+        return unrunnable(
+            row,
+            "x06-longitudinal indexing proof does not show incremental win across >=3 <5% change-set tiers",
+        );
+    }
+    exact_pass(
+        row,
+        vec![format!(
+            "longitudinal:indexing:incremental-wins:{minimum_speedup:.1}x-min"
+        )],
+        vec![
+            rel.to_string(),
+            "crates/enforcer-memory/benches/x06_9_longitudinal.rs".to_string(),
+        ],
+    )
+}
+
+fn longitudinal_retrieval_latency_probe(row: &QaRow) -> RowResult {
+    let (artifact, rel) = match longitudinal_artifact() {
+        Ok(artifact) => artifact,
+        Err(error) => return unrunnable(row, &error),
+    };
+    let latency = &artifact["retrievalLatency"];
+    let passes = latency
+        .get("passesRegressionGate")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
+    let p50_ratio = latency
+        .get("p50RegressionRatio")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(f64::INFINITY);
+    let p95_ratio = latency
+        .get("p95RegressionRatio")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(f64::INFINITY);
+    let max_p50 = latency
+        .get("maxAllowedP50RegressionRatio")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(0.0);
+    let max_p95 = latency
+        .get("maxAllowedP95RegressionRatio")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(0.0);
+    let tiers = latency
+        .get("tiers")
+        .and_then(serde_json::Value::as_array)
+        .map(Vec::len)
+        .unwrap_or(0);
+    if !passes
+        || !p50_ratio.is_finite()
+        || !p95_ratio.is_finite()
+        || p50_ratio > max_p50
+        || p95_ratio > max_p95
+        || tiers < 2
+    {
+        return unrunnable(
+            row,
+            "x06-longitudinal retrieval proof lacks finite baseline-vs-large p50/p95 latency under gate",
+        );
+    }
+    exact_pass(
+        row,
+        vec![format!(
+            "longitudinal:retrieval-latency:p50-{p50_ratio:.2}x:p95-{p95_ratio:.2}x"
+        )],
+        vec![
+            rel.to_string(),
+            "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md".to_string(),
+        ],
     )
 }
 
