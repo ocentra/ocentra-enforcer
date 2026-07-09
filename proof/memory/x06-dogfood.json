@@ -81,6 +81,7 @@
     "cargo test -p enforcer-memory --test feature_parity_harness feature_parity::proof::tests::host_local_runtime_proof_counts_separately_from_live_loaded_and_degraded_rows -- --exact passed after adding the host-local-proof QA bucket",
     "cargo test -p enforcer-memory --test feature_parity_harness qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split -- --exact passed after x06-rag-qa.json recorded 250/250 green rows with 3 host-local-proof model-runtime rows and 247 degraded deterministic rows",
     "rustfmt --check passed for the touched feature_parity proof, runner, and harness files after host-local-proof classification",
+    "cargo test -p enforcer-memory --test feature_parity_harness feature_parity::proof::tests::rollup_refuses_skeleton_state_that_marks_missing_prefix_proofs_pending -- --exact passed after removing stale today/most-unrunnable wording from the negative prefix-rollup fixture",
     "cargo fmt --package enforcer-memory --check passed after running rustfmt on the new model-runtime contract assertions",
     "cargo test -p enforcer-memory --features ort-models --quiet passed with CARGO_BUILD_JOBS=1, CARGO_PROFILE_TEST_DEBUG=0, and CARGO_INCREMENTAL=0 after clearing an orphaned pre-compaction ORT cargo process",
     "cargo clippy -p enforcer-memory --all-targets -- -D warnings passed after model-runtime mismatch proof promotion",
@@ -1277,6 +1278,13 @@
       "evidence": "x06-rag-qa.json and x06-feature-parity.json now record 3 host-local-proof rows, 0 live-loaded default rows, and 247 degraded deterministic rows; focused feature_parity_harness tests passed.",
       "classification": "ours",
       "learningSignal": "default-qa-must-separate-host-local-proof-from-live-loaded"
+    },
+    {
+      "incident": "A feature-parity negative fixture still described the old skeleton state as today's harness truth after x06-feature-parity.json became green and QA reached 250/250.",
+      "fix": "Renamed the test and rewrote its comment/failure reason so it remains a negative anti-fabricated-green guard without contradicting current proof artifacts.",
+      "evidence": "rollup_refuses_skeleton_state_that_marks_missing_prefix_proofs_pending passed as an exact feature_parity_harness test.",
+      "classification": "ours",
+      "learningSignal": "negative-fixtures-must-not-claim-stale-current-state"
     }
   ]
 }

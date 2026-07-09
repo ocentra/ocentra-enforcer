@@ -563,6 +563,16 @@
       "status": "learned"
     },
     {
+      "lessonId": "dogfood-049",
+      "lesson": "Negative proof fixtures must not describe stale historical state as current truth. Keep the refusal behavior, but label old skeleton/pending cases as regression fixtures once the live artifact is green.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/proof.rs",
+        "proof/memory/x06-feature-parity.json",
+        "proof/memory/x06-dogfood.json"
+      ],
+      "status": "learned"
+    },
+    {
       "id": "ort-provider-resolution-owned-worker-plan",
       "t0": "ORT provider acceleration can look configured while the parent-side hardware probe evidence is not preserved in the worker plan.",
       "t1": "Provider resolution is now part of the typed OrtWorkerExecutionPlan and child env/proof contract.",
@@ -592,6 +602,14 @@
       "t1": "Added a host-local-proof capability state and rollup count while keeping loaded reserved for feature-gated live model rows.",
       "t2": "feature_parity_harness proves 250/250 green rows with 3 host-local-proof model-runtime rows, 0 live-loaded default rows, and 247 degraded deterministic rows.",
       "recurrenceSignal": "reject model-runtime QA rollups that hide host-local proof or mark static artifacts as live-loaded default execution",
+      "status": "active"
+    },
+    {
+      "id": "negative-fixtures-must-not-claim-stale-current-state",
+      "t0": "An anti-fabricated-green test still said today's rollup had mostly pending prefixes after the checked-in matrix became green.",
+      "t1": "Renamed and rewrote the test as an explicit skeleton-state regression fixture.",
+      "t2": "The exact feature_parity_harness test for the renamed negative fixture passed and current x06-feature-parity.json remains allMatrixPrefixesGreen=true.",
+      "recurrenceSignal": "reject proof comments or test names that contradict the current artifact state",
       "status": "active"
     }
   ],

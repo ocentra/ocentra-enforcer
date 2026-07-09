@@ -510,14 +510,12 @@ mod tests {
     }
 
     #[test]
-    fn today_honest_rollup_is_not_all_green_because_most_prefixes_are_pending() {
-        // The actual state of this harness today: only QA is
-        // computable from real row results; every other prefix is
-        // owned by a subpack whose proof artifact this lane must not
-        // fabricate. This test asserts that HONEST state is what the
-        // rollup produces -- i.e. this test would fail (correctly) if
-        // a future edit accidentally marked every prefix Green without
-        // real proof backing it.
+    fn rollup_refuses_skeleton_state_that_marks_missing_prefix_proofs_pending() {
+        // Regression fixture for the old skeleton state: a missing
+        // prefix proof must remain Pending/Red until artifact-backed
+        // evidence exists. Current checked-in X06 proof is green, but
+        // this guard keeps future migrations from reintroducing
+        // fabricated aggregate green by silently skipping prefixes.
         let mut prefixes: BTreeMap<&'static str, MatrixPrefixRow> = REQUIRED_PREFIXES
             .iter()
             .map(|prefix| {
@@ -528,7 +526,9 @@ mod tests {
                         status: PrefixStatus::Pending,
                         test_name: None,
                         artifact_path: format!("proof/memory/x06-{prefix}.json"),
-                        failure_reason: Some("not yet emitted (X06.9 skeleton pass)".to_string()),
+                        failure_reason: Some(
+                            "negative fixture: proof artifact missing".to_string(),
+                        ),
                     },
                 )
             })
@@ -541,7 +541,7 @@ mod tests {
                 test_name: Some("x06_9_qa_gate".to_string()),
                 artifact_path: "proof/memory/x06-rag-qa.json".to_string(),
                 failure_reason: Some(
-                    "most QA-001..QA-250 rows are unrunnable pending parallel-lane MCP/CLI/federation surfaces"
+                    "negative fixture: QA proof cannot be green while required prefixes are missing"
                         .to_string(),
                 ),
             },
