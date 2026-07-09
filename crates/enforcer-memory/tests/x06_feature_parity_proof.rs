@@ -15,8 +15,8 @@ fn checked_in_feature_parity_rollup_pins_green_matrix_and_qa_counts() -> TestRes
     assert_eq!(feature["qaRowsTotal"], 250);
     assert_eq!(feature["qaRowsGreen"], 250);
     assert_eq!(feature["qaRowsGreenReal"], 0);
-    assert_eq!(feature["qaRowsGreenHostLocalProof"], 75);
-    assert_eq!(feature["qaRowsGreenDegraded"], 175);
+    assert_eq!(feature["qaRowsGreenHostLocalProof"], 84);
+    assert_eq!(feature["qaRowsGreenDegraded"], 166);
     assert_eq!(feature["kgParityComparedAgainstBaseline"], true);
     assert_eq!(feature["mcpCliParity"], true);
     assert_eq!(feature["localDenseRetrievalPresent"], true);
@@ -229,7 +229,7 @@ fn checked_in_feature_parity_rollup_pins_green_matrix_and_qa_counts() -> TestRes
             .or_insert(0usize) += 1;
     }
     assert_eq!(capability_counts.get("loaded"), None);
-    assert_eq!(capability_counts.get("host-local-proof"), Some(&75));
-    assert_eq!(capability_counts.get("degraded"), Some(&175));
+    assert_eq!(capability_counts.get("host-local-proof"), Some(&84));
+    assert_eq!(capability_counts.get("degraded"), Some(&166));
     Ok(())
 }

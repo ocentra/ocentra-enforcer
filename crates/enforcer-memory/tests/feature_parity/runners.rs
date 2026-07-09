@@ -3127,7 +3127,7 @@ fn unused_private_function_probe(row: &QaRow) -> RowResult {
         Err(error) => return unrunnable(row, &format!("failed to read fixture lib.rs: {error}")),
     };
     if source.contains("fn read_config(") && source.contains("read_config(path)") {
-        return exact_pass(
+        return host_local_proof_pass(
             row,
             vec!["private-fn:read_config:used-not-unused".to_string()],
             vec![repo_relative_path(&fixture)],
@@ -3143,7 +3143,7 @@ fn config_file_probe(row: &QaRow) -> RowResult {
     let rel = "crates/enforcer-memory/Cargo.toml";
     let root = super::queryset::workspace_root();
     if root.join(rel).is_file() {
-        exact_pass(row, vec![rel.to_string()], vec![rel.to_string()])
+        host_local_proof_pass(row, vec![rel.to_string()], vec![rel.to_string()])
     } else {
         unrunnable(row, "enforcer-memory Cargo.toml is missing")
     }
@@ -3259,7 +3259,7 @@ fn proof_gap_probe(row: &QaRow) -> RowResult {
 }
 
 fn missing_fail_fixture_validator_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -3404,7 +3404,7 @@ fn validate_file_markers(
 }
 
 fn cyclic_dependency_modules_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -3564,7 +3564,7 @@ fn repository_crates_probe(row: &QaRow) -> RowResult {
         format!("crate-count:{count}"),
     ];
     summary_ids.extend(ids.into_iter().take(3));
-    exact_pass(row, summary_ids, refs)
+    host_local_proof_pass(row, summary_ids, refs)
 }
 
 fn read_repo_file(rel: &str) -> Result<String, String> {
@@ -3900,7 +3900,7 @@ fn workpack_anchor_history_probe(row: &QaRow) -> RowResult {
 }
 
 fn doc_claim_missing_validator_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -4286,7 +4286,7 @@ fn arc01_merge_lessons_probe(row: &QaRow) -> RowResult {
         }
     }
 
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -4835,7 +4835,7 @@ fn mcp_check_tool_schema_probe(row: &QaRow) -> RowResult {
 }
 
 fn mcp_route_lifecycle_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -7300,7 +7300,7 @@ fn branch_protection_semantic_probe(row: &QaRow) -> RowResult {
 }
 
 fn crate_network_calls_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
