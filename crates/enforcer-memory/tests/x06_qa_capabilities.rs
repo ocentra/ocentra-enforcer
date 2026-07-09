@@ -1,6 +1,11 @@
 use enforcer_memory::analysis::{CodeAdjacency, TraceDirection};
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
+use enforcer_memory::fulltext::FullTextIndex;
+use enforcer_memory::graph::MemoryGraph;
 use enforcer_memory::impact::analyze_diff_impact;
+use enforcer_memory::ingest::{ingest_observation, Observation};
+use enforcer_memory::lesson::LessonRow;
+use enforcer_memory::search::{DocumentKind, SearchDocument};
 use enforcer_memory::similarity::{similar_to, SIMILAR_TO_THRESHOLD};
 use serde_json::Value;
 use std::collections::BTreeSet;
@@ -70,6 +75,7 @@ fn checked_in_x06_qa_capabilities_proof_matches_fixture_tests() -> TestResult {
                             | "x06_qa_route_auth_rows_can_pair_routes_with_permission_checks"
                             | "x06_qa_duplicate_logic_rows_can_find_similar_functions"
                             | "x06_qa_module_rows_can_enumerate_touched_filesystem_paths"
+                            | "x06_qa_previous_bug_rows_can_recall_similar_incidents"
                             | "x06_qa_symbol_rows_can_find_zero_callers_and_generic_result_mentions"
                     )
                 })
@@ -81,7 +87,7 @@ fn checked_in_x06_qa_capabilities_proof_matches_fixture_tests() -> TestResult {
         covered_ids,
         BTreeSet::from([
             "QA-011", "QA-024", "QA-038", "QA-039", "QA-044", "QA-045", "QA-057", "QA-058",
-            "QA-065", "QA-066", "QA-107", "QA-109"
+            "QA-065", "QA-066", "QA-067", "QA-107", "QA-109"
         ])
     );
 
@@ -99,12 +105,83 @@ fn checked_in_x06_qa_capabilities_proof_matches_fixture_tests() -> TestResult {
                 .ok_or("still-needed row id must be a string")
         })
         .collect::<Result<BTreeSet<_>, _>>()?;
-    assert_eq!(still_needed, BTreeSet::from(["QA-067", "QA-188"]));
+    assert_eq!(still_needed, BTreeSet::from(["QA-188"]));
     assert!(
         proof["lessons"]
             .as_array()
             .is_some_and(|lessons| !lessons.is_empty()),
         "proof must carry durable learning evidence"
+    );
+    Ok(())
+}
+
+#[test]
+fn x06_qa_previous_bug_rows_can_recall_similar_incidents() -> TestResult {
+    let mut graph = MemoryGraph::new();
+    graph.ingest_lesson_row(LessonRow {
+        id: "lesson-walk-real-node-not-children".to_owned(),
+        date: "2026-07-09".to_owned(),
+        observed: "tree-sitter quirk skipped the actual call node and only walked children"
+            .to_owned(),
+        lesson: "when a field resolves to the call node itself, recurse with walk on that node instead of walk_children"
+            .to_owned(),
+        landed_at: "commit previous-bug-proof".to_owned(),
+        ships_via: "x06-qa".to_owned(),
+    });
+    ingest_observation(
+        &mut graph,
+        Observation {
+            lesson_id: "lesson-walk-real-node-not-children".to_owned(),
+            rule_id: Some("QA-067".to_owned()),
+            fault_class: Some("previous-bug-similarity".to_owned()),
+            repo_context:
+                "purescript exp_apply bug: walker skipped the real call node and found no callee"
+                    .to_owned(),
+            clean: false,
+            source_surface: "fixture:previous-bug".to_owned(),
+            ts: "2026-07-09T00:00:00Z".to_owned(),
+        },
+    );
+    graph.ingest_lesson_row(LessonRow {
+        id: "lesson-unrelated-cache-policy".to_owned(),
+        date: "2026-07-09".to_owned(),
+        observed: "model cache path policy rejected an absolute path".to_owned(),
+        lesson: "keep dev cache paths repo-relative and package cache paths app-owned".to_owned(),
+        landed_at: "commit unrelated-proof".to_owned(),
+        ships_via: "x06-models".to_owned(),
+    });
+
+    let docs = graph
+        .nodes()
+        .iter()
+        .map(|node| SearchDocument::new(node.id(), DocumentKind::Lesson, node.searchable_text()))
+        .collect::<Vec<_>>();
+    let index = FullTextIndex::build(&docs)?;
+    let hits = index.search("skipped real call node walk children callee missing", 5)?;
+
+    assert!(
+        hits.iter()
+            .any(|hit| hit.doc_id == "lesson-walk-real-node-not-children"),
+        "previous bug recall should retrieve the matching lesson, got {hits:?}"
+    );
+    assert!(
+        graph
+            .incidents_for_lesson("lesson-walk-real-node-not-children")
+            .iter()
+            .any(|incident| incident
+                .repo_context
+                .contains("walker skipped the real call node")),
+        "matching lesson must carry observed incident evidence"
+    );
+    assert_eq!(
+        hits.first().map(|hit| hit.doc_id.as_str()),
+        Some("lesson-walk-real-node-not-children"),
+        "similar bug lesson should be the top hit, got {hits:?}"
+    );
+    assert!(
+        hits.iter()
+            .all(|hit| hit.doc_id != "lesson-unrelated-cache-policy"),
+        "unrelated cache-policy lesson must not be returned for call-walker bug recall, got {hits:?}"
     );
     Ok(())
 }
