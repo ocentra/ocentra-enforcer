@@ -8392,7 +8392,7 @@ fn lesson_recall_probe(
     source_refs.push(expected_id.to_string());
     score_row(
         row,
-        RowEvidence::degraded(
+        RowEvidence::host_local_proof(
             vec![expected_id.to_string()],
             vec![expected_id.to_string()],
             None,
@@ -9741,7 +9741,7 @@ fn learning_curve_ratchet_probe(row: &QaRow, fixtures: &Fixtures) -> RowResult {
         .values()
         .flat_map(|points| points.iter().map(|point| point.lesson_id.clone()))
         .collect();
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec!["learning-curve:nondecreasing-cumulative-incidents".to_string()],
         refs,
