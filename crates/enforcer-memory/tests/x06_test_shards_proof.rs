@@ -11,6 +11,48 @@ fn proof_json(path: &str, raw: &str) -> Result<serde_json::Value, Box<dyn std::e
 
 #[test]
 fn checked_in_sharded_test_proofs_replace_monolithic_memory_gate() -> TestResult {
+    let shard_files = [
+        (
+            "1/8",
+            "proof/memory/x06-test-shards-1-of-8.json",
+            include_str!("../../../proof/memory/x06-test-shards-1-of-8.json"),
+        ),
+        (
+            "2/8",
+            "proof/memory/x06-test-shards-2-of-8.json",
+            include_str!("../../../proof/memory/x06-test-shards-2-of-8.json"),
+        ),
+        (
+            "3/8",
+            "proof/memory/x06-test-shards-3-of-8.json",
+            include_str!("../../../proof/memory/x06-test-shards-3-of-8.json"),
+        ),
+        (
+            "4/8",
+            "proof/memory/x06-test-shards-4-of-8.json",
+            include_str!("../../../proof/memory/x06-test-shards-4-of-8.json"),
+        ),
+        (
+            "5/8",
+            "proof/memory/x06-test-shards-5-of-8.json",
+            include_str!("../../../proof/memory/x06-test-shards-5-of-8.json"),
+        ),
+        (
+            "6/8",
+            "proof/memory/x06-test-shards-6-of-8.json",
+            include_str!("../../../proof/memory/x06-test-shards-6-of-8.json"),
+        ),
+        (
+            "7/8",
+            "proof/memory/x06-test-shards-7-of-8.json",
+            include_str!("../../../proof/memory/x06-test-shards-7-of-8.json"),
+        ),
+        (
+            "8/8",
+            "proof/memory/x06-test-shards-8-of-8.json",
+            include_str!("../../../proof/memory/x06-test-shards-8-of-8.json"),
+        ),
+    ];
     let discovery = proof_json(
         "proof/memory/x06-test-shards.json",
         include_str!("../../../proof/memory/x06-test-shards.json"),
@@ -85,8 +127,16 @@ fn checked_in_sharded_test_proofs_replace_monolithic_memory_gate() -> TestResult
         .as_array()
         .ok_or("x06-test-shards-rollup shards must be an array")?;
     assert_eq!(shards.len(), 8);
+    let shard_proofs = shard_files
+        .iter()
+        .map(|(shard_id, path, raw)| {
+            let proof = proof_json(path, raw)?;
+            Ok(((*shard_id).to_owned(), (*path).to_owned(), proof))
+        })
+        .collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?;
     let mut proof_paths = BTreeSet::new();
     let mut shard_ids = BTreeSet::new();
+    let mut executed_target_ids = BTreeSet::new();
     for shard in shards {
         let shard_id = shard["shard"]
             .as_str()
@@ -115,6 +165,79 @@ fn checked_in_sharded_test_proofs_replace_monolithic_memory_gate() -> TestResult
             "shard {shard_id} proof path must be portable repo-relative JSON, got {proof_path}"
         );
         proof_paths.insert(proof_path.to_owned());
+
+        let (_, _, shard_proof) = shard_proofs
+            .iter()
+            .find(|(id, path, _)| id == shard_id && path == proof_path)
+            .ok_or_else(|| format!("missing checked-in proof body for shard {shard_id}"))?;
+        assert_eq!(shard_proof["schemaVersion"], 1);
+        assert_eq!(shard_proof["artifact"], "x06-test-shards");
+        assert_eq!(shard_proof["package"], "enforcer-memory");
+        assert_eq!(shard_proof["testRoot"], "crates/enforcer-memory/tests");
+        assert_eq!(shard_proof["totalTargets"], 232);
+        assert_eq!(shard_proof["selectedTargets"], shard["selectedTargets"]);
+        assert_eq!(shard_proof["shard"], shard_id);
+        assert_eq!(shard_proof["only"], serde_json::Value::Null);
+        assert_eq!(shard_proof["result"]["mode"], "executed");
+        assert_eq!(shard_proof["result"]["ok"], true);
+        assert_eq!(
+            shard_proof["result"]["executedTargets"],
+            shard["executedTargets"]
+        );
+        assert_eq!(
+            shard_proof["result"]["failedTargets"]
+                .as_array()
+                .map(Vec::len),
+            Some(0),
+            "shard {shard_id} proof must carry no failed targets"
+        );
+        for policy in [
+            "deterministicDiscovery",
+            "crossPlatform",
+            "oneCargoTestTargetPerProcess",
+            "avoidsMonolithicPackageTimeout",
+            "zeroNetwork",
+        ] {
+            assert_eq!(
+                shard_proof["executionPolicy"][policy], true,
+                "shard {shard_id} must keep execution policy {policy}"
+            );
+        }
+        let targets = shard_proof["targets"]
+            .as_array()
+            .ok_or_else(|| format!("shard {shard_id} targets must be an array"))?;
+        assert_eq!(
+            targets.len(),
+            shard["selectedTargets"].as_u64().unwrap_or_default() as usize
+        );
+        for target in targets {
+            let target_name = target["target"]
+                .as_str()
+                .ok_or_else(|| format!("shard {shard_id} target name must be a string"))?;
+            assert!(
+                executed_target_ids.insert(target_name.to_owned()),
+                "target {target_name} appeared in more than one shard"
+            );
+            assert_eq!(target["cargoArgs"][0], "test");
+            assert_eq!(target["cargoArgs"][1], "-p");
+            assert_eq!(target["cargoArgs"][2], "enforcer-memory");
+            assert_eq!(target["cargoArgs"][3], "--test");
+            assert_eq!(target["cargoArgs"][4], target_name);
+            assert!(
+                target["category"].as_str().is_some_and(|category| {
+                    matches!(
+                        category,
+                        "integration"
+                            | "x06-proof"
+                            | "model-runtime"
+                            | "parity-live"
+                            | "unit-core"
+                            | "unit-languages"
+                    )
+                }),
+                "shard {shard_id} target {target_name} has unexpected category"
+            );
+        }
     }
 
     assert_eq!(
@@ -131,5 +254,10 @@ fn checked_in_sharded_test_proofs_replace_monolithic_memory_gate() -> TestResult
         ])
     );
     assert_eq!(proof_paths.len(), 8);
+    assert_eq!(
+        executed_target_ids.len(),
+        232,
+        "per-shard proof bodies must cover every discovered target exactly once"
+    );
     Ok(())
 }
