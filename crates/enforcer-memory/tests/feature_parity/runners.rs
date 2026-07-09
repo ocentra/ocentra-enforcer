@@ -2295,7 +2295,7 @@ fn rule_id_test_probe(row: &QaRow) -> RowResult {
     if source.contains("fn rule_id_accepts_valid_and_rejects_malformed()")
         && source.contains("fn rule_id_required_at_a_registry_shaped_boundary_not_bare_string()")
     {
-        return exact_pass(
+        return host_local_proof_pass(
             row,
             vec![
                 "crates/enforcer-domain/src/ids.rs::rule_id_accepts_valid_and_rejects_malformed"
@@ -3265,7 +3265,7 @@ fn sqlite_table_probe(row: &QaRow) -> RowResult {
 }
 
 fn proof_gap_probe(row: &QaRow) -> RowResult {
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec!["proof-gap:QA-048:missing-pass-fixture-row-is-still-tracked".to_string()],
         vec![
@@ -3664,7 +3664,7 @@ fn missing_workpack_proof_probe(row: &QaRow) -> RowResult {
         );
     }
 
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec!["proof:x06:pending".to_string()],
         vec![
@@ -8010,7 +8010,7 @@ fn startup_lifecycle_probe(row: &QaRow) -> RowResult {
     }
     refs.sort();
     refs.dedup();
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec![
             "retrieval:startup-proof-gate".to_string(),

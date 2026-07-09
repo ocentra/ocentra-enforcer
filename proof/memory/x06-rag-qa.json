@@ -4,8 +4,8 @@
   "rowsTotal": 250,
   "rowsGreen": 250,
   "rowsGreenReal": 0,
-  "rowsGreenHostLocalProof": 134,
-  "rowsGreenDegraded": 116,
+  "rowsGreenHostLocalProof": 138,
+  "rowsGreenDegraded": 112,
   "rowsFailed": 0,
   "rowsUnrunnable": 0,
   "rows": [
@@ -697,7 +697,7 @@
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-030",
@@ -1174,7 +1174,7 @@
         "proof/memory/x06-rag-qa.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-049",
@@ -1283,7 +1283,7 @@
         "proof-row:x06-live-recall"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-053",
@@ -1598,16 +1598,16 @@
       "query": "Find files with highest churn.",
       "expectedIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:70",
-        "churn:proof/memory/x06-feature-parity.json:67",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:63",
+        "churn:proof/memory/x06-rag-qa.json:71",
+        "churn:proof/memory/x06-feature-parity.json:68",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:64",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
       ],
       "actualIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:70",
-        "churn:proof/memory/x06-feature-parity.json:67",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:63",
+        "churn:proof/memory/x06-rag-qa.json:71",
+        "churn:proof/memory/x06-feature-parity.json:68",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:64",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
       ],
       "recallAt5": 1.0,
@@ -2732,7 +2732,7 @@
         "crates/enforcer-domain/src/ids.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-106",
