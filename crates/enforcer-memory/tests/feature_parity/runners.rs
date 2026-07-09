@@ -6411,7 +6411,7 @@ fn previous_cyclic_dependency_issue_probe(row: &QaRow) -> RowResult {
 }
 
 fn failed_strategy_for_new_validators_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -6496,7 +6496,7 @@ fn multi_harness_install_pattern_probe(row: &QaRow) -> RowResult {
 }
 
 fn inactive_imported_lessons_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -6813,7 +6813,7 @@ fn clean_scans_after_landing_probe(row: &QaRow) -> RowResult {
 }
 
 fn workpack_observations_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -6933,7 +6933,7 @@ fn successful_fixes_for_rule_probe(row: &QaRow) -> RowResult {
 }
 
 fn rejected_imported_lessons_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -7178,7 +7178,7 @@ fn exact_proof_artifact_probe(row: &QaRow) -> RowResult {
 }
 
 fn exact_lesson_artifact_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (

@@ -4,8 +4,8 @@
   "rowsTotal": 250,
   "rowsGreen": 250,
   "rowsGreenReal": 0,
-  "rowsGreenHostLocalProof": 33,
-  "rowsGreenDegraded": 217,
+  "rowsGreenHostLocalProof": 38,
+  "rowsGreenDegraded": 212,
   "rowsFailed": 0,
   "rowsUnrunnable": 0,
   "rows": [
@@ -1598,16 +1598,16 @@
       "query": "Find files with highest churn.",
       "expectedIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:56",
-        "churn:proof/memory/x06-feature-parity.json:54",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:49",
+        "churn:proof/memory/x06-rag-qa.json:57",
+        "churn:proof/memory/x06-feature-parity.json:55",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:50",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
       ],
       "actualIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:56",
-        "churn:proof/memory/x06-feature-parity.json:54",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:49",
+        "churn:proof/memory/x06-rag-qa.json:57",
+        "churn:proof/memory/x06-feature-parity.json:55",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:50",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
       ],
       "recallAt5": 1.0,
@@ -2035,7 +2035,7 @@
         "proof/memory/x06-learning-curve.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-083",
@@ -2106,7 +2106,7 @@
         "proof/memory/x06-federation.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-086",
@@ -2134,7 +2134,7 @@
         "proof/memory/x06-federation.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-087",
@@ -2235,7 +2235,7 @@
         "proof/memory/x06-learning-curve.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-091",
@@ -5103,7 +5103,7 @@
         "proof/memory/x06-learning-curve.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-191",
