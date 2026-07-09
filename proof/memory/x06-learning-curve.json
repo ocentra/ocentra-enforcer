@@ -584,6 +584,16 @@
       "status": "learned"
     },
     {
+      "lessonId": "dogfood-051",
+      "lesson": "Do not parallelize broad Cargo validation gates for enforcer-memory on local Windows proof runs; stale compiler/linker children can survive command timeouts and block later scoped proof commands. Use the sharded gate or one focused Cargo target at a time.",
+      "evidence": [
+        "proof/memory/x06-dogfood.json",
+        "scripts/x06-enforcer-memory-sharded-test.mjs",
+        "proof/memory/x06-test-shards-rollup.json"
+      ],
+      "status": "learned"
+    },
+    {
       "id": "ort-provider-resolution-owned-worker-plan",
       "t0": "ORT provider acceleration can look configured while the parent-side hardware probe evidence is not preserved in the worker plan.",
       "t1": "Provider resolution is now part of the typed OrtWorkerExecutionPlan and child env/proof contract.",
@@ -629,6 +639,14 @@
       "t1": "Added a CLI regression where no-zod-source checks only src/requested.ts while an unrequested sibling contains a zod violation.",
       "t2": "The exact node --test --test-name-pattern scanner-backed scope regression passed, proving the scanner-backed check reports a clean requested-file scope and no unrequested-file violation.",
       "recurrenceSignal": "reject scanner-backed check evidence unless its report scope matches the requested files",
+      "status": "active"
+    },
+    {
+      "id": "validation-harness-must-not-parallelize-broad-cargo-gates",
+      "t0": "Parallel broad cargo test attempts for enforcer-memory timed out and left cargo/rustc/link children alive, blocking later focused proof commands behind stale build work.",
+      "t1": "Recovered by stopping only the orphaned build processes from the timed-out attempts and returning to scoped checks plus the existing sharded enforcer-memory gate for long-running coverage.",
+      "t2": "The worktree remained clean, cargo fmt -p enforcer-memory --check passed after recovery, and the dogfood record now distinguishes this validation-harness issue from product runtime failures.",
+      "recurrenceSignal": "reject local proof plans that run multiple broad enforcer-memory cargo gates in parallel instead of sharded or single-target validation",
       "status": "active"
     }
   ],

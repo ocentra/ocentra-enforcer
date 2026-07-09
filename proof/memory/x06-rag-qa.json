@@ -1597,25 +1597,25 @@
       "category": "Retrieval",
       "query": "Find files with highest churn.",
       "expectedIds": [
+        "churn:proof/memory/x06-rag-qa.json:72",
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:71",
-        "churn:proof/memory/x06-feature-parity.json:68",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:64",
+        "churn:proof/memory/x06-feature-parity.json:69",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:65",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
       ],
       "actualIds": [
+        "churn:proof/memory/x06-rag-qa.json:72",
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:71",
-        "churn:proof/memory/x06-feature-parity.json:68",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:64",
+        "churn:proof/memory/x06-feature-parity.json:69",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:65",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "Cargo.lock",
         "proof/memory/x06-rag-qa.json",
+        "Cargo.lock",
         "proof/memory/x06-feature-parity.json",
         "crates/enforcer-memory/tests/feature_parity/runners.rs",
         "docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md",
@@ -2170,14 +2170,14 @@
         "crates/enforcer-memory/src/hf_cache.rs:378::q4-chat-fallback",
         "crates/enforcer-memory/src/hf_cache.rs:382::no-probe-chat-fallback",
         "crates/enforcer-memory/tests/model_runtime_real_contract.rs:223::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:250::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:282::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
       ],
       "actualIds": [
         "crates/enforcer-memory/src/hf_cache.rs:346::select_x06_chat_model_for_hardware",
         "crates/enforcer-memory/src/hf_cache.rs:378::q4-chat-fallback",
         "crates/enforcer-memory/src/hf_cache.rs:382::no-probe-chat-fallback",
         "crates/enforcer-memory/tests/model_runtime_real_contract.rs:223::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:250::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:282::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -4627,24 +4627,24 @@
       "category": "GitHistory",
       "query": "Which files were created in the most recent working session?",
       "expectedIds": [
-        "commit:fb890bb23a4fff998046edae395f57eb769215ad",
+        "commit:53f819d97e1a0819f9395b77ae28dfb1de1caf73",
         "lane:rust-build",
-        "created-after:2026-07-09 13:02:05 -0400",
-        "created:proof/memory/x06-models-ort-provider-policy.json"
+        "created-after:2026-07-09 16:08:46 -0400",
+        "created:crates/enforcer-install/tests/git_hooks_fixtures.rs"
       ],
       "actualIds": [
-        "commit:fb890bb23a4fff998046edae395f57eb769215ad",
+        "commit:53f819d97e1a0819f9395b77ae28dfb1de1caf73",
         "lane:rust-build",
-        "created-after:2026-07-09 13:02:05 -0400",
-        "created:proof/memory/x06-models-ort-provider-policy.json"
+        "created-after:2026-07-09 16:08:46 -0400",
+        "created:crates/enforcer-install/tests/git_hooks_fixtures.rs"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "commit:fb890bb23a4fff998046edae395f57eb769215ad",
+        "commit:53f819d97e1a0819f9395b77ae28dfb1de1caf73",
         "lane:rust-build",
-        "proof/memory/x06-models-ort-provider-policy.json"
+        "crates/enforcer-install/tests/git_hooks_fixtures.rs"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -4724,7 +4724,7 @@
         "docs/plans/enforcer-selfhost-plan/workpacks/c09-remaining-harness-adapters.md",
         "docs/plans/enforcer-selfhost-plan/workpacks/c10-ci-integration-and-binary-bootstrap.md",
         "crates/enforcer-install",
-        "history-count:20"
+        "history-count:21"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"

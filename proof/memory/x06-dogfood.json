@@ -1293,6 +1293,13 @@
       "evidence": "node --test --test-name-pattern \"scanner-backed checks respect explicit file scope\" tests/enforcer-checks.test.mjs passed; full file also exposed existing literal-risk missing-crate failures unrelated to this scanner-backed check.",
       "classification": "ours",
       "learningSignal": "scanner-backed-checks-must-preserve-explicit-file-scope"
+    },
+    {
+      "incident": "Parallel broad Cargo validation attempts for enforcer-memory exceeded local command timeouts and left cargo/rustc/link child processes alive, causing later focused proof commands to block behind the stale build pipeline.",
+      "fix": "Stopped only the orphaned cargo/rustc/link processes from this validation attempt, kept the worktree clean, and switched back to scoped crate/package checks plus the existing sharded enforcer-memory gate for long-running proof coverage.",
+      "evidence": "Get-Process showed lingering cargo/rustc/link processes after the timed-out cargo test attempts; Stop-Process recovered the build environment; cargo fmt -p enforcer-memory --check passed afterward, while workspace cargo fmt --check still hit Windows os error 206 path-length behavior.",
+      "classification": "ours",
+      "learningSignal": "validation-harness-must-not-parallelize-broad-cargo-gates"
     }
   ]
 }
