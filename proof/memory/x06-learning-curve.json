@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "artifact": "x06-learning-curve",
   "workpack": "x06-models-harvest",
-  "generatedAt": "2026-07-09T11:35:24.358Z",
+  "generatedAt": "2026-07-09T12:51:38.197Z",
   "status": "store-backed-projection-policy-clean-focused-gates",
   "learningCurve": {
     "present": true,
@@ -534,7 +534,7 @@
   "followUps": [
     "Checked-in real model runtime proofs remain host-local and non-CI-parity; rerun explicit probes when hardware, cache, or providers change.",
     "QA coverage is 250/250 green with 0 failures in proof/memory/x06-rag-qa.json and proof/memory/x06-feature-parity.json; keep unsupported future install-hook rows outside X06 memory scope unless new code lands.",
-    "Full cargo test -p enforcer-memory --quiet -j 1 exceeded a 60 minute local timeout after QA-013 was fixed; scripts/x06-enforcer-memory-sharded-test.mjs now provides the cross-platform replacement gate shape, but all shards still need to be executed before claiming full package coverage."
+    "Full cargo test -p enforcer-memory --quiet -j 1 exceeded a 60 minute local timeout after QA-013 was fixed; scripts/x06-enforcer-memory-sharded-test.mjs now provides the cross-platform replacement gate, and proof/memory/x06-test-shards-rollup.json proves all 232 default enforcer-memory integration targets passed across 8 shards."
   ],
   "recurrenceNotes": [
     "t0 events now have durable Store append paths for observations and model-runtime incidents.",

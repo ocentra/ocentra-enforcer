@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-test-shards",
-  "generatedAt": "2026-07-09T11:37:02.719Z",
+  "generatedAt": "2026-07-09T11:38:10.212Z",
   "package": "enforcer-memory",
   "testRoot": "crates/enforcer-memory/tests",
   "totalTargets": 232,

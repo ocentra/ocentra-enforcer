@@ -1544,17 +1544,17 @@
       "query": "Summarize last 20 commits for this module.",
       "expectedIds": [
         "module:enforcer-memory-src:last-20-commits:20",
+        "commit:d79b49b91a58",
+        "commit:d81f52ab9d46",
         "commit:ae704036b00c",
-        "commit:e8965207d026",
-        "commit:3175bf552688",
-        "commit:cd24988b8bce"
+        "commit:e8965207d026"
       ],
       "actualIds": [
         "module:enforcer-memory-src:last-20-commits:20",
+        "commit:d79b49b91a58",
+        "commit:d81f52ab9d46",
         "commit:ae704036b00c",
-        "commit:e8965207d026",
-        "commit:3175bf552688",
-        "commit:cd24988b8bce"
+        "commit:e8965207d026"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -1562,6 +1562,8 @@
       "sourceRefs": [
         "crates/enforcer-memory/src",
         "git:log:-20:crates/enforcer-memory/src",
+        "commit-summary:d79b49b91a58:feat(memory): derive runtime proof from contracts",
+        "commit-summary:d81f52ab9d46:feat(memory): add owned ort worker command seam",
         "commit-summary:ae704036b00c:test(memory): satisfy x06 policy gates",
         "commit-summary:e8965207d026:test(memory): add GGUF lifecycle contract",
         "commit-summary:3175bf552688:test(memory): add ORT lifecycle contract",
@@ -1579,9 +1581,7 @@
         "commit-summary:3907222e4e4a:fix(memory): reject llama server gguf proof fallback",
         "commit-summary:e2091a12c305:feat(memory): classify ort embedding fallback telemetry",
         "commit-summary:08089f84e604:feat(memory): expose ort embedding provider selection",
-        "commit-summary:6bc16ead13f4:feat(memory): report search graph embedding runtime",
-        "commit-summary:d30e2dcdc53b:feat(memory): add cache-only ort embedding selection",
-        "commit-summary:80d328297425:feat(memory): add selectable local embedder seam"
+        "commit-summary:6bc16ead13f4:feat(memory): report search graph embedding runtime"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -1594,15 +1594,15 @@
         "churn:Cargo.lock:71",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
         "churn:proof/memory/x06-feature-parity.json:47",
-        "churn:proof/memory/x06-rag-qa.json:44",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:42"
+        "churn:proof/memory/x06-rag-qa.json:45",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:43"
       ],
       "actualIds": [
         "churn:Cargo.lock:71",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
         "churn:proof/memory/x06-feature-parity.json:47",
-        "churn:proof/memory/x06-rag-qa.json:44",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:42"
+        "churn:proof/memory/x06-rag-qa.json:45",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:43"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -4617,36 +4617,32 @@
       "category": "GitHistory",
       "query": "Which files were created in the most recent working session?",
       "expectedIds": [
-        "commit:ae704036b00c45b551b25aee00a49cd1dcdf29b3",
+        "commit:e544073d1eeb14bd3f40b8bf50ab2937d530f960",
         "lane:rust-build",
-        "created-after:2026-07-09 06:00:18 -0400",
-        "created:crates/enforcer-memory/tests/unit_analysis.rs",
-        "created:crates/enforcer-memory/tests/unit_artifacts.rs"
+        "created-after:2026-07-09 07:37:34 -0400",
+        "created:proof/memory/x06-test-shards-local-exec.json",
+        "created:proof/memory/x06-test-shards.json"
       ],
       "actualIds": [
-        "commit:ae704036b00c45b551b25aee00a49cd1dcdf29b3",
+        "commit:e544073d1eeb14bd3f40b8bf50ab2937d530f960",
         "lane:rust-build",
-        "created-after:2026-07-09 06:00:18 -0400",
-        "created:crates/enforcer-memory/tests/unit_analysis.rs",
-        "created:crates/enforcer-memory/tests/unit_artifacts.rs"
+        "created-after:2026-07-09 07:37:34 -0400",
+        "created:proof/memory/x06-test-shards-local-exec.json",
+        "created:proof/memory/x06-test-shards.json"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "commit:ae704036b00c45b551b25aee00a49cd1dcdf29b3",
+        "commit:e544073d1eeb14bd3f40b8bf50ab2937d530f960",
         "lane:rust-build",
-        "crates/enforcer-memory/tests/unit_analysis.rs",
-        "crates/enforcer-memory/tests/unit_artifacts.rs",
-        "crates/enforcer-memory/tests/unit_cross_repo.rs",
-        "crates/enforcer-memory/tests/unit_embed.rs",
-        "crates/enforcer-memory/tests/unit_federation.rs",
-        "crates/enforcer-memory/tests/unit_llama_cpp.rs",
-        "crates/enforcer-memory/tests/unit_redaction.rs",
-        "crates/enforcer-memory/tests/unit_rerank.rs",
-        "crates/enforcer-memory/tests/unit_share.rs",
-        "crates/enforcer-memory/tests/unit_store_manager.rs",
-        "crates/enforcer-memory/tests/unit_vector.rs"
+        "proof/memory/x06-test-shards-local-exec.json",
+        "proof/memory/x06-test-shards.json",
+        "scripts/x06-enforcer-memory-sharded-test.mjs",
+        "scripts/x06-shards/args.mjs",
+        "scripts/x06-shards/discovery.mjs",
+        "scripts/x06-shards/proof.mjs",
+        "scripts/x06-shards/runner.mjs"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"

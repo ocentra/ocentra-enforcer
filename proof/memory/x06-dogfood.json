@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-dogfood",
-  "generatedAt": "2026-07-09T11:35:24.358Z",
+  "generatedAt": "2026-07-09T12:51:38.197Z",
   "hub": "ocentra-enforcer",
   "stateRoot": "<ledger>/ocentra-enforcer",
   "lane": "codex-x06-harvest-sync",
@@ -125,6 +125,7 @@
     "cargo check -p enforcer-memory --features real-models --example x06_model_runtime_probe passed after deriving runtimeBackendContract from typed local-runtime ownership and restoring the local llama binary-name helper",
     "node scripts/x06-enforcer-memory-sharded-test.mjs --list --write-proof proof/memory/x06-test-shards.json passed and discovered 232 current enforcer-memory integration test targets across deterministic categories",
     "node scripts/x06-enforcer-memory-sharded-test.mjs --only local --write-proof proof/memory/x06-test-shards-local-exec.json passed and executed cargo test -p enforcer-memory --test local_runtime --quiet -j 1 through the sharded runner",
+    "node scripts/x06-enforcer-memory-sharded-test.mjs --shard N/8 --write-proof proof/memory/x06-test-shards-N-of-8.json passed for N=1..8; proof/memory/x06-test-shards-rollup.json records 232 unique executed targets and allShardsOk=true",
     "cargo test -p enforcer-memory --test unit_store_sqlite store_backed_projection_rebuilds_from_a_real_code_graph_fixture -- --exact passed after GPH Store-backed projection proof",
     "cargo test -p enforcer-memory --test unit_store_sqlite --quiet passed after GPH Store-backed projection proof",
     "hardcoded-path scan over changed QA/GPH proof files returned no drive-root, user-profile, or rust-build-sync machine-path matches after source refs were normalized to repo-relative paths",
@@ -1209,7 +1210,7 @@
     },
     {
       "shape": "t2",
-      "evidence": "node scripts/x06-enforcer-memory-sharded-test.mjs --list --write-proof proof/memory/x06-test-shards.json produced a 232-target deterministic manifest; node scripts/x06-enforcer-memory-sharded-test.mjs --only local --write-proof proof/memory/x06-test-shards-local-exec.json executed the local_runtime target successfully. This proves the replacement gate shape, not a full all-shard execution."
+      "evidence": "node scripts/x06-enforcer-memory-sharded-test.mjs --list --write-proof proof/memory/x06-test-shards.json produced a 232-target deterministic manifest; node scripts/x06-enforcer-memory-sharded-test.mjs --only local --write-proof proof/memory/x06-test-shards-local-exec.json executed the local_runtime target successfully; node scripts/x06-enforcer-memory-sharded-test.mjs --shard N/8 --write-proof proof/memory/x06-test-shards-N-of-8.json passed for N=1..8, and proof/memory/x06-test-shards-rollup.json records 232 unique executed targets with allShardsOk=true."
     }
   ]
 }

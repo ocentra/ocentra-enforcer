@@ -1,0 +1,441 @@
+{
+  "schemaVersion": 1,
+  "artifact": "x06-test-shards",
+  "generatedAt": "2026-07-09T11:46:29.933Z",
+  "package": "enforcer-memory",
+  "testRoot": "crates/enforcer-memory/tests",
+  "totalTargets": 232,
+  "selectedTargets": 29,
+  "shard": "1/8",
+  "only": null,
+  "byCategory": {
+    "integration": 10,
+    "x06-proof": 4,
+    "model-runtime": 5,
+    "parity-live": 4,
+    "unit-core": 56,
+    "unit-languages": 153
+  },
+  "commandTemplate": "node scripts/x06-enforcer-memory-sharded-test.mjs --shard N/M",
+  "executionPolicy": {
+    "deterministicDiscovery": true,
+    "crossPlatform": true,
+    "oneCargoTestTargetPerProcess": true,
+    "avoidsMonolithicPackageTimeout": true,
+    "zeroNetwork": true
+  },
+  "result": {
+    "mode": "executed",
+    "ok": true,
+    "executedTargets": 29,
+    "failedTargets": []
+  },
+  "targets": [
+    {
+      "target": "code_graph_indexer",
+      "category": "integration",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "code_graph_indexer",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "model_cache",
+      "category": "model-runtime",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "model_cache",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "store_real_stream",
+      "category": "integration",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "store_real_stream",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_artifacts",
+      "category": "unit-core",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_artifacts",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_embed",
+      "category": "unit-core",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_embed",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_ingest",
+      "category": "unit-core",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_ingest",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_beancount",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_beancount",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_cfml",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_cfml",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_csharp",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_csharp",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_dockerfile",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_dockerfile",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_fortran",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_fortran",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_gn",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_gn",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_hcl",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_hcl",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_jinja2",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_jinja2",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_kdl",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_kdl",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_magma",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_magma",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_nickel",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_nickel",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_pine",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_pine",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_puppet",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_puppet",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_rescript",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_rescript",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_slang",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_slang",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_sshconfig",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_sshconfig",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_teal",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_teal",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_verilog",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_verilog",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_languages_yaml",
+      "category": "unit-languages",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_languages_yaml",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_observations",
+      "category": "unit-core",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_observations",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_schema",
+      "category": "unit-core",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_schema",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_snippet",
+      "category": "unit-core",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_snippet",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "unit_vector",
+      "category": "unit-core",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "unit_vector",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    }
+  ]
+}
