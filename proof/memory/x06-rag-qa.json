@@ -1548,17 +1548,17 @@
       "query": "Summarize last 20 commits for this module.",
       "expectedIds": [
         "module:enforcer-memory-src:last-20-commits:20",
+        "commit:e8eb90bd56a1",
         "commit:42b153185160",
         "commit:08c15fa3e668",
-        "commit:db076adde461",
-        "commit:d79b49b91a58"
+        "commit:db076adde461"
       ],
       "actualIds": [
         "module:enforcer-memory-src:last-20-commits:20",
+        "commit:e8eb90bd56a1",
         "commit:42b153185160",
         "commit:08c15fa3e668",
-        "commit:db076adde461",
-        "commit:d79b49b91a58"
+        "commit:db076adde461"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -1566,6 +1566,7 @@
       "sourceRefs": [
         "crates/enforcer-memory/src",
         "git:log:-20:crates/enforcer-memory/src",
+        "commit-summary:e8eb90bd56a1:test(memory): pin runtime isolation contract",
         "commit-summary:42b153185160:feat(memory): carry ort provider proof into worker plan",
         "commit-summary:08c15fa3e668:feat(memory): gate ort provider acceleration by probe",
         "commit-summary:db076adde461:feat(memory): stamp ort worker runtime proof",
@@ -1584,8 +1585,7 @@
         "commit-summary:c87f2b5392fe:feat(memory): model ORT as managed worker runtime",
         "commit-summary:82b3091bca8d:feat(memory): enforce managed local runtime control",
         "commit-summary:65094bd63419:Merge remote-tracking branch 'origin/rust-build' into rust-build",
-        "commit-summary:7b0ec237a5d7:feat(x06): wave G2.4 — onboard all remaining Tier-1 languages, completing 103/158 baseline languages",
-        "commit-summary:3907222e4e4a:fix(memory): reject llama server gguf proof fallback"
+        "commit-summary:7b0ec237a5d7:feat(x06): wave G2.4 — onboard all remaining Tier-1 languages, completing 103/158 baseline languages"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -1597,16 +1597,16 @@
       "expectedIds": [
         "churn:Cargo.lock:71",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
-        "churn:proof/memory/x06-feature-parity.json:47",
-        "churn:proof/memory/x06-rag-qa.json:46",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:43"
+        "churn:proof/memory/x06-feature-parity.json:48",
+        "churn:proof/memory/x06-rag-qa.json:47",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:44"
       ],
       "actualIds": [
         "churn:Cargo.lock:71",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
-        "churn:proof/memory/x06-feature-parity.json:47",
-        "churn:proof/memory/x06-rag-qa.json:46",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:43"
+        "churn:proof/memory/x06-feature-parity.json:48",
+        "churn:proof/memory/x06-rag-qa.json:47",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:44"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -4624,34 +4624,24 @@
       "category": "GitHistory",
       "query": "Which files were created in the most recent working session?",
       "expectedIds": [
-        "commit:4219947f24306d32738a7630c0875f87457d57bb",
+        "commit:448e75fe32620a0dc2965bc96e41d4fb6e6605e5",
         "lane:rust-build",
-        "created-after:2026-07-09 08:54:05 -0400",
-        "created:proof/memory/x06-test-shards-1-of-8.json",
-        "created:proof/memory/x06-test-shards-2-of-8.json"
+        "created-after:2026-07-09 10:24:04 -0400",
+        "created:crates/enforcer-memory/tests/x06_feature_parity_proof.rs"
       ],
       "actualIds": [
-        "commit:4219947f24306d32738a7630c0875f87457d57bb",
+        "commit:448e75fe32620a0dc2965bc96e41d4fb6e6605e5",
         "lane:rust-build",
-        "created-after:2026-07-09 08:54:05 -0400",
-        "created:proof/memory/x06-test-shards-1-of-8.json",
-        "created:proof/memory/x06-test-shards-2-of-8.json"
+        "created-after:2026-07-09 10:24:04 -0400",
+        "created:crates/enforcer-memory/tests/x06_feature_parity_proof.rs"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "commit:4219947f24306d32738a7630c0875f87457d57bb",
+        "commit:448e75fe32620a0dc2965bc96e41d4fb6e6605e5",
         "lane:rust-build",
-        "proof/memory/x06-test-shards-1-of-8.json",
-        "proof/memory/x06-test-shards-2-of-8.json",
-        "proof/memory/x06-test-shards-3-of-8.json",
-        "proof/memory/x06-test-shards-4-of-8.json",
-        "proof/memory/x06-test-shards-5-of-8.json",
-        "proof/memory/x06-test-shards-6-of-8.json",
-        "proof/memory/x06-test-shards-7-of-8.json",
-        "proof/memory/x06-test-shards-8-of-8.json",
-        "proof/memory/x06-test-shards-rollup.json"
+        "crates/enforcer-memory/tests/x06_feature_parity_proof.rs"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"

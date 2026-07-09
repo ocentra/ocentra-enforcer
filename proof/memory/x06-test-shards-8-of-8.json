@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-test-shards",
-  "generatedAt": "2026-07-09T12:51:23.585Z",
+  "generatedAt": "2026-07-09T16:51:51.265Z",
   "package": "enforcer-memory",
   "testRoot": "crates/enforcer-memory/tests",
-  "totalTargets": 232,
-  "selectedTargets": 29,
+  "totalTargets": 245,
+  "selectedTargets": 30,
   "shard": "8/8",
   "only": null,
   "byCategory": {
     "integration": 10,
-    "x06-proof": 4,
+    "x06-proof": 17,
     "model-runtime": 5,
     "parity-live": 4,
     "unit-core": 56,
@@ -27,7 +27,7 @@
   "result": {
     "mode": "executed",
     "ok": true,
-    "executedTargets": 29,
+    "executedTargets": 30,
     "failedTargets": []
   },
   "targets": [
@@ -424,14 +424,28 @@
       ]
     },
     {
-      "target": "x06_retrieval_quality",
+      "target": "x06_diagnostics_summaries_proof",
       "category": "x06-proof",
       "cargoArgs": [
         "test",
         "-p",
         "enforcer-memory",
         "--test",
-        "x06_retrieval_quality",
+        "x06_diagnostics_summaries_proof",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "x06_qa_capabilities",
+      "category": "x06-proof",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "x06_qa_capabilities",
         "--quiet",
         "-j",
         "1"

@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-test-shards",
-  "generatedAt": "2026-07-09T11:46:29.933Z",
+  "generatedAt": "2026-07-09T15:49:38.074Z",
   "package": "enforcer-memory",
   "testRoot": "crates/enforcer-memory/tests",
-  "totalTargets": 232,
-  "selectedTargets": 29,
+  "totalTargets": 245,
+  "selectedTargets": 31,
   "shard": "1/8",
   "only": null,
   "byCategory": {
     "integration": 10,
-    "x06-proof": 4,
+    "x06-proof": 17,
     "model-runtime": 5,
     "parity-live": 4,
     "unit-core": 56,
@@ -27,7 +27,7 @@
   "result": {
     "mode": "executed",
     "ok": true,
-    "executedTargets": 29,
+    "executedTargets": 31,
     "failedTargets": []
   },
   "targets": [
@@ -432,6 +432,34 @@
         "enforcer-memory",
         "--test",
         "unit_vector",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "x06_dogfood_proof",
+      "category": "x06-proof",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "x06_dogfood_proof",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "x06_rag_qa_proof",
+      "category": "x06-proof",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "x06_rag_qa_proof",
         "--quiet",
         "-j",
         "1"

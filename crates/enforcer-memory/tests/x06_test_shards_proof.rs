@@ -70,15 +70,15 @@ fn checked_in_sharded_test_proofs_replace_monolithic_memory_gate() -> TestResult
     assert_eq!(discovery["artifact"], "x06-test-shards");
     assert_eq!(discovery["package"], "enforcer-memory");
     assert_eq!(discovery["testRoot"], "crates/enforcer-memory/tests");
-    assert_eq!(discovery["totalTargets"], 232);
-    assert_eq!(discovery["selectedTargets"], 232);
+    assert_eq!(discovery["totalTargets"], 245);
+    assert_eq!(discovery["selectedTargets"], 245);
     assert_eq!(discovery["result"]["mode"], "discovery-only");
     assert_eq!(discovery["result"]["ok"], true);
     assert_eq!(discovery["result"]["executedTargets"], 0);
 
     for (category, expected_count) in [
         ("integration", 10),
-        ("x06-proof", 4),
+        ("x06-proof", 17),
         ("model-runtime", 5),
         ("parity-live", 4),
         ("unit-core", 56),
@@ -113,9 +113,9 @@ fn checked_in_sharded_test_proofs_replace_monolithic_memory_gate() -> TestResult
     assert_eq!(rollup["artifact"], "x06-test-shards-rollup");
     assert_eq!(rollup["package"], "enforcer-memory");
     assert_eq!(rollup["shardCount"], 8);
-    assert_eq!(rollup["totalTargets"], 232);
-    assert_eq!(rollup["uniqueExecutedTargets"], 232);
-    assert_eq!(rollup["executedTargets"], 232);
+    assert_eq!(rollup["totalTargets"], 245);
+    assert_eq!(rollup["uniqueExecutedTargets"], 245);
+    assert_eq!(rollup["executedTargets"], 245);
     assert_eq!(rollup["allShardsOk"], true);
     assert_eq!(rollup["failedTargets"].as_array().map(Vec::len), Some(0));
     assert_eq!(
@@ -143,13 +143,16 @@ fn checked_in_sharded_test_proofs_replace_monolithic_memory_gate() -> TestResult
             .ok_or("rollup shard id must be a string")?;
         shard_ids.insert(shard_id.to_owned());
         assert_eq!(shard["ok"], true, "shard {shard_id} must remain green");
-        assert_eq!(
-            shard["selectedTargets"], 29,
-            "shard {shard_id} selected count drifted"
+        let selected_targets = shard["selectedTargets"]
+            .as_u64()
+            .ok_or_else(|| format!("shard {shard_id} selectedTargets must be a number"))?;
+        assert!(
+            (30..=31).contains(&selected_targets),
+            "shard {shard_id} selected count drifted outside balanced 245-target shard range"
         );
         assert_eq!(
-            shard["executedTargets"], 29,
-            "shard {shard_id} executed count drifted"
+            shard["executedTargets"], selected_targets,
+            "shard {shard_id} executed count must match selected count"
         );
         assert_eq!(
             shard["failedTargets"], 0,
@@ -174,7 +177,7 @@ fn checked_in_sharded_test_proofs_replace_monolithic_memory_gate() -> TestResult
         assert_eq!(shard_proof["artifact"], "x06-test-shards");
         assert_eq!(shard_proof["package"], "enforcer-memory");
         assert_eq!(shard_proof["testRoot"], "crates/enforcer-memory/tests");
-        assert_eq!(shard_proof["totalTargets"], 232);
+        assert_eq!(shard_proof["totalTargets"], 245);
         assert_eq!(shard_proof["selectedTargets"], shard["selectedTargets"]);
         assert_eq!(shard_proof["shard"], shard_id);
         assert_eq!(shard_proof["only"], serde_json::Value::Null);
@@ -256,7 +259,7 @@ fn checked_in_sharded_test_proofs_replace_monolithic_memory_gate() -> TestResult
     assert_eq!(proof_paths.len(), 8);
     assert_eq!(
         executed_target_ids.len(),
-        232,
+        245,
         "per-shard proof bodies must cover every discovered target exactly once"
     );
     Ok(())
