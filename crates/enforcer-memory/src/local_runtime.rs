@@ -17,6 +17,7 @@
 //!   selected.
 
 use std::path::PathBuf;
+use std::process::{Command, Stdio};
 
 use serde::{Deserialize, Serialize};
 
@@ -648,6 +649,22 @@ pub fn validate_ort_worker_execution_plan(plan: &OrtWorkerExecutionPlan) -> Resu
         }
     }
     Ok(())
+}
+
+pub fn ort_worker_command(plan: &OrtWorkerExecutionPlan) -> Result<Command> {
+    validate_ort_worker_execution_plan(plan)?;
+    let mut command = Command::new(&plan.executable_path);
+    command
+        .arg("--x06-ort-worker")
+        .arg("--task")
+        .arg(plan.task.env_value())
+        .arg("--provider")
+        .arg(provider_env_value(plan.provider))
+        .envs(plan.env.iter().map(|(key, value)| (key, value)))
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    Ok(command)
 }
 
 pub fn transition_ort_worker_lifecycle(

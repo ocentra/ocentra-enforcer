@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "artifact": "x06-learning-curve",
   "workpack": "x06-models-harvest",
-  "generatedAt": "2026-07-09T11:17:18.089Z",
+  "generatedAt": "2026-07-09T11:25:48.449Z",
   "status": "store-backed-projection-policy-clean-focused-gates",
   "learningCurve": {
     "present": true,
@@ -482,6 +482,17 @@
         "crates/enforcer-memory/tests/unit_architecture.rs",
         "crates/enforcer-memory/src/architecture.rs",
         "proof/memory/x06-rag-qa.json",
+        "proof/memory/x06-dogfood.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-042",
+      "lesson": "ORT ownership needs an executable worker command seam, not only a serializable plan. The Enforcer-owned command must carry task/provider as args, model and tokenizer metadata as env, and avoid server or port surfaces by construction.",
+      "evidence": [
+        "crates/enforcer-memory/src/local_runtime.rs",
+        "crates/enforcer-memory/tests/local_runtime.rs",
+        "proof/memory/x06-models.json",
         "proof/memory/x06-dogfood.json"
       ],
       "status": "learned"

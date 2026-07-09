@@ -92,10 +92,12 @@
         "rerank"
       ],
       "ownership": "enforcer-isolated-worker",
+      "ownedCommandBuilder": "crates/enforcer-memory/src/local_runtime.rs::ort_worker_command",
       "portBindingAllowed": false,
       "requestProtocol": "enforcer-worker-env",
       "route": "enforcer-isolated-ort-worker",
-      "serverSurfaceAcceptedForParity": false
+      "serverSurfaceAcceptedForParity": false,
+      "workerCommandProof": "crates/enforcer-memory/tests/local_runtime.rs::ort_worker_command_uses_owned_worker_args_and_env_without_server_surface"
     }
   },
   "chatThroughputPolicy": {

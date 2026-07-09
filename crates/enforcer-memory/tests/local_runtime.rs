@@ -6,12 +6,13 @@
 
 use enforcer_memory::error::MemoryError;
 use enforcer_memory::local_runtime::{
-    arbitrate_runtime_workload, onnx_ort_feature_compiled, ort_worker_execution_plan,
-    provider_from_env_value, provider_order, validate_control_plane, validate_fixture,
-    validate_ort_worker_execution_plan, BackendReadiness, LocalRuntimeControlPlane,
-    LocalRuntimeFixture, LocalRuntimeKind, OrtWorkerLifecycleAction, OrtWorkerLifecycleState,
-    OrtWorkerTask, RuntimeActivityState, RuntimeAdmission, RuntimeManagedCapability,
-    RuntimeOwnershipMode, RuntimeRequestProtocol, RuntimeWorkload, REQUIRED_MANAGED_CAPABILITIES,
+    arbitrate_runtime_workload, onnx_ort_feature_compiled, ort_worker_command,
+    ort_worker_execution_plan, provider_from_env_value, provider_order, validate_control_plane,
+    validate_fixture, validate_ort_worker_execution_plan, BackendReadiness,
+    LocalRuntimeControlPlane, LocalRuntimeFixture, LocalRuntimeKind, OrtWorkerLifecycleAction,
+    OrtWorkerLifecycleState, OrtWorkerTask, RuntimeActivityState, RuntimeAdmission,
+    RuntimeManagedCapability, RuntimeOwnershipMode, RuntimeRequestProtocol, RuntimeWorkload,
+    REQUIRED_MANAGED_CAPABILITIES,
 };
 use enforcer_memory::model_runtime::{ModelSpec, ProviderKind};
 use serde_json::Value;
@@ -438,6 +439,73 @@ fn ort_worker_plan_materializes_enforcer_owned_child_env_contract() -> TestResul
         Some("model/hf/qwen/tokenizer.json")
     );
     assert_eq!(plan.env_value("ENFORCER_X06_ORT_TIMEOUT_MS"), Some("30000"));
+    Ok(())
+}
+
+#[test]
+fn ort_worker_command_uses_owned_worker_args_and_env_without_server_surface() -> TestResult {
+    let spec = ModelSpec::qwen3_reranker(
+        "model/hf/qwen-reranker/model.onnx",
+        "abc123",
+        "model/hf/qwen-reranker/tokenizer.json",
+        "def456",
+    );
+    let plan = ort_worker_execution_plan(
+        "target/debug/x06_model_runtime_probe",
+        OrtWorkerTask::Reranker,
+        &spec,
+        ProviderKind::Npu,
+        45_000,
+    )?;
+
+    let command = ort_worker_command(&plan)?;
+    let args = command
+        .get_args()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        args,
+        vec![
+            "--x06-ort-worker",
+            "--task",
+            "reranker",
+            "--provider",
+            "npu"
+        ]
+    );
+    assert_eq!(
+        command.get_program().to_string_lossy(),
+        "target/debug/x06_model_runtime_probe"
+    );
+    let env = command
+        .get_envs()
+        .filter_map(|(key, value)| {
+            value.map(|value| {
+                (
+                    key.to_string_lossy().into_owned(),
+                    value.to_string_lossy().into_owned(),
+                )
+            })
+        })
+        .collect::<std::collections::BTreeMap<_, _>>();
+    assert_eq!(
+        env.get("ENFORCER_X06_ORT_CHILD_TASK").map(String::as_str),
+        Some("reranker")
+    );
+    assert_eq!(
+        env.get("ENFORCER_X06_CHILD_PROVIDER").map(String::as_str),
+        Some("npu")
+    );
+    assert_eq!(
+        env.get("ENFORCER_X06_ORT_TIMEOUT_MS").map(String::as_str),
+        Some("45000")
+    );
+    assert!(
+        !args
+            .iter()
+            .any(|arg| arg.contains("server") || arg.contains("port")),
+        "ORT worker command must not expose an external server or port surface"
+    );
     Ok(())
 }
 

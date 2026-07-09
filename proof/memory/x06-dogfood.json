@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-dogfood",
-  "generatedAt": "2026-07-09T11:17:18.089Z",
+  "generatedAt": "2026-07-09T11:25:48.449Z",
   "hub": "ocentra-enforcer",
   "stateRoot": "<ledger>/ocentra-enforcer",
   "lane": "codex-x06-harvest-sync",
@@ -120,6 +120,8 @@
     "cargo test -p enforcer-memory --test x06_proof_portability --quiet -j 1 passed after regenerating proof/memory/x06-rag-qa.json",
     "cargo fmt -p enforcer-memory --check passed after QA-013 proof-path correction",
     "cargo clippy -p enforcer-memory --all-targets -- -D warnings passed after QA-013 proof-path correction",
+    "cargo test -p enforcer-memory --test local_runtime --quiet -j 1 passed after adding the executable ORT worker command seam",
+    "cargo clippy -p enforcer-memory --test local_runtime -- -D warnings passed after adding the executable ORT worker command seam",
     "cargo test -p enforcer-memory --test unit_store_sqlite store_backed_projection_rebuilds_from_a_real_code_graph_fixture -- --exact passed after GPH Store-backed projection proof",
     "cargo test -p enforcer-memory --test unit_store_sqlite --quiet passed after GPH Store-backed projection proof",
     "hardcoded-path scan over changed QA/GPH proof files returned no drive-root, user-profile, or rust-build-sync machine-path matches after source refs were normalized to repo-relative paths",
@@ -1169,6 +1171,18 @@
     {
       "shape": "t2",
       "evidence": "cargo test -p enforcer-memory --quiet -j 1 --test feature_parity_harness qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split -- --nocapture passed and regenerated proof/memory/x06-rag-qa.json with 250 green / 0 unrunnable / 0 failed rows; cargo test -p enforcer-memory --test x06_proof_portability --quiet -j 1, cargo fmt -p enforcer-memory --check, and cargo clippy -p enforcer-memory --all-targets -- -D warnings also passed. A separate cargo test -p enforcer-memory --quiet -j 1 run exceeded a 60 minute command timeout, so the remaining issue is monolithic-suite sizing rather than a QA-013 assertion failure."
+    },
+    {
+      "shape": "t0",
+      "incident": "ORT had a validated isolated-worker execution plan and lifecycle state machine, but the owned worker boundary still stopped short of constructing the command that Enforcer would spawn."
+    },
+    {
+      "shape": "t1",
+      "fix": "Added ort_worker_command so the validated ORT worker plan becomes an executable Enforcer-owned child process setup with task/provider args, model/tokenizer/provider env, null stdin, piped stdout/stderr, and no server or port surface."
+    },
+    {
+      "shape": "t2",
+      "evidence": "cargo test -p enforcer-memory --test local_runtime --quiet -j 1 passed with ort_worker_command_uses_owned_worker_args_and_env_without_server_surface; cargo clippy -p enforcer-memory --test local_runtime -- -D warnings and cargo fmt -p enforcer-memory --check passed; proof/memory/x06-models.json now links the ORT ownedCommandBuilder and workerCommandProof."
     }
   ]
 }
