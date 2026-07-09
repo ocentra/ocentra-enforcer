@@ -1239,8 +1239,16 @@ fn handle_search_graph(args: &Value) -> Value {
         Err(err) => return err,
     };
 
-    let embedder = crate::embed::HashingEmbedder::new();
-    let entries: Vec<(String, Vec<f32>)> = Vec::new();
+    let embedder = crate::embed::LocalEmbedder::default();
+    let semantic_docs = documents_from_graph(&graph);
+    let doc_texts: Vec<(String, String)> = semantic_docs
+        .iter()
+        .map(|doc| (doc.id.clone(), doc.text.clone()))
+        .collect();
+    let entries = match crate::vector::embed_documents(&embedder, &doc_texts) {
+        Ok(entries) => entries,
+        Err(source) => return tool_error("search_graph", format!("{source}")),
+    };
     let vector_index = crate::vector::VectorIndex::build(&entries, embedder.model_info());
     let semantic: Option<(&dyn Embedder, &crate::vector::VectorIndex)> = spec
         .semantic_query

@@ -12,7 +12,7 @@
 //! `?` rather than `.expect(...)`, matching `ingest_and_recall.rs`'s
 //! existing style.
 
-use enforcer_memory::embed::{DegradedState, Embedder, HashingEmbedder, LoadState};
+use enforcer_memory::embed::{DegradedState, Embedder, LoadState, LocalEmbedder};
 use enforcer_memory::fulltext::FullTextIndex;
 use enforcer_memory::ranking::HardFilter;
 use enforcer_memory::rerank::{FusionScoreReranker, Reranker as _};
@@ -63,13 +63,13 @@ fn build_stack(
     (
         FullTextIndex,
         VectorIndex,
-        HashingEmbedder,
+        LocalEmbedder,
         FusionScoreReranker,
     ),
     Box<dyn std::error::Error>,
 > {
     let fulltext = FullTextIndex::build(corpus)?;
-    let embedder = HashingEmbedder::new();
+    let embedder = LocalEmbedder::default();
     let doc_texts: Vec<(String, String)> = corpus
         .iter()
         .map(|doc| (doc.id.clone(), doc.text.clone()))
@@ -212,7 +212,7 @@ fn vector_index_manifest_detects_staleness_on_dimension_change() -> TestResult {
 /// formatter/chunker/parser versions -- none blank.
 #[test]
 fn model_manifest_carries_the_full_version_vector() {
-    let embedder = HashingEmbedder::new();
+    let embedder = LocalEmbedder::default();
     let info = embedder.model_info();
 
     assert!(!info.embedding_model.is_empty());
@@ -233,7 +233,7 @@ fn model_manifest_carries_the_full_version_vector() {
 /// "degraded mode is labeled and is NOT accepted for feature parity").
 #[test]
 fn default_build_reports_degraded_capability_state_never_a_real_provider() -> TestResult {
-    let embedder = HashingEmbedder::new();
+    let embedder = LocalEmbedder::default();
     let reranker = FusionScoreReranker::new();
 
     assert_eq!(
