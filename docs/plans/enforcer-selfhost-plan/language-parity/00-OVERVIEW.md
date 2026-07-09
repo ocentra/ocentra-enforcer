@@ -44,9 +44,17 @@ So "adding a language" = declare its node-type name arrays + register extension 
 
 **Tier 0 (45):** Assembly, Astro, Beancount, BibTeX, Blade, CSS, CSV, DeviceTree, Diff, Dockerfile, DotEnv, gitattributes, gitignore, GN, Go Mod, GraphQL, HTML, Hyprlang, INI, Janet, Jinja2, JSDoc, JSON, JSON5, K8s, KDL, Kustomize, Linker Script, Liquid, Markdown, Mermaid, PO, Properties, Regex, Requirements, RON, reStructuredText, SOQL, SOSL, SSH Config, Svelte, TOML, Vue, XML, YAML
 
-## Where we stand (our 10)
+## Where we stand — 103/158 done
 
-Rust, TypeScript, Python, Go, Java, C, C++, C#, PHP at Tier 3; JavaScript at Tier 2 (matches baseline — JS gets no decorators/inherits walker there either). **Missing: 25 Tier-3 + ~47 Tier-2 + all Tier-1/0.** TSX is a distinct grammar/spec from TS in the baseline — we currently fold it into TS; it needs its own spec row.
+**All 34 Tier-3, all 49 Tier-2, all 29 Tier-1 (excl. dead `CBM_LANG_NIM`) are landed on `rust-build`.**
+Remaining: **Tier-0 (45)**, mostly trivial config/markup, then wave G3 (rich-tier passes +
+full re-verification vs the C binary). TSX has its own spec row (distinct from TS, matching
+the baseline).
+
+Landed via: G1/G1b (engine + original 10), G2.1 (11 langs), G2.2 (24 langs), G2.3 (39 langs,
+completing Tier-2), G2.4 (29 langs, completing Tier-1 — see the lost-update-collision lesson
+in `refs/orchestration-lessons.md`: 20 of 29 G2.4 languages were silently wiped mid-wave by a
+concurrent-write race and had to be recovered via systematic post-hoc grep verification).
 
 ## The real long pole: grammar sourcing
 

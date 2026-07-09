@@ -75,3 +75,23 @@ Neither is something the actual MCP server (the thing Claude Code or any other h
 ## Bottom line
 
 The architecture underneath (ORT bindings, HF download client, hardware VRAM detection, RRF-based rank fusion) is real, not vaporware — that's worth crediting. But as of right now: the live product uses a fake embedder, the proof doc for retrieval quality can't distinguish real success from fallback success, two entire RAG-critical categories have zero test coverage, no real model run has ever been executed and captured, and the whole apparatus only runs on Windows and only from scripts nobody using the actual product would ever touch. This needs to be fixed for real, not documented around.
+
+## Addendum (2026-07-08) — good progress, one new fragility found while merging
+
+Credit where due: decision D-17 in `MEMORY_RETRIEVAL_DECISIONS.md` directly fixed the QA-061
+evidence-marker gap from item 2 above — it re-includes the exact "Windows-first with CPU/GPU/NPU
+routing" phrase the QA harness was checking for. That's the critique loop working as intended.
+
+One new thing surfaced while merging language-parity work into the same branch:
+**`feature_parity::runners::tests::exact_qa_evidence_runner_executes_current_no_claude_rows`
+(QA-171, `proof_artifact_schema_history_probe_v2`) hardcodes an exact git commit hash**
+(`50f3312f6a24b8d837b7e79b34046b33c2d7ff98`) as the expected "first commit that introduced
+`proof/proofs.json`", found via `git log --follow --reverse --diff-filter=A`. This is
+inherently fragile across any merge of two long-diverged histories: `--follow`'s
+content-similarity rename-heuristic can legitimately resolve to a *different* (also real,
+also earlier) introduction commit depending on merge topology — confirmed directly by running
+the exact same `git log` command by hand before and after a routine merge, no code change
+involved. **Ask: either drop the hardcoded commit-hash pin (check the file's current schema
+content instead of its git provenance), or make the check tolerant of a small set of known-valid
+introduction commits** — a provenance check that breaks every time two branches merge isn't
+testing anything meaningful about the actual proof schema.

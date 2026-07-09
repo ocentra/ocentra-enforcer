@@ -56,9 +56,25 @@ Per language, resolve the tree-sitter grammar for Rust, in preference order:
   after G2.1+G2.2: Tier-2 39 remaining (of 49; done: JS pre-existing, Ruby, Lua, Elixir,
   Bash, Haskell, OCaml, Erlang, R, Perl = 10), Tier-1 29 remaining (of 30; done: Clojure),
   Tier-0 45 remaining (of 45; none done). Total remaining: 113, not the 74 first assumed.
-- **Next: G2.3** — all 39 remaining Tier-2 languages (highest remaining depth), 5 workers
-  per the L47 session-limit-sizing lesson (not 8). Tier-1 (29) + Tier-0 (45) follow in
-  G2.4/G2.5.
+- **G2.3 DONE:** all 39 remaining Tier-2 languages — completes ALL 49 baseline Tier-2
+  languages. 5 workers per the L47 session-limit-sizing lesson.
+- **G2.4 DONE (pushed, merged with Codex's concurrent RAG work at f31c92b):** all 29 Tier-1
+  languages — completes ALL Tier-1 (excl. dead `CBM_LANG_NIM`). AWK, Fish, Zsh, Tcl, Scheme,
+  Racket, SQL, HCL, Nix, Protobuf, Prisma, Pkl, Cap'n Proto, Thrift, Smithy, WIT, LLVM IR,
+  TableGen, MATLAB, Luau, Teal, Fennel, Meson, Kconfig, CFML, Go Template, DeviceTree, Pine,
+  Smali. **103/158 baseline languages now done: all Tier-3, all Tier-2, all Tier-1.**
+  Mid-wave, a lost-update collision (concurrent claim/edit/release cycles across 5 parallel
+  workers) silently wiped 20 of 29 languages' shared-file contributions back to pre-edit
+  state — only fixtures/tests survived (uniquely-named, no contention). Caught only by a
+  systematic post-hoc grep sweep for every expected `parse_<lang>` function, not any error
+  signal. Recovered via: orchestrator directly re-implemented 4 languages (Capnp/EmacsLisp/
+  Smithy/Pine) from real grammar probes; 4 fresh redo workers recovered the other 20 using
+  research salvaged from the original (wiped) reports, this time with surgical Edit-tool
+  calls only + immediate grep self-verification before releasing any claim. See L48 in
+  `refs/orchestration-lessons.md` for the full lesson and fix.
+- **Next: G2.5** — Tier-0 (45 languages, mostly trivial config/markup), the final language
+  batch before G3. Sized 3-4 workers (down from 5) given the demonstrated collision risk;
+  hardened protocol + mandatory grep-sweep closeout from the start.
 
 ## Fixtures & tests
 Per language: one small source file under `tests/fixtures/memory/lang_<x>/` exercising a
