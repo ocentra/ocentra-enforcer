@@ -82,6 +82,7 @@
     "cargo test -p enforcer-memory --test feature_parity_harness qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split -- --exact passed after x06-rag-qa.json recorded 250/250 green rows with 3 host-local-proof model-runtime rows and 247 degraded deterministic rows",
     "rustfmt --check passed for the touched feature_parity proof, runner, and harness files after host-local-proof classification",
     "cargo test -p enforcer-memory --test feature_parity_harness feature_parity::proof::tests::rollup_refuses_skeleton_state_that_marks_missing_prefix_proofs_pending -- --exact passed after removing stale today/most-unrunnable wording from the negative prefix-rollup fixture",
+    "node --test --test-name-pattern \"scanner-backed checks respect explicit file scope\" tests/enforcer-checks.test.mjs passed after adding scanner-backed scope regression coverage; full tests/enforcer-checks.test.mjs still has pre-existing literal-risk failures because Tools/ocentra-literal-scan/Cargo.toml is absent in this checkout",
     "cargo fmt --package enforcer-memory --check passed after running rustfmt on the new model-runtime contract assertions",
     "cargo test -p enforcer-memory --features ort-models --quiet passed with CARGO_BUILD_JOBS=1, CARGO_PROFILE_TEST_DEBUG=0, and CARGO_INCREMENTAL=0 after clearing an orphaned pre-compaction ORT cargo process",
     "cargo clippy -p enforcer-memory --all-targets -- -D warnings passed after model-runtime mismatch proof promotion",
@@ -1285,6 +1286,13 @@
       "evidence": "rollup_refuses_skeleton_state_that_marks_missing_prefix_proofs_pending passed as an exact feature_parity_harness test.",
       "classification": "ours",
       "learningSignal": "negative-fixtures-must-not-claim-stale-current-state"
+    },
+    {
+      "incident": "Dogfood proof could confuse broad generic scan expansion with the named scanner-backed checks used as runtime/proof-slice evidence.",
+      "fix": "Added a CLI regression proving scanner-backed checks honor explicit --files scope and do not report violations from unrequested files.",
+      "evidence": "node --test --test-name-pattern \"scanner-backed checks respect explicit file scope\" tests/enforcer-checks.test.mjs passed; full file also exposed existing literal-risk missing-crate failures unrelated to this scanner-backed check.",
+      "classification": "ours",
+      "learningSignal": "scanner-backed-checks-must-preserve-explicit-file-scope"
     }
   ]
 }
