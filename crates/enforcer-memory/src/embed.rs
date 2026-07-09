@@ -205,7 +205,7 @@ impl Embedder for HashingEmbedder {
 pub enum LocalEmbedder {
     Hashing(HashingEmbedder),
     #[cfg(feature = "ort-models")]
-    Ort(crate::ort_runtime::OrtEmbedder),
+    Ort(Box<crate::ort_runtime::OrtEmbedder>),
 }
 
 impl LocalEmbedder {
@@ -218,9 +218,9 @@ impl LocalEmbedder {
         spec: &crate::model_runtime::ModelSpec,
         provider: crate::model_runtime::ProviderKind,
     ) -> Result<Self> {
-        Ok(Self::Ort(crate::ort_runtime::OrtEmbedder::load(
+        Ok(Self::Ort(Box::new(crate::ort_runtime::OrtEmbedder::load(
             spec, provider,
-        )?))
+        )?)))
     }
 
     #[cfg(not(feature = "ort-models"))]

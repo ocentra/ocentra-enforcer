@@ -11,7 +11,9 @@ use enforcer_memory::llama_cpp::{
     LlamaCppProbeKind,
 };
 use enforcer_memory::local_runtime::LocalRuntimeAcceleration;
-use enforcer_memory::local_runtime::RuntimeOwnershipMode;
+use enforcer_memory::local_runtime::{
+    RuntimeManagedCapability, RuntimeOwnershipMode, REQUIRED_MANAGED_CAPABILITIES,
+};
 use enforcer_memory::model_runtime::{
     dev_model_cache_root, evaluate_chat_usability, loaded_non_chat_usability,
     resolve_model_cache_root, ChatThroughputPolicy, ModelCacheRootMode, ModelRuntimeServiceConfig,
@@ -306,6 +308,16 @@ fn dev_model_cache_is_repo_local_and_service_does_not_expose_llama_server() {
         service.ort_ownership,
         RuntimeOwnershipMode::EnforcerInProcess
     );
+    assert_eq!(
+        service.managed_capabilities,
+        REQUIRED_MANAGED_CAPABILITIES.to_vec()
+    );
+    assert!(service
+        .managed_capabilities
+        .contains(&RuntimeManagedCapability::ChatHistoryPolicy));
+    assert!(service
+        .managed_capabilities
+        .contains(&RuntimeManagedCapability::WorkloadAdmission));
     assert_eq!(service.cache_root, repo.join(DEFAULT_MODEL_CACHE_DIR_NAME));
     assert_eq!(service.bind_addr(), "127.0.0.1:8766");
     assert!(

@@ -8,7 +8,8 @@ use enforcer_memory::error::MemoryError;
 use enforcer_memory::local_runtime::{
     arbitrate_runtime_workload, onnx_ort_feature_compiled, provider_order, validate_control_plane,
     validate_fixture, BackendReadiness, LocalRuntimeControlPlane, LocalRuntimeFixture,
-    LocalRuntimeKind, RuntimeActivityState, RuntimeAdmission, RuntimeWorkload,
+    LocalRuntimeKind, RuntimeActivityState, RuntimeAdmission, RuntimeManagedCapability,
+    RuntimeWorkload, REQUIRED_MANAGED_CAPABILITIES,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -99,8 +100,23 @@ fn deterministic_fallback_cannot_be_claimed_as_parity() -> TestResult {
 
 #[test]
 fn x06_runtime_control_plane_accepts_managed_llama_and_ort() -> TestResult {
-    validate_control_plane(&LocalRuntimeControlPlane::llama_cpp_managed())?;
-    validate_control_plane(&LocalRuntimeControlPlane::onnx_ort_managed())?;
+    let llama = LocalRuntimeControlPlane::llama_cpp_managed();
+    let ort = LocalRuntimeControlPlane::onnx_ort_managed();
+
+    validate_control_plane(&llama)?;
+    validate_control_plane(&ort)?;
+    assert_eq!(
+        llama.managed_capabilities,
+        REQUIRED_MANAGED_CAPABILITIES.to_vec()
+    );
+    assert_eq!(
+        ort.managed_capabilities,
+        REQUIRED_MANAGED_CAPABILITIES.to_vec()
+    );
+    assert!(!ort.spawn_controlled);
+    assert!(ort
+        .managed_capabilities
+        .contains(&RuntimeManagedCapability::ProviderSelection));
     Ok(())
 }
 
@@ -110,6 +126,28 @@ fn x06_runtime_control_plane_rejects_external_server_ownership() -> TestResult {
         LocalRuntimeKind::LlamaCpp,
     )) {
         Ok(()) => return Err("external server ownership should not pass parity control".into()),
+        Err(err) => err,
+    };
+
+    assert!(matches!(
+        err,
+        MemoryError::ModelRuntime {
+            operation: "validate-local-runtime-control-plane",
+            ..
+        }
+    ));
+    Ok(())
+}
+
+#[test]
+fn x06_runtime_control_plane_rejects_missing_managed_capability() -> TestResult {
+    let mut control = LocalRuntimeControlPlane::llama_cpp_managed();
+    control
+        .managed_capabilities
+        .retain(|capability| *capability != RuntimeManagedCapability::ChatHistoryPolicy);
+
+    let err = match validate_control_plane(&control) {
+        Ok(()) => return Err("missing chat history policy capability should fail".into()),
         Err(err) => err,
     };
 
@@ -137,7 +175,10 @@ fn runtime_arbitration_keeps_model_load_exclusive() {
     let decision = arbitrate_runtime_workload(RuntimeActivityState::Loading, RuntimeWorkload::Chat);
 
     assert_eq!(decision.admission, RuntimeAdmission::Queue);
-    assert!(decision.reason.contains("model load is exclusive"));
+    assert_eq!(
+        decision.reason,
+        "model load is exclusive; queue requested workload"
+    );
 }
 
 #[test]
@@ -163,5 +204,8 @@ fn runtime_arbitration_chat_queues_background_work() {
         arbitrate_runtime_workload(RuntimeActivityState::ChatActive, RuntimeWorkload::Reranking);
 
     assert_eq!(decision.admission, RuntimeAdmission::Queue);
-    assert!(decision.reason.contains("chat has priority"));
+    assert_eq!(
+        decision.reason,
+        "chat has priority; queue background model work"
+    );
 }

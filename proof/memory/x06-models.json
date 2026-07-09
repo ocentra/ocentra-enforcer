@@ -45,6 +45,17 @@
     "bindHost": "127.0.0.1",
     "cacheRoot": "<repo>/model",
     "exposeLlamaServer": false,
+    "llamaCppOwnership": "enforcer-subprocess",
+    "managedCapabilities": [
+      "load-unload",
+      "pause-resume-cancel",
+      "timeout-kill",
+      "provider-selection",
+      "cache-policy",
+      "chat-history-policy",
+      "workload-admission"
+    ],
+    "ortOwnership": "enforcer-in-process",
     "port": 8766,
     "routes": [
       "health",

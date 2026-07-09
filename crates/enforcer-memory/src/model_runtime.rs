@@ -14,7 +14,7 @@ use sha2::{Digest, Sha256};
 
 use crate::embed::{DegradedState, LoadState, ResourceClass};
 use crate::error::{MemoryError, Result};
-use crate::local_runtime::RuntimeOwnershipMode;
+use crate::local_runtime::{RuntimeManagedCapability, RuntimeOwnershipMode};
 
 pub const DEFAULT_EMBEDDING_MODEL_ID: &str = "Qwen/Qwen3-Embedding-0.6B";
 pub const DEFAULT_RERANKER_MODEL_ID: &str = "Qwen/Qwen3-Reranker-0.6B";
@@ -251,6 +251,7 @@ pub struct ModelRuntimeServiceConfig {
     pub expose_llama_server: bool,
     pub llama_cpp_ownership: RuntimeOwnershipMode,
     pub ort_ownership: RuntimeOwnershipMode,
+    pub managed_capabilities: Vec<RuntimeManagedCapability>,
     pub routes: Vec<ModelRuntimeServiceRoute>,
 }
 
@@ -316,6 +317,7 @@ impl ModelRuntimeServiceConfig {
             expose_llama_server: false,
             llama_cpp_ownership: RuntimeOwnershipMode::EnforcerSubprocess,
             ort_ownership: RuntimeOwnershipMode::EnforcerInProcess,
+            managed_capabilities: default_model_service_managed_capabilities(),
             routes: default_model_service_routes(),
         }
     }
@@ -420,6 +422,10 @@ pub fn default_model_service_routes() -> Vec<ModelRuntimeServiceRoute> {
         ModelRuntimeServiceRoute::Embeddings,
         ModelRuntimeServiceRoute::Rerank,
     ]
+}
+
+pub fn default_model_service_managed_capabilities() -> Vec<RuntimeManagedCapability> {
+    crate::local_runtime::REQUIRED_MANAGED_CAPABILITIES.to_vec()
 }
 
 pub fn dev_model_cache_root(repo_root: impl AsRef<Path>) -> PathBuf {
