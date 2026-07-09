@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "artifact": "x06-learning-curve",
   "workpack": "x06-models-harvest",
-  "generatedAt": "2026-07-09T10:02:48.717Z",
+  "generatedAt": "2026-07-09T11:17:18.089Z",
   "status": "store-backed-projection-policy-clean-focused-gates",
   "learningCurve": {
     "present": true,
@@ -473,13 +473,25 @@
         "proof/memory/x06-dogfood.json"
       ],
       "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-041",
+      "lesson": "Exact-evidence QA rows must follow migrated proof files after required-tests cleanup. Production source markers and migrated unit-test markers are both valid evidence, but the row must point at the file that actually owns each marker.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "crates/enforcer-memory/tests/unit_architecture.rs",
+        "crates/enforcer-memory/src/architecture.rs",
+        "proof/memory/x06-rag-qa.json",
+        "proof/memory/x06-dogfood.json"
+      ],
+      "status": "learned"
     }
   ],
   "blockers": [],
   "followUps": [
     "Checked-in real model runtime proofs remain host-local and non-CI-parity; rerun explicit probes when hardware, cache, or providers change.",
     "QA coverage is 250/250 green with 0 failures in proof/memory/x06-rag-qa.json and proof/memory/x06-feature-parity.json; keep unsupported future install-hook rows outside X06 memory scope unless new code lands.",
-    "Full cargo test -p enforcer-memory --quiet -j 1 exceeded the 20 minute local timeout; keep using focused suites as evidence until the broad package suite is split or its long-running case is isolated."
+    "Full cargo test -p enforcer-memory --quiet -j 1 exceeded a 60 minute local timeout after QA-013 was fixed; keep using focused suites as evidence until the broad package suite is split, sharded, or its long-running target set is isolated."
   ],
   "recurrenceNotes": [
     "t0 events now have durable Store append paths for observations and model-runtime incidents.",

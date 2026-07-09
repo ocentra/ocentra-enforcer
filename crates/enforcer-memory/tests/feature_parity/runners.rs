@@ -804,7 +804,7 @@ impl GraphTraversalRunner {
                             ),
                         )
                     }
-                    _ => unreachable!(),
+                    _ => unrunnable(row, "graph_algorithms fixture query has no row mapping"),
                 }
             }
             _ => unrunnable(row, "graph_algorithms fixture has no row mapping"),
@@ -950,7 +950,7 @@ impl GraphTraversalRunner {
                             vec![fixture_path("parity_trace_tools", "service.rs")],
                         ),
                     ),
-                    _ => unreachable!(),
+                    _ => unrunnable(row, "parity_trace_tools fixture query has no row mapping"),
                 }
             }
             _ => unrunnable(row, "parity_trace_tools fixture has no row mapping"),
@@ -3310,7 +3310,7 @@ fn cyclic_dependency_modules_probe(row: &QaRow) -> RowResult {
             ),
             (
                 "cycle-detector:two-node-cycle-proof",
-                "crates/enforcer-memory/src/architecture.rs",
+                "crates/enforcer-memory/tests/unit_architecture.rs",
                 &[
                     "fn layers_aspect_reports_cycle_without_panicking()",
                     "from_cluster: \"cluster-a\".to_string()",

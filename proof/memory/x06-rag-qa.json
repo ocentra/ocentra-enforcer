@@ -308,6 +308,7 @@
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
+        "crates/enforcer-memory/tests/unit_architecture.rs",
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md"
       ],
       "verdict": "pass",
@@ -1543,17 +1544,17 @@
       "query": "Summarize last 20 commits for this module.",
       "expectedIds": [
         "module:enforcer-memory-src:last-20-commits:20",
+        "commit:ae704036b00c",
         "commit:e8965207d026",
         "commit:3175bf552688",
-        "commit:cd24988b8bce",
-        "commit:6b5e22e12fe5"
+        "commit:cd24988b8bce"
       ],
       "actualIds": [
         "module:enforcer-memory-src:last-20-commits:20",
+        "commit:ae704036b00c",
         "commit:e8965207d026",
         "commit:3175bf552688",
-        "commit:cd24988b8bce",
-        "commit:6b5e22e12fe5"
+        "commit:cd24988b8bce"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -1561,6 +1562,7 @@
       "sourceRefs": [
         "crates/enforcer-memory/src",
         "git:log:-20:crates/enforcer-memory/src",
+        "commit-summary:ae704036b00c:test(memory): satisfy x06 policy gates",
         "commit-summary:e8965207d026:test(memory): add GGUF lifecycle contract",
         "commit-summary:3175bf552688:test(memory): add ORT lifecycle contract",
         "commit-summary:cd24988b8bce:test(memory): prove owned model backends",
@@ -1579,8 +1581,7 @@
         "commit-summary:08089f84e604:feat(memory): expose ort embedding provider selection",
         "commit-summary:6bc16ead13f4:feat(memory): report search graph embedding runtime",
         "commit-summary:d30e2dcdc53b:feat(memory): add cache-only ort embedding selection",
-        "commit-summary:80d328297425:feat(memory): add selectable local embedder seam",
-        "commit-summary:58aaa90e9203:feat(memory): expose model runtime status via mcp"
+        "commit-summary:80d328297425:feat(memory): add selectable local embedder seam"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -1590,18 +1591,18 @@
       "category": "Retrieval",
       "query": "Find files with highest churn.",
       "expectedIds": [
-        "churn:Cargo.lock:70",
+        "churn:Cargo.lock:71",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
-        "churn:proof/memory/x06-feature-parity.json:46",
-        "churn:proof/memory/x06-rag-qa.json:43",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:41"
+        "churn:proof/memory/x06-feature-parity.json:47",
+        "churn:proof/memory/x06-rag-qa.json:44",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:42"
       ],
       "actualIds": [
-        "churn:Cargo.lock:70",
+        "churn:Cargo.lock:71",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
-        "churn:proof/memory/x06-feature-parity.json:46",
-        "churn:proof/memory/x06-rag-qa.json:43",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:41"
+        "churn:proof/memory/x06-feature-parity.json:47",
+        "churn:proof/memory/x06-rag-qa.json:44",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:42"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -3914,23 +3915,7 @@
         "crates/enforcer-mechanization/src/oracle.rs",
         "crates/enforcer-mechanization/src/parity.rs",
         "crates/enforcer-mechanization/src/scaffold.rs",
-        "crates/enforcer-memory/src/analysis/mod.rs",
-        "crates/enforcer-memory/src/architecture.rs",
-        "crates/enforcer-memory/src/artifacts.rs",
-        "crates/enforcer-memory/src/code_graph.rs",
-        "crates/enforcer-memory/src/cross_repo.rs",
         "crates/enforcer-memory/src/diagnostics.rs",
-        "crates/enforcer-memory/src/embed.rs",
-        "crates/enforcer-memory/src/federation.rs",
-        "crates/enforcer-memory/src/ids.rs",
-        "crates/enforcer-memory/src/impact.rs",
-        "crates/enforcer-memory/src/llama_cpp.rs",
-        "crates/enforcer-memory/src/model_runtime.rs",
-        "crates/enforcer-memory/src/redaction.rs",
-        "crates/enforcer-memory/src/rerank.rs",
-        "crates/enforcer-memory/src/share.rs",
-        "crates/enforcer-memory/src/store_manager.rs",
-        "crates/enforcer-memory/src/vector.rs",
         "crates/enforcer-plan/src/agents_forest.rs",
         "crates/enforcer-plan/src/lessons.rs",
         "crates/enforcer-plan/src/orchestrator.rs",
@@ -4161,7 +4146,6 @@
         "crates/enforcer-memory/src/model_observations.rs",
         "crates/enforcer-memory/src/observations.rs",
         "crates/enforcer-memory/src/projects.rs",
-        "crates/enforcer-memory/src/redaction.rs",
         "crates/enforcer-memory/src/runtime_probe.rs",
         "crates/enforcer-memory/src/share.rs",
         "crates/enforcer-memory/src/store/manifest.rs",
@@ -4633,24 +4617,36 @@
       "category": "GitHistory",
       "query": "Which files were created in the most recent working session?",
       "expectedIds": [
-        "commit:3f8902299202bbfdba0355badd97f2afdf4f78db",
+        "commit:ae704036b00c45b551b25aee00a49cd1dcdf29b3",
         "lane:rust-build",
-        "created-after:2026-07-09 03:22:55 -0400",
-        "created:crates/enforcer-memory/tests/x06_proof_portability.rs"
+        "created-after:2026-07-09 06:00:18 -0400",
+        "created:crates/enforcer-memory/tests/unit_analysis.rs",
+        "created:crates/enforcer-memory/tests/unit_artifacts.rs"
       ],
       "actualIds": [
-        "commit:3f8902299202bbfdba0355badd97f2afdf4f78db",
+        "commit:ae704036b00c45b551b25aee00a49cd1dcdf29b3",
         "lane:rust-build",
-        "created-after:2026-07-09 03:22:55 -0400",
-        "created:crates/enforcer-memory/tests/x06_proof_portability.rs"
+        "created-after:2026-07-09 06:00:18 -0400",
+        "created:crates/enforcer-memory/tests/unit_analysis.rs",
+        "created:crates/enforcer-memory/tests/unit_artifacts.rs"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "commit:3f8902299202bbfdba0355badd97f2afdf4f78db",
+        "commit:ae704036b00c45b551b25aee00a49cd1dcdf29b3",
         "lane:rust-build",
-        "crates/enforcer-memory/tests/x06_proof_portability.rs"
+        "crates/enforcer-memory/tests/unit_analysis.rs",
+        "crates/enforcer-memory/tests/unit_artifacts.rs",
+        "crates/enforcer-memory/tests/unit_cross_repo.rs",
+        "crates/enforcer-memory/tests/unit_embed.rs",
+        "crates/enforcer-memory/tests/unit_federation.rs",
+        "crates/enforcer-memory/tests/unit_llama_cpp.rs",
+        "crates/enforcer-memory/tests/unit_redaction.rs",
+        "crates/enforcer-memory/tests/unit_rerank.rs",
+        "crates/enforcer-memory/tests/unit_share.rs",
+        "crates/enforcer-memory/tests/unit_store_manager.rs",
+        "crates/enforcer-memory/tests/unit_vector.rs"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"

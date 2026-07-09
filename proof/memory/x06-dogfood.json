@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-dogfood",
-  "generatedAt": "2026-07-09T10:02:48.717Z",
+  "generatedAt": "2026-07-09T11:17:18.089Z",
   "hub": "ocentra-enforcer",
   "stateRoot": "<ledger>/ocentra-enforcer",
   "lane": "codex-x06-harvest-sync",
@@ -116,6 +116,10 @@
     "ocentra_enforcer_check source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, and placeholder-implementation scope=files ok for LRN rollup files",
     "cargo test -p enforcer-memory --test feature_parity_harness exact_qa_evidence_runner -- --quiet passed after QA-105 and QA-112 exact evidence promotion",
     "cargo test -p enforcer-memory --test feature_parity_harness qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split -- --exact passed after QA rose to 56/250 with 0 failed rows",
+    "cargo test -p enforcer-memory --quiet -j 1 --test feature_parity_harness qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split -- --nocapture passed after QA-013 stale evidence path was corrected to the migrated unit test file; proof/memory/x06-rag-qa.json records 250/250 QA rows green with 0 failures",
+    "cargo test -p enforcer-memory --test x06_proof_portability --quiet -j 1 passed after regenerating proof/memory/x06-rag-qa.json",
+    "cargo fmt -p enforcer-memory --check passed after QA-013 proof-path correction",
+    "cargo clippy -p enforcer-memory --all-targets -- -D warnings passed after QA-013 proof-path correction",
     "cargo test -p enforcer-memory --test unit_store_sqlite store_backed_projection_rebuilds_from_a_real_code_graph_fixture -- --exact passed after GPH Store-backed projection proof",
     "cargo test -p enforcer-memory --test unit_store_sqlite --quiet passed after GPH Store-backed projection proof",
     "hardcoded-path scan over changed QA/GPH proof files returned no drive-root, user-profile, or rust-build-sync machine-path matches after source refs were normalized to repo-relative paths",
@@ -1153,6 +1157,18 @@
     {
       "shape": "t0",
       "incident": "Full cargo test -p enforcer-memory --quiet -j 1 still exceeded a 20 minute local timeout even after focused unit, runtime, ORT, clippy, fmt, required-tests, source-shape, and dependency-policy gates passed."
+    },
+    {
+      "shape": "t0",
+      "incident": "After required-tests migration moved architecture inline tests into integration tests, QA-013 became the only unrunnable row because its exact evidence probe still looked for layers_aspect_reports_cycle_without_panicking() in crates/enforcer-memory/src/architecture.rs."
+    },
+    {
+      "shape": "t1",
+      "fix": "Updated QA-013 to keep production cycle-detector field and algorithm evidence in crates/enforcer-memory/src/architecture.rs while reading the two-node cycle proof marker from crates/enforcer-memory/tests/unit_architecture.rs, where the migrated test now lives."
+    },
+    {
+      "shape": "t2",
+      "evidence": "cargo test -p enforcer-memory --quiet -j 1 --test feature_parity_harness qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split -- --nocapture passed and regenerated proof/memory/x06-rag-qa.json with 250 green / 0 unrunnable / 0 failed rows; cargo test -p enforcer-memory --test x06_proof_portability --quiet -j 1, cargo fmt -p enforcer-memory --check, and cargo clippy -p enforcer-memory --all-targets -- -D warnings also passed. A separate cargo test -p enforcer-memory --quiet -j 1 run exceeded a 60 minute command timeout, so the remaining issue is monolithic-suite sizing rather than a QA-013 assertion failure."
     }
   ]
 }
