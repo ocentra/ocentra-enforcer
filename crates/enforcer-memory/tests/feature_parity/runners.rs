@@ -5604,7 +5604,7 @@ fn federation_bundle_probe(row: &QaRow) -> RowResult {
         ),
         _ => return unrunnable(row, "federation exact probe has no row mapping"),
     };
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
