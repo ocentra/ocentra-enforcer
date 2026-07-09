@@ -109,7 +109,7 @@
       "lessonId": "dogfood-009",
       "lesson": "Coordination lane ids are not Git branch names; slash-bearing branch names must be recorded as branch metadata while lane uses a schema-valid id.",
       "evidence": [
-        "ocentra_enforcer_coordination_health hub=ocentra-enforcer stateRoot=E:/ocentra-enforcer/.ledger/ocentra-enforcer lane=codex-x06-integration",
+        "ocentra_enforcer_coordination_health hub=ocentra-enforcer stateRoot=<ledger>/ocentra-enforcer lane=codex-x06-integration",
         "proof/memory/x06-dogfood.json"
       ],
       "status": "learned"

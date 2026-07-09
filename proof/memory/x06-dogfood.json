@@ -3,7 +3,7 @@
   "artifact": "x06-dogfood",
   "generatedAt": "2026-07-08T16:39:13.8481304Z",
   "hub": "ocentra-enforcer",
-  "stateRoot": "E:/ocentra-enforcer/.ledger/ocentra-enforcer",
+  "stateRoot": "<ledger>/ocentra-enforcer",
   "lane": "codex-x06-harvest-sync",
   "status": "partial-clean-code-red-policy",
   "greenGates": [
@@ -118,7 +118,7 @@
     "cargo test -p enforcer-memory --test feature_parity_harness qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split -- --exact passed after QA rose to 56/250 with 0 failed rows",
     "cargo test -p enforcer-memory --test unit_store_sqlite store_backed_projection_rebuilds_from_a_real_code_graph_fixture -- --exact passed after GPH Store-backed projection proof",
     "cargo test -p enforcer-memory --test unit_store_sqlite --quiet passed after GPH Store-backed projection proof",
-    "hardcoded-path scan over changed QA/GPH proof files returned no E:/, E:\\, C:\\Users, or ocentra-enforcer-rust-build-sync matches after source refs were normalized to repo-relative paths",
+    "hardcoded-path scan over changed QA/GPH proof files returned no drive-root, user-profile, or rust-build-sync machine-path matches after source refs were normalized to repo-relative paths",
     "x06-kg.json records store_backed_projection_rebuilds_from_a_real_code_graph_fixture as replay proof and now also records query_graph_prefers_store_projection_when_stores_dir_is_available as the query UX proof",
     "x06-rag-qa.json now records QA-105 and QA-112 pass with repo-relative sourceRefs; total QA coverage is 56/250 with 0 failures",
     "ocentra_enforcer_mcp_status ok/hash-compatible/write-compatible after QA/GPH proof integration",
@@ -538,7 +538,7 @@
     },
     {
       "shape": "t0",
-      "incident": "The first cache-only proof leaked a repo-local Windows path as E://... in a missing-cache error, bypassing the simple path redactor."
+      "incident": "The first cache-only proof leaked a repo-local Windows drive-root path in a missing-cache error, bypassing the simple path redactor."
     },
     {
       "shape": "t1",
@@ -546,7 +546,7 @@
     },
     {
       "shape": "t2",
-      "evidence": "x06-models-cache-only-missing.json now reports <repo>/target/x06-cache-proof/missing and model_runtime_real_contract asserts no E:/, E://, or C:/Users path leakage."
+      "evidence": "x06-models-cache-only-missing.json now reports <repo>/target/x06-cache-proof/missing and model_runtime_real_contract asserts no drive-root or user-profile path leakage."
     },
     {
       "shape": "t0",
@@ -718,7 +718,7 @@
     },
     {
       "shape": "t0",
-      "incident": "Worker-generated QA proof initially emitted repo-local absolute E:\\ sourceRefs for the new exact rows, and older runner paths already had similar absolute refs."
+      "incident": "Worker-generated QA proof initially emitted repo-local absolute drive-root sourceRefs for the new exact rows, and older runner paths already had similar absolute refs."
     },
     {
       "shape": "t1",
@@ -726,7 +726,7 @@
     },
     {
       "shape": "t2",
-      "evidence": "A hardcoded-path scan over the changed QA/GPH proof files returned no E:/, E:\\, C:\\Users, or ocentra-enforcer-rust-build-sync matches after regeneration."
+      "evidence": "A hardcoded-path scan over the changed QA/GPH proof files returned no drive-root, user-profile, or rust-build-sync machine-path matches after regeneration."
     },
     {
       "shape": "t0",
