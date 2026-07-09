@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "status": "degraded-pass-evidence",
+  "proofScope": {
+    "ciParity": true,
+    "localHardwareRequired": false,
+    "networkRequired": false,
+    "reason": "Control-plane contract proof only; it does not claim model inference parity."
+  },
+  "runtimePolicy": {
+    "llamaCpp": {
+      "requiredOwnership": "enforcer-subprocess",
+      "externalServerAllowedForParity": false,
+      "managedCapabilities": [
+        "load-unload",
+        "pause-resume-cancel",
+        "timeout-kill",
+        "provider-selection",
+        "cache-policy",
+        "chat-history-policy",
+        "workload-admission"
+      ]
+    },
+    "onnxOrt": {
+      "requiredOwnership": "enforcer-isolated-worker",
+      "inProcessAllowedForParity": false,
+      "externalServerAllowedForParity": false,
+      "managedCapabilities": [
+        "load-unload",
+        "pause-resume-cancel",
+        "timeout-kill",
+        "provider-selection",
+        "cache-policy",
+        "chat-history-policy",
+        "workload-admission"
+      ],
+      "childEnvironment": [
+        "ENFORCER_X06_ORT_CHILD_TASK",
+        "ENFORCER_X06_CHILD_PROVIDER",
+        "ENFORCER_X06_CHILD_MODEL_ID",
+        "ENFORCER_X06_CHILD_ARTIFACT_PATH",
+        "ENFORCER_X06_CHILD_ARTIFACT_SHA256",
+        "ENFORCER_X06_CHILD_TOKENIZER_PATH",
+        "ENFORCER_X06_CHILD_TOKENIZER_SHA256",
+        "ENFORCER_X06_ORT_TIMEOUT_MS"
+      ]
+    }
+  },
+  "testCommand": "cargo test -p enforcer-memory --test local_runtime",
+  "evidence": [
+    "x06_runtime_control_plane_accepts_managed_llama_and_ort",
+    "x06_runtime_control_plane_rejects_external_server_ownership",
+    "x06_runtime_control_plane_rejects_backend_wrong_ownership_mode",
+    "ort_worker_plan_materializes_enforcer_owned_child_env_contract"
+  ],
+  "learningSignals": [
+    "external-server-runtime-rejected",
+    "ort-in-process-parity-rejected",
+    "backend-specific-ownership-required"
+  ]
+}

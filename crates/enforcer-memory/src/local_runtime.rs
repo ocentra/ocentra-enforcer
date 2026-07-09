@@ -638,6 +638,20 @@ pub fn validate_control_plane(control: &LocalRuntimeControlPlane) -> Result<()> 
             ),
         ));
     }
+    let expected_ownership = match control.backend {
+        LocalRuntimeKind::LlamaCpp => RuntimeOwnershipMode::EnforcerSubprocess,
+        LocalRuntimeKind::OnnxOrt => RuntimeOwnershipMode::EnforcerIsolatedWorker,
+        LocalRuntimeKind::DeterministicFallback => RuntimeOwnershipMode::Unmanaged,
+    };
+    if control.backend.is_real_backend() && control.ownership != expected_ownership {
+        return Err(model_runtime_error(
+            "validate-local-runtime-control-plane",
+            format!(
+                "{:?} must use {:?} ownership for X06 parity, got {:?}",
+                control.backend, expected_ownership, control.ownership
+            ),
+        ));
+    }
     if !control.stop_supported || !control.timeout_kill_supported {
         return Err(model_runtime_error(
             "validate-local-runtime-control-plane",

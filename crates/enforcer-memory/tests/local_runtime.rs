@@ -13,8 +13,63 @@ use enforcer_memory::local_runtime::{
     RuntimeManagedCapability, RuntimeOwnershipMode, RuntimeWorkload, REQUIRED_MANAGED_CAPABILITIES,
 };
 use enforcer_memory::model_runtime::{ModelSpec, ProviderKind};
+use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+#[test]
+fn checked_in_runtime_control_plane_proof_matches_contract() -> TestResult {
+    let proof: Value = serde_json::from_str(include_str!(
+        "../../../proof/memory/x06-runtime-control-plane.json"
+    ))?;
+    assert_eq!(proof["schemaVersion"], 1);
+    assert_eq!(proof["status"], "degraded-pass-evidence");
+    assert_eq!(proof["proofScope"]["networkRequired"], false);
+    assert_eq!(
+        proof["runtimePolicy"]["llamaCpp"]["requiredOwnership"],
+        "enforcer-subprocess"
+    );
+    assert_eq!(
+        proof["runtimePolicy"]["onnxOrt"]["requiredOwnership"],
+        "enforcer-isolated-worker"
+    );
+    assert_eq!(
+        proof["runtimePolicy"]["onnxOrt"]["inProcessAllowedForParity"],
+        false
+    );
+    assert_eq!(
+        proof["runtimePolicy"]["llamaCpp"]["externalServerAllowedForParity"],
+        false
+    );
+    assert_eq!(
+        proof["runtimePolicy"]["onnxOrt"]["externalServerAllowedForParity"],
+        false
+    );
+    let ort_env = proof["runtimePolicy"]["onnxOrt"]["childEnvironment"]
+        .as_array()
+        .ok_or("onnxOrt childEnvironment must be an array")?;
+    for key in [
+        "ENFORCER_X06_ORT_CHILD_TASK",
+        "ENFORCER_X06_CHILD_PROVIDER",
+        "ENFORCER_X06_CHILD_ARTIFACT_PATH",
+        "ENFORCER_X06_CHILD_TOKENIZER_PATH",
+        "ENFORCER_X06_ORT_TIMEOUT_MS",
+    ] {
+        assert!(
+            ort_env.iter().any(|value| value.as_str() == Some(key)),
+            "missing ORT child env key {key}"
+        );
+    }
+    assert!(
+        proof["learningSignals"]
+            .as_array()
+            .is_some_and(|signals| signals
+                .iter()
+                .any(|signal| signal.as_str() == Some("ort-in-process-parity-rejected"))),
+        "proof must record ORT in-process rejection as a learning signal"
+    );
+    Ok(())
+}
 
 #[test]
 fn provider_order_prefers_explicit_llama_then_optional_ort_then_fallback() -> TestResult {
@@ -133,6 +188,40 @@ fn x06_runtime_control_plane_rejects_external_server_ownership() -> TestResult {
         Err(err) => err,
     };
 
+    assert!(matches!(
+        err,
+        MemoryError::ModelRuntime {
+            operation: "validate-local-runtime-control-plane",
+            ..
+        }
+    ));
+    Ok(())
+}
+
+#[test]
+fn x06_runtime_control_plane_rejects_backend_wrong_ownership_mode() -> TestResult {
+    let mut ort = LocalRuntimeControlPlane::onnx_ort_managed();
+    ort.ownership = RuntimeOwnershipMode::EnforcerInProcess;
+    let err = match validate_control_plane(&ort) {
+        Ok(()) => return Err("ORT in-process ownership should not pass parity control".into()),
+        Err(err) => err,
+    };
+    assert!(matches!(
+        err,
+        MemoryError::ModelRuntime {
+            operation: "validate-local-runtime-control-plane",
+            ..
+        }
+    ));
+
+    let mut llama = LocalRuntimeControlPlane::llama_cpp_managed();
+    llama.ownership = RuntimeOwnershipMode::EnforcerIsolatedWorker;
+    let err = match validate_control_plane(&llama) {
+        Ok(()) => {
+            return Err("llama.cpp non-subprocess ownership should not pass parity control".into())
+        }
+        Err(err) => err,
+    };
     assert!(matches!(
         err,
         MemoryError::ModelRuntime {
