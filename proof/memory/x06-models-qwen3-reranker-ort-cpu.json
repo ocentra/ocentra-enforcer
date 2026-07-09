@@ -105,7 +105,24 @@
         "docId": "irrelevant",
         "score": 0.00015858886763453484
       }
-    ]
+    ],
+    "workerTask": "reranker",
+    "provider": "cpu",
+    "ownership": "enforcer-isolated-worker",
+    "requestProtocol": "enforcer-worker-env",
+    "externalServerAllowed": false,
+    "portBindingAllowed": false,
+    "killOnTimeout": true,
+    "timeoutMs": 30000,
+    "providerResolution": {
+      "requestedProvider": "cpu",
+      "resolvedProvider": "cpu",
+      "availableProviders": [
+        "cpu"
+      ],
+      "providerProbePassed": true,
+      "downgradeReason": null
+    }
   },
   "observations": [
     {

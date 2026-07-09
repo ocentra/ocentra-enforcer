@@ -212,7 +212,8 @@
     "cargo test -p enforcer-memory --test unit_analysis --test unit_artifacts --test unit_architecture --test unit_code_graph --test unit_cross_repo --test unit_embed --test unit_federation --test unit_ids --test unit_impact --test unit_llama_cpp --test unit_redaction --test unit_rerank --test unit_share --test unit_store_manager --test unit_vector --quiet -j 1 passed",
     "cargo test -p enforcer-memory --features ort-models --test model_runtime --test model_runtime_real_contract --test model_observations --quiet -j 1 passed",
     "cargo test -p enforcer-memory --test local_runtime ort_worker_plan --quiet -j 1 and ort_provider_resolution --quiet -j 1 passed after ORT worker plans began carrying requested/resolved/available provider probe evidence",
-    "ocentra_enforcer_check weak-assertions initially caught assert!(downgrade_reason.is_some()); exact downgrade reason assertion fixed it and weak-assertions passed on the touched Rust files"
+    "ocentra_enforcer_check weak-assertions initially caught assert!(downgrade_reason.is_some()); exact downgrade reason assertion fixed it and weak-assertions passed on the touched Rust files",
+    "cargo test -p enforcer-memory --test model_runtime_real_contract checked_in_ort_runtime_proofs_carry_owned_provider_resolution --quiet -j 1 passed after checked-in ORT runtime proof artifacts were stamped with owned worker providerResolution metadata"
   ],
   "redOrPartialGates": [
     {
@@ -1259,6 +1260,13 @@
       "evidence": "ocentra_enforcer_check weak-assertions passed after the fix and the ORT worker-plan tests stayed green.",
       "classification": "ours",
       "learningSignal": "provider-downgrade-tests-need-exact-reasons"
+    },
+    {
+      "incident": "The ORT runtime harness had been updated to emit providerResolution, but checked-in successful ORT proof artifacts still only proved model output and did not prove the current owned-worker provider contract.",
+      "fix": "Stamped the successful CPU ORT embedding/reranker proof artifacts with workerTask, provider, ownership, requestProtocol, no-server/no-port controls, timeout kill, and providerResolution; added a contract test that requires these fields.",
+      "evidence": "checked_in_ort_runtime_proofs_carry_owned_provider_resolution, real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in, and portable_plan_proof_does_not_probe_local_hardware all passed.",
+      "classification": "ours",
+      "learningSignal": "checked-in-runtime-proof-artifacts-must-track-harness-contract"
     }
   ]
 }

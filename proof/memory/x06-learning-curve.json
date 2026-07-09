@@ -566,6 +566,14 @@
       "t2": "weak-assertions and ORT worker-plan tests pass after the exact assertion landed.",
       "recurrenceSignal": "reject downgrade tests that do not assert the resolved provider and exact reason",
       "status": "active"
+    },
+    {
+      "id": "checked-in-runtime-proof-artifacts-must-track-harness-contract",
+      "t0": "A runtime harness contract can evolve while prior checked-in successful proof artifacts still lack the new control-plane evidence fields.",
+      "t1": "The ORT CPU embedding and reranker proof artifacts now carry owned-worker providerResolution metadata and tests assert it directly.",
+      "t2": "Focused model_runtime_real_contract tests pass for providerResolution, probe default policy, and portable plan linkage.",
+      "recurrenceSignal": "reject successful ORT proof artifacts without worker ownership and providerResolution metadata",
+      "status": "active"
     }
   ],
   "blockers": [],

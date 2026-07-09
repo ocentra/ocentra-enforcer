@@ -1257,12 +1257,20 @@ fn portable_plan_proof_does_not_probe_local_hardware() -> TestResult {
         "usable-local-embedding"
     );
     assert_eq!(
+        proof["linkedProofArtifacts"]["ortRuntimeProofs"][0]["provider"],
+        "cpu"
+    );
+    assert_eq!(
         proof["linkedProofArtifacts"]["ortRuntimeProofs"][1]["artifactPath"],
         "proof/memory/x06-models-qwen3-reranker-ort-cpu.json"
     );
     assert_eq!(
         proof["linkedProofArtifacts"]["ortRuntimeProofs"][1]["status"],
         "usable-local-reranker"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["ortRuntimeProofs"][1]["provider"],
+        "cpu"
     );
     assert_eq!(
         proof["linkedProofArtifacts"]["negativeLearningProofs"][0]["observationKind"],
@@ -1357,6 +1365,50 @@ fn checked_in_reranker_runtime_proof_shows_relevance_lift() -> TestResult {
 }
 
 #[test]
+fn checked_in_ort_runtime_proofs_carry_owned_provider_resolution() -> TestResult {
+    let cases = [
+        (
+            "embedding",
+            "qwenEmbeddingOnnx",
+            include_str!("../../../proof/memory/x06-models-qwen3-embedding-ort-cpu.json"),
+        ),
+        (
+            "reranker",
+            "qwenRerankerOnnx",
+            include_str!("../../../proof/memory/x06-models-qwen3-reranker-ort-cpu.json"),
+        ),
+    ];
+
+    for (task, field, body) in cases {
+        let proof: serde_json::Value = serde_json::from_str(body)?;
+        let runtime = &proof[field];
+
+        assert_eq!(proof["runtimeMode"], "probe");
+        assert_eq!(runtime["ok"], true, "{task} ORT proof must be successful");
+        assert_eq!(runtime["provider"], "cpu");
+        assert_eq!(runtime["workerTask"], task);
+        assert_eq!(runtime["ownership"], "enforcer-isolated-worker");
+        assert_eq!(runtime["requestProtocol"], "enforcer-worker-env");
+        assert_eq!(runtime["externalServerAllowed"], false);
+        assert_eq!(runtime["portBindingAllowed"], false);
+        assert_eq!(runtime["killOnTimeout"], true);
+        assert_eq!(runtime["providerResolution"]["requestedProvider"], "cpu");
+        assert_eq!(runtime["providerResolution"]["resolvedProvider"], "cpu");
+        assert_eq!(
+            runtime["providerResolution"]["availableProviders"],
+            serde_json::json!(["cpu"])
+        );
+        assert_eq!(runtime["providerResolution"]["providerProbePassed"], true);
+        assert!(
+            runtime["providerResolution"]["downgradeReason"].is_null(),
+            "{task} CPU proof should not claim a provider downgrade"
+        );
+    }
+
+    Ok(())
+}
+
+#[test]
 fn real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in() {
     let probe = include_str!("../src/runtime_probe.rs");
     let script = include_str!("../scripts/x06-real-model-proof.ps1");
@@ -1378,9 +1430,10 @@ fn real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in() {
             "\"reranker\" | \"ranker\" | \"reranker-onnx\"",
             "one model at a time; CPU first; GPU/NPU only after provider probes pass; timeout kills the child process",
             "fn run_ort_child_probe(",
-            "ort_worker_execution_plan(",
+            "ort_worker_execution_plan_with_provider_resolution(",
             "ort_worker_command(&plan)",
             "attach_ort_worker_contract(&mut proof, &plan);",
+            "\"providerResolution\"",
             "\"workerTask\"",
             "\"requestedProvider\"",
             "\"resolvedProvider\"",
