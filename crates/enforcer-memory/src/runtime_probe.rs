@@ -30,9 +30,9 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
         X06ModelLineup,
     };
     use crate::llama_cpp::{
-        configure_llama_child_process_for_runtime, list_llama_cpp_devices, llama_cpp_command_plan,
-        resolve_llama_cpp_execution, run_llama_cpp_probe, LlamaCppBackendHint,
-        LlamaCppExecutionResolution, LlamaCppProbeConfig, LlamaCppProbeKind,
+        configure_llama_child_process_for_runtime, list_llama_cpp_devices, llama_binary_name,
+        llama_cpp_command_plan, resolve_llama_cpp_execution, run_llama_cpp_probe,
+        LlamaCppBackendHint, LlamaCppExecutionResolution, LlamaCppProbeConfig, LlamaCppProbeKind,
     };
     use crate::local_runtime::LocalRuntimeAcceleration;
     use crate::model_observations::{
@@ -747,7 +747,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
         let config = LlamaCppProbeConfig {
             binary_path: env_path("ENFORCER_X06_LLAMA_EMBEDDING")
                 .or_else(default_llama_embedding)
-                .unwrap_or_else(|| PathBuf::from("llama-embedding.exe")),
+                .unwrap_or_else(|| PathBuf::from(llama_binary_name("llama-embedding"))),
             model_path: model.local_path.clone(),
             model_sha256: strict_model_hash(&model.sha256),
             prompt: "embedding hello world for x06 memory retrieval".to_owned(),
@@ -1849,15 +1849,15 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     fn default_llama_cli() -> Option<PathBuf> {
-        first_existing_model_bin("llama-cli.exe")
+        first_existing_model_bin(&llama_binary_name("llama-cli"))
     }
 
     fn default_llama_embedding() -> Option<PathBuf> {
-        first_existing_model_bin("llama-embedding.exe")
+        first_existing_model_bin(&llama_binary_name("llama-embedding"))
     }
 
     fn default_llama_server() -> Option<PathBuf> {
-        first_existing_model_bin("llama-server.exe")
+        first_existing_model_bin(&llama_binary_name("llama-server"))
     }
 
     fn llama_cpp_server_embedding_plan(

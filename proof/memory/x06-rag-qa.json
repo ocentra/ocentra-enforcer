@@ -1,8 +1,10 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 205,
+  "rowsGreen": 203,
+  "rowsGreenReal": 0,
+  "rowsGreenDegraded": 203,
   "rowsFailed": 0,
-  "rowsUnrunnable": 45,
+  "rowsUnrunnable": 47,
   "rows": [
     {
       "id": "QA-001",
@@ -1294,63 +1296,27 @@
       "id": "QA-061",
       "category": "Repository",
       "query": "Find commit that introduced this function.",
-      "expectedIds": [
-        "retrieval:intel-backend:benchmark",
-        "retrieval:intel-backend:decision",
-        "retrieval:intel-backend:ort",
-        "retrieval:intel-backend:llama-cpp",
-        "retrieval:intel-backend:probe-policy"
-      ],
-      "actualIds": [
-        "retrieval:intel-backend:benchmark",
-        "retrieval:intel-backend:decision",
-        "retrieval:intel-backend:ort",
-        "retrieval:intel-backend:llama-cpp",
-        "retrieval:intel-backend:probe-policy"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/llama_cpp.rs",
-        "crates/enforcer-memory/src/ort_runtime.rs",
-        "crates/enforcer-memory/src/runtime_probe.rs",
-        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_DECISIONS.md",
-        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
-      ],
-      "verdict": "pass",
-      "capabilityState": "degraded"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_DECISIONS.md does not contain expected evidence marker Windows-first with CPU/GPU/NPU routing;",
+      "capabilityState": "unavailable"
     },
     {
       "id": "QA-062",
       "category": "Architecture",
       "query": "Find commit that last changed this behavior.",
-      "expectedIds": [
-        "retrieval:no-remote:benchmark",
-        "retrieval:no-remote:decision",
-        "retrieval:no-remote:model-cache",
-        "retrieval:no-remote:runtime-state",
-        "retrieval:no-remote:test"
-      ],
-      "actualIds": [
-        "retrieval:no-remote:benchmark",
-        "retrieval:no-remote:decision",
-        "retrieval:no-remote:model-cache",
-        "retrieval:no-remote:runtime-state",
-        "retrieval:no-remote:test"
-      ],
-      "recallAt5": 1.0,
-      "mrrAt10": 1.0,
-      "ndcgAt10": 1.0,
-      "sourceRefs": [
-        "crates/enforcer-memory/src/model_cache.rs",
-        "crates/enforcer-memory/src/model_runtime.rs",
-        "crates/enforcer-memory/tests/retrieval_stack.rs",
-        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_DECISIONS.md",
-        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
-      ],
-      "verdict": "pass",
-      "capabilityState": "degraded"
+      "expectedIds": [],
+      "actualIds": [],
+      "recallAt5": 0.0,
+      "mrrAt10": 0.0,
+      "ndcgAt10": 0.0,
+      "sourceRefs": [],
+      "verdict": "unrunnable: docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_DECISIONS.md does not contain expected evidence marker the default build remains deterministic and offline",
+      "capabilityState": "unavailable"
     },
     {
       "id": "QA-063",
@@ -1845,15 +1811,15 @@
         "crates/enforcer-memory/src/hf_cache.rs:346::select_x06_chat_model_for_hardware",
         "crates/enforcer-memory/src/hf_cache.rs:378::q4-chat-fallback",
         "crates/enforcer-memory/src/hf_cache.rs:382::no-probe-chat-fallback",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:129::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:156::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:134::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:161::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
       ],
       "actualIds": [
         "crates/enforcer-memory/src/hf_cache.rs:346::select_x06_chat_model_for_hardware",
         "crates/enforcer-memory/src/hf_cache.rs:378::q4-chat-fallback",
         "crates/enforcer-memory/src/hf_cache.rs:382::no-probe-chat-fallback",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:129::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:156::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:134::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:161::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -3944,7 +3910,7 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "commit:686846a02714f6c395e0557eed439ea7b680d1cd"
+        "commit:256409369f63f674908f84ecc0f69c03bbb9a783"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -4225,24 +4191,24 @@
       "category": "GitHistory",
       "query": "Which files were created in the most recent working session?",
       "expectedIds": [
-        "commit:b903aad00603fc9e412f412051fcbb0ba8029fba",
-        "lane:codex/x06-harvest-sync",
-        "created-after:2026-07-07 23:17:26 -0400",
-        "created:crates/enforcer-memory/src/runtime_probe.rs"
+        "commit:560e6c50ac06fca518698b6b4fd5c68cb9d6827b",
+        "lane:rust-build",
+        "created-after:2026-07-08 20:30:28 -0400",
+        "created:docs/plans/enforcer-selfhost-plan/x06-rag-critique-for-codex.md"
       ],
       "actualIds": [
-        "commit:b903aad00603fc9e412f412051fcbb0ba8029fba",
-        "lane:codex/x06-harvest-sync",
-        "created-after:2026-07-07 23:17:26 -0400",
-        "created:crates/enforcer-memory/src/runtime_probe.rs"
+        "commit:560e6c50ac06fca518698b6b4fd5c68cb9d6827b",
+        "lane:rust-build",
+        "created-after:2026-07-08 20:30:28 -0400",
+        "created:docs/plans/enforcer-selfhost-plan/x06-rag-critique-for-codex.md"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "commit:b903aad00603fc9e412f412051fcbb0ba8029fba",
-        "lane:codex/x06-harvest-sync",
-        "crates/enforcer-memory/src/runtime_probe.rs"
+        "commit:560e6c50ac06fca518698b6b4fd5c68cb9d6827b",
+        "lane:rust-build",
+        "docs/plans/enforcer-selfhost-plan/x06-rag-critique-for-codex.md"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -4322,7 +4288,7 @@
         "docs/plans/enforcer-selfhost-plan/workpacks/c09-remaining-harness-adapters.md",
         "docs/plans/enforcer-selfhost-plan/workpacks/c10-ci-integration-and-binary-bootstrap.md",
         "crates/enforcer-install",
-        "history-count:19"
+        "history-count:20"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"

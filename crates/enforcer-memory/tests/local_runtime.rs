@@ -6,8 +6,8 @@
 
 use enforcer_memory::error::MemoryError;
 use enforcer_memory::local_runtime::{
-    onnx_ort_feature_compiled, provider_order, validate_fixture, BackendReadiness,
-    LocalRuntimeFixture, LocalRuntimeKind,
+    onnx_ort_feature_compiled, provider_order, validate_control_plane, validate_fixture,
+    BackendReadiness, LocalRuntimeControlPlane, LocalRuntimeFixture, LocalRuntimeKind,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -90,6 +90,32 @@ fn deterministic_fallback_cannot_be_claimed_as_parity() -> TestResult {
         err,
         MemoryError::ModelRuntime {
             operation: "validate-local-runtime-fixture",
+            ..
+        }
+    ));
+    Ok(())
+}
+
+#[test]
+fn x06_runtime_control_plane_accepts_managed_llama_and_ort() -> TestResult {
+    validate_control_plane(&LocalRuntimeControlPlane::llama_cpp_managed())?;
+    validate_control_plane(&LocalRuntimeControlPlane::onnx_ort_managed())?;
+    Ok(())
+}
+
+#[test]
+fn x06_runtime_control_plane_rejects_external_server_ownership() -> TestResult {
+    let err = match validate_control_plane(&LocalRuntimeControlPlane::externally_owned_server(
+        LocalRuntimeKind::LlamaCpp,
+    )) {
+        Ok(()) => return Err("external server ownership should not pass parity control".into()),
+        Err(err) => err,
+    };
+
+    assert!(matches!(
+        err,
+        MemoryError::ModelRuntime {
+            operation: "validate-local-runtime-control-plane",
             ..
         }
     ));

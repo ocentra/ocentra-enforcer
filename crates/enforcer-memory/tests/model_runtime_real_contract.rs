@@ -11,6 +11,7 @@ use enforcer_memory::llama_cpp::{
     LlamaCppProbeKind,
 };
 use enforcer_memory::local_runtime::LocalRuntimeAcceleration;
+use enforcer_memory::local_runtime::RuntimeOwnershipMode;
 use enforcer_memory::model_runtime::{
     dev_model_cache_root, evaluate_chat_usability, loaded_non_chat_usability,
     resolve_model_cache_root, ChatThroughputPolicy, ModelCacheRootMode, ModelRuntimeServiceConfig,
@@ -22,6 +23,10 @@ use enforcer_memory::model_runtime::{
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+fn llama_binary_name(base_name: &str) -> String {
+    format!("{base_name}{}", std::env::consts::EXE_SUFFIX)
+}
 
 fn assert_contract_terms(haystack: &str, expected_terms: &[&str]) {
     let missing_terms: Vec<&str> = expected_terms
@@ -293,6 +298,14 @@ fn dev_model_cache_is_repo_local_and_service_does_not_expose_llama_server() {
     assert_eq!(cache_root, repo.join(DEFAULT_MODEL_CACHE_DIR_NAME));
     assert_eq!(policy.root, repo.join(DEFAULT_MODEL_CACHE_DIR_NAME));
     assert!(!service.expose_llama_server);
+    assert_eq!(
+        service.llama_cpp_ownership,
+        RuntimeOwnershipMode::EnforcerSubprocess
+    );
+    assert_eq!(
+        service.ort_ownership,
+        RuntimeOwnershipMode::EnforcerInProcess
+    );
     assert_eq!(service.cache_root, repo.join(DEFAULT_MODEL_CACHE_DIR_NAME));
     assert_eq!(service.bind_addr(), "127.0.0.1:8766");
     assert!(
@@ -870,7 +883,10 @@ fn checked_in_qwen3_embedding_gguf_probe_is_real_usable_local_runtime() -> TestR
     assert_eq!(report["backendHint"], "vulkan");
     assert_eq!(
         report["binaryPath"],
-        "<repo>/model/bin/llama-b9904-bin-win-vulkan-x64/llama-server.exe"
+        format!(
+            "<repo>/model/bin/llama-b9904-bin-win-vulkan-x64/{}",
+            llama_binary_name("llama-server")
+        )
     );
     assert_eq!(report["executionRoute"], "llama-server-v1-embeddings");
     assert_eq!(
@@ -1246,6 +1262,16 @@ fn real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in() {
 fn real_model_probe_can_import_external_chat_assets_into_repo_model_cache() {
     let probe = include_str!("../src/runtime_probe.rs");
     let script = include_str!("../scripts/x06-real-model-proof.ps1");
+    let llama_server_binary = llama_binary_name("llama-server");
+    let llama_embedding_binary = llama_binary_name("llama-embedding");
+    let llama_server_term = format!(
+        "Find-RepoLlamaBinary -Root (Join-Path $RepoRoot 'model\\bin') -BinaryName '{}'",
+        llama_server_binary
+    );
+    let llama_embedding_term = format!(
+        "Find-RepoLlamaBinary -Root (Join-Path $RepoRoot 'model\\bin') -BinaryName '{}'",
+        llama_embedding_binary
+    );
 
     assert_contract_terms(
         probe,
@@ -1276,8 +1302,8 @@ fn real_model_probe_can_import_external_chat_assets_into_repo_model_cache() {
             "$env:ENFORCER_X06_ORT_TIMEOUT_MS",
             "$env:ENFORCER_X06_LLAMA_SERVER",
             "$env:ENFORCER_X06_LLAMA_EMBEDDING",
-            "Find-RepoLlamaBinary -Root (Join-Path $RepoRoot 'model\\bin') -BinaryName 'llama-server.exe'",
-            "Find-RepoLlamaBinary -Root (Join-Path $RepoRoot 'model\\bin') -BinaryName 'llama-embedding.exe'",
+            llama_server_term.as_str(),
+            llama_embedding_term.as_str(),
             "Filter '*.dll'",
             "model\\local\\chat",
             "model\\bin",
@@ -1383,10 +1409,11 @@ fn hf_cache_paths_are_stable_and_safe() -> TestResult {
 
 #[test]
 fn llama_cpp_validation_fails_closed_for_missing_assets() -> TestResult {
+    let missing_llama_cli = llama_binary_name("missing-llama-cli");
     assert_model_runtime_error(
-        validate_executable(std::path::Path::new("missing-llama-cli.exe")),
+        validate_executable(std::path::Path::new(&missing_llama_cli)),
         "validate-llama-executable",
-        "llama.cpp executable not found: missing-llama-cli.exe",
+        &format!("llama.cpp executable not found: {missing_llama_cli}"),
     )?;
     assert_model_runtime_error(
         validate_model(std::path::Path::new("missing-model.gguf")),
@@ -1507,7 +1534,7 @@ fn llama_plan_fixture(
     backend_hint: LlamaCppBackendHint,
 ) -> LlamaCppProbeConfig {
     LlamaCppProbeConfig {
-        binary_path: "llama-cli.exe".into(),
+        binary_path: llama_binary_name("llama-cli").into(),
         model_path: "model.gguf".into(),
         model_sha256: None,
         prompt: "hello".to_owned(),

@@ -14,6 +14,7 @@ use sha2::{Digest, Sha256};
 
 use crate::embed::{DegradedState, LoadState, ResourceClass};
 use crate::error::{MemoryError, Result};
+use crate::local_runtime::RuntimeOwnershipMode;
 
 pub const DEFAULT_EMBEDDING_MODEL_ID: &str = "Qwen/Qwen3-Embedding-0.6B";
 pub const DEFAULT_RERANKER_MODEL_ID: &str = "Qwen/Qwen3-Reranker-0.6B";
@@ -248,6 +249,8 @@ pub struct ModelRuntimeServiceConfig {
     pub port: u16,
     pub cache_root: PathBuf,
     pub expose_llama_server: bool,
+    pub llama_cpp_ownership: RuntimeOwnershipMode,
+    pub ort_ownership: RuntimeOwnershipMode,
     pub routes: Vec<ModelRuntimeServiceRoute>,
 }
 
@@ -311,6 +314,8 @@ impl ModelRuntimeServiceConfig {
             port: DEFAULT_MODEL_SERVICE_PORT,
             cache_root: dev_model_cache_root(repo_root),
             expose_llama_server: false,
+            llama_cpp_ownership: RuntimeOwnershipMode::EnforcerSubprocess,
+            ort_ownership: RuntimeOwnershipMode::EnforcerInProcess,
             routes: default_model_service_routes(),
         }
     }

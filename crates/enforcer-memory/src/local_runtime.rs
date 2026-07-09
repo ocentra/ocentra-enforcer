@@ -64,6 +64,27 @@ pub enum LocalRuntimeAcceleration {
     Npu,
 }
 
+/// Who owns the runtime lifecycle for a backend.
+///
+/// X06 requires Enforcer-owned lifecycle control. External servers can
+/// be useful for exploratory proof/debug work, but they cannot be the
+/// product contract because Enforcer must own load, unload, cancel,
+/// timeout/kill, history policy, provider selection, and cache policy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuntimeOwnershipMode {
+    EnforcerSubprocess,
+    EnforcerInProcess,
+    ExternalServer,
+    Unmanaged,
+}
+
+impl RuntimeOwnershipMode {
+    pub fn is_enforcer_owned(self) -> bool {
+        matches!(self, Self::EnforcerSubprocess | Self::EnforcerInProcess)
+    }
+}
+
 /// One cached artifact participating in a local runtime candidate.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -124,6 +145,57 @@ pub struct LocalRuntimeSelectionReport {
     pub ordered_backends: Vec<LocalRuntimeKind>,
     pub selected_backend: LocalRuntimeKind,
     pub real_backend_selected: bool,
+}
+
+/// Lifecycle/control contract for a selected runtime backend.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalRuntimeControlPlane {
+    pub backend: LocalRuntimeKind,
+    pub ownership: RuntimeOwnershipMode,
+    pub spawn_controlled: bool,
+    pub stop_supported: bool,
+    pub timeout_kill_supported: bool,
+    pub cache_policy_enforced: bool,
+    pub provider_selection_controlled: bool,
+}
+
+impl LocalRuntimeControlPlane {
+    pub fn llama_cpp_managed() -> Self {
+        Self {
+            backend: LocalRuntimeKind::LlamaCpp,
+            ownership: RuntimeOwnershipMode::EnforcerSubprocess,
+            spawn_controlled: true,
+            stop_supported: true,
+            timeout_kill_supported: true,
+            cache_policy_enforced: true,
+            provider_selection_controlled: true,
+        }
+    }
+
+    pub fn onnx_ort_managed() -> Self {
+        Self {
+            backend: LocalRuntimeKind::OnnxOrt,
+            ownership: RuntimeOwnershipMode::EnforcerInProcess,
+            spawn_controlled: false,
+            stop_supported: true,
+            timeout_kill_supported: true,
+            cache_policy_enforced: true,
+            provider_selection_controlled: true,
+        }
+    }
+
+    pub fn externally_owned_server(backend: LocalRuntimeKind) -> Self {
+        Self {
+            backend,
+            ownership: RuntimeOwnershipMode::ExternalServer,
+            spawn_controlled: false,
+            stop_supported: false,
+            timeout_kill_supported: false,
+            cache_policy_enforced: false,
+            provider_selection_controlled: false,
+        }
+    }
 }
 
 impl LocalRuntimeSelectionReport {
@@ -263,6 +335,32 @@ pub fn validate_fixture(
     }
 
     Ok(report)
+}
+
+/// Validate that a runtime backend is acceptable for X06 product parity.
+pub fn validate_control_plane(control: &LocalRuntimeControlPlane) -> Result<()> {
+    if !control.ownership.is_enforcer_owned() {
+        return Err(model_runtime_error(
+            "validate-local-runtime-control-plane",
+            format!(
+                "{:?} is not Enforcer-owned; external server/unmanaged runtimes cannot claim X06 parity",
+                control.backend
+            ),
+        ));
+    }
+    if !control.stop_supported || !control.timeout_kill_supported {
+        return Err(model_runtime_error(
+            "validate-local-runtime-control-plane",
+            "runtime must support stop plus timeout/kill control",
+        ));
+    }
+    if !control.cache_policy_enforced || !control.provider_selection_controlled {
+        return Err(model_runtime_error(
+            "validate-local-runtime-control-plane",
+            "runtime must enforce Enforcer cache policy and provider selection",
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(feature = "ort-models")]
