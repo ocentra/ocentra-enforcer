@@ -552,6 +552,17 @@
       "status": "learned"
     },
     {
+      "lessonId": "dogfood-048",
+      "lesson": "Checked-in local GGUF/ORT runtime artifacts are real host-local proof, but they are not the same thing as live-loaded default QA execution. The rollup must count them separately so CI stays zero-network without hiding local runtime evidence.",
+      "evidence": [
+        "crates/enforcer-memory/tests/feature_parity/proof.rs",
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "proof/memory/x06-rag-qa.json",
+        "proof/memory/x06-feature-parity.json"
+      ],
+      "status": "learned"
+    },
+    {
       "id": "ort-provider-resolution-owned-worker-plan",
       "t0": "ORT provider acceleration can look configured while the parent-side hardware probe evidence is not preserved in the worker plan.",
       "t1": "Provider resolution is now part of the typed OrtWorkerExecutionPlan and child env/proof contract.",
@@ -573,6 +584,14 @@
       "t1": "The ORT CPU embedding and reranker proof artifacts now carry owned-worker providerResolution metadata and tests assert it directly.",
       "t2": "Focused model_runtime_real_contract tests pass for providerResolution, probe default policy, and portable plan linkage.",
       "recurrenceSignal": "reject successful ORT proof artifacts without worker ownership and providerResolution metadata",
+      "status": "active"
+    },
+    {
+      "id": "default-qa-must-separate-host-local-proof-from-live-loaded",
+      "t0": "The QA rollup reported all 250 green rows as degraded even though checked-in GGUF/ORT host-local runtime proof artifacts existed; changing them to loaded would overclaim default CI live execution.",
+      "t1": "Added a host-local-proof capability state and rollup count while keeping loaded reserved for feature-gated live model rows.",
+      "t2": "feature_parity_harness proves 250/250 green rows with 3 host-local-proof model-runtime rows, 0 live-loaded default rows, and 247 degraded deterministic rows.",
+      "recurrenceSignal": "reject model-runtime QA rollups that hide host-local proof or mark static artifacts as live-loaded default execution",
       "status": "active"
     }
   ],

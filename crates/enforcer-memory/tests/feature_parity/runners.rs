@@ -78,10 +78,12 @@ pub struct RowResult {
     /// vocabulary (`"unavailable"` for unrunnable rows that never ran
     /// any retrieval backend, `"degraded"` for the deterministic
     /// zero-network default -- [`HashingEmbedder`]/[`FusionScoreReranker`],
-    /// both of which self-report `LoadState::Degraded` -- and `"loaded"`
-    /// only for a row a real cached local model backend actually
-    /// answered). Never upgraded to `"loaded"` without a real model
-    /// backend behind it (OWNER_INTENT: never silently upgraded).
+    /// both of which self-report `LoadState::Degraded` --
+    /// `"host-local-proof"` for rows backed by checked-in host-local
+    /// runtime proof artifacts, and `"loaded"` only for a row a real
+    /// cached local model backend actually answered in this test run).
+    /// Never upgraded to `"loaded"` without a real model backend behind
+    /// it (OWNER_INTENT: never silently upgraded).
     pub capability_state: String,
 }
 
@@ -135,6 +137,8 @@ pub struct RowEvidence {
     pub source_refs: Vec<String>,
     /// Which backend produced this evidence -- `"degraded"` for every
     /// runner still on the deterministic zero-network default,
+    /// `"host-local-proof"` for rows backed by committed local runtime
+    /// proof artifacts, and
     /// `"loaded"` only for the (feature-gated, cache-checked) real-model
     /// path. Defaults to `"degraded"` via [`RowEvidence::degraded`] so
     /// existing call sites never have to think about this field to stay
@@ -160,6 +164,23 @@ impl RowEvidence {
             token_reduction_ratio,
             source_refs,
             capability_state: "degraded".to_string(),
+        }
+    }
+
+    pub fn host_local_proof(
+        expected_ids: Vec<String>,
+        actual_ids: Vec<String>,
+        reranker_lift: Option<f64>,
+        token_reduction_ratio: Option<f64>,
+        source_refs: Vec<String>,
+    ) -> Self {
+        Self {
+            expected_ids,
+            actual_ids,
+            reranker_lift,
+            token_reduction_ratio,
+            source_refs,
+            capability_state: "host-local-proof".to_string(),
         }
     }
 }
@@ -2123,6 +2144,13 @@ fn exact_pass(row: &QaRow, ids: Vec<String>, source_refs: Vec<String>) -> RowRes
     )
 }
 
+fn host_local_proof_pass(row: &QaRow, ids: Vec<String>, source_refs: Vec<String>) -> RowResult {
+    score_row(
+        row,
+        RowEvidence::host_local_proof(ids.clone(), ids, None, None, source_refs),
+    )
+}
+
 fn qa_capability_artifact_probe(row: &QaRow) -> RowResult {
     let rel = "proof/memory/x06-qa-capabilities.json";
     let root = super::queryset::workspace_root();
@@ -3261,28 +3289,67 @@ fn secret_touching_paths_probe(row: &QaRow) -> RowResult {
 }
 
 fn exact_file_marker_probe(row: &QaRow, checks: &[(&str, &str, &[&str])]) -> RowResult {
+    file_marker_probe(row, checks, exact_pass)
+}
+
+fn host_local_file_marker_probe(row: &QaRow, checks: &[(&str, &str, &[&str])]) -> RowResult {
+    file_marker_probe(row, checks, host_local_proof_pass)
+}
+
+fn host_local_file_marker_probe_with_ids(
+    row: &QaRow,
+    checks: &[(&str, &str, &[&str])],
+    ids: Vec<String>,
+) -> RowResult {
+    let refs = match validate_file_markers(row, checks) {
+        Ok(refs) => refs,
+        Err(result) => return *result,
+    };
+    host_local_proof_pass(row, ids, refs)
+}
+
+fn file_marker_probe(
+    row: &QaRow,
+    checks: &[(&str, &str, &[&str])],
+    build_pass: fn(&QaRow, Vec<String>, Vec<String>) -> RowResult,
+) -> RowResult {
+    let ids = checks.iter().map(|(id, _, _)| (*id).to_string()).collect();
+    let refs = match validate_file_markers(row, checks) {
+        Ok(refs) => refs,
+        Err(result) => return *result,
+    };
+    build_pass(row, ids, refs)
+}
+
+fn validate_file_markers(
+    row: &QaRow,
+    checks: &[(&str, &str, &[&str])],
+) -> Result<Vec<String>, Box<RowResult>> {
     let root = super::queryset::workspace_root();
-    let mut ids = Vec::new();
     let mut refs = Vec::new();
-    for (id, rel, needles) in checks {
+    for (_, rel, needles) in checks {
         let source = match std::fs::read_to_string(root.join(rel)) {
             Ok(source) => source,
-            Err(error) => return unrunnable(row, &format!("failed to read {rel}: {error}")),
+            Err(error) => {
+                return Err(Box::new(unrunnable(
+                    row,
+                    &format!("failed to read {rel}: {error}"),
+                )));
+            }
         };
         for needle in *needles {
             if !source.contains(needle) {
-                return unrunnable(
+                return Err(Box::new(unrunnable(
                     row,
                     &format!("{rel} does not contain expected evidence marker {needle}"),
-                );
+                )));
             }
         }
-        ids.push((*id).to_string());
         refs.push((*rel).to_string());
     }
     refs.sort();
     refs.dedup();
-    exact_pass(row, ids, refs)
+    Ok(refs)
 }
 
 fn cyclic_dependency_modules_probe(row: &QaRow) -> RowResult {
@@ -5762,7 +5829,7 @@ fn typescript_export_family_probe(row: &QaRow) -> RowResult {
 }
 
 fn local_model_loader_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe_with_ids(
         row,
         &[
             (
@@ -5808,12 +5875,51 @@ fn local_model_loader_probe(row: &QaRow) -> RowResult {
                     "fn checked_in_qwen3_embedding_gguf_server_fallback_is_rejected_runtime_boundary() -> TestResult {",
                 ],
             ),
+            (
+                "retrieval:model-loader:owned-runtime-routes",
+                "proof/memory/x06-models.json",
+                &[
+                    "\"llamaCppExecutionRoute\": \"enforcer-managed-llama-cpp-subprocess\"",
+                    "\"ortExecutionRoute\": \"enforcer-isolated-ort-worker\"",
+                    "\"externalRuntimeServersAllowed\": false",
+                    "\"exposeLlamaServer\": false",
+                ],
+            ),
+            (
+                "retrieval:model-loader:ort-embedding-proof",
+                "proof/memory/x06-models-qwen3-embedding-ort-cpu.json",
+                &[
+                    "\"runtimeMode\": \"probe\"",
+                    "\"ownership\": \"enforcer-isolated-worker\"",
+                    "\"externalServerAllowed\": false",
+                    "\"portBindingAllowed\": false",
+                    "\"resolvedProvider\": \"cpu\"",
+                ],
+            ),
+            (
+                "retrieval:model-loader:ort-reranker-proof",
+                "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
+                &[
+                    "\"runtimeMode\": \"probe\"",
+                    "\"ownership\": \"enforcer-isolated-worker\"",
+                    "\"externalServerAllowed\": false",
+                    "\"portBindingAllowed\": false",
+                    "\"resolvedProvider\": \"cpu\"",
+                ],
+            ),
+        ],
+        vec![
+            "retrieval:model-loader:runtime-probe".to_string(),
+            "retrieval:model-loader:llama-cpp".to_string(),
+            "retrieval:model-loader:cache-policy".to_string(),
+            "retrieval:model-loader:owned-runtime-routes".to_string(),
+            "retrieval:model-loader:ort-owned-worker-proofs".to_string(),
         ],
     )
 }
 
 fn local_model_loader_semantic_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5847,6 +5953,16 @@ fn local_model_loader_semantic_probe(row: &QaRow) -> RowResult {
                     "DEFAULT_ORNITH_GGUF_REPO",
                     "DEFAULT_EMBEDDING_GGUF_REPO",
                     "\"dev mode keeps downloaded models in the repository-local model directory\"",
+                ],
+            ),
+            (
+                "history:model-loader:owned-runtime-routes",
+                "proof/memory/x06-models.json",
+                &[
+                    "\"llamaCppExecutionRoute\": \"enforcer-managed-llama-cpp-subprocess\"",
+                    "\"ortExecutionRoute\": \"enforcer-isolated-ort-worker\"",
+                    "\"localRuntimeProofs\"",
+                    "\"ortRuntimeProofs\"",
                 ],
             ),
         ],
@@ -7906,7 +8022,7 @@ fn model_runtime_initialization_order_probe(row: &QaRow) -> RowResult {
     }
     refs.sort();
     refs.dedup();
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec![
             "init-order:runtime-policy-cpu-first".to_string(),

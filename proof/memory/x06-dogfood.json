@@ -78,6 +78,9 @@
     "ocentra_enforcer_check source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, and placeholder-implementation scope=files ok for QA-186 proof files",
     "cargo test -p enforcer-memory --test model_runtime_real_contract --quiet passed after adding usable Qwen3 Vulkan chat proof assertions and portable mismatch fixtures",
     "node JSON parse check passed for x06-dogfood.json, x06-models-hash-mismatch.json, and x06-models-tokenizer-mismatch.json",
+    "cargo test -p enforcer-memory --test feature_parity_harness feature_parity::proof::tests::host_local_runtime_proof_counts_separately_from_live_loaded_and_degraded_rows -- --exact passed after adding the host-local-proof QA bucket",
+    "cargo test -p enforcer-memory --test feature_parity_harness qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split -- --exact passed after x06-rag-qa.json recorded 250/250 green rows with 3 host-local-proof model-runtime rows and 247 degraded deterministic rows",
+    "rustfmt --check passed for the touched feature_parity proof, runner, and harness files after host-local-proof classification",
     "cargo fmt --package enforcer-memory --check passed after running rustfmt on the new model-runtime contract assertions",
     "cargo test -p enforcer-memory --features ort-models --quiet passed with CARGO_BUILD_JOBS=1, CARGO_PROFILE_TEST_DEBUG=0, and CARGO_INCREMENTAL=0 after clearing an orphaned pre-compaction ORT cargo process",
     "cargo clippy -p enforcer-memory --all-targets -- -D warnings passed after model-runtime mismatch proof promotion",
@@ -1267,6 +1270,13 @@
       "evidence": "checked_in_ort_runtime_proofs_carry_owned_provider_resolution, real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in, and portable_plan_proof_does_not_probe_local_hardware all passed.",
       "classification": "ours",
       "learningSignal": "checked-in-runtime-proof-artifacts-must-track-harness-contract"
+    },
+    {
+      "incident": "The QA rollup collapsed host-local real GGUF/ORT proof artifacts into the same degraded bucket as deterministic zero-network rows, while marking them loaded would have falsely claimed live model execution in default CI.",
+      "fix": "Added a host-local-proof capability bucket, kept loaded reserved for feature-gated live model execution, and classified only the model-runtime initialization/local-loader QA rows backed by checked-in GGUF/ORT proof artifacts into that bucket.",
+      "evidence": "x06-rag-qa.json and x06-feature-parity.json now record 3 host-local-proof rows, 0 live-loaded default rows, and 247 degraded deterministic rows; focused feature_parity_harness tests passed.",
+      "classification": "ours",
+      "learningSignal": "default-qa-must-separate-host-local-proof-from-live-loaded"
     }
   ]
 }

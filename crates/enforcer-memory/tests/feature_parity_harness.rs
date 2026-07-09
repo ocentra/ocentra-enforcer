@@ -57,9 +57,15 @@ fn qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split() -> T
     );
     assert_eq!(
         document.rows_green,
-        document.rows_green_real + document.rows_green_degraded
+        document.rows_green_real
+            + document.rows_green_host_local_proof
+            + document.rows_green_degraded
     );
-    assert!(document.rows_green_degraded > 0 || document.rows_green_real > 0);
+    assert!(
+        document.rows_green_degraded > 0
+            || document.rows_green_real > 0
+            || document.rows_green_host_local_proof > 0
+    );
     let failed_rows: Vec<String> = results
         .iter()
         .filter(|result| result.verdict == "fail")
@@ -105,8 +111,9 @@ fn qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split() -> T
     };
     let unrunnable = document.rows_unrunnable;
     let qa_failure_reason = format!(
-        "{unrunnable} rows unrunnable, {degraded} rows degraded-pass, {real} rows real-pass, {failed} failed -- see x06-rag-qa.json",
+        "{unrunnable} rows unrunnable, {degraded} rows degraded-pass, {host_local} rows host-local-proof-pass, {real} rows real-pass, {failed} failed -- see x06-rag-qa.json",
         degraded = document.rows_green_degraded,
+        host_local = document.rows_green_host_local_proof,
         real = document.rows_green_real,
         failed = document.rows_failed
     );

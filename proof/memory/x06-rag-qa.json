@@ -2,7 +2,8 @@
   "rowsTotal": 250,
   "rowsGreen": 250,
   "rowsGreenReal": 0,
-  "rowsGreenDegraded": 250,
+  "rowsGreenHostLocalProof": 3,
+  "rowsGreenDegraded": 247,
   "rowsFailed": 0,
   "rowsUnrunnable": 0,
   "rows": [
@@ -747,7 +748,7 @@
         "proof/memory/x06-models.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-032",
@@ -1450,18 +1451,18 @@
       "category": "Repository",
       "query": "Find what changed in this file over time.",
       "expectedIds": [
-        "retrieval:model-loader:benchmark",
         "retrieval:model-loader:runtime-probe",
         "retrieval:model-loader:llama-cpp",
         "retrieval:model-loader:cache-policy",
-        "retrieval:model-loader:proof"
+        "retrieval:model-loader:owned-runtime-routes",
+        "retrieval:model-loader:ort-owned-worker-proofs"
       ],
       "actualIds": [
-        "retrieval:model-loader:benchmark",
         "retrieval:model-loader:runtime-probe",
         "retrieval:model-loader:llama-cpp",
         "retrieval:model-loader:cache-policy",
-        "retrieval:model-loader:proof"
+        "retrieval:model-loader:owned-runtime-routes",
+        "retrieval:model-loader:ort-owned-worker-proofs"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -1471,10 +1472,13 @@
         "crates/enforcer-memory/src/model_runtime.rs",
         "crates/enforcer-memory/src/runtime_probe.rs",
         "crates/enforcer-memory/tests/model_runtime_real_contract.rs",
-        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md",
+        "proof/memory/x06-models-qwen3-embedding-ort-cpu.json",
+        "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
+        "proof/memory/x06-models.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-061",
@@ -1544,17 +1548,17 @@
       "query": "Summarize last 20 commits for this module.",
       "expectedIds": [
         "module:enforcer-memory-src:last-20-commits:20",
-        "commit:d79b49b91a58",
-        "commit:d81f52ab9d46",
-        "commit:ae704036b00c",
-        "commit:e8965207d026"
+        "commit:42b153185160",
+        "commit:08c15fa3e668",
+        "commit:db076adde461",
+        "commit:d79b49b91a58"
       ],
       "actualIds": [
         "module:enforcer-memory-src:last-20-commits:20",
-        "commit:d79b49b91a58",
-        "commit:d81f52ab9d46",
-        "commit:ae704036b00c",
-        "commit:e8965207d026"
+        "commit:42b153185160",
+        "commit:08c15fa3e668",
+        "commit:db076adde461",
+        "commit:d79b49b91a58"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -1562,6 +1566,9 @@
       "sourceRefs": [
         "crates/enforcer-memory/src",
         "git:log:-20:crates/enforcer-memory/src",
+        "commit-summary:42b153185160:feat(memory): carry ort provider proof into worker plan",
+        "commit-summary:08c15fa3e668:feat(memory): gate ort provider acceleration by probe",
+        "commit-summary:db076adde461:feat(memory): stamp ort worker runtime proof",
         "commit-summary:d79b49b91a58:feat(memory): derive runtime proof from contracts",
         "commit-summary:d81f52ab9d46:feat(memory): add owned ort worker command seam",
         "commit-summary:ae704036b00c:test(memory): satisfy x06 policy gates",
@@ -1578,10 +1585,7 @@
         "commit-summary:82b3091bca8d:feat(memory): enforce managed local runtime control",
         "commit-summary:65094bd63419:Merge remote-tracking branch 'origin/rust-build' into rust-build",
         "commit-summary:7b0ec237a5d7:feat(x06): wave G2.4 — onboard all remaining Tier-1 languages, completing 103/158 baseline languages",
-        "commit-summary:3907222e4e4a:fix(memory): reject llama server gguf proof fallback",
-        "commit-summary:e2091a12c305:feat(memory): classify ort embedding fallback telemetry",
-        "commit-summary:08089f84e604:feat(memory): expose ort embedding provider selection",
-        "commit-summary:6bc16ead13f4:feat(memory): report search graph embedding runtime"
+        "commit-summary:3907222e4e4a:fix(memory): reject llama server gguf proof fallback"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -1594,14 +1598,14 @@
         "churn:Cargo.lock:71",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
         "churn:proof/memory/x06-feature-parity.json:47",
-        "churn:proof/memory/x06-rag-qa.json:45",
+        "churn:proof/memory/x06-rag-qa.json:46",
         "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:43"
       ],
       "actualIds": [
         "churn:Cargo.lock:71",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
         "churn:proof/memory/x06-feature-parity.json:47",
-        "churn:proof/memory/x06-rag-qa.json:45",
+        "churn:proof/memory/x06-rag-qa.json:46",
         "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:43"
       ],
       "recallAt5": 1.0,
@@ -2317,13 +2321,15 @@
         "history:model-loader:benchmark",
         "history:model-loader:runtime-probe",
         "history:model-loader:llama-cpp",
-        "history:model-loader:cache-policy"
+        "history:model-loader:cache-policy",
+        "history:model-loader:owned-runtime-routes"
       ],
       "actualIds": [
         "history:model-loader:benchmark",
         "history:model-loader:runtime-probe",
         "history:model-loader:llama-cpp",
-        "history:model-loader:cache-policy"
+        "history:model-loader:cache-policy",
+        "history:model-loader:owned-runtime-routes"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -2332,10 +2338,11 @@
         "crates/enforcer-memory/src/llama_cpp.rs",
         "crates/enforcer-memory/src/model_runtime.rs",
         "crates/enforcer-memory/src/runtime_probe.rs",
-        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md",
+        "proof/memory/x06-models.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-095",
@@ -4617,32 +4624,34 @@
       "category": "GitHistory",
       "query": "Which files were created in the most recent working session?",
       "expectedIds": [
-        "commit:e544073d1eeb14bd3f40b8bf50ab2937d530f960",
+        "commit:4219947f24306d32738a7630c0875f87457d57bb",
         "lane:rust-build",
-        "created-after:2026-07-09 07:37:34 -0400",
-        "created:proof/memory/x06-test-shards-local-exec.json",
-        "created:proof/memory/x06-test-shards.json"
+        "created-after:2026-07-09 08:54:05 -0400",
+        "created:proof/memory/x06-test-shards-1-of-8.json",
+        "created:proof/memory/x06-test-shards-2-of-8.json"
       ],
       "actualIds": [
-        "commit:e544073d1eeb14bd3f40b8bf50ab2937d530f960",
+        "commit:4219947f24306d32738a7630c0875f87457d57bb",
         "lane:rust-build",
-        "created-after:2026-07-09 07:37:34 -0400",
-        "created:proof/memory/x06-test-shards-local-exec.json",
-        "created:proof/memory/x06-test-shards.json"
+        "created-after:2026-07-09 08:54:05 -0400",
+        "created:proof/memory/x06-test-shards-1-of-8.json",
+        "created:proof/memory/x06-test-shards-2-of-8.json"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "commit:e544073d1eeb14bd3f40b8bf50ab2937d530f960",
+        "commit:4219947f24306d32738a7630c0875f87457d57bb",
         "lane:rust-build",
-        "proof/memory/x06-test-shards-local-exec.json",
-        "proof/memory/x06-test-shards.json",
-        "scripts/x06-enforcer-memory-sharded-test.mjs",
-        "scripts/x06-shards/args.mjs",
-        "scripts/x06-shards/discovery.mjs",
-        "scripts/x06-shards/proof.mjs",
-        "scripts/x06-shards/runner.mjs"
+        "proof/memory/x06-test-shards-1-of-8.json",
+        "proof/memory/x06-test-shards-2-of-8.json",
+        "proof/memory/x06-test-shards-3-of-8.json",
+        "proof/memory/x06-test-shards-4-of-8.json",
+        "proof/memory/x06-test-shards-5-of-8.json",
+        "proof/memory/x06-test-shards-6-of-8.json",
+        "proof/memory/x06-test-shards-7-of-8.json",
+        "proof/memory/x06-test-shards-8-of-8.json",
+        "proof/memory/x06-test-shards-rollup.json"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"

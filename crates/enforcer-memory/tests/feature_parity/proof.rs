@@ -87,6 +87,8 @@ pub struct QaProofDocument {
     pub rows_green: usize,
     #[serde(rename = "rowsGreenReal")]
     pub rows_green_real: usize,
+    #[serde(rename = "rowsGreenHostLocalProof")]
+    pub rows_green_host_local_proof: usize,
     #[serde(rename = "rowsGreenDegraded")]
     pub rows_green_degraded: usize,
     #[serde(rename = "rowsFailed")]
@@ -106,6 +108,10 @@ pub fn build_qa_proof_document(results: &[RowResult]) -> QaProofDocument {
         .iter()
         .filter(|r| r.is_green() && r.capability_state == "loaded")
         .count();
+    let rows_green_host_local_proof = results
+        .iter()
+        .filter(|r| r.is_green() && r.capability_state == "host-local-proof")
+        .count();
     let rows_green_degraded = results
         .iter()
         .filter(|r| r.is_green() && r.capability_state == "degraded")
@@ -116,6 +122,7 @@ pub fn build_qa_proof_document(results: &[RowResult]) -> QaProofDocument {
         rows_total: results.len(),
         rows_green,
         rows_green_real,
+        rows_green_host_local_proof,
         rows_green_degraded,
         rows_failed,
         rows_unrunnable,
@@ -197,6 +204,8 @@ pub struct FeatureParityDocument {
     pub qa_rows_green: usize,
     #[serde(rename = "qaRowsGreenReal")]
     pub qa_rows_green_real: usize,
+    #[serde(rename = "qaRowsGreenHostLocalProof")]
+    pub qa_rows_green_host_local_proof: usize,
     #[serde(rename = "qaRowsGreenDegraded")]
     pub qa_rows_green_degraded: usize,
     #[serde(rename = "kgParityComparedAgainstBaseline")]
@@ -247,11 +256,16 @@ pub fn build_feature_parity_document(
         .iter()
         .filter(|r| r.is_green() && r.capability_state == "loaded")
         .count();
+    let qa_rows_green_host_local_proof = qa_results
+        .iter()
+        .filter(|r| r.is_green() && r.capability_state == "host-local-proof")
+        .count();
     let qa_rows_green_degraded = qa_results
         .iter()
         .filter(|r| r.is_green() && r.capability_state == "degraded")
         .count();
-    let qa_rows_green = qa_rows_green_real + qa_rows_green_degraded;
+    let qa_rows_green =
+        qa_rows_green_real + qa_rows_green_host_local_proof + qa_rows_green_degraded;
 
     let kg_parity_compared_against_baseline = prefix_statuses
         .get("PAR")
@@ -284,6 +298,7 @@ pub fn build_feature_parity_document(
         qa_rows_total: qa_results.len(),
         qa_rows_green,
         qa_rows_green_real,
+        qa_rows_green_host_local_proof,
         qa_rows_green_degraded,
         kg_parity_compared_against_baseline,
         mcp_cli_parity,
@@ -329,6 +344,13 @@ mod tests {
         }
     }
 
+    fn host_local_proof_result(id: &str) -> RowResult {
+        let mut result = green_result(id);
+        result.capability_state = "host-local-proof".to_string();
+        result.source_refs = vec!["proof/memory/x06-models.json".to_string()];
+        result
+    }
+
     fn all_green_prefixes() -> BTreeMap<&'static str, MatrixPrefixRow> {
         REQUIRED_PREFIXES
             .iter()
@@ -357,10 +379,31 @@ mod tests {
         assert_eq!(document.rows_total, 2);
         assert_eq!(document.rows_green, 1);
         assert_eq!(document.rows_green_real, 0);
+        assert_eq!(document.rows_green_host_local_proof, 0);
         assert_eq!(document.rows_green_degraded, 1);
         assert_eq!(document.rows_unrunnable, 1);
         assert_eq!(document.rows_failed, 0);
         assert_eq!(document.rows.len(), document.rows_total);
+    }
+
+    #[test]
+    fn host_local_runtime_proof_counts_separately_from_live_loaded_and_degraded_rows() {
+        let results = vec![
+            green_result("QA-001"),
+            host_local_proof_result("QA-031"),
+            unrunnable(&sample_row("QA-002"), "no wired runner"),
+        ];
+        let qa_document = build_qa_proof_document(&results);
+        assert_eq!(qa_document.rows_green, 2);
+        assert_eq!(qa_document.rows_green_real, 0);
+        assert_eq!(qa_document.rows_green_host_local_proof, 1);
+        assert_eq!(qa_document.rows_green_degraded, 1);
+
+        let feature_document = build_feature_parity_document(&all_green_prefixes(), &results);
+        assert_eq!(feature_document.qa_rows_green, 2);
+        assert_eq!(feature_document.qa_rows_green_real, 0);
+        assert_eq!(feature_document.qa_rows_green_host_local_proof, 1);
+        assert_eq!(feature_document.qa_rows_green_degraded, 1);
     }
 
     #[test]
