@@ -371,24 +371,13 @@ fn set_store_status(
     workspace_root: &Path,
     prefixes: &mut BTreeMap<&'static str, MatrixPrefixRow>,
 ) -> TestResult<()> {
-    let Some(store) = proof_json(workspace_root, "proof/memory/x06-store.json")? else {
-        return Ok(());
-    };
-    let tests_failed = store["result"]["testsFailed"].as_u64().unwrap_or(1);
-    prefixes.insert(
+    set_artifact_status(
+        workspace_root,
+        prefixes,
         "STO",
-        if tests_failed == 0 {
-            green_prefix("STO", "proof/memory/x06-store.json", "memory-store-core")
-        } else {
-            red_prefix(
-                "STO",
-                "proof/memory/x06-store.json",
-                Some("memory-store-core"),
-                format!("store proof reports {tests_failed} failed tests"),
-            )
-        },
-    );
-    Ok(())
+        "proof/memory/x06-store.json",
+        "memory-store-core",
+    )
 }
 
 fn set_rag_status(

@@ -1,4 +1,6 @@
 {
+  "schemaVersion": 1,
+  "status": "green",
   "workpack": "x06.1",
   "hub": "enforcer-selfhost-plan",
   "subpack": "core/store/logs",
