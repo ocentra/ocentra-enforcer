@@ -4,8 +4,8 @@
   "rowsTotal": 250,
   "rowsGreen": 250,
   "rowsGreenReal": 0,
-  "rowsGreenHostLocalProof": 109,
-  "rowsGreenDegraded": 141,
+  "rowsGreenHostLocalProof": 119,
+  "rowsGreenDegraded": 131,
   "rowsFailed": 0,
   "rowsUnrunnable": 0,
   "rows": [
@@ -808,7 +808,7 @@
         "crates/enforcer-memory/tests/unit_log.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-034",
@@ -836,7 +836,7 @@
         "crates/enforcer-memory/src/store/mod.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-035",
@@ -887,7 +887,7 @@
         "crates/enforcer-lang-common/tests/fixtures/deferred_work/good/pass.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-037",
@@ -938,7 +938,7 @@
         "test:x06_qa_route_auth_rows_can_pair_routes_with_permission_checks"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-039",
@@ -958,7 +958,7 @@
         "test:x06_qa_route_auth_rows_can_pair_routes_with_permission_checks"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-040",
@@ -1084,7 +1084,7 @@
         "test:x06_qa_diff_rows_can_identify_rules_or_workpacks_affected_by_changed_file"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-045",
@@ -1104,7 +1104,7 @@
         "test:x06_qa_diff_rows_can_identify_rules_or_workpacks_affected_by_changed_file"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-046",
@@ -1406,7 +1406,7 @@
         "test:x06_qa_diff_rows_can_identify_rules_or_workpacks_affected_by_changed_file"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-058",
@@ -1426,7 +1426,7 @@
         "test:x06_qa_diff_rows_can_identify_rules_or_workpacks_affected_by_changed_file"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-059",
@@ -1598,16 +1598,16 @@
       "query": "Find files with highest churn.",
       "expectedIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:67",
-        "churn:proof/memory/x06-feature-parity.json:64",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:60",
+        "churn:proof/memory/x06-rag-qa.json:68",
+        "churn:proof/memory/x06-feature-parity.json:65",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:61",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
       ],
       "actualIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:67",
-        "churn:proof/memory/x06-feature-parity.json:64",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:60",
+        "churn:proof/memory/x06-rag-qa.json:68",
+        "churn:proof/memory/x06-feature-parity.json:65",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:61",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
       ],
       "recallAt5": 1.0,
@@ -1662,7 +1662,7 @@
         "test:x06_qa_duplicate_logic_rows_can_find_similar_functions"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-067",

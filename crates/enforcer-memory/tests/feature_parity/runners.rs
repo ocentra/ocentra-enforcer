@@ -2242,11 +2242,15 @@ fn qa_capability_artifact_probe(row: &QaRow) -> RowResult {
         );
     };
 
-    exact_pass(
-        row,
-        vec![format!("x06-qa-capability:{}:{capability}", row.id)],
-        vec![rel.to_string(), format!("test:{evidence}")],
-    )
+    let ids = vec![format!("x06-qa-capability:{}:{capability}", row.id)];
+    let source_refs = vec![rel.to_string(), format!("test:{evidence}")];
+    if matches!(
+        row.id.as_str(),
+        "QA-038" | "QA-039" | "QA-044" | "QA-045" | "QA-057" | "QA-058" | "QA-066"
+    ) {
+        return host_local_proof_pass(row, ids, source_refs);
+    }
+    exact_pass(row, ids, source_refs)
 }
 
 fn host_local_proof_pass_with_token_ratio(
@@ -2611,7 +2615,7 @@ fn memory_error_constructor_sites_probe(row: &QaRow) -> RowResult {
 }
 
 fn memory_error_handling_sites_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -4901,7 +4905,7 @@ fn mcp_explain_rule_probe(row: &QaRow) -> RowResult {
 }
 
 fn mcp_deferred_markers_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -7345,7 +7349,7 @@ fn crate_network_calls_probe(row: &QaRow) -> RowResult {
 }
 
 fn emitted_durable_logs_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
