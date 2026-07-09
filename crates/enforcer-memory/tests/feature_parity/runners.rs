@@ -5792,7 +5792,7 @@ fn rule_fixture_invariant_probe(row: &QaRow) -> RowResult {
     refs.sort();
     refs.dedup();
     if violations.is_empty() {
-        return exact_pass(
+        return host_local_proof_pass(
             row,
             vec!["arch:rule-fixture-invariant:clean".to_string()],
             refs,
@@ -5803,7 +5803,7 @@ fn rule_fixture_invariant_probe(row: &QaRow) -> RowResult {
     let count = violations.len();
     let mut summary_ids = vec![format!("arch:rule-fixture-invariant:violations:{count}")];
     summary_ids.extend(violations.into_iter().take(3));
-    exact_pass(row, summary_ids, refs)
+    host_local_proof_pass(row, summary_ids, refs)
 }
 
 fn typescript_reexport_rule_probe(row: &QaRow) -> RowResult {
@@ -9547,7 +9547,7 @@ fn tokio_workspace_probe(row: &QaRow) -> RowResult {
     }
     refs.sort();
     refs.dedup();
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec![format!(
             "codegraph:tokio:workspace-scan:manifests={tokio_manifest_count}:tests={tokio_test_count}"

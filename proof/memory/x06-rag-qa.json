@@ -4,8 +4,8 @@
   "rowsTotal": 250,
   "rowsGreen": 250,
   "rowsGreenReal": 0,
-  "rowsGreenHostLocalProof": 54,
-  "rowsGreenDegraded": 196,
+  "rowsGreenHostLocalProof": 56,
+  "rowsGreenDegraded": 194,
   "rowsFailed": 0,
   "rowsUnrunnable": 0,
   "rows": [
@@ -1598,16 +1598,16 @@
       "query": "Find files with highest churn.",
       "expectedIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:61",
-        "churn:proof/memory/x06-feature-parity.json:58",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:54",
+        "churn:proof/memory/x06-rag-qa.json:62",
+        "churn:proof/memory/x06-feature-parity.json:59",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:55",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
       ],
       "actualIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:61",
-        "churn:proof/memory/x06-feature-parity.json:58",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:54",
+        "churn:proof/memory/x06-rag-qa.json:62",
+        "churn:proof/memory/x06-feature-parity.json:59",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:55",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
       ],
       "recallAt5": 1.0,
@@ -3079,7 +3079,7 @@
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-119",
@@ -3160,7 +3160,7 @@
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-120",
