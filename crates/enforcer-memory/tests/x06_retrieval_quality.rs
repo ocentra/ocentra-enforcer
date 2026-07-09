@@ -151,3 +151,75 @@ fn x06_retrieval_quality_metrics_emit_observation_ready_records() -> TestResult 
     );
     Ok(())
 }
+
+#[test]
+fn checked_in_token_reduction_rollup_is_derived_from_retrieval_observations() -> TestResult {
+    let retrieval: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../proof/memory/x06-retrieval-quality.json"
+    ))?;
+    let token_rollup: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../proof/memory/x06-token-reduction.json"
+    ))?;
+
+    let observations = retrieval["observations"]
+        .as_array()
+        .ok_or("x06-retrieval-quality observations must be an array")?;
+    let mut ratios = Vec::new();
+    for observation in observations {
+        let candidate = &observation["candidate"];
+        if candidate["observationKind"] != "token-reduction-proof" {
+            continue;
+        }
+        let naive = candidate["naiveTokens"]
+            .as_f64()
+            .ok_or("token-reduction observation missing naiveTokens")?;
+        let context = candidate["contextTokens"]
+            .as_f64()
+            .ok_or("token-reduction observation missing contextTokens")?;
+        if context <= 0.0 {
+            return Err("token-reduction observation must have positive contextTokens".into());
+        }
+        ratios.push(naive / context);
+    }
+    ratios.sort_by(|a, b| a.total_cmp(b));
+
+    assert_eq!(
+        token_rollup["derivedFrom"],
+        "proof/memory/x06-retrieval-quality.json#/observations[token-reduction-proof]"
+    );
+    assert_eq!(token_rollup["distribution"]["queryCount"], ratios.len());
+    assert!(token_rollup["passes10xGate"].as_bool().unwrap_or(false));
+
+    let median = percentile_nearest_rank(&ratios, 50.0)?;
+    let p95 = percentile_nearest_rank(&ratios, 95.0)?;
+    let minimum = *ratios.first().ok_or("no token-reduction observations")?;
+    assert_json_number_close(&token_rollup["medianReductionRatio"], median)?;
+    assert_json_number_close(
+        &token_rollup["distribution"]["minimumReductionRatio"],
+        minimum,
+    )?;
+    assert_json_number_close(&token_rollup["distribution"]["p50ReductionRatio"], median)?;
+    assert_json_number_close(&token_rollup["distribution"]["p95ReductionRatio"], p95)?;
+    Ok(())
+}
+
+fn percentile_nearest_rank(values: &[f64], percentile: f64) -> Result<f64, &'static str> {
+    if values.is_empty() {
+        return Err("cannot compute percentile over empty values");
+    }
+    let rank = ((percentile / 100.0) * values.len() as f64).ceil() as usize;
+    let index = rank.saturating_sub(1).min(values.len() - 1);
+    values
+        .get(index)
+        .copied()
+        .ok_or("percentile index must resolve")
+}
+
+fn assert_json_number_close(value: &serde_json::Value, expected: f64) -> TestResult {
+    let actual = value.as_f64().ok_or("expected JSON number")?;
+    assert!(
+        (actual - expected).abs() < 1e-9,
+        "expected {expected}, got {actual}"
+    );
+    Ok(())
+}
