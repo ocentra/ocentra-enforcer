@@ -7,12 +7,13 @@
 use enforcer_memory::error::MemoryError;
 use enforcer_memory::local_runtime::{
     arbitrate_runtime_workload, onnx_ort_feature_compiled, ort_worker_command,
-    ort_worker_execution_plan, provider_from_env_value, provider_order, resolve_ort_provider,
-    runtime_backend_contract, validate_control_plane, validate_fixture,
-    validate_ort_worker_execution_plan, BackendReadiness, LocalRuntimeControlPlane,
-    LocalRuntimeFixture, LocalRuntimeKind, OrtWorkerLifecycleAction, OrtWorkerLifecycleState,
-    OrtWorkerTask, RuntimeActivityState, RuntimeAdmission, RuntimeManagedCapability,
-    RuntimeOwnershipMode, RuntimeRequestProtocol, RuntimeWorkload, REQUIRED_MANAGED_CAPABILITIES,
+    ort_worker_execution_plan, ort_worker_execution_plan_with_provider_resolution,
+    provider_from_env_value, provider_order, resolve_ort_provider, runtime_backend_contract,
+    validate_control_plane, validate_fixture, validate_ort_worker_execution_plan, BackendReadiness,
+    LocalRuntimeControlPlane, LocalRuntimeFixture, LocalRuntimeKind, OrtWorkerLifecycleAction,
+    OrtWorkerLifecycleState, OrtWorkerTask, RuntimeActivityState, RuntimeAdmission,
+    RuntimeManagedCapability, RuntimeOwnershipMode, RuntimeRequestProtocol, RuntimeWorkload,
+    REQUIRED_MANAGED_CAPABILITIES,
 };
 use enforcer_memory::model_runtime::{ModelSpec, ProviderKind};
 use serde_json::Value;
@@ -108,6 +109,9 @@ fn checked_in_runtime_control_plane_proof_matches_contract() -> TestResult {
     for key in [
         "ENFORCER_X06_ORT_CHILD_TASK",
         "ENFORCER_X06_CHILD_PROVIDER",
+        "ENFORCER_X06_CHILD_REQUESTED_PROVIDER",
+        "ENFORCER_X06_CHILD_AVAILABLE_PROVIDERS",
+        "ENFORCER_X06_CHILD_PROVIDER_PROBE_PASSED",
         "ENFORCER_X06_CHILD_ARTIFACT_PATH",
         "ENFORCER_X06_CHILD_TOKENIZER_PATH",
         "ENFORCER_X06_ORT_TIMEOUT_MS",
@@ -431,6 +435,22 @@ fn ort_worker_plan_materializes_enforcer_owned_child_env_contract() -> TestResul
         Some("open-vino")
     );
     assert_eq!(
+        plan.env_value("ENFORCER_X06_CHILD_REQUESTED_PROVIDER"),
+        Some("open-vino")
+    );
+    assert_eq!(
+        plan.env_value("ENFORCER_X06_CHILD_AVAILABLE_PROVIDERS"),
+        Some("open-vino,cpu")
+    );
+    assert_eq!(
+        plan.env_value("ENFORCER_X06_CHILD_PROVIDER_PROBE_PASSED"),
+        Some("true")
+    );
+    assert_eq!(
+        plan.provider_resolution.resolved_provider,
+        ProviderKind::OpenVino
+    );
+    assert_eq!(
         plan.env_value("ENFORCER_X06_CHILD_ARTIFACT_PATH"),
         Some("model/hf/qwen/model.onnx")
     );
@@ -497,6 +517,11 @@ fn ort_worker_command_uses_owned_worker_args_and_env_without_server_surface() ->
         Some("npu")
     );
     assert_eq!(
+        env.get("ENFORCER_X06_CHILD_AVAILABLE_PROVIDERS")
+            .map(String::as_str),
+        Some("npu,cpu")
+    );
+    assert_eq!(
         env.get("ENFORCER_X06_ORT_TIMEOUT_MS").map(String::as_str),
         Some("45000")
     );
@@ -505,6 +530,45 @@ fn ort_worker_command_uses_owned_worker_args_and_env_without_server_surface() ->
             .iter()
             .any(|arg| arg.contains("server") || arg.contains("port")),
         "ORT worker command must not expose an external server or port surface"
+    );
+    Ok(())
+}
+
+#[test]
+fn ort_worker_plan_downgrades_unprobed_acceleration_before_child_spawn() -> TestResult {
+    let spec = ModelSpec::qwen3_embedding(
+        "model/hf/qwen/model.onnx",
+        "abc123",
+        "model/hf/qwen/tokenizer.json",
+        "def456",
+    );
+    let resolution = resolve_ort_provider(ProviderKind::Npu, &[]);
+    let plan = ort_worker_execution_plan_with_provider_resolution(
+        "target/debug/x06_model_runtime_probe",
+        OrtWorkerTask::Embedding,
+        &spec,
+        resolution,
+        30_000,
+    )?;
+
+    validate_ort_worker_execution_plan(&plan)?;
+    assert_eq!(plan.provider, ProviderKind::Cpu);
+    assert_eq!(plan.env_value("ENFORCER_X06_CHILD_PROVIDER"), Some("cpu"));
+    assert_eq!(
+        plan.env_value("ENFORCER_X06_CHILD_REQUESTED_PROVIDER"),
+        Some("npu")
+    );
+    assert_eq!(
+        plan.env_value("ENFORCER_X06_CHILD_AVAILABLE_PROVIDERS"),
+        Some("cpu")
+    );
+    assert_eq!(
+        plan.env_value("ENFORCER_X06_CHILD_PROVIDER_PROBE_PASSED"),
+        Some("false")
+    );
+    assert_eq!(
+        plan.provider_resolution.downgrade_reason.as_deref(),
+        Some("requested ORT provider npu but provider probe did not report it available; downgraded to cpu")
     );
     Ok(())
 }

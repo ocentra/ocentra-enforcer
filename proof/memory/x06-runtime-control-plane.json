@@ -72,6 +72,9 @@
       "childEnvironment": [
         "ENFORCER_X06_ORT_CHILD_TASK",
         "ENFORCER_X06_CHILD_PROVIDER",
+        "ENFORCER_X06_CHILD_REQUESTED_PROVIDER",
+        "ENFORCER_X06_CHILD_AVAILABLE_PROVIDERS",
+        "ENFORCER_X06_CHILD_PROVIDER_PROBE_PASSED",
         "ENFORCER_X06_CHILD_MODEL_ID",
         "ENFORCER_X06_CHILD_ARTIFACT_PATH",
         "ENFORCER_X06_CHILD_ARTIFACT_SHA256",
@@ -116,6 +119,7 @@
     "x06_runtime_control_plane_rejects_external_server_ownership",
     "x06_runtime_control_plane_rejects_backend_wrong_ownership_mode",
     "ort_worker_plan_materializes_enforcer_owned_child_env_contract",
+    "ort_worker_plan_downgrades_unprobed_acceleration_before_child_spawn",
     "ort_worker_plan_rejects_external_http_or_port_binding",
     "ort_worker_lifecycle_load_pause_resume_cancel_and_unload_are_owned",
     "ort_worker_lifecycle_timeout_kill_requires_owned_plan",
@@ -128,6 +132,7 @@
     "ort-in-process-parity-rejected",
     "ort-external-http-port-binding-rejected",
     "backend-specific-ownership-required",
+    "ort-unprobed-acceleration-downgraded-before-child-spawn",
     "ort-lifecycle-owned-state-machine-required",
     "ort-invalid-lifecycle-transition-rejected"
   ]

@@ -550,6 +550,22 @@
         "crates/enforcer-memory/tests/model_runtime_real_contract.rs"
       ],
       "status": "learned"
+    },
+    {
+      "id": "ort-provider-resolution-owned-worker-plan",
+      "t0": "ORT provider acceleration can look configured while the parent-side hardware probe evidence is not preserved in the worker plan.",
+      "t1": "Provider resolution is now part of the typed OrtWorkerExecutionPlan and child env/proof contract.",
+      "t2": "Focused local_runtime tests prove unprobed NPU/OpenVINO downgrades to CPU before child spawn and probed acceleration keeps requested/resolved/available evidence.",
+      "recurrenceSignal": "reject ORT acceleration claims that do not carry providerResolution evidence",
+      "status": "active"
+    },
+    {
+      "id": "provider-downgrade-tests-need-exact-reasons",
+      "t0": "A provider-downgrade test can pass while hiding the actual downgrade reason if it only checks Option::is_some.",
+      "t1": "The ORT downgrade test now asserts the exact reason string for unprobed NPU to CPU downgrade.",
+      "t2": "weak-assertions and ORT worker-plan tests pass after the exact assertion landed.",
+      "recurrenceSignal": "reject downgrade tests that do not assert the resolved provider and exact reason",
+      "status": "active"
     }
   ],
   "blockers": [],

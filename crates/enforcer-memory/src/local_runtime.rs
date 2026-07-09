@@ -186,6 +186,7 @@ pub struct OrtWorkerExecutionPlan {
     pub executable_path: PathBuf,
     pub task: OrtWorkerTask,
     pub provider: ProviderKind,
+    pub provider_resolution: OrtProviderResolution,
     pub timeout_ms: u64,
     pub ownership: RuntimeOwnershipMode,
     pub request_protocol: RuntimeRequestProtocol,
@@ -570,6 +571,23 @@ pub fn ort_worker_execution_plan(
     provider: ProviderKind,
     timeout_ms: u64,
 ) -> Result<OrtWorkerExecutionPlan> {
+    let provider_resolution = resolve_ort_provider(provider, &[provider]);
+    ort_worker_execution_plan_with_provider_resolution(
+        executable_path,
+        task,
+        spec,
+        provider_resolution,
+        timeout_ms,
+    )
+}
+
+pub fn ort_worker_execution_plan_with_provider_resolution(
+    executable_path: impl Into<PathBuf>,
+    task: OrtWorkerTask,
+    spec: &ModelSpec,
+    provider_resolution: OrtProviderResolution,
+    timeout_ms: u64,
+) -> Result<OrtWorkerExecutionPlan> {
     let control = LocalRuntimeControlPlane::onnx_ort_managed();
     validate_control_plane(&control)?;
     if timeout_ms == 0 {
@@ -585,7 +603,24 @@ pub fn ort_worker_execution_plan(
         ),
         (
             "ENFORCER_X06_CHILD_PROVIDER".to_owned(),
-            provider_env_value(provider).to_owned(),
+            provider_env_value(provider_resolution.resolved_provider).to_owned(),
+        ),
+        (
+            "ENFORCER_X06_CHILD_REQUESTED_PROVIDER".to_owned(),
+            provider_env_value(provider_resolution.requested_provider).to_owned(),
+        ),
+        (
+            "ENFORCER_X06_CHILD_AVAILABLE_PROVIDERS".to_owned(),
+            provider_resolution
+                .available_providers
+                .iter()
+                .map(|provider| provider_env_value(*provider))
+                .collect::<Vec<_>>()
+                .join(","),
+        ),
+        (
+            "ENFORCER_X06_CHILD_PROVIDER_PROBE_PASSED".to_owned(),
+            provider_resolution.provider_probe_passed.to_string(),
         ),
         (
             "ENFORCER_X06_CHILD_MODEL_ID".to_owned(),
@@ -628,7 +663,8 @@ pub fn ort_worker_execution_plan(
     Ok(OrtWorkerExecutionPlan {
         executable_path: executable_path.into(),
         task,
-        provider,
+        provider: provider_resolution.resolved_provider,
+        provider_resolution,
         timeout_ms,
         ownership: control.ownership,
         request_protocol: RuntimeRequestProtocol::EnforcerWorkerEnv,
@@ -664,6 +700,9 @@ pub fn validate_ort_worker_execution_plan(plan: &OrtWorkerExecutionPlan) -> Resu
     for required in [
         "ENFORCER_X06_ORT_CHILD_TASK",
         "ENFORCER_X06_CHILD_PROVIDER",
+        "ENFORCER_X06_CHILD_REQUESTED_PROVIDER",
+        "ENFORCER_X06_CHILD_AVAILABLE_PROVIDERS",
+        "ENFORCER_X06_CHILD_PROVIDER_PROBE_PASSED",
         "ENFORCER_X06_CHILD_MODEL_ID",
         "ENFORCER_X06_CHILD_ARTIFACT_PATH",
         "ENFORCER_X06_CHILD_ARTIFACT_SHA256",
@@ -677,6 +716,18 @@ pub fn validate_ort_worker_execution_plan(plan: &OrtWorkerExecutionPlan) -> Resu
                 format!("ORT worker plan missing required env {required}"),
             ));
         }
+    }
+    if plan.provider != plan.provider_resolution.resolved_provider {
+        return Err(model_runtime_error(
+            "validate-ort-worker-execution-plan",
+            "ORT worker provider must match the probed provider resolution",
+        ));
+    }
+    if plan.provider != ProviderKind::Cpu && !plan.provider_resolution.provider_probe_passed {
+        return Err(model_runtime_error(
+            "validate-ort-worker-execution-plan",
+            "accelerated ORT provider requires positive provider probe evidence",
+        ));
     }
     Ok(())
 }

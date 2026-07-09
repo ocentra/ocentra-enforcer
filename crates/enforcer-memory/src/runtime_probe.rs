@@ -32,9 +32,9 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
         LlamaCppBackendHint, LlamaCppExecutionResolution, LlamaCppProbeConfig, LlamaCppProbeKind,
     };
     use crate::local_runtime::{
-        ort_worker_command, ort_worker_execution_plan, provider_from_env_value,
-        resolve_ort_provider, runtime_backend_contract, LocalRuntimeAcceleration,
-        OrtProviderResolution, OrtWorkerExecutionPlan, OrtWorkerTask,
+        ort_worker_command, ort_worker_execution_plan_with_provider_resolution,
+        provider_from_env_value, resolve_ort_provider, runtime_backend_contract,
+        LocalRuntimeAcceleration, OrtProviderResolution, OrtWorkerExecutionPlan, OrtWorkerTask,
     };
     use crate::model_observations::{
         LocalLoadSucceeded, ModelLoadFailure, ModelRuntimeObservationCandidate,
@@ -1161,11 +1161,11 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
             "reranker" => OrtWorkerTask::Reranker,
             other => return Err(format!("unknown ORT child task: {other}")),
         };
-        let plan = ort_worker_execution_plan(
+        let plan = ort_worker_execution_plan_with_provider_resolution(
             std::env::current_exe().map_err(|error| error.to_string())?,
             worker_task,
             spec,
-            provider_resolution.resolved_provider,
+            provider_resolution.clone(),
             timeout_ms,
         )
         .map_err(|error| error.to_string())?;
@@ -1269,6 +1269,10 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
                 serde_json::json!(plan.kill_on_timeout),
             );
             object.insert("timeoutMs".to_owned(), serde_json::json!(plan.timeout_ms));
+            object.insert(
+                "providerResolution".to_owned(),
+                serde_json::json!(plan.provider_resolution),
+            );
         }
     }
 

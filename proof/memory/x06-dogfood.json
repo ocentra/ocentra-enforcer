@@ -210,7 +210,9 @@
     "ocentra_enforcer_check source-shape scope=crate crateName=enforcer-memory ok after X06 policy-gate slice",
     "cargo clippy -p enforcer-memory --all-targets -- -D warnings passed after X06 policy-gate slice",
     "cargo test -p enforcer-memory --test unit_analysis --test unit_artifacts --test unit_architecture --test unit_code_graph --test unit_cross_repo --test unit_embed --test unit_federation --test unit_ids --test unit_impact --test unit_llama_cpp --test unit_redaction --test unit_rerank --test unit_share --test unit_store_manager --test unit_vector --quiet -j 1 passed",
-    "cargo test -p enforcer-memory --features ort-models --test model_runtime --test model_runtime_real_contract --test model_observations --quiet -j 1 passed"
+    "cargo test -p enforcer-memory --features ort-models --test model_runtime --test model_runtime_real_contract --test model_observations --quiet -j 1 passed",
+    "cargo test -p enforcer-memory --test local_runtime ort_worker_plan --quiet -j 1 and ort_provider_resolution --quiet -j 1 passed after ORT worker plans began carrying requested/resolved/available provider probe evidence",
+    "ocentra_enforcer_check weak-assertions initially caught assert!(downgrade_reason.is_some()); exact downgrade reason assertion fixed it and weak-assertions passed on the touched Rust files"
   ],
   "redOrPartialGates": [
     {
@@ -1243,6 +1245,20 @@
     {
       "shape": "t2",
       "evidence": "cargo test -p enforcer-memory --test local_runtime ort_provider_resolution --quiet -j 1, cargo test -p enforcer-memory --test model_runtime_real_contract real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in --quiet -j 1, cargo check -p enforcer-memory --features real-models --example x06_model_runtime_probe, and cargo clippy -p enforcer-memory --features real-models --example x06_model_runtime_probe -- -D warnings all passed."
+    },
+    {
+      "incident": "ORT worker control originally passed only the resolved provider string into the child plan, so GPU/NPU/OpenVINO claims could lose the parent-side provider probe evidence that justified or downgraded them.",
+      "fix": "Added providerResolution to OrtWorkerExecutionPlan, propagated requested/resolved/available/probe-pass metadata through child env and runtime proof stamping, and kept unprobed acceleration downgraded to CPU before child spawn.",
+      "evidence": "local_runtime ORT worker plan and provider-resolution tests passed; x06-runtime-control-plane.json now records provider probe env keys and the downgrade-before-child-spawn evidence row.",
+      "classification": "ours",
+      "learningSignal": "ort-provider-resolution-must-travel-with-owned-worker-plan"
+    },
+    {
+      "incident": "Dogfood weak-assertions rejected the first ORT provider downgrade test because it only asserted downgrade_reason.is_some().",
+      "fix": "Changed the test to assert the exact NPU-to-CPU downgrade reason.",
+      "evidence": "ocentra_enforcer_check weak-assertions passed after the fix and the ORT worker-plan tests stayed green.",
+      "classification": "ours",
+      "learningSignal": "provider-downgrade-tests-need-exact-reasons"
     }
   ]
 }
