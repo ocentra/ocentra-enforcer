@@ -77,6 +77,45 @@ fn unknown_changed_path_is_reported_with_zero_impact_not_panic() -> TestResult<(
     Ok(())
 }
 
+fn build_risk_fixture(dir: &Path, caller_count: usize) -> TestResult<CodeGraph> {
+    init_repo(dir)?;
+    fs::write(dir.join("helper.rs"), "fn helper() {}\n")?;
+    for index in 0..caller_count {
+        fs::write(
+            dir.join(format!("caller{index}.rs")),
+            "fn caller() { helper(); }\n",
+        )?;
+    }
+    commit_all(dir, "risk-fixture")?;
+
+    let mut graph = CodeGraph::new();
+    let mut files = vec![dir.join("helper.rs")];
+    for index in 0..caller_count {
+        files.push(dir.join(format!("caller{index}.rs")));
+    }
+    graph.index_repository(dir, &files, &Manifest::default())?;
+    Ok(graph)
+}
+
+#[test]
+fn risk_classification_boundaries_are_preserved_through_public_diff_impact() -> TestResult<()> {
+    let low_dir = tempfile::tempdir()?;
+    let low_graph = build_risk_fixture(low_dir.path(), 0)?;
+    let low_report = analyze_diff_impact(&low_graph, &["helper.rs".to_string()], 3);
+    assert_eq!(low_report.impacted[0].risk, RiskLevel::Low);
+
+    let medium_dir = tempfile::tempdir()?;
+    let medium_graph = build_risk_fixture(medium_dir.path(), 2)?;
+    let medium_report = analyze_diff_impact(&medium_graph, &["helper.rs".to_string()], 3);
+    assert_eq!(medium_report.impacted[0].risk, RiskLevel::Medium);
+
+    let high_dir = tempfile::tempdir()?;
+    let high_graph = build_risk_fixture(high_dir.path(), 6)?;
+    let high_report = analyze_diff_impact(&high_graph, &["helper.rs".to_string()], 3);
+    assert_eq!(high_report.impacted[0].risk, RiskLevel::High);
+    Ok(())
+}
+
 // --- X06.P2: risk-classification boundaries (factors) --------------
 
 #[test]

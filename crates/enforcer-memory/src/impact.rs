@@ -468,17 +468,3 @@ pub fn analyze_diff_impact(
         total_affected_node_ids: total.into_iter().collect(),
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn risk_classification_scales_with_affected_count() {
-        assert_eq!(classify_risk(0), RiskLevel::Low);
-        assert_eq!(classify_risk(2), RiskLevel::Low);
-        assert_eq!(classify_risk(3), RiskLevel::Medium);
-        assert_eq!(classify_risk(10), RiskLevel::Medium);
-        assert_eq!(classify_risk(11), RiskLevel::High);
-    }
-}

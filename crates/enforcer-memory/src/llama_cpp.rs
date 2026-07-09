@@ -886,7 +886,7 @@ fn parse_token_rate(text: &str) -> Option<f64> {
     None
 }
 
-fn parse_generation_rate(line: &str) -> Option<f64> {
+pub fn parse_generation_rate(line: &str) -> Option<f64> {
     let (_, after_generation) = line.split_once("Generation:")?;
     let token = after_generation
         .split(|ch: char| !(ch.is_ascii_digit() || ch == '.'))
@@ -902,119 +902,5 @@ fn model_error(operation: &'static str, reason: impl Into<String>) -> MemoryErro
     MemoryError::ModelRuntime {
         operation,
         reason: reason.into(),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn llama_binary_name(base_name: &str) -> String {
-        format!("{base_name}{}", std::env::consts::EXE_SUFFIX)
-    }
-
-    fn contains_arg_pair(args: &[String], key: &str, value: &str) -> bool {
-        args.windows(2)
-            .any(|pair| pair[0].as_str() == key && pair[1].as_str() == value)
-    }
-
-    #[test]
-    fn generation_plan_is_single_turn_and_subprocess_safe() {
-        let config = LlamaCppProbeConfig {
-            binary_path: llama_binary_name("llama-cli").into(),
-            model_path: "model.gguf".into(),
-            model_sha256: None,
-            prompt: "hello".to_owned(),
-            kind: LlamaCppProbeKind::Generate,
-            backend_hint: LlamaCppBackendHint::Native,
-            acceleration: LocalRuntimeAcceleration::Cpu,
-            gpu_layers: None,
-            device: None,
-            main_gpu: None,
-            split_mode: None,
-            tensor_split: None,
-            fit: None,
-            context_size: None,
-            max_tokens: 8,
-            timeout_ms: 1_000,
-        };
-
-        let plan = llama_cpp_command_plan(&config);
-
-        assert!(plan.args.iter().any(|arg| arg == "-st"));
-        assert!(plan.args.iter().any(|arg| arg == "--simple-io"));
-        assert!(plan.args.iter().any(|arg| arg == "--no-display-prompt"));
-    }
-
-    #[test]
-    fn auto_acceleration_defaults_to_cpu_first() {
-        let config = LlamaCppProbeConfig {
-            binary_path: llama_binary_name("llama-cli").into(),
-            model_path: "model.gguf".into(),
-            model_sha256: None,
-            prompt: "hello".to_owned(),
-            kind: LlamaCppProbeKind::Generate,
-            backend_hint: LlamaCppBackendHint::Native,
-            acceleration: LocalRuntimeAcceleration::Auto,
-            gpu_layers: None,
-            device: None,
-            main_gpu: None,
-            split_mode: None,
-            tensor_split: None,
-            fit: None,
-            context_size: None,
-            max_tokens: 8,
-            timeout_ms: 1_000,
-        };
-
-        let plan = llama_cpp_command_plan(&config);
-
-        assert!(contains_arg_pair(&plan.args, "-ngl", "0"));
-        assert!(plan.env.is_empty());
-    }
-
-    #[test]
-    fn openvino_auto_acceleration_keeps_cpu_device_selection() {
-        let config = LlamaCppProbeConfig {
-            binary_path: llama_binary_name("llama-cli").into(),
-            model_path: "model.gguf".into(),
-            model_sha256: None,
-            prompt: "hello".to_owned(),
-            kind: LlamaCppProbeKind::Generate,
-            backend_hint: LlamaCppBackendHint::OpenVino,
-            acceleration: LocalRuntimeAcceleration::Auto,
-            gpu_layers: None,
-            device: None,
-            main_gpu: None,
-            split_mode: None,
-            tensor_split: None,
-            fit: None,
-            context_size: None,
-            max_tokens: 8,
-            timeout_ms: 1_000,
-        };
-
-        let plan = llama_cpp_command_plan(&config);
-
-        assert!(plan
-            .env
-            .iter()
-            .any(|(key, value)| key == "GGML_OPENVINO_DEVICE" && value == "CPU"));
-        assert!(!plan.args.iter().any(|arg| arg == "-ngl"));
-    }
-
-    #[test]
-    fn current_llama_generation_rate_line_is_parsed() {
-        let line = "[ Prompt: 18.9 t/s | Generation: 6.4 t/s ]";
-
-        assert_eq!(parse_generation_rate(line), Some(6.4));
-    }
-
-    #[test]
-    fn llama_binary_name_matches_platform_suffix() {
-        assert_eq!(
-            llama_binary_name("llama-cli"),
-            format!("llama-cli{}", std::env::consts::EXE_SUFFIX)
-        );
     }
 }

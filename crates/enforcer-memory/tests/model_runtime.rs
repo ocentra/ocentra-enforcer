@@ -9,13 +9,28 @@ use enforcer_memory::error::MemoryError;
 use enforcer_memory::model_runtime::{
     default_provider_order, default_zero_network_proof, degraded_capability_report,
     discover_onnx_artifacts, ort_feature_compiled, validate_embedding_output,
-    validate_reranker_scores, validate_sha256_hex, CacheCorruptionReasonCode, CacheHealth,
-    CacheState, CacheStorageErrorCode, CacheUnavailableReason, DownloadStatus, LoadStateReport,
-    ManifestIntegrity, ModelCacheStatus, ModelRuntimeFile, ModelRuntimeObservationKind, ModelTask,
-    ProviderKind, SourcePolicy,
+    validate_model_artifacts, validate_reranker_scores, validate_sha256_hex,
+    CacheCorruptionReasonCode, CacheHealth, CacheState, CacheStorageErrorCode,
+    CacheUnavailableReason, DownloadStatus, LoadStateReport, ManifestIntegrity, ModelCacheStatus,
+    ModelRuntimeFile, ModelRuntimeObservationKind, ModelSpec, ModelTask, ProviderKind,
+    SourcePolicy,
 };
+use tempfile::NamedTempFile;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+fn write_temp(contents: &[u8]) -> Result<(NamedTempFile, String), Box<dyn std::error::Error>> {
+    let file = NamedTempFile::new().map_err(|source| MemoryError::Io {
+        path: std::path::PathBuf::from("<tempfile>"),
+        source,
+    })?;
+    std::fs::write(file.path(), contents).map_err(|source| MemoryError::Io {
+        path: file.path().to_path_buf(),
+        source,
+    })?;
+    let digest = enforcer_memory::model_runtime::sha256_file(file.path())?;
+    Ok((file, digest))
+}
 
 #[test]
 fn zero_network_default_proof_records_learning_observation_kinds() {
@@ -333,6 +348,144 @@ fn output_validation_rejects_invalid_runtime_shapes() {
         validate_reranker_scores(&[f32::INFINITY], 1),
         Err(MemoryError::ModelRuntime { .. })
     ));
+}
+
+#[test]
+fn provider_order_keeps_preference_then_local_fallbacks() {
+    let order = default_provider_order(&[ProviderKind::DirectMl]);
+    assert_eq!(
+        order,
+        vec![
+            ProviderKind::DirectMl,
+            ProviderKind::OpenVino,
+            ProviderKind::Cpu,
+        ]
+    );
+}
+
+#[test]
+fn discovers_onnx_artifact_with_external_data_and_support_files() {
+    let files = vec![
+        ModelRuntimeFile::new("onnx/model_q4f16.onnx", Some(10)),
+        ModelRuntimeFile::new("onnx/model_q4f16.onnx_data", Some(20)),
+        ModelRuntimeFile::new("onnx/tokenizer.json", Some(5)),
+        ModelRuntimeFile::new("config.json", Some(1)),
+        ModelRuntimeFile::new("other/readme.md", None),
+    ];
+
+    let artifacts = discover_onnx_artifacts(&files);
+
+    assert_eq!(artifacts.len(), 1);
+    let artifact = &artifacts[0];
+    assert_eq!(artifact.onnx_path, "onnx/model_q4f16.onnx");
+    assert_eq!(artifact.dtype, "q4f16");
+    assert!(artifact.has_external_data);
+    assert!(artifact
+        .files
+        .contains(&"onnx/model_q4f16.onnx_data".to_owned()));
+    assert!(artifact.files.contains(&"onnx/tokenizer.json".to_owned()));
+    assert!(artifact.files.contains(&"config.json".to_owned()));
+    assert!(!artifact.files.contains(&"other/readme.md".to_owned()));
+}
+
+#[test]
+fn artifact_discovery_handles_windows_separators() {
+    let files = vec![
+        ModelRuntimeFile::new(r"onnx\model_fp16.onnx", Some(10)),
+        ModelRuntimeFile::new(r"onnx\model_fp16.onnx.data", Some(20)),
+        ModelRuntimeFile::new(r"onnx\tokenizer.json", Some(5)),
+        ModelRuntimeFile::new(r"other\tokenizer.json", Some(5)),
+    ];
+
+    let artifacts = discover_onnx_artifacts(&files);
+
+    assert_eq!(artifacts.len(), 1);
+    let artifact = &artifacts[0];
+    assert!(artifact.has_external_data);
+    assert!(artifact
+        .files
+        .contains(&r"onnx\model_fp16.onnx.data".to_owned()));
+    assert!(artifact.files.contains(&r"onnx\tokenizer.json".to_owned()));
+    assert!(!artifact.files.contains(&r"other\tokenizer.json".to_owned()));
+}
+
+#[test]
+fn default_proof_is_honest_zero_network_degraded() {
+    let proof = default_zero_network_proof();
+    assert!(proof.zero_network_default);
+    assert_eq!(
+        proof.embedding.load_state,
+        LoadStateReport::DegradedProviderUnavailable
+    );
+    assert!(proof
+        .learning_observation_kinds
+        .contains(&ModelRuntimeObservationKind::DegradedFallback));
+}
+
+#[test]
+fn artifact_hash_validation_accepts_exact_hash() -> TestResult {
+    let (artifact, artifact_hash) = write_temp(b"model")?;
+    let (tokenizer, tokenizer_hash) = write_temp(b"tokenizer")?;
+    let spec = ModelSpec::qwen3_embedding(
+        artifact.path(),
+        artifact_hash,
+        tokenizer.path(),
+        tokenizer_hash,
+    );
+    validate_model_artifacts(&spec)?;
+    Ok(())
+}
+
+#[test]
+fn artifact_hash_validation_accepts_uppercase_manifest_hash() -> TestResult {
+    let (artifact, artifact_hash) = write_temp(b"model")?;
+    let (tokenizer, tokenizer_hash) = write_temp(b"tokenizer")?;
+    let spec = ModelSpec::qwen3_embedding(
+        artifact.path(),
+        artifact_hash.to_uppercase(),
+        tokenizer.path(),
+        tokenizer_hash.to_uppercase(),
+    );
+    validate_model_artifacts(&spec)?;
+    Ok(())
+}
+
+#[test]
+fn artifact_hash_validation_rejects_mismatch() -> TestResult {
+    let (artifact, _artifact_hash) = write_temp(b"model")?;
+    let (tokenizer, tokenizer_hash) = write_temp(b"tokenizer")?;
+    let spec = ModelSpec::qwen3_embedding(
+        artifact.path(),
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        tokenizer.path(),
+        tokenizer_hash,
+    );
+    let result = validate_model_artifacts(&spec);
+    assert!(matches!(result, Err(MemoryError::ModelRuntime { .. })));
+    Ok(())
+}
+
+#[cfg(feature = "ort-models")]
+#[test]
+fn ort_models_feature_compiles_fixture_validation_path() -> TestResult {
+    assert!(ort_feature_compiled());
+    let (artifact, artifact_hash) = write_temp(b"onnx-bytes")?;
+    let (tokenizer, tokenizer_hash) = write_temp(b"tokenizer-json")?;
+    let spec = ModelSpec::qwen3_reranker(
+        artifact.path(),
+        artifact_hash,
+        tokenizer.path(),
+        tokenizer_hash,
+    );
+    validate_model_artifacts(&spec)?;
+    let manifest = enforcer_memory::model_runtime::ModelRuntimeManifest::from_spec(
+        &spec,
+        "ort",
+        Some(ProviderKind::Cpu),
+    );
+    assert_eq!(manifest.backend, "ort");
+    assert_eq!(manifest.provider, Some(ProviderKind::Cpu));
+    Ok(())
 }
 
 #[cfg(not(feature = "ort-models"))]
