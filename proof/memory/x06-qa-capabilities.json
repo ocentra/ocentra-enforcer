@@ -17,6 +17,12 @@
       "status": "degraded-pass"
     },
     {
+      "id": "QA-024",
+      "capability": "module-filesystem-touched-paths",
+      "evidence": "x06_qa_module_rows_can_enumerate_touched_filesystem_paths",
+      "status": "degraded-pass"
+    },
+    {
       "id": "QA-038",
       "capability": "route-auth-check-pairing",
       "evidence": "x06_qa_route_auth_rows_can_pair_routes_with_permission_checks",
@@ -79,10 +85,6 @@
   ],
   "rowsStillNeedingRunnerOrCode": [
     {
-      "id": "QA-024",
-      "reason": "Needs filesystem/module touch path evidence hook."
-    },
-    {
       "id": "QA-067",
       "reason": "Needs previous-bug similarity evidence hook."
     },
@@ -93,6 +95,7 @@
   ],
   "lessons": [
     "reverse_dependents includes containment and file structure; use call edges for zero-caller evidence.",
-    "Duplicate-logic QA needs a concrete SIMILAR_TO edge over indexed symbols, not a prose claim that similarity exists."
+    "Duplicate-logic QA needs a concrete SIMILAR_TO edge over indexed symbols, not a prose claim that similarity exists.",
+    "Module touched-path QA needs both module-prefix file evidence and graph traversal evidence so unrelated sibling files are excluded."
   ]
 }

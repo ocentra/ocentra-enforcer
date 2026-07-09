@@ -1,4 +1,4 @@
-use enforcer_memory::analysis::CodeAdjacency;
+use enforcer_memory::analysis::{CodeAdjacency, TraceDirection};
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use enforcer_memory::impact::analyze_diff_impact;
 use enforcer_memory::similarity::{similar_to, SIMILAR_TO_THRESHOLD};
@@ -69,6 +69,7 @@ fn checked_in_x06_qa_capabilities_proof_matches_fixture_tests() -> TestResult {
                             | "x06_qa_hotspot_and_dead_export_rows_have_graph_evidence"
                             | "x06_qa_route_auth_rows_can_pair_routes_with_permission_checks"
                             | "x06_qa_duplicate_logic_rows_can_find_similar_functions"
+                            | "x06_qa_module_rows_can_enumerate_touched_filesystem_paths"
                             | "x06_qa_symbol_rows_can_find_zero_callers_and_generic_result_mentions"
                     )
                 })
@@ -79,8 +80,8 @@ fn checked_in_x06_qa_capabilities_proof_matches_fixture_tests() -> TestResult {
     assert_eq!(
         covered_ids,
         BTreeSet::from([
-            "QA-011", "QA-038", "QA-039", "QA-044", "QA-045", "QA-057", "QA-058", "QA-065",
-            "QA-066", "QA-107", "QA-109"
+            "QA-011", "QA-024", "QA-038", "QA-039", "QA-044", "QA-045", "QA-057", "QA-058",
+            "QA-065", "QA-066", "QA-107", "QA-109"
         ])
     );
 
@@ -98,12 +99,83 @@ fn checked_in_x06_qa_capabilities_proof_matches_fixture_tests() -> TestResult {
                 .ok_or("still-needed row id must be a string")
         })
         .collect::<Result<BTreeSet<_>, _>>()?;
-    assert_eq!(still_needed, BTreeSet::from(["QA-024", "QA-067", "QA-188"]));
+    assert_eq!(still_needed, BTreeSet::from(["QA-067", "QA-188"]));
     assert!(
         proof["lessons"]
             .as_array()
             .is_some_and(|lessons| !lessons.is_empty()),
         "proof must carry durable learning evidence"
+    );
+    Ok(())
+}
+
+#[test]
+fn x06_qa_module_rows_can_enumerate_touched_filesystem_paths() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    init_repo(dir.path())?;
+    fs::create_dir_all(dir.path().join("src/orders"))?;
+    fs::create_dir_all(dir.path().join("src/shared"))?;
+    fs::write(
+        dir.path().join("src/orders/mod.rs"),
+        "mod writer;\nuse crate::shared::audit;\npub fn save_order() { writer::write_order(); audit::record_order(); }\n",
+    )?;
+    fs::write(
+        dir.path().join("src/orders/writer.rs"),
+        "pub fn write_order() {}\n",
+    )?;
+    fs::write(
+        dir.path().join("src/shared/audit.rs"),
+        "pub fn record_order() {}\n",
+    )?;
+    fs::write(
+        dir.path().join("src/shared/unrelated.rs"),
+        "pub fn ignore_me() {}\n",
+    )?;
+    commit_all(dir.path(), "initial touched path fixture")?;
+
+    let graph = index_files(
+        dir.path(),
+        &[
+            "src/orders/mod.rs",
+            "src/orders/writer.rs",
+            "src/shared/audit.rs",
+            "src/shared/unrelated.rs",
+        ],
+    )?;
+
+    let module_paths = graph
+        .file_nodes()
+        .filter(|file| file.rel_path.starts_with("src/orders/"))
+        .map(|file| file.rel_path.as_str())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        module_paths,
+        BTreeSet::from(["src/orders/mod.rs", "src/orders/writer.rs"])
+    );
+
+    let adjacency = CodeAdjacency::build(&graph);
+    let touched_node_ids = adjacency.trace_calls("file:src/orders/mod.rs", TraceDirection::Out, 3);
+    let trace_paths = touched_node_ids
+        .iter()
+        .flat_map(|hops| hops.iter())
+        .filter_map(|hop| hop.node_id.strip_prefix("file:"))
+        .collect::<BTreeSet<_>>();
+    let touched_paths = module_paths
+        .union(&trace_paths)
+        .copied()
+        .collect::<BTreeSet<_>>();
+
+    assert!(
+        touched_paths.contains("src/orders/writer.rs"),
+        "module-prefix evidence should include same-module writer path, got {touched_paths:?}"
+    );
+    assert!(
+        touched_paths.contains("src/shared/audit.rs"),
+        "graph traversal should include imported shared audit path, got {touched_paths:?}"
+    );
+    assert!(
+        !touched_paths.contains("src/shared/unrelated.rs"),
+        "unrelated files must not be reported as touched paths, got {touched_paths:?}"
     );
     Ok(())
 }
