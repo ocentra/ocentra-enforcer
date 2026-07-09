@@ -2301,8 +2301,8 @@
         "proof/memory/x06-feature-parity.json",
         "proof/memory/x06-rag-qa.json",
         "proof/memory/x06-kg-parity.json",
-        "qa:rows-green:225",
-        "qa:rows-unrunnable:25"
+        "qa:rows-green:226",
+        "qa:rows-unrunnable:24"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"

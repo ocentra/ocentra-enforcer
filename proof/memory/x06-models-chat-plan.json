@@ -35,7 +35,12 @@
   "serviceConfig": {
     "bindHost": "127.0.0.1",
     "cacheRoot": "<repo>/model",
+    "externalRuntimeServersAllowed": false,
     "exposeLlamaServer": false,
+    "llamaCppExecutionRoute": "enforcer-managed-llama-cpp-subprocess",
+    "llamaCppOwnership": "enforcer-subprocess",
+    "ortExecutionRoute": "enforcer-isolated-ort-worker",
+    "ortOwnership": "enforcer-isolated-worker",
     "port": 8766,
     "routes": [
       "health",
@@ -48,9 +53,9 @@
     ]
   },
   "chatThroughputPolicy": {
-    "minTokensPerSecond": 10.0,
-    "targetTokensPerSecondLow": 40.0,
-    "targetTokensPerSecondHigh": 60.0
+    "minTokensPerSecond": 10,
+    "targetTokensPerSecondLow": 40,
+    "targetTokensPerSecondHigh": 60
   },
   "chatModelSelection": {
     "backendHint": "auto",

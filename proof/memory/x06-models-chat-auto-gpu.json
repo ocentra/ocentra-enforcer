@@ -44,7 +44,12 @@
   "serviceConfig": {
     "bindHost": "127.0.0.1",
     "cacheRoot": "<repo>/model",
+    "externalRuntimeServersAllowed": false,
     "exposeLlamaServer": false,
+    "llamaCppExecutionRoute": "enforcer-managed-llama-cpp-subprocess",
+    "llamaCppOwnership": "enforcer-subprocess",
+    "ortExecutionRoute": "enforcer-isolated-ort-worker",
+    "ortOwnership": "enforcer-isolated-worker",
     "port": 8766,
     "routes": [
       "health",
@@ -57,9 +62,9 @@
     ]
   },
   "chatThroughputPolicy": {
-    "minTokensPerSecond": 10.0,
-    "targetTokensPerSecondLow": 40.0,
-    "targetTokensPerSecondHigh": 60.0
+    "minTokensPerSecond": 10,
+    "targetTokensPerSecondLow": 40,
+    "targetTokensPerSecondHigh": 60
   },
   "chatModelSelection": {
     "backendHint": "vulkan",
@@ -248,11 +253,11 @@
     },
     "usability": {
       "measuredTokensPerSecond": 107.8,
-      "minChatTokensPerSecond": 10.0,
+      "minChatTokensPerSecond": 10,
       "ok": true,
       "reason": "chat usable: measured 107.80 tokens/sec >= required 10.00; target 40.00-60.00 tokens/sec",
-      "targetChatTokensPerSecondHigh": 60.0,
-      "targetChatTokensPerSecondLow": 40.0
+      "targetChatTokensPerSecondHigh": 60,
+      "targetChatTokensPerSecondLow": 40
     }
   },
   "qwenEmbeddingGguf": {
