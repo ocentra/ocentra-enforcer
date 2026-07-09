@@ -239,6 +239,7 @@ pub struct RuntimeBackendContractEntry {
     pub server_surface_accepted_for_parity: bool,
     pub route: &'static str,
     pub managed_by_service: Vec<&'static str>,
+    pub workload_admission_policy: Vec<&'static str>,
 }
 
 /// Owned ORT worker lifecycle state.
@@ -843,6 +844,11 @@ pub fn runtime_backend_contract() -> RuntimeBackendContract {
             server_surface_accepted_for_parity: false,
             route: "enforcer-managed-llama-cpp-subprocess",
             managed_by_service: vec!["chat", "embeddings"],
+            workload_admission_policy: vec![
+                "chat-active-queues-background-model-work",
+                "background-retrieval-pauses-before-chat",
+                "model-load-is-exclusive",
+            ],
         },
         ort: RuntimeBackendContractEntry {
             backend: "onnx",
@@ -854,6 +860,11 @@ pub fn runtime_backend_contract() -> RuntimeBackendContract {
             server_surface_accepted_for_parity: false,
             route: "enforcer-isolated-ort-worker",
             managed_by_service: vec!["embeddings", "rerank"],
+            workload_admission_policy: vec![
+                "chat-active-queues-ort-background-work",
+                "ort-background-retrieval-pauses-before-chat",
+                "model-load-is-exclusive",
+            ],
         },
     }
 }

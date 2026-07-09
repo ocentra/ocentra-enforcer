@@ -13,7 +13,8 @@ use enforcer_memory::llama_cpp::{
 };
 use enforcer_memory::local_runtime::LocalRuntimeAcceleration;
 use enforcer_memory::local_runtime::{
-    RuntimeManagedCapability, RuntimeOwnershipMode, REQUIRED_MANAGED_CAPABILITIES,
+    arbitrate_runtime_workload, RuntimeActivityState, RuntimeAdmission, RuntimeManagedCapability,
+    RuntimeOwnershipMode, RuntimeWorkload, REQUIRED_MANAGED_CAPABILITIES,
 };
 use enforcer_memory::model_runtime::{
     dev_model_cache_root, evaluate_chat_usability, loaded_non_chat_usability,
@@ -443,6 +444,50 @@ fn runtime_proof_surface_does_not_hardcode_machine_absolute_paths() {
             );
         }
     }
+}
+
+#[test]
+fn runtime_backend_contract_exposes_chat_priority_workload_admission() {
+    let contract = enforcer_memory::local_runtime::runtime_backend_contract();
+
+    assert!(contract
+        .llama_cpp
+        .workload_admission_policy
+        .contains(&"chat-active-queues-background-model-work"));
+    assert!(contract
+        .llama_cpp
+        .workload_admission_policy
+        .contains(&"background-retrieval-pauses-before-chat"));
+    assert!(contract
+        .ort
+        .workload_admission_policy
+        .contains(&"chat-active-queues-ort-background-work"));
+    assert!(contract
+        .ort
+        .workload_admission_policy
+        .contains(&"ort-background-retrieval-pauses-before-chat"));
+
+    let embedding_to_chat =
+        arbitrate_runtime_workload(RuntimeActivityState::EmbeddingActive, RuntimeWorkload::Chat);
+    assert_eq!(
+        embedding_to_chat.admission,
+        RuntimeAdmission::PauseBackgroundThenAdmit
+    );
+
+    let reranking_to_chat =
+        arbitrate_runtime_workload(RuntimeActivityState::RerankingActive, RuntimeWorkload::Chat);
+    assert_eq!(
+        reranking_to_chat.admission,
+        RuntimeAdmission::PauseBackgroundThenAdmit
+    );
+
+    let chat_to_embedding =
+        arbitrate_runtime_workload(RuntimeActivityState::ChatActive, RuntimeWorkload::Embedding);
+    assert_eq!(chat_to_embedding.admission, RuntimeAdmission::Queue);
+
+    let chat_to_reranking =
+        arbitrate_runtime_workload(RuntimeActivityState::ChatActive, RuntimeWorkload::Reranking);
+    assert_eq!(chat_to_reranking.admission, RuntimeAdmission::Queue);
 }
 
 #[test]
