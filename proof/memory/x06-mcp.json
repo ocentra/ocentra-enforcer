@@ -6,10 +6,12 @@
   "namedTest": "x06-mcp",
   "result": {
     "testsFailed": 0,
-    "toolsAdvertised": 14,
+    "toolsAdvertised": 15,
+    "baselineToolsAdvertised": 14,
     "evidenceTests": [
       "mcp_cli_live::initialize_handshake_returns_protocol_version_capabilities_and_server_info",
-      "mcp_cli_live::tools_list_across_both_pages_covers_all_14_baseline_tools",
+      "mcp_cli_live::tools_list_across_both_pages_covers_baseline_plus_x06_extension_tools",
+      "mcp_cli_live::tools_call_model_runtime_status_reports_managed_zero_network_contract",
       "mcp_cli_live::tools_call_get_graph_schema_on_a_real_fixture_repo_returns_structured_content",
       "mcp_cli_live::tools_call_index_repository_on_a_real_fixture_repo_reports_files_indexed",
       "mcp_cli_live::tools_call_search_graph_regex_mode_returns_real_matches",
@@ -21,6 +23,7 @@
     "jsonRpcHandshake": "covered",
     "toolListPagination": "covered",
     "fourteenBaselineTools": "covered",
+    "x06ModelRuntimeStatusTool": "covered",
     "liveToolCalls": "covered",
     "typedToolErrors": "covered"
   }

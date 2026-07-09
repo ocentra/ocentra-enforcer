@@ -2,7 +2,8 @@
 //!
 //! # Charter
 //!
-//! This module exposes the codebase-memory-mcp 14-tool parity floor
+//! This module exposes the codebase-memory-mcp 14-tool parity floor plus
+//! one X06 extension tool
 //! (`refs/x06-baseline-tool-schemas.md`) as an MCP `tools/list` +
 //! `tools/call` surface. Wire framing (dual `Content-Length:`/NDJSON,
 //! auto-detected per message) is reused directly from the arc-21
@@ -132,6 +133,11 @@ use crate::embed::Embedder;
 use crate::fulltext::FullTextIndex;
 use crate::graph_schema;
 use crate::impact;
+use crate::local_runtime::{
+    arbitrate_runtime_workload, validate_control_plane, LocalRuntimeControlPlane,
+    RuntimeActivityState, RuntimeWorkload,
+};
+use crate::model_runtime::{default_model_runtime_probe_plan, ModelRuntimeServiceConfig};
 use crate::projects;
 use crate::search::document::{DocumentKind, SearchDocument};
 use crate::search::search_graph::{
@@ -147,9 +153,10 @@ use enforcer_mcp::transport::{
     encode_frame, Frame, FrameReader, Framing, RpcError, RpcMessage, RpcResult,
 };
 
-/// The baseline 14-tool parity floor (`refs/x06-baseline-tool-schemas.md`),
-/// in the digest's own enumeration order. This is the single source of
-/// truth [`tool_descriptors`] and [`dispatch_tool`] both key off.
+/// The baseline 14-tool parity floor (`refs/x06-baseline-tool-schemas.md`)
+/// plus the X06 extension tool, in the digest's own enumeration order.
+/// This is the single source of truth [`tool_descriptors`] and
+/// [`dispatch_tool`] both key off.
 pub const TOOL_NAMES: &[&str] = &[
     "index_repository",
     "search_graph",
@@ -165,6 +172,7 @@ pub const TOOL_NAMES: &[&str] = &[
     "detect_changes",
     "manage_adr",
     "ingest_traces",
+    "model_runtime_status",
 ];
 
 /// Tools with a landed library function behind them in this pass. Every
@@ -184,6 +192,7 @@ const WIRED_TOOLS: &[&str] = &[
     "detect_changes",
     "manage_adr",
     "ingest_traces",
+    "model_runtime_status",
 ];
 
 /// One MCP tool's static descriptor (mirrors `enforcer_mcp::registry`'s
@@ -212,12 +221,12 @@ fn constant_output_schema() -> Value {
 }
 
 /// Build every tool's descriptor for `tools/list`. All 14 baseline tools
-/// are always advertised (parity requirement) regardless of wiring state;
-/// a caller discovers wiring state only by calling `tools/call` and reading
-/// [`NotWiredError`], never by a tool being missing from this list. Use
-/// [`handle_tools_list`] for the actual `tools/list` response -- this
-/// function returns the full, unpaginated set (also the seam
-/// [`crate::cli`] and tests use directly).
+/// plus the X06 extension tool are always advertised (parity requirement)
+/// regardless of wiring state; a caller discovers wiring state only by
+/// calling `tools/call` and reading [`NotWiredError`], never by a tool
+/// being missing from this list. Use [`handle_tools_list`] for the actual
+/// `tools/list` response -- this function returns the full, unpaginated
+/// set (also the seam [`crate::cli`] and tests use directly).
 pub fn tool_descriptors() -> Vec<ToolDescriptor> {
     TOOL_NAMES
         .iter()
@@ -247,6 +256,7 @@ fn tool_title(name: &str) -> &'static str {
         "detect_changes" => "Detect Changes",
         "manage_adr" => "Manage ADR",
         "ingest_traces" => "Ingest Traces",
+        "model_runtime_status" => "Model Runtime Status",
         _ => "",
     }
 }
@@ -267,6 +277,7 @@ fn tool_description(name: &str) -> &'static str {
         "detect_changes" => "Impact analysis from a set of changed files: affected symbols + risk classification.",
         "manage_adr" => "Get/update ADR (architecture decision record) sections, linked to graph nodes.",
         "ingest_traces" => "Ingest runtime call traces to enrich CALLS edges with observed frequency.",
+        "model_runtime_status" => "Read-only X06 model-runtime control-plane status: cache root, service routes, runtime ownership, arbitration policy, and default probe plan. This never downloads or launches a model.",
         _ => "",
     }
 }
@@ -447,6 +458,15 @@ fn tool_input_schema(name: &str) -> Value {
                 }
             }
         }),
+        "model_runtime_status" => json!({
+            "type": "object",
+            "properties": {
+                "repoPath": {
+                    "type": "string",
+                    "description": "Repository root used to resolve the dev model cache root. Defaults to the current process directory."
+                }
+            }
+        }),
         _ => json!({ "type": "object" }),
     }
 }
@@ -525,6 +545,7 @@ pub fn dispatch_tool(name: &str, args: &Value) -> Value {
         "detect_changes" => handle_detect_changes(args),
         "manage_adr" => handle_manage_adr(args),
         "ingest_traces" => handle_ingest_traces(args),
+        "model_runtime_status" => handle_model_runtime_status(args),
         other => tool_error(other, "wired-list/dispatch mismatch (registry bug)"),
     }
 }
@@ -2017,6 +2038,49 @@ fn handle_ingest_traces(args: &Value) -> Value {
             "provenance": format!("{:?}", edge.provenance),
             "observedCount": edge.observed_count,
         })).collect::<Vec<_>>(),
+    })
+}
+
+// ---------------------------------------------------------------------
+// model_runtime_status -> X06 managed-runtime control-plane status
+// ---------------------------------------------------------------------
+
+fn handle_model_runtime_status(args: &Value) -> Value {
+    let repo_root = args
+        .get("repoPath")
+        .and_then(Value::as_str)
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
+        });
+    let service = ModelRuntimeServiceConfig::dev(&repo_root);
+    let llama = LocalRuntimeControlPlane::llama_cpp_managed();
+    let ort = LocalRuntimeControlPlane::onnx_ort_managed();
+    let llama_ok = validate_control_plane(&llama).is_ok();
+    let ort_ok = validate_control_plane(&ort).is_ok();
+
+    json!({
+        "ok": true,
+        "capabilityState": "degraded",
+        "degradedReason": "status-only surface; no model load/download/probe was attempted",
+        "zeroNetwork": true,
+        "service": service,
+        "controlPlanes": {
+            "llamaCpp": {
+                "valid": llama_ok,
+                "contract": llama,
+            },
+            "onnxOrt": {
+                "valid": ort_ok,
+                "contract": ort,
+            }
+        },
+        "arbitration": {
+            "loadingChat": arbitrate_runtime_workload(RuntimeActivityState::Loading, RuntimeWorkload::Chat),
+            "chatEmbedding": arbitrate_runtime_workload(RuntimeActivityState::ChatActive, RuntimeWorkload::Embedding),
+            "embeddingChat": arbitrate_runtime_workload(RuntimeActivityState::EmbeddingActive, RuntimeWorkload::Chat),
+        },
+        "probePlan": default_model_runtime_probe_plan(),
     })
 }
 

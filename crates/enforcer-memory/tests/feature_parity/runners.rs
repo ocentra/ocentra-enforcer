@@ -4788,7 +4788,9 @@ fn cli_mcp_parity_probe(row: &QaRow) -> RowResult {
                 &[
                     "\"artifact\": \"x06-mcp\"",
                     "\"status\": \"green\"",
-                    "\"toolsAdvertised\": 14",
+                    "\"toolsAdvertised\": 15",
+                    "\"fourteenBaselineTools\": \"covered\"",
+                    "\"x06ModelRuntimeStatusTool\": \"covered\"",
                     "\"liveToolCalls\": \"covered\"",
                 ],
             ),

@@ -141,12 +141,12 @@ fn tools_list_first_page_has_8_tools_and_a_next_cursor() -> TestResult {
 }
 
 #[test]
-fn tools_list_second_page_has_remaining_6_tools_and_no_next_cursor() -> TestResult {
+fn tools_list_second_page_has_remaining_7_tools_and_no_next_cursor() -> TestResult {
     let reply = send_ndjson(&rpc_request(4, "tools/list", &json!({ "cursor": "8" })))?;
     let tools = reply["result"]["tools"]
         .as_array()
         .ok_or("tools must be an array")?;
-    assert_eq!(tools.len(), 6);
+    assert_eq!(tools.len(), 7);
     assert!(
         reply["result"].get("nextCursor").is_none(),
         "the last page must omit nextCursor entirely, not emit null: {reply}"
@@ -155,7 +155,7 @@ fn tools_list_second_page_has_remaining_6_tools_and_no_next_cursor() -> TestResu
 }
 
 #[test]
-fn tools_list_across_both_pages_covers_all_14_baseline_tools() -> TestResult {
+fn tools_list_across_both_pages_covers_baseline_plus_x06_extension_tools() -> TestResult {
     let page1 = send_ndjson(&rpc_request(5, "tools/list", &json!({})))?;
     let page2 = send_ndjson(&rpc_request(6, "tools/list", &json!({ "cursor": "8" })))?;
     let page1_tools = page1["result"]["tools"]
@@ -179,6 +179,45 @@ fn tools_list_across_both_pages_covers_all_14_baseline_tools() -> TestResult {
 // ---------------------------------------------------------------------
 // tools/call: wired tool returns real fixture data in the exact envelope
 // ---------------------------------------------------------------------
+
+#[test]
+fn tools_call_model_runtime_status_reports_managed_zero_network_contract() -> TestResult {
+    let dir = tempfile::tempdir()?;
+
+    let reply = send_ndjson(&rpc_request(
+        7,
+        "tools/call",
+        &json!({
+            "name": "model_runtime_status",
+            "arguments": { "repoPath": dir.path().to_string_lossy() }
+        }),
+    ))?;
+    let result = &reply["result"];
+    assert_eq!(result["isError"], json!(false));
+    let structured = &result["structuredContent"];
+    assert_eq!(structured["ok"], json!(true));
+    assert_eq!(structured["zeroNetwork"], json!(true));
+    assert_eq!(structured["capabilityState"], json!("degraded"));
+    assert_eq!(structured["service"]["exposeLlamaServer"], json!(false));
+    assert_eq!(
+        structured["service"]["llamaCppOwnership"],
+        json!("enforcer-subprocess")
+    );
+    assert_eq!(
+        structured["service"]["ortOwnership"],
+        json!("enforcer-in-process")
+    );
+    assert_eq!(
+        structured["controlPlanes"]["llamaCpp"]["valid"],
+        json!(true)
+    );
+    assert_eq!(structured["controlPlanes"]["onnxOrt"]["valid"], json!(true));
+    assert_eq!(
+        structured["arbitration"]["embeddingChat"]["admission"],
+        json!("pause-background-then-admit")
+    );
+    Ok(())
+}
 
 #[test]
 fn tools_call_get_graph_schema_on_a_real_fixture_repo_returns_structured_content() -> TestResult {
@@ -235,8 +274,9 @@ fn tools_call_index_repository_on_a_real_fixture_repo_reports_files_indexed() ->
 // ---------------------------------------------------------------------
 // tools/call: search_graph regex/semantic modes, trace_path data_flow/
 // cross_service modes, and ingest_traces -- all newly wired in this
-// pass (see src/mcp.rs's WIRED_TOOLS; 14/14 tools + every documented
-// mode are now live, no not_wired arms remain).
+// pass (see src/mcp.rs's WIRED_TOOLS; 14 baseline tools plus the X06
+// extension tool and every documented mode are now live, no not_wired
+// arms remain).
 // ---------------------------------------------------------------------
 
 /// Build a small real fixture repo (not a stub): `a.rs` calls `helper`

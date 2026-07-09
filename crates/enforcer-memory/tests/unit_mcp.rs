@@ -14,9 +14,9 @@ use std::error::Error;
 type TestResult = Result<(), Box<dyn Error>>;
 
 #[test]
-fn tool_descriptors_cover_all_14_baseline_tools_with_schemas() {
+fn tool_descriptors_cover_baseline_plus_x06_extension_tools_with_schemas() {
     let descriptors = tool_descriptors();
-    assert_eq!(descriptors.len(), 14);
+    assert_eq!(descriptors.len(), 15);
     for descriptor in &descriptors {
         assert!(
             descriptor.input_schema.is_object(),
