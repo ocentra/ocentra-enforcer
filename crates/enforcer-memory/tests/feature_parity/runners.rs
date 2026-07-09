@@ -1904,18 +1904,18 @@ const EXACT_QA_EVIDENCE_IDS: &[&str] = &[
     "QA-061", "QA-062", "QA-068", "QA-069", "QA-070", "QA-071", "QA-072", "QA-073", "QA-074",
     "QA-075", "QA-076", "QA-077", "QA-078", "QA-080", "QA-081", "QA-082", "QA-083", "QA-084",
     "QA-085", "QA-086", "QA-087", "QA-088", "QA-089", "QA-090", "QA-091", "QA-092", "QA-093",
-    "QA-094", "QA-095", "QA-096", "QA-097", "QA-098", "QA-099", "QA-100", "QA-102", "QA-103",
-    "QA-104", "QA-105", "QA-106", "QA-108", "QA-110", "QA-111", "QA-112", "QA-113", "QA-115",
-    "QA-117", "QA-118", "QA-119", "QA-120", "QA-126", "QA-129", "QA-135", "QA-138", "QA-139",
-    "QA-140", "QA-142", "QA-145", "QA-146", "QA-147", "QA-148", "QA-149", "QA-150", "QA-152",
-    "QA-155", "QA-156", "QA-159", "QA-160", "QA-162", "QA-163", "QA-164", "QA-165", "QA-166",
-    "QA-167", "QA-168", "QA-169", "QA-170", "QA-171", "QA-172", "QA-173", "QA-174", "QA-186",
-    "QA-189", "QA-191", "QA-192", "QA-193", "QA-194", "QA-195", "QA-196", "QA-197", "QA-198",
-    "QA-199", "QA-200", "QA-201", "QA-202", "QA-203", "QA-204", "QA-205", "QA-206", "QA-207",
-    "QA-208", "QA-209", "QA-210", "QA-211", "QA-212", "QA-213", "QA-214", "QA-215", "QA-216",
-    "QA-217", "QA-218", "QA-219", "QA-226", "QA-229", "QA-230", "QA-231", "QA-232", "QA-233",
-    "QA-234", "QA-235", "QA-236", "QA-237", "QA-238", "QA-239", "QA-240", "QA-241", "QA-242",
-    "QA-243", "QA-244", "QA-245", "QA-246", "QA-247", "QA-248", "QA-249", "QA-250",
+    "QA-094", "QA-095", "QA-096", "QA-097", "QA-098", "QA-099", "QA-100", "QA-101", "QA-102",
+    "QA-103", "QA-104", "QA-105", "QA-106", "QA-108", "QA-110", "QA-111", "QA-112", "QA-113",
+    "QA-115", "QA-117", "QA-118", "QA-119", "QA-120", "QA-126", "QA-129", "QA-135", "QA-138",
+    "QA-139", "QA-140", "QA-142", "QA-145", "QA-146", "QA-147", "QA-148", "QA-149", "QA-150",
+    "QA-152", "QA-155", "QA-156", "QA-159", "QA-160", "QA-162", "QA-163", "QA-164", "QA-165",
+    "QA-166", "QA-167", "QA-168", "QA-169", "QA-170", "QA-171", "QA-172", "QA-173", "QA-174",
+    "QA-186", "QA-189", "QA-191", "QA-192", "QA-193", "QA-194", "QA-195", "QA-196", "QA-197",
+    "QA-198", "QA-199", "QA-200", "QA-201", "QA-202", "QA-203", "QA-204", "QA-205", "QA-206",
+    "QA-207", "QA-208", "QA-209", "QA-210", "QA-211", "QA-212", "QA-213", "QA-214", "QA-215",
+    "QA-216", "QA-217", "QA-218", "QA-219", "QA-226", "QA-229", "QA-230", "QA-231", "QA-232",
+    "QA-233", "QA-234", "QA-235", "QA-236", "QA-237", "QA-238", "QA-239", "QA-240", "QA-241",
+    "QA-242", "QA-243", "QA-244", "QA-245", "QA-246", "QA-247", "QA-248", "QA-249", "QA-250",
 ];
 
 impl RowRunner for ExactQaEvidenceRunner {
@@ -1990,6 +1990,7 @@ impl RowRunner for ExactQaEvidenceRunner {
             "QA-098" => token_reduction_probe(row),
             "QA-099" => retrieval_after_lessons_probe(row),
             "QA-100" => fake_green_rollup_probe(row),
+            "QA-101" => enforcer_core_result_callers_probe(row),
             "QA-102" => enforcer_domain_decode_error_boundaries_probe(row),
             "QA-103" => validator_impls_probe(row),
             "QA-104" => scan_engine_core_callees_probe(row),
@@ -2957,6 +2958,66 @@ fn cyclic_dependency_modules_probe(row: &QaRow) -> RowResult {
             ),
         ],
     )
+}
+
+fn enforcer_core_result_callers_probe(row: &QaRow) -> RowResult {
+    let root = super::queryset::workspace_root();
+    let crates_root = root.join("crates");
+    let files = match walk_files(&crates_root) {
+        Ok(files) => files,
+        Err(error) => return unrunnable(row, &format!("failed to walk crates/: {error}")),
+    };
+
+    let mut users_by_crate: BTreeMap<String, usize> = BTreeMap::new();
+    let mut refs = vec![
+        "crates/enforcer-core/src/error.rs".to_string(),
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md".to_string(),
+    ];
+    for path in files
+        .into_iter()
+        .filter(|path| path.extension().is_some_and(|ext| ext == "rs"))
+    {
+        let rel = repo_relative_path(&path);
+        if rel.starts_with("crates/enforcer-memory/tests/feature_parity/") {
+            continue;
+        }
+        let source = match std::fs::read_to_string(&path) {
+            Ok(source) => source,
+            Err(error) => return unrunnable(row, &format!("failed to read {rel}: {error}")),
+        };
+        let uses_external_alias = source.contains("enforcer_core::error::Result")
+            || source.contains("enforcer_core::error::{Error, Result}")
+            || source.contains("enforcer_core::error::{DecodeError, Result}");
+        let uses_internal_alias = rel.starts_with("crates/enforcer-core/")
+            && (source.contains("crate::error::Result")
+                || source.contains("crate::error::{Error, Result}"));
+        if uses_external_alias || uses_internal_alias {
+            let crate_name = rel
+                .strip_prefix("crates/")
+                .and_then(|tail| tail.split('/').next())
+                .unwrap_or("unknown");
+            *users_by_crate.entry(crate_name.to_string()).or_default() += 1;
+            refs.push(rel);
+        }
+    }
+
+    let total_users: usize = users_by_crate.values().sum();
+    if total_users < 20 {
+        return unrunnable(
+            row,
+            &format!(
+                "expected at least 20 enforcer_core::error::Result users, found {}",
+                total_users
+            ),
+        );
+    }
+    let ids: Vec<String> = users_by_crate
+        .into_iter()
+        .map(|(crate_name, count)| format!("core-result-users:{crate_name}:{count}"))
+        .collect();
+    refs.sort();
+    refs.dedup();
+    exact_pass(row, ids, refs)
 }
 
 fn repository_crates_probe(row: &QaRow) -> RowResult {

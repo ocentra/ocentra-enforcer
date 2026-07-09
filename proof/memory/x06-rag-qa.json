@@ -1,10 +1,10 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 222,
+  "rowsGreen": 223,
   "rowsGreenReal": 0,
-  "rowsGreenDegraded": 222,
+  "rowsGreenDegraded": 223,
   "rowsFailed": 0,
-  "rowsUnrunnable": 28,
+  "rowsUnrunnable": 27,
   "rows": [
     {
       "id": "QA-001",
@@ -2289,8 +2289,8 @@
         "proof/memory/x06-feature-parity.json",
         "proof/memory/x06-rag-qa.json",
         "proof/memory/x06-kg-parity.json",
-        "qa:rows-green:221",
-        "qa:rows-unrunnable:29"
+        "qa:rows-green:223",
+        "qa:rows-unrunnable:27"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -2299,14 +2299,48 @@
       "id": "QA-101",
       "category": "Symbol",
       "query": "Find all callers of `enforcer_core::error::Result` type.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Symbol",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "core-result-users:enforcer-core:7",
+        "core-result-users:enforcer-harness:8",
+        "core-result-users:enforcer-mcp:1",
+        "core-result-users:enforcer-proof:5"
+      ],
+      "actualIds": [
+        "core-result-users:enforcer-core:7",
+        "core-result-users:enforcer-harness:8",
+        "core-result-users:enforcer-mcp:1",
+        "core-result-users:enforcer-proof:5"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-core/src/error.rs",
+        "crates/enforcer-core/src/lib.rs",
+        "crates/enforcer-core/src/ndjson_writer.rs",
+        "crates/enforcer-core/src/platform.rs",
+        "crates/enforcer-core/src/redaction.rs",
+        "crates/enforcer-core/src/telemetry.rs",
+        "crates/enforcer-core/src/tracing_setup.rs",
+        "crates/enforcer-core/tests/telemetry.rs",
+        "crates/enforcer-harness/src/adapters/cyberskills/recorded.rs",
+        "crates/enforcer-harness/src/config.rs",
+        "crates/enforcer-harness/src/duckdb_seam.rs",
+        "crates/enforcer-harness/src/legacy.rs",
+        "crates/enforcer-harness/src/query.rs",
+        "crates/enforcer-harness/src/retention.rs",
+        "crates/enforcer-harness/src/storage.rs",
+        "crates/enforcer-harness/tests/fixtures.rs",
+        "crates/enforcer-mcp/src/tool_surface.rs",
+        "crates/enforcer-proof/src/envelope.rs",
+        "crates/enforcer-proof/src/harness.rs",
+        "crates/enforcer-proof/src/journal.rs",
+        "crates/enforcer-proof/src/legacy_import.rs",
+        "crates/enforcer-proof/tests/proof_end_to_end.rs",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-102",
