@@ -59,6 +59,12 @@
       "status": "degraded-pass"
     },
     {
+      "id": "QA-066",
+      "capability": "duplicate-logic-similarity-retrieval",
+      "evidence": "x06_qa_duplicate_logic_rows_can_find_similar_functions",
+      "status": "degraded-pass"
+    },
+    {
       "id": "QA-107",
       "capability": "symbol-zero-callers",
       "evidence": "x06_qa_symbol_rows_can_find_zero_callers_and_generic_result_mentions",
@@ -77,10 +83,6 @@
       "reason": "Needs filesystem/module touch path evidence hook."
     },
     {
-      "id": "QA-066",
-      "reason": "Needs duplicate or similar-logic retrieval evidence hook."
-    },
-    {
       "id": "QA-067",
       "reason": "Needs previous-bug similarity evidence hook."
     },
@@ -90,6 +92,7 @@
     }
   ],
   "lessons": [
-    "reverse_dependents includes containment and file structure; use call edges for zero-caller evidence."
+    "reverse_dependents includes containment and file structure; use call edges for zero-caller evidence.",
+    "Duplicate-logic QA needs a concrete SIMILAR_TO edge over indexed symbols, not a prose claim that similarity exists."
   ]
 }

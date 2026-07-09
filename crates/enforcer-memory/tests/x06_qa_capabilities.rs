@@ -1,6 +1,7 @@
 use enforcer_memory::analysis::CodeAdjacency;
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use enforcer_memory::impact::analyze_diff_impact;
+use enforcer_memory::similarity::{similar_to, SIMILAR_TO_THRESHOLD};
 use serde_json::Value;
 use std::collections::BTreeSet;
 use std::error::Error;
@@ -67,6 +68,7 @@ fn checked_in_x06_qa_capabilities_proof_matches_fixture_tests() -> TestResult {
                         "x06_qa_diff_rows_can_identify_rules_or_workpacks_affected_by_changed_file"
                             | "x06_qa_hotspot_and_dead_export_rows_have_graph_evidence"
                             | "x06_qa_route_auth_rows_can_pair_routes_with_permission_checks"
+                            | "x06_qa_duplicate_logic_rows_can_find_similar_functions"
                             | "x06_qa_symbol_rows_can_find_zero_callers_and_generic_result_mentions"
                     )
                 })
@@ -78,7 +80,7 @@ fn checked_in_x06_qa_capabilities_proof_matches_fixture_tests() -> TestResult {
         covered_ids,
         BTreeSet::from([
             "QA-011", "QA-038", "QA-039", "QA-044", "QA-045", "QA-057", "QA-058", "QA-065",
-            "QA-107", "QA-109"
+            "QA-066", "QA-107", "QA-109"
         ])
     );
 
@@ -96,15 +98,50 @@ fn checked_in_x06_qa_capabilities_proof_matches_fixture_tests() -> TestResult {
                 .ok_or("still-needed row id must be a string")
         })
         .collect::<Result<BTreeSet<_>, _>>()?;
-    assert_eq!(
-        still_needed,
-        BTreeSet::from(["QA-024", "QA-066", "QA-067", "QA-188"])
-    );
+    assert_eq!(still_needed, BTreeSet::from(["QA-024", "QA-067", "QA-188"]));
     assert!(
         proof["lessons"]
             .as_array()
             .is_some_and(|lessons| !lessons.is_empty()),
         "proof must carry durable learning evidence"
+    );
+    Ok(())
+}
+
+#[test]
+fn x06_qa_duplicate_logic_rows_can_find_similar_functions() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    init_repo(dir.path())?;
+    fs::write(
+        dir.path().join("similar.rs"),
+        "fn parse_policy_rule() { normalize_policy(); }\nfn rule_policy_parse() { normalize_policy(); }\nfn unrelated_export() {}\n",
+    )?;
+    commit_all(dir.path(), "initial duplicate logic fixture")?;
+
+    let graph = index_files(dir.path(), &["similar.rs"])?;
+    let edges = similar_to(&graph);
+    let duplicate_edge = edges.iter().find(|edge| {
+        (edge.source_id.contains("parse_policy_rule")
+            && edge.target_id.contains("rule_policy_parse"))
+            || (edge.source_id.contains("rule_policy_parse")
+                && edge.target_id.contains("parse_policy_rule"))
+    });
+
+    let edge = duplicate_edge.ok_or("expected duplicate-logic SIMILAR_TO edge")?;
+    assert!(
+        edge.jaccard >= SIMILAR_TO_THRESHOLD,
+        "duplicate logic edge must clear similarity threshold, got {edge:?}"
+    );
+    assert!(
+        edge.same_file,
+        "duplicate logic fixture should report same-file similarity, got {edge:?}"
+    );
+    assert!(
+        edges
+            .iter()
+            .all(|edge| !edge.source_id.contains("unrelated_export")
+                && !edge.target_id.contains("unrelated_export")),
+        "unrelated function must not be returned as duplicate logic, got {edges:?}"
     );
     Ok(())
 }
