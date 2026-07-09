@@ -1,10 +1,10 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 223,
+  "rowsGreen": 224,
   "rowsGreenReal": 0,
-  "rowsGreenDegraded": 223,
+  "rowsGreenDegraded": 224,
   "rowsFailed": 0,
-  "rowsUnrunnable": 27,
+  "rowsUnrunnable": 26,
   "rows": [
     {
       "id": "QA-001",
@@ -2289,8 +2289,8 @@
         "proof/memory/x06-feature-parity.json",
         "proof/memory/x06-rag-qa.json",
         "proof/memory/x06-kg-parity.json",
-        "qa:rows-green:223",
-        "qa:rows-unrunnable:27"
+        "qa:rows-green:224",
+        "qa:rows-unrunnable:26"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -2744,14 +2744,32 @@
       "id": "QA-116",
       "category": "CodeGraph",
       "query": "What is the event flow from `enforcer-scan` to `enforcer-proof`?",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category CodeGraph",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "event-flow:benchmark:scan-to-proof",
+        "event-flow:producer:enforcer-scan",
+        "event-flow:consumer:enforcer-proof",
+        "event-flow:spine:bus-envelope",
+        "event-flow:spine:publish-contract"
+      ],
+      "actualIds": [
+        "event-flow:benchmark:scan-to-proof",
+        "event-flow:producer:enforcer-scan",
+        "event-flow:consumer:enforcer-proof",
+        "event-flow:spine:bus-envelope",
+        "event-flow:spine:publish-contract"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-events/src/bus/publish.rs",
+        "crates/enforcer-events/src/lib.rs",
+        "crates/enforcer-proof/Cargo.toml",
+        "crates/enforcer-scan/Cargo.toml",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-117",
