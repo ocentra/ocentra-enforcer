@@ -9,7 +9,7 @@ use enforcer_memory::local_runtime::{
     arbitrate_runtime_workload, onnx_ort_feature_compiled, provider_order, validate_control_plane,
     validate_fixture, BackendReadiness, LocalRuntimeControlPlane, LocalRuntimeFixture,
     LocalRuntimeKind, RuntimeActivityState, RuntimeAdmission, RuntimeManagedCapability,
-    RuntimeWorkload, REQUIRED_MANAGED_CAPABILITIES,
+    RuntimeOwnershipMode, RuntimeWorkload, REQUIRED_MANAGED_CAPABILITIES,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -113,7 +113,9 @@ fn x06_runtime_control_plane_accepts_managed_llama_and_ort() -> TestResult {
         ort.managed_capabilities,
         REQUIRED_MANAGED_CAPABILITIES.to_vec()
     );
-    assert!(!ort.spawn_controlled);
+    assert_eq!(ort.ownership, RuntimeOwnershipMode::EnforcerIsolatedWorker);
+    assert!(ort.spawn_controlled);
+    assert!(ort.timeout_kill_supported);
     assert!(ort
         .managed_capabilities
         .contains(&RuntimeManagedCapability::ProviderSelection));

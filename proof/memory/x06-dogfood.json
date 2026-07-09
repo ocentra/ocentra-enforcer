@@ -97,8 +97,8 @@
     "ocentra_enforcer_doctor scope=crate crateName=enforcer-memory ok after expanded model proof rollup",
     "ocentra_enforcer_check source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, and placeholder-implementation scope=files ok for expanded model proof rollup files",
     "cargo test -p enforcer-memory --test model_runtime_real_contract --quiet passed after linking Gemma Vulkan chat/download proofs and the Qwen GGUF embedding proof into x06-models.json",
-    "cargo check -p enforcer-memory --features real-models --example x06_model_runtime_probe and cargo clippy -p enforcer-memory --features real-models --example x06_model_runtime_probe -- -D warnings passed after replacing the broken official Windows llama-cli --embedding fallback with a managed llama-server /v1/embeddings child-process probe",
-    "x06-models.json now keeps zero-network plan mode while linking host-local Gemma Vulkan chat, Gemma repo-local cache acquisition, Qwen GGUF embedding via llama-server, ORT embedding/reranker, and portable negative learning proofs",
+    "cargo check -p enforcer-memory --features real-models --example x06_model_runtime_probe and cargo clippy -p enforcer-memory --features real-models --example x06_model_runtime_probe -- -D warnings passed while preserving the current boundary that llama-server /v1/embeddings is not an accepted GGUF embedding proof route",
+    "x06-models.json now keeps zero-network plan mode while linking host-local Gemma Vulkan chat, Gemma repo-local cache acquisition, Qwen GGUF embedding boundary rejection evidence, ORT embedding/reranker, and portable negative learning proofs",
     "cargo test -p enforcer-memory --test unit_learning store_learning_projection_replays_observations_into_curves -- --exact passed for Store-backed learning projection replay",
     "cargo test -p enforcer-memory --test feature_parity_harness qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split -- --exact passed after LRN rollup correction",
     "x06-feature-parity.json now records LRN green and retrievalImprovementCurvePresent=true while keeping allMatrixPrefixesGreen=false because GPH and QA remain red",
@@ -838,11 +838,11 @@
     },
     {
       "shape": "t0",
-      "incident": "The real-model dev harness only imported or discovered llama-cli even though the current GGUF embedding proof can legitimately require llama-server or llama-embedding from the same repo-local llama.cpp toolchain."
+      "incident": "The real-model dev harness only imported or discovered llama-cli, while the current GGUF embedding proof must either use an Enforcer-owned direct embedding subprocess such as llama-embedding or reject llama-server as an external API surface."
     },
     {
       "shape": "t1",
-      "fix": "Extended x06-real-model-proof.ps1 to import or discover repo-local llama-cli, llama-server, and llama-embedding binaries together, export ENFORCER_X06_LLAMA_SERVER and ENFORCER_X06_LLAMA_EMBEDDING, and locked that behavior with model_runtime_real_contract assertions plus a plan-mode script smoke run."
+      "fix": "Extended x06-real-model-proof.ps1 to import or discover repo-local llama-cli and llama-embedding binaries from the llama.cpp toolchain, kept llama-server out of the accepted GGUF embedding route, and locked that behavior with model_runtime_real_contract assertions plus a plan-mode script smoke run."
     },
     {
       "shape": "t2",
@@ -1026,7 +1026,7 @@
     },
     {
       "shape": "t2",
-      "evidence": "cargo test -p enforcer-memory --features real-models --test model_runtime_real_contract passed after regenerating proof/memory/x06-models-qwen3-embedding-gguf-vulkan-live.json; the live artifact now shows executionRoute=llama-server-v1-embeddings, fallbackReason for the missing llama-embedding binary, outputDimensions=1024, and a compact sample excerpt instead of a raw vector dump."
+      "evidence": "cargo test -p enforcer-memory --features real-models --test model_runtime_real_contract passed after regenerating proof/memory/x06-models-qwen3-embedding-gguf-vulkan-live.json; the live artifact now shows executionRoute=llama-server-v1-embeddings only as rejected boundary evidence, records the missing direct llama-embedding binary, validates outputDimensions=1024, and emits a model-load-failure observation instead of accepting the server route."
     },
     {
       "shape": "t0",

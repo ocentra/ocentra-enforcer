@@ -1,10 +1,10 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 221,
+  "rowsGreen": 230,
   "rowsGreenReal": 0,
-  "rowsGreenDegraded": 221,
+  "rowsGreenDegraded": 230,
   "rowsFailed": 0,
-  "rowsUnrunnable": 29,
+  "rowsUnrunnable": 20,
   "rows": [
     {
       "id": "QA-001",
@@ -284,14 +284,27 @@
       "id": "QA-013",
       "category": "Symbol",
       "query": "Find cyclic dependencies between modules.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Symbol",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "cycle-detector:layering-result-field",
+        "cycle-detector:layering-algorithm",
+        "cycle-detector:two-node-cycle-proof",
+        "cycle-detector:qa-proof-gate-row"
+      ],
+      "actualIds": [
+        "cycle-detector:layering-result-field",
+        "cycle-detector:layering-algorithm",
+        "cycle-detector:two-node-cycle-proof",
+        "cycle-detector:qa-proof-gate-row"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/architecture.rs",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-014",
@@ -1032,14 +1045,26 @@
       "id": "QA-047",
       "category": "Performance",
       "query": "Find missing fail fixture for validator.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Performance",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "validator:missing-fail-fixture:mechanization-parity",
+        "validator:missing-fail-fixture:fsm-parity",
+        "validator:missing-fail-fixture:harness-read-error"
+      ],
+      "actualIds": [
+        "validator:missing-fail-fixture:mechanization-parity",
+        "validator:missing-fail-fixture:fsm-parity",
+        "validator:missing-fail-fixture:harness-read-error"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-lang-common/tests/fsm_parity.rs",
+        "crates/enforcer-mechanization/tests/parity.rs",
+        "crates/enforcer-validator/src/harness.rs"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-048",
@@ -1429,14 +1454,33 @@
       "id": "QA-064",
       "category": "Retrieval",
       "query": "Find files with highest churn.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Retrieval",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "churn:Cargo.lock:69",
+        "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
+        "churn:docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md:40",
+        "churn:proof/memory/x06-feature-parity.json:39",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:33"
+      ],
+      "actualIds": [
+        "churn:Cargo.lock:69",
+        "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
+        "churn:docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md:40",
+        "churn:proof/memory/x06-feature-parity.json:39",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:33"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "Cargo.lock",
+        "docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md",
+        "docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md",
+        "proof/memory/x06-feature-parity.json",
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "git:log:name-only"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-065",
@@ -1740,14 +1784,26 @@
       "id": "QA-079",
       "category": "CodeGraph",
       "query": "Find lesson that had no effect.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category CodeGraph",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "learning:no-effect:proof-gate",
+        "learning:no-effect:procedural-contract",
+        "learning:no-effect:fixture-proof"
+      ],
+      "actualIds": [
+        "learning:no-effect:proof-gate",
+        "learning:no-effect:procedural-contract",
+        "learning:no-effect:fixture-proof"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/observations.rs",
+        "crates/enforcer-memory/tests/continuous_learning.rs",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-080",
@@ -1950,15 +2006,15 @@
         "crates/enforcer-memory/src/hf_cache.rs:346::select_x06_chat_model_for_hardware",
         "crates/enforcer-memory/src/hf_cache.rs:378::q4-chat-fallback",
         "crates/enforcer-memory/src/hf_cache.rs:382::no-probe-chat-fallback",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:134::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:161::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:136::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:163::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
       ],
       "actualIds": [
         "crates/enforcer-memory/src/hf_cache.rs:346::select_x06_chat_model_for_hardware",
         "crates/enforcer-memory/src/hf_cache.rs:378::q4-chat-fallback",
         "crates/enforcer-memory/src/hf_cache.rs:382::no-probe-chat-fallback",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:134::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:161::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:136::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:163::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -2276,8 +2332,8 @@
         "proof/memory/x06-feature-parity.json",
         "proof/memory/x06-rag-qa.json",
         "proof/memory/x06-kg-parity.json",
-        "qa:rows-green:221",
-        "qa:rows-unrunnable:29"
+        "qa:rows-green:230",
+        "qa:rows-unrunnable:20"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -2286,14 +2342,48 @@
       "id": "QA-101",
       "category": "Symbol",
       "query": "Find all callers of `enforcer_core::error::Result` type.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Symbol",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "core-result-users:enforcer-core:7",
+        "core-result-users:enforcer-harness:8",
+        "core-result-users:enforcer-mcp:1",
+        "core-result-users:enforcer-proof:5"
+      ],
+      "actualIds": [
+        "core-result-users:enforcer-core:7",
+        "core-result-users:enforcer-harness:8",
+        "core-result-users:enforcer-mcp:1",
+        "core-result-users:enforcer-proof:5"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-core/src/error.rs",
+        "crates/enforcer-core/src/lib.rs",
+        "crates/enforcer-core/src/ndjson_writer.rs",
+        "crates/enforcer-core/src/platform.rs",
+        "crates/enforcer-core/src/redaction.rs",
+        "crates/enforcer-core/src/telemetry.rs",
+        "crates/enforcer-core/src/tracing_setup.rs",
+        "crates/enforcer-core/tests/telemetry.rs",
+        "crates/enforcer-harness/src/adapters/cyberskills/recorded.rs",
+        "crates/enforcer-harness/src/config.rs",
+        "crates/enforcer-harness/src/duckdb_seam.rs",
+        "crates/enforcer-harness/src/legacy.rs",
+        "crates/enforcer-harness/src/query.rs",
+        "crates/enforcer-harness/src/retention.rs",
+        "crates/enforcer-harness/src/storage.rs",
+        "crates/enforcer-harness/tests/fixtures.rs",
+        "crates/enforcer-mcp/src/tool_surface.rs",
+        "crates/enforcer-proof/src/envelope.rs",
+        "crates/enforcer-proof/src/harness.rs",
+        "crates/enforcer-proof/src/journal.rs",
+        "crates/enforcer-proof/src/legacy_import.rs",
+        "crates/enforcer-proof/tests/proof_end_to_end.rs",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-102",
@@ -2697,14 +2787,32 @@
       "id": "QA-116",
       "category": "CodeGraph",
       "query": "What is the event flow from `enforcer-scan` to `enforcer-proof`?",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category CodeGraph",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "event-flow:benchmark:scan-to-proof",
+        "event-flow:producer:enforcer-scan",
+        "event-flow:consumer:enforcer-proof",
+        "event-flow:spine:bus-envelope",
+        "event-flow:spine:publish-contract"
+      ],
+      "actualIds": [
+        "event-flow:benchmark:scan-to-proof",
+        "event-flow:producer:enforcer-scan",
+        "event-flow:consumer:enforcer-proof",
+        "event-flow:spine:bus-envelope",
+        "event-flow:spine:publish-contract"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-events/src/bus/publish.rs",
+        "crates/enforcer-events/src/lib.rs",
+        "crates/enforcer-proof/Cargo.toml",
+        "crates/enforcer-scan/Cargo.toml",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-117",
@@ -4340,24 +4448,24 @@
       "category": "GitHistory",
       "query": "Which files were created in the most recent working session?",
       "expectedIds": [
-        "commit:560e6c50ac06fca518698b6b4fd5c68cb9d6827b",
+        "commit:60a540004e939ff577ffaf3a5f0ce06938c8445f",
         "lane:rust-build",
-        "created-after:2026-07-08 20:30:28 -0400",
-        "created:docs/plans/enforcer-selfhost-plan/x06-rag-critique-for-codex.md"
+        "created-after:2026-07-09 01:09:10 -0400",
+        "created:proof/memory/x06-longitudinal.json"
       ],
       "actualIds": [
-        "commit:560e6c50ac06fca518698b6b4fd5c68cb9d6827b",
+        "commit:60a540004e939ff577ffaf3a5f0ce06938c8445f",
         "lane:rust-build",
-        "created-after:2026-07-08 20:30:28 -0400",
-        "created:docs/plans/enforcer-selfhost-plan/x06-rag-critique-for-codex.md"
+        "created-after:2026-07-09 01:09:10 -0400",
+        "created:proof/memory/x06-longitudinal.json"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "commit:560e6c50ac06fca518698b6b4fd5c68cb9d6827b",
+        "commit:60a540004e939ff577ffaf3a5f0ce06938c8445f",
         "lane:rust-build",
-        "docs/plans/enforcer-selfhost-plan/x06-rag-critique-for-codex.md"
+        "proof/memory/x06-longitudinal.json"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -4722,14 +4830,25 @@
       "id": "QA-187",
       "category": "Experience",
       "query": "Find previous instances of cyclic dependency issues.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Experience",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "experience:cyclic-dependency:benchmark",
+        "experience:cyclic-dependency:incident",
+        "experience:cyclic-dependency:prevention"
+      ],
+      "actualIds": [
+        "experience:cyclic-dependency:benchmark",
+        "experience:cyclic-dependency:incident",
+        "experience:cyclic-dependency:prevention"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md",
+        "proof/ui/g01-serve.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-188",
@@ -5676,27 +5795,41 @@
       "id": "QA-227",
       "category": "Performance",
       "query": "Compare full index rebuild vs incremental update on the synthetic corpus.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Performance",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "longitudinal:indexing:incremental-wins:7.8x-min"
+      ],
+      "actualIds": [
+        "longitudinal:indexing:incremental-wins:7.8x-min"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "proof/memory/x06-longitudinal.json",
+        "crates/enforcer-memory/benches/x06_9_longitudinal.rs"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-228",
       "category": "Performance",
       "query": "Measure retrieval p50/p95 latency at the large synthetic graph tier vs baseline tier.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Performance",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "longitudinal:retrieval-latency:p50-3.36x:p95-2.12x"
+      ],
+      "actualIds": [
+        "longitudinal:retrieval-latency:p50-3.36x:p95-2.12x"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "proof/memory/x06-longitudinal.json",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-229",

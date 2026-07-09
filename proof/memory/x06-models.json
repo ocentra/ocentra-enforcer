@@ -44,7 +44,9 @@
   "serviceConfig": {
     "bindHost": "127.0.0.1",
     "cacheRoot": "<repo>/model",
+    "externalRuntimeServersAllowed": false,
     "exposeLlamaServer": false,
+    "llamaCppExecutionRoute": "enforcer-managed-llama-cpp-subprocess",
     "llamaCppOwnership": "enforcer-subprocess",
     "managedCapabilities": [
       "load-unload",
@@ -55,7 +57,8 @@
       "chat-history-policy",
       "workload-admission"
     ],
-    "ortOwnership": "enforcer-in-process",
+    "ortExecutionRoute": "enforcer-isolated-ort-worker",
+    "ortOwnership": "enforcer-isolated-worker",
     "port": 8766,
     "routes": [
       "health",
@@ -68,9 +71,9 @@
     ]
   },
   "chatThroughputPolicy": {
-    "minTokensPerSecond": 10.0,
-    "targetTokensPerSecondLow": 40.0,
-    "targetTokensPerSecondHigh": 60.0
+    "minTokensPerSecond": 10,
+    "targetTokensPerSecondLow": 40,
+    "targetTokensPerSecondHigh": 60
   },
   "chatModelSelection": {
     "backendHint": "auto",
@@ -270,7 +273,7 @@
         "provider": "vulkan",
         "status": "usable-local-chat",
         "measuredTokensPerSecond": 101.9,
-        "minimumTokensPerSecond": 10.0
+        "minimumTokensPerSecond": 10
       },
       {
         "artifactPath": "proof/memory/x06-models-chat-auto-gpu.json",
@@ -280,7 +283,7 @@
         "provider": "vulkan",
         "status": "usable-local-chat-auto-select",
         "measuredTokensPerSecond": 107.8,
-        "minimumTokensPerSecond": 10.0
+        "minimumTokensPerSecond": 10
       },
       {
         "artifactPath": "proof/memory/x06-models-qwen3-4b-cpu-windows-local.json",
@@ -290,7 +293,7 @@
         "provider": "cpu",
         "status": "below-chat-floor",
         "measuredTokensPerSecond": 8.5,
-        "minimumTokensPerSecond": 10.0
+        "minimumTokensPerSecond": 10
       },
       {
         "artifactPath": "proof/memory/x06-models-gemma3-4b-vulkan-live.json",
@@ -300,7 +303,7 @@
         "provider": "vulkan",
         "status": "usable-local-chat",
         "measuredTokensPerSecond": 78.3,
-        "minimumTokensPerSecond": 10.0
+        "minimumTokensPerSecond": 10
       }
     ],
     "cacheAcquisitionProofs": [

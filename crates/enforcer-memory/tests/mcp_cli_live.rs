@@ -238,7 +238,7 @@ fn tools_call_model_runtime_status_reports_managed_zero_network_contract() -> Te
     );
     assert_eq!(
         structured["service"]["ortOwnership"],
-        json!("enforcer-in-process")
+        json!("enforcer-isolated-worker")
     );
     assert_eq!(
         structured["controlPlanes"]["llamaCpp"]["valid"],
@@ -312,7 +312,7 @@ fn tools_call_index_repository_on_a_real_fixture_repo_reports_files_indexed() ->
 // arms remain).
 // ---------------------------------------------------------------------
 
-/// Build a small real fixture repo (not a stub): `a.rs` calls `helper`
+/// Build a small real fixture repo: `a.rs` calls `helper`
 /// (`b.rs`), `router.ts` imports `a.rs` and declares `GET /a`. Shared by
 /// the search_graph/trace_path/ingest_traces live-envelope tests below.
 fn write_fixture_repo(dir: &std::path::Path) -> Result<(), Box<dyn Error>> {
@@ -518,7 +518,10 @@ fn tools_call_trace_path_unknown_mode_is_a_tool_error_not_not_wired() -> TestRes
     let text = result["content"][0]["text"]
         .as_str()
         .ok_or("text must be a string")?;
-    assert!(text.contains("unknown mode"));
+    assert_eq!(
+        text,
+        "{\"error\":{\"message\":\"unknown mode \\\"bogus\\\". Valid: calls, data_flow, cross_service.\",\"tool\":\"trace_path\"},\"ok\":false}"
+    );
     assert!(
         !text.contains("not_wired"),
         "an unknown mode is a bad argument, not a capability gap: {text}"

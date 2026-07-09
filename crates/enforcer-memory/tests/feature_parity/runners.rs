@@ -1898,22 +1898,23 @@ impl RowRunner for GitHistoryRunner {
 pub struct ExactQaEvidenceRunner;
 
 const EXACT_QA_EVIDENCE_IDS: &[&str] = &[
-    "QA-008", "QA-012", "QA-017", "QA-021", "QA-022", "QA-023", "QA-029", "QA-030", "QA-031",
-    "QA-032", "QA-035", "QA-036", "QA-037", "QA-040", "QA-041", "QA-042", "QA-043", "QA-046",
-    "QA-048", "QA-049", "QA-050", "QA-051", "QA-052", "QA-053", "QA-054", "QA-060", "QA-061",
-    "QA-062", "QA-068", "QA-069", "QA-070", "QA-071", "QA-072", "QA-073", "QA-074", "QA-075",
-    "QA-076", "QA-077", "QA-078", "QA-080", "QA-081", "QA-082", "QA-083", "QA-084", "QA-085",
-    "QA-086", "QA-087", "QA-088", "QA-089", "QA-090", "QA-091", "QA-092", "QA-093", "QA-094",
-    "QA-095", "QA-096", "QA-097", "QA-098", "QA-099", "QA-100", "QA-102", "QA-103", "QA-104",
-    "QA-105", "QA-106", "QA-108", "QA-110", "QA-111", "QA-112", "QA-113", "QA-115", "QA-117",
-    "QA-118", "QA-119", "QA-120", "QA-126", "QA-129", "QA-135", "QA-138", "QA-139", "QA-140",
-    "QA-142", "QA-145", "QA-146", "QA-147", "QA-148", "QA-149", "QA-150", "QA-152", "QA-155",
-    "QA-156", "QA-159", "QA-160", "QA-162", "QA-163", "QA-164", "QA-165", "QA-166", "QA-167",
-    "QA-168", "QA-169", "QA-170", "QA-171", "QA-172", "QA-173", "QA-174", "QA-186", "QA-189",
-    "QA-191", "QA-192", "QA-193", "QA-194", "QA-195", "QA-196", "QA-197", "QA-198", "QA-199",
-    "QA-200", "QA-201", "QA-202", "QA-203", "QA-204", "QA-205", "QA-206", "QA-207", "QA-208",
-    "QA-209", "QA-210", "QA-211", "QA-212", "QA-213", "QA-214", "QA-215", "QA-216", "QA-217",
-    "QA-218", "QA-219", "QA-226", "QA-229", "QA-230", "QA-231", "QA-232", "QA-233", "QA-234",
+    "QA-008", "QA-012", "QA-013", "QA-017", "QA-021", "QA-022", "QA-023", "QA-029", "QA-030",
+    "QA-031", "QA-032", "QA-035", "QA-036", "QA-037", "QA-040", "QA-041", "QA-042", "QA-043",
+    "QA-046", "QA-047", "QA-048", "QA-049", "QA-050", "QA-051", "QA-052", "QA-053", "QA-054",
+    "QA-060", "QA-061", "QA-062", "QA-064", "QA-068", "QA-069", "QA-070", "QA-071", "QA-072",
+    "QA-073", "QA-074", "QA-075", "QA-076", "QA-077", "QA-078", "QA-079", "QA-080", "QA-081",
+    "QA-082", "QA-083", "QA-084", "QA-085", "QA-086", "QA-087", "QA-088", "QA-089", "QA-090",
+    "QA-091", "QA-092", "QA-093", "QA-094", "QA-095", "QA-096", "QA-097", "QA-098", "QA-099",
+    "QA-100", "QA-101", "QA-102", "QA-103", "QA-104", "QA-105", "QA-106", "QA-108", "QA-110",
+    "QA-111", "QA-112", "QA-113", "QA-115", "QA-116", "QA-117", "QA-118", "QA-119", "QA-120",
+    "QA-126", "QA-129", "QA-135", "QA-138", "QA-139", "QA-140", "QA-142", "QA-145", "QA-146",
+    "QA-147", "QA-148", "QA-149", "QA-150", "QA-152", "QA-155", "QA-156", "QA-159", "QA-160",
+    "QA-162", "QA-163", "QA-164", "QA-165", "QA-166", "QA-167", "QA-168", "QA-169", "QA-170",
+    "QA-171", "QA-172", "QA-173", "QA-174", "QA-186", "QA-187", "QA-189", "QA-191", "QA-192",
+    "QA-193", "QA-194", "QA-195", "QA-196", "QA-197", "QA-198", "QA-199", "QA-200", "QA-201",
+    "QA-202", "QA-203", "QA-204", "QA-205", "QA-206", "QA-207", "QA-208", "QA-209", "QA-210",
+    "QA-211", "QA-212", "QA-213", "QA-214", "QA-215", "QA-216", "QA-217", "QA-218", "QA-219",
+    "QA-226", "QA-227", "QA-228", "QA-229", "QA-230", "QA-231", "QA-232", "QA-233", "QA-234",
     "QA-235", "QA-236", "QA-237", "QA-238", "QA-239", "QA-240", "QA-241", "QA-242", "QA-243",
     "QA-244", "QA-245", "QA-246", "QA-247", "QA-248", "QA-249", "QA-250",
 ];
@@ -1931,6 +1932,7 @@ impl RowRunner for ExactQaEvidenceRunner {
         match row.id.as_str() {
             "QA-008" => repository_crates_probe(row),
             "QA-012" => unused_private_function_probe(row),
+            "QA-013" => cyclic_dependency_modules_probe(row),
             "QA-017" => mcp_route_lifecycle_probe(row),
             "QA-021" => config_file_probe(row),
             "QA-022" => environment_variable_probe(row),
@@ -1947,6 +1949,7 @@ impl RowRunner for ExactQaEvidenceRunner {
             "QA-042" => ndjson_readers_probe(row),
             "QA-043" => ndjson_appenders_probe(row),
             "QA-046" => doc_claim_missing_validator_probe(row),
+            "QA-047" => missing_fail_fixture_validator_probe(row),
             "QA-048" => proof_gap_probe(row),
             "QA-052" => missing_workpack_proof_probe(row),
             "QA-053" => done_claims_without_proof_probe(row),
@@ -1968,6 +1971,7 @@ impl RowRunner for ExactQaEvidenceRunner {
             "QA-076" => conflicting_lessons_probe(row),
             "QA-077" => strongest_evidence_lesson_probe(row),
             "QA-078" => recurrence_reduction_lesson_probe(row),
+            "QA-079" => no_effect_lesson_probe(row),
             "QA-080" => recurring_issue_after_landing_probe(row),
             "QA-081" => clean_scans_after_landing_probe(row),
             "QA-082" => workpack_observations_probe(row),
@@ -1989,6 +1993,7 @@ impl RowRunner for ExactQaEvidenceRunner {
             "QA-098" => token_reduction_probe(row),
             "QA-099" => retrieval_after_lessons_probe(row),
             "QA-100" => fake_green_rollup_probe(row),
+            "QA-101" => enforcer_core_result_callers_probe(row),
             "QA-102" => enforcer_domain_decode_error_boundaries_probe(row),
             "QA-103" => validator_impls_probe(row),
             "QA-104" => scan_engine_core_callees_probe(row),
@@ -2000,6 +2005,7 @@ impl RowRunner for ExactQaEvidenceRunner {
             "QA-112" => sha256_contract_probe(row),
             "QA-113" => dependency_path_enforcer_mcp_to_core_probe(row),
             "QA-115" => scan_module_dependency_tree_probe(row),
+            "QA-116" => scan_to_proof_event_spine_probe(row),
             "QA-117" => scan_hot_path_probe(row),
             "QA-118" => tokio_workspace_probe(row),
             "QA-119" => rule_fixture_invariant_probe(row),
@@ -2057,6 +2063,7 @@ impl RowRunner for ExactQaEvidenceRunner {
             "QA-060" => local_model_loader_probe(row),
             "QA-061" => intel_gpu_npu_backend_probe(row),
             "QA-062" => no_remote_model_policy_probe(row),
+            "QA-064" => highest_churn_files_probe(row),
             "QA-213" | "QA-214" | "QA-215" | "QA-216" | "QA-217" | "QA-218" | "QA-219" => {
                 token_reduction_qa_evidence_probe(row)
             }
@@ -2068,9 +2075,12 @@ impl RowRunner for ExactQaEvidenceRunner {
                 vec!["crates/enforcer-memory/src/ids.rs".to_string()],
             ),
             "QA-186" => parse_boundary_strategy_probe(row),
+            "QA-187" => previous_cyclic_dependency_issue_probe(row),
             "QA-189" => new_language_crate_strategy_probe(row),
             "QA-191" => multi_harness_install_pattern_probe(row),
             "QA-226" => learning_curve_ratchet_probe(row, fixtures),
+            "QA-227" => longitudinal_indexing_probe(row),
+            "QA-228" => longitudinal_retrieval_latency_probe(row),
             "QA-229" | "QA-230" | "QA-231" | "QA-232" | "QA-233" => federation_bundle_probe(row),
             "QA-234" => mcp_scan_handler_probe(row),
             "QA-235" => mcp_check_tool_schema_probe(row),
@@ -2523,6 +2533,53 @@ fn dependency_path_enforcer_mcp_to_core_probe(row: &QaRow) -> RowResult {
     )
 }
 
+fn scan_to_proof_event_spine_probe(row: &QaRow) -> RowResult {
+    exact_file_marker_probe(
+        row,
+        &[
+            (
+                "event-flow:benchmark:scan-to-proof",
+                QA_BENCHMARK_REL,
+                &[
+                    "| QA-116 | CodeGraph | What is the event flow from `enforcer-scan` to `enforcer-proof`? |",
+                    "Return event types + consumer crates through the arc-25 `enforcer-events` spine",
+                ],
+            ),
+            (
+                "event-flow:producer:enforcer-scan",
+                "crates/enforcer-scan/Cargo.toml",
+                &["enforcer-events = { path = \"../enforcer-events\", version = \"0.1.0\" }"],
+            ),
+            (
+                "event-flow:consumer:enforcer-proof",
+                "crates/enforcer-proof/Cargo.toml",
+                &["enforcer-events = { path = \"../enforcer-events\", version = \"0.1.0\" }"],
+            ),
+            (
+                "event-flow:spine:bus-envelope",
+                "crates/enforcer-events/src/lib.rs",
+                &[
+                    "EventBus",
+                    "DomainEvent, EventContract, EventEnvelope, EventMetadata, EventPriority, EventSource",
+                    "StoredEventEnvelope, StoredEventPayload",
+                    "EventType",
+                    "PublishReport",
+                    "EventTopologyManifest",
+                ],
+            ),
+            (
+                "event-flow:spine:publish-contract",
+                "crates/enforcer-events/src/bus/publish.rs",
+                &[
+                    "pub async fn publish",
+                    "E: DomainEvent",
+                    "Result<PublishReport, EventingError>",
+                ],
+            ),
+        ],
+    )
+}
+
 fn scan_engine_core_callees_probe(row: &QaRow) -> RowResult {
     let root = super::queryset::workspace_root();
     let checks = [
@@ -2840,6 +2897,41 @@ fn proof_gap_probe(row: &QaRow) -> RowResult {
     )
 }
 
+fn missing_fail_fixture_validator_probe(row: &QaRow) -> RowResult {
+    exact_file_marker_probe(
+        row,
+        &[
+            (
+                "validator:missing-fail-fixture:mechanization-parity",
+                "crates/enforcer-mechanization/tests/parity.rs",
+                &[
+                    "fn missing_fail_fixture_leg_fails_closed",
+                    "tests/fixtures/parity/registry/does-not-exist.txt",
+                    "assert_eq!(findings.len(), 1);",
+                ],
+            ),
+            (
+                "validator:missing-fail-fixture:fsm-parity",
+                "crates/enforcer-lang-common/tests/fsm_parity.rs",
+                &[
+                    "fn seeded_missing_fail_fixture_fails_the_sweep_closed",
+                    "crates/enforcer-lang-common/tests/fixtures/fsm/does-not-exist.py",
+                    "assert_eq!(findings.len(), 1);",
+                ],
+            ),
+            (
+                "validator:missing-fail-fixture:harness-read-error",
+                "crates/enforcer-validator/src/harness.rs",
+                &[
+                    "fn missing_fixture_reports_read_error",
+                    "fixtures/sample/does-not-exist.txt",
+                    "Err(HarnessError::FixtureRead",
+                ],
+            ),
+        ],
+    )
+}
+
 fn secret_touching_paths_probe(row: &QaRow) -> RowResult {
     exact_file_marker_probe(
         row,
@@ -2906,6 +2998,113 @@ fn exact_file_marker_probe(row: &QaRow, checks: &[(&str, &str, &[&str])]) -> Row
         ids.push((*id).to_string());
         refs.push((*rel).to_string());
     }
+    refs.sort();
+    refs.dedup();
+    exact_pass(row, ids, refs)
+}
+
+fn cyclic_dependency_modules_probe(row: &QaRow) -> RowResult {
+    exact_file_marker_probe(
+        row,
+        &[
+            (
+                "cycle-detector:layering-result-field",
+                "crates/enforcer-memory/src/architecture.rs",
+                &[
+                    "pub struct LayeringResult",
+                    "pub cycle_cluster_ids: Vec<String>",
+                    "participate in a dependency cycle",
+                ],
+            ),
+            (
+                "cycle-detector:layering-algorithm",
+                "crates/enforcer-memory/src/architecture.rs",
+                &[
+                    "fn layering(clusters: &ClusteringResult) -> LayeringResult",
+                    "in [`LayeringResult::cycle_cluster_ids`] instead of panicking",
+                    "let cycle_cluster_ids: Vec<String> = all_ids",
+                    ".filter(|id| !placed.contains(id))",
+                ],
+            ),
+            (
+                "cycle-detector:two-node-cycle-proof",
+                "crates/enforcer-memory/src/architecture.rs",
+                &[
+                    "fn layers_aspect_reports_cycle_without_panicking()",
+                    "from_cluster: \"cluster-a\".to_string()",
+                    "to_cluster: \"cluster-b\".to_string()",
+                    "from_cluster: \"cluster-b\".to_string()",
+                    "to_cluster: \"cluster-a\".to_string()",
+                    "vec![\"cluster-a\".to_string(), \"cluster-b\".to_string()]",
+                ],
+            ),
+            (
+                "cycle-detector:qa-proof-gate-row",
+                "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md",
+                &[
+                    "| QA-013 | Find cyclic dependencies between modules.",
+                    "| Cycle path shown.",
+                ],
+            ),
+        ],
+    )
+}
+
+fn enforcer_core_result_callers_probe(row: &QaRow) -> RowResult {
+    let root = super::queryset::workspace_root();
+    let crates_root = root.join("crates");
+    let files = match walk_files(&crates_root) {
+        Ok(files) => files,
+        Err(error) => return unrunnable(row, &format!("failed to walk crates/: {error}")),
+    };
+
+    let mut users_by_crate: BTreeMap<String, usize> = BTreeMap::new();
+    let mut refs = vec![
+        "crates/enforcer-core/src/error.rs".to_string(),
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md".to_string(),
+    ];
+    for path in files
+        .into_iter()
+        .filter(|path| path.extension().is_some_and(|ext| ext == "rs"))
+    {
+        let rel = repo_relative_path(&path);
+        if rel.starts_with("crates/enforcer-memory/tests/feature_parity/") {
+            continue;
+        }
+        let source = match std::fs::read_to_string(&path) {
+            Ok(source) => source,
+            Err(error) => return unrunnable(row, &format!("failed to read {rel}: {error}")),
+        };
+        let uses_external_alias = source.contains("enforcer_core::error::Result")
+            || source.contains("enforcer_core::error::{Error, Result}")
+            || source.contains("enforcer_core::error::{DecodeError, Result}");
+        let uses_internal_alias = rel.starts_with("crates/enforcer-core/")
+            && (source.contains("crate::error::Result")
+                || source.contains("crate::error::{Error, Result}"));
+        if uses_external_alias || uses_internal_alias {
+            let crate_name = rel
+                .strip_prefix("crates/")
+                .and_then(|tail| tail.split('/').next())
+                .unwrap_or("unknown");
+            *users_by_crate.entry(crate_name.to_string()).or_default() += 1;
+            refs.push(rel);
+        }
+    }
+
+    let total_users: usize = users_by_crate.values().sum();
+    if total_users < 20 {
+        return unrunnable(
+            row,
+            &format!(
+                "expected at least 20 enforcer_core::error::Result users, found {}",
+                total_users
+            ),
+        );
+    }
+    let ids: Vec<String> = users_by_crate
+        .into_iter()
+        .map(|(crate_name, count)| format!("core-result-users:{crate_name}:{count}"))
+        .collect();
     refs.sort();
     refs.dedup();
     exact_pass(row, ids, refs)
@@ -3139,6 +3338,49 @@ fn run_git_stdout(args: &[&str]) -> Result<String, String> {
 
 fn first_nonempty_line(text: &str) -> Option<&str> {
     text.lines().find(|line| !line.trim().is_empty())
+}
+
+fn highest_churn_files_probe(row: &QaRow) -> RowResult {
+    let root = super::queryset::workspace_root();
+    let stdout = match run_git_stdout(&["log", "--name-only", "--pretty=format:", "--", "."]) {
+        Ok(stdout) => stdout,
+        Err(error) => return unrunnable(row, &error),
+    };
+
+    let mut counts: BTreeMap<String, usize> = BTreeMap::new();
+    for line in stdout
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+    {
+        let rel = line.replace('\\', "/");
+        if rel.starts_with(".git/") || rel.contains("..") {
+            continue;
+        }
+        if root.join(&rel).is_file() {
+            *counts.entry(rel).or_insert(0) += 1;
+        }
+    }
+
+    if counts.is_empty() {
+        return unrunnable(row, "git log returned no current files with churn evidence");
+    }
+
+    let mut ranked: Vec<(String, usize)> = counts.into_iter().collect();
+    ranked.sort_by(|(left_path, left_count), (right_path, right_count)| {
+        right_count
+            .cmp(left_count)
+            .then_with(|| left_path.cmp(right_path))
+    });
+
+    let top: Vec<(String, usize)> = ranked.into_iter().take(5).collect();
+    let ids: Vec<String> = top
+        .iter()
+        .map(|(path, count)| format!("churn:{path}:{count}"))
+        .collect();
+    let mut source_refs: Vec<String> = top.into_iter().map(|(path, _)| path).collect();
+    source_refs.push("git:log:name-only".to_string());
+    exact_pass(row, ids, source_refs)
 }
 
 fn workpack_anchor_history_probe(row: &QaRow) -> RowResult {
@@ -5644,6 +5886,39 @@ fn new_language_crate_strategy_probe(row: &QaRow) -> RowResult {
     )
 }
 
+fn previous_cyclic_dependency_issue_probe(row: &QaRow) -> RowResult {
+    exact_file_marker_probe(
+        row,
+        &[
+            (
+                "experience:cyclic-dependency:benchmark",
+                QA_BENCHMARK_REL,
+                &[("| QA-187 | Experience | Find previous instances of cyclic dependency issues. |")],
+            ),
+            (
+                "experience:cyclic-dependency:incident",
+                "proof/ui/g01-serve.json",
+                &[
+                    "\"crates/enforcer-ui/Cargo.toml\"",
+                    "removed an unused enforcer-mcp dependency",
+                    "it created a Cargo cyclic-dependency error",
+                    "once enforcer-mcp needed to depend on enforcer-ui for the ui tool",
+                    "added thiserror",
+                ],
+            ),
+            (
+                "experience:cyclic-dependency:prevention",
+                "proof/ui/g01-serve.json",
+                &[
+                    "\"crates/enforcer-ui/src/lib.rs\"",
+                    "doc comment describing the dependency direction",
+                    "no module-list change",
+                ],
+            ),
+        ],
+    )
+}
+
 fn multi_harness_install_pattern_probe(row: &QaRow) -> RowResult {
     exact_file_marker_probe(
         row,
@@ -5849,6 +6124,43 @@ fn recurrence_reduction_lesson_probe(row: &QaRow) -> RowResult {
                 "learning:recurrence-reduction:test",
                 "crates/enforcer-memory/tests/unit_learning.rs",
                 &["store_learning_projection_replays_observations_into_curves"],
+            ),
+        ],
+    )
+}
+
+fn no_effect_lesson_probe(row: &QaRow) -> RowResult {
+    exact_file_marker_probe(
+        row,
+        &[
+            (
+                "learning:no-effect:proof-gate",
+                QA_PROOF_GATE_REL,
+                &["| QA-079 | Find lesson that had no effect."],
+            ),
+            (
+                "learning:no-effect:procedural-contract",
+                "crates/enforcer-memory/src/observations.rs",
+                &[
+                    "success and failure both recorded, because a memory system that",
+                    "pub enum ProceduralOutcome",
+                    "FixSuccess",
+                    "FixFailure",
+                    "pub fn procedural_success_rate(graph: &MemoryGraph, lesson_id: &str)",
+                    "distinct from `Some(0.0)` (tried and always failed)",
+                ],
+            ),
+            (
+                "learning:no-effect:fixture-proof",
+                "crates/enforcer-memory/tests/continuous_learning.rs",
+                &[
+                    "record_procedural(",
+                    "ProceduralOutcome::FixFailure",
+                    "fix regressed under a different rule id shape",
+                    "procedural_success_rate(&graph, \"mem-cl-0003\")",
+                    "Some(0.5)",
+                    "one success and one failure must average to a 0.5 success rate",
+                ],
             ),
         ],
     )
@@ -8790,6 +9102,111 @@ fn learning_curve_ratchet_probe(row: &QaRow, fixtures: &Fixtures) -> RowResult {
     )
 }
 
+fn longitudinal_artifact() -> Result<(serde_json::Value, &'static str), String> {
+    let rel = "proof/memory/x06-longitudinal.json";
+    let root = super::queryset::workspace_root();
+    std::fs::read_to_string(root.join(rel))
+        .and_then(|raw| serde_json::from_str(&raw).map_err(std::io::Error::other))
+        .map(|artifact| (artifact, rel))
+        .map_err(|error| format!("failed to parse {rel}: {error}"))
+}
+
+fn longitudinal_indexing_probe(row: &QaRow) -> RowResult {
+    let (artifact, rel) = match longitudinal_artifact() {
+        Ok(artifact) => artifact,
+        Err(error) => return unrunnable(row, &error),
+    };
+    let indexing = &artifact["indexing"];
+    let wins_all = indexing
+        .get("incrementalWinsAllTiers")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
+    let change_set_percent = indexing
+        .get("changeSetPercent")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(f64::INFINITY);
+    let minimum_speedup = indexing
+        .get("minimumSpeedup")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(0.0);
+    let samples = indexing
+        .get("samples")
+        .and_then(serde_json::Value::as_array)
+        .map(Vec::len)
+        .unwrap_or(0);
+    if !wins_all || change_set_percent >= 5.0 || minimum_speedup <= 1.0 || samples < 3 {
+        return unrunnable(
+            row,
+            "x06-longitudinal indexing proof does not show incremental win across >=3 <5% change-set tiers",
+        );
+    }
+    exact_pass(
+        row,
+        vec![format!(
+            "longitudinal:indexing:incremental-wins:{minimum_speedup:.1}x-min"
+        )],
+        vec![
+            rel.to_string(),
+            "crates/enforcer-memory/benches/x06_9_longitudinal.rs".to_string(),
+        ],
+    )
+}
+
+fn longitudinal_retrieval_latency_probe(row: &QaRow) -> RowResult {
+    let (artifact, rel) = match longitudinal_artifact() {
+        Ok(artifact) => artifact,
+        Err(error) => return unrunnable(row, &error),
+    };
+    let latency = &artifact["retrievalLatency"];
+    let passes = latency
+        .get("passesRegressionGate")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
+    let p50_ratio = latency
+        .get("p50RegressionRatio")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(f64::INFINITY);
+    let p95_ratio = latency
+        .get("p95RegressionRatio")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(f64::INFINITY);
+    let max_p50 = latency
+        .get("maxAllowedP50RegressionRatio")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(0.0);
+    let max_p95 = latency
+        .get("maxAllowedP95RegressionRatio")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(0.0);
+    let tiers = latency
+        .get("tiers")
+        .and_then(serde_json::Value::as_array)
+        .map(Vec::len)
+        .unwrap_or(0);
+    if !passes
+        || !p50_ratio.is_finite()
+        || !p95_ratio.is_finite()
+        || p50_ratio > max_p50
+        || p95_ratio > max_p95
+        || tiers < 2
+    {
+        return unrunnable(
+            row,
+            "x06-longitudinal retrieval proof lacks finite baseline-vs-large p50/p95 latency under gate",
+        );
+    }
+    exact_pass(
+        row,
+        vec![format!(
+            "longitudinal:retrieval-latency:p50-{p50_ratio:.2}x:p95-{p95_ratio:.2}x"
+        )],
+        vec![
+            rel.to_string(),
+            "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md".to_string(),
+        ],
+    )
+}
+
 /// The full registry, tried in order. New wired runners are appended
 /// here; a row claimed by none of them falls through to [`unrunnable`]
 /// with the reason `"no wired runner for category ..."`.
@@ -9955,7 +10372,7 @@ mod tests {
         );
         assert!(ExactQaEvidenceRunner.can_run(&multi_harness_install_row));
 
-        let broad_experience = sample_row("QA-187", "Experience", "Find arbitrary experience.");
+        let broad_experience = sample_row("QA-188", "Experience", "Find arbitrary experience.");
         assert!(!ExactQaEvidenceRunner.can_run(&broad_experience));
 
         let broad_lessons = sample_row("QA-999", "Lessons", "Find arbitrary lesson content.");

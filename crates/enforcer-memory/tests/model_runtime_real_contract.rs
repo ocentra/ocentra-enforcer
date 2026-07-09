@@ -300,13 +300,19 @@ fn dev_model_cache_is_repo_local_and_service_does_not_expose_llama_server() {
     assert_eq!(cache_root, repo.join(DEFAULT_MODEL_CACHE_DIR_NAME));
     assert_eq!(policy.root, repo.join(DEFAULT_MODEL_CACHE_DIR_NAME));
     assert!(!service.expose_llama_server);
+    assert!(!service.external_runtime_servers_allowed);
+    assert_eq!(
+        service.llama_cpp_execution_route,
+        "enforcer-managed-llama-cpp-subprocess"
+    );
     assert_eq!(
         service.llama_cpp_ownership,
         RuntimeOwnershipMode::EnforcerSubprocess
     );
+    assert_eq!(service.ort_execution_route, "enforcer-isolated-ort-worker");
     assert_eq!(
         service.ort_ownership,
-        RuntimeOwnershipMode::EnforcerInProcess
+        RuntimeOwnershipMode::EnforcerIsolatedWorker
     );
     assert_eq!(
         service.managed_capabilities,
@@ -625,6 +631,18 @@ fn checked_in_auto_gpu_chat_probe_selects_qwen_and_is_usable() -> TestResult {
     assert_eq!(proof["allowNetwork"], true);
     assert_eq!(proof["cacheRoot"], "<repo>/model");
     assert_eq!(proof["serviceConfig"]["exposeLlamaServer"], false);
+    assert_eq!(
+        proof["serviceConfig"]["externalRuntimeServersAllowed"],
+        false
+    );
+    assert_eq!(
+        proof["serviceConfig"]["llamaCppExecutionRoute"],
+        "enforcer-managed-llama-cpp-subprocess"
+    );
+    assert_eq!(
+        proof["serviceConfig"]["ortExecutionRoute"],
+        "enforcer-isolated-ort-worker"
+    );
 
     assert_eq!(plan["allowMultiProbe"], false);
     assert_eq!(plan["cpuFirst"], true);
