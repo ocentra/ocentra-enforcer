@@ -38,23 +38,44 @@ So "adding a language" = declare its node-type name arrays + register extension 
 
 **Tier 3 (34):** Ada, Apex, C, C++, C#, Crystal, CUDA, Dart, D, F#, GDScript, Gleam, GLSL, Go, Groovy, Java, Julia, Kotlin, Objective-C, Odin, Pascal, PHP, PowerShell, Python, QML, ReScript, Rust, Scala, Solidity, Squirrel, Swift, TSX, TypeScript, Zig
 
-**Tier 2 (49):** Agda, Bash, Bicep, BitBake, Cairo, CFScript, CMake, COBOL, Common Lisp, Elixir, Elm, Erlang, FORM, Fortran, FunC, Hare, Haskell, HLSL, ISPC, JavaScript, Jsonnet, Just, Lean, Lua, Magma, Makefile, Move, NASM, Nickel, OCaml, Perl, Pony, Puppet, PureScript, R, Ruby, SCSS, Slang, Starlark, Sway, SystemVerilog, Templ, TLA+, Typst, Verilog, VHDL, VimScript, WGSL, Wolfram
+**Tier 2 (49):** Agda*, Bash, Bicep, BitBake, Cairo, CFScript, CMake, COBOL, Common Lisp, Elixir, Elm, Erlang, FORM*, Fortran, FunC, Hare, Haskell, HLSL, ISPC, JavaScript, Jsonnet, Just, Lean, Lua, Magma, Makefile, Move, NASM, Nickel, OCaml, Perl, Pony, Puppet, PureScript, R, Ruby, SCSS, Slang, Starlark, Sway, SystemVerilog, Templ, TLA+, Typst, Verilog, VHDL, VimScript, WGSL, Wolfram
+
+<sub>* Agda and FORM are marked done below in a prior version of this doc but are **not actually onboarded** — no `LangSpec`, no extractor, no dispatch wiring. See "Where we stand" below.</sub>
 
 **Tier 1 (30):** AWK, Cap'n Proto, CFML, Clojure, Emacs Lisp, Fennel, Fish, Go Template, HCL, Kconfig, LLVM IR, Luau, MATLAB, Meson, Nix, Pine, Pkl, Prisma, Protobuf, Racket, Scheme, Smali, Smithy, SQL, TableGen, Tcl, Teal, Thrift, WIT, Zsh
 
-**Tier 0 (45):** Assembly, Astro, Beancount, BibTeX, Blade, CSS, CSV, DeviceTree, Diff, Dockerfile, DotEnv, gitattributes, gitignore, GN, Go Mod, GraphQL, HTML, Hyprlang, INI, Janet, Jinja2, JSDoc, JSON, JSON5, K8s, KDL, Kustomize, Linker Script, Liquid, Markdown, Mermaid, PO, Properties, Regex, Requirements, RON, reStructuredText, SOQL, SOSL, SSH Config, Svelte, TOML, Vue, XML, YAML
+**Tier 0 (45):** Assembly, Astro, Beancount, BibTeX, Blade, CSS, CSV, DeviceTree, Diff, Dockerfile, DotEnv, gitattributes, gitignore, GN, Go Mod, GraphQL, HTML, Hyprlang, INI, Janet, Jinja2, JSDoc, JSON, JSON5, K8s†, KDL, Kustomize†, Linker Script, Liquid, Markdown, Mermaid, PO, Properties, Regex, Requirements, RON, reStructuredText, SOQL, SOSL, SSH Config, Svelte, TOML, Vue, XML, YAML — all landed via G2.5 except † (deliberately deferred, see above).
 
-## Where we stand — 103/158 done
+## Where we stand — 154/158 done
 
-**All 34 Tier-3, all 49 Tier-2, all 29 Tier-1 (excl. dead `CBM_LANG_NIM`) are landed on `rust-build`.**
-Remaining: **Tier-0 (45)**, mostly trivial config/markup, then wave G3 (rich-tier passes +
-full re-verification vs the C binary). TSX has its own spec row (distinct from TS, matching
-the baseline).
+**Tier-3, Tier-1, and Tier-0 (minus the K8s/Kustomize deferral) are fully landed on
+`rust-build`.** TSX has its own spec row (distinct from TS, matching the baseline).
 
 Landed via: G1/G1b (engine + original 10), G2.1 (11 langs), G2.2 (24 langs), G2.3 (39 langs,
-completing Tier-2), G2.4 (29 langs, completing Tier-1 — see the lost-update-collision lesson
-in `refs/orchestration-lessons.md`: 20 of 29 G2.4 languages were silently wiped mid-wave by a
-concurrent-write race and had to be recovered via systematic post-hoc grep verification).
+completing Tier-2 as then understood), G2.4 (29 langs, completing Tier-1 — see the
+lost-update-collision lesson in `refs/orchestration-lessons.md`: 20 of 29 G2.4 languages were
+silently wiped mid-wave by a concurrent-write race and had to be recovered via systematic
+post-hoc grep verification), G2.5 (42 Tier-0 langs, closing a dispatch-wiring gap G2.5d
+deliberately left open for 11 of its languages — `LangSpec`+`generic.rs` existed but were
+never reachable via `Language`/`classify()`/`parse_file()`/`LanguageTag`; wired by the
+orchestrator directly).
+
+**Remaining gap (4 languages), found by auditing against the C baseline's `lang_specs.c`
+identifier list directly rather than trusting this doc's earlier Tier-2 roster:**
+- **K8s, Kustomize** — deliberately deferred. Both need a filename-gated semantic pass
+  layered on top of YAML (`cbm_extract_k8s()` in the baseline, `cbm.h:614`) that this crate's
+  YAML pipeline doesn't have yet; documented at the deferral site in `parsers/mod.rs`.
+- **Agda, FORM (`CBM_LANG_FORM`)** — genuinely missing, not deferred. Both were listed as
+  "done" in this doc's original Tier-2 roster below, but neither has a `LangSpec` entry, a
+  `generic.rs` extractor, nor any dispatch wiring — the roster was wrong, not the code. Caught
+  by diffing the C baseline's `CBM_LANG_*` identifiers against every `pub const fn` in
+  `spec.rs` end-to-end (own tally, not inherited from a prior wave's claim). Needs its own
+  small onboarding pass before G3, or folded into G3 if the workers picking up rich-tier
+  passes for the existing Tier-2/3 set have headroom.
+
+Note: `CBM_LANG_NIM` does not appear in the baseline's live `lang_specs.c` identifiers at all
+(prior sessions treated it as a dead stub to subtract from 158 — it isn't present to subtract
+in the first place under the current baseline checkout, so the working total is 158, not 157).
 
 ## The real long pole: grammar sourcing
 
@@ -63,7 +84,7 @@ Not extractor logic — tree-sitter grammar availability for Rust. Mainstream ~4
 ## Wave plan (see sibling files)
 
 - **G1** — build the generic spec-table extractor engine in Rust; prove it reproduces our existing 10 on their current fixtures (no regression). `01-WAVE-G1-engine.md`
-- **G2** — port the 158 spec rows (data copy from lang_specs.c) + onboard grammars in staged batches (mainstream deep-tier → bulk → exotic). `02-WAVE-G2-spec-and-grammars.md`
+- **G2** — port the 158 spec rows (data copy from lang_specs.c) + onboard grammars in staged batches (mainstream deep-tier → bulk → exotic). Complete through G2.5 (Tier-0), minus K8s/Kustomize (deferred) and Agda/FORM (a roster-vs-reality gap found during G2.5 closeout, not yet onboarded). `02-WAVE-G2-spec-and-grammars.md`
 - **G3** — rich-tier passes (inherits/deep-type-refs/decorators/routes) for Tier-3 langs + full live parity re-verification vs the C binary across the language set; regenerate proof. `03-WAVE-G3-rich-and-parity.md`
 
 ## Non-negotiables (carry from prior waves)

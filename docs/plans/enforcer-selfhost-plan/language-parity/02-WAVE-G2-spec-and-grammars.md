@@ -72,9 +72,29 @@ Per language, resolve the tree-sitter grammar for Rust, in preference order:
   research salvaged from the original (wiped) reports, this time with surgical Edit-tool
   calls only + immediate grep self-verification before releasing any claim. See L48 in
   `refs/orchestration-lessons.md` for the full lesson and fix.
-- **Next: G2.5** — Tier-0 (45 languages, mostly trivial config/markup), the final language
-  batch before G3. Sized 3-4 workers (down from 5) given the demonstrated collision risk;
-  hardened protocol + mandatory grep-sweep closeout from the start.
+- **G2.5 DONE (pushed as b231ef1, merged with Codex's concurrent RAG/model-runtime commits):**
+  42 of 45 Tier-0 languages — Assembly, Astro, Beancount, BibTeX, Blade, CSS, CSV, DeviceTree*,
+  Diff, Dockerfile, DotEnv, gitattributes, gitignore, GN, Go Mod, GraphQL, HTML, Hyprlang, INI,
+  Janet, Jinja2, JSDoc, JSON, JSON5, KDL, Linker Script, Liquid, Markdown, Mermaid, PO,
+  Properties, Regex, Requirements, RON, reStructuredText, SOQL, SOSL, SSH Config, Svelte, TOML,
+  Vue, XML, YAML (* DeviceTree landed in G2.4, not this wave — listed in the Tier-0 roster but
+  onboarded earlier). 4 workers, hardened surgical-edit protocol from L48 — **no collision this
+  wave**, confirming the fix held. One worker (G2.5d) briefly violated the no-Monitor rule
+  without causing damage, noted in `refs/orchestration-lessons.md` as a minor process note, not
+  a new numbered lesson. K8s and Kustomize deliberately deferred (need a filename-gated
+  semantic pass over YAML this crate doesn't have yet).
+  G2.5d deliberately left `parsers/mod.rs`/`code_graph.rs` untouched for its 11 languages
+  (Requirements/RON/RST/SOQL/SOSL/SSHConfig/Svelte/TOML/Vue/XML/YAML) to avoid collision risk
+  with concurrent siblings — correct call, but it meant those 11 had `LangSpec`+`generic.rs`
+  but were never reachable through the actual dispatch chain (`Language` enum, `classify()`,
+  `parse_file()`, `LanguageTag`). Orchestrator found this via `grep -c "Language::$lang\b"`
+  returning 0 for all 11 and wired it directly, including redirecting `.toml`/`.yaml` off the
+  old dead `ConfigToml`/`ConfigYaml` fallbacks onto the real extractors.
+  **Also found during closeout, not caused by this wave:** diffing the C baseline's
+  `CBM_LANG_*` identifiers against every `spec.rs` function surfaced that **Agda and FORM** are
+  listed as "done" in this doc's Tier-2 roster but were never actually onboarded — no
+  `LangSpec`, no extractor, no dispatch. Flagged in `00-OVERVIEW.md`, not silently dropped.
+  **154/158 done** (158 baseline − K8s/Kustomize deferred − Agda/FORM gap).
 
 ## Fixtures & tests
 Per language: one small source file under `tests/fixtures/memory/lang_<x>/` exercising a
