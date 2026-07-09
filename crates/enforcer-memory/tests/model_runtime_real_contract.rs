@@ -436,6 +436,10 @@ fn checked_in_real_model_proofs_do_not_hardcode_machine_absolute_paths() -> Test
             include_str!("../../../proof/memory/x06-models-multi-probe-plan.json"),
         ),
         (
+            "x06-models-ort-provider-policy.json",
+            include_str!("../../../proof/memory/x06-models-ort-provider-policy.json"),
+        ),
+        (
             "x06-models-qwen3-4b-download-local.json",
             include_str!("../../../proof/memory/x06-models-qwen3-4b-download-local.json"),
         ),
@@ -517,6 +521,7 @@ fn checked_in_real_model_proofs_are_not_claimed_as_ci_parity() -> TestResult {
         include_str!("../../../proof/memory/x06-models.json"),
         include_str!("../../../proof/memory/x06-models-chat-plan.json"),
         include_str!("../../../proof/memory/x06-models-multi-probe-plan.json"),
+        include_str!("../../../proof/memory/x06-models-ort-provider-policy.json"),
         include_str!("../../../proof/memory/x06-models-qwen3-4b-download-local.json"),
         include_str!("../../../proof/memory/x06-models-qwen3-4b-cpu-windows-local.json"),
         include_str!("../../../proof/memory/x06-models-qwen3-4b-vulkan-windows-local.json"),
