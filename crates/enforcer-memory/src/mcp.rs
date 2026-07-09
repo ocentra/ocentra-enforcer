@@ -2,7 +2,8 @@
 //!
 //! # Charter
 //!
-//! This module exposes the codebase-memory-mcp 14-tool parity floor
+//! This module exposes the codebase-memory-mcp 14-tool parity floor plus
+//! one X06 extension tool
 //! (`refs/x06-baseline-tool-schemas.md`) as an MCP `tools/list` +
 //! `tools/call` surface. Wire framing (dual `Content-Length:`/NDJSON,
 //! auto-detected per message) is reused directly from the arc-21
@@ -132,6 +133,11 @@ use crate::embed::Embedder;
 use crate::fulltext::FullTextIndex;
 use crate::graph_schema;
 use crate::impact;
+use crate::local_runtime::{
+    arbitrate_runtime_workload, validate_control_plane, LocalRuntimeControlPlane,
+    RuntimeActivityState, RuntimeWorkload,
+};
+use crate::model_runtime::{default_model_runtime_probe_plan, ModelRuntimeServiceConfig};
 use crate::projects;
 use crate::search::document::{DocumentKind, SearchDocument};
 use crate::search::search_graph::{
@@ -147,9 +153,10 @@ use enforcer_mcp::transport::{
     encode_frame, Frame, FrameReader, Framing, RpcError, RpcMessage, RpcResult,
 };
 
-/// The baseline 14-tool parity floor (`refs/x06-baseline-tool-schemas.md`),
-/// in the digest's own enumeration order. This is the single source of
-/// truth [`tool_descriptors`] and [`dispatch_tool`] both key off.
+/// The baseline 14-tool parity floor (`refs/x06-baseline-tool-schemas.md`)
+/// plus the X06 extension tool, in the digest's own enumeration order.
+/// This is the single source of truth [`tool_descriptors`] and
+/// [`dispatch_tool`] both key off.
 pub const TOOL_NAMES: &[&str] = &[
     "index_repository",
     "search_graph",
@@ -165,6 +172,7 @@ pub const TOOL_NAMES: &[&str] = &[
     "detect_changes",
     "manage_adr",
     "ingest_traces",
+    "model_runtime_status",
 ];
 
 /// Tools with a landed library function behind them in this pass. Every
@@ -184,6 +192,7 @@ const WIRED_TOOLS: &[&str] = &[
     "detect_changes",
     "manage_adr",
     "ingest_traces",
+    "model_runtime_status",
 ];
 
 /// One MCP tool's static descriptor (mirrors `enforcer_mcp::registry`'s
@@ -212,12 +221,12 @@ fn constant_output_schema() -> Value {
 }
 
 /// Build every tool's descriptor for `tools/list`. All 14 baseline tools
-/// are always advertised (parity requirement) regardless of wiring state;
-/// a caller discovers wiring state only by calling `tools/call` and reading
-/// [`NotWiredError`], never by a tool being missing from this list. Use
-/// [`handle_tools_list`] for the actual `tools/list` response -- this
-/// function returns the full, unpaginated set (also the seam
-/// [`crate::cli`] and tests use directly).
+/// plus the X06 extension tool are always advertised (parity requirement)
+/// regardless of wiring state; a caller discovers wiring state only by
+/// calling `tools/call` and reading [`NotWiredError`], never by a tool
+/// being missing from this list. Use [`handle_tools_list`] for the actual
+/// `tools/list` response -- this function returns the full, unpaginated
+/// set (also the seam [`crate::cli`] and tests use directly).
 pub fn tool_descriptors() -> Vec<ToolDescriptor> {
     TOOL_NAMES
         .iter()
@@ -247,6 +256,7 @@ fn tool_title(name: &str) -> &'static str {
         "detect_changes" => "Detect Changes",
         "manage_adr" => "Manage ADR",
         "ingest_traces" => "Ingest Traces",
+        "model_runtime_status" => "Model Runtime Status",
         _ => "",
     }
 }
@@ -267,6 +277,7 @@ fn tool_description(name: &str) -> &'static str {
         "detect_changes" => "Impact analysis from a set of changed files: affected symbols + risk classification.",
         "manage_adr" => "Get/update ADR (architecture decision record) sections, linked to graph nodes.",
         "ingest_traces" => "Ingest runtime call traces to enrich CALLS edges with observed frequency.",
+        "model_runtime_status" => "Read-only X06 model-runtime control-plane status: cache root, service routes, runtime ownership, arbitration policy, and default probe plan. This never downloads or launches a model.",
         _ => "",
     }
 }
@@ -303,6 +314,10 @@ fn tool_input_schema(name: &str) -> Value {
                 "excludeEntryPoints": { "type": "boolean", "default": false },
                 "includeConnected": { "type": "boolean", "default": false },
                 "semanticQuery": { "type": "array", "items": { "type": "string" } },
+                "embeddingBackend": { "type": "string", "enum": ["hashing", "ort"], "default": "hashing", "description": "Semantic mode only. \"hashing\" is the zero-network degraded default. \"ort\" attempts cache-only Qwen3 embedding ONNX loading from embeddingCacheRoot and falls back to hashing on unavailable cache/provider." },
+                "embeddingProvider": { "type": "string", "enum": ["cpu", "direct-ml", "open-vino", "vulkan", "cuda", "core-ml", "npu"], "default": "cpu", "description": "Semantic ORT provider request. GPU/NPU requests are attempted only against an already-cached local model and degrade honestly if unavailable." },
+                "embeddingCacheRoot": { "type": "string", "description": "Cache root for embeddingBackend=\"ort\"; no network is attempted." },
+                "embeddingDimension": { "type": "integer", "minimum": 1, "default": 1024 },
                 "offset": { "type": "integer", "minimum": 0, "default": 0 },
                 "mode": { "type": "string", "enum": ["bm25", "regex", "semantic"], "default": "bm25", "description": "All three modes are wired: bm25 (fulltext::FullTextIndex, the minimal {repoPath,query} shape), regex (namePattern/qnPattern + filters), and semantic (semanticQuery, combined with the regex path per crate::search::search_graph's mode-interaction contract)." },
                 "limit": { "type": "integer", "minimum": 1, "default": 100, "description": "Matches the baseline's actual BM25_DEFAULT_LIMIT code default (100), not its docstring's claim of 200 -- refs/x06-baseline-tool-schemas.md §2.1." }
@@ -447,6 +462,15 @@ fn tool_input_schema(name: &str) -> Value {
                 }
             }
         }),
+        "model_runtime_status" => json!({
+            "type": "object",
+            "properties": {
+                "repoPath": {
+                    "type": "string",
+                    "description": "Repository root used to resolve the dev model cache root. Defaults to the current process directory."
+                }
+            }
+        }),
         _ => json!({ "type": "object" }),
     }
 }
@@ -525,6 +549,7 @@ pub fn dispatch_tool(name: &str, args: &Value) -> Value {
         "detect_changes" => handle_detect_changes(args),
         "manage_adr" => handle_manage_adr(args),
         "ingest_traces" => handle_ingest_traces(args),
+        "model_runtime_status" => handle_model_runtime_status(args),
         other => tool_error(other, "wired-list/dispatch mismatch (registry bug)"),
     }
 }
@@ -1218,13 +1243,22 @@ fn handle_search_graph(args: &Value) -> Value {
         Err(err) => return err,
     };
 
-    let embedder = crate::embed::HashingEmbedder::new();
-    let entries: Vec<(String, Vec<f32>)> = Vec::new();
+    let embedder_resolution = resolve_search_graph_embedder(args);
+    let embedder = &embedder_resolution.embedder;
+    let semantic_docs = documents_from_graph(&graph);
+    let doc_texts: Vec<(String, String)> = semantic_docs
+        .iter()
+        .map(|doc| (doc.id.clone(), doc.text.clone()))
+        .collect();
+    let entries = match crate::vector::embed_documents(embedder, &doc_texts) {
+        Ok(entries) => entries,
+        Err(source) => return tool_error("search_graph", format!("{source}")),
+    };
     let vector_index = crate::vector::VectorIndex::build(&entries, embedder.model_info());
     let semantic: Option<(&dyn Embedder, &crate::vector::VectorIndex)> = spec
         .semantic_query
         .is_some()
-        .then_some((&embedder as &dyn Embedder, &vector_index));
+        .then_some((embedder as &dyn Embedder, &vector_index));
     let result = search_graph_with_semantic(&graph, &spec, semantic);
 
     match result {
@@ -1239,8 +1273,199 @@ fn handle_search_graph(args: &Value) -> Value {
             "total": result.total,
             "hasMore": result.has_more,
             "connectedNames": result.connected_names,
+            "embeddingRuntime": embedder_resolution.to_json(),
         }),
         Err(source) => tool_error("search_graph", format!("{source}")),
+    }
+}
+
+struct SearchGraphEmbedderResolution {
+    embedder: crate::embed::LocalEmbedder,
+    requested_backend: &'static str,
+    resolved_backend: &'static str,
+    requested_provider: Option<crate::model_runtime::ProviderKind>,
+    resolved_provider: Option<crate::model_runtime::ProviderKind>,
+    fallback_kind: Option<&'static str>,
+    fallback_reason: Option<String>,
+}
+
+impl SearchGraphEmbedderResolution {
+    fn hashing(
+        requested_backend: &'static str,
+        requested_provider: Option<crate::model_runtime::ProviderKind>,
+        fallback_kind: Option<&'static str>,
+        fallback_reason: Option<String>,
+    ) -> Self {
+        Self {
+            embedder: crate::embed::LocalEmbedder::default(),
+            requested_backend,
+            resolved_backend: "hashing",
+            requested_provider,
+            resolved_provider: None,
+            fallback_kind,
+            fallback_reason,
+        }
+    }
+
+    fn ort(
+        embedder: crate::embed::LocalEmbedder,
+        provider: crate::model_runtime::ProviderKind,
+    ) -> Self {
+        Self {
+            embedder,
+            requested_backend: "ort",
+            resolved_backend: "ort",
+            requested_provider: Some(provider),
+            resolved_provider: Some(provider),
+            fallback_kind: None,
+            fallback_reason: None,
+        }
+    }
+
+    fn to_json(&self) -> Value {
+        let state = match self.embedder.state() {
+            crate::embed::LoadState::Unavailable => "unavailable",
+            crate::embed::LoadState::Loading => "loading",
+            crate::embed::LoadState::Loaded => "loaded",
+            crate::embed::LoadState::Degraded(crate::embed::DegradedState::ProviderUnavailable) => {
+                "degraded/provider-unavailable"
+            }
+            crate::embed::LoadState::Degraded(crate::embed::DegradedState::Overloaded) => {
+                "degraded/overloaded"
+            }
+            crate::embed::LoadState::Degraded(crate::embed::DegradedState::ModelLoadFailed) => {
+                "degraded/model-load-failed"
+            }
+            crate::embed::LoadState::Degraded(crate::embed::DegradedState::InvalidOutput) => {
+                "degraded/invalid-output"
+            }
+            crate::embed::LoadState::Degraded(crate::embed::DegradedState::LowConfidence) => {
+                "degraded/low-confidence"
+            }
+            crate::embed::LoadState::Failed => "failed",
+        };
+        let resource_class = match self.embedder.resource_class() {
+            crate::embed::ResourceClass::Cpu => "cpu",
+            crate::embed::ResourceClass::Gpu => "gpu",
+            crate::embed::ResourceClass::Npu => "npu",
+        };
+        let model = self.embedder.model_info();
+        json!({
+            "requestedBackend": self.requested_backend,
+            "resolvedBackend": self.resolved_backend,
+            "requestedProvider": self.requested_provider.map(provider_json),
+            "resolvedProvider": self.resolved_provider.map(provider_json),
+            "fallbackKind": self.fallback_kind,
+            "state": state,
+            "resourceClass": resource_class,
+            "model": {
+                "id": model.embedding_model,
+                "dimension": model.dimension,
+                "dtype": model.dtype,
+                "similarityMetric": model.similarity_metric,
+                "normalization": model.normalization
+            },
+            "fallbackReason": self.fallback_reason
+        })
+    }
+}
+
+fn resolve_search_graph_embedder(args: &Value) -> SearchGraphEmbedderResolution {
+    if args
+        .get("embeddingBackend")
+        .and_then(Value::as_str)
+        .is_some_and(|value| value == "ort")
+    {
+        let provider = match args
+            .get("embeddingProvider")
+            .and_then(Value::as_str)
+            .map(parse_provider_kind)
+            .transpose()
+        {
+            Ok(provider) => provider.unwrap_or(crate::model_runtime::ProviderKind::Cpu),
+            Err(reason) => {
+                return SearchGraphEmbedderResolution::hashing(
+                    "ort",
+                    None,
+                    Some("invalid-provider"),
+                    Some(reason),
+                );
+            }
+        };
+        let Some(cache_root) = args.get("embeddingCacheRoot").and_then(Value::as_str) else {
+            return SearchGraphEmbedderResolution::hashing(
+                "ort",
+                Some(provider),
+                Some("cache-root-missing"),
+                Some("embeddingBackend=ort requires embeddingCacheRoot; no network fallback attempted".to_owned()),
+            );
+        };
+        let dimension = args
+            .get("embeddingDimension")
+            .and_then(Value::as_u64)
+            .and_then(|value| usize::try_from(value).ok())
+            .unwrap_or(1024);
+        let hf_spec = crate::hf_cache::HfModelSpec::qwen3_embedding_onnx();
+        let spec = match crate::hf_cache::resolve_cached_hf_model_spec(
+            &hf_spec,
+            std::path::Path::new(cache_root),
+            dimension,
+        ) {
+            Ok(spec) => spec,
+            Err(err) => {
+                return SearchGraphEmbedderResolution::hashing(
+                    "ort",
+                    Some(provider),
+                    Some("cache-missing-or-invalid"),
+                    Some(format!(
+                        "cache-only ORT model resolution failed; degraded hashing fallback used: {err}"
+                    )),
+                );
+            }
+        };
+        match crate::embed::LocalEmbedder::try_ort(&spec, provider) {
+            Ok(embedder) => return SearchGraphEmbedderResolution::ort(embedder, provider),
+            Err(err) => {
+                return SearchGraphEmbedderResolution::hashing(
+                    "ort",
+                    Some(provider),
+                    Some("provider-load-failed"),
+                    Some(format!(
+                        "cache-only ORT provider load failed; degraded hashing fallback used: {err}"
+                    )),
+                );
+            }
+        }
+    }
+    SearchGraphEmbedderResolution::hashing("hashing", None, None, None)
+}
+
+fn parse_provider_kind(
+    raw: &str,
+) -> std::result::Result<crate::model_runtime::ProviderKind, String> {
+    match raw {
+        "cpu" => Ok(crate::model_runtime::ProviderKind::Cpu),
+        "direct-ml" => Ok(crate::model_runtime::ProviderKind::DirectMl),
+        "open-vino" => Ok(crate::model_runtime::ProviderKind::OpenVino),
+        "vulkan" => Ok(crate::model_runtime::ProviderKind::Vulkan),
+        "cuda" => Ok(crate::model_runtime::ProviderKind::Cuda),
+        "core-ml" => Ok(crate::model_runtime::ProviderKind::CoreMl),
+        "npu" => Ok(crate::model_runtime::ProviderKind::Npu),
+        other => Err(format!(
+            "unknown embeddingProvider {other:?}; expected cpu, direct-ml, open-vino, vulkan, cuda, core-ml, or npu"
+        )),
+    }
+}
+
+fn provider_json(provider: crate::model_runtime::ProviderKind) -> &'static str {
+    match provider {
+        crate::model_runtime::ProviderKind::Cpu => "cpu",
+        crate::model_runtime::ProviderKind::DirectMl => "direct-ml",
+        crate::model_runtime::ProviderKind::OpenVino => "open-vino",
+        crate::model_runtime::ProviderKind::Vulkan => "vulkan",
+        crate::model_runtime::ProviderKind::Cuda => "cuda",
+        crate::model_runtime::ProviderKind::CoreMl => "core-ml",
+        crate::model_runtime::ProviderKind::Npu => "npu",
     }
 }
 
@@ -2017,6 +2242,49 @@ fn handle_ingest_traces(args: &Value) -> Value {
             "provenance": format!("{:?}", edge.provenance),
             "observedCount": edge.observed_count,
         })).collect::<Vec<_>>(),
+    })
+}
+
+// ---------------------------------------------------------------------
+// model_runtime_status -> X06 managed-runtime control-plane status
+// ---------------------------------------------------------------------
+
+fn handle_model_runtime_status(args: &Value) -> Value {
+    let repo_root = args
+        .get("repoPath")
+        .and_then(Value::as_str)
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
+        });
+    let service = ModelRuntimeServiceConfig::dev(&repo_root);
+    let llama = LocalRuntimeControlPlane::llama_cpp_managed();
+    let ort = LocalRuntimeControlPlane::onnx_ort_managed();
+    let llama_ok = validate_control_plane(&llama).is_ok();
+    let ort_ok = validate_control_plane(&ort).is_ok();
+
+    json!({
+        "ok": true,
+        "capabilityState": "degraded",
+        "degradedReason": "status-only surface; no model load/download/probe was attempted",
+        "zeroNetwork": true,
+        "service": service,
+        "controlPlanes": {
+            "llamaCpp": {
+                "valid": llama_ok,
+                "contract": llama,
+            },
+            "onnxOrt": {
+                "valid": ort_ok,
+                "contract": ort,
+            }
+        },
+        "arbitration": {
+            "loadingChat": arbitrate_runtime_workload(RuntimeActivityState::Loading, RuntimeWorkload::Chat),
+            "chatEmbedding": arbitrate_runtime_workload(RuntimeActivityState::ChatActive, RuntimeWorkload::Embedding),
+            "embeddingChat": arbitrate_runtime_workload(RuntimeActivityState::EmbeddingActive, RuntimeWorkload::Chat),
+        },
+        "probePlan": default_model_runtime_probe_plan(),
     })
 }
 

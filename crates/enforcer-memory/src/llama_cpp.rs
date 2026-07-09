@@ -14,6 +14,11 @@ use crate::error::{MemoryError, Result};
 use crate::local_runtime::LocalRuntimeAcceleration;
 use crate::model_runtime::validate_file_hash;
 
+#[cfg_attr(not(feature = "real-models"), allow(dead_code))]
+pub(crate) fn llama_binary_name(base_name: &str) -> String {
+    format!("{base_name}{}", std::env::consts::EXE_SUFFIX)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum LlamaCppProbeKind {
@@ -648,11 +653,6 @@ fn configure_llama_child_process(command: &mut Command, binary_path: &Path) {
     configure_platform_child_process(command);
 }
 
-#[cfg(feature = "real-models")]
-pub(crate) fn configure_llama_child_process_for_runtime(command: &mut Command, binary_path: &Path) {
-    configure_llama_child_process(command, binary_path);
-}
-
 #[cfg(windows)]
 fn configure_platform_child_process(command: &mut Command) {
     const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
@@ -734,7 +734,7 @@ mod tests {
     #[test]
     fn generation_plan_is_single_turn_and_subprocess_safe() {
         let config = LlamaCppProbeConfig {
-            binary_path: "llama-cli.exe".into(),
+            binary_path: llama_binary_name("llama-cli").into(),
             model_path: "model.gguf".into(),
             model_sha256: None,
             prompt: "hello".to_owned(),
@@ -762,7 +762,7 @@ mod tests {
     #[test]
     fn auto_acceleration_defaults_to_cpu_first() {
         let config = LlamaCppProbeConfig {
-            binary_path: "llama-cli.exe".into(),
+            binary_path: llama_binary_name("llama-cli").into(),
             model_path: "model.gguf".into(),
             model_sha256: None,
             prompt: "hello".to_owned(),
@@ -789,7 +789,7 @@ mod tests {
     #[test]
     fn openvino_auto_acceleration_keeps_cpu_device_selection() {
         let config = LlamaCppProbeConfig {
-            binary_path: "llama-cli.exe".into(),
+            binary_path: llama_binary_name("llama-cli").into(),
             model_path: "model.gguf".into(),
             model_sha256: None,
             prompt: "hello".to_owned(),
@@ -821,5 +821,13 @@ mod tests {
         let line = "[ Prompt: 18.9 t/s | Generation: 6.4 t/s ]";
 
         assert_eq!(parse_generation_rate(line), Some(6.4));
+    }
+
+    #[test]
+    fn llama_binary_name_matches_platform_suffix() {
+        assert_eq!(
+            llama_binary_name("llama-cli"),
+            format!("llama-cli{}", std::env::consts::EXE_SUFFIX)
+        );
     }
 }

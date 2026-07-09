@@ -65,6 +65,11 @@ fn qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split() -> T
         document.rows_green + document.rows_failed + document.rows_unrunnable,
         250
     );
+    assert_eq!(
+        document.rows_green,
+        document.rows_green_real + document.rows_green_degraded
+    );
+    assert!(document.rows_green_degraded > 0 || document.rows_green_real > 0);
     let failed_rows: Vec<String> = results
         .iter()
         .filter(|result| result.verdict == "fail")
@@ -100,11 +105,18 @@ fn qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split() -> T
     // Pending, and only artifacts with a real pass signal become Green.
     let mut prefixes =
         current_prefix_statuses(&workspace_root, document.rows_green, document.rows_total)?;
-    let qa_status = if document.rows_green == document.rows_total {
+    let qa_status = if document.rows_green_real == document.rows_total {
         PrefixStatus::Green
     } else {
         PrefixStatus::Red
     };
+    let unrunnable = document.rows_unrunnable;
+    let qa_failure_reason = format!(
+        "{unrunnable} rows unrunnable, {degraded} rows degraded-pass, {real} rows real-pass, {failed} failed -- see x06-rag-qa.json",
+        degraded = document.rows_green_degraded,
+        real = document.rows_green_real,
+        failed = document.rows_failed
+    );
     prefixes.insert(
         "QA",
         MatrixPrefixRow {
@@ -116,10 +128,7 @@ fn qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split() -> T
             ),
             artifact_path: "proof/memory/x06-rag-qa.json".to_string(),
             failure_reason: if matches!(qa_status, PrefixStatus::Red) {
-                Some(format!(
-                    "{unrunnable} of 250 rows unrunnable, {failed} failed -- see x06-rag-qa.json",
-                    failed = document.rows_failed
-                ))
+                Some(qa_failure_reason)
             } else {
                 None
             },

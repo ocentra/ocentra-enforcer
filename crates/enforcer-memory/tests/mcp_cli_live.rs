@@ -17,6 +17,8 @@ use serde_json::{json, Value};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
+const X06_MCP_PROOF: &str = include_str!("../../../proof/memory/x06-mcp.json");
+
 /// Push `body` (a bare JSON-RPC message, no framing) through the server as
 /// one NDJSON line and return the parsed single-line JSON reply.
 fn send_ndjson(body: &Value) -> Result<Value, Box<dyn Error>> {
@@ -81,6 +83,37 @@ fn rpc_request(id: i64, method: &str, params: &Value) -> Value {
     json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params })
 }
 
+#[test]
+fn x06_mcp_proof_names_search_graph_runtime_telemetry_evidence() -> TestResult {
+    let proof: Value = serde_json::from_str(X06_MCP_PROOF)?;
+    let tests = proof["result"]["evidenceTests"]
+        .as_array()
+        .ok_or("x06-mcp proof evidenceTests must be an array")?;
+    assert!(tests.iter().any(|test| {
+        test == "mcp_cli_live::tools_call_search_graph_semantic_mode_returns_a_separate_semantic_results_list"
+    }));
+    assert!(tests.iter().any(|test| {
+        test == "mcp_cli_live::tools_call_search_graph_ort_embedding_missing_cache_falls_back_without_network"
+    }));
+    assert_eq!(
+        proof["hardRequirements"]["searchGraphSemanticRuntimeTelemetry"],
+        json!("covered")
+    );
+    assert_eq!(
+        proof["hardRequirements"]["cacheOnlyOrtEmbeddingFallback"],
+        json!("covered")
+    );
+    assert_eq!(
+        proof["hardRequirements"]["ortProviderSelectionTelemetry"],
+        json!("covered")
+    );
+    assert_eq!(
+        proof["hardRequirements"]["ortFallbackKindTelemetry"],
+        json!("covered")
+    );
+    Ok(())
+}
+
 // ---------------------------------------------------------------------
 // initialize handshake
 // ---------------------------------------------------------------------
@@ -141,12 +174,12 @@ fn tools_list_first_page_has_8_tools_and_a_next_cursor() -> TestResult {
 }
 
 #[test]
-fn tools_list_second_page_has_remaining_6_tools_and_no_next_cursor() -> TestResult {
+fn tools_list_second_page_has_remaining_7_tools_and_no_next_cursor() -> TestResult {
     let reply = send_ndjson(&rpc_request(4, "tools/list", &json!({ "cursor": "8" })))?;
     let tools = reply["result"]["tools"]
         .as_array()
         .ok_or("tools must be an array")?;
-    assert_eq!(tools.len(), 6);
+    assert_eq!(tools.len(), 7);
     assert!(
         reply["result"].get("nextCursor").is_none(),
         "the last page must omit nextCursor entirely, not emit null: {reply}"
@@ -155,7 +188,7 @@ fn tools_list_second_page_has_remaining_6_tools_and_no_next_cursor() -> TestResu
 }
 
 #[test]
-fn tools_list_across_both_pages_covers_all_14_baseline_tools() -> TestResult {
+fn tools_list_across_both_pages_covers_baseline_plus_x06_extension_tools() -> TestResult {
     let page1 = send_ndjson(&rpc_request(5, "tools/list", &json!({})))?;
     let page2 = send_ndjson(&rpc_request(6, "tools/list", &json!({ "cursor": "8" })))?;
     let page1_tools = page1["result"]["tools"]
@@ -179,6 +212,45 @@ fn tools_list_across_both_pages_covers_all_14_baseline_tools() -> TestResult {
 // ---------------------------------------------------------------------
 // tools/call: wired tool returns real fixture data in the exact envelope
 // ---------------------------------------------------------------------
+
+#[test]
+fn tools_call_model_runtime_status_reports_managed_zero_network_contract() -> TestResult {
+    let dir = tempfile::tempdir()?;
+
+    let reply = send_ndjson(&rpc_request(
+        7,
+        "tools/call",
+        &json!({
+            "name": "model_runtime_status",
+            "arguments": { "repoPath": dir.path().to_string_lossy() }
+        }),
+    ))?;
+    let result = &reply["result"];
+    assert_eq!(result["isError"], json!(false));
+    let structured = &result["structuredContent"];
+    assert_eq!(structured["ok"], json!(true));
+    assert_eq!(structured["zeroNetwork"], json!(true));
+    assert_eq!(structured["capabilityState"], json!("degraded"));
+    assert_eq!(structured["service"]["exposeLlamaServer"], json!(false));
+    assert_eq!(
+        structured["service"]["llamaCppOwnership"],
+        json!("enforcer-subprocess")
+    );
+    assert_eq!(
+        structured["service"]["ortOwnership"],
+        json!("enforcer-in-process")
+    );
+    assert_eq!(
+        structured["controlPlanes"]["llamaCpp"]["valid"],
+        json!(true)
+    );
+    assert_eq!(structured["controlPlanes"]["onnxOrt"]["valid"], json!(true));
+    assert_eq!(
+        structured["arbitration"]["embeddingChat"]["admission"],
+        json!("pause-background-then-admit")
+    );
+    Ok(())
+}
 
 #[test]
 fn tools_call_get_graph_schema_on_a_real_fixture_repo_returns_structured_content() -> TestResult {
@@ -235,8 +307,9 @@ fn tools_call_index_repository_on_a_real_fixture_repo_reports_files_indexed() ->
 // ---------------------------------------------------------------------
 // tools/call: search_graph regex/semantic modes, trace_path data_flow/
 // cross_service modes, and ingest_traces -- all newly wired in this
-// pass (see src/mcp.rs's WIRED_TOOLS; 14/14 tools + every documented
-// mode are now live, no not_wired arms remain).
+// pass (see src/mcp.rs's WIRED_TOOLS; 14 baseline tools plus the X06
+// extension tool and every documented mode are now live, no not_wired
+// arms remain).
 // ---------------------------------------------------------------------
 
 /// Build a small real fixture repo (not a stub): `a.rs` calls `helper`
@@ -304,6 +377,62 @@ fn tools_call_search_graph_semantic_mode_returns_a_separate_semantic_results_lis
     assert_eq!(structured["ok"], json!(true));
     assert!(structured["semanticResults"].is_array());
     assert!(structured["results"].is_array());
+    Ok(())
+}
+
+#[test]
+fn tools_call_search_graph_ort_embedding_missing_cache_falls_back_without_network() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let cache = tempfile::tempdir()?;
+    write_fixture_repo(dir.path())?;
+
+    let reply = send_ndjson(&rpc_request(
+        31,
+        "tools/call",
+        &json!({
+            "name": "search_graph",
+            "arguments": {
+                "repoPath": dir.path().to_string_lossy(),
+                "namePattern": ".*",
+                "semanticQuery": ["helper"],
+                "embeddingBackend": "ort",
+                "embeddingProvider": "direct-ml",
+                "embeddingCacheRoot": cache.path().join("missing-cache").to_string_lossy()
+            }
+        }),
+    ))?;
+    let result = &reply["result"];
+    assert_eq!(result["isError"], json!(false));
+    let structured = &result["structuredContent"];
+    assert_eq!(structured["ok"], json!(true));
+    assert!(structured["semanticResults"].is_array());
+    assert_eq!(
+        structured["embeddingRuntime"]["requestedBackend"],
+        json!("ort")
+    );
+    assert_eq!(
+        structured["embeddingRuntime"]["resolvedBackend"],
+        json!("hashing")
+    );
+    assert_eq!(
+        structured["embeddingRuntime"]["requestedProvider"],
+        json!("direct-ml")
+    );
+    assert_eq!(
+        structured["embeddingRuntime"]["resolvedProvider"],
+        json!(null)
+    );
+    assert_eq!(
+        structured["embeddingRuntime"]["fallbackKind"],
+        json!("cache-missing-or-invalid")
+    );
+    assert_eq!(
+        structured["embeddingRuntime"]["state"],
+        json!("degraded/provider-unavailable")
+    );
+    assert!(structured["embeddingRuntime"]["fallbackReason"]
+        .as_str()
+        .is_some_and(|reason| reason.contains("cache-only ORT model resolution failed")));
     Ok(())
 }
 

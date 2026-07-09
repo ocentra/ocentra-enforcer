@@ -87,8 +87,9 @@
   },
   "qwenEmbeddingGguf": {
     "loaded": true,
-    "ok": true,
+    "ok": false,
     "operation": "qwen-embedding-gguf",
+    "rejectionReason": "llama-server /v1/embeddings is not accepted for X06 GGUF embedding proof; Enforcer must own the runtime surface and use llama-embedding or another direct subprocess route",
     "report": {
       "backendHint": "vulkan",
       "binaryPath": "<repo>/model/bin/llama-b9904-bin-win-vulkan-x64/llama-server.exe",
@@ -107,11 +108,12 @@
       "stdoutExcerpt": "embedding dimensions: 1024; sample: [0.003304, -0.037107, -0.014370, -0.162274, -0.005565, -0.025017, 0.020886, 0.057926]",
       "timedOut": false
     },
+    "runtimeBoundaryAccepted": false,
     "usability": {
       "measuredTokensPerSecond": null,
       "minChatTokensPerSecond": null,
-      "ok": true,
-      "reason": "embedding usable: dimensions 1024 matched expected 1024",
+      "ok": false,
+      "reason": "embedding rejected: llama-server /v1/embeddings is not an accepted Enforcer-owned GGUF embedding runtime route",
       "targetChatTokensPerSecondHigh": null,
       "targetChatTokensPerSecondLow": null
     }
@@ -135,11 +137,11 @@
       "source": "x06-model-runtime-probe",
       "runId": "x06-model-runtime-probe",
       "candidate": {
-        "observationKind": "successful-local-load",
+        "observationKind": "model-load-failure",
+        "failureReason": "llama-server /v1/embeddings is not accepted for X06 GGUF embedding proof",
         "modelId": "Qwen/Qwen3-Embedding-0.6B-GGUF",
-        "task": "embedding",
-        "provider": "vulkan",
-        "loadedFromLocalCache": true
+        "requestedProvider": "vulkan",
+        "task": "embedding"
       }
     }
   ]

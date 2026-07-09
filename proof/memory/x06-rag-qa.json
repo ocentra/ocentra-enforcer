@@ -1,8 +1,10 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 205,
+  "rowsGreen": 219,
+  "rowsGreenReal": 0,
+  "rowsGreenDegraded": 219,
   "rowsFailed": 0,
-  "rowsUnrunnable": 45,
+  "rowsUnrunnable": 31,
   "rows": [
     {
       "id": "QA-001",
@@ -629,27 +631,52 @@
       "id": "QA-029",
       "category": "Retrieval",
       "query": "Explain how startup works.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Retrieval",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "retrieval:startup-proof-gate",
+        "retrieval:startup-benchmark",
+        "retrieval:startup-main-parse-dispatch",
+        "retrieval:startup-cli-definition"
+      ],
+      "actualIds": [
+        "retrieval:startup-proof-gate",
+        "retrieval:startup-benchmark",
+        "retrieval:startup-main-parse-dispatch",
+        "retrieval:startup-cli-definition"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-cli/src/cli.rs",
+        "crates/enforcer-cli/src/main.rs",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-030",
       "category": "TokenReduction",
       "query": "Explain how shutdown works.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category TokenReduction",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "token-reduction:shutdown-context-pack"
+      ],
+      "actualIds": [
+        "token-reduction:shutdown-context-pack"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "tokenReductionRatio": 24.7524752475,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/model_runtime.rs",
+        "proof/memory/x06-models.json",
+        "proof/memory/x06-retrieval-quality.json",
+        "proof/memory/x06-token-reduction.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-031",
@@ -1540,14 +1567,26 @@
       "id": "QA-073",
       "category": "Retrieval",
       "query": "Find lessons related to this file.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Retrieval",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "lessons:file:proof-gate",
+        "lessons:file:learning-curve",
+        "lessons:file:dogfood"
+      ],
+      "actualIds": [
+        "lessons:file:proof-gate",
+        "lessons:file:learning-curve",
+        "lessons:file:dogfood"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md",
+        "proof/memory/x06-dogfood.json",
+        "proof/memory/x06-learning-curve.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-074",
@@ -1621,27 +1660,48 @@
       "id": "QA-077",
       "category": "Performance",
       "query": "Find lesson with strongest evidence.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Performance",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "learning:strongest-evidence:proof-gate",
+        "learning:strongest-evidence:artifact"
+      ],
+      "actualIds": [
+        "learning:strongest-evidence:proof-gate",
+        "learning:strongest-evidence:artifact"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md",
+        "proof/memory/x06-learning-curve.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-078",
       "category": "CodeGraph",
       "query": "Find lesson that reduced recurrence most.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category CodeGraph",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "learning:recurrence-reduction:proof-gate",
+        "learning:recurrence-reduction:artifact",
+        "learning:recurrence-reduction:test"
+      ],
+      "actualIds": [
+        "learning:recurrence-reduction:proof-gate",
+        "learning:recurrence-reduction:artifact",
+        "learning:recurrence-reduction:test"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/unit_learning.rs",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md",
+        "proof/memory/x06-learning-curve.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-079",
@@ -1704,14 +1764,26 @@
       "id": "QA-082",
       "category": "Performance",
       "query": "Find all observations for this workpack.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Performance",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "learning:workpack-observations:proof-gate",
+        "learning:workpack-observations:artifact",
+        "learning:workpack-observations:store-test"
+      ],
+      "actualIds": [
+        "learning:workpack-observations:proof-gate",
+        "learning:workpack-observations:artifact",
+        "learning:workpack-observations:store-test"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/model_observations.rs",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md",
+        "proof/memory/x06-learning-curve.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-083",
@@ -1845,15 +1917,15 @@
         "crates/enforcer-memory/src/hf_cache.rs:346::select_x06_chat_model_for_hardware",
         "crates/enforcer-memory/src/hf_cache.rs:378::q4-chat-fallback",
         "crates/enforcer-memory/src/hf_cache.rs:382::no-probe-chat-fallback",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:129::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:156::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:134::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:161::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
       ],
       "actualIds": [
         "crates/enforcer-memory/src/hf_cache.rs:346::select_x06_chat_model_for_hardware",
         "crates/enforcer-memory/src/hf_cache.rs:378::q4-chat-fallback",
         "crates/enforcer-memory/src/hf_cache.rs:382::no-probe-chat-fallback",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:129::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:156::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:134::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:161::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -2126,14 +2198,24 @@
       "id": "QA-099",
       "category": "TokenReduction",
       "query": "Prove retrieval improved after lessons.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category TokenReduction",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "retrieval-after-lessons:quality-observations-plus-token-gate"
+      ],
+      "actualIds": [
+        "retrieval-after-lessons:quality-observations-plus-token-gate"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "tokenReductionRatio": 24.7524752475,
+      "sourceRefs": [
+        "proof/memory/x06-retrieval-quality.json",
+        "proof/memory/x06-token-reduction.json",
+        "proof/memory/x06-learning-curve.json",
+        "crates/enforcer-memory/tests/x06_retrieval_quality.rs"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-100",
@@ -2161,8 +2243,8 @@
         "proof/memory/x06-feature-parity.json",
         "proof/memory/x06-rag-qa.json",
         "proof/memory/x06-kg-parity.json",
-        "qa:rows-green:203",
-        "qa:rows-unrunnable:47"
+        "qa:rows-green:219",
+        "qa:rows-unrunnable:31"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -3944,7 +4026,7 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "commit:686846a02714f6c395e0557eed439ea7b680d1cd"
+        "commit:256409369f63f674908f84ecc0f69c03bbb9a783"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -4225,24 +4307,24 @@
       "category": "GitHistory",
       "query": "Which files were created in the most recent working session?",
       "expectedIds": [
-        "commit:b903aad00603fc9e412f412051fcbb0ba8029fba",
-        "lane:codex/x06-harvest-sync",
-        "created-after:2026-07-07 23:17:26 -0400",
-        "created:crates/enforcer-memory/src/runtime_probe.rs"
+        "commit:560e6c50ac06fca518698b6b4fd5c68cb9d6827b",
+        "lane:rust-build",
+        "created-after:2026-07-08 20:30:28 -0400",
+        "created:docs/plans/enforcer-selfhost-plan/x06-rag-critique-for-codex.md"
       ],
       "actualIds": [
-        "commit:b903aad00603fc9e412f412051fcbb0ba8029fba",
-        "lane:codex/x06-harvest-sync",
-        "created-after:2026-07-07 23:17:26 -0400",
-        "created:crates/enforcer-memory/src/runtime_probe.rs"
+        "commit:560e6c50ac06fca518698b6b4fd5c68cb9d6827b",
+        "lane:rust-build",
+        "created-after:2026-07-08 20:30:28 -0400",
+        "created:docs/plans/enforcer-selfhost-plan/x06-rag-critique-for-codex.md"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "commit:b903aad00603fc9e412f412051fcbb0ba8029fba",
-        "lane:codex/x06-harvest-sync",
-        "crates/enforcer-memory/src/runtime_probe.rs"
+        "commit:560e6c50ac06fca518698b6b4fd5c68cb9d6827b",
+        "lane:rust-build",
+        "docs/plans/enforcer-selfhost-plan/x06-rag-critique-for-codex.md"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -4322,7 +4404,7 @@
         "docs/plans/enforcer-selfhost-plan/workpacks/c09-remaining-harness-adapters.md",
         "docs/plans/enforcer-selfhost-plan/workpacks/c10-ci-integration-and-binary-bootstrap.md",
         "crates/enforcer-install",
-        "history-count:19"
+        "history-count:20"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -5082,92 +5164,178 @@
       "id": "QA-206",
       "category": "Reranking",
       "query": "Prove reranker improved ranking for \"rule validator mapping\".",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Reranking",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "rule-validator:mapping",
+        "rule-validator:tests"
+      ],
+      "actualIds": [
+        "rule-validator:mapping",
+        "rule-validator:tests",
+        "docs:rule-list",
+        "unrelated:cli"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "rerankerLift": 0.349079070192868,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/ranking.rs",
+        "crates/enforcer-memory/tests/retrieval_stack.rs",
+        "proof/memory/x06-rag.json",
+        "proof/memory/x06-reranker.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-207",
       "category": "Reranking",
       "query": "Show reranker lift when a query mixes keywords + graph signals.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Reranking",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "hybrid:keyword-graph",
+        "graph:neighbor-signal"
+      ],
+      "actualIds": [
+        "hybrid:keyword-graph",
+        "graph:neighbor-signal",
+        "keyword:literal-only",
+        "unrelated:token"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "rerankerLift": 0.4293582810446799,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/ranking.rs",
+        "crates/enforcer-memory/src/search/mod.rs",
+        "proof/memory/x06-reranker.json",
+        "proof/memory/x06-retrieval-quality.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-208",
       "category": "Reranking",
       "query": "Measure reranker behavior on exact rule-id lookup (`TS-1.1`).",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Reranking",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "rule:TS-1.1",
+        "fixture:TS-1.1"
+      ],
+      "actualIds": [
+        "rule:TS-1.1",
+        "fixture:TS-1.1",
+        "docs:typescript-rules",
+        "rule:TS-2.1"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "rerankerLift": 0.306573596382729,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/ranking.rs",
+        "crates/enforcer-memory/tests/retrieval_stack.rs",
+        "proof/memory/x06-rag.json",
+        "proof/memory/x06-reranker.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-209",
       "category": "Reranking",
       "query": "Find queries where reranking degraded ranking.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Reranking",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "reranker:degraded-query-detected"
+      ],
+      "actualIds": [
+        "reranker:degraded-query-detected"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/feature_parity/metrics.rs",
+        "crates/enforcer-memory/tests/retrieval_stack.rs",
+        "proof/memory/x06-reranker.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-210",
       "category": "Reranking",
       "query": "Compare graph-only vs semantic-only vs hybrid routing.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Reranking",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "hybrid:rrf",
+        "graph:rule-map"
+      ],
+      "actualIds": [
+        "hybrid:rrf",
+        "graph:rule-map",
+        "semantic:description-only",
+        "unrelated:proof"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "rerankerLift": 0.349079070192868,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/ranking.rs",
+        "crates/enforcer-memory/src/search/mod.rs",
+        "proof/memory/x06-rag.json",
+        "proof/memory/x06-reranker.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-211",
       "category": "Reranking",
       "query": "Prove reranker filters false-positive candidates before context pack.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Reranking",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "context:true-positive",
+        "context:source-ref"
+      ],
+      "actualIds": [
+        "context:true-positive",
+        "context:source-ref",
+        "false-positive:name-only",
+        "false-positive:sibling"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "rerankerLift": 0.349079070192868,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/ranking.rs",
+        "crates/enforcer-memory/src/search/mod.rs",
+        "proof/memory/x06-reranker.json",
+        "proof/memory/x06-token-reduction.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-212",
       "category": "Reranking",
       "query": "Measure reranker latency on top-100 candidates.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Reranking",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "reranker:top100-latency-within-gate"
+      ],
+      "actualIds": [
+        "reranker:top100-latency-within-gate"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/ranking.rs",
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "proof/memory/x06-reranker.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-213",

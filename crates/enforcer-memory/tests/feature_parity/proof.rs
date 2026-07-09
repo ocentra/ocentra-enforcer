@@ -85,6 +85,10 @@ pub struct QaProofDocument {
     pub rows_total: usize,
     #[serde(rename = "rowsGreen")]
     pub rows_green: usize,
+    #[serde(rename = "rowsGreenReal")]
+    pub rows_green_real: usize,
+    #[serde(rename = "rowsGreenDegraded")]
+    pub rows_green_degraded: usize,
     #[serde(rename = "rowsFailed")]
     pub rows_failed: usize,
     #[serde(rename = "rowsUnrunnable")]
@@ -98,11 +102,21 @@ pub struct QaProofDocument {
 /// invariant rather than something a caller could drift out of sync.
 pub fn build_qa_proof_document(results: &[RowResult]) -> QaProofDocument {
     let rows_green = results.iter().filter(|r| r.is_green()).count();
+    let rows_green_real = results
+        .iter()
+        .filter(|r| r.is_green() && r.capability_state == "loaded")
+        .count();
+    let rows_green_degraded = results
+        .iter()
+        .filter(|r| r.is_green() && r.capability_state == "degraded")
+        .count();
     let rows_unrunnable = results.iter().filter(|r| r.is_unrunnable()).count();
     let rows_failed = results.len() - rows_green - rows_unrunnable;
     QaProofDocument {
         rows_total: results.len(),
         rows_green,
+        rows_green_real,
+        rows_green_degraded,
         rows_failed,
         rows_unrunnable,
         rows: results.iter().map(QaProofRow::from).collect(),
@@ -181,6 +195,10 @@ pub struct FeatureParityDocument {
     pub qa_rows_total: usize,
     #[serde(rename = "qaRowsGreen")]
     pub qa_rows_green: usize,
+    #[serde(rename = "qaRowsGreenReal")]
+    pub qa_rows_green_real: usize,
+    #[serde(rename = "qaRowsGreenDegraded")]
+    pub qa_rows_green_degraded: usize,
     #[serde(rename = "kgParityComparedAgainstBaseline")]
     pub kg_parity_compared_against_baseline: bool,
     #[serde(rename = "mcpCliParity")]
@@ -225,7 +243,15 @@ pub fn build_feature_parity_document(
         .collect();
     let all_matrix_prefixes_green = prefixes.iter().all(|row| row.status.is_green());
 
-    let qa_rows_green = qa_results.iter().filter(|r| r.is_green()).count();
+    let qa_rows_green_real = qa_results
+        .iter()
+        .filter(|r| r.is_green() && r.capability_state == "loaded")
+        .count();
+    let qa_rows_green_degraded = qa_results
+        .iter()
+        .filter(|r| r.is_green() && r.capability_state == "degraded")
+        .count();
+    let qa_rows_green = qa_rows_green_real + qa_rows_green_degraded;
 
     let kg_parity_compared_against_baseline = prefix_statuses
         .get("PAR")
@@ -257,6 +283,8 @@ pub fn build_feature_parity_document(
         all_matrix_prefixes_green,
         qa_rows_total: qa_results.len(),
         qa_rows_green,
+        qa_rows_green_real,
+        qa_rows_green_degraded,
         kg_parity_compared_against_baseline,
         mcp_cli_parity,
         local_dense_retrieval_present,
@@ -328,6 +356,8 @@ mod tests {
         let document = build_qa_proof_document(&results);
         assert_eq!(document.rows_total, 2);
         assert_eq!(document.rows_green, 1);
+        assert_eq!(document.rows_green_real, 0);
+        assert_eq!(document.rows_green_degraded, 1);
         assert_eq!(document.rows_unrunnable, 1);
         assert_eq!(document.rows_failed, 0);
         assert_eq!(document.rows.len(), document.rows_total);

@@ -196,6 +196,85 @@ impl Embedder for HashingEmbedder {
     }
 }
 
+/// Runtime-selectable local embedder.
+///
+/// This is the handoff point from "retrieval always uses the degraded
+/// hashing stand-in" to "retrieval can be given a real local provider
+/// when a validated model spec/cache exists", without changing the
+/// [`Embedder`] trait or violating zero-network defaults.
+pub enum LocalEmbedder {
+    Hashing(HashingEmbedder),
+    #[cfg(feature = "ort-models")]
+    Ort(crate::ort_runtime::OrtEmbedder),
+}
+
+impl LocalEmbedder {
+    pub fn hashing() -> Self {
+        Self::Hashing(HashingEmbedder::new())
+    }
+
+    #[cfg(feature = "ort-models")]
+    pub fn try_ort(
+        spec: &crate::model_runtime::ModelSpec,
+        provider: crate::model_runtime::ProviderKind,
+    ) -> Result<Self> {
+        Ok(Self::Ort(crate::ort_runtime::OrtEmbedder::load(
+            spec, provider,
+        )?))
+    }
+
+    #[cfg(not(feature = "ort-models"))]
+    pub fn try_ort(
+        _spec: &crate::model_runtime::ModelSpec,
+        _provider: crate::model_runtime::ProviderKind,
+    ) -> Result<Self> {
+        Err(crate::error::MemoryError::ModelRuntime {
+            operation: "load-local-ort-embedder",
+            reason: "ort-models feature is not compiled; default retrieval remains degraded/provider-unavailable".to_owned(),
+        })
+    }
+}
+
+impl Default for LocalEmbedder {
+    fn default() -> Self {
+        Self::hashing()
+    }
+}
+
+impl Embedder for LocalEmbedder {
+    fn embed(&self, text: &str) -> Result<Vec<f32>> {
+        match self {
+            Self::Hashing(embedder) => embedder.embed(text),
+            #[cfg(feature = "ort-models")]
+            Self::Ort(embedder) => embedder.embed(text),
+        }
+    }
+
+    fn model_info(&self) -> EmbeddingModelInfo {
+        match self {
+            Self::Hashing(embedder) => embedder.model_info(),
+            #[cfg(feature = "ort-models")]
+            Self::Ort(embedder) => embedder.model_info(),
+        }
+    }
+
+    fn state(&self) -> LoadState {
+        match self {
+            Self::Hashing(embedder) => embedder.state(),
+            #[cfg(feature = "ort-models")]
+            Self::Ort(embedder) => embedder.state(),
+        }
+    }
+
+    fn resource_class(&self) -> ResourceClass {
+        match self {
+            Self::Hashing(embedder) => embedder.resource_class(),
+            #[cfg(feature = "ort-models")]
+            Self::Ort(embedder) => embedder.resource_class(),
+        }
+    }
+}
+
 /// In-place L2 normalization; a zero vector is left as-is (no NaN from
 /// dividing by zero norm).
 fn l2_normalize(vector: &mut [f32]) {
@@ -244,6 +323,39 @@ mod tests {
             embedder.state(),
             LoadState::Degraded(DegradedState::ProviderUnavailable)
         );
+    }
+
+    #[test]
+    fn local_embedder_default_is_the_degraded_zero_network_provider() -> Result<()> {
+        let embedder = LocalEmbedder::default();
+        let vector = embedder.embed("parse config file")?;
+
+        assert_eq!(vector.len(), HASHING_EMBEDDER_DIMENSION);
+        assert_eq!(
+            embedder.state(),
+            LoadState::Degraded(DegradedState::ProviderUnavailable)
+        );
+        Ok(())
+    }
+
+    #[cfg(not(feature = "ort-models"))]
+    #[test]
+    fn local_embedder_rejects_ort_when_feature_is_not_compiled() {
+        let spec = crate::model_runtime::ModelSpec::qwen3_embedding(
+            "missing.onnx",
+            "0".repeat(64),
+            "tokenizer.json",
+            "1".repeat(64),
+        );
+        let result = LocalEmbedder::try_ort(&spec, crate::model_runtime::ProviderKind::Cpu);
+
+        assert!(matches!(
+            result,
+            Err(crate::error::MemoryError::ModelRuntime {
+                operation: "load-local-ort-embedder",
+                ..
+            })
+        ));
     }
 
     #[test]

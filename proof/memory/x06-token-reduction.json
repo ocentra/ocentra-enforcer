@@ -64,6 +64,22 @@
   },
   "passes10xGate": true,
   "qaEvidence": {
+    "QA-030": {
+      "queryId": "x06-qa-030-shutdown-context-pack",
+      "expectedId": "token-reduction:shutdown-context-pack",
+      "lifecycleRoute": "unload-model",
+      "baseline": "agent-opens-model-runtime-files",
+      "baselineFileReadTokens": 2500,
+      "contextPackTokens": 101,
+      "reductionRatio": 24.7524752475,
+      "minimumReductionRatio": 10.0,
+      "scope": "fixture proof that shutdown explanation can use the model-runtime lifecycle context pack rather than broad file reads",
+      "sourceRefs": [
+        "crates/enforcer-memory/src/model_runtime.rs",
+        "proof/memory/x06-models.json",
+        "proof/memory/x06-retrieval-quality.json"
+      ]
+    },
     "QA-213": {
       "queryId": "x06-qa-213-mcp-beats-agent-opens-42-files",
       "expectedId": "token-reduction:mcp-beats-agent-42-files",
@@ -169,7 +185,7 @@
   },
   "notes": [
     "Token reduction is proven on committed fixture retrieval rows, not on an external model provider.",
-    "QA-213 through QA-219 token-reduction rows are fixture-scope proof rows; they do not claim production-query distribution coverage.",
+    "QA-030 and QA-213 through QA-219 token-reduction rows are fixture-scope proof rows; they do not claim production-query distribution coverage.",
     "Reranker lift remains separately tracked because the current deterministic fixture reranker does not improve all rows."
   ]
 }
