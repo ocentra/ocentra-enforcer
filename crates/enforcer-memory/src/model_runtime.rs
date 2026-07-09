@@ -732,10 +732,20 @@ impl ModelCacheStatus {
 pub fn default_provider_order(preferred: &[ProviderKind]) -> Vec<ProviderKind> {
     let mut providers = Vec::new();
     for provider in preferred {
-        push_unique(&mut providers, *provider);
+        if *provider != ProviderKind::Cpu {
+            push_unique(&mut providers, *provider);
+        }
     }
-    push_unique(&mut providers, ProviderKind::OpenVino);
-    push_unique(&mut providers, ProviderKind::DirectMl);
+    for provider in [
+        ProviderKind::Cuda,
+        ProviderKind::Vulkan,
+        ProviderKind::OpenVino,
+        ProviderKind::DirectMl,
+        ProviderKind::CoreMl,
+        ProviderKind::Npu,
+    ] {
+        push_unique(&mut providers, provider);
+    }
     push_unique(&mut providers, ProviderKind::Cpu);
     providers
 }

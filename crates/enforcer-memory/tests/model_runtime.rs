@@ -159,8 +159,12 @@ fn provider_order_preserves_preferences_without_duplicates() {
         order,
         vec![
             ProviderKind::DirectMl,
-            ProviderKind::Cpu,
-            ProviderKind::OpenVino
+            ProviderKind::Cuda,
+            ProviderKind::Vulkan,
+            ProviderKind::OpenVino,
+            ProviderKind::CoreMl,
+            ProviderKind::Npu,
+            ProviderKind::Cpu
         ]
     );
 }
@@ -357,7 +361,11 @@ fn provider_order_keeps_preference_then_local_fallbacks() {
         order,
         vec![
             ProviderKind::DirectMl,
+            ProviderKind::Cuda,
+            ProviderKind::Vulkan,
             ProviderKind::OpenVino,
+            ProviderKind::CoreMl,
+            ProviderKind::Npu,
             ProviderKind::Cpu,
         ]
     );
@@ -380,12 +388,15 @@ fn discovers_onnx_artifact_with_external_data_and_support_files() {
     assert_eq!(artifact.onnx_path, "onnx/model_q4f16.onnx");
     assert_eq!(artifact.dtype, "q4f16");
     assert!(artifact.has_external_data);
-    assert!(artifact
-        .files
-        .contains(&"onnx/model_q4f16.onnx_data".to_owned()));
-    assert!(artifact.files.contains(&"onnx/tokenizer.json".to_owned()));
-    assert!(artifact.files.contains(&"config.json".to_owned()));
-    assert!(!artifact.files.contains(&"other/readme.md".to_owned()));
+    assert_eq!(
+        artifact.files,
+        vec![
+            "onnx/model_q4f16.onnx".to_owned(),
+            "onnx/model_q4f16.onnx_data".to_owned(),
+            "config.json".to_owned(),
+            "onnx/tokenizer.json".to_owned(),
+        ]
+    );
 }
 
 #[test]
@@ -402,11 +413,14 @@ fn artifact_discovery_handles_windows_separators() {
     assert_eq!(artifacts.len(), 1);
     let artifact = &artifacts[0];
     assert!(artifact.has_external_data);
-    assert!(artifact
-        .files
-        .contains(&r"onnx\model_fp16.onnx.data".to_owned()));
-    assert!(artifact.files.contains(&r"onnx\tokenizer.json".to_owned()));
-    assert!(!artifact.files.contains(&r"other\tokenizer.json".to_owned()));
+    assert_eq!(
+        artifact.files,
+        vec![
+            r"onnx\model_fp16.onnx".to_owned(),
+            r"onnx\model_fp16.onnx.data".to_owned(),
+            r"onnx\tokenizer.json".to_owned(),
+        ]
+    );
 }
 
 #[test]
