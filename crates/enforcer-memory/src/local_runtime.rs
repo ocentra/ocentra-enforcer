@@ -195,6 +195,16 @@ pub struct OrtWorkerExecutionPlan {
     pub env: Vec<(String, String)>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrtProviderResolution {
+    pub requested_provider: ProviderKind,
+    pub resolved_provider: ProviderKind,
+    pub available_providers: Vec<ProviderKind>,
+    pub provider_probe_passed: bool,
+    pub downgrade_reason: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeBackendContract {
@@ -669,6 +679,41 @@ pub fn validate_ort_worker_execution_plan(plan: &OrtWorkerExecutionPlan) -> Resu
         }
     }
     Ok(())
+}
+
+pub fn resolve_ort_provider(
+    requested_provider: ProviderKind,
+    available_providers: &[ProviderKind],
+) -> OrtProviderResolution {
+    let mut available = Vec::new();
+    for provider in available_providers {
+        if !available.contains(provider) {
+            available.push(*provider);
+        }
+    }
+    if !available.contains(&ProviderKind::Cpu) {
+        available.push(ProviderKind::Cpu);
+    }
+    let provider_probe_passed = !available_providers.is_empty();
+    if requested_provider == ProviderKind::Cpu || available.contains(&requested_provider) {
+        return OrtProviderResolution {
+            requested_provider,
+            resolved_provider: requested_provider,
+            available_providers: available,
+            provider_probe_passed,
+            downgrade_reason: None,
+        };
+    }
+    OrtProviderResolution {
+        requested_provider,
+        resolved_provider: ProviderKind::Cpu,
+        available_providers: available,
+        provider_probe_passed,
+        downgrade_reason: Some(format!(
+            "requested ORT provider {} but provider probe did not report it available; downgraded to cpu",
+            provider_env_value(requested_provider)
+        )),
+    }
 }
 
 pub fn ort_worker_command(plan: &OrtWorkerExecutionPlan) -> Result<Command> {

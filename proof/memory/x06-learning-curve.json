@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "artifact": "x06-learning-curve",
   "workpack": "x06-models-harvest",
-  "generatedAt": "2026-07-09T13:00:00.000Z",
+  "generatedAt": "2026-07-09T13:09:00.000Z",
   "status": "store-backed-projection-policy-clean-focused-gates",
   "learningCurve": {
     "present": true,
@@ -537,6 +537,17 @@
         "crates/enforcer-memory/src/local_runtime.rs",
         "crates/enforcer-memory/tests/model_runtime_real_contract.rs",
         "crates/enforcer-memory/tests/local_runtime.rs"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-047",
+      "lesson": "ORT acceleration requests are not proof of provider availability. The runtime must resolve requested CPU/GPU/NPU/OpenVINO-style providers against explicit probe evidence and downgrade to CPU with a recorded reason when the requested provider is not available.",
+      "evidence": [
+        "crates/enforcer-memory/src/local_runtime.rs",
+        "crates/enforcer-memory/src/runtime_probe.rs",
+        "crates/enforcer-memory/tests/local_runtime.rs",
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs"
       ],
       "status": "learned"
     }

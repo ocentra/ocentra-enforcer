@@ -7,12 +7,12 @@
 use enforcer_memory::error::MemoryError;
 use enforcer_memory::local_runtime::{
     arbitrate_runtime_workload, onnx_ort_feature_compiled, ort_worker_command,
-    ort_worker_execution_plan, provider_from_env_value, provider_order, runtime_backend_contract,
-    validate_control_plane, validate_fixture, validate_ort_worker_execution_plan, BackendReadiness,
-    LocalRuntimeControlPlane, LocalRuntimeFixture, LocalRuntimeKind, OrtWorkerLifecycleAction,
-    OrtWorkerLifecycleState, OrtWorkerTask, RuntimeActivityState, RuntimeAdmission,
-    RuntimeManagedCapability, RuntimeOwnershipMode, RuntimeRequestProtocol, RuntimeWorkload,
-    REQUIRED_MANAGED_CAPABILITIES,
+    ort_worker_execution_plan, provider_from_env_value, provider_order, resolve_ort_provider,
+    runtime_backend_contract, validate_control_plane, validate_fixture,
+    validate_ort_worker_execution_plan, BackendReadiness, LocalRuntimeControlPlane,
+    LocalRuntimeFixture, LocalRuntimeKind, OrtWorkerLifecycleAction, OrtWorkerLifecycleState,
+    OrtWorkerTask, RuntimeActivityState, RuntimeAdmission, RuntimeManagedCapability,
+    RuntimeOwnershipMode, RuntimeRequestProtocol, RuntimeWorkload, REQUIRED_MANAGED_CAPABILITIES,
 };
 use enforcer_memory::model_runtime::{ModelSpec, ProviderKind};
 use serde_json::Value;
@@ -798,4 +798,37 @@ fn ort_provider_env_roundtrip_covers_cpu_gpu_and_npu_names() {
     );
     assert_eq!(provider_from_env_value("npu"), Some(ProviderKind::Npu));
     assert_eq!(provider_from_env_value("llama-server"), None);
+}
+
+#[test]
+fn ort_provider_resolution_downgrades_unprobed_acceleration_to_cpu() {
+    let resolution = resolve_ort_provider(ProviderKind::OpenVino, &[]);
+
+    assert_eq!(resolution.requested_provider, ProviderKind::OpenVino);
+    assert_eq!(resolution.resolved_provider, ProviderKind::Cpu);
+    assert_eq!(resolution.available_providers, vec![ProviderKind::Cpu]);
+    assert!(!resolution.provider_probe_passed);
+    assert_eq!(
+        resolution.downgrade_reason.as_deref(),
+        Some(
+            "requested ORT provider open-vino but provider probe did not report it available; downgraded to cpu"
+        )
+    );
+}
+
+#[test]
+fn ort_provider_resolution_accepts_probed_npu_without_duplicate_cpu() {
+    let resolution = resolve_ort_provider(
+        ProviderKind::Npu,
+        &[ProviderKind::Npu, ProviderKind::Npu, ProviderKind::Cpu],
+    );
+
+    assert_eq!(resolution.requested_provider, ProviderKind::Npu);
+    assert_eq!(resolution.resolved_provider, ProviderKind::Npu);
+    assert_eq!(
+        resolution.available_providers,
+        vec![ProviderKind::Npu, ProviderKind::Cpu]
+    );
+    assert!(resolution.provider_probe_passed);
+    assert_eq!(resolution.downgrade_reason, None);
 }

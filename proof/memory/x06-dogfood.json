@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-dogfood",
-  "generatedAt": "2026-07-09T13:00:00.000Z",
+  "generatedAt": "2026-07-09T13:09:00.000Z",
   "hub": "ocentra-enforcer",
   "stateRoot": "<ledger>/ocentra-enforcer",
   "lane": "codex-x06-harvest-sync",
@@ -131,6 +131,9 @@
     "cargo check -p enforcer-memory --features real-models --example x06_model_runtime_probe and cargo clippy -p enforcer-memory --features real-models --example x06_model_runtime_probe -- -D warnings passed after ORT worker proof contract stamping",
     "rustfmt --check crates/enforcer-memory/src/runtime_probe.rs crates/enforcer-memory/tests/model_runtime_real_contract.rs passed after workspace cargo fmt --check hit Windows os error 206 path-length friction",
     "ocentra_enforcer_check source-shape and secrets scope=files passed for runtime_probe.rs and model_runtime_real_contract.rs; generic ocentra_enforcer_scan still expanded into existing Cargo.toml/Cargo.lock dependency debt outside this runtime patch",
+    "cargo test -p enforcer-memory --test local_runtime ort_provider_resolution --quiet -j 1 passed after adding ORT provider downgrade/acceptance policy",
+    "cargo test -p enforcer-memory --test model_runtime_real_contract real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in --quiet -j 1 passed after requiring ORT requested/resolved provider proof fields and env knobs",
+    "cargo check -p enforcer-memory --features real-models --example x06_model_runtime_probe and cargo clippy -p enforcer-memory --features real-models --example x06_model_runtime_probe -- -D warnings passed after adding ORT provider resolution to the real-model probe path",
     "cargo test -p enforcer-memory --test unit_store_sqlite store_backed_projection_rebuilds_from_a_real_code_graph_fixture -- --exact passed after GPH Store-backed projection proof",
     "cargo test -p enforcer-memory --test unit_store_sqlite --quiet passed after GPH Store-backed projection proof",
     "hardcoded-path scan over changed QA/GPH proof files returned no drive-root, user-profile, or rust-build-sync machine-path matches after source refs were normalized to repo-relative paths",
@@ -1228,6 +1231,18 @@
     {
       "shape": "t2",
       "evidence": "cargo test -p enforcer-memory --test model_runtime_real_contract real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in --quiet -j 1, cargo test -p enforcer-memory --test local_runtime ort_worker_command_uses_owned_worker_args_and_env_without_server_surface --quiet -j 1, cargo check -p enforcer-memory --features real-models --example x06_model_runtime_probe, and cargo clippy -p enforcer-memory --features real-models --example x06_model_runtime_probe -- -D warnings all passed; source-shape and secrets checks over the touched runtime files passed."
+    },
+    {
+      "shape": "t0",
+      "incident": "The ORT worker command accepted requested provider names, but the real-model probe had no explicit provider-admission step equivalent to the llama.cpp provider probe/downgrade path."
+    },
+    {
+      "shape": "t1",
+      "fix": "Added resolve_ort_provider so requested ORT providers are compared with explicit available-provider probe evidence, default safely to CPU, and record requested/resolved provider, available providers, probe-pass state, and downgrade reason in runtime proof JSON."
+    },
+    {
+      "shape": "t2",
+      "evidence": "cargo test -p enforcer-memory --test local_runtime ort_provider_resolution --quiet -j 1, cargo test -p enforcer-memory --test model_runtime_real_contract real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in --quiet -j 1, cargo check -p enforcer-memory --features real-models --example x06_model_runtime_probe, and cargo clippy -p enforcer-memory --features real-models --example x06_model_runtime_probe -- -D warnings all passed."
     }
   ]
 }
