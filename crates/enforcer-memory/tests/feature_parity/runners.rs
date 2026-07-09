@@ -1902,21 +1902,21 @@ const EXACT_QA_EVIDENCE_IDS: &[&str] = &[
     "QA-031", "QA-032", "QA-035", "QA-036", "QA-037", "QA-040", "QA-041", "QA-042", "QA-043",
     "QA-046", "QA-048", "QA-049", "QA-050", "QA-051", "QA-052", "QA-053", "QA-054", "QA-060",
     "QA-061", "QA-062", "QA-068", "QA-069", "QA-070", "QA-071", "QA-072", "QA-073", "QA-074",
-    "QA-075", "QA-076", "QA-077", "QA-078", "QA-080", "QA-081", "QA-082", "QA-083", "QA-084",
-    "QA-085", "QA-086", "QA-087", "QA-088", "QA-089", "QA-090", "QA-091", "QA-092", "QA-093",
-    "QA-094", "QA-095", "QA-096", "QA-097", "QA-098", "QA-099", "QA-100", "QA-101", "QA-102",
-    "QA-103", "QA-104", "QA-105", "QA-106", "QA-108", "QA-110", "QA-111", "QA-112", "QA-113",
-    "QA-115", "QA-116", "QA-117", "QA-118", "QA-119", "QA-120", "QA-126", "QA-129", "QA-135",
-    "QA-138", "QA-139", "QA-140", "QA-142", "QA-145", "QA-146", "QA-147", "QA-148", "QA-149",
-    "QA-150", "QA-152", "QA-155", "QA-156", "QA-159", "QA-160", "QA-162", "QA-163", "QA-164",
-    "QA-165", "QA-166", "QA-167", "QA-168", "QA-169", "QA-170", "QA-171", "QA-172", "QA-173",
-    "QA-174", "QA-186", "QA-189", "QA-191", "QA-192", "QA-193", "QA-194", "QA-195", "QA-196",
-    "QA-197", "QA-198", "QA-199", "QA-200", "QA-201", "QA-202", "QA-203", "QA-204", "QA-205",
-    "QA-206", "QA-207", "QA-208", "QA-209", "QA-210", "QA-211", "QA-212", "QA-213", "QA-214",
-    "QA-215", "QA-216", "QA-217", "QA-218", "QA-219", "QA-226", "QA-229", "QA-230", "QA-231",
-    "QA-232", "QA-233", "QA-234", "QA-235", "QA-236", "QA-237", "QA-238", "QA-239", "QA-240",
-    "QA-241", "QA-242", "QA-243", "QA-244", "QA-245", "QA-246", "QA-247", "QA-248", "QA-249",
-    "QA-250",
+    "QA-075", "QA-076", "QA-077", "QA-078", "QA-079", "QA-080", "QA-081", "QA-082", "QA-083",
+    "QA-084", "QA-085", "QA-086", "QA-087", "QA-088", "QA-089", "QA-090", "QA-091", "QA-092",
+    "QA-093", "QA-094", "QA-095", "QA-096", "QA-097", "QA-098", "QA-099", "QA-100", "QA-101",
+    "QA-102", "QA-103", "QA-104", "QA-105", "QA-106", "QA-108", "QA-110", "QA-111", "QA-112",
+    "QA-113", "QA-115", "QA-116", "QA-117", "QA-118", "QA-119", "QA-120", "QA-126", "QA-129",
+    "QA-135", "QA-138", "QA-139", "QA-140", "QA-142", "QA-145", "QA-146", "QA-147", "QA-148",
+    "QA-149", "QA-150", "QA-152", "QA-155", "QA-156", "QA-159", "QA-160", "QA-162", "QA-163",
+    "QA-164", "QA-165", "QA-166", "QA-167", "QA-168", "QA-169", "QA-170", "QA-171", "QA-172",
+    "QA-173", "QA-174", "QA-186", "QA-189", "QA-191", "QA-192", "QA-193", "QA-194", "QA-195",
+    "QA-196", "QA-197", "QA-198", "QA-199", "QA-200", "QA-201", "QA-202", "QA-203", "QA-204",
+    "QA-205", "QA-206", "QA-207", "QA-208", "QA-209", "QA-210", "QA-211", "QA-212", "QA-213",
+    "QA-214", "QA-215", "QA-216", "QA-217", "QA-218", "QA-219", "QA-226", "QA-229", "QA-230",
+    "QA-231", "QA-232", "QA-233", "QA-234", "QA-235", "QA-236", "QA-237", "QA-238", "QA-239",
+    "QA-240", "QA-241", "QA-242", "QA-243", "QA-244", "QA-245", "QA-246", "QA-247", "QA-248",
+    "QA-249", "QA-250",
 ];
 
 impl RowRunner for ExactQaEvidenceRunner {
@@ -1970,6 +1970,7 @@ impl RowRunner for ExactQaEvidenceRunner {
             "QA-076" => conflicting_lessons_probe(row),
             "QA-077" => strongest_evidence_lesson_probe(row),
             "QA-078" => recurrence_reduction_lesson_probe(row),
+            "QA-079" => no_effect_lesson_probe(row),
             "QA-080" => recurring_issue_after_landing_probe(row),
             "QA-081" => clean_scans_after_landing_probe(row),
             "QA-082" => workpack_observations_probe(row),
@@ -6007,6 +6008,43 @@ fn recurrence_reduction_lesson_probe(row: &QaRow) -> RowResult {
                 "learning:recurrence-reduction:test",
                 "crates/enforcer-memory/tests/unit_learning.rs",
                 &["store_learning_projection_replays_observations_into_curves"],
+            ),
+        ],
+    )
+}
+
+fn no_effect_lesson_probe(row: &QaRow) -> RowResult {
+    exact_file_marker_probe(
+        row,
+        &[
+            (
+                "learning:no-effect:proof-gate",
+                QA_PROOF_GATE_REL,
+                &["| QA-079 | Find lesson that had no effect."],
+            ),
+            (
+                "learning:no-effect:procedural-contract",
+                "crates/enforcer-memory/src/observations.rs",
+                &[
+                    "success and failure both recorded, because a memory system that",
+                    "pub enum ProceduralOutcome",
+                    "FixSuccess",
+                    "FixFailure",
+                    "pub fn procedural_success_rate(graph: &MemoryGraph, lesson_id: &str)",
+                    "distinct from `Some(0.0)` (tried and always failed)",
+                ],
+            ),
+            (
+                "learning:no-effect:fixture-proof",
+                "crates/enforcer-memory/tests/continuous_learning.rs",
+                &[
+                    "record_procedural(",
+                    "ProceduralOutcome::FixFailure",
+                    "fix regressed under a different rule id shape",
+                    "procedural_success_rate(&graph, \"mem-cl-0003\")",
+                    "Some(0.5)",
+                    "one success and one failure must average to a 0.5 success rate",
+                ],
             ),
         ],
     )

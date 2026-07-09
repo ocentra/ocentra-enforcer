@@ -1,10 +1,10 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 224,
+  "rowsGreen": 225,
   "rowsGreenReal": 0,
-  "rowsGreenDegraded": 224,
+  "rowsGreenDegraded": 225,
   "rowsFailed": 0,
-  "rowsUnrunnable": 26,
+  "rowsUnrunnable": 25,
   "rows": [
     {
       "id": "QA-001",
@@ -1753,14 +1753,26 @@
       "id": "QA-079",
       "category": "CodeGraph",
       "query": "Find lesson that had no effect.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category CodeGraph",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "learning:no-effect:proof-gate",
+        "learning:no-effect:procedural-contract",
+        "learning:no-effect:fixture-proof"
+      ],
+      "actualIds": [
+        "learning:no-effect:proof-gate",
+        "learning:no-effect:procedural-contract",
+        "learning:no-effect:fixture-proof"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/observations.rs",
+        "crates/enforcer-memory/tests/continuous_learning.rs",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-080",
