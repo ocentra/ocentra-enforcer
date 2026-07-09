@@ -8,6 +8,7 @@ use enforcer_memory::ranking::HardFilter;
 use enforcer_memory::rerank::FusionScoreReranker;
 use enforcer_memory::search::{DocumentKind, HybridSearcher, SearchDocument};
 use enforcer_memory::vector::{embed_documents, VectorIndex};
+use std::collections::{BTreeMap, BTreeSet};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -200,6 +201,70 @@ fn checked_in_token_reduction_rollup_is_derived_from_retrieval_observations() ->
     )?;
     assert_json_number_close(&token_rollup["distribution"]["p50ReductionRatio"], median)?;
     assert_json_number_close(&token_rollup["distribution"]["p95ReductionRatio"], p95)?;
+    Ok(())
+}
+
+#[test]
+fn checked_in_retrieval_quality_proof_has_complete_observation_triplets() -> TestResult {
+    let retrieval: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../proof/memory/x06-retrieval-quality.json"
+    ))?;
+
+    assert_eq!(retrieval["artifact"], "x06-retrieval-quality");
+    assert_eq!(retrieval["workpack"], "x06-models-harvest");
+    assert_eq!(
+        retrieval["evidence"]["degradedDefaultState"]["acceptedAsFeatureParity"], false,
+        "degraded default model state must not be accepted as feature parity"
+    );
+    assert_eq!(
+        retrieval["evidence"]["modelCapability"]["embedderLoadState"],
+        "degraded-provider-unavailable"
+    );
+    assert_eq!(
+        retrieval["evidence"]["modelCapability"]["rerankerLoadState"],
+        "degraded-provider-unavailable"
+    );
+
+    let observations = retrieval["observations"]
+        .as_array()
+        .ok_or("x06-retrieval-quality observations must be an array")?;
+    let declared_query_count = retrieval["queries"]
+        .as_u64()
+        .ok_or("x06-retrieval-quality queries must be a number")?
+        as usize;
+
+    let mut kinds_by_query: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    for observation in observations {
+        let candidate = &observation["candidate"];
+        let query_id = candidate["queryId"]
+            .as_str()
+            .ok_or("retrieval observation missing queryId")?;
+        let kind = candidate["observationKind"]
+            .as_str()
+            .ok_or("retrieval observation missing observationKind")?;
+        kinds_by_query
+            .entry(query_id.to_owned())
+            .or_default()
+            .insert(kind.to_owned());
+    }
+
+    assert_eq!(
+        kinds_by_query.len(),
+        declared_query_count,
+        "declared query count must match distinct observed query ids"
+    );
+    for (query_id, kinds) in &kinds_by_query {
+        for required in [
+            "retrieval-quality-proof",
+            "reranker-lift-proof",
+            "token-reduction-proof",
+        ] {
+            assert!(
+                kinds.contains(required),
+                "query {query_id} missing required observation kind {required}; kinds={kinds:?}"
+            );
+        }
+    }
     Ok(())
 }
 
