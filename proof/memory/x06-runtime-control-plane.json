@@ -25,6 +25,8 @@
       "requiredOwnership": "enforcer-isolated-worker",
       "inProcessAllowedForParity": false,
       "externalServerAllowedForParity": false,
+      "requestProtocol": "enforcer-worker-env",
+      "portBindingAllowedForParity": false,
       "managedCapabilities": [
         "load-unload",
         "pause-resume-cancel",
@@ -51,11 +53,13 @@
     "x06_runtime_control_plane_accepts_managed_llama_and_ort",
     "x06_runtime_control_plane_rejects_external_server_ownership",
     "x06_runtime_control_plane_rejects_backend_wrong_ownership_mode",
-    "ort_worker_plan_materializes_enforcer_owned_child_env_contract"
+    "ort_worker_plan_materializes_enforcer_owned_child_env_contract",
+    "ort_worker_plan_rejects_external_http_or_port_binding"
   ],
   "learningSignals": [
     "external-server-runtime-rejected",
     "ort-in-process-parity-rejected",
+    "ort-external-http-port-binding-rejected",
     "backend-specific-ownership-required"
   ]
 }

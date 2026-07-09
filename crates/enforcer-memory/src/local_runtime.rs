@@ -129,6 +129,20 @@ impl RuntimeOwnershipMode {
     }
 }
 
+/// Request protocol owned by Enforcer for a local runtime worker.
+///
+/// ORT runs behind an isolated worker protocol, not a model-provider
+/// server. This keeps request shaping, history/context policy, and
+/// cancellation semantics in Enforcer-owned code.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuntimeRequestProtocol {
+    EnforcerWorkerEnv,
+    EnforcerStdio,
+    ExternalHttp,
+    None,
+}
+
 /// Product responsibilities that must stay in Enforcer even when the
 /// low-level backend is llama.cpp or ORT.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -173,6 +187,9 @@ pub struct OrtWorkerExecutionPlan {
     pub provider: ProviderKind,
     pub timeout_ms: u64,
     pub ownership: RuntimeOwnershipMode,
+    pub request_protocol: RuntimeRequestProtocol,
+    pub external_server_allowed: bool,
+    pub port_binding_allowed: bool,
     pub kill_on_timeout: bool,
     pub env: Vec<(String, String)>,
 }
@@ -520,6 +537,9 @@ pub fn ort_worker_execution_plan(
         provider,
         timeout_ms,
         ownership: control.ownership,
+        request_protocol: RuntimeRequestProtocol::EnforcerWorkerEnv,
+        external_server_allowed: false,
+        port_binding_allowed: false,
         kill_on_timeout: control.timeout_kill_supported,
         env,
     })
@@ -530,6 +550,15 @@ pub fn validate_ort_worker_execution_plan(plan: &OrtWorkerExecutionPlan) -> Resu
         return Err(model_runtime_error(
             "validate-ort-worker-execution-plan",
             "ORT worker must be an Enforcer-owned isolated worker with timeout kill support",
+        ));
+    }
+    if plan.request_protocol != RuntimeRequestProtocol::EnforcerWorkerEnv
+        || plan.external_server_allowed
+        || plan.port_binding_allowed
+    {
+        return Err(model_runtime_error(
+            "validate-ort-worker-execution-plan",
+            "ORT worker must use Enforcer-owned worker protocol without external server or port binding",
         ));
     }
     if plan.timeout_ms == 0 {

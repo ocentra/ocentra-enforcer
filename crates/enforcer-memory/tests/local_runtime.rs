@@ -10,7 +10,8 @@ use enforcer_memory::local_runtime::{
     provider_from_env_value, provider_order, validate_control_plane, validate_fixture,
     validate_ort_worker_execution_plan, BackendReadiness, LocalRuntimeControlPlane,
     LocalRuntimeFixture, LocalRuntimeKind, OrtWorkerTask, RuntimeActivityState, RuntimeAdmission,
-    RuntimeManagedCapability, RuntimeOwnershipMode, RuntimeWorkload, REQUIRED_MANAGED_CAPABILITIES,
+    RuntimeManagedCapability, RuntimeOwnershipMode, RuntimeRequestProtocol, RuntimeWorkload,
+    REQUIRED_MANAGED_CAPABILITIES,
 };
 use enforcer_memory::model_runtime::{ModelSpec, ProviderKind};
 use serde_json::Value;
@@ -43,6 +44,14 @@ fn checked_in_runtime_control_plane_proof_matches_contract() -> TestResult {
     );
     assert_eq!(
         proof["runtimePolicy"]["onnxOrt"]["externalServerAllowedForParity"],
+        false
+    );
+    assert_eq!(
+        proof["runtimePolicy"]["onnxOrt"]["requestProtocol"],
+        "enforcer-worker-env"
+    );
+    assert_eq!(
+        proof["runtimePolicy"]["onnxOrt"]["portBindingAllowedForParity"],
         false
     );
     let ort_env = proof["runtimePolicy"]["onnxOrt"]["childEnvironment"]
@@ -321,6 +330,12 @@ fn ort_worker_plan_materializes_enforcer_owned_child_env_contract() -> TestResul
 
     validate_ort_worker_execution_plan(&plan)?;
     assert_eq!(plan.ownership, RuntimeOwnershipMode::EnforcerIsolatedWorker);
+    assert_eq!(
+        plan.request_protocol,
+        RuntimeRequestProtocol::EnforcerWorkerEnv
+    );
+    assert!(!plan.external_server_allowed);
+    assert!(!plan.port_binding_allowed);
     assert!(plan.kill_on_timeout);
     assert_eq!(
         plan.env_value("ENFORCER_X06_ORT_CHILD_TASK"),
@@ -339,6 +354,51 @@ fn ort_worker_plan_materializes_enforcer_owned_child_env_contract() -> TestResul
         Some("model/hf/qwen/tokenizer.json")
     );
     assert_eq!(plan.env_value("ENFORCER_X06_ORT_TIMEOUT_MS"), Some("30000"));
+    Ok(())
+}
+
+#[test]
+fn ort_worker_plan_rejects_external_http_or_port_binding() -> TestResult {
+    let spec = ModelSpec::qwen3_embedding(
+        "model/hf/qwen/model.onnx",
+        "abc123",
+        "model/hf/qwen/tokenizer.json",
+        "def456",
+    );
+    let mut plan = ort_worker_execution_plan(
+        "target/debug/x06_model_runtime_probe",
+        OrtWorkerTask::Embedding,
+        &spec,
+        ProviderKind::Cpu,
+        30_000,
+    )?;
+
+    plan.request_protocol = RuntimeRequestProtocol::ExternalHttp;
+    let err = match validate_ort_worker_execution_plan(&plan) {
+        Ok(()) => return Err("external HTTP ORT worker protocol should fail".into()),
+        Err(err) => err,
+    };
+    assert!(matches!(
+        err,
+        MemoryError::ModelRuntime {
+            operation: "validate-ort-worker-execution-plan",
+            ..
+        }
+    ));
+
+    plan.request_protocol = RuntimeRequestProtocol::EnforcerWorkerEnv;
+    plan.port_binding_allowed = true;
+    let err = match validate_ort_worker_execution_plan(&plan) {
+        Ok(()) => return Err("ORT worker port binding should fail".into()),
+        Err(err) => err,
+    };
+    assert!(matches!(
+        err,
+        MemoryError::ModelRuntime {
+            operation: "validate-ort-worker-execution-plan",
+            ..
+        }
+    ));
     Ok(())
 }
 
