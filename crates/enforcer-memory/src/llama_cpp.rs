@@ -11,13 +11,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::embed::{DegradedState, LoadState};
 use crate::error::{MemoryError, Result};
-use crate::local_runtime::LocalRuntimeAcceleration;
+use crate::local_runtime::{
+    LocalRuntimeAcceleration, RuntimeActivityState, RuntimeOwnershipMode, RuntimeRequestProtocol,
+};
 use crate::model_runtime::validate_file_hash;
-
-#[cfg_attr(not(feature = "real-models"), allow(dead_code))]
-pub(crate) fn llama_binary_name(base_name: &str) -> String {
-    format!("{base_name}{}", std::env::consts::EXE_SUFFIX)
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -81,6 +78,53 @@ pub struct LlamaCppProbeReport {
 pub struct LlamaCppCommandPlan {
     pub args: Vec<String>,
     pub env: Vec<(String, String)>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum LlamaCppLifecycleState {
+    Idle,
+    ToolchainReady,
+    ModelLoading,
+    Ready,
+    ChatActive,
+    EmbeddingActive,
+    PausedChat,
+    PausedEmbedding,
+    Cancelled,
+    TimedOut,
+    Unloaded,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum LlamaCppLifecycleAction {
+    ResolveToolchain,
+    LoadModel,
+    MarkReady,
+    StartChat,
+    StartEmbedding,
+    Pause,
+    Resume,
+    Cancel,
+    TimeoutKill,
+    Unload,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LlamaCppLifecycleTransition {
+    pub before: LlamaCppLifecycleState,
+    pub action: LlamaCppLifecycleAction,
+    pub after: LlamaCppLifecycleState,
+    pub activity: RuntimeActivityState,
+    pub ownership: RuntimeOwnershipMode,
+    pub request_protocol: RuntimeRequestProtocol,
+    pub execution_route: String,
+    pub external_server_allowed: bool,
+    pub port_binding_allowed: bool,
+    pub kill_on_timeout: bool,
+    pub reason: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -446,6 +490,145 @@ pub fn llama_cpp_command_plan(config: &LlamaCppProbeConfig) -> LlamaCppCommandPl
     LlamaCppCommandPlan { args, env }
 }
 
+pub fn transition_llama_cpp_lifecycle(
+    config: &LlamaCppProbeConfig,
+    before: LlamaCppLifecycleState,
+    action: LlamaCppLifecycleAction,
+) -> Result<LlamaCppLifecycleTransition> {
+    validate_llama_cpp_lifecycle_config(config)?;
+    let after = match (before, action) {
+        (
+            LlamaCppLifecycleState::Idle | LlamaCppLifecycleState::Unloaded,
+            LlamaCppLifecycleAction::ResolveToolchain,
+        ) => LlamaCppLifecycleState::ToolchainReady,
+        (LlamaCppLifecycleState::ToolchainReady, LlamaCppLifecycleAction::LoadModel) => {
+            LlamaCppLifecycleState::ModelLoading
+        }
+        (LlamaCppLifecycleState::ModelLoading, LlamaCppLifecycleAction::MarkReady) => {
+            LlamaCppLifecycleState::Ready
+        }
+        (LlamaCppLifecycleState::Ready, LlamaCppLifecycleAction::StartChat) => {
+            LlamaCppLifecycleState::ChatActive
+        }
+        (LlamaCppLifecycleState::Ready, LlamaCppLifecycleAction::StartEmbedding) => {
+            LlamaCppLifecycleState::EmbeddingActive
+        }
+        (LlamaCppLifecycleState::ChatActive, LlamaCppLifecycleAction::Pause) => {
+            LlamaCppLifecycleState::PausedChat
+        }
+        (LlamaCppLifecycleState::EmbeddingActive, LlamaCppLifecycleAction::Pause) => {
+            LlamaCppLifecycleState::PausedEmbedding
+        }
+        (LlamaCppLifecycleState::PausedChat, LlamaCppLifecycleAction::Resume) => {
+            LlamaCppLifecycleState::ChatActive
+        }
+        (LlamaCppLifecycleState::PausedEmbedding, LlamaCppLifecycleAction::Resume) => {
+            LlamaCppLifecycleState::EmbeddingActive
+        }
+        (
+            LlamaCppLifecycleState::ModelLoading
+            | LlamaCppLifecycleState::ChatActive
+            | LlamaCppLifecycleState::EmbeddingActive
+            | LlamaCppLifecycleState::PausedChat
+            | LlamaCppLifecycleState::PausedEmbedding,
+            LlamaCppLifecycleAction::Cancel,
+        ) => LlamaCppLifecycleState::Cancelled,
+        (
+            LlamaCppLifecycleState::ModelLoading
+            | LlamaCppLifecycleState::ChatActive
+            | LlamaCppLifecycleState::EmbeddingActive
+            | LlamaCppLifecycleState::PausedChat
+            | LlamaCppLifecycleState::PausedEmbedding,
+            LlamaCppLifecycleAction::TimeoutKill,
+        ) => LlamaCppLifecycleState::TimedOut,
+        (
+            LlamaCppLifecycleState::Ready
+            | LlamaCppLifecycleState::ChatActive
+            | LlamaCppLifecycleState::EmbeddingActive
+            | LlamaCppLifecycleState::PausedChat
+            | LlamaCppLifecycleState::PausedEmbedding
+            | LlamaCppLifecycleState::Cancelled
+            | LlamaCppLifecycleState::TimedOut,
+            LlamaCppLifecycleAction::Unload,
+        ) => LlamaCppLifecycleState::Unloaded,
+        _ => {
+            return Err(model_error(
+                "transition-llama-cpp-lifecycle",
+                format!("invalid llama.cpp lifecycle transition: {before:?} + {action:?}"),
+            ));
+        }
+    };
+
+    Ok(LlamaCppLifecycleTransition {
+        before,
+        action,
+        after,
+        activity: llama_lifecycle_activity(after),
+        ownership: RuntimeOwnershipMode::EnforcerSubprocess,
+        request_protocol: RuntimeRequestProtocol::EnforcerStdio,
+        execution_route: probe_execution_route(&config.binary_path, config.kind),
+        external_server_allowed: false,
+        port_binding_allowed: false,
+        kill_on_timeout: true,
+        reason: llama_lifecycle_reason(action),
+    })
+}
+
+fn validate_llama_cpp_lifecycle_config(config: &LlamaCppProbeConfig) -> Result<()> {
+    if config.timeout_ms == 0 {
+        return Err(model_error(
+            "validate-llama-cpp-lifecycle-config",
+            "llama.cpp lifecycle requires a non-zero timeout",
+        ));
+    }
+    let route = probe_execution_route(&config.binary_path, config.kind);
+    if route == "llama-server-v1-embeddings" {
+        return Err(model_error(
+            "validate-llama-cpp-lifecycle-config",
+            "llama.cpp server embedding route is not accepted for Enforcer-owned GGUF parity",
+        ));
+    }
+    Ok(())
+}
+
+fn llama_lifecycle_activity(state: LlamaCppLifecycleState) -> RuntimeActivityState {
+    match state {
+        LlamaCppLifecycleState::ModelLoading => RuntimeActivityState::Loading,
+        LlamaCppLifecycleState::ChatActive => RuntimeActivityState::ChatActive,
+        LlamaCppLifecycleState::EmbeddingActive => RuntimeActivityState::EmbeddingActive,
+        LlamaCppLifecycleState::PausedChat | LlamaCppLifecycleState::PausedEmbedding => {
+            RuntimeActivityState::Paused
+        }
+        _ => RuntimeActivityState::Idle,
+    }
+}
+
+fn llama_lifecycle_reason(action: LlamaCppLifecycleAction) -> String {
+    match action {
+        LlamaCppLifecycleAction::ResolveToolchain => {
+            "Enforcer resolved the llama.cpp toolchain before model load"
+        }
+        LlamaCppLifecycleAction::LoadModel => {
+            "Enforcer started an owned llama.cpp subprocess for GGUF model load"
+        }
+        LlamaCppLifecycleAction::MarkReady => "llama.cpp subprocess reported ready for work",
+        LlamaCppLifecycleAction::StartChat => {
+            "Enforcer admitted foreground chat on the owned llama.cpp subprocess"
+        }
+        LlamaCppLifecycleAction::StartEmbedding => {
+            "Enforcer admitted GGUF embedding work on the owned llama.cpp subprocess"
+        }
+        LlamaCppLifecycleAction::Pause => "Enforcer paused llama.cpp work for workload arbitration",
+        LlamaCppLifecycleAction::Resume => "Enforcer resumed paused llama.cpp work",
+        LlamaCppLifecycleAction::Cancel => "Enforcer cancelled the owned llama.cpp subprocess work",
+        LlamaCppLifecycleAction::TimeoutKill => {
+            "Enforcer killed the owned llama.cpp subprocess after timeout"
+        }
+        LlamaCppLifecycleAction::Unload => "Enforcer unloaded the owned llama.cpp subprocess",
+    }
+    .to_owned()
+}
+
 fn append_acceleration_plan(
     config: &LlamaCppProbeConfig,
     args: &mut Vec<String>,
@@ -725,6 +908,10 @@ fn model_error(operation: &'static str, reason: impl Into<String>) -> MemoryErro
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn llama_binary_name(base_name: &str) -> String {
+        format!("{base_name}{}", std::env::consts::EXE_SUFFIX)
+    }
 
     fn contains_arg_pair(args: &[String], key: &str, value: &str) -> bool {
         args.windows(2)

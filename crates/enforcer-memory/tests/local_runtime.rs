@@ -42,6 +42,53 @@ fn checked_in_runtime_control_plane_proof_matches_contract() -> TestResult {
         proof["runtimePolicy"]["llamaCpp"]["externalServerAllowedForParity"],
         false
     );
+    let llama_lifecycle = &proof["runtimePolicy"]["llamaCpp"]["lifecycle"];
+    assert_eq!(
+        llama_lifecycle["stateMachine"],
+        "enforcer-owned-llama-cpp-subprocess"
+    );
+    assert_eq!(llama_lifecycle["requestProtocol"], "enforcer-stdio");
+    assert_eq!(llama_lifecycle["timeoutKillRequired"], true);
+    assert_eq!(
+        llama_lifecycle["externalServerRejectedBeforeTransition"],
+        true
+    );
+    assert_eq!(llama_lifecycle["portBindingAllowedForParity"], false);
+    assert_eq!(llama_lifecycle["invalidTransitionRejected"], true);
+    for state in [
+        "toolchain-ready",
+        "model-loading",
+        "chat-active",
+        "embedding-active",
+        "timed-out",
+        "unloaded",
+    ] {
+        assert!(
+            llama_lifecycle["states"]
+                .as_array()
+                .is_some_and(|states| states
+                    .iter()
+                    .any(|candidate| candidate.as_str() == Some(state))),
+            "missing llama.cpp lifecycle state {state}"
+        );
+    }
+    for action in [
+        "resolve-toolchain",
+        "load-model",
+        "start-chat",
+        "start-embedding",
+        "timeout-kill",
+        "unload",
+    ] {
+        assert!(
+            llama_lifecycle["actions"]
+                .as_array()
+                .is_some_and(|actions| actions
+                    .iter()
+                    .any(|candidate| candidate.as_str() == Some(action))),
+            "missing llama.cpp lifecycle action {action}"
+        );
+    }
     assert_eq!(
         proof["runtimePolicy"]["onnxOrt"]["externalServerAllowedForParity"],
         false
@@ -98,6 +145,14 @@ fn checked_in_runtime_control_plane_proof_matches_contract() -> TestResult {
             "missing ORT lifecycle action {action}"
         );
     }
+    assert!(
+        proof["learningSignals"].as_array().is_some_and(|signals| {
+            signals
+                .iter()
+                .any(|signal| signal.as_str() == Some("llama-cpp-server-embedding-route-rejected"))
+        }),
+        "proof must record llama.cpp server-route rejection as a learning signal"
+    );
     assert!(
         proof["learningSignals"]
             .as_array()

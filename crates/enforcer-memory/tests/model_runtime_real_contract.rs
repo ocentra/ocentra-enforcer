@@ -7,7 +7,8 @@ use enforcer_memory::hf_cache::{
 };
 use enforcer_memory::llama_cpp::{
     llama_cpp_command_plan, parse_llama_cpp_devices, resolve_llama_cpp_execution,
-    validate_executable, validate_model, LlamaCppBackendHint, LlamaCppDevice, LlamaCppProbeConfig,
+    transition_llama_cpp_lifecycle, validate_executable, validate_model, LlamaCppBackendHint,
+    LlamaCppDevice, LlamaCppLifecycleAction, LlamaCppLifecycleState, LlamaCppProbeConfig,
     LlamaCppProbeKind,
 };
 use enforcer_memory::local_runtime::LocalRuntimeAcceleration;
@@ -1635,6 +1636,152 @@ fn llama_cpp_npu_plan_requires_openvino_device_env_and_small_context() {
         .iter()
         .any(|(key, value)| key == "GGML_OPENVINO_DEVICE" && value == "NPU"));
     assert!(contains_arg_pair(&plan.args, "-c", "512"));
+}
+
+#[test]
+fn llama_cpp_lifecycle_load_chat_pause_resume_cancel_and_unload_are_owned() -> TestResult {
+    let config = llama_plan_fixture(LocalRuntimeAcceleration::Cpu, LlamaCppBackendHint::Native);
+
+    let toolchain = transition_llama_cpp_lifecycle(
+        &config,
+        LlamaCppLifecycleState::Idle,
+        LlamaCppLifecycleAction::ResolveToolchain,
+    )?;
+    assert_eq!(toolchain.after, LlamaCppLifecycleState::ToolchainReady);
+    assert_eq!(
+        toolchain.ownership,
+        RuntimeOwnershipMode::EnforcerSubprocess
+    );
+    assert_eq!(
+        toolchain.request_protocol,
+        enforcer_memory::local_runtime::RuntimeRequestProtocol::EnforcerStdio
+    );
+    assert!(!toolchain.external_server_allowed);
+    assert!(!toolchain.port_binding_allowed);
+
+    let loading = transition_llama_cpp_lifecycle(
+        &config,
+        toolchain.after,
+        LlamaCppLifecycleAction::LoadModel,
+    )?;
+    assert_eq!(loading.after, LlamaCppLifecycleState::ModelLoading);
+    assert_eq!(
+        loading.activity,
+        enforcer_memory::local_runtime::RuntimeActivityState::Loading
+    );
+
+    let ready =
+        transition_llama_cpp_lifecycle(&config, loading.after, LlamaCppLifecycleAction::MarkReady)?;
+    assert_eq!(ready.after, LlamaCppLifecycleState::Ready);
+
+    let chat =
+        transition_llama_cpp_lifecycle(&config, ready.after, LlamaCppLifecycleAction::StartChat)?;
+    assert_eq!(chat.after, LlamaCppLifecycleState::ChatActive);
+    assert_eq!(chat.execution_route, "llama-cli");
+
+    let paused =
+        transition_llama_cpp_lifecycle(&config, chat.after, LlamaCppLifecycleAction::Pause)?;
+    assert_eq!(paused.after, LlamaCppLifecycleState::PausedChat);
+
+    let resumed =
+        transition_llama_cpp_lifecycle(&config, paused.after, LlamaCppLifecycleAction::Resume)?;
+    assert_eq!(resumed.after, LlamaCppLifecycleState::ChatActive);
+
+    let cancelled =
+        transition_llama_cpp_lifecycle(&config, resumed.after, LlamaCppLifecycleAction::Cancel)?;
+    assert_eq!(cancelled.after, LlamaCppLifecycleState::Cancelled);
+
+    let unloaded =
+        transition_llama_cpp_lifecycle(&config, cancelled.after, LlamaCppLifecycleAction::Unload)?;
+    assert_eq!(unloaded.after, LlamaCppLifecycleState::Unloaded);
+    Ok(())
+}
+
+#[test]
+fn llama_cpp_lifecycle_embedding_rejects_llama_server_route() -> TestResult {
+    let mut config = llama_plan_fixture(LocalRuntimeAcceleration::Cpu, LlamaCppBackendHint::Native);
+    config.binary_path = llama_binary_name("llama-server").into();
+    config.kind = LlamaCppProbeKind::Embedding;
+
+    let err = match transition_llama_cpp_lifecycle(
+        &config,
+        LlamaCppLifecycleState::Ready,
+        LlamaCppLifecycleAction::StartEmbedding,
+    ) {
+        Ok(transition) => {
+            return Err(format!("llama-server lifecycle should fail, got {transition:?}").into());
+        }
+        Err(err) => err,
+    };
+
+    assert!(matches!(
+        err,
+        MemoryError::ModelRuntime {
+            operation: "validate-llama-cpp-lifecycle-config",
+            ..
+        }
+    ));
+    Ok(())
+}
+
+#[test]
+fn llama_cpp_lifecycle_timeout_kill_requires_nonzero_timeout() -> TestResult {
+    let mut config = llama_plan_fixture(LocalRuntimeAcceleration::Cpu, LlamaCppBackendHint::Native);
+
+    let timeout = transition_llama_cpp_lifecycle(
+        &config,
+        LlamaCppLifecycleState::ChatActive,
+        LlamaCppLifecycleAction::TimeoutKill,
+    )?;
+    assert_eq!(timeout.after, LlamaCppLifecycleState::TimedOut);
+    assert!(timeout.kill_on_timeout);
+    assert_eq!(
+        timeout.reason,
+        "Enforcer killed the owned llama.cpp subprocess after timeout"
+    );
+
+    config.timeout_ms = 0;
+    let err = match transition_llama_cpp_lifecycle(
+        &config,
+        LlamaCppLifecycleState::ChatActive,
+        LlamaCppLifecycleAction::TimeoutKill,
+    ) {
+        Ok(transition) => {
+            return Err(format!("zero-timeout lifecycle should fail, got {transition:?}").into());
+        }
+        Err(err) => err,
+    };
+    assert!(matches!(
+        err,
+        MemoryError::ModelRuntime {
+            operation: "validate-llama-cpp-lifecycle-config",
+            ..
+        }
+    ));
+    Ok(())
+}
+
+#[test]
+fn llama_cpp_lifecycle_rejects_invalid_transition() -> TestResult {
+    let config = llama_plan_fixture(LocalRuntimeAcceleration::Cpu, LlamaCppBackendHint::Native);
+
+    let err = match transition_llama_cpp_lifecycle(
+        &config,
+        LlamaCppLifecycleState::Idle,
+        LlamaCppLifecycleAction::StartChat,
+    ) {
+        Ok(transition) => return Err(format!("idle chat should fail, got {transition:?}").into()),
+        Err(err) => err,
+    };
+
+    assert!(matches!(
+        err,
+        MemoryError::ModelRuntime {
+            operation: "transition-llama-cpp-lifecycle",
+            ..
+        }
+    ));
+    Ok(())
 }
 
 #[test]

@@ -19,7 +19,40 @@
         "cache-policy",
         "chat-history-policy",
         "workload-admission"
-      ]
+      ],
+      "lifecycle": {
+        "stateMachine": "enforcer-owned-llama-cpp-subprocess",
+        "states": [
+          "idle",
+          "toolchain-ready",
+          "model-loading",
+          "ready",
+          "chat-active",
+          "embedding-active",
+          "paused-chat",
+          "paused-embedding",
+          "cancelled",
+          "timed-out",
+          "unloaded"
+        ],
+        "actions": [
+          "resolve-toolchain",
+          "load-model",
+          "mark-ready",
+          "start-chat",
+          "start-embedding",
+          "pause",
+          "resume",
+          "cancel",
+          "timeout-kill",
+          "unload"
+        ],
+        "requestProtocol": "enforcer-stdio",
+        "timeoutKillRequired": true,
+        "externalServerRejectedBeforeTransition": true,
+        "portBindingAllowedForParity": false,
+        "invalidTransitionRejected": true
+      }
     },
     "onnxOrt": {
       "requiredOwnership": "enforcer-isolated-worker",
@@ -90,6 +123,8 @@
   ],
   "learningSignals": [
     "external-server-runtime-rejected",
+    "llama-cpp-lifecycle-owned-state-machine-required",
+    "llama-cpp-server-embedding-route-rejected",
     "ort-in-process-parity-rejected",
     "ort-external-http-port-binding-rejected",
     "backend-specific-ownership-required",
