@@ -1,0 +1,5 @@
+msgid "hello"
+msgstr "bonjour"
+
+msgid "goodbye"
+msgstr "au revoir"

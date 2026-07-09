@@ -431,6 +431,94 @@ pub enum LanguageTag {
     Devicetree,
     /// Smali. Language-parity wave G2.4e redo.
     Smali,
+    /// JSON5. Language-parity wave G2.5c.
+    Json5,
+    /// KDL. Language-parity wave G2.5c.
+    Kdl,
+    /// Linker Script. Language-parity wave G2.5c.
+    LinkerScript,
+    /// Liquid. Language-parity wave G2.5c.
+    Liquid,
+    /// Markdown. Language-parity wave G2.5c.
+    Markdown,
+    /// Mermaid. Language-parity wave G2.5c.
+    Mermaid,
+    /// PO (gettext). Language-parity wave G2.5c.
+    Po,
+    /// Java/Jakarta `.properties`. Language-parity wave G2.5c.
+    Properties,
+    /// Standalone regular-expression pattern. Language-parity wave G2.5c.
+    Regex,
+    // NOTE (worker G2.5b closing a gap left by a concurrent G2.5a
+    // worker): Assembly/Astro/Beancount/Bibtex/Blade/Css/Csv/Diff/
+    // Dockerfile/Dotenv/Gitattributes each already had a real
+    // `parsers::Language` variant, `classify` mapping, `parse_file`
+    // dispatch arm, and `languages::generic::parse_*` extractor landed
+    // -- but no `LanguageTag` variant/`From<Language>` arm/
+    // `complexity_language` arm here at all, leaving the whole crate
+    // non-compiling for every worker regardless of which language
+    // batch they touch. Added here purely additively (new variants
+    // only, nothing else in this enum touched) to unblock the shared
+    // build; G2.5a's own worker should feel free to expand these doc
+    // comments with their own grammar-provenance detail.
+    Assembly,
+    Astro,
+    Beancount,
+    Bibtex,
+    Blade,
+    Css,
+    Csv,
+    Diff,
+    Dockerfile,
+    Dotenv,
+    Gitattributes,
+    /// gitignore. Language-parity wave G2.5b.
+    Gitignore,
+    /// GN. Language-parity wave G2.5b.
+    Gn,
+    /// Go Mod. Language-parity wave G2.5b.
+    GoMod,
+    /// GraphQL. Language-parity wave G2.5b.
+    Graphql,
+    /// HTML. Language-parity wave G2.5b.
+    Html,
+    /// Hyprlang. Language-parity wave G2.5b.
+    Hyprlang,
+    /// INI. Language-parity wave G2.5b.
+    Ini,
+    /// Janet. Language-parity wave G2.5b.
+    Janet,
+    /// Jinja2. Language-parity wave G2.5b.
+    Jinja2,
+    /// JSDoc. Language-parity wave G2.5b.
+    Jsdoc,
+    /// JSON. Language-parity wave G2.5b.
+    Json,
+    /// Requirements (pip). Language-parity wave G2.5d/orchestrator
+    /// completion pass.
+    Requirements,
+    /// RON. Language-parity wave G2.5d/orchestrator completion pass.
+    Ron,
+    /// reStructuredText. Language-parity wave G2.5d/orchestrator
+    /// completion pass.
+    Rst,
+    /// SOQL. Language-parity wave G2.5d/orchestrator completion pass.
+    Soql,
+    /// SOSL. Language-parity wave G2.5d/orchestrator completion pass.
+    Sosl,
+    /// SSH client config. Language-parity wave G2.5d/orchestrator
+    /// completion pass.
+    Sshconfig,
+    /// Svelte. Language-parity wave G2.5d/orchestrator completion pass.
+    Svelte,
+    /// TOML. Language-parity wave G2.5d/orchestrator completion pass.
+    Toml,
+    /// Vue. Language-parity wave G2.5d/orchestrator completion pass.
+    Vue,
+    /// XML. Language-parity wave G2.5d/orchestrator completion pass.
+    Xml,
+    /// YAML. Language-parity wave G2.5d/orchestrator completion pass.
+    Yaml,
     ConfigToml,
     ConfigJson,
     ConfigYaml,
@@ -552,6 +640,48 @@ impl From<Language> for LanguageTag {
             Language::Gotemplate => LanguageTag::Gotemplate,
             Language::Devicetree => LanguageTag::Devicetree,
             Language::Smali => LanguageTag::Smali,
+            Language::Json5 => LanguageTag::Json5,
+            Language::Kdl => LanguageTag::Kdl,
+            Language::LinkerScript => LanguageTag::LinkerScript,
+            Language::Liquid => LanguageTag::Liquid,
+            Language::Markdown => LanguageTag::Markdown,
+            Language::Mermaid => LanguageTag::Mermaid,
+            Language::Po => LanguageTag::Po,
+            Language::Properties => LanguageTag::Properties,
+            Language::Regex => LanguageTag::Regex,
+            Language::Assembly => LanguageTag::Assembly,
+            Language::Astro => LanguageTag::Astro,
+            Language::Beancount => LanguageTag::Beancount,
+            Language::Bibtex => LanguageTag::Bibtex,
+            Language::Blade => LanguageTag::Blade,
+            Language::Css => LanguageTag::Css,
+            Language::Csv => LanguageTag::Csv,
+            Language::Diff => LanguageTag::Diff,
+            Language::Dockerfile => LanguageTag::Dockerfile,
+            Language::Dotenv => LanguageTag::Dotenv,
+            Language::Gitattributes => LanguageTag::Gitattributes,
+            Language::Gitignore => LanguageTag::Gitignore,
+            Language::Gn => LanguageTag::Gn,
+            Language::GoMod => LanguageTag::GoMod,
+            Language::Graphql => LanguageTag::Graphql,
+            Language::Html => LanguageTag::Html,
+            Language::Hyprlang => LanguageTag::Hyprlang,
+            Language::Ini => LanguageTag::Ini,
+            Language::Janet => LanguageTag::Janet,
+            Language::Jinja2 => LanguageTag::Jinja2,
+            Language::Jsdoc => LanguageTag::Jsdoc,
+            Language::Json => LanguageTag::Json,
+            Language::Requirements => LanguageTag::Requirements,
+            Language::Ron => LanguageTag::Ron,
+            Language::Rst => LanguageTag::Rst,
+            Language::Soql => LanguageTag::Soql,
+            Language::Sosl => LanguageTag::Sosl,
+            Language::Sshconfig => LanguageTag::Sshconfig,
+            Language::Svelte => LanguageTag::Svelte,
+            Language::Toml => LanguageTag::Toml,
+            Language::Vue => LanguageTag::Vue,
+            Language::Xml => LanguageTag::Xml,
+            Language::Yaml => LanguageTag::Yaml,
             Language::ConfigToml => LanguageTag::ConfigToml,
             Language::ConfigJson => LanguageTag::ConfigJson,
             Language::ConfigYaml => LanguageTag::ConfigYaml,
@@ -2239,6 +2369,77 @@ fn complexity_language(language: Language) -> Option<crate::complexity::Complexi
         | Language::Gotemplate
         | Language::Devicetree
         | Language::Smali
+        // Language-parity wave G2.5c: JSON5/KDL/Linker Script/Liquid/
+        // Markdown/Mermaid/PO/Properties/Regex. Every one of these is a
+        // Tier-0 nominal language with `branch_types: &[]` in its own
+        // `LangSpec` row (no decision-point vocabulary at all) -- there
+        // is nothing for a `ComplexityLanguage`/`NodeKindTable` arm to
+        // compute here even in principle, unlike the "deferred, could be
+        // wired later" languages above.
+        | Language::Json5
+        | Language::Kdl
+        | Language::LinkerScript
+        | Language::Liquid
+        | Language::Markdown
+        | Language::Mermaid
+        | Language::Po
+        | Language::Properties
+        | Language::Regex
+        // Language-parity wave G2.5b: gitignore/GN/Go Mod/GraphQL/HTML/
+        // Hyprlang/INI/Janet/Jinja2/JSDoc/JSON, the final Tier-0
+        // language batch. Same "no decision-point vocabulary at all"
+        // reasoning as the G2.5c batch above -- every one of these
+        // `LangSpec` rows has `branch_types: &[]` except GN's own
+        // (`if_statement`/`foreach_statement`), which is documentary
+        // metadata only (the generic engine does not yet consume
+        // `branch_types` for anything functional, so there is still
+        // nothing for a `ComplexityLanguage`/`NodeKindTable` arm to
+        // compute here even for GN).
+        | Language::Gitignore
+        | Language::Gn
+        | Language::GoMod
+        | Language::Graphql
+        | Language::Html
+        | Language::Hyprlang
+        | Language::Ini
+        | Language::Janet
+        | Language::Jinja2
+        | Language::Jsdoc
+        | Language::Json
+        // Language-parity wave G2.5a: Assembly/Astro/Beancount/Bibtex/
+        // Blade/Css/Csv/Diff/Dockerfile/Dotenv/Gitattributes, the
+        // Tier-0 batch preceding rich-tier wave G3. Same "no
+        // decision-point vocabulary at all" reasoning as the G2.5b/c
+        // batches above -- every one of these `LangSpec` rows has
+        // `branch_types: &[]`, so there is nothing for a
+        // `ComplexityLanguage`/`NodeKindTable` arm to compute here even
+        // in principle.
+        | Language::Assembly
+        | Language::Astro
+        | Language::Beancount
+        | Language::Bibtex
+        | Language::Blade
+        | Language::Css
+        | Language::Csv
+        | Language::Diff
+        | Language::Dockerfile
+        | Language::Dotenv
+        | Language::Gitattributes
+        // Language-parity wave G2.5d/orchestrator completion pass:
+        // Requirements/RON/RST/SOQL/SOSL/SSHConfig/Svelte/TOML/Vue/
+        // XML/YAML, closing out Tier-0. Same "no decision-point
+        // vocabulary at all" reasoning as every batch above.
+        | Language::Requirements
+        | Language::Ron
+        | Language::Rst
+        | Language::Soql
+        | Language::Sosl
+        | Language::Sshconfig
+        | Language::Svelte
+        | Language::Toml
+        | Language::Vue
+        | Language::Xml
+        | Language::Yaml
         | Language::ConfigToml
         | Language::ConfigJson
         | Language::ConfigYaml

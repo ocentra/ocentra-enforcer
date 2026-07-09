@@ -832,7 +832,272 @@ pub enum Language {
     /// grammar probe). Grammar VENDORED
     /// (`crates/enforcer-memory/vendor/tree-sitter-smali-local/`).
     Smali,
+    /// JSON5 (`.json5`). Language-parity wave G2.5c (Tier-0). Grammar
+    /// VENDORED (`crates/enforcer-memory/vendor/tree-sitter-json5-local/`)
+    /// -- see [`crate::languages::spec::LangSpec::json5`]'s own doc
+    /// comment for why (an upper-bounded pre-`tree-sitter-language`
+    /// published crate).
+    Json5,
+    /// KDL (`.kdl`). Language-parity wave G2.5c (Tier-0). NOT the same
+    /// concept as [`Language::K8s`]/[`Language::Kustomize`] -- see
+    /// [`crate::languages::spec::LangSpec::kdl`]'s own doc comment.
+    /// Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-kdl-local/`).
+    Kdl,
+    /// Linker Script (`.ld`/`.lds`/`.x`). Language-parity wave G2.5c
+    /// (Tier-0). Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-linkerscript-local/`).
+    LinkerScript,
+    /// Liquid (Shopify template language, `.liquid`). Language-parity
+    /// wave G2.5c (Tier-0). Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-liquid-local/`).
+    Liquid,
+    /// Markdown (`.md`). Language-parity wave G2.5c (Tier-0). Grammar
+    /// VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-markdown-local/`).
+    Markdown,
+    /// Mermaid (diagram-as-code, `.mmd`/`.mermaid`). Language-parity
+    /// wave G2.5c (Tier-0). Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-mermaid-local/`).
+    Mermaid,
+    /// PO (gettext translation catalog, `.po`). Language-parity wave
+    /// G2.5c (Tier-0). Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-po-local/`).
+    Po,
+    /// Java/Jakarta `.properties` (`.properties`). Language-parity wave
+    /// G2.5c (Tier-0). Grammar: `tree-sitter-properties` 0.3.0, a real
+    /// crates.io crate.
+    Properties,
+    /// Standalone regular-expression pattern (`.re` -- baseline's own
+    /// `EXT_TABLE` entry, confirmed directly; NOT `.regex`). Language-
+    /// parity wave G2.5c (Tier-0). Grammar: `tree-sitter-regex` 0.25.0,
+    /// a real crates.io crate.
+    Regex,
+    /// Assembly (`.s`/`.S` -- baseline's own `EXT_TABLE` registers only
+    /// these two, NOT the also-common `.asm` extension). Language-parity
+    /// wave G2.5a (Tier-0). Grammar: `tree-sitter-asm` 0.24.0
+    /// (`RubixDev/tree-sitter-asm`), a real crates.io crate.
+    Assembly,
+    /// Astro (`.astro`). Language-parity wave G2.5a (Tier-0). Grammar
+    /// VENDORED (`crates/enforcer-memory/vendor/tree-sitter-astro-local/`)
+    /// -- no `tree-sitter-astro` crate exists on crates.io under any
+    /// plausible name (confirmed via `cargo add --dry-run`).
+    Astro,
+    /// Beancount (`.beancount`). Language-parity wave G2.5a (Tier-0).
+    /// Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-beancount-local/`) --
+    /// the published `tree-sitter-beancount` 2.5.1 crate hard-pins
+    /// `tree-sitter = "~0.26.3"` as a real (not feature-gated) normal
+    /// dependency, incompatible with this workspace's core -- see
+    /// [`crate::languages::spec::LangSpec::beancount`]'s own doc
+    /// comment.
+    Beancount,
+    /// BibTeX (`.bib`). Language-parity wave G2.5a (Tier-0). Grammar
+    /// VENDORED (`crates/enforcer-memory/vendor/tree-sitter-bibtex-local/`)
+    /// -- the published `tree-sitter-bibtex` 0.1.0 crate hard-pins
+    /// `tree-sitter = "0.22.6"` as a normal dependency, predating the
+    /// `tree-sitter-language` shim.
+    Bibtex,
+    /// Blade (Laravel template language, `.blade.php`). Language-parity
+    /// wave G2.5a (Tier-0). Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-blade-local/`) -- no
+    /// `tree-sitter-blade` crate exists on crates.io under any
+    /// plausible name (confirmed via `cargo add --dry-run`). No
+    /// [`classify`] mapping: `.blade.php` is a compound extension this
+    /// module's plain last-dot-split `classify` cannot distinguish from
+    /// plain `.php` -- reached only by a caller invoking
+    /// [`crate::languages::generic::parse_blade`] directly, same
+    /// precedent as [`Language::Matlab`]'s own doc comment.
+    Blade,
+    /// CSS (`.css`). Language-parity wave G2.5a (Tier-0). Grammar:
+    /// `tree-sitter-css` 0.25.0 (`tree-sitter/tree-sitter-css`, the
+    /// official grammar), a real crates.io crate.
+    Css,
+    /// CSV (`.csv`). Language-parity wave G2.5a (Tier-0). Grammar
+    /// VENDORED (`crates/enforcer-memory/vendor/tree-sitter-csv-local/`)
+    /// -- the published `tree-sitter-csv` 1.2.0 crate's own binding
+    /// pins `cc = "~1.0.82"` as a normal dependency, conflicting (via
+    /// cargo's `links = "tree-sitter"` single-version rule) with this
+    /// workspace's own `tree-sitter` core's transitive `cc` requirement
+    /// -- see [`crate::languages::spec::LangSpec::csv`]'s own doc
+    /// comment.
+    Csv,
+    /// Diff/patch (`.diff`/`.patch`). Language-parity wave G2.5a
+    /// (Tier-0). Grammar: `tree-sitter-diff` 0.1.0
+    /// (`tree-sitter/tree-sitter-diff`), a real crates.io crate.
+    Diff,
+    /// Dockerfile (bare filename `Dockerfile`, or `.dockerfile`).
+    /// Language-parity wave G2.5a (Tier-0). Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-dockerfile-local/`)
+    /// -- the published `tree-sitter-dockerfile` 0.2.0 crate hard-pins
+    /// `tree-sitter = "0.20"` as a normal dependency, predating the
+    /// `tree-sitter-language` shim. [`classify`]'s own plain
+    /// last-dot-split reads a dot-less bare filename as if its whole
+    /// name were the extension (same mechanism already noted by
+    /// [`Language::Zsh`]'s own doc comment for `.zshrc`) -- `"Dockerfile"`
+    /// has no dot at all, so it naturally lowercases to `"dockerfile"`
+    /// and needs no separate filename-table mechanism.
+    Dockerfile,
+    /// DotEnv (bare filename `.env`, or any `*.env` suffix). Language-
+    /// parity wave G2.5a (Tier-0). Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-dotenv-local/`) -- no
+    /// `tree-sitter-dotenv` crate exists on crates.io under any
+    /// plausible name (confirmed via `cargo add --dry-run`). Baseline's
+    /// own `EXT_TABLE` additionally registers a SECOND, compound
+    /// `.env.local` entry this module's plain last-dot-split
+    /// [`classify`] cannot reach (it would read the suffix as `"local"`,
+    /// which this crate deliberately does NOT also map to `Dotenv` --
+    /// that would misclassify any unrelated `*.local` file) -- a
+    /// documented, intentional gap, not a silent drop.
+    Dotenv,
+    /// gitattributes (bare filename `.gitattributes`). Language-parity
+    /// wave G2.5a (Tier-0). Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-gitattributes-local/`)
+    /// -- the published `tree-sitter-gitattributes` 0.1.6 crate hard-pins
+    /// `tree-sitter = "~0.20.10"` as a normal dependency, predating the
+    /// `tree-sitter-language` shim. Reachable through [`classify`]'s own
+    /// plain last-dot-split the same way as [`Language::Dotenv`]'s own
+    /// doc comment describes.
+    Gitattributes,
+    /// gitignore (`.gitignore`). Language-parity wave G2.5b (Tier-0,
+    /// final language batch). Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-gitignore-local/`).
+    Gitignore,
+    /// GN (Generate Ninja build-config language, `.gn`/`.gni`).
+    /// Language-parity wave G2.5b. Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-gn-local/`) -- see
+    /// [`crate::languages::spec::LangSpec::gn`]'s own doc comment for
+    /// why (the published `tree-sitter-gn` crate pins an incompatible
+    /// `cc` build-dependency version).
+    Gn,
+    /// Go Mod (`go.mod` file grammar). Language-parity wave G2.5b. No
+    /// [`classify`] filename-only dispatch mechanism exists in this
+    /// crate (same deferral class as [`Language::Cmake`]'s own doc
+    /// comment) -- but `go.mod` happens to route here anyway PURELY
+    /// BY COINCIDENCE of this crate's own extension-splitting
+    /// convention: `classify`'s `rel_path.rsplit('.').next()` on the
+    /// literal filename `"go.mod"` yields `"mod"`, which this variant's
+    /// own `classify` arm below maps here, matching baseline's real-
+    /// world common case even though the mapping is technically
+    /// extension-shaped (`.mod`) rather than the baseline's own exact-
+    /// filename-shaped (`go.mod` only) dispatch -- any OTHER
+    /// hypothetical `.mod` file (not `go.mod`) would also route here,
+    /// a deliberate, documented broadening baseline itself would not
+    /// make. Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-gomod-local/`) --
+    /// see [`crate::languages::spec::LangSpec::gomod`]'s own doc
+    /// comment for why (the published `tree-sitter-gomod` crate's own
+    /// Rust binding returns an incompatible `tree_sitter::Language`
+    /// version).
+    GoMod,
+    /// GraphQL SDL (`.gql`/`.graphql`). Language-parity wave G2.5b.
+    /// Grammar: `tree-sitter-graphql` 0.1.0, a real crates.io crate.
+    Graphql,
+    /// HTML (`.htm`/`.html`). Language-parity wave G2.5b. Grammar:
+    /// `tree-sitter-html` 0.23.2, a real crates.io crate.
+    Html,
+    /// Hyprlang (Hyprland window-manager config language, `.hl`).
+    /// Language-parity wave G2.5b. No bare-filename dispatch for the
+    /// baseline's own additional `hyprland.conf` `FILENAME_TABLE` entry
+    /// (same deferral class as [`Language::Cmake`]'s own doc comment)
+    /// -- every real `.hl` config-fragment file is still fully
+    /// classified and extracted. Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-hyprlang-local/`).
+    Hyprlang,
+    /// INI (`.cfg`/`.conf`/`.ini`). Language-parity wave G2.5b. Grammar:
+    /// `tree-sitter-ini` 1.4.0, a real crates.io crate.
+    Ini,
+    /// Janet (Lisp-family scripting language, `.janet`). Language-
+    /// parity wave G2.5b. Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-janet-local/`) -- the
+    /// grammar's own generated C function is `tree_sitter_janet_simple`,
+    /// see that vendor crate's own module doc for why.
+    Janet,
+    /// Jinja2 (`.j2`/`.jinja`/`.jinja2`). Language-parity wave G2.5b.
+    /// Grammar: `tree-sitter-jinja2` 0.0.16, a real crates.io crate.
+    Jinja2,
+    /// JSDoc (standalone JSDoc comment body). Language-parity wave
+    /// G2.5b. No [`classify`] extension wiring at all -- see
+    /// [`crate::languages::generic::parse_jsdoc`]'s own doc comment for
+    /// why (no baseline `EXT_TABLE` entry exists for this language
+    /// either; it is comment-embedded-only in the baseline too).
+    /// Grammar: `tree-sitter-jsdoc` 0.25.0, a real crates.io crate.
+    Jsdoc,
+    /// JSON (`.json`). Language-parity wave G2.5b. Replaces the
+    /// pre-existing [`Language::ConfigJson`] no-op fallback for a
+    /// `.json` extension -- see that variant's own doc comment.
+    /// Grammar: `tree-sitter-json` 0.24.8, a real crates.io crate.
+    Json,
+    // NOTE (language-parity wave G2.5c): `Language::K8s`/
+    // `Language::Kustomize` are intentionally NOT added here --
+    // baseline's own `CBM_LANG_K8S`/`CBM_LANG_KUSTOMIZE` ARE distinct
+    // registered languages (confirmed: `internal/cbm/cbm.h`'s own enum,
+    // `lang_specs.c`'s own `[CBM_LANG_K8S]`/`[CBM_LANG_KUSTOMIZE]` rows),
+    // NOT merely heuristic file patterns -- but both reuse the YAML
+    // grammar wholesale (`yaml_var_types`/`yaml_module_types`) plus a
+    // dedicated semantic pass (`cbm_extract_k8s()`, `cbm.h:614`) layered
+    // on top. DEFERRED: this crate has not yet onboarded
+    // [`Language::ConfigYaml`] into the generic engine at all
+    // (`parse_file` still returns `None` for it, see that variant's own
+    // doc comment below) and [`classify`] has no content-sniffing
+    // mechanism whatsoever (pure extension-only dispatch, plus
+    // Kustomize's own baseline dispatch is filename-gated on the exact
+    // name `kustomization.yaml`) -- landing K8s/Kustomize properly needs
+    // both prerequisites first, not a hand-rolled duplicate of either.
     TextOnly,
+    /// Requirements (pip `requirements.txt`). Language-parity wave
+    /// G2.5d/orchestrator completion pass. Grammar VENDORED (see
+    /// `vendor/tree-sitter-requirements-local/` or crates.io dep, check
+    /// Cargo.toml). No [`classify`] dispatch: the real baseline
+    /// convention is the exact basename `requirements.txt`, not a
+    /// generic `.txt` extension (which would misclassify every other
+    /// text file) -- `classify`'s own extension-only dispatch has no
+    /// whole-basename matching mechanism, so this is reachable only via
+    /// a direct `crate::languages::generic::parse_requirements` call,
+    /// same documented-gap convention as `Language::Jsdoc`.
+    Requirements,
+    /// RON (Rusty Object Notation, `.ron`). Language-parity wave
+    /// G2.5d/orchestrator completion pass.
+    Ron,
+    /// reStructuredText (`.rst`). Language-parity wave
+    /// G2.5d/orchestrator completion pass.
+    Rst,
+    /// SOQL (Salesforce Object Query Language, `.soql`). Language-parity
+    /// wave G2.5d/orchestrator completion pass.
+    Soql,
+    /// SOSL (Salesforce Object Search Language, `.sosl`). Language-parity
+    /// wave G2.5d/orchestrator completion pass.
+    Sosl,
+    /// SSH client config (`~/.ssh/config`, bare filename `config`, no
+    /// extension). Language-parity wave G2.5d/orchestrator completion
+    /// pass. [`classify`]'s no-dot-in-basename trick (the same one
+    /// `Language::Dockerfile` relies on) routes a bare `"config"`
+    /// basename here -- same basename-collision caveat Dockerfile
+    /// already documents (a differently-purposed file also named
+    /// exactly `config` with no extension would also match).
+    Sshconfig,
+    /// Svelte component (`.svelte`). Language-parity wave
+    /// G2.5d/orchestrator completion pass. Embedded `<script>` import
+    /// re-parse is a documented, deliberate gap (no embedded-sub-
+    /// language-reparse mechanism exists in this engine yet).
+    Svelte,
+    /// TOML (`.toml`). Language-parity wave G2.5d/orchestrator
+    /// completion pass. REPLACES the prior no-op [`Language::ConfigToml`]
+    /// fallback for this extension, same precedent
+    /// [`Language::Json`] already set for `.json` over `ConfigJson`.
+    Toml,
+    /// Vue component (`.vue`). Language-parity wave G2.5d/orchestrator
+    /// completion pass. Embedded `<script>` import re-parse is a
+    /// documented, deliberate gap, same as [`Language::Svelte`].
+    Vue,
+    /// XML (`.xml`). Language-parity wave G2.5d/orchestrator completion
+    /// pass.
+    Xml,
+    /// YAML (`.yaml`/`.yml`). Language-parity wave G2.5d/orchestrator
+    /// completion pass. REPLACES the prior no-op
+    /// [`Language::ConfigYaml`] fallback for these extensions, same
+    /// precedent [`Language::Json`] already set for `.json`.
+    Yaml,
 }
 
 /// Classify a file purely by its extension. Case-insensitive so
@@ -994,9 +1259,13 @@ pub fn classify(rel_path: &str) -> Language {
         "ha" => Language::Hare,
         "pony" => Language::Pony,
         "nasm" => Language::Nasm,
-        "toml" => Language::ConfigToml,
-        "json" => Language::ConfigJson,
-        "yml" | "yaml" => Language::ConfigYaml,
+        // `.toml`/`.json`/`.yml`/`.yaml` now route to the real
+        // `Language::Toml`/`Json`/`Yaml` extractors (language-parity
+        // waves G2.5b/G2.5d) instead of the pre-existing no-op
+        // `Language::ConfigToml`/`ConfigJson`/`ConfigYaml` fallbacks --
+        // see each variant's own doc comment.
+        "toml" => Language::Toml,
+        "yml" | "yaml" => Language::Yaml,
         "cbl" | "cob" => Language::Cobol,
         "cl" | "lisp" | "lsp" => Language::Commonlisp,
         "lean" => Language::Lean,
@@ -1055,6 +1324,74 @@ pub fn classify(rel_path: &str) -> Language {
         // `CBM_LANG_DEVICETREE`.
         "dts" | "dtsi" | "overlay" => Language::Devicetree,
         "smali" => Language::Smali,
+        "json5" => Language::Json5,
+        "kdl" => Language::Kdl,
+        // Baseline's own `EXT_TABLE` registers only `.ld`/`.lds` for
+        // `CBM_LANG_LINKERSCRIPT` -- no bare `.x` entry.
+        "ld" | "lds" => Language::LinkerScript,
+        "liquid" => Language::Liquid,
+        // Baseline's own `EXT_TABLE` maps both `.md` and `.mdx` to
+        // `CBM_LANG_MARKDOWN`.
+        "md" | "mdx" => Language::Markdown,
+        // Baseline's own `EXT_TABLE` maps both `.mermaid` and `.mmd` to
+        // `CBM_LANG_MERMAID`.
+        "mermaid" | "mmd" => Language::Mermaid,
+        // Baseline's own `EXT_TABLE` maps both `.po` and `.pot` to
+        // `CBM_LANG_PO`.
+        "po" | "pot" => Language::Po,
+        "properties" => Language::Properties,
+        // Baseline's own `EXT_TABLE` entry is `.re`, NOT `.regex`.
+        "re" => Language::Regex,
+        // Baseline's own `EXT_TABLE` registers only `.s`/`.S` for
+        // `CBM_LANG_ASSEMBLY` -- see `Language::Assembly`'s own doc
+        // comment for why the also-common `.asm` extension is absent.
+        "s" => Language::Assembly,
+        "astro" => Language::Astro,
+        "beancount" => Language::Beancount,
+        "bib" => Language::Bibtex,
+        "css" => Language::Css,
+        "csv" => Language::Csv,
+        // Baseline's own `EXT_TABLE` maps both `.diff` and `.patch` to
+        // `CBM_LANG_DIFF`.
+        "diff" | "patch" => Language::Diff,
+        // `"Dockerfile"` (no dot) lowercases to the whole basename --
+        // see `Language::Dockerfile`'s own doc comment.
+        "dockerfile" => Language::Dockerfile,
+        // `".env"` (no second dot) lowercases to `"env"` -- see
+        // `Language::Dotenv`'s own doc comment for the `.env.local`
+        // compound-extension gap this does NOT also cover.
+        "env" => Language::Dotenv,
+        // `".gitattributes"` (no second dot) lowercases to the whole
+        // basename -- see `Language::Gitattributes`'s own doc comment.
+        "gitattributes" => Language::Gitattributes,
+        // `".gitignore"` (no second dot) lowercases to the whole
+        // basename -- same mechanism as `Language::Gitattributes`'s own
+        // doc comment above.
+        "gitignore" => Language::Gitignore,
+        "gn" | "gni" => Language::Gn,
+        // `"go.mod"` lowercases and last-dot-splits to `"mod"` -- see
+        // `Language::GoMod`'s own doc comment for why this is a
+        // deliberate extension-shaped broadening of baseline's own
+        // exact-filename-only dispatch.
+        "mod" => Language::GoMod,
+        "gql" | "graphql" => Language::Graphql,
+        "htm" | "html" => Language::Html,
+        "hl" => Language::Hyprlang,
+        "cfg" | "conf" | "ini" => Language::Ini,
+        "janet" => Language::Janet,
+        "j2" | "jinja" | "jinja2" => Language::Jinja2,
+        "json" => Language::Json,
+        "ron" => Language::Ron,
+        "rst" => Language::Rst,
+        "soql" => Language::Soql,
+        "sosl" => Language::Sosl,
+        // A bare `"config"` basename (no dot at all) lowercases to the
+        // whole string via `rsplit('.')`'s no-match fallback -- same
+        // trick `"dockerfile"` already relies on.
+        "config" => Language::Sshconfig,
+        "svelte" => Language::Svelte,
+        "vue" => Language::Vue,
+        "xml" => Language::Xml,
         _ => Language::TextOnly,
     }
 }
@@ -1838,6 +2175,244 @@ pub fn parse_file(language: Language, source: &str, rel_path: &str) -> Option<Pa
             // `tests/unit_languages_smali.rs`.
             Some(generic::parse_smali(source))
         }
+        Language::Json5 => {
+            // Language-parity wave G2.5c: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_json5`) -- see
+            // `tests/unit_languages_json5.rs`.
+            Some(generic::parse_json5(source))
+        }
+        Language::Kdl => {
+            // Language-parity wave G2.5c: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_kdl`) -- see
+            // `tests/unit_languages_kdl.rs`.
+            Some(generic::parse_kdl(source))
+        }
+        Language::LinkerScript => {
+            // Language-parity wave G2.5c: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_linkerscript`) -- see
+            // `tests/unit_languages_linkerscript.rs`.
+            Some(generic::parse_linkerscript(source))
+        }
+        Language::Liquid => {
+            // Language-parity wave G2.5c: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_liquid`) -- see
+            // `tests/unit_languages_liquid.rs`.
+            Some(generic::parse_liquid(source))
+        }
+        Language::Markdown => {
+            // Language-parity wave G2.5c: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_markdown`) -- see
+            // `tests/unit_languages_markdown.rs`.
+            Some(generic::parse_markdown(source))
+        }
+        Language::Mermaid => {
+            // Language-parity wave G2.5c: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_mermaid`) -- see
+            // `tests/unit_languages_mermaid.rs`.
+            Some(generic::parse_mermaid(source))
+        }
+        Language::Po => {
+            // Language-parity wave G2.5c: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_po`) -- see
+            // `tests/unit_languages_po.rs`.
+            Some(generic::parse_po(source))
+        }
+        Language::Properties => {
+            // Language-parity wave G2.5c: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_properties`) -- see
+            // `tests/unit_languages_properties.rs`.
+            Some(generic::parse_properties(source))
+        }
+        Language::Regex => {
+            // Language-parity wave G2.5c: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_regex`) -- see
+            // `tests/unit_languages_regex.rs`.
+            Some(generic::parse_regex(source))
+        }
+        Language::Assembly => {
+            // Language-parity wave G2.5a: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_assembly`) -- see
+            // `tests/unit_languages_assembly.rs`.
+            Some(generic::parse_assembly(source))
+        }
+        Language::Astro => {
+            // Language-parity wave G2.5a: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_astro`) -- see
+            // `tests/unit_languages_astro.rs`.
+            Some(generic::parse_astro(source))
+        }
+        Language::Beancount => {
+            // Language-parity wave G2.5a: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_beancount`) -- see
+            // `tests/unit_languages_beancount.rs`.
+            Some(generic::parse_beancount(source))
+        }
+        Language::Bibtex => {
+            // Language-parity wave G2.5a: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_bibtex`) -- see
+            // `tests/unit_languages_bibtex.rs`.
+            Some(generic::parse_bibtex(source))
+        }
+        Language::Blade => {
+            // Language-parity wave G2.5a: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_blade`) -- see
+            // `tests/unit_languages_blade.rs`.
+            Some(generic::parse_blade(source))
+        }
+        Language::Css => {
+            // Language-parity wave G2.5a: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_css`) -- see
+            // `tests/unit_languages_css.rs`.
+            Some(generic::parse_css(source))
+        }
+        Language::Csv => {
+            // Language-parity wave G2.5a: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_csv`) -- see
+            // `tests/unit_languages_csv.rs`.
+            Some(generic::parse_csv(source))
+        }
+        Language::Diff => {
+            // Language-parity wave G2.5a: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_diff`) -- see
+            // `tests/unit_languages_diff.rs`.
+            Some(generic::parse_diff(source))
+        }
+        Language::Dockerfile => {
+            // Language-parity wave G2.5a: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_dockerfile`) -- see
+            // `tests/unit_languages_dockerfile.rs`.
+            Some(generic::parse_dockerfile(source))
+        }
+        Language::Dotenv => {
+            // Language-parity wave G2.5a: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_dotenv`) -- see
+            // `tests/unit_languages_dotenv.rs`.
+            Some(generic::parse_dotenv(source))
+        }
+        Language::Gitattributes => {
+            // Language-parity wave G2.5a: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_gitattributes`) -- see
+            // `tests/unit_languages_gitattributes.rs`.
+            Some(generic::parse_gitattributes(source))
+        }
+        Language::Gitignore => {
+            // Language-parity wave G2.5b: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_gitignore`) -- see
+            // `tests/unit_languages_gitignore.rs`.
+            Some(generic::parse_gitignore(source))
+        }
+        Language::Gn => {
+            // Language-parity wave G2.5b: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_gn`) -- see
+            // `tests/unit_languages_gn.rs`.
+            Some(generic::parse_gn(source))
+        }
+        Language::GoMod => {
+            // Language-parity wave G2.5b: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_gomod`) -- see
+            // `tests/unit_languages_gomod.rs`.
+            Some(generic::parse_gomod(source))
+        }
+        Language::Graphql => {
+            // Language-parity wave G2.5b: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_graphql`) -- see
+            // `tests/unit_languages_graphql.rs`.
+            Some(generic::parse_graphql(source))
+        }
+        Language::Html => {
+            // Language-parity wave G2.5b: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_html`) -- see
+            // `tests/unit_languages_html.rs`.
+            Some(generic::parse_html(source))
+        }
+        Language::Hyprlang => {
+            // Language-parity wave G2.5b: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_hyprlang`) -- see
+            // `tests/unit_languages_hyprlang.rs`.
+            Some(generic::parse_hyprlang(source))
+        }
+        Language::Ini => {
+            // Language-parity wave G2.5b: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_ini`) -- see
+            // `tests/unit_languages_ini.rs`.
+            Some(generic::parse_ini(source))
+        }
+        Language::Janet => {
+            // Language-parity wave G2.5b: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_janet`) -- see
+            // `tests/unit_languages_janet.rs`.
+            Some(generic::parse_janet(source))
+        }
+        Language::Jinja2 => {
+            // Language-parity wave G2.5b: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_jinja2`) -- see
+            // `tests/unit_languages_jinja2.rs`.
+            Some(generic::parse_jinja2(source))
+        }
+        Language::Jsdoc => {
+            // Language-parity wave G2.5b: reachable via `parse_file`
+            // for a caller with an already-extracted comment body (no
+            // `classify` extension wiring at all -- see
+            // `Language::Jsdoc`'s own doc comment) --
+            // (`languages::generic::parse_jsdoc`) -- see
+            // `tests/unit_languages_jsdoc.rs`.
+            Some(generic::parse_jsdoc(source))
+        }
+        Language::Json => {
+            // Language-parity wave G2.5b: onboarded directly through
+            // the generic spec-table engine
+            // (`languages::generic::parse_json`) -- see
+            // `tests/unit_languages_json.rs`.
+            Some(generic::parse_json(source))
+        }
+        Language::Requirements => {
+            // Language-parity wave G2.5d/orchestrator completion pass:
+            // reachable via classify() is a documented gap (see
+            // `Language::Requirements`'s own doc comment) -- direct
+            // callers use `languages::generic::parse_requirements`.
+            // `parse_file` still routes it for completeness in case a
+            // caller constructs this variant directly.
+            Some(generic::parse_requirements(source))
+        }
+        Language::Ron => Some(generic::parse_ron(source)),
+        Language::Rst => Some(generic::parse_rst(source)),
+        Language::Soql => Some(generic::parse_soql(source)),
+        Language::Sosl => Some(generic::parse_sosl(source)),
+        Language::Sshconfig => Some(generic::parse_sshconfig(source)),
+        Language::Svelte => Some(generic::parse_svelte(source)),
+        Language::Toml => Some(generic::parse_toml(source)),
+        Language::Vue => Some(generic::parse_vue(source)),
+        Language::Xml => Some(generic::parse_xml(source)),
+        Language::Yaml => Some(generic::parse_yaml(source)),
         Language::ConfigToml | Language::ConfigJson | Language::ConfigYaml | Language::TextOnly => {
             None
         }

@@ -1,0 +1,6 @@
+{
+  // JSON5 allows comments and trailing commas.
+  name: "sample",
+  version: 1,
+  tags: ["a", "b",],
+}

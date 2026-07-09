@@ -1,0 +1,6 @@
+@import "foo.css";
+
+.a {
+  color: red;
+  width: calc(100% - 10px);
+}

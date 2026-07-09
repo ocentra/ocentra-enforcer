@@ -11628,4 +11628,1861 @@ impl LangSpec {
             body_field: "body",
         }
     }
+
+    /// Requirements (pip `requirements.txt`, no extension mapping in this
+    /// crate's own [`crate::parsers::classify`] -- reached only by a
+    /// caller invoking [`crate::languages::generic::parse_requirements`]
+    /// directly, the same "filename-only baseline entry, no dispatch
+    /// mechanism yet" posture as [`Self::matlab`]/[`Self::kconfig`]'s own
+    /// doc comments). Language-parity wave G2.5d. Grammar:
+    /// `tree-sitter-requirements` 0.6.1
+    /// (`tree-sitter-grammars/tree-sitter-requirements`, real crates.io
+    /// crate, `tree-sitter-language`-shimmed).
+    ///
+    /// Baseline's own `CBM_LANG_REQUIREMENTS` row
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:2345-2349) is
+    /// `empty_types` for every array except `requirements_module_types =
+    /// {"file"}` -- confirmed via this grammar's own real
+    /// `node-types.json`: the root node kind genuinely is `file`, and every
+    /// other named node (`requirement`/`package`/`version_spec`/...) is
+    /// real structure this crate deliberately does NOT extract further
+    /// (matching the baseline's own real, shallow depth rather than
+    /// inventing an import/dependency-edge extraction the baseline itself
+    /// never does for this language).
+    pub const fn requirements() -> Self {
+        Self {
+            name: "requirements",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["file"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// RON (Rusty Object Notation, `.ron` -- no extension mapping in this
+    /// crate's own [`crate::parsers::classify`] yet; reached only by a
+    /// caller invoking [`crate::languages::generic::parse_ron`] directly).
+    /// Language-parity wave G2.5d. Grammar VENDORED (see
+    /// `vendor/tree-sitter-ron-local/src/lib.rs` for why: the published
+    /// `tree-sitter-ron` 0.2.0 crate's own binding returns a raw
+    /// `tree_sitter::Language` from its own pinned `tree-sitter = "~0.20.3"`
+    /// dependency, incompatible with this workspace's `tree-sitter = "0.25"`
+    /// core).
+    ///
+    /// Baseline's own `CBM_LANG_RON` row
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:2292-2295) is
+    /// `empty_types` for every array except `ron_module_types =
+    /// {"source_file"}` -- confirmed via the real vendored grammar's own
+    /// `grammar.js` (`rules: { source_file: ... }`), matching exactly.
+    pub const fn ron() -> Self {
+        Self {
+            name: "ron",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source_file"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// reStructuredText (`.rst` -- no extension mapping in this crate's own
+    /// [`crate::parsers::classify`] yet; reached only by a caller invoking
+    /// [`crate::languages::generic::parse_rst`] directly). Language-parity
+    /// wave G2.5d. Grammar: `tree-sitter-rst` 0.2.0
+    /// (`stsewd/tree-sitter-rst`, real crates.io crate,
+    /// `tree-sitter-language`-shimmed, `tree-sitter = "0.25.0"` own
+    /// dev-dependency -- directly compatible with this workspace's core, no
+    /// vendoring needed).
+    ///
+    /// Baseline's own `CBM_LANG_RST` row
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:2457-2460) is
+    /// `empty_types` for every array except `rst_module_types =
+    /// {"document"}` -- confirmed via this grammar's own real
+    /// `node-types.json` root entry.
+    pub const fn rst() -> Self {
+        Self {
+            name: "rst",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["document"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// SOQL (Salesforce Object Query Language, `.soql` -- no extension
+    /// mapping in this crate's own [`crate::parsers::classify`] yet;
+    /// reached only by a caller invoking
+    /// [`crate::languages::generic::parse_soql`] directly). Language-parity
+    /// wave G2.5d. Grammar: `tree-sitter-sfapex` 3.0.0's own `soql` module
+    /// (`aheber/tree-sitter-sfapex`, real crates.io crate already a
+    /// dependency for [`Self::apex`], `tree-sitter-language`-shimmed).
+    ///
+    /// Baseline's own `CBM_LANG_SOQL` row
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:2545-2550) is
+    /// `empty_types` for every array except `soql_module_types =
+    /// {"source_file"}` -- confirmed via this grammar's own real
+    /// `node-types.json` root entry (matching exactly).
+    pub const fn soql() -> Self {
+        Self {
+            name: "soql",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source_file"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// SOSL (Salesforce Object Search Language, `.sosl` -- no extension
+    /// mapping in this crate's own [`crate::parsers::classify`] yet;
+    /// reached only by a caller invoking
+    /// [`crate::languages::generic::parse_sosl`] directly). Language-parity
+    /// wave G2.5d. Grammar: `tree-sitter-sfapex` 3.0.0's own `sosl` module
+    /// (same crate as [`Self::soql`]/[`Self::apex`], already a dependency).
+    ///
+    /// Baseline's own `CBM_LANG_SOSL` row
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:2551-2556, not shown
+    /// in full above but the identical `empty_types`-except-`module_types`
+    /// shape as every other row in this file's own Tier-0 batch) is
+    /// `empty_types` for every array except `sosl_module_types =
+    /// {"source_file"}` -- confirmed via this grammar's own real
+    /// `node-types.json` root entry (matching exactly).
+    pub const fn sosl() -> Self {
+        Self {
+            name: "sosl",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source_file"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// SSH Config (`~/.ssh/config` client config -- no extension mapping in
+    /// this crate's own [`crate::parsers::classify`] yet; reached only by a
+    /// caller invoking [`crate::languages::generic::parse_sshconfig`]
+    /// directly). Language-parity wave G2.5d. Grammar VENDORED (see
+    /// `vendor/tree-sitter-sshclientconfig-local/src/lib.rs` for why: the
+    /// published `tree-sitter-ssh-client-config` 2026.7.2 crate's own
+    /// binding returns a raw `tree_sitter::Language` from its own pinned
+    /// `tree-sitter = "~0.26"` dependency, incompatible with this
+    /// workspace's `tree-sitter = "0.25"` core).
+    ///
+    /// Baseline's own `CBM_LANG_SSHCONFIG` row
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:2315-2319) is
+    /// `empty_types` for every array except `sshconfig_module_types =
+    /// {"source_file"}` -- but that baseline binds a DIFFERENTLY-NAMED
+    /// upstream grammar (`tree_sitter_ssh_config`) that has no discoverable
+    /// crates.io release under any name; this row instead binds
+    /// `metio/tree-sitter-ssh-client-config` (the only SSH-config-shaped
+    /// grammar crates.io has at all -- confirmed via `cargo search`), whose
+    /// own real root node kind is `client_config`, NOT `source_file`
+    /// (confirmed via this vendored grammar's own real `node-types.json`
+    /// root entry) -- `module_types` corrected to match the REAL grammar
+    /// this row actually binds rather than blindly copying a baseline
+    /// value that would silently push zero Module symbols for every real
+    /// file.
+    pub const fn sshconfig() -> Self {
+        Self {
+            name: "sshconfig",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["client_config"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Svelte (`.svelte` -- no extension mapping in this crate's own
+    /// [`crate::parsers::classify`] yet; reached only by a caller invoking
+    /// [`crate::languages::generic::parse_svelte`] directly). Language-
+    /// parity wave G2.5d. Grammar: `tree-sitter-svelte-next` 0.1.1
+    /// (`PRRPCHT/tree-sitter-svelte-next`, real crates.io crate,
+    /// `tree-sitter-language`-shimmed -- NOT the plain `tree-sitter-svelte`
+    /// name, whose own published binding pins an incompatible `tree-sitter`
+    /// version the same way [`Self::ron`]'s own doc comment documents for
+    /// RON).
+    ///
+    /// Baseline's own `CBM_LANG_SVELTE` row
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:1948-1952) sets
+    /// `svelte_module_types = {"document"}` and `svelte_branch_types =
+    /// {"if_statement", "each_statement", "await_statement"}`, every other
+    /// array `empty_types` -- both confirmed present verbatim in this real
+    /// grammar's own `node-types.json`. Baseline ALSO wires a dedicated
+    /// `svelte_embedded_imports` re-parse of the `<script>` block's raw
+    /// text with the JS grammar (`lang_specs.c`:873-876) so real
+    /// `import`/`export` statements inside it resolve as JS import edges --
+    /// DEFERRED here: this crate has no embedded-sub-language re-parse
+    /// mechanism at all yet (confirmed by grepping `languages/generic.rs`
+    /// for any such seam -- none exists for ANY language, including this
+    /// crate's own existing HTML/Astro extractors), so adding one would be
+    /// new shared walker infrastructure well beyond this wave's own
+    /// data-row scope, not a one-line `LangSpec` field. Every other
+    /// Svelte construct (document root, the three control-flow block
+    /// kinds) is still fully classified and extracted.
+    pub const fn svelte() -> Self {
+        Self {
+            name: "svelte",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["document"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &["if_statement", "each_statement", "await_statement"],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// TOML (`.toml`). Language-parity wave G2.5d -- NOTE: this crate
+    /// already has a separate [`crate::parsers::Language::ConfigToml`]
+    /// content-classification path with NO structural extractor at all
+    /// (`parse_file` returns `None` for it); this row/[`generic::parse_toml`]
+    /// is new STRUCTURAL extraction, not yet wired to that existing
+    /// `classify`/`parse_file` dispatch (see this wave's own final report
+    /// for the deliberate reasoning: changing an already-shipped
+    /// `Language::ConfigToml` file-classification path's OWN behavior is a
+    /// bigger blast-radius change than this data-row wave intends -- a
+    /// future wave can decide whether to route `ConfigToml` through this
+    /// row or keep the two paths distinct). Reached only by a caller
+    /// invoking [`crate::languages::generic::parse_toml`] directly. Grammar:
+    /// `tree-sitter-toml-ng` 0.7.0
+    /// (`tree-sitter-grammars/tree-sitter-toml`, real crates.io crate,
+    /// `tree-sitter-language`-shimmed -- NOT the plain `tree-sitter-toml`
+    /// name, whose own published binding pins an incompatible `tree-sitter`
+    /// version the same way [`Self::ron`]'s own doc comment documents).
+    ///
+    /// Baseline's own `CBM_LANG_TOML` row
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:1801-1805) sets
+    /// `toml_module_types = {"document"}` and `toml_class_types = {"table",
+    /// "table_array_element"}`, every other array `empty_types` -- both
+    /// confirmed present in this real grammar's own `node-types.json`, but
+    /// `table`/`table_array_element` are BOTH entirely fieldless there
+    /// (`"fields": {}`) -- a `[section]`/`[[section]]` header's own key
+    /// (`bare_key`/`dotted_key`/`quoted_key`) is a positional first child,
+    /// not a `name`-named field this row's own `name_field` default could
+    /// ever resolve. Both node kinds are therefore fully claimed by
+    /// [`crate::languages::generic::toml_quirk`] via `on_unmatched_node`
+    /// (found by KIND, the same "quirk claims what the flat array cannot"
+    /// posture as [`Self::capnp`]) rather than the generic engine's own
+    /// field-based class-symbol fallback. Baseline's own `toml_var_types =
+    /// {"pair"}` has no corresponding concept in this crate's own
+    /// [`LangSpec`] at all (no `var_types` field exists here -- this
+    /// crate's nearest analog, `field_types`, is scoped to DEFINES-edge
+    /// members inside a class/struct body, a narrower concept than
+    /// baseline's own top-level "variable" bookkeeping) -- `pair` is
+    /// therefore left unclaimed, matching every other already-onboarded
+    /// language in this crate that shares the same gap (e.g.
+    /// [`Self::fish`]/[`Self::zsh`]'s own baseline `_var_types` arrays,
+    /// also unmodeled here).
+    pub const fn toml() -> Self {
+        Self {
+            name: "toml",
+            func_types: &[],
+            method_types: &[],
+            class_types: &["table", "table_array_element"],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["document"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "UNUSED_SEE_TOML_QUIRK",
+            body_field: "UNUSED_SEE_TOML_QUIRK",
+        }
+    }
+
+    /// Vue (single-file component, `.vue` -- no extension mapping in this
+    /// crate's own [`crate::parsers::classify`] yet; reached only by a
+    /// caller invoking [`crate::languages::generic::parse_vue`] directly).
+    /// Language-parity wave G2.5d. Grammar: `tree-sitter-vue-next` 0.1.0
+    /// (`tree-sitter-grammars/tree-sitter-vue`, real crates.io crate,
+    /// `tree-sitter-language`-shimmed -- NOT the plain `tree-sitter-vue`/
+    /// `tree-sitter-vue-sqry` names, whose own published bindings pin an
+    /// incompatible `tree-sitter` version the same way [`Self::ron`]'s own
+    /// doc comment documents).
+    ///
+    /// Baseline's own `CBM_LANG_VUE` row
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:1942-1946) sets
+    /// `vue_module_types = {"document"}`, every other array `empty_types`
+    /// -- confirmed present in this real grammar's own `node-types.json`
+    /// root entry. Baseline ALSO wires a dedicated `vue_embedded_imports`
+    /// re-parse of the `<script>` block's raw text with the JS grammar
+    /// (`lang_specs.c`:869-872) -- DEFERRED here for the identical reason
+    /// [`Self::svelte`]'s own doc comment explains (no embedded-sub-
+    /// language re-parse mechanism exists anywhere in this crate yet). The
+    /// document root itself is still fully classified.
+    pub const fn vue() -> Self {
+        Self {
+            name: "vue",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["document"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// XML (`.xml` -- no extension mapping in this crate's own
+    /// [`crate::parsers::classify`] yet; reached only by a caller invoking
+    /// [`crate::languages::generic::parse_xml`] directly). Language-parity
+    /// wave G2.5d. Grammar: `tree-sitter-xml` 0.7.0's own `LANGUAGE_XML`
+    /// entry point (`tree-sitter-grammars/tree-sitter-xml`, real crates.io
+    /// crate, `tree-sitter-language`-shimmed; this same crate's sibling
+    /// `LANGUAGE_DTD` grammar is out of this row's own scope, matching the
+    /// baseline's own choice of not registering a separate DTD language).
+    ///
+    /// Baseline's own `CBM_LANG_XML` row
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:1906-1909) sets
+    /// `xml_module_types = {"document"}` and `xml_class_types =
+    /// {"element"}`, every other array `empty_types` -- both confirmed
+    /// present in this real grammar's own `node-types.json`, but `element`
+    /// is entirely fieldless there (`"fields": {}`): its own tag name lives
+    /// TWO levels down, inside its `STag`/`EmptyElemTag` child's own `Name`
+    /// child (also both fieldless, confirmed via the real `node-types.json`
+    /// -- `Name` is a plain positional child of `STag`/`EmptyElemTag`, not
+    /// a `name`-named field). `element` is therefore fully claimed by
+    /// [`crate::languages::generic::xml_quirk`] via `on_unmatched_node`
+    /// (found by KIND at both levels, the same "quirk claims what the flat
+    /// array cannot" posture as [`Self::capnp`]/[`Self::toml`]) rather than
+    /// the generic engine's own field-based class-symbol fallback.
+    pub const fn xml() -> Self {
+        Self {
+            name: "xml",
+            func_types: &[],
+            method_types: &[],
+            class_types: &["element"],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["document"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "UNUSED_SEE_XML_QUIRK",
+            body_field: "UNUSED_SEE_XML_QUIRK",
+        }
+    }
+
+    /// YAML (`.yml`/`.yaml` -- this crate's own [`crate::parsers::classify`]
+    /// already maps both extensions to
+    /// [`crate::parsers::Language::ConfigYaml`], a separate
+    /// content-classification path with NO structural extractor at all;
+    /// this row/[`generic::parse_yaml`] is new STRUCTURAL extraction, not
+    /// yet wired to that existing dispatch -- same "bigger blast-radius,
+    /// deferred to a future wave" reasoning as [`Self::toml`]'s own doc
+    /// comment). Reached only by a caller invoking
+    /// [`crate::languages::generic::parse_yaml`] directly. Language-parity
+    /// wave G2.5d. Grammar: `tree-sitter-yaml` 0.7.2
+    /// (`tree-sitter-grammars/tree-sitter-yaml`, real crates.io crate,
+    /// `tree-sitter-language`-shimmed).
+    ///
+    /// Baseline's own `CBM_LANG_YAML` row
+    /// (`codebase-memory-mcp/internal/cbm/lang_specs.c`:1795-1799) sets
+    /// `yaml_module_types = {"stream"}` (NOT `"document"` -- YAML's own
+    /// grammar nests a `document` node one level below the real file
+    /// root), every other array `empty_types` -- confirmed present in this
+    /// real grammar's own `node-types.json` root entry (`stream`, matching
+    /// exactly). Baseline's own `yaml_var_types = {"block_mapping_pair"}`
+    /// has no corresponding concept in this crate's own [`LangSpec`] at
+    /// all -- same unmodeled-`var_types` gap as [`Self::toml`]'s own doc
+    /// comment explains.
+    pub const fn yaml() -> Self {
+        Self {
+            name: "yaml",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["stream"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// JSON5 (`.json5`). Language-parity wave G2.5c (Tier-0, nominal).
+    /// Grammar VENDORED (see `vendor/tree-sitter-json5-local/`, fetched
+    /// from the EXACT same upstream commit the baseline itself vendors:
+    /// `Joakker/tree-sitter-json5` @ `aa630ef48903`, per
+    /// `codebase-memory-mcp/internal/cbm/vendored/grammars/MANIFEST.md`).
+    ///
+    /// Baseline's own `json5_module_types` is `["document", NULL]`, but a
+    /// real `node-types.json` dump of this exact vendored grammar shows
+    /// the root node (`"root": true`) is actually named `"file"`, not
+    /// `"document"` -- `"document"` does not appear anywhere in this
+    /// grammar's own node-types at all. Corrected here rather than
+    /// blindly transcribed (the same class of dead/wrong baseline array
+    /// entry this crate's own prior waves have already found and fixed
+    /// elsewhere, e.g. Lua's `for_in_statement`). Every other array is
+    /// empty, matching baseline's own fully nominal row -- JSON5 has no
+    /// func/class/call/import concept this grammar models structurally.
+    pub const fn json5() -> Self {
+        Self {
+            name: "json5",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["file"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// KDL (`.kdl`). Language-parity wave G2.5c (Tier-0, nominal).
+    /// Grammar VENDORED (see `vendor/tree-sitter-kdl-local/`, fetched
+    /// from the EXACT same upstream commit the baseline itself vendors:
+    /// `tree-sitter-grammars/tree-sitter-kdl` @ `b37e3d58e5c5`, per the
+    /// baseline's own vendored-grammars MANIFEST).
+    ///
+    /// NOT the same concept as this crate's own `Language::Kustomize`/
+    /// `Language::K8s` (Kubernetes YAML manifests) -- KDL ("KDL
+    /// Document Language") is an unrelated, distinct config format with
+    /// its own dedicated grammar; the baseline's own `CBM_LANG_KDL` row
+    /// is exactly this grammar, confirmed via its own `cbm.h` enum and
+    /// `lang_specs.c` row (`kdl_module_types`, unrelated to
+    /// `CBM_LANG_K8S`/`CBM_LANG_KUSTOMIZE`, which instead reuse the YAML
+    /// grammar entirely -- see this crate's own deferred-language notes
+    /// for those two).
+    ///
+    /// `kdl_module_types` is `["document", NULL]` in baseline, confirmed
+    /// real and unchanged here: `document` is genuinely this grammar's
+    /// own root rule (confirmed directly off its own `grammar.js`, first
+    /// key of the `rules` object). Every other array is empty, matching
+    /// baseline's own fully nominal row.
+    pub const fn kdl() -> Self {
+        Self {
+            name: "kdl",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["document"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Linker Script (GNU ld `.ld`/`.lds`/`.x` scripts). Language-parity
+    /// wave G2.5c (Tier-0, nominal). Grammar VENDORED (see
+    /// `vendor/tree-sitter-linkerscript-local/`, fetched from the EXACT
+    /// same upstream commit the baseline itself vendors:
+    /// `tree-sitter-grammars/tree-sitter-linkerscript` @ `f99011a35542`,
+    /// per the baseline's own vendored-grammars MANIFEST).
+    ///
+    /// Baseline's own `linkerscript_module_types` is
+    /// `["source_file", NULL]`, but this grammar has no `source_file`
+    /// node kind at all -- its own `grammar.js` names its root rule
+    /// `linkerscript` (the first key of its own `rules` object, same as
+    /// the grammar's own `name:` field), confirmed directly off both the
+    /// generated `parser.c`'s own `sym_linkerscript` symbol AND a real
+    /// `node-types.json` entry for `"type": "linkerscript"`. Corrected
+    /// here rather than blindly transcribed. `linkerscript_call_types`
+    /// (`["call_expression", NULL]`) IS real and kept as-is: a real
+    /// `node-types.json` dump confirms `call_expression` carries real
+    /// `function`/`arguments` fields, so the generic engine's own
+    /// field-driven default (no quirk needed) extracts these calls
+    /// (e.g. `ASSERT(...)`, `DEFINED(...)` linker-script builtins)
+    /// exactly like any other language's real-fielded call node.
+    pub const fn linkerscript() -> Self {
+        Self {
+            name: "linkerscript",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["linkerscript"],
+            call_types: &["call_expression"],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Liquid (Shopify template language, `.liquid`). Language-parity
+    /// wave G2.5c (Tier-0, nominal). Grammar VENDORED (see
+    /// `vendor/tree-sitter-liquid-local/`, fetched from the EXACT same
+    /// upstream commit the baseline itself vendors:
+    /// `hankthetank27/tree-sitter-liquid` @ `9566ca799110`, per the
+    /// baseline's own vendored-grammars MANIFEST).
+    ///
+    /// Baseline's own `liquid_module_types` is `["template", NULL]`,
+    /// but a real `node-types.json` dump of this exact vendored grammar
+    /// shows the root node (`"root": true`) is actually named
+    /// `"program"` -- `"template"` does not appear anywhere in this
+    /// grammar's own node-types at all. Corrected here rather than
+    /// blindly transcribed.
+    ///
+    /// `liquid_import_types` is `["include", "include_statement",
+    /// NULL]` in baseline. `include_statement` is real (confirmed:
+    /// carries a `string` child holding the included template's path --
+    /// see [`crate::languages::generic::liquid_quirk`], needed because
+    /// the generic walker's own `import_types` branch has no
+    /// field-driven default at all, the same finding
+    /// [`Self::devicetree`]'s own doc comment already established).
+    /// Plain `"include"` is dropped: this grammar's own node-types.json
+    /// lists it as an UNNAMED token (`"named": false`, the bare
+    /// `include` keyword itself, not a distinct statement node) --
+    /// unreachable by this crate's named-node-keyed walker, the same
+    /// class of dead baseline array entry [`Self::json5`]'s own doc
+    /// comment documents for a different grammar.
+    pub const fn liquid() -> Self {
+        Self {
+            name: "liquid",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["program"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &["include_statement"],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Markdown (`.md`). Language-parity wave G2.5c (Tier-0, nominal).
+    /// Grammar VENDORED (see `vendor/tree-sitter-markdown-local/`,
+    /// fetched from the EXACT same upstream commit the baseline itself
+    /// vendors: `tree-sitter-grammars/tree-sitter-markdown` @
+    /// `f969cd3ae3f9`, per the baseline's own vendored-grammars
+    /// MANIFEST -- specifically the `tree-sitter-markdown/` block-grammar
+    /// subdirectory of that monorepo, NOT the sibling inline grammar;
+    /// this crate only needs block-level heading structure).
+    ///
+    /// `markdown_module_types` (`["document", NULL]`) and
+    /// `markdown_class_types` (`["atx_heading", "setext_heading",
+    /// NULL]`) are both real, confirmed directly off this exact
+    /// vendored grammar's own `node-types.json`: `document` is the real
+    /// (and only) root node, and both heading kinds are real named
+    /// nodes. Neither heading kind has a `name`-named field, though
+    /// (each carries its own `heading_content` field instead, pointing
+    /// at an `inline`/`paragraph` node holding the heading's own text)
+    /// -- the generic engine's own class-handling default (a
+    /// `name_field`-keyed lookup) cannot extract this, so
+    /// [`crate::languages::generic::markdown_quirk`] claims both heading
+    /// kinds directly via `heading_content` instead, pushing each as a
+    /// [`crate::parsers::SymbolKind::Class`] symbol (matching baseline's
+    /// own choice of treating a heading as this row's one "class-shaped"
+    /// construct -- a Markdown file's headings are its closest analogue
+    /// to a nominal structural outline).
+    pub const fn markdown() -> Self {
+        Self {
+            name: "markdown",
+            func_types: &[],
+            method_types: &[],
+            class_types: &["atx_heading", "setext_heading"],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["document"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Mermaid (diagram-as-code, `.mmd`/`.mermaid`). Language-parity
+    /// wave G2.5c (Tier-0, nominal). Grammar VENDORED (see
+    /// `vendor/tree-sitter-mermaid-local/`, fetched from the EXACT same
+    /// upstream commit the baseline itself vendors: `monaqa/tree-sitter-
+    /// mermaid` @ `90ae195b3193`, per the baseline's own
+    /// vendored-grammars MANIFEST).
+    ///
+    /// `mermaid_module_types` (`["source_file", NULL]`) is real,
+    /// confirmed directly off this exact vendored grammar's own
+    /// `grammar.js` (`source_file` is the first/root key of its own
+    /// `rules` object). Every other array is empty, matching baseline's
+    /// own fully nominal row -- a mermaid diagram has no func/class/
+    /// call/import concept this grammar models structurally at all (it
+    /// is a diagram-description DSL, not a programming language).
+    pub const fn mermaid() -> Self {
+        Self {
+            name: "mermaid",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source_file"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// PO (gettext translation catalog, `.po`). Language-parity wave
+    /// G2.5c (Tier-0, nominal). Grammar VENDORED (see
+    /// `vendor/tree-sitter-po-local/`, fetched from the EXACT same
+    /// upstream commit the baseline itself vendors:
+    /// `tree-sitter-grammars/tree-sitter-po` @ `bd860a0f57f6`, per the
+    /// baseline's own vendored-grammars MANIFEST).
+    ///
+    /// `po_module_types` (`["source_file", NULL]`) is real, confirmed
+    /// directly off this exact vendored grammar's own `grammar.js`
+    /// (`source_file` is the root key of its own `rules` object). Every
+    /// other array is empty, matching baseline's own fully nominal row
+    /// -- a `.po` catalog's `msgid`/`msgstr` entries have no func/class/
+    /// call/import analogue this grammar models structurally.
+    pub const fn po() -> Self {
+        Self {
+            name: "po",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source_file"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Java/Jakarta `.properties` (`.properties`). Language-parity wave
+    /// G2.5c (Tier-0, nominal). Grammar: `tree-sitter-properties` 0.3.0,
+    /// a real crates.io crate already depending on the
+    /// `tree-sitter-language` ABI-stable shim (no vendoring needed,
+    /// unlike this wave's other eight languages).
+    ///
+    /// Baseline's own `properties_module_types` is `["file",
+    /// "source_file", NULL]`; this crate's own root rule is confirmed
+    /// (directly off its own `grammar.js`) to be `file` only --
+    /// `source_file` does not exist in this grammar at all, dropped as
+    /// dead/unreachable (same class of extra baseline array entry
+    /// [`Self::json5`]'s own doc comment already documents). Baseline's
+    /// own `properties_var_types` (`["property", NULL]`) is real (a
+    /// real, fieldless `property` node with `key`/`value` children) but
+    /// is NOT mapped onto this row's [`Self::field_types`]: a
+    /// `.properties` file's root has no class/module-shaped container a
+    /// `DEFINES` edge could attach to (the generic engine's own
+    /// `field_types` branch requires a non-`None` `enclosing` container
+    /// name), the identical reasoning [`Self::wgsl`]'s own row already
+    /// applies to drop its baseline `wgsl_var_types` array rather than
+    /// invent a container that does not exist.
+    pub const fn properties() -> Self {
+        Self {
+            name: "properties",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["file"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Regex (standalone regular-expression pattern, `.regex`).
+    /// Language-parity wave G2.5c (Tier-0, nominal). Grammar:
+    /// `tree-sitter-regex` 0.25.0, a real crates.io crate already
+    /// depending on the `tree-sitter-language` ABI-stable shim (no
+    /// vendoring needed).
+    ///
+    /// `regex_module_types` (`["pattern", NULL]`) is real, confirmed
+    /// directly off this exact crate's own `grammar.js` (`pattern` is
+    /// the root key of its own `rules` object). Every other array is
+    /// empty, matching baseline's own fully nominal row -- a bare regex
+    /// pattern has no func/class/call/import concept this grammar
+    /// models structurally at all.
+    pub const fn regex() -> Self {
+        Self {
+            name: "regex",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["pattern"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// gitignore (`.gitignore`). Language-parity wave G2.5b (Tier-0,
+    /// final language batch). Grammar VENDORED (see
+    /// `vendor/tree-sitter-gitignore-local/`; no crates.io
+    /// `tree-sitter-gitignore` crate exists at all).
+    ///
+    /// `gitignore_module_types` (`["document", NULL]`) is real,
+    /// confirmed via a real parse-tree dump of `node_modules/\n*.log\n!
+    /// important.log\n# comment\n/build\n` -- root kind is `document`,
+    /// direct children are `pattern`/`comment`, both completely
+    /// fieldless (`directory_flag`/`negation`/`relative_flag`/
+    /// `wildcard_chars` are the only labeled children observed, none of
+    /// which this crate's own narrower [`LangSpec`] shape has anywhere
+    /// to record -- no bare "ignore rule" symbol kind exists). Matches
+    /// baseline's own fully nominal row exactly: every other array
+    /// empty.
+    pub const fn gitignore() -> Self {
+        Self {
+            name: "gitignore",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["document"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// GN (Generate Ninja build-config language, `.gn`/`.gni`).
+    /// Language-parity wave G2.5b. Grammar VENDORED (see
+    /// `vendor/tree-sitter-gn-local/`; the published `tree-sitter-gn`
+    /// 1.0.0 crate pins `cc = "~1.0.83"` as a normal build dependency,
+    /// a real whole-workspace dependency-graph conflict against
+    /// `tree-sitter-just`'s own `cc = "^1.2.25"` requirement -- see
+    /// that vendor crate's own module doc).
+    ///
+    /// Every node kind below confirmed via a real parse-tree dump of
+    /// `import("//build/config.gni")\n\nexecutable("foo") {\n  sources
+    /// = [ "a.cc" ]\n  if (is_linux) {\n    deps = [ ":bar" ]\n  }\n
+    /// foreach(f, sources) {\n    print(f)\n  }\n}\n`:
+    /// - `module_types` is `["source_file"]`, the real root kind --
+    ///   matches baseline.
+    /// - `call_types` is `["call_expression"]`, real, with a real
+    ///   `"function"` field (confirmed) but NO real `"arguments"`
+    ///   field (its own argument list is a bare positional child) --
+    ///   `call_arguments_field` is therefore unreachable here and
+    ///   `arg_texts` is always empty, harmless, no test asserts on it
+    ///   (same shape as [`Self::matlab`]'s own documented
+    ///   `function_call` gap).
+    /// - `import_types` is `["import_statement"]`, real, matching one
+    ///   of baseline's own two entries (`gn_import_types: {
+    ///   "import_statement", "import", NULL}`) -- the second,
+    ///   `"import"`, names a node kind that does not exist anywhere in
+    ///   this real grammar at all (confirmed absent from the parse
+    ///   tree), the same class of dead baseline array entry
+    ///   [`Self::lua`]'s own doc comment already documents for
+    ///   `for_in_statement`. `import_statement` itself is completely
+    ///   fieldless (confirmed) -- needs
+    ///   [`crate::languages::generic::gn_quirk`] regardless, the same
+    ///   "every import-shaped row needs a quirk claim" finding
+    ///   [`Self::devicetree`]'s own doc comment documents.
+    /// - `branch_types` is `["if_statement", "foreach_statement"]`,
+    ///   both real, matching baseline exactly, with real
+    ///   `"condition"`/`"consequence"` and `"item"`/`"list"` fields
+    ///   respectively (documentary metadata only -- the generic engine
+    ///   does not yet consume `branch_types` for anything functional).
+    pub const fn gn() -> Self {
+        Self {
+            name: "gn",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source_file"],
+            call_types: &["call_expression"],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &["import_statement"],
+            branch_types: &["if_statement", "foreach_statement"],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Go Mod (`go.mod` file grammar -- distinct from the ordinary Go-
+    /// source grammar). Language-parity wave G2.5b. Grammar VENDORED
+    /// (see `vendor/tree-sitter-gomod-local/`; the published
+    /// `tree-sitter-gomod` 1.0.1 crate's own Rust binding returns a
+    /// `tree_sitter::Language` from a SEPARATE, incompatible
+    /// `tree-sitter` version resolved as a normal (non-dev) dependency
+    /// -- see that vendor crate's own module doc for the type-mismatch
+    /// finding).
+    ///
+    /// Every node kind below confirmed via a real parse-tree dump of
+    /// `module example.com/foo\n\ngo 1.21\n\nrequire
+    /// github.com/bar/baz v1.2.3\n\nrequire (\n\tgithub.com/x/y
+    /// v0.1.0\n)\n\nreplace github.com/bar/baz => ../baz\n`:
+    /// - `module_types` is `["source_file"]`, the real root kind --
+    ///   matches baseline.
+    /// - `import_types` is `["require_directive"]` -- a REAL,
+    ///   deliberate CORRECTION of baseline's own `gomod_import_types`
+    ///   (`{"require", NULL}`): no `"require"` node kind exists
+    ///   anywhere in this real grammar at all (confirmed absent from
+    ///   the parse tree, both for the single-line AND the
+    ///   parenthesized-block form) -- the real node is
+    ///   `require_directive`, wrapping a `require_spec` child whose own
+    ///   `module_path` child holds the dependency path text. Baseline's
+    ///   own `gomod_var_types` (`{"require_directive",
+    ///   "replace_directive", NULL}`) has no equivalent in this crate's
+    ///   own narrower [`LangSpec`] shape at all (no bare top-level
+    ///   Variable-symbol concept here, the same accepted departure
+    ///   [`Self::r`]'s own doc comment already documents for its own
+    ///   dropped `r_var_types`) -- rather than drop `require_directive`
+    ///   entirely the way a literal var-types-has-no-home read would
+    ///   suggest, this row promotes it to a real IMPORTS edge instead
+    ///   (matches what baseline is clearly modeling semantically: a
+    ///   `require` line IS a dependency edge), while deliberately
+    ///   leaving `replace_directive` unclaimed -- a replace directive
+    ///   is a substitution, not an additional dependency, matching
+    ///   baseline's own semantic distinction between the two node
+    ///   kinds even though this crate cannot reproduce its `var_types`
+    ///   bucket literally.
+    pub const fn gomod() -> Self {
+        Self {
+            name: "gomod",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source_file"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &["require_directive"],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// GraphQL (SDL, `.graphql`/`.gql`). Language-parity wave G2.5b.
+    /// Grammar: `tree-sitter-graphql` 0.1.0, a real crates.io crate
+    /// already depending on the `tree-sitter-language` ABI-stable shim
+    /// (no vendoring needed).
+    ///
+    /// Every node kind below confirmed via a real parse-tree dump of
+    /// `type Query {\n  user(id: ID!): User\n}\n\ntype User {\n  id:
+    /// ID!\n  name: String\n}\n` AND this crate's own
+    /// `src/node-types.json`:
+    /// - The real root kind is `source_file`, wrapping a `document`
+    ///   node (`source_file: ($) => $.document` in this grammar's own
+    ///   `grammar.js`) -- `module_types` is `["document"]`, matching
+    ///   baseline exactly; the outer `source_file` wrapper needs no
+    ///   entry of its own, since the generic engine's own universal
+    ///   `on_unmatched_node`-then-`walk_children` fallback already
+    ///   recurses through any unmatched node kind, reaching `document`
+    ///   one level down regardless.
+    /// - `class_types` is SIX of baseline's own seven
+    ///   `graphql_class_types` entries --
+    ///   `object_type_definition`/`input_object_type_definition`/
+    ///   `enum_type_definition`/`interface_type_definition`/
+    ///   `union_type_definition`/`scalar_type_definition`, all real --
+    ///   deliberately DROPPING baseline's seventh, `type_definition`:
+    ///   that node is a transparent WRAPPER around each of the other
+    ///   six (confirmed both in the real parse tree, where every
+    ///   `object_type_definition` etc. is nested one level inside a
+    ///   `type_definition`, and in this grammar's own
+    ///   `type_system_definition` rule), not itself a concrete
+    ///   definition -- keeping it in `class_types` would double-push a
+    ///   symbol for the wrapper AND its real child, since neither this
+    ///   row's `name_field` nor [`crate::languages::generic::graphql_quirk`]
+    ///   can find a name on the wrapper itself (it has none), and it
+    ///   would just fall through to generic recursion anyway (the same
+    ///   "baseline sometimes includes a redundant container name"
+    ///   finding this crate has caught before). None of these six has
+    ///   a real `name_field` (every one has an empty `"fields": {}` in
+    ///   this crate's own `node-types.json`) -- handled entirely by
+    ///   [`crate::languages::generic::graphql_quirk`] instead, which
+    ///   finds each one's own `name` child by KIND (a direct, not
+    ///   recursive, child search) and manually walks its
+    ///   `fields_definition`/`input_fields_definition` child (if any)
+    ///   to record DEFINES edges for each member.
+    /// - `field_types` is `["field_definition", "input_value_definition"]`,
+    ///   matching baseline's own `graphql_field_types` exactly -- BOTH
+    ///   real node kinds, but this row's own `field_types` array is
+    ///   documentary only: [`crate::languages::generic::graphql_quirk`]
+    ///   claims every `class_types` node WHOLESALE (returns `true`),
+    ///   so the generic engine's own separate `field_types` branch
+    ///   never actually runs for either kind (the quirk's own manual
+    ///   walk records their DEFINES edges directly, the same posture
+    ///   [`Self::smithy`]'s own doc comment describes for its own
+    ///   `field_types` array).
+    pub const fn graphql() -> Self {
+        Self {
+            name: "graphql",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[
+                "object_type_definition",
+                "input_object_type_definition",
+                "enum_type_definition",
+                "interface_type_definition",
+                "union_type_definition",
+                "scalar_type_definition",
+            ],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &["field_definition", "input_value_definition"],
+            module_types: &["document"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// HTML (`.htm`/`.html`). Language-parity wave G2.5b. Grammar:
+    /// `tree-sitter-html` 0.23.2, a real crates.io crate already
+    /// depending on the `tree-sitter-language` ABI-stable shim (no
+    /// vendoring needed).
+    ///
+    /// `html_module_types` (`["document", NULL]`) is real, confirmed
+    /// via a real parse-tree dump -- root kind is `document`. Every
+    /// other array is empty, matching baseline's own fully nominal row
+    /// exactly: baseline's separate `html_embedded_imports` mechanism
+    /// (re-parsing `<script>` bodies with the JS grammar) is DEFERRED,
+    /// not modeled here at all -- this crate has no embedded-sub-
+    /// language-reparse infrastructure yet (see
+    /// [`crate::languages::generic::parse_html`]'s own doc comment).
+    pub const fn html() -> Self {
+        Self {
+            name: "html",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["document"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Hyprlang (Hyprland window-manager config language, `.hl`).
+    /// Language-parity wave G2.5b. Grammar VENDORED (see
+    /// `vendor/tree-sitter-hyprlang-local/`; no crates.io
+    /// `tree-sitter-hyprlang` crate exists at all).
+    ///
+    /// `module_types` is `["configuration"]` -- a REAL, deliberate
+    /// CORRECTION of baseline's own `hyprlang_module_types`
+    /// (`{"source_file", NULL}`): confirmed via a real parse-tree dump
+    /// of `monitor=eDP-1,1920x1080@60,0x0,1\n\ngeneral {\n  gaps_in =
+    /// 5\n}\n\nbind = SUPER, Q, killactive\n`, the real root kind is
+    /// `configuration`, NOT `source_file` -- the same class of dead/
+    /// wrong baseline root-kind entry [`Self::sshconfig`]'s own doc
+    /// comment already documents for a different language. `keyword`
+    /// (a single `key=value`/`key = value, args...` line) and `section`
+    /// (a `name { ... }` block, itself containing nested
+    /// `assignment`/`keyword` children) both have real fields
+    /// (`keyword:`/`value:` and `name:` respectively, confirmed) but
+    /// neither maps to any concept this crate's own narrower
+    /// [`LangSpec`] shape models (no func/class/call/import structure
+    /// at this language's own semantic level) -- matches baseline's
+    /// own fully nominal row otherwise: every other array empty.
+    pub const fn hyprlang() -> Self {
+        Self {
+            name: "hyprlang",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["configuration"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// INI (`.cfg`/`.conf`/`.ini`). Language-parity wave G2.5b.
+    /// Grammar: `tree-sitter-ini` 1.4.0, a real crates.io crate already
+    /// depending on the `tree-sitter-language` ABI-stable shim (no
+    /// vendoring needed).
+    ///
+    /// Every node kind below confirmed via a real parse-tree dump of
+    /// `[section]\nkey = value\nother = 1\n\n[section2]\nfoo=bar\n`:
+    /// `module_types` is `["document"]`, `class_types` is `["section"]`
+    /// -- both real and matching baseline exactly. Baseline's own
+    /// `ini_var_types` (`{"setting", NULL}`) has no direct equivalent
+    /// in this crate's own narrower [`LangSpec`] shape (a bare
+    /// top-level Variable concept, same dropped-array class as
+    /// [`Self::r`]'s own `r_var_types`) -- but UNLIKE Go Mod's
+    /// `replace_directive` (deliberately left unclaimed, see
+    /// [`Self::gomod`]'s own doc comment), every `setting` here DOES
+    /// have a real enclosing container (its parent `section`), so
+    /// [`crate::languages::generic::ini_quirk`] promotes it to a real
+    /// DEFINES edge instead of dropping it entirely -- neither
+    /// `section` nor `setting` has any real field of its own though
+    /// (confirmed: `section_name`/`setting_name`/`setting_value` are
+    /// all bare positional children), so this row's own `field_types`
+    /// array is left empty (there is no working generic fallback for
+    /// it to document) and the quirk handles both nodes wholesale by
+    /// KIND instead. `section_name`'s own real grammar rule
+    /// (`tree-sitter-ini`'s own `grammar.js`) is `seq('[',
+    /// alias(/[^\[\]]+/, $.text), ']', /\r?\n/)` -- its OWN byte span
+    /// includes the brackets AND the trailing newline, confirmed only
+    /// by a real hard test catching the wrong "the clean identifier is
+    /// section_name's own text" assumption a parse-tree dump's
+    /// s-expression rendering alone did not surface; the quirk descends
+    /// one level further into `section_name`'s own aliased `text`
+    /// child for the clean text. `setting_name` has no such wrapper
+    /// (its own grammar rule is a bare top-level `alias(...,
+    /// $.setting_name)`, confirmed real -- `.utf8_text()` on it
+    /// directly is already clean).
+    pub const fn ini() -> Self {
+        Self {
+            name: "ini",
+            func_types: &[],
+            method_types: &[],
+            class_types: &["section"],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["document"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Janet (Lisp-family scripting language, `.janet`). Language-
+    /// parity wave G2.5b. Grammar VENDORED (see
+    /// `vendor/tree-sitter-janet-local/`; no crates.io
+    /// `tree-sitter-janet`/`tree-sitter-janet-simple` crate exists at
+    /// all -- the grammar's own generated C function is
+    /// `tree_sitter_janet_simple`, see that vendor crate's own module
+    /// doc for why).
+    ///
+    /// `module_types` is `["source"]`, the real root kind, matching
+    /// baseline's own `janet_module_types` exactly -- confirmed via a
+    /// real parse-tree dump of `(defn foo [x] (+ x 1))\n(print (foo
+    /// 2))\n`: every list-shaped form (a `defn`, a call, an arithmetic
+    /// expression, a vector literal) is the SAME completely fieldless
+    /// `par_tup_lit`/`sqr_tup_lit` node kind regardless of its own head
+    /// symbol -- this Lisp-family grammar has no dedicated `defn`- or
+    /// call-shaped node kind of its own at all to hang `func_types`/
+    /// `call_types` off of. Matches baseline's own fully nominal row
+    /// otherwise: every other array empty.
+    pub const fn janet() -> Self {
+        Self {
+            name: "janet",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Jinja2 (`.j2`/`.jinja`/`.jinja2`). Language-parity wave G2.5b.
+    /// Grammar: `tree-sitter-jinja2` 0.0.16, a real crates.io crate
+    /// already depending on the `tree-sitter-language` ABI-stable shim
+    /// (no vendoring needed).
+    ///
+    /// `module_types` is `["source_file"]`, the real root kind,
+    /// matching baseline's own `jinja2_module_types` exactly --
+    /// confirmed via a real parse-tree dump of `{% for item in items
+    /// %}\n  {{ item.name }}\n{% endfor %}\n{% include "x.html" %}\n`.
+    /// Matches baseline's own fully nominal row otherwise: every other
+    /// array empty (this grammar's own `statement`/`expression` node
+    /// kinds are generic containers for every kind of Jinja tag, not
+    /// distinct func/call/import-shaped node kinds this crate's own
+    /// [`LangSpec`] arrays could usefully name).
+    pub const fn jinja2() -> Self {
+        Self {
+            name: "jinja2",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source_file"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// JSDoc (standalone JSDoc comment body, no dedicated file
+    /// extension). Language-parity wave G2.5b. Grammar:
+    /// `tree-sitter-jsdoc` 0.25.0, a real crates.io crate already
+    /// depending on the `tree-sitter-language` ABI-stable shim (no
+    /// vendoring needed).
+    ///
+    /// `module_types` is `["document"]`, the real root kind, matching
+    /// baseline's own `jsdoc_module_types` exactly -- confirmed via a
+    /// real parse-tree dump of `/**\n * Does a thing.\n * @param
+    /// {string} foo desc\n * @returns {number} the count\n */`
+    /// (including the surrounding `/**`/`*/` delimiters themselves --
+    /// confirmed this grammar accepts and parses the FULL comment,
+    /// delimiters included, with no separate stripping step needed by
+    /// any caller). Matches baseline's own fully nominal row otherwise:
+    /// every other array empty. No [`crate::parsers::classify`]
+    /// extension wiring at all
+    /// -- see [`crate::languages::generic::parse_jsdoc`]'s own doc
+    /// comment for why (no baseline `EXT_TABLE` entry exists for this
+    /// language either).
+    pub const fn jsdoc() -> Self {
+        Self {
+            name: "jsdoc",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["document"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// JSON (`.json`). Language-parity wave G2.5b. Grammar:
+    /// `tree-sitter-json` 0.24.8, a real crates.io crate already
+    /// depending on the `tree-sitter-language` ABI-stable shim (no
+    /// vendoring needed). Replaces the pre-existing
+    /// [`crate::parsers::Language::ConfigJson`] no-op fallback for a
+    /// `.json` extension -- see that enum variant's own doc comment.
+    ///
+    /// `module_types` is `["document"]`, the real root kind, matching
+    /// baseline's own `json_module_types` exactly -- confirmed via a
+    /// real parse-tree dump of `{"a": 1, "b": [1,2,3], "c": {"nested":
+    /// true}}`. Baseline's own `json_var_types` (`{"pair", NULL}`) has
+    /// no equivalent in this crate's own narrower [`LangSpec`] shape at
+    /// all -- same dropped-array class as [`Self::r`]'s own
+    /// `r_var_types`, and UNLIKE INI's `setting` (which gets a real
+    /// enclosing `section` container to attach a DEFINES edge to via a
+    /// quirk), a JSON `pair` has no class-shaped enclosing container at
+    /// all (a bare JSON object is not a [`SymbolKind::Class`] here) --
+    /// there is nothing meaningful for a quirk to attach a `pair` to,
+    /// so it is left genuinely unextracted rather than forcing a
+    /// contrived container.
+    pub const fn json() -> Self {
+        Self {
+            name: "json",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["document"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Assembly (`.s`/`.S`). Language-parity wave G2.5a (Tier-0).
+    /// Grammar: `tree-sitter-asm` 0.24.0 (`RubixDev/tree-sitter-asm`), a
+    /// real crates.io crate depending on the `tree-sitter-language`
+    /// ABI-stable shim.
+    ///
+    /// Baseline's own row (`assembly_func_types`/`assembly_var_types`
+    /// both `{"label", NULL}`, `assembly_module_types` `{"program",
+    /// NULL}`) classifies every `label` as BOTH a function AND a
+    /// variable -- this crate's own generic walker has no such
+    /// double-typing concept for one node kind (nor does it consume
+    /// `var_types` at all right now, see [`Self::dockerfile`]'s own doc
+    /// comment for the established "documentation parity only" note),
+    /// so only `func_types` is populated; `label`'s baseline
+    /// presence in `assembly_var_types` too is a real, intentional gap
+    /// this doc comment records rather than silently drops.
+    ///
+    /// `module_types` is `["program"]`, the real root kind -- confirmed
+    /// via a real parse-tree dump. `label` has NO real `name` FIELD
+    /// (confirmed absent from both this grammar's own `node-types.json`
+    /// -- its declared `name` field expects a bare `word` node, which
+    /// never actually appears for a plain `foo:` label -- and a real
+    /// parse-tree dump, where the label's name surfaces as a positional,
+    /// fieldless `ident` child instead), so `func_types` claims `label`
+    /// entirely via [`crate::languages::generic::assembly_quirk`]
+    /// rather than this row's own `name_field` fallback, which would
+    /// silently find nothing. Assembly has no call-expression concept
+    /// in the baseline's own row either (`empty_types` for `call`) --
+    /// `call_types` stays empty, matching that shallow depth exactly; a
+    /// `label` marks where a `call foo` target begins but does not
+    /// itself wrap the following instructions as children at all (they
+    /// are flat siblings of the `program` root), so there is no body to
+    /// recurse into even in principle.
+    pub const fn assembly() -> Self {
+        Self {
+            name: "assembly",
+            func_types: &["label"],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["program"],
+            call_types: &[],
+            call_function_field: "UNUSED_SEE_ASSEMBLY_QUIRK",
+            call_arguments_field: "UNUSED_SEE_ASSEMBLY_QUIRK",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "UNUSED_SEE_ASSEMBLY_QUIRK",
+            body_field: "UNUSED_SEE_ASSEMBLY_QUIRK",
+        }
+    }
+
+    /// Astro (`.astro`). Language-parity wave G2.5a (Tier-0). Grammar
+    /// VENDORED (`crates/enforcer-memory/vendor/tree-sitter-astro-local/`)
+    /// -- no `tree-sitter-astro` crate exists on crates.io under any
+    /// plausible name, confirmed via `cargo add --dry-run` against this
+    /// workspace's own registry index.
+    ///
+    /// `module_types` is `["document"]`, the real root kind, matching
+    /// baseline's own `astro_module_types` exactly -- confirmed via a
+    /// real parse-tree dump of a component with a frontmatter fence plus
+    /// a `<div>` template body. Baseline's own row additionally declares
+    /// `astro_embedded_imports` (re-parsing the frontmatter's own
+    /// `frontmatter_js_block` slice, and any `<script>` element's own
+    /// `raw_text` slice, with the JS grammar so import statements inside
+    /// either become real edges) -- this crate's generic engine has NO
+    /// embedded-sub-language-reparse mechanism at all yet (confirmed:
+    /// no "embedded" concept anywhere in `languages::generic`'s own
+    /// walker), so that richer behavior is a genuine, documented gap
+    /// (an engine-level prerequisite, not something a per-language
+    /// `LangSpec` row or quirk could add) rather than a silent drop.
+    /// Nothing else in baseline's own row is populated (no func/class/
+    /// call/branch arrays at all), matching Tier-0's nominal depth
+    /// exactly.
+    pub const fn astro() -> Self {
+        Self {
+            name: "astro",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["document"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Beancount (`.beancount`), a plain-text double-entry-accounting
+    /// ledger format. Language-parity wave G2.5a (Tier-0). Grammar
+    /// VENDORED (`crates/enforcer-memory/vendor/tree-sitter-beancount-local/`)
+    /// -- the published `tree-sitter-beancount` 2.5.1 crate hard-pins
+    /// `tree-sitter = "~0.26.3"` as a real (non-optional; its own
+    /// `tree-sitter-language` Cargo feature does NOT gate this
+    /// dependency away, confirmed via
+    /// `cargo add --no-default-features --features tree-sitter-language`
+    /// still failing the identical `links = "tree-sitter"` resolve
+    /// conflict) dependency, incompatible with this workspace's
+    /// `tree-sitter = "0.25"` core.
+    ///
+    /// `module_types` is `["file"]`, the real root kind, matching
+    /// baseline's own `beancount_module_types` exactly -- confirmed via
+    /// a real parse-tree dump of an `include`/`open`/dated `transaction`
+    /// with a `posting`. `import_types` is `["include"]`, also matching
+    /// baseline's own `beancount_import_types` exactly and confirmed
+    /// present in the real grammar's own `node-types.json` (a single
+    /// required, fieldless `string` child) --
+    /// [`crate::languages::generic::beancount_quirk`] claims it to read
+    /// that positional child directly (this row's own generic
+    /// `import_types` handling has no field-based fallback of its own at
+    /// all, see `generic::walk`'s own doc comment on that branch).
+    /// Nothing else in baseline's own row is populated.
+    pub const fn beancount() -> Self {
+        Self {
+            name: "beancount",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["file"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &["include"],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// BibTeX (`.bib`). Language-parity wave G2.5a (Tier-0). Grammar
+    /// VENDORED (`crates/enforcer-memory/vendor/tree-sitter-bibtex-local/`)
+    /// -- the published `tree-sitter-bibtex` 0.1.0 crate hard-pins
+    /// `tree-sitter = "0.22.6"` as a normal (non-dev) dependency,
+    /// predating the `tree-sitter-language` ABI-stable shim convention.
+    ///
+    /// `module_types` is `["document"]`, the real root kind, matching
+    /// baseline's own `bibtex_module_types` exactly -- confirmed via a
+    /// real parse-tree dump of an `@article{...}` entry. `call_types`
+    /// is `["command"]`, matching baseline's own `bibtex_call_types`
+    /// exactly and confirmed present in the real grammar's own
+    /// `node-types.json` with a genuine REQUIRED `name` field (a
+    /// `command_name` node -- BibTeX/LaTeX's own backslash-macro
+    /// invocation form, e.g. `{\LaTeX}` inside a field value) -- unlike
+    /// most Tier-0 languages in this file, this call shape needs NO
+    /// quirk at all: `call_function_field: "name"` resolves through the
+    /// ordinary generic path. There is no corresponding `arguments`
+    /// field on this node (its own children -- `brace_word`/`command`/
+    /// `quote_word` -- are purely positional), so
+    /// `call_arguments_field` is left at a placeholder;
+    /// `generic::call_arg_texts` already degrades gracefully to an
+    /// empty argument list when the named field is absent, matching
+    /// this grammar's own shallow reality rather than needing a quirk to
+    /// avoid a false extraction.
+    pub const fn bibtex() -> Self {
+        Self {
+            name: "bibtex",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["document"],
+            call_types: &["command"],
+            call_function_field: "name",
+            call_arguments_field: "UNUSED_NO_ARGUMENTS_FIELD",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Blade (Laravel's template language, `.blade.php`). Language-
+    /// parity wave G2.5a (Tier-0). Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-blade-local/`) -- no
+    /// `tree-sitter-blade` crate exists on crates.io under any plausible
+    /// name, confirmed via `cargo add --dry-run` against this
+    /// workspace's own registry index.
+    ///
+    /// `module_types` is `["document"]`, the real root kind, matching
+    /// baseline's own `blade_module_types` exactly -- confirmed via a
+    /// real parse-tree dump of an `@if`/`@endif` directive wrapping a
+    /// `{{ $x }}` PHP-echo statement inside an HTML element. Nothing
+    /// else in baseline's own row is populated at all, matching Tier-0's
+    /// nominal depth exactly -- despite this grammar embedding a full
+    /// PHP sub-grammar (hence its unusually large vendored `parser.c`),
+    /// baseline extracts no structure from it whatsoever.
+    pub const fn blade() -> Self {
+        Self {
+            name: "blade",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["document"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// CSS (`.css`). Language-parity wave G2.5a (Tier-0). Grammar:
+    /// `tree-sitter-css` 0.25.0 (`tree-sitter/tree-sitter-css`, the
+    /// official grammar), a real crates.io crate depending on the
+    /// `tree-sitter-language` ABI-stable shim.
+    ///
+    /// `module_types` is `["stylesheet"]`, matching baseline's own
+    /// `css_module_types` exactly -- confirmed via a real parse-tree
+    /// dump of an `@import` rule plus a `.a { color: red; }` rule set.
+    /// `call_types` is `["call_expression"]` (e.g. `calc(...)`,
+    /// `rgb(...)`), matching baseline's own `css_call_types` exactly and
+    /// confirmed present in the real grammar's own `node-types.json` --
+    /// but that node has NO fields at all (`"fields": {}`; its
+    /// `function_name`/`arguments` children are purely positional), so
+    /// [`crate::languages::generic::css_call_override`] claims it
+    /// directly rather than relying on this row's own
+    /// `call_function_field`/`call_arguments_field`, which would find
+    /// nothing. `import_types` is `["import_statement"]`, matching
+    /// baseline's own `css_import_types` exactly; that node is ALSO
+    /// fully fieldless (its own quoted path is one of many positional
+    /// alternative child kinds, typically `string_value`) --
+    /// [`crate::languages::generic::css_import_quirk`] claims it to find
+    /// the first `string_value` child positionally.
+    pub const fn css() -> Self {
+        Self {
+            name: "css",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["stylesheet"],
+            call_types: &["call_expression"],
+            call_function_field: "UNUSED_SEE_CSS_CALL_QUIRK",
+            call_arguments_field: "UNUSED_SEE_CSS_CALL_QUIRK",
+            import_types: &["import_statement"],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// CSV (`.csv`). Language-parity wave G2.5a (Tier-0). Grammar
+    /// VENDORED (`crates/enforcer-memory/vendor/tree-sitter-csv-local/`)
+    /// -- the published `tree-sitter-csv` 1.2.0 crate's own binding pins
+    /// `cc = "~1.0.82"` as a normal (non-build) dependency, conflicting
+    /// (via cargo's `links = "tree-sitter"` single-version-in-graph
+    /// rule together with this workspace's own `tree-sitter = "0.25"`
+    /// core's transitive `cc` requirement) with the rest of this
+    /// workspace -- confirmed via an isolated `cargo build` in a scratch
+    /// crate depending on both. That published crate bundles THREE
+    /// sibling grammars (CSV/PSV/TSV) in one package; only the `csv/`
+    /// sub-grammar is vendored here.
+    ///
+    /// `module_types` is `["document"]`, the real root kind, matching
+    /// baseline's own `csv_module_types` exactly -- confirmed via a real
+    /// parse-tree dump. This specific grammar's own `field` node only
+    /// accepts quoted-string or numeric tokens, not bare unquoted words
+    /// (confirmed: a bare-word CSV row like `a,b,c` produces `ERROR`
+    /// nodes in a real parse-tree dump) -- a real, pre-existing grammar
+    /// limitation this row does not attempt to work around; this
+    /// crate's own fixture uses quoted/numeric fields to parse cleanly.
+    /// Nothing else in baseline's own row is populated at all.
+    pub const fn csv() -> Self {
+        Self {
+            name: "csv",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["document"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Diff/patch (`.diff`/`.patch`). Language-parity wave G2.5a
+    /// (Tier-0). Grammar: `tree-sitter-diff` 0.1.0
+    /// (`tree-sitter/tree-sitter-diff`), a real crates.io crate
+    /// depending on the `tree-sitter-language` ABI-stable shim.
+    ///
+    /// `module_types` is `["source"]`, the real root kind, matching
+    /// baseline's own `diff_module_types` exactly -- confirmed via a
+    /// real parse-tree dump of a `diff --git`/`---`/`+++`/`@@`/`-`/`+`
+    /// unified-diff fragment (that same dump's `index ...` line produces
+    /// a real `ERROR` node -- a pre-existing grammar limitation for that
+    /// specific line format, not a bug in this row). `call_types` is
+    /// `["command"]` (the `diff --git a/x b/x` header line itself),
+    /// matching baseline's own `diff_call_types` exactly and confirmed
+    /// present in the real grammar's own `node-types.json` -- but that
+    /// node has NO fields at all (its `argument`/`filename` children are
+    /// purely positional), so
+    /// [`crate::languages::generic::diff_call_override`] claims it
+    /// directly. This is a nominal reuse of the call-edge shape for a
+    /// command invocation, not a real function call -- matching
+    /// baseline's own choice to model it that way rather than inventing
+    /// a stricter interpretation.
+    pub const fn diff() -> Self {
+        Self {
+            name: "diff",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source"],
+            call_types: &["command"],
+            call_function_field: "UNUSED_SEE_DIFF_CALL_QUIRK",
+            call_arguments_field: "UNUSED_SEE_DIFF_CALL_QUIRK",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// Dockerfile (bare filename `Dockerfile`, or `.dockerfile`).
+    /// Language-parity wave G2.5a (Tier-0). Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-dockerfile-local/`)
+    /// -- the published `tree-sitter-dockerfile` 0.2.0 crate hard-pins
+    /// `tree-sitter = "0.20"` as a normal dependency, predating the
+    /// `tree-sitter-language` ABI-stable shim convention.
+    ///
+    /// `module_types` is `["source_file"]`, the real root kind, matching
+    /// baseline's own `dockerfile_module_types` exactly -- confirmed via
+    /// a real parse-tree dump of a `FROM`/`ENV`/`ARG`/`RUN` sequence.
+    /// `var_types` is `["env_instruction", "arg_instruction"]`, matching
+    /// baseline's own `dockerfile_var_types` exactly and confirmed
+    /// present with real `name`/`value` (`env_instruction`) and
+    /// `name`/`default` (`arg_instruction`) fields -- but this crate's
+    /// own generic walker does not consume `var_types` at all yet (no
+    /// "var" handling anywhere in `languages::generic`'s own walk
+    /// function; confirmed by direct inspection), the same
+    /// "documentation parity only, no functional effect" status
+    /// `code_graph.rs`'s own complexity-deferral comments already note
+    /// for every other Tier-0/1/2 language's `branch_types` -- so this
+    /// array is kept for baseline-array parity/documentation but adds
+    /// no extraction on its own. Nothing else in baseline's own row is
+    /// populated.
+    pub const fn dockerfile() -> Self {
+        Self {
+            name: "dockerfile",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source_file"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// DotEnv (bare filename `.env`, or any `*.env` suffix). Language-
+    /// parity wave G2.5a (Tier-0). Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-dotenv-local/`) -- no
+    /// `tree-sitter-dotenv` crate exists on crates.io under any
+    /// plausible name.
+    ///
+    /// Baseline's own `dotenv_module_types` array is `{"source_file",
+    /// NULL}` -- but this grammar's REAL root node kind is `"document"`,
+    /// NOT `"source_file"` (confirmed via a real parse-tree dump of a
+    /// `KEY=value`/`# comment`/`KEY="quoted"` sequence) -- corrected
+    /// here rather than blindly transcribed, same class of baseline
+    /// staleness this file's own [`Self::lua`]/[`Self::bash`] doc
+    /// comments already document for their own languages. Nothing else
+    /// in baseline's own row is populated at all (no func/call/import/
+    /// var arrays whatsoever), matching Tier-0's nominal depth exactly
+    /// -- despite this grammar's own `assignment` node having real
+    /// `key`/`value` fields this row deliberately does NOT also expose
+    /// as `var_types`, since baseline itself does not either (that same
+    /// real dump also shows a plain `export FOO=1` form is a grammar
+    /// parse ERROR for this specific grammar -- a pre-existing
+    /// limitation, not a bug introduced here).
+    pub const fn dotenv() -> Self {
+        Self {
+            name: "dotenv",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["document"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
+
+    /// gitattributes (bare filename `.gitattributes`). Language-parity
+    /// wave G2.5a (Tier-0). Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-gitattributes-local/`)
+    /// -- the published `tree-sitter-gitattributes` 0.1.6 crate hard-pins
+    /// `tree-sitter = "~0.20.10"` as a normal dependency, predating the
+    /// `tree-sitter-language` ABI-stable shim convention.
+    ///
+    /// Baseline's own `gitattributes_module_types` array is `{"source",
+    /// NULL}` -- but this grammar's REAL root node kind is `"file"`, NOT
+    /// `"source"` (confirmed via a real parse-tree dump of a
+    /// `*.rs text eol=lf`/`*.png binary` pair of pattern-attribute
+    /// lines) -- corrected here rather than blindly transcribed, same
+    /// class of finding as [`Self::dotenv`]'s own doc comment. Nothing
+    /// else in baseline's own row is populated at all.
+    pub const fn gitattributes() -> Self {
+        Self {
+            name: "gitattributes",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["file"],
+            call_types: &[],
+            call_function_field: "function",
+            call_arguments_field: "arguments",
+            import_types: &[],
+            branch_types: &[],
+            decorator_types: &[],
+            name_field: "name",
+            body_field: "body",
+        }
+    }
 }

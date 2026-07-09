@@ -1,0 +1,11 @@
+import("//build/config.gni")
+
+executable("foo") {
+  sources = [ "a.cc" ]
+  if (is_linux) {
+    deps = [ ":bar" ]
+  }
+  foreach(f, sources) {
+    print(f)
+  }
+}

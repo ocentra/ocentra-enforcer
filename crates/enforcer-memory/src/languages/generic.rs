@@ -24219,3 +24219,1248 @@ pub fn parse_smali(source: &str) -> ParsedFile {
     let language: tree_sitter::Language = tree_sitter_smali_local::language().into();
     parse_with_spec(source, &language, &spec, &quirks, false)
 }
+
+// =====================================================================
+// Requirements / RON / reStructuredText / SOQL / SOSL / SSH Config /
+// Svelte / TOML / Vue / XML / YAML (language-parity wave G2.5d, final
+// Tier-0 batch)
+// =====================================================================
+
+/// Parse a pip `requirements.txt` file through the generic engine --
+/// every construct beyond the file root is left unextracted, matching
+/// [`LangSpec::requirements`]'s own doc comment on the baseline's real,
+/// shallow depth for this language. Grammar: `tree-sitter-requirements`
+/// 0.6.1, a real crates.io crate. Language-parity wave G2.5d -- see
+/// `tests/unit_languages_requirements.rs`.
+pub fn parse_requirements(source: &str) -> ParsedFile {
+    let spec = LangSpec::requirements();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_requirements::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Parse RON (Rusty Object Notation) source through the generic engine
+/// -- every construct beyond the file root is left unextracted, matching
+/// [`LangSpec::ron`]'s own doc comment. Grammar VENDORED (see
+/// `vendor/tree-sitter-ron-local/`). Language-parity wave G2.5d -- see
+/// `tests/unit_languages_ron.rs`.
+pub fn parse_ron(source: &str) -> ParsedFile {
+    let spec = LangSpec::ron();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_ron_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Parse reStructuredText source through the generic engine -- every
+/// construct beyond the file root is left unextracted, matching
+/// [`LangSpec::rst`]'s own doc comment. Grammar: `tree-sitter-rst` 0.2.0,
+/// a real crates.io crate. Language-parity wave G2.5d -- see
+/// `tests/unit_languages_rst.rs`.
+pub fn parse_rst(source: &str) -> ParsedFile {
+    let spec = LangSpec::rst();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_rst::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Parse SOQL (Salesforce Object Query Language) source through the
+/// generic engine -- every construct beyond the file root is left
+/// unextracted, matching [`LangSpec::soql`]'s own doc comment. Grammar:
+/// `tree-sitter-sfapex` 3.0.0's own `soql` module, the same crate already
+/// a dependency for Apex. Language-parity wave G2.5d -- see
+/// `tests/unit_languages_soql.rs`.
+pub fn parse_soql(source: &str) -> ParsedFile {
+    let spec = LangSpec::soql();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_sfapex::soql::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Parse SOSL (Salesforce Object Search Language) source through the
+/// generic engine -- every construct beyond the file root is left
+/// unextracted, matching [`LangSpec::sosl`]'s own doc comment. Grammar:
+/// `tree-sitter-sfapex` 3.0.0's own `sosl` module, the same crate as
+/// [`parse_soql`]. Language-parity wave G2.5d -- see
+/// `tests/unit_languages_sosl.rs`.
+pub fn parse_sosl(source: &str) -> ParsedFile {
+    let spec = LangSpec::sosl();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_sfapex::sosl::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Parse an SSH client config file through the generic engine -- every
+/// construct beyond the file root is left unextracted, matching
+/// [`LangSpec::sshconfig`]'s own doc comment (including the real-grammar
+/// root-node-kind correction it documents). Grammar VENDORED (see
+/// `vendor/tree-sitter-sshclientconfig-local/`). Language-parity wave
+/// G2.5d -- see `tests/unit_languages_sshconfig.rs`.
+pub fn parse_sshconfig(source: &str) -> ParsedFile {
+    let spec = LangSpec::sshconfig();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_sshclientconfig_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Parse Svelte source through the generic engine -- the document root
+/// and the three baseline-matched control-flow block kinds
+/// (`if_statement`/`each_statement`/`await_statement`) are extracted;
+/// the `<script>` block's own embedded JS imports are DEFERRED, see
+/// [`LangSpec::svelte`]'s own doc comment for why. Grammar:
+/// `tree-sitter-svelte-next` 0.1.1, a real crates.io crate. Language-
+/// parity wave G2.5d -- see `tests/unit_languages_svelte.rs`.
+pub fn parse_svelte(source: &str) -> ParsedFile {
+    let spec = LangSpec::svelte();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_svelte_next::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// TOML's `table`/`table_array_element` node kinds are both entirely
+/// fieldless (see [`LangSpec::toml`]'s own doc comment) -- their own
+/// `[section]`/`[[section]]` header key is a positional first named
+/// child, one of `bare_key`/`dotted_key`/`quoted_key`, found here by
+/// KIND. Recurses into the table's own children afterward (unchanged
+/// generic recursion, just threading the table's own name as
+/// `enclosing`) so nested constructs are never dropped -- mirrors
+/// [`capnp_quirk`]'s own "quirk claims what the flat array cannot,
+/// then recurses manually" posture.
+fn toml_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    if !matches!(node.kind(), "table" | "table_array_element") {
+        return false;
+    }
+    let spec = LangSpec::toml();
+    let quirks = toml_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    let line = node.start_position().row + 1;
+    let key_text = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|c| matches!(c.kind(), "bare_key" | "dotted_key" | "quoted_key"))
+        .and_then(|c| c.utf8_text(src).ok())
+        .map(str::to_owned);
+    let Some(name) = key_text else {
+        walk_children(node, &ctx, out, enclosing, FnScope::default());
+        return true;
+    };
+    out.symbols.push(SymbolRef {
+        name: name.clone(),
+        kind: SymbolKind::Class,
+        line,
+    });
+    if let Some(container) = enclosing {
+        out.defines.push(DefinesRef {
+            container_name: container.to_owned(),
+            member_name: name.clone(),
+            line,
+        });
+    }
+    walk_children(node, &ctx, out, Some(name.as_str()), FnScope::default());
+    true
+}
+
+pub fn toml_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(toml_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse TOML source through the generic engine. Grammar:
+/// `tree-sitter-toml-ng` 0.7.0, a real crates.io crate. Language-parity
+/// wave G2.5d -- see `tests/unit_languages_toml.rs`.
+pub fn parse_toml(source: &str) -> ParsedFile {
+    let spec = LangSpec::toml();
+    let quirks = toml_quirks();
+    let language: tree_sitter::Language = tree_sitter_toml_ng::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Parse Vue single-file-component source through the generic engine --
+/// the document root is extracted; the `<script>` block's own embedded
+/// JS imports are DEFERRED, see [`LangSpec::vue`]'s own doc comment for
+/// why. Grammar: `tree-sitter-vue-next` 0.1.0, a real crates.io crate.
+/// Language-parity wave G2.5d -- see `tests/unit_languages_vue.rs`.
+pub fn parse_vue(source: &str) -> ParsedFile {
+    let spec = LangSpec::vue();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_vue_next::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// XML's `element` node kind is entirely fieldless (see
+/// [`LangSpec::xml`]'s own doc comment) -- its own tag name lives two
+/// levels down, inside its `STag`/`EmptyElemTag` child's own `Name`
+/// child (both also fieldless), found here by KIND at both levels.
+/// Recurses into the element's own `content` child afterward (unchanged
+/// generic recursion, just threading the element's own name as
+/// `enclosing`) so nested elements still get their own DEFINES edge to
+/// this one -- mirrors [`toml_quirk`]'s own posture.
+fn xml_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    if node.kind() != "element" {
+        return false;
+    }
+    let spec = LangSpec::xml();
+    let quirks = xml_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    let line = node.start_position().row + 1;
+    let tag = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|c| matches!(c.kind(), "STag" | "EmptyElemTag"));
+    let name = tag.and_then(|t| {
+        (0..t.child_count())
+            .filter_map(|i| t.child(i))
+            .find(|c| c.kind() == "Name")
+            .and_then(|c| c.utf8_text(src).ok())
+            .map(str::to_owned)
+    });
+    let Some(name) = name else {
+        walk_children(node, &ctx, out, enclosing, FnScope::default());
+        return true;
+    };
+    out.symbols.push(SymbolRef {
+        name: name.clone(),
+        kind: SymbolKind::Class,
+        line,
+    });
+    if let Some(container) = enclosing {
+        out.defines.push(DefinesRef {
+            container_name: container.to_owned(),
+            member_name: name.clone(),
+            line,
+        });
+    }
+    walk_children(node, &ctx, out, Some(name.as_str()), FnScope::default());
+    true
+}
+
+pub fn xml_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(xml_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse XML source through the generic engine. Grammar:
+/// `tree-sitter-xml` 0.7.0's own `LANGUAGE_XML` entry point, a real
+/// crates.io crate. Language-parity wave G2.5d -- see
+/// `tests/unit_languages_xml.rs`.
+pub fn parse_xml(source: &str) -> ParsedFile {
+    let spec = LangSpec::xml();
+    let quirks = xml_quirks();
+    let language: tree_sitter::Language = tree_sitter_xml::LANGUAGE_XML.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Parse YAML source through the generic engine -- every construct
+/// beyond the file root is left unextracted, matching [`LangSpec::yaml`]'s
+/// own doc comment (including the real-grammar root-node-kind
+/// (`stream`, not `document`) it documents). Grammar: `tree-sitter-yaml`
+/// 0.7.2, a real crates.io crate. Language-parity wave G2.5d -- see
+/// `tests/unit_languages_yaml.rs`.
+pub fn parse_yaml(source: &str) -> ParsedFile {
+    let spec = LangSpec::yaml();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_yaml::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// JSON5 / KDL / Linker Script (Tier-0, language-parity wave G2.5c) --
+// fully nominal rows, no quirk needed for any of the three (LinkerScript's
+// own `call_expression` is real-fielded, handled by the generic engine's
+// own field-driven default -- see `LangSpec::linkerscript`'s own doc
+// comment).
+// =====================================================================
+
+/// Parse JSON5 source through the generic engine. Grammar VENDORED (see
+/// `vendor/tree-sitter-json5-local/`). Language-parity wave G2.5c. See
+/// `tests/unit_languages_json5.rs`.
+pub fn parse_json5(source: &str) -> ParsedFile {
+    let spec = LangSpec::json5();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_json5_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Parse KDL source through the generic engine. Grammar VENDORED (see
+/// `vendor/tree-sitter-kdl-local/`). Language-parity wave G2.5c. See
+/// `tests/unit_languages_kdl.rs`.
+pub fn parse_kdl(source: &str) -> ParsedFile {
+    let spec = LangSpec::kdl();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_kdl_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Parse Linker Script source through the generic engine. Grammar
+/// VENDORED (see `vendor/tree-sitter-linkerscript-local/`).
+/// Language-parity wave G2.5c. See `tests/unit_languages_linkerscript.rs`.
+pub fn parse_linkerscript(source: &str) -> ParsedFile {
+    let spec = LangSpec::linkerscript();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_linkerscript_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Liquid (Tier-0, language-parity wave G2.5c)
+// =====================================================================
+
+/// Claims `include_statement` (see [`crate::languages::spec::LangSpec::liquid`]'s
+/// own doc comment: the generic walker's own `import_types` branch has
+/// no field-driven default of its own at all, the same finding
+/// [`devicetree_quirk`]'s own doc comment already established for a
+/// different grammar). The included template's own path is this node's
+/// first direct `string` child (confirmed via a real `node-types.json`
+/// dump); claims the node either way (matching [`devicetree_quirk`]'s
+/// own "claim wholesale even if nothing found" convention) so the
+/// generic walker never falls through to a name_field-keyed default that
+/// would not find anything either.
+fn liquid_quirk(
+    node: Node<'_>,
+    _enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "include_statement" {
+        return false;
+    }
+    let line = node.start_position().row + 1;
+    let path = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|c| c.kind() == "string")
+        .and_then(|c| c.utf8_text(src).ok())
+        .map(str::to_string);
+    if let Some(module_path) = path {
+        out.imports.push(ImportRef { module_path, line });
+    }
+    true
+}
+
+pub fn liquid_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(liquid_quirk)),
+        ..Quirks::default()
+    }
+}
+
+/// Parse Liquid source through the generic engine. Grammar VENDORED (see
+/// `vendor/tree-sitter-liquid-local/`). Language-parity wave G2.5c. See
+/// `tests/unit_languages_liquid.rs`.
+pub fn parse_liquid(source: &str) -> ParsedFile {
+    let spec = LangSpec::liquid();
+    let quirks = liquid_quirks();
+    let language: tree_sitter::Language = tree_sitter_liquid_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Markdown (Tier-0, language-parity wave G2.5c)
+// =====================================================================
+
+/// Claims `atx_heading`/`setext_heading` (see
+/// [`crate::languages::spec::LangSpec::markdown`]'s own doc comment):
+/// neither heading kind has a `name`-named field, only its own
+/// `heading_content` field, so the generic engine's own class-handling
+/// default (a `name_field`-keyed lookup) would never find anything for
+/// either kind. Pushes the heading's own text (its `heading_content`
+/// field's raw source text, unmodified) as a [`SymbolKind::Class`]
+/// symbol -- matching baseline's own choice of `markdown_class_types`.
+fn markdown_quirk(
+    node: Node<'_>,
+    _enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "atx_heading" && node.kind() != "setext_heading" {
+        return false;
+    }
+    if let Some(name) = child_text(node, "heading_content", src) {
+        out.symbols.push(SymbolRef {
+            name,
+            kind: SymbolKind::Class,
+            line: node.start_position().row + 1,
+        });
+    }
+    true
+}
+
+pub fn markdown_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(markdown_quirk)),
+        ..Quirks::default()
+    }
+}
+
+/// Parse Markdown source through the generic engine. Grammar VENDORED
+/// (see `vendor/tree-sitter-markdown-local/`). Language-parity wave
+/// G2.5c. See `tests/unit_languages_markdown.rs`.
+pub fn parse_markdown(source: &str) -> ParsedFile {
+    let spec = LangSpec::markdown();
+    let quirks = markdown_quirks();
+    let language: tree_sitter::Language = tree_sitter_markdown_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Mermaid / PO / Properties / Regex (Tier-0, language-parity wave
+// G2.5c) -- fully nominal rows, no quirk needed for any of the four.
+// =====================================================================
+
+/// Parse Mermaid source through the generic engine. Grammar VENDORED
+/// (see `vendor/tree-sitter-mermaid-local/`). Language-parity wave
+/// G2.5c. See `tests/unit_languages_mermaid.rs`.
+pub fn parse_mermaid(source: &str) -> ParsedFile {
+    let spec = LangSpec::mermaid();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_mermaid_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Parse PO (gettext translation catalog) source through the generic
+/// engine. Grammar VENDORED (see `vendor/tree-sitter-po-local/`).
+/// Language-parity wave G2.5c. See `tests/unit_languages_po.rs`.
+pub fn parse_po(source: &str) -> ParsedFile {
+    let spec = LangSpec::po();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_po_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Parse Java/Jakarta `.properties` source through the generic engine.
+/// Grammar: `tree-sitter-properties` 0.3.0, a real crates.io crate.
+/// Language-parity wave G2.5c. See `tests/unit_languages_properties.rs`.
+pub fn parse_properties(source: &str) -> ParsedFile {
+    let spec = LangSpec::properties();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_properties::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Parse a standalone regular-expression pattern through the generic
+/// engine. Grammar: `tree-sitter-regex` 0.25.0, a real crates.io crate.
+/// Language-parity wave G2.5c. See `tests/unit_languages_regex.rs`.
+pub fn parse_regex(source: &str) -> ParsedFile {
+    let spec = LangSpec::regex();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_regex::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// gitignore / GN / Go Mod / GraphQL / HTML / Hyprlang / INI / Janet /
+// Jinja2 / JSDoc / JSON (Tier-0, language-parity wave G2.5b -- the
+// final language batch before wave G3's rich-tier passes)
+// =====================================================================
+
+/// Parse a `.gitignore` file through the generic engine -- every
+/// construct beyond the file root is left unextracted, matching
+/// [`LangSpec::gitignore`]'s own doc comment (a real parse-tree dump
+/// shows only `pattern`/`comment` children, neither of which this
+/// crate's own narrower [`LangSpec`] shape -- no bare "ignore rule"
+/// symbol kind exists -- has anywhere to record). Grammar VENDORED (see
+/// `vendor/tree-sitter-gitignore-local/`). Language-parity wave G2.5b.
+/// See `tests/unit_languages_gitignore.rs`.
+pub fn parse_gitignore(source: &str) -> ParsedFile {
+    let spec = LangSpec::gitignore();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_gitignore_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// GN's `import(...)` claims: a real parse-tree dump
+/// (`import("//build/config.gni")`) shows `import_statement` wrapping a
+/// bare positional `primary_expression -> string -> string_content`
+/// chain with NO field of its own at all -- same "every import-shaped
+/// row needs a quirk claim regardless of how real its sibling fields
+/// are" finding [`LangSpec::devicetree`]'s own doc comment already
+/// documents, just with zero fields here rather than a real-but-
+/// unreachable one. Descends by kind to find the innermost
+/// `string_content` leaf and uses its own text directly (GN string
+/// literals have no escape-sequence handling to strip, confirmed by
+/// this grammar's own `grammar.js`).
+fn gn_import_path(node: Node<'_>, src: &[u8]) -> Option<String> {
+    if node.kind() == "string_content" {
+        return node.utf8_text(src).ok().map(str::to_owned);
+    }
+    (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find_map(|c| gn_import_path(c, src))
+}
+
+/// Claims `import_statement` (see [`gn_import_path`]'s own doc comment).
+fn gn_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    if node.kind() != "import_statement" {
+        return false;
+    }
+    if let Some(path) = gn_import_path(node, src) {
+        out.imports.push(ImportRef {
+            module_path: path,
+            line: node.start_position().row + 1,
+        });
+    }
+    true
+}
+
+pub fn gn_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(gn_quirk)),
+        ..Quirks::default()
+    }
+}
+
+/// Parse GN (Generate Ninja build-config language, `.gn`/`.gni`)
+/// source through the generic engine. Grammar VENDORED (see
+/// `vendor/tree-sitter-gn-local/`). Language-parity wave G2.5b. See
+/// `tests/unit_languages_gn.rs`.
+pub fn parse_gn(source: &str) -> ParsedFile {
+    let spec = LangSpec::gn();
+    let quirks = gn_quirks();
+    let language: tree_sitter::Language = tree_sitter_gn_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Claims `require_directive` (a `go.mod` `require github.com/x/y
+/// v1.2.3` line, or the parenthesized-block form's own per-line
+/// `require_spec`-nested variant -- both share the SAME
+/// `require_directive` outer kind in a real parse-tree dump, confirmed
+/// against both single-line and grouped-block fixtures). See
+/// [`crate::languages::spec::LangSpec::gomod`]'s own doc comment for
+/// why this is a real, deliberate correction of the baseline's own
+/// `gomod_import_types` array (`["require", NULL]`): no `"require"`
+/// node kind exists anywhere in this real grammar at all -- the actual
+/// node is named `require_directive`, wrapping a `require_spec` child
+/// whose own `module_path` child holds the real dependency path text
+/// (a bare, unescaped token per this grammar's own `grammar.js` --
+/// `_string_or_ident`/`_identifier` are `token(...)`-only rules with no
+/// child nodes of their own, so `module_path.utf8_text()` already IS
+/// the full path with nothing further to strip).
+fn gomod_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    if node.kind() != "require_directive" {
+        return false;
+    }
+    let line = node.start_position().row + 1;
+    let path = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|c| c.kind() == "require_spec")
+        .and_then(|spec_node| {
+            (0..spec_node.child_count())
+                .filter_map(|i| spec_node.child(i))
+                .find(|c| c.kind() == "module_path")
+        })
+        .and_then(|p| p.utf8_text(src).ok())
+        .map(str::to_owned);
+    if let Some(module_path) = path {
+        out.imports.push(ImportRef { module_path, line });
+    }
+    true
+}
+
+pub fn gomod_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(gomod_quirk)),
+        ..Quirks::default()
+    }
+}
+
+/// Parse a `go.mod` file through the generic engine. Grammar VENDORED
+/// (see `vendor/tree-sitter-gomod-local/`). Language-parity wave
+/// G2.5b. See `tests/unit_languages_gomod.rs`.
+pub fn parse_gomod(source: &str) -> ParsedFile {
+    let spec = LangSpec::gomod();
+    let quirks = gomod_quirks();
+    let language: tree_sitter::Language = tree_sitter_gomod_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// The direct child of `node` whose own `.kind()` equals `kind` (NOT a
+/// recursive descendant search -- GraphQL's `name` children are always
+/// direct children of the definition/field node that owns them, and a
+/// shallow search avoids ever picking up a deeper-nested `name` that
+/// belongs to a child field/argument instead).
+fn graphql_direct_child_of_kind<'a>(node: Node<'a>, kind: &str) -> Option<Node<'a>> {
+    (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|c| c.kind() == kind)
+}
+
+/// Claims every GraphQL type-definition kind in
+/// [`crate::languages::spec::LangSpec::graphql`]'s own `class_types`
+/// (see that row's own doc comment for the full real-grammar
+/// structure this walks): each such node's own name is a direct `name`
+/// child (NOT a field -- confirmed via a real parse-tree dump, every
+/// one of these node kinds has an empty `"fields": {}` entry in this
+/// grammar's own `node-types.json`), and each one's own member fields
+/// (if any) live inside a `fields_definition`/`input_fields_definition`
+/// child wrapping `field_definition`/`input_value_definition` children,
+/// each of which ALSO names itself via a direct `name` child rather
+/// than a field. Handled entirely here, manually, rather than via the
+/// generic engine's own `field_types` branch (which has no quirk
+/// fallback of its own for a fieldless name lookup) -- matches
+/// [`smali_quirk`]'s own "quirk claims what the flat array cannot"
+/// posture.
+fn graphql_quirk(
+    node: Node<'_>,
+    _enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    let is_type_def = matches!(
+        node.kind(),
+        "object_type_definition"
+            | "input_object_type_definition"
+            | "enum_type_definition"
+            | "interface_type_definition"
+            | "union_type_definition"
+            | "scalar_type_definition"
+    );
+    if !is_type_def {
+        return false;
+    }
+    let line = node.start_position().row + 1;
+    let Some(name) = graphql_direct_child_of_kind(node, "name").and_then(|n| n.utf8_text(src).ok())
+    else {
+        return true;
+    };
+    out.symbols.push(SymbolRef {
+        name: name.to_owned(),
+        kind: SymbolKind::Class,
+        line,
+    });
+    for i in 0..node.child_count() {
+        let Some(fields_container) = node.child(i) else {
+            continue;
+        };
+        let member_kind = match fields_container.kind() {
+            "fields_definition" => "field_definition",
+            "input_fields_definition" => "input_value_definition",
+            _ => continue,
+        };
+        for j in 0..fields_container.child_count() {
+            let Some(member) = fields_container.child(j) else {
+                continue;
+            };
+            if member.kind() != member_kind {
+                continue;
+            }
+            if let Some(member_name) =
+                graphql_direct_child_of_kind(member, "name").and_then(|n| n.utf8_text(src).ok())
+            {
+                out.defines.push(DefinesRef {
+                    container_name: name.to_owned(),
+                    member_name: member_name.to_owned(),
+                    line: member.start_position().row + 1,
+                });
+            }
+        }
+    }
+    true
+}
+
+pub fn graphql_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(graphql_quirk)),
+        ..Quirks::default()
+    }
+}
+
+/// Parse GraphQL SDL source through the generic engine. Grammar:
+/// `tree-sitter-graphql` 0.1.0, a real crates.io crate. Language-parity
+/// wave G2.5b. See `tests/unit_languages_graphql.rs`.
+pub fn parse_graphql(source: &str) -> ParsedFile {
+    let spec = LangSpec::graphql();
+    let quirks = graphql_quirks();
+    let language: tree_sitter::Language = tree_sitter_graphql::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Parse HTML source through the generic engine -- every construct
+/// beyond the file root is left unextracted, matching
+/// [`LangSpec::html`]'s own doc comment. The baseline's own
+/// `html_embedded_imports` re-parses `<script>` bodies with the JS
+/// grammar to recover `import` edges from inline module scripts; this
+/// crate has no embedded-sub-language-reparse mechanism at all yet
+/// (confirmed by grepping this whole module for any such precedent --
+/// none exists, the same "new shared infrastructure beyond this wave's
+/// own scope" deferral [`LangSpec::starlark`]'s own bare-filename-
+/// dispatch doc comment already documents for a different mechanism)
+/// -- deferred, not silently dropped: a `<script>` block's own
+/// `raw_text` content is still visited by this crate's ordinary generic
+/// recursion, it simply has no HTML-specific import extraction pointed
+/// at it. Grammar: `tree-sitter-html` 0.23.2, a real crates.io crate.
+/// Language-parity wave G2.5b. See `tests/unit_languages_html.rs`.
+pub fn parse_html(source: &str) -> ParsedFile {
+    let spec = LangSpec::html();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_html::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Parse Hyprland's Hyprlang config-language source through the generic
+/// engine -- every construct beyond the file root is left unextracted,
+/// matching [`LangSpec::hyprlang`]'s own doc comment (including the
+/// real root-node-kind correction it documents: `configuration`, not
+/// the baseline's own `"source_file"`). Grammar VENDORED (see
+/// `vendor/tree-sitter-hyprlang-local/`). Language-parity wave G2.5b.
+/// See `tests/unit_languages_hyprlang.rs`.
+pub fn parse_hyprlang(source: &str) -> ParsedFile {
+    let spec = LangSpec::hyprlang();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_hyprlang_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// The direct child of `node` whose own `.kind()` equals `kind` (same
+/// "shallow, not recursive" shape as
+/// [`graphql_direct_child_of_kind`] -- kept as INI's own copy rather
+/// than a shared cross-language helper, matching this file's own
+/// established one-helper-per-language-usage-site convention, e.g.
+/// [`d_child_by_kind`]/[`hare_child_by_kind`]/[`pony_child_by_kind`]).
+fn ini_direct_child_of_kind<'a>(node: Node<'a>, kind: &str) -> Option<Node<'a>> {
+    (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|c| c.kind() == kind)
+}
+
+/// Claims INI's `section` (see
+/// [`crate::languages::spec::LangSpec::ini`]'s own doc comment: neither
+/// `section` nor `setting` has a real field, confirmed via a real
+/// parse-tree dump -- `section_name`/`setting_name`/`setting_value` are
+/// all bare positional children). `section_name`/`setting_name` are
+/// both leaf-shaped enough that `.utf8_text()` on the node itself
+/// already returns the exact key/section text with no surrounding
+/// punctuation (the grammar's own `[`/`]`/`=` tokens are anonymous
+/// siblings, not part of either node's own byte span).
+fn ini_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    if node.kind() != "section" {
+        return false;
+    }
+    let line = node.start_position().row + 1;
+    // `section_name`'s own real grammar rule is `seq('[',
+    // alias(/[^\[\]]+/, $.text), ']', /\r?\n/)` -- its OWN byte span
+    // includes the brackets AND the trailing newline (confirmed via
+    // this crate's own real-crate `grammar.js`, NOT the earlier "an
+    // extra bracket-stripping step is unneeded" assumption a real
+    // parse-tree dump's rendered s-expression alone did not surface --
+    // a real hard test caught this). The clean identifier text lives
+    // one level deeper, in `section_name`'s own aliased `text` child.
+    let Some(section_name) = ini_direct_child_of_kind(node, "section_name")
+        .and_then(|sn| ini_direct_child_of_kind(sn, "text"))
+        .and_then(|n| n.utf8_text(src).ok())
+    else {
+        return true;
+    };
+    out.symbols.push(SymbolRef {
+        name: section_name.to_owned(),
+        kind: SymbolKind::Class,
+        line,
+    });
+    for i in 0..node.child_count() {
+        let Some(setting) = node.child(i) else {
+            continue;
+        };
+        if setting.kind() != "setting" {
+            continue;
+        }
+        if let Some(setting_name) =
+            ini_direct_child_of_kind(setting, "setting_name").and_then(|n| n.utf8_text(src).ok())
+        {
+            out.defines.push(DefinesRef {
+                container_name: section_name.to_owned(),
+                member_name: setting_name.to_owned(),
+                line: setting.start_position().row + 1,
+            });
+        }
+    }
+    true
+}
+
+pub fn ini_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(ini_quirk)),
+        ..Quirks::default()
+    }
+}
+
+/// Parse INI source through the generic engine. Grammar:
+/// `tree-sitter-ini` 1.4.0, a real crates.io crate. Language-parity
+/// wave G2.5b. See `tests/unit_languages_ini.rs`.
+pub fn parse_ini(source: &str) -> ParsedFile {
+    let spec = LangSpec::ini();
+    let quirks = ini_quirks();
+    let language: tree_sitter::Language = tree_sitter_ini::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Parse Janet source through the generic engine -- every construct
+/// beyond the file root is left unextracted, matching
+/// [`LangSpec::janet`]'s own doc comment (a real parse-tree dump of
+/// `(defn foo [x] (+ x 1)) (print (foo 2))` shows every list-shaped
+/// form as a completely fieldless `par_tup_lit`/`sqr_tup_lit`, matching
+/// the baseline's own fully-nominal row exactly -- this Lisp-family
+/// grammar has no dedicated `defn`/call-shaped node kind of its own at
+/// all, every form is the SAME generic tuple-literal node kind
+/// regardless of its head symbol). Grammar VENDORED (see
+/// `vendor/tree-sitter-janet-local/`; the grammar's own generated C
+/// function is `tree_sitter_janet_simple`, see that crate's own module
+/// doc for why). Language-parity wave G2.5b. See
+/// `tests/unit_languages_janet.rs`.
+pub fn parse_janet(source: &str) -> ParsedFile {
+    let spec = LangSpec::janet();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_janet_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Parse Jinja2 template source through the generic engine -- every
+/// construct beyond the file root is left unextracted, matching
+/// [`LangSpec::jinja2`]'s own doc comment. Grammar: `tree-sitter-jinja2`
+/// 0.0.16, a real crates.io crate. Language-parity wave G2.5b. See
+/// `tests/unit_languages_jinja2.rs`.
+pub fn parse_jinja2(source: &str) -> ParsedFile {
+    let spec = LangSpec::jinja2();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_jinja2::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Parse a standalone JSDoc comment (including its own `/**`/`*/`
+/// delimiters -- this grammar accepts and parses the full comment,
+/// confirmed via a real parse-tree dump) through the generic engine --
+/// every construct beyond the file root is left unextracted, matching
+/// [`LangSpec::jsdoc`]'s own doc comment. No [`classify`][crate::parsers::classify]
+/// extension wiring: the baseline's own `src/discover/language.c`
+/// `EXT_TABLE` has no entry for `CBM_LANG_JSDOC` at all (confirmed by
+/// grepping that file directly) -- this language is reached only via an
+/// embedded-comment reparse of JS/TS source there, a mechanism this
+/// crate does not have (same deferral as [`parse_html`]'s own doc
+/// comment for a different embedded-sub-language case). This function
+/// still exists so a caller with an already-extracted comment body (or
+/// a future embedded-reparse pass) has a real, tested extractor to hand
+/// it to. Grammar: `tree-sitter-jsdoc` 0.25.0, a real crates.io crate.
+/// Language-parity wave G2.5b. See `tests/unit_languages_jsdoc.rs`.
+pub fn parse_jsdoc(source: &str) -> ParsedFile {
+    let spec = LangSpec::jsdoc();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_jsdoc::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Parse JSON source through the generic engine -- every construct
+/// beyond the file root is left unextracted, matching
+/// [`LangSpec::json`]'s own doc comment (the baseline's own
+/// `json_var_types: ["pair", NULL]` has no equivalent in this crate's
+/// own narrower [`LangSpec`] shape -- there is no bare top-level
+/// Variable-symbol concept here the way the baseline's separate
+/// `var_types`/`assign_types` arrays model, the same accepted departure
+/// [`LangSpec::r`]'s own doc comment already documents for its own
+/// dropped `r_var_types`/`r_assign_types`). `.json` now routes here via
+/// [`crate::parsers::classify`] instead of the pre-existing
+/// [`crate::parsers::Language::ConfigJson`] no-op fallback -- see that
+/// enum variant's own doc comment for why the fallback stub is left in
+/// place, just no longer reachable from a `.json` extension. Grammar:
+/// `tree-sitter-json` 0.24.8, a real crates.io crate. Language-parity
+/// wave G2.5b. See `tests/unit_languages_json.rs`.
+pub fn parse_json(source: &str) -> ParsedFile {
+    let spec = LangSpec::json();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_json::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Assembly (language-parity wave G2.5a, Tier-0)
+// =====================================================================
+
+/// Claims [`LangSpec::assembly`]'s own `label` node kind entirely (via
+/// `on_unmatched_node`, since `func_types` handling's own `name_field`
+/// lookup finds nothing -- see that row's own doc comment): a `label`'s
+/// name is its first named child's text (a fieldless `ident`, e.g.
+/// `"main"` for `main:`), found positionally rather than by field.
+/// Labels have no body to recurse into at all (the instructions
+/// "inside" a label are flat siblings of the label itself at the
+/// `program` level, not children of the label node), so this always
+/// returns `true` with no further recursion.
+fn assembly_quirk(
+    node: Node<'_>,
+    _enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "label" {
+        return false;
+    }
+    if let Some(name) = first_named_child_text(node, src) {
+        out.symbols.push(SymbolRef {
+            name,
+            kind: SymbolKind::Function,
+            line: node.start_position().row + 1,
+        });
+    }
+    true
+}
+
+pub fn assembly_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(assembly_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse Assembly source through the generic engine. Grammar:
+/// `tree-sitter-asm` 0.24.0 (`RubixDev/tree-sitter-asm`), a real
+/// crates.io crate. Language-parity wave G2.5a (Tier-0).
+pub fn parse_assembly(source: &str) -> ParsedFile {
+    let spec = LangSpec::assembly();
+    let quirks = assembly_quirks();
+    let language: tree_sitter::Language = tree_sitter_asm::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Astro (language-parity wave G2.5a, Tier-0)
+// =====================================================================
+
+/// Parse Astro source through the generic engine -- module recognition
+/// only, matching [`LangSpec::astro`]'s own doc comment (the embedded
+/// frontmatter-script/`<script>`-tag import re-parse baseline's own row
+/// declares has no engine-level equivalent in this crate yet). Grammar
+/// VENDORED (`crates/enforcer-memory/vendor/tree-sitter-astro-local/`).
+/// Language-parity wave G2.5a (Tier-0).
+pub fn parse_astro(source: &str) -> ParsedFile {
+    let spec = LangSpec::astro();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_astro_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Beancount (language-parity wave G2.5a, Tier-0)
+// =====================================================================
+
+/// Claims [`LangSpec::beancount`]'s own `include` node kind (via
+/// `on_unmatched_node`): that node's sole child is a fieldless `string`
+/// literal (`include "other.beancount"`) -- found positionally, quotes
+/// stripped, same convention as every other quote-stripping import path
+/// in this file (see e.g. [`capnp_import_path_text`]).
+fn beancount_quirk(
+    node: Node<'_>,
+    _enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "include" {
+        return false;
+    }
+    let path = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|c| c.kind() == "string")
+        .and_then(|c| c.utf8_text(src).ok())
+        .map(|raw| raw.trim_matches('"').to_string());
+    if let Some(module_path) = path {
+        out.imports.push(ImportRef {
+            module_path,
+            line: node.start_position().row + 1,
+        });
+    }
+    true
+}
+
+pub fn beancount_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(beancount_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse Beancount source through the generic engine. Grammar VENDORED
+/// (`crates/enforcer-memory/vendor/tree-sitter-beancount-local/`).
+/// Language-parity wave G2.5a (Tier-0).
+pub fn parse_beancount(source: &str) -> ParsedFile {
+    let spec = LangSpec::beancount();
+    let quirks = beancount_quirks();
+    let language: tree_sitter::Language = tree_sitter_beancount_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// BibTeX (language-parity wave G2.5a, Tier-0)
+// =====================================================================
+
+/// Parse BibTeX source through the generic engine -- no quirk needed at
+/// all (see [`LangSpec::bibtex`]'s own doc comment: `command`'s real
+/// `name` field resolves through the ordinary generic call path
+/// directly). Grammar VENDORED
+/// (`crates/enforcer-memory/vendor/tree-sitter-bibtex-local/`).
+/// Language-parity wave G2.5a (Tier-0).
+pub fn parse_bibtex(source: &str) -> ParsedFile {
+    let spec = LangSpec::bibtex();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_bibtex_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Blade (language-parity wave G2.5a, Tier-0)
+// =====================================================================
+
+/// Parse Blade source through the generic engine -- module recognition
+/// only, matching [`LangSpec::blade`]'s own doc comment. Grammar
+/// VENDORED (`crates/enforcer-memory/vendor/tree-sitter-blade-local/`).
+/// Language-parity wave G2.5a (Tier-0).
+pub fn parse_blade(source: &str) -> ParsedFile {
+    let spec = LangSpec::blade();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_blade_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// CSS (language-parity wave G2.5a, Tier-0)
+// =====================================================================
+
+/// [`Quirks::call_override`] for [`LangSpec::css`]'s own
+/// `call_expression` node kind: fully fieldless (see that row's own doc
+/// comment), so the callee (`function_name` child, by kind) and
+/// argument texts (`arguments` child's own children, by kind, skipping
+/// punctuation) are both found positionally rather than via
+/// `child_by_field_name`.
+fn css_call_override(
+    node: Node<'_>,
+    fn_scope_name: Option<&str>,
+    fn_scope_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "call_expression" {
+        return false;
+    }
+    let Some(function) = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|c| c.kind() == "function_name")
+    else {
+        return true;
+    };
+    let Ok(callee) = function.utf8_text(src) else {
+        return true;
+    };
+    let arg_texts = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|c| c.kind() == "arguments")
+        .map(|args| {
+            (0..args.child_count())
+                .filter_map(|i| args.child(i))
+                .filter(|c| !matches!(c.kind(), "(" | ")" | ","))
+                .filter_map(|c| c.utf8_text(src).ok())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default();
+    out.calls.push(CallRef {
+        callee: callee.to_string(),
+        line: node.start_position().row + 1,
+        from_symbol: fn_scope_name.map(str::to_string),
+        from_symbol_line: fn_scope_line,
+        receiver_text: None,
+        receiver_hint: None,
+        arg_texts,
+    });
+    true
+}
+
+/// [`Quirks::on_unmatched_node`] for [`LangSpec::css`]'s own
+/// `import_statement` node kind: fully fieldless (see that row's own
+/// doc comment), so the quoted path is found positionally -- the first
+/// `string_value` child, itself wrapping a `string_content` child with
+/// the unquoted text.
+fn css_import_quirk(
+    node: Node<'_>,
+    _enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "import_statement" {
+        return false;
+    }
+    let path = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|c| c.kind() == "string_value")
+        .and_then(|string_value| {
+            (0..string_value.child_count())
+                .filter_map(|i| string_value.child(i))
+                .find(|c| c.kind() == "string_content")
+        })
+        .and_then(|c| c.utf8_text(src).ok())
+        .map(str::to_string);
+    if let Some(module_path) = path {
+        out.imports.push(ImportRef {
+            module_path,
+            line: node.start_position().row + 1,
+        });
+    }
+    true
+}
+
+pub fn css_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(css_import_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(css_call_override)),
+    }
+}
+
+/// Parse CSS source through the generic engine. Grammar:
+/// `tree-sitter-css` 0.25.0 (`tree-sitter/tree-sitter-css`), a real
+/// crates.io crate. Language-parity wave G2.5a (Tier-0).
+pub fn parse_css(source: &str) -> ParsedFile {
+    let spec = LangSpec::css();
+    let quirks = css_quirks();
+    let language: tree_sitter::Language = tree_sitter_css::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// CSV (language-parity wave G2.5a, Tier-0)
+// =====================================================================
+
+/// Parse CSV source through the generic engine -- module recognition
+/// only, matching [`LangSpec::csv`]'s own doc comment. Grammar VENDORED
+/// (`crates/enforcer-memory/vendor/tree-sitter-csv-local/`).
+/// Language-parity wave G2.5a (Tier-0).
+pub fn parse_csv(source: &str) -> ParsedFile {
+    let spec = LangSpec::csv();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_csv_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Diff/patch (language-parity wave G2.5a, Tier-0)
+// =====================================================================
+
+/// [`Quirks::call_override`] for [`LangSpec::diff`]'s own `command`
+/// node kind (the `diff --git a/x b/x` header line, nominally reused
+/// as a "call" -- see that row's own doc comment): fully fieldless, so
+/// the pseudo-callee is the node's own leading `diff` keyword text and
+/// the argument texts are its `argument`/`filename` children's text,
+/// all found positionally.
+fn diff_call_override(
+    node: Node<'_>,
+    fn_scope_name: Option<&str>,
+    fn_scope_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "command" {
+        return false;
+    }
+    let arg_texts: Vec<String> = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .filter(|c| matches!(c.kind(), "argument" | "filename"))
+        .filter_map(|c| c.utf8_text(src).ok())
+        .map(str::to_string)
+        .collect();
+    out.calls.push(CallRef {
+        callee: "diff".to_string(),
+        line: node.start_position().row + 1,
+        from_symbol: fn_scope_name.map(str::to_string),
+        from_symbol_line: fn_scope_line,
+        receiver_text: None,
+        receiver_hint: None,
+        arg_texts,
+    });
+    true
+}
+
+pub fn diff_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: None,
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(diff_call_override)),
+    }
+}
+
+/// Parse Diff/patch source through the generic engine. Grammar:
+/// `tree-sitter-diff` 0.1.0 (`tree-sitter/tree-sitter-diff`), a real
+/// crates.io crate. Language-parity wave G2.5a (Tier-0).
+pub fn parse_diff(source: &str) -> ParsedFile {
+    let spec = LangSpec::diff();
+    let quirks = diff_quirks();
+    let language: tree_sitter::Language = tree_sitter_diff::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Dockerfile (language-parity wave G2.5a, Tier-0)
+// =====================================================================
+
+/// Parse Dockerfile source through the generic engine -- module
+/// recognition only (`var_types` is documentation parity only, not
+/// consumed by this walker -- see [`LangSpec::dockerfile`]'s own doc
+/// comment). Grammar VENDORED
+/// (`crates/enforcer-memory/vendor/tree-sitter-dockerfile-local/`).
+/// Language-parity wave G2.5a (Tier-0).
+pub fn parse_dockerfile(source: &str) -> ParsedFile {
+    let spec = LangSpec::dockerfile();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_dockerfile_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// DotEnv (language-parity wave G2.5a, Tier-0)
+// =====================================================================
+
+/// Parse DotEnv source through the generic engine -- module recognition
+/// only, matching [`LangSpec::dotenv`]'s own doc comment (baseline's own
+/// row populates nothing beyond `module_types` either). Grammar
+/// VENDORED (`crates/enforcer-memory/vendor/tree-sitter-dotenv-local/`).
+/// Language-parity wave G2.5a (Tier-0).
+pub fn parse_dotenv(source: &str) -> ParsedFile {
+    let spec = LangSpec::dotenv();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_dotenv_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// gitattributes (language-parity wave G2.5a, Tier-0)
+// =====================================================================
+
+/// Parse gitattributes source through the generic engine -- module
+/// recognition only, matching [`LangSpec::gitattributes`]'s own doc
+/// comment. Grammar VENDORED
+/// (`crates/enforcer-memory/vendor/tree-sitter-gitattributes-local/`).
+/// Language-parity wave G2.5a (Tier-0).
+pub fn parse_gitattributes(source: &str) -> ParsedFile {
+    let spec = LangSpec::gitattributes();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_gitattributes_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}

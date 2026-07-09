@@ -1190,6 +1190,126 @@ tree-sitter-tablegen-local = { path = "vendor/tree-sitter-tablegen-local" }
 # the vendored grammars above. Language-parity wave G2.4c-redo.
 tree-sitter-wit = "0.2"
 tree-sitter-llvm = "1.1"
+# Wave G2.5b (Tier-0, final language-parity batch): gitignore, GN, Go
+# Mod, GraphQL, HTML, Hyprlang, INI, Janet, Jinja2, JSDoc, JSON.
+# GraphQL/HTML/INI/Jinja2/JSDoc/JSON are real crates.io crates
+# (`tree-sitter-language`-shimmed, confirmed via `cargo add --dry-run`
+# against the real sparse index before being added here). gitignore/
+# GN/Go Mod/Hyprlang/Janet have no USABLE crates.io crate: gitignore/
+# Hyprlang/Janet have no crate under any plausible name at all (same
+# confirmation method); GN's own published crate pins `cc = "~1.0.83"`
+# as a normal build dependency -- confirmed via a real `cargo check`
+# against this workspace, which fails resolving a single unified `cc`
+# version against `tree-sitter-just`'s own `cc = "^1.2.25"` requirement
+# (the same class of whole-workspace dependency-graph conflict every
+# other vendored grammar in this file's own comments documents, just
+# via a shared build-dependency this time rather than a `tree-sitter`
+# core pin); Go Mod's own published crate's Rust binding returns a
+# `tree_sitter::Language` from a SEPARATE, incompatible `tree-sitter`
+# version resolved as a normal (non-dev) dependency -- see
+# `tree-sitter-gomod-local`'s own module doc for the full type-mismatch
+# finding. All five vendored from the baseline `codebase-memory-mcp`
+# repo's own
+# `internal/cbm/vendored/grammars/{gitignore,gn,gomod,hyprlang,janet}/`
+# raw C sources, same "-local" path-dependency convention as every
+# other vendored grammar in this file. Go Mod reuses no existing
+# grammar -- it is itself a genuine dedicated `go.mod`-file grammar,
+# not a Go-source-grammar alias.
+tree-sitter-graphql = "0.1"
+tree-sitter-html = "0.23"
+tree-sitter-ini = "1.4"
+tree-sitter-jinja2 = "0.0.16"
+tree-sitter-jsdoc = "0.25"
+tree-sitter-json = "0.24"
+tree-sitter-gn-local = { path = "vendor/tree-sitter-gn-local" }
+tree-sitter-gomod-local = { path = "vendor/tree-sitter-gomod-local" }
+tree-sitter-gitignore-local = { path = "vendor/tree-sitter-gitignore-local" }
+tree-sitter-hyprlang-local = { path = "vendor/tree-sitter-hyprlang-local" }
+tree-sitter-janet-local = { path = "vendor/tree-sitter-janet-local" }
+# Wave G2.5c (Tier-0, final language-parity batch): JSON5, KDL, Linker
+# Script, Liquid, Markdown, Mermaid, PO, Properties, Regex. Properties
+# (0.3.0) and Regex (0.25.0) are real crates.io crates, both
+# `tree-sitter-language`-shimmed (confirmed via the real sparse index
+# before being added here) -- added directly, no vendoring needed. The
+# other seven each publish a Rust binding crate that pins an
+# upper-bounded pre-`tree-sitter-language` `tree-sitter` core version
+# (or, for Liquid/Mermaid, publish no crates.io crate at all) -- the
+# same "REJECTED -- vendor instead" situation this file's own comments
+# already document for Squirrel/Sway/Wolfram/WGSL -- vendored instead
+# from the EXACT SAME upstream commit the codebase-memory-mcp C
+# baseline itself vendors (`internal/cbm/vendored/grammars/MANIFEST.md`)
+# into `vendor/tree-sitter-<lang>-local/`.
+tree-sitter-properties = "0.3"
+tree-sitter-regex = "0.25"
+tree-sitter-json5-local = { path = "vendor/tree-sitter-json5-local" }
+tree-sitter-kdl-local = { path = "vendor/tree-sitter-kdl-local" }
+tree-sitter-linkerscript-local = { path = "vendor/tree-sitter-linkerscript-local" }
+tree-sitter-liquid-local = { path = "vendor/tree-sitter-liquid-local" }
+tree-sitter-markdown-local = { path = "vendor/tree-sitter-markdown-local" }
+tree-sitter-mermaid-local = { path = "vendor/tree-sitter-mermaid-local" }
+tree-sitter-po-local = { path = "vendor/tree-sitter-po-local" }
+# Wave G2.5d (Tier-0, final language-parity batch): Requirements, RON,
+# reStructuredText, SOQL, SOSL, SSH Config, Svelte, TOML, Vue, XML, YAML
+# structural extractors (see languages/generic.rs's `parse_requirements`/
+# `parse_ron`/`parse_rst`/`parse_soql`/`parse_sosl`/`parse_sshconfig`/
+# `parse_svelte`/`parse_toml`/`parse_vue`/`parse_xml`/`parse_yaml`).
+# SOQL/SOSL reuse the `tree-sitter-sfapex` dependency already added for
+# Apex (G2.2a) -- that one crate ships all three grammars as separate
+# modules, no new dependency needed. Requirements/RST/TOML/XML/YAML/
+# Svelte/Vue are real crates.io crates that already bind through the
+# `tree-sitter-language` shim (confirmed via each crate's own
+# `bindings/rust/lib.rs`/`src/lib.rs`, not assumed) so they plug into this
+# workspace's `tree-sitter = "0.25"` core with no vendoring needed --
+# note `tree-sitter-toml-ng`/`tree-sitter-vue-next`/`tree-sitter-svelte-next`
+# specifically (NOT the plain `tree-sitter-toml`/`tree-sitter-vue-sqry`
+# names, whose own published bindings return a raw `tree_sitter::Language`
+# from an incompatible pinned `tree_sitter` version -- same class of
+# incompatibility this file's other vendored-grammar comments already
+# document). RON and SSH Config have no such shimmed alternative on
+# crates.io at all -- vendored below from each crate's own published
+# `src/` (`vendor/tree-sitter-ron-local`,
+# `vendor/tree-sitter-sshclientconfig-local`).
+tree-sitter-requirements = "0.6"
+tree-sitter-rst = "0.2"
+tree-sitter-toml-ng = "0.7"
+tree-sitter-xml = "0.7"
+tree-sitter-yaml = "0.7"
+tree-sitter-svelte-next = "0.1"
+tree-sitter-vue-next = "0.1"
+tree-sitter-ron-local = { path = "vendor/tree-sitter-ron-local" }
+tree-sitter-sshclientconfig-local = { path = "vendor/tree-sitter-sshclientconfig-local" }
+# Wave G2.5a (Tier-0): Assembly, Astro, Beancount, BibTeX, Blade, CSS,
+# CSV, Diff, Dockerfile, DotEnv, gitattributes structural extractors
+# (see languages/generic.rs's `parse_assembly`/`parse_astro`/
+# `parse_beancount`/`parse_bibtex`/`parse_blade`/`parse_css`/
+# `parse_csv`/`parse_diff`/`parse_dockerfile`/`parse_dotenv`/
+# `parse_gitattributes`). `tree-sitter-asm`/`tree-sitter-css`/
+# `tree-sitter-diff` are real crates.io crates already binding through
+# the `tree-sitter-language` shim -- confirmed via each crate's own
+# `Cargo.toml` before being added here. Astro/Beancount/BibTeX/Blade/
+# CSV/Dockerfile/DotEnv/gitattributes have NO usable crates.io crate at
+# all (either no such crate exists under any plausible name -- Astro/
+# Blade/DotEnv, confirmed via `cargo add --dry-run` -- or the published
+# crate hard-pins an ABI-incompatible `tree-sitter` version as a normal,
+# non-optional dependency -- Beancount/BibTeX/Dockerfile/gitattributes/
+# CSV, confirmed via an isolated `cargo build`, same class of conflict
+# this file's other vendored-grammar comments already document) --
+# vendored below (`vendor/tree-sitter-<lang>-local/`) from, respectively,
+# the baseline's own `internal/cbm/vendored/grammars/{astro,blade,
+# dotenv}/` (Astro/Blade/DotEnv have no crates.io source to vendor FROM
+# at all) or each published crate's own `src/` (Beancount/BibTeX/
+# Dockerfile/gitattributes/CSV).
+tree-sitter-asm = "0.24"
+tree-sitter-css = "0.25"
+tree-sitter-diff = "0.1"
+tree-sitter-astro-local = { path = "vendor/tree-sitter-astro-local" }
+tree-sitter-beancount-local = { path = "vendor/tree-sitter-beancount-local" }
+tree-sitter-bibtex-local = { path = "vendor/tree-sitter-bibtex-local" }
+tree-sitter-blade-local = { path = "vendor/tree-sitter-blade-local" }
+tree-sitter-csv-local = { path = "vendor/tree-sitter-csv-local" }
+tree-sitter-dockerfile-local = { path = "vendor/tree-sitter-dockerfile-local" }
+tree-sitter-dotenv-local = { path = "vendor/tree-sitter-dotenv-local" }
+tree-sitter-gitattributes-local = { path = "vendor/tree-sitter-gitattributes-local" }
 
 [dev-dependencies]
 tempfile = "3"
