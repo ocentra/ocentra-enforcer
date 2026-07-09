@@ -195,6 +195,26 @@ pub struct OrtWorkerExecutionPlan {
     pub env: Vec<(String, String)>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeBackendContract {
+    pub llama_cpp: RuntimeBackendContractEntry,
+    pub ort: RuntimeBackendContractEntry,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeBackendContractEntry {
+    pub backend: &'static str,
+    pub ownership: RuntimeOwnershipMode,
+    pub request_protocol: RuntimeRequestProtocol,
+    pub external_http_allowed: bool,
+    pub port_binding_allowed: bool,
+    pub server_surface_accepted_for_parity: bool,
+    pub route: &'static str,
+    pub managed_by_service: Vec<&'static str>,
+}
+
 /// Owned ORT worker lifecycle state.
 ///
 /// This is a control-plane state machine. It does not claim inference
@@ -665,6 +685,31 @@ pub fn ort_worker_command(plan: &OrtWorkerExecutionPlan) -> Result<Command> {
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     Ok(command)
+}
+
+pub fn runtime_backend_contract() -> RuntimeBackendContract {
+    RuntimeBackendContract {
+        llama_cpp: RuntimeBackendContractEntry {
+            backend: "gguf",
+            ownership: RuntimeOwnershipMode::EnforcerSubprocess,
+            request_protocol: RuntimeRequestProtocol::EnforcerStdio,
+            external_http_allowed: false,
+            port_binding_allowed: false,
+            server_surface_accepted_for_parity: false,
+            route: "enforcer-managed-llama-cpp-subprocess",
+            managed_by_service: vec!["chat", "embeddings"],
+        },
+        ort: RuntimeBackendContractEntry {
+            backend: "onnx",
+            ownership: RuntimeOwnershipMode::EnforcerIsolatedWorker,
+            request_protocol: RuntimeRequestProtocol::EnforcerWorkerEnv,
+            external_http_allowed: false,
+            port_binding_allowed: false,
+            server_surface_accepted_for_parity: false,
+            route: "enforcer-isolated-ort-worker",
+            managed_by_service: vec!["embeddings", "rerank"],
+        },
+    }
 }
 
 pub fn transition_ort_worker_lifecycle(

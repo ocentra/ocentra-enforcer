@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-dogfood",
-  "generatedAt": "2026-07-09T11:25:48.449Z",
+  "generatedAt": "2026-07-09T11:31:29.153Z",
   "hub": "ocentra-enforcer",
   "stateRoot": "<ledger>/ocentra-enforcer",
   "lane": "codex-x06-harvest-sync",
@@ -122,6 +122,7 @@
     "cargo clippy -p enforcer-memory --all-targets -- -D warnings passed after QA-013 proof-path correction",
     "cargo test -p enforcer-memory --test local_runtime --quiet -j 1 passed after adding the executable ORT worker command seam",
     "cargo clippy -p enforcer-memory --test local_runtime -- -D warnings passed after adding the executable ORT worker command seam",
+    "cargo check -p enforcer-memory --features real-models --example x06_model_runtime_probe passed after deriving runtimeBackendContract from typed local-runtime ownership and restoring the local llama binary-name helper",
     "cargo test -p enforcer-memory --test unit_store_sqlite store_backed_projection_rebuilds_from_a_real_code_graph_fixture -- --exact passed after GPH Store-backed projection proof",
     "cargo test -p enforcer-memory --test unit_store_sqlite --quiet passed after GPH Store-backed projection proof",
     "hardcoded-path scan over changed QA/GPH proof files returned no drive-root, user-profile, or rust-build-sync machine-path matches after source refs were normalized to repo-relative paths",
@@ -1183,6 +1184,18 @@
     {
       "shape": "t2",
       "evidence": "cargo test -p enforcer-memory --test local_runtime --quiet -j 1 passed with ort_worker_command_uses_owned_worker_args_and_env_without_server_surface; cargo clippy -p enforcer-memory --test local_runtime -- -D warnings and cargo fmt -p enforcer-memory --check passed; proof/memory/x06-models.json now links the ORT ownedCommandBuilder and workerCommandProof."
+    },
+    {
+      "shape": "t0",
+      "incident": "runtime_probe.rs hand-wrote runtimeBackendContract JSON separately from the typed local runtime ownership model, and the real-model probe compile path exposed a stale import of llama_binary_name from llama_cpp.rs."
+    },
+    {
+      "shape": "t1",
+      "fix": "Added runtime_backend_contract() in local_runtime.rs and made runtime_probe.rs serialize that typed contract with error propagation; restored llama_binary_name as a local runtime-probe helper because it is only used by the probe's repo-local model/bin discovery path."
+    },
+    {
+      "shape": "t2",
+      "evidence": "cargo test -p enforcer-memory --test local_runtime --quiet -j 1 passed with runtime_backend_contract_is_derived_from_typed_runtime_ownership; cargo check -p enforcer-memory --features real-models --example x06_model_runtime_probe passed; cargo fmt -p enforcer-memory --check passed."
     }
   ]
 }

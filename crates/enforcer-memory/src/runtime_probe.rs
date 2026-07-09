@@ -29,12 +29,12 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
         X06ModelLineup,
     };
     use crate::llama_cpp::{
-        list_llama_cpp_devices, llama_binary_name, resolve_llama_cpp_execution,
-        run_llama_cpp_probe, LlamaCppBackendHint, LlamaCppExecutionResolution, LlamaCppProbeConfig,
-        LlamaCppProbeKind,
+        list_llama_cpp_devices, resolve_llama_cpp_execution, run_llama_cpp_probe,
+        LlamaCppBackendHint, LlamaCppExecutionResolution, LlamaCppProbeConfig, LlamaCppProbeKind,
     };
     use crate::local_runtime::{
-        ort_worker_execution_plan, provider_from_env_value, LocalRuntimeAcceleration, OrtWorkerTask,
+        ort_worker_execution_plan, provider_from_env_value, runtime_backend_contract,
+        LocalRuntimeAcceleration, OrtWorkerTask,
     };
     use crate::model_observations::{
         LocalLoadSucceeded, ModelLoadFailure, ModelRuntimeObservationCandidate,
@@ -209,7 +209,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
             cache_root: repo_relative_display(&repo_root, &cache_root),
             cache_root_policy: cache_root_policy_proof(&repo_root, &cache_root_policy)?,
             service_config: service_config_proof(&repo_root, &service_config)?,
-            runtime_backend_contract: runtime_backend_contract_proof(),
+            runtime_backend_contract: runtime_backend_contract_proof()?,
             chat_throughput_policy,
             chat_model_selection,
             chat_generation_gguf: proof_skipped_reason(
@@ -252,7 +252,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
             cache_root: repo_relative_display(&repo_root, &cache_root),
             cache_root_policy: cache_root_policy_proof(&repo_root, &cache_root_policy)?,
             service_config: service_config_proof(&repo_root, &service_config)?,
-            runtime_backend_contract: runtime_backend_contract_proof(),
+            runtime_backend_contract: runtime_backend_contract_proof()?,
             chat_throughput_policy,
             chat_model_selection,
             chat_generation_gguf: if should_run_probe(&probe_filter, "chat-generation-gguf") {
@@ -371,7 +371,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
         cache_root: repo_relative_display(&repo_root, &cache_root),
         cache_root_policy: cache_root_policy_proof(&repo_root, &cache_root_policy)?,
         service_config: service_config_proof(&repo_root, &service_config)?,
-        runtime_backend_contract: runtime_backend_contract_proof(),
+        runtime_backend_contract: runtime_backend_contract_proof()?,
         chat_throughput_policy,
         chat_model_selection,
         chat_generation_gguf,
@@ -463,29 +463,8 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
         Ok(value)
     }
 
-    fn runtime_backend_contract_proof() -> serde_json::Value {
-        serde_json::json!({
-            "llamaCpp": {
-                "backend": "gguf",
-                "ownership": "enforcer-subprocess",
-                "requestProtocol": "enforcer-stdio",
-                "externalHttpAllowed": false,
-                "portBindingAllowed": false,
-                "serverSurfaceAcceptedForParity": false,
-                "route": "enforcer-managed-llama-cpp-subprocess",
-                "managedByService": ["chat", "embeddings"]
-            },
-            "ort": {
-                "backend": "onnx",
-                "ownership": "enforcer-isolated-worker",
-                "requestProtocol": "enforcer-worker-env",
-                "externalHttpAllowed": false,
-                "portBindingAllowed": false,
-                "serverSurfaceAcceptedForParity": false,
-                "route": "enforcer-isolated-ort-worker",
-                "managedByService": ["embeddings", "rerank"]
-            }
-        })
+    fn runtime_backend_contract_proof() -> Result<serde_json::Value, serde_json::Error> {
+        serde_json::to_value(runtime_backend_contract())
     }
 
     fn repo_relative_display(repo_root: &Path, path: &Path) -> String {
@@ -1674,6 +1653,14 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
 
     fn default_llama_embedding() -> Option<PathBuf> {
         first_existing_model_bin(&llama_binary_name("llama-embedding"))
+    }
+
+    fn llama_binary_name(stem: &str) -> String {
+        if cfg!(windows) {
+            format!("{stem}.exe")
+        } else {
+            stem.to_owned()
+        }
     }
 
     fn first_existing_model_bin(file_name: &str) -> Option<PathBuf> {

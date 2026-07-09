@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "artifact": "x06-learning-curve",
   "workpack": "x06-models-harvest",
-  "generatedAt": "2026-07-09T11:25:48.449Z",
+  "generatedAt": "2026-07-09T11:31:29.153Z",
   "status": "store-backed-projection-policy-clean-focused-gates",
   "learningCurve": {
     "present": true,
@@ -493,6 +493,27 @@
         "crates/enforcer-memory/src/local_runtime.rs",
         "crates/enforcer-memory/tests/local_runtime.rs",
         "proof/memory/x06-models.json",
+        "proof/memory/x06-dogfood.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-043",
+      "lesson": "Runtime proof JSON should be derived from typed runtime ownership contracts. If the probe hand-writes ownership data, it can drift from the code that actually validates llama.cpp and ORT lifecycle control.",
+      "evidence": [
+        "crates/enforcer-memory/src/local_runtime.rs",
+        "crates/enforcer-memory/src/runtime_probe.rs",
+        "crates/enforcer-memory/tests/local_runtime.rs",
+        "proof/memory/x06-dogfood.json"
+      ],
+      "status": "learned"
+    },
+    {
+      "lessonId": "dogfood-044",
+      "lesson": "Real-model probe compile gates are required even when default CI stays zero-network. They catch runtime-only assumptions such as stale helper imports that ordinary default-model tests do not exercise.",
+      "evidence": [
+        "crates/enforcer-memory/src/runtime_probe.rs",
+        "cargo check -p enforcer-memory --features real-models --example x06_model_runtime_probe",
         "proof/memory/x06-dogfood.json"
       ],
       "status": "learned"

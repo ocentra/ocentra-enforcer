@@ -7,8 +7,8 @@
 use enforcer_memory::error::MemoryError;
 use enforcer_memory::local_runtime::{
     arbitrate_runtime_workload, onnx_ort_feature_compiled, ort_worker_command,
-    ort_worker_execution_plan, provider_from_env_value, provider_order, validate_control_plane,
-    validate_fixture, validate_ort_worker_execution_plan, BackendReadiness,
+    ort_worker_execution_plan, provider_from_env_value, provider_order, runtime_backend_contract,
+    validate_control_plane, validate_fixture, validate_ort_worker_execution_plan, BackendReadiness,
     LocalRuntimeControlPlane, LocalRuntimeFixture, LocalRuntimeKind, OrtWorkerLifecycleAction,
     OrtWorkerLifecycleState, OrtWorkerTask, RuntimeActivityState, RuntimeAdmission,
     RuntimeManagedCapability, RuntimeOwnershipMode, RuntimeRequestProtocol, RuntimeWorkload,
@@ -507,6 +507,43 @@ fn ort_worker_command_uses_owned_worker_args_and_env_without_server_surface() ->
         "ORT worker command must not expose an external server or port surface"
     );
     Ok(())
+}
+
+#[test]
+fn runtime_backend_contract_is_derived_from_typed_runtime_ownership() {
+    let contract = runtime_backend_contract();
+    assert_eq!(
+        contract.llama_cpp.ownership,
+        RuntimeOwnershipMode::EnforcerSubprocess
+    );
+    assert_eq!(
+        contract.llama_cpp.request_protocol,
+        RuntimeRequestProtocol::EnforcerStdio
+    );
+    assert!(!contract.llama_cpp.external_http_allowed);
+    assert!(!contract.llama_cpp.port_binding_allowed);
+    assert!(!contract.llama_cpp.server_surface_accepted_for_parity);
+    assert_eq!(
+        contract.llama_cpp.route,
+        "enforcer-managed-llama-cpp-subprocess"
+    );
+
+    assert_eq!(
+        contract.ort.ownership,
+        RuntimeOwnershipMode::EnforcerIsolatedWorker
+    );
+    assert_eq!(
+        contract.ort.request_protocol,
+        RuntimeRequestProtocol::EnforcerWorkerEnv
+    );
+    assert!(!contract.ort.external_http_allowed);
+    assert!(!contract.ort.port_binding_allowed);
+    assert!(!contract.ort.server_surface_accepted_for_parity);
+    assert_eq!(contract.ort.route, "enforcer-isolated-ort-worker");
+    assert_eq!(
+        contract.ort.managed_by_service,
+        vec!["embeddings", "rerank"]
+    );
 }
 
 #[test]
