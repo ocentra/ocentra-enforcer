@@ -6061,7 +6061,7 @@ fn memory_recall_injection_probe(row: &QaRow) -> RowResult {
 }
 
 fn hot_memory_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -7607,7 +7607,7 @@ fn fake_green_rollup_probe(row: &QaRow) -> RowResult {
 }
 
 fn warm_memory_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -7646,7 +7646,7 @@ fn warm_memory_probe(row: &QaRow) -> RowResult {
 }
 
 fn cold_memory_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
