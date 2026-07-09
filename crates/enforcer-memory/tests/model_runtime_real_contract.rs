@@ -795,6 +795,14 @@ fn checked_in_model_plan_proves_owned_gguf_and_ort_backends() -> TestResult {
     assert_eq!(contract["ort"]["portBindingAllowed"], false);
     assert_eq!(contract["ort"]["serverSurfaceAcceptedForParity"], false);
     assert_eq!(contract["ort"]["route"], "enforcer-isolated-ort-worker");
+    assert_eq!(
+        contract["ort"]["ownedCommandBuilder"],
+        "crates/enforcer-memory/src/local_runtime.rs::ort_worker_command"
+    );
+    assert_eq!(
+        contract["ort"]["workerCommandProof"],
+        "crates/enforcer-memory/tests/local_runtime.rs::ort_worker_command_uses_owned_worker_args_and_env_without_server_surface"
+    );
     assert!(contract["ort"]["managedByService"]
         .as_array()
         .ok_or("ORT managed service list missing")?
