@@ -363,6 +363,7 @@ fn tools_call_search_graph_ort_embedding_missing_cache_falls_back_without_networ
                 "namePattern": ".*",
                 "semanticQuery": ["helper"],
                 "embeddingBackend": "ort",
+                "embeddingProvider": "direct-ml",
                 "embeddingCacheRoot": cache.path().join("missing-cache").to_string_lossy()
             }
         }),
@@ -379,6 +380,14 @@ fn tools_call_search_graph_ort_embedding_missing_cache_falls_back_without_networ
     assert_eq!(
         structured["embeddingRuntime"]["resolvedBackend"],
         json!("hashing")
+    );
+    assert_eq!(
+        structured["embeddingRuntime"]["requestedProvider"],
+        json!("direct-ml")
+    );
+    assert_eq!(
+        structured["embeddingRuntime"]["resolvedProvider"],
+        json!(null)
     );
     assert_eq!(
         structured["embeddingRuntime"]["state"],

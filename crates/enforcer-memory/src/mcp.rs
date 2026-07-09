@@ -315,6 +315,7 @@ fn tool_input_schema(name: &str) -> Value {
                 "includeConnected": { "type": "boolean", "default": false },
                 "semanticQuery": { "type": "array", "items": { "type": "string" } },
                 "embeddingBackend": { "type": "string", "enum": ["hashing", "ort"], "default": "hashing", "description": "Semantic mode only. \"hashing\" is the zero-network degraded default. \"ort\" attempts cache-only Qwen3 embedding ONNX loading from embeddingCacheRoot and falls back to hashing on unavailable cache/provider." },
+                "embeddingProvider": { "type": "string", "enum": ["cpu", "direct-ml", "open-vino", "vulkan", "cuda", "core-ml", "npu"], "default": "cpu", "description": "Semantic ORT provider request. GPU/NPU requests are attempted only against an already-cached local model and degrade honestly if unavailable." },
                 "embeddingCacheRoot": { "type": "string", "description": "Cache root for embeddingBackend=\"ort\"; no network is attempted." },
                 "embeddingDimension": { "type": "integer", "minimum": 1, "default": 1024 },
                 "offset": { "type": "integer", "minimum": 0, "default": 0 },
@@ -1282,24 +1283,37 @@ struct SearchGraphEmbedderResolution {
     embedder: crate::embed::LocalEmbedder,
     requested_backend: &'static str,
     resolved_backend: &'static str,
+    requested_provider: Option<crate::model_runtime::ProviderKind>,
+    resolved_provider: Option<crate::model_runtime::ProviderKind>,
     fallback_reason: Option<String>,
 }
 
 impl SearchGraphEmbedderResolution {
-    fn hashing(requested_backend: &'static str, fallback_reason: Option<String>) -> Self {
+    fn hashing(
+        requested_backend: &'static str,
+        requested_provider: Option<crate::model_runtime::ProviderKind>,
+        fallback_reason: Option<String>,
+    ) -> Self {
         Self {
             embedder: crate::embed::LocalEmbedder::default(),
             requested_backend,
             resolved_backend: "hashing",
+            requested_provider,
+            resolved_provider: None,
             fallback_reason,
         }
     }
 
-    fn ort(embedder: crate::embed::LocalEmbedder) -> Self {
+    fn ort(
+        embedder: crate::embed::LocalEmbedder,
+        provider: crate::model_runtime::ProviderKind,
+    ) -> Self {
         Self {
             embedder,
             requested_backend: "ort",
             resolved_backend: "ort",
+            requested_provider: Some(provider),
+            resolved_provider: Some(provider),
             fallback_reason: None,
         }
     }
@@ -1335,6 +1349,8 @@ impl SearchGraphEmbedderResolution {
         json!({
             "requestedBackend": self.requested_backend,
             "resolvedBackend": self.resolved_backend,
+            "requestedProvider": self.requested_provider.map(provider_json),
+            "resolvedProvider": self.resolved_provider.map(provider_json),
             "state": state,
             "resourceClass": resource_class,
             "model": {
@@ -1355,9 +1371,21 @@ fn resolve_search_graph_embedder(args: &Value) -> SearchGraphEmbedderResolution 
         .and_then(Value::as_str)
         .is_some_and(|value| value == "ort")
     {
+        let provider = match args
+            .get("embeddingProvider")
+            .and_then(Value::as_str)
+            .map(parse_provider_kind)
+            .transpose()
+        {
+            Ok(provider) => provider.unwrap_or(crate::model_runtime::ProviderKind::Cpu),
+            Err(reason) => {
+                return SearchGraphEmbedderResolution::hashing("ort", None, Some(reason));
+            }
+        };
         let Some(cache_root) = args.get("embeddingCacheRoot").and_then(Value::as_str) else {
             return SearchGraphEmbedderResolution::hashing(
                 "ort",
+                Some(provider),
                 Some("embeddingBackend=ort requires embeddingCacheRoot; no network fallback attempted".to_owned()),
             );
         };
@@ -1376,17 +1404,19 @@ fn resolve_search_graph_embedder(args: &Value) -> SearchGraphEmbedderResolution 
             Err(err) => {
                 return SearchGraphEmbedderResolution::hashing(
                     "ort",
+                    Some(provider),
                     Some(format!(
                         "cache-only ORT model resolution failed; degraded hashing fallback used: {err}"
                     )),
                 );
             }
         };
-        match crate::embed::LocalEmbedder::try_ort(&spec, crate::model_runtime::ProviderKind::Cpu) {
-            Ok(embedder) => return SearchGraphEmbedderResolution::ort(embedder),
+        match crate::embed::LocalEmbedder::try_ort(&spec, provider) {
+            Ok(embedder) => return SearchGraphEmbedderResolution::ort(embedder, provider),
             Err(err) => {
                 return SearchGraphEmbedderResolution::hashing(
                     "ort",
+                    Some(provider),
                     Some(format!(
                         "cache-only ORT provider load failed; degraded hashing fallback used: {err}"
                     )),
@@ -1394,7 +1424,36 @@ fn resolve_search_graph_embedder(args: &Value) -> SearchGraphEmbedderResolution 
             }
         }
     }
-    SearchGraphEmbedderResolution::hashing("hashing", None)
+    SearchGraphEmbedderResolution::hashing("hashing", None, None)
+}
+
+fn parse_provider_kind(
+    raw: &str,
+) -> std::result::Result<crate::model_runtime::ProviderKind, String> {
+    match raw {
+        "cpu" => Ok(crate::model_runtime::ProviderKind::Cpu),
+        "direct-ml" => Ok(crate::model_runtime::ProviderKind::DirectMl),
+        "open-vino" => Ok(crate::model_runtime::ProviderKind::OpenVino),
+        "vulkan" => Ok(crate::model_runtime::ProviderKind::Vulkan),
+        "cuda" => Ok(crate::model_runtime::ProviderKind::Cuda),
+        "core-ml" => Ok(crate::model_runtime::ProviderKind::CoreMl),
+        "npu" => Ok(crate::model_runtime::ProviderKind::Npu),
+        other => Err(format!(
+            "unknown embeddingProvider {other:?}; expected cpu, direct-ml, open-vino, vulkan, cuda, core-ml, or npu"
+        )),
+    }
+}
+
+fn provider_json(provider: crate::model_runtime::ProviderKind) -> &'static str {
+    match provider {
+        crate::model_runtime::ProviderKind::Cpu => "cpu",
+        crate::model_runtime::ProviderKind::DirectMl => "direct-ml",
+        crate::model_runtime::ProviderKind::OpenVino => "open-vino",
+        crate::model_runtime::ProviderKind::Vulkan => "vulkan",
+        crate::model_runtime::ProviderKind::Cuda => "cuda",
+        crate::model_runtime::ProviderKind::CoreMl => "core-ml",
+        crate::model_runtime::ProviderKind::Npu => "npu",
+    }
 }
 
 // ---------------------------------------------------------------------
