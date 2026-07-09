@@ -1906,18 +1906,18 @@ const EXACT_QA_EVIDENCE_IDS: &[&str] = &[
     "QA-078", "QA-079", "QA-080", "QA-081", "QA-082", "QA-083", "QA-084", "QA-085", "QA-086",
     "QA-087", "QA-088", "QA-089", "QA-090", "QA-091", "QA-092", "QA-093", "QA-094", "QA-095",
     "QA-096", "QA-097", "QA-098", "QA-099", "QA-100", "QA-101", "QA-102", "QA-103", "QA-104",
-    "QA-105", "QA-106", "QA-108", "QA-110", "QA-111", "QA-112", "QA-113", "QA-115", "QA-116",
-    "QA-117", "QA-118", "QA-119", "QA-120", "QA-126", "QA-129", "QA-135", "QA-138", "QA-139",
-    "QA-140", "QA-142", "QA-145", "QA-146", "QA-147", "QA-148", "QA-149", "QA-150", "QA-152",
-    "QA-155", "QA-156", "QA-159", "QA-160", "QA-162", "QA-163", "QA-164", "QA-165", "QA-166",
-    "QA-167", "QA-168", "QA-169", "QA-170", "QA-171", "QA-172", "QA-173", "QA-174", "QA-186",
-    "QA-187", "QA-189", "QA-191", "QA-192", "QA-193", "QA-194", "QA-195", "QA-196", "QA-197",
-    "QA-198", "QA-199", "QA-200", "QA-201", "QA-202", "QA-203", "QA-204", "QA-205", "QA-206",
-    "QA-207", "QA-208", "QA-209", "QA-210", "QA-211", "QA-212", "QA-213", "QA-214", "QA-215",
-    "QA-216", "QA-217", "QA-218", "QA-219", "QA-226", "QA-227", "QA-228", "QA-229", "QA-230",
-    "QA-231", "QA-232", "QA-233", "QA-234", "QA-235", "QA-236", "QA-237", "QA-238", "QA-239",
-    "QA-240", "QA-241", "QA-242", "QA-243", "QA-244", "QA-245", "QA-246", "QA-247", "QA-248",
-    "QA-249", "QA-250",
+    "QA-105", "QA-106", "QA-108", "QA-110", "QA-111", "QA-112", "QA-113", "QA-114", "QA-115",
+    "QA-116", "QA-117", "QA-118", "QA-119", "QA-120", "QA-126", "QA-129", "QA-135", "QA-138",
+    "QA-139", "QA-140", "QA-142", "QA-145", "QA-146", "QA-147", "QA-148", "QA-149", "QA-150",
+    "QA-152", "QA-155", "QA-156", "QA-159", "QA-160", "QA-162", "QA-163", "QA-164", "QA-165",
+    "QA-166", "QA-167", "QA-168", "QA-169", "QA-170", "QA-171", "QA-172", "QA-173", "QA-174",
+    "QA-186", "QA-187", "QA-189", "QA-191", "QA-192", "QA-193", "QA-194", "QA-195", "QA-196",
+    "QA-197", "QA-198", "QA-199", "QA-200", "QA-201", "QA-202", "QA-203", "QA-204", "QA-205",
+    "QA-206", "QA-207", "QA-208", "QA-209", "QA-210", "QA-211", "QA-212", "QA-213", "QA-214",
+    "QA-215", "QA-216", "QA-217", "QA-218", "QA-219", "QA-226", "QA-227", "QA-228", "QA-229",
+    "QA-230", "QA-231", "QA-232", "QA-233", "QA-234", "QA-235", "QA-236", "QA-237", "QA-238",
+    "QA-239", "QA-240", "QA-241", "QA-242", "QA-243", "QA-244", "QA-245", "QA-246", "QA-247",
+    "QA-248", "QA-249", "QA-250",
 ];
 
 impl RowRunner for ExactQaEvidenceRunner {
@@ -2008,6 +2008,7 @@ impl RowRunner for ExactQaEvidenceRunner {
             "QA-111" => workspace_pub_use_probe(row),
             "QA-112" => sha256_contract_probe(row),
             "QA-113" => dependency_path_enforcer_mcp_to_core_probe(row),
+            "QA-114" => workspace_crate_cycle_probe(row),
             "QA-115" => scan_module_dependency_tree_probe(row),
             "QA-116" => scan_to_proof_event_spine_probe(row),
             "QA-117" => scan_hot_path_probe(row),
@@ -2588,6 +2589,177 @@ fn dependency_path_enforcer_mcp_to_core_probe(row: &QaRow) -> RowResult {
         ],
         refs,
     )
+}
+
+fn workspace_crate_cycle_probe(row: &QaRow) -> RowResult {
+    let root = super::queryset::workspace_root();
+    let benchmark = match std::fs::read_to_string(root.join(QA_BENCHMARK_REL)) {
+        Ok(source) => source,
+        Err(error) => {
+            return unrunnable(row, &format!("failed to read {QA_BENCHMARK_REL}: {error}"))
+        }
+    };
+    let marker = "| QA-114 | CodeGraph | Which crates have cyclic dependencies? |";
+    if !benchmark.contains(marker) {
+        return unrunnable(
+            row,
+            &format!("{QA_BENCHMARK_REL} does not contain expected evidence marker {marker}"),
+        );
+    }
+
+    let output = match Command::new("cargo")
+        .args(["metadata", "--locked", "--format-version", "1"])
+        .current_dir(&root)
+        .output()
+    {
+        Ok(output) => output,
+        Err(error) => return unrunnable(row, &format!("failed to run cargo metadata: {error}")),
+    };
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return unrunnable(
+            row,
+            &format!("cargo metadata --locked failed: {}", stderr.trim()),
+        );
+    }
+
+    let metadata: serde_json::Value = match serde_json::from_slice(&output.stdout) {
+        Ok(metadata) => metadata,
+        Err(error) => return unrunnable(row, &format!("failed to parse cargo metadata: {error}")),
+    };
+    let Some(workspace_members) = metadata
+        .get("workspace_members")
+        .and_then(serde_json::Value::as_array)
+    else {
+        return unrunnable(row, "cargo metadata did not include workspace_members");
+    };
+    let workspace_member_ids: Vec<String> = workspace_members
+        .iter()
+        .filter_map(serde_json::Value::as_str)
+        .map(str::to_string)
+        .collect();
+    let workspace_member_set: std::collections::BTreeSet<String> =
+        workspace_member_ids.iter().cloned().collect();
+
+    let mut package_names = BTreeMap::new();
+    if let Some(packages) = metadata
+        .get("packages")
+        .and_then(serde_json::Value::as_array)
+    {
+        for package in packages {
+            let Some(id) = package.get("id").and_then(serde_json::Value::as_str) else {
+                continue;
+            };
+            if !workspace_member_set.contains(id) {
+                continue;
+            }
+            let Some(name) = package.get("name").and_then(serde_json::Value::as_str) else {
+                continue;
+            };
+            package_names.insert(id.to_string(), name.to_string());
+        }
+    }
+
+    let mut graph: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for member_id in &workspace_member_ids {
+        graph.entry(member_id.clone()).or_default();
+    }
+    if let Some(nodes) = metadata
+        .get("resolve")
+        .and_then(|resolve| resolve.get("nodes"))
+        .and_then(serde_json::Value::as_array)
+    {
+        for node in nodes {
+            let Some(node_id) = node.get("id").and_then(serde_json::Value::as_str) else {
+                continue;
+            };
+            if !workspace_member_set.contains(node_id) {
+                continue;
+            }
+            let deps = node
+                .get("deps")
+                .and_then(serde_json::Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(|dep| dep.get("pkg").and_then(serde_json::Value::as_str))
+                .filter(|pkg| workspace_member_set.contains(*pkg))
+                .map(str::to_string)
+                .collect::<Vec<_>>();
+            graph.insert(node_id.to_string(), deps);
+        }
+    }
+
+    let cycle_ids = workspace_cycle_ids(&graph, &package_names);
+    let ids = if cycle_ids.is_empty() {
+        vec!["codegraph:workspace-crate-cycles:none".to_string()]
+    } else {
+        cycle_ids
+    };
+    exact_pass(
+        row,
+        ids,
+        vec!["Cargo.toml".to_string(), QA_BENCHMARK_REL.to_string()],
+    )
+}
+
+fn workspace_cycle_ids(
+    graph: &BTreeMap<String, Vec<String>>,
+    package_names: &BTreeMap<String, String>,
+) -> Vec<String> {
+    struct CycleWalk<'a> {
+        graph: &'a BTreeMap<String, Vec<String>>,
+        package_names: &'a BTreeMap<String, String>,
+        stack: Vec<String>,
+        visiting: std::collections::BTreeSet<String>,
+        visited: std::collections::BTreeSet<String>,
+        cycles: std::collections::BTreeSet<String>,
+    }
+
+    impl CycleWalk<'_> {
+        fn visit(&mut self, node: &str) {
+            if self.visiting.contains(node) {
+                if let Some(start) = self.stack.iter().position(|candidate| candidate == node) {
+                    let mut names = self.stack[start..]
+                        .iter()
+                        .filter_map(|id| self.package_names.get(id).cloned())
+                        .collect::<Vec<_>>();
+                    names.sort();
+                    names.dedup();
+                    if !names.is_empty() {
+                        self.cycles.insert(format!(
+                            "codegraph:workspace-crate-cycle:{}",
+                            names.join("+")
+                        ));
+                    }
+                }
+                return;
+            }
+            if !self.visited.insert(node.to_string()) {
+                return;
+            }
+
+            self.visiting.insert(node.to_string());
+            self.stack.push(node.to_string());
+            for dep in self.graph.get(node).cloned().unwrap_or_default() {
+                self.visit(&dep);
+            }
+            self.stack.pop();
+            self.visiting.remove(node);
+        }
+    }
+
+    let mut walk = CycleWalk {
+        graph,
+        package_names,
+        stack: Vec::new(),
+        visiting: std::collections::BTreeSet::new(),
+        visited: std::collections::BTreeSet::new(),
+        cycles: std::collections::BTreeSet::new(),
+    };
+    for node in graph.keys() {
+        walk.visit(node);
+    }
+    walk.cycles.into_iter().collect()
 }
 
 fn scan_to_proof_event_spine_probe(row: &QaRow) -> RowResult {
@@ -9917,6 +10089,13 @@ mod tests {
             "Find the dependency path from `enforcer-mcp` to `enforcer-core`.",
         );
         assert!(ExactQaEvidenceRunner.can_run(&dependency_path_row));
+
+        let crate_cycles_row = sample_row(
+            "QA-114",
+            "CodeGraph",
+            "Which crates have cyclic dependencies?",
+        );
+        assert!(ExactQaEvidenceRunner.can_run(&crate_cycles_row));
 
         let engine_core_callees_row = sample_row(
             "QA-104",

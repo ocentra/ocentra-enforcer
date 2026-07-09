@@ -1,10 +1,10 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 234,
+  "rowsGreen": 235,
   "rowsGreenReal": 0,
-  "rowsGreenDegraded": 234,
+  "rowsGreenDegraded": 235,
   "rowsFailed": 0,
-  "rowsUnrunnable": 16,
+  "rowsUnrunnable": 15,
   "rows": [
     {
       "id": "QA-001",
@@ -1487,17 +1487,17 @@
       "query": "Summarize last 20 commits for this module.",
       "expectedIds": [
         "module:enforcer-memory-src:last-20-commits:20",
+        "commit:f9e11e79c9ce",
         "commit:0bbc317dcc7d",
         "commit:b231ef113549",
-        "commit:024f8fe73851",
-        "commit:c87f2b5392fe"
+        "commit:024f8fe73851"
       ],
       "actualIds": [
         "module:enforcer-memory-src:last-20-commits:20",
+        "commit:f9e11e79c9ce",
         "commit:0bbc317dcc7d",
         "commit:b231ef113549",
-        "commit:024f8fe73851",
-        "commit:c87f2b5392fe"
+        "commit:024f8fe73851"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -1505,6 +1505,7 @@
       "sourceRefs": [
         "crates/enforcer-memory/src",
         "git:log:-20:crates/enforcer-memory/src",
+        "commit-summary:f9e11e79c9ce:feat(memory): control ORT worker runtime plan",
         "commit-summary:0bbc317dcc7d:Merge remote-tracking branch 'origin/rust-build' into rust-build",
         "commit-summary:b231ef113549:feat(x06): wave G2.5 — 42 Tier-0 languages + close G2.5d dispatch-wiring gap",
         "commit-summary:024f8fe73851:test(memory): lock model runtime ownership routes",
@@ -1523,8 +1524,7 @@
         "commit-summary:28a2faeb4ede:feat(memory): enforce managed model runtime policy",
         "commit-summary:256409369f63:chore(x06): checkpoint harvest sync state after QA-072/074",
         "commit-summary:018b6559bb0b:feat(x06): resolve llama runtime hardware execution",
-        "commit-summary:b903aad00603:feat(x06): persist projections and extract runtime probe",
-        "commit-summary:d0b1118839b4:feat(memory): route query graph through store projection"
+        "commit-summary:b903aad00603:feat(x06): persist projections and extract runtime probe"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -1537,15 +1537,15 @@
         "churn:Cargo.lock:70",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
         "churn:proof/memory/x06-feature-parity.json:44",
-        "churn:docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md:40",
-        "churn:proof/memory/x06-rag-qa.json:40"
+        "churn:proof/memory/x06-rag-qa.json:41",
+        "churn:docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md:40"
       ],
       "actualIds": [
         "churn:Cargo.lock:70",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
         "churn:proof/memory/x06-feature-parity.json:44",
-        "churn:docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md:40",
-        "churn:proof/memory/x06-rag-qa.json:40"
+        "churn:proof/memory/x06-rag-qa.json:41",
+        "churn:docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md:40"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -1554,8 +1554,8 @@
         "Cargo.lock",
         "docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md",
         "proof/memory/x06-feature-parity.json",
-        "docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md",
         "proof/memory/x06-rag-qa.json",
+        "docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md",
         "git:log:name-only"
       ],
       "verdict": "pass",
@@ -2411,8 +2411,8 @@
         "proof/memory/x06-feature-parity.json",
         "proof/memory/x06-rag-qa.json",
         "proof/memory/x06-kg-parity.json",
-        "qa:rows-green:234",
-        "qa:rows-unrunnable:16"
+        "qa:rows-green:235",
+        "qa:rows-unrunnable:15"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -2824,14 +2824,29 @@
       "id": "QA-114",
       "category": "CodeGraph",
       "query": "Which crates have cyclic dependencies?",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category CodeGraph",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "codegraph:workspace-crate-cycle:enforcer-cli+enforcer-install+enforcer-plan",
+        "codegraph:workspace-crate-cycle:enforcer-core+enforcer-domain",
+        "codegraph:workspace-crate-cycle:enforcer-harness+enforcer-lang-common+enforcer-mechanization+enforcer-scan",
+        "codegraph:workspace-crate-cycle:enforcer-harness+enforcer-lang-py+enforcer-mechanization+enforcer-scan",
+        "codegraph:workspace-crate-cycle:enforcer-harness+enforcer-lang-ts+enforcer-mechanization+enforcer-scan"
+      ],
+      "actualIds": [
+        "codegraph:workspace-crate-cycle:enforcer-cli+enforcer-install+enforcer-plan",
+        "codegraph:workspace-crate-cycle:enforcer-core+enforcer-domain",
+        "codegraph:workspace-crate-cycle:enforcer-harness+enforcer-lang-common+enforcer-mechanization+enforcer-scan",
+        "codegraph:workspace-crate-cycle:enforcer-harness+enforcer-lang-py+enforcer-mechanization+enforcer-scan",
+        "codegraph:workspace-crate-cycle:enforcer-harness+enforcer-lang-ts+enforcer-mechanization+enforcer-scan"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "Cargo.toml",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-115",

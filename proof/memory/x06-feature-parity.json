@@ -77,7 +77,7 @@
       "status": "red",
       "testName": "qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split",
       "artifactPath": "proof/memory/x06-rag-qa.json",
-      "failureReason": "16 rows unrunnable, 234 rows degraded-pass, 0 rows real-pass, 0 failed -- see x06-rag-qa.json"
+      "failureReason": "15 rows unrunnable, 235 rows degraded-pass, 0 rows real-pass, 0 failed -- see x06-rag-qa.json"
     },
     {
       "prefix": "LRN",
@@ -124,9 +124,9 @@
   ],
   "allMatrixPrefixesGreen": false,
   "qaRowsTotal": 250,
-  "qaRowsGreen": 234,
+  "qaRowsGreen": 235,
   "qaRowsGreenReal": 0,
-  "qaRowsGreenDegraded": 234,
+  "qaRowsGreenDegraded": 235,
   "kgParityComparedAgainstBaseline": true,
   "mcpCliParity": true,
   "localDenseRetrievalPresent": true,
