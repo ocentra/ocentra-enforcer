@@ -1,10 +1,10 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 232,
+  "rowsGreen": 233,
   "rowsGreenReal": 0,
-  "rowsGreenDegraded": 232,
+  "rowsGreenDegraded": 233,
   "rowsFailed": 0,
-  "rowsUnrunnable": 18,
+  "rowsUnrunnable": 17,
   "rows": [
     {
       "id": "QA-001",
@@ -780,14 +780,29 @@
       "id": "QA-034",
       "category": "Architecture",
       "query": "Find all logs emitted by this module.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Architecture",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "log:store:observations-ndjson",
+        "log:store:route-traces-ndjson",
+        "log:store:model-observations-ndjson",
+        "log:store:graph-events-ndjson",
+        "log:append:hash-chained-seq"
+      ],
+      "actualIds": [
+        "log:store:observations-ndjson",
+        "log:store:route-traces-ndjson",
+        "log:store:model-observations-ndjson",
+        "log:store:graph-events-ndjson",
+        "log:append:hash-chained-seq"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/log.rs",
+        "crates/enforcer-memory/src/store/mod.rs"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-035",
@@ -1505,16 +1520,16 @@
       "expectedIds": [
         "churn:Cargo.lock:70",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
-        "churn:proof/memory/x06-feature-parity.json:41",
+        "churn:proof/memory/x06-feature-parity.json:42",
         "churn:docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md:40",
-        "churn:proof/memory/x06-rag-qa.json:37"
+        "churn:proof/memory/x06-rag-qa.json:38"
       ],
       "actualIds": [
         "churn:Cargo.lock:70",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
-        "churn:proof/memory/x06-feature-parity.json:41",
+        "churn:proof/memory/x06-feature-parity.json:42",
         "churn:docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md:40",
-        "churn:proof/memory/x06-rag-qa.json:37"
+        "churn:proof/memory/x06-rag-qa.json:38"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -2380,8 +2395,8 @@
         "proof/memory/x06-feature-parity.json",
         "proof/memory/x06-rag-qa.json",
         "proof/memory/x06-kg-parity.json",
-        "qa:rows-green:231",
-        "qa:rows-unrunnable:19"
+        "qa:rows-green:233",
+        "qa:rows-unrunnable:17"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
