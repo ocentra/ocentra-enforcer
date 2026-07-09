@@ -437,6 +437,108 @@ fn tools_call_search_graph_ort_embedding_missing_cache_falls_back_without_networ
 }
 
 #[test]
+fn tools_call_search_graph_ort_embedding_missing_cache_root_falls_back_without_network(
+) -> TestResult {
+    let dir = tempfile::tempdir()?;
+    write_fixture_repo(dir.path())?;
+
+    let reply = send_ndjson(&rpc_request(
+        32,
+        "tools/call",
+        &json!({
+            "name": "search_graph",
+            "arguments": {
+                "repoPath": dir.path().to_string_lossy(),
+                "namePattern": ".*",
+                "semanticQuery": ["helper"],
+                "embeddingBackend": "ort",
+                "embeddingProvider": "cpu"
+            }
+        }),
+    ))?;
+    let result = &reply["result"];
+    assert_eq!(result["isError"], json!(false));
+    let structured = &result["structuredContent"];
+    assert_eq!(structured["ok"], json!(true));
+    assert_eq!(
+        structured["embeddingRuntime"]["requestedBackend"],
+        json!("ort")
+    );
+    assert_eq!(
+        structured["embeddingRuntime"]["resolvedBackend"],
+        json!("hashing")
+    );
+    assert_eq!(
+        structured["embeddingRuntime"]["requestedProvider"],
+        json!("cpu")
+    );
+    assert_eq!(
+        structured["embeddingRuntime"]["fallbackKind"],
+        json!("cache-root-missing")
+    );
+    assert_eq!(
+        structured["embeddingRuntime"]["state"],
+        json!("degraded/provider-unavailable")
+    );
+    assert!(structured["embeddingRuntime"]["fallbackReason"]
+        .as_str()
+        .is_some_and(|reason| reason.contains("no network fallback attempted")));
+    Ok(())
+}
+
+#[test]
+fn tools_call_search_graph_ort_embedding_unknown_provider_falls_back_without_network() -> TestResult
+{
+    let dir = tempfile::tempdir()?;
+    let cache = tempfile::tempdir()?;
+    write_fixture_repo(dir.path())?;
+
+    let reply = send_ndjson(&rpc_request(
+        33,
+        "tools/call",
+        &json!({
+            "name": "search_graph",
+            "arguments": {
+                "repoPath": dir.path().to_string_lossy(),
+                "namePattern": ".*",
+                "semanticQuery": ["helper"],
+                "embeddingBackend": "ort",
+                "embeddingProvider": "quantum-vram",
+                "embeddingCacheRoot": cache.path().to_string_lossy()
+            }
+        }),
+    ))?;
+    let result = &reply["result"];
+    assert_eq!(result["isError"], json!(false));
+    let structured = &result["structuredContent"];
+    assert_eq!(structured["ok"], json!(true));
+    assert_eq!(
+        structured["embeddingRuntime"]["requestedBackend"],
+        json!("ort")
+    );
+    assert_eq!(
+        structured["embeddingRuntime"]["resolvedBackend"],
+        json!("hashing")
+    );
+    assert_eq!(
+        structured["embeddingRuntime"]["requestedProvider"],
+        json!(null)
+    );
+    assert_eq!(
+        structured["embeddingRuntime"]["fallbackKind"],
+        json!("invalid-provider")
+    );
+    assert_eq!(
+        structured["embeddingRuntime"]["state"],
+        json!("degraded/provider-unavailable")
+    );
+    assert!(structured["embeddingRuntime"]["fallbackReason"]
+        .as_str()
+        .is_some_and(|reason| reason.contains("unknown embeddingProvider")));
+    Ok(())
+}
+
+#[test]
 fn tools_call_trace_path_data_flow_mode_reports_call_graph_only_approximation() -> TestResult {
     let dir = tempfile::tempdir()?;
     write_fixture_repo(dir.path())?;

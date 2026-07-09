@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 1,
+  "status": "degraded-pass-evidence",
+  "proofScope": {
+    "ciParity": true,
+    "localHardwareRequired": false,
+    "networkRequired": false,
+    "reason": "Control-plane contract proof only; it does not claim model inference parity."
+  },
+  "runtimePolicy": {
+    "llamaCpp": {
+      "requiredOwnership": "enforcer-subprocess",
+      "externalServerAllowedForParity": false,
+      "managedCapabilities": [
+        "load-unload",
+        "pause-resume-cancel",
+        "timeout-kill",
+        "provider-selection",
+        "cache-policy",
+        "chat-history-policy",
+        "workload-admission"
+      ],
+      "lifecycle": {
+        "stateMachine": "enforcer-owned-llama-cpp-subprocess",
+        "states": [
+          "idle",
+          "toolchain-ready",
+          "model-loading",
+          "ready",
+          "chat-active",
+          "embedding-active",
+          "paused-chat",
+          "paused-embedding",
+          "cancelled",
+          "timed-out",
+          "unloaded"
+        ],
+        "actions": [
+          "resolve-toolchain",
+          "load-model",
+          "mark-ready",
+          "start-chat",
+          "start-embedding",
+          "pause",
+          "resume",
+          "cancel",
+          "timeout-kill",
+          "unload"
+        ],
+        "requestProtocol": "enforcer-stdio",
+        "timeoutKillRequired": true,
+        "externalServerRejectedBeforeTransition": true,
+        "portBindingAllowedForParity": false,
+        "invalidTransitionRejected": true
+      }
+    },
+    "onnxOrt": {
+      "requiredOwnership": "enforcer-isolated-worker",
+      "inProcessAllowedForParity": false,
+      "externalServerAllowedForParity": false,
+      "requestProtocol": "enforcer-worker-env",
+      "portBindingAllowedForParity": false,
+      "managedCapabilities": [
+        "load-unload",
+        "pause-resume-cancel",
+        "timeout-kill",
+        "provider-selection",
+        "cache-policy",
+        "chat-history-policy",
+        "workload-admission"
+      ],
+      "childEnvironment": [
+        "ENFORCER_X06_ORT_CHILD_TASK",
+        "ENFORCER_X06_CHILD_PROVIDER",
+        "ENFORCER_X06_CHILD_REQUESTED_PROVIDER",
+        "ENFORCER_X06_CHILD_AVAILABLE_PROVIDERS",
+        "ENFORCER_X06_CHILD_PROVIDER_PROBE_PASSED",
+        "ENFORCER_X06_CHILD_MODEL_ID",
+        "ENFORCER_X06_CHILD_ARTIFACT_PATH",
+        "ENFORCER_X06_CHILD_ARTIFACT_SHA256",
+        "ENFORCER_X06_CHILD_TOKENIZER_PATH",
+        "ENFORCER_X06_CHILD_TOKENIZER_SHA256",
+        "ENFORCER_X06_ORT_TIMEOUT_MS"
+      ],
+      "lifecycle": {
+        "stateMachine": "enforcer-owned-ort-worker",
+        "states": [
+          "idle",
+          "loading",
+          "ready",
+          "embedding-active",
+          "reranking-active",
+          "paused-embedding",
+          "paused-reranking",
+          "cancelled",
+          "timed-out",
+          "unloaded"
+        ],
+        "actions": [
+          "load",
+          "mark-ready",
+          "start-embedding",
+          "start-reranker",
+          "pause",
+          "resume",
+          "cancel",
+          "timeout-kill",
+          "unload"
+        ],
+        "timeoutKillRequired": true,
+        "externalPlanRejectedBeforeTransition": true,
+        "invalidTransitionRejected": true
+      }
+    }
+  },
+  "testCommand": "cargo test -p enforcer-memory --test local_runtime",
+  "evidence": [
+    "x06_runtime_control_plane_accepts_managed_llama_and_ort",
+    "x06_runtime_control_plane_rejects_external_server_ownership",
+    "x06_runtime_control_plane_rejects_backend_wrong_ownership_mode",
+    "ort_worker_plan_materializes_enforcer_owned_child_env_contract",
+    "ort_worker_plan_downgrades_unprobed_acceleration_before_child_spawn",
+    "ort_worker_plan_rejects_external_http_or_port_binding",
+    "ort_worker_lifecycle_load_pause_resume_cancel_and_unload_are_owned",
+    "ort_worker_lifecycle_timeout_kill_requires_owned_plan",
+    "ort_worker_lifecycle_rejects_invalid_transition"
+  ],
+  "learningSignals": [
+    "external-server-runtime-rejected",
+    "llama-cpp-lifecycle-owned-state-machine-required",
+    "llama-cpp-server-embedding-route-rejected",
+    "ort-in-process-parity-rejected",
+    "ort-external-http-port-binding-rejected",
+    "backend-specific-ownership-required",
+    "ort-unprobed-acceleration-downgraded-before-child-spawn",
+    "ort-lifecycle-owned-state-machine-required",
+    "ort-invalid-lifecycle-transition-rejected"
+  ]
+}

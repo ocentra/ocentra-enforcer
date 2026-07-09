@@ -1,7 +1,14 @@
 [advisories]
-unmaintained = "workspace"
+unmaintained = "deny"
 yanked = "deny"
-ignore = []
+ignore = [
+  # D-15 tokenizer policy: Hugging Face tokenizers 0.23.1 is the current
+  # maintained tokenizer backend required by the opt-in ORT model path.
+  # Its latest release still depends on paste; this narrow exception must
+  # be removed when tokenizers publishes a paste-free release or when this
+  # crate replaces tokenizers with an equivalent maintained backend.
+  "RUSTSEC-2024-0436",
+]
 
 [licenses]
 allow = [

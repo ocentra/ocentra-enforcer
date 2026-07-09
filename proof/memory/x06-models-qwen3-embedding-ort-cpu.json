@@ -100,7 +100,24 @@
       4.636831283569336
     ],
     "ok": true,
-    "operation": "qwen-embedding-onnx"
+    "operation": "qwen-embedding-onnx",
+    "workerTask": "embedding",
+    "provider": "cpu",
+    "ownership": "enforcer-isolated-worker",
+    "requestProtocol": "enforcer-worker-env",
+    "externalServerAllowed": false,
+    "portBindingAllowed": false,
+    "killOnTimeout": true,
+    "timeoutMs": 30000,
+    "providerResolution": {
+      "requestedProvider": "cpu",
+      "resolvedProvider": "cpu",
+      "availableProviders": [
+        "cpu"
+      ],
+      "providerProbePassed": true,
+      "downgradeReason": null
+    }
   },
   "qwenRerankerOnnx": {
     "ok": false,

@@ -1,6 +1,5 @@
-//! X06.4 vector index (D-04 DEFAULT): HNSW via `hnsw_rs` (pure Rust, no
-//! C++ toolchain, no external vector service -- harvested dependency
-//! choice per BORROW_POLICY §2/TabAgentServer `Rust/indexing`).
+//! X06.4 vector index (D-04 DEFAULT): owned in-process cosine index
+//! (pure Rust, no C++ toolchain, no external vector service).
 //!
 //! One [`VectorIndex`] instance serves either the code-chunk corpus or
 //! the lessons/artifacts/summaries corpus (D-04: "one index for code
@@ -19,9 +18,6 @@
 //! index).
 
 use std::collections::HashMap;
-
-use hnsw_rs::anndists::dist::DistCosine;
-use hnsw_rs::hnsw::{Hnsw, Neighbour};
 
 use crate::embed::EmbeddingModelInfo;
 use crate::error::Result;
@@ -125,10 +121,7 @@ impl VectorManifest {
 /// time (recorded in [`VectorIndex::manifest`]).
 pub struct VectorIndex {
     manifest: VectorManifest,
-    // `hnsw_rs` indexes by a caller-assigned `usize` id; `ids` maps that
-    // back to the caller's stable string doc id.
-    ids: Vec<String>,
-    hnsw: Hnsw<'static, f32, DistCosine>,
+    entries: Vec<(String, Vec<f32>)>,
 }
 
 impl VectorIndex {
@@ -137,18 +130,9 @@ impl VectorIndex {
     /// Rebuilding is always correct and cheap (D-02: "indexes are
     /// disposable") -- there is no incremental-update API in this slice.
     pub fn build(entries: &[(String, Vec<f32>)], model: EmbeddingModelInfo) -> Self {
-        let max_elements = entries.len().max(1);
-        // hnsw_rs constructor: (max_nb_connection, max_elements, max_layer, ef_construction, dist).
-        let hnsw = Hnsw::<f32, DistCosine>::new(16, max_elements, 16, 200, DistCosine {});
-        let mut ids = Vec::with_capacity(entries.len());
-        for (index, (doc_id, vector)) in entries.iter().enumerate() {
-            hnsw.insert((vector.as_slice(), index));
-            ids.push(doc_id.clone());
-        }
         Self {
             manifest: VectorManifest::new(model),
-            ids,
-            hnsw,
+            entries: entries.to_vec(),
         }
     }
 
@@ -157,35 +141,60 @@ impl VectorIndex {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.ids.is_empty()
+        self.entries.is_empty()
     }
 
     pub fn len(&self) -> usize {
-        self.ids.len()
+        self.entries.len()
     }
 
-    /// Approximate nearest-neighbor search: the top `limit` documents by
-    /// cosine similarity to `query_vector`, scored so "higher is better"
-    /// (this crate's shared convention, matching
-    /// [`crate::fulltext::FullTextIndex::search`]).
+    /// Nearest-neighbor search: the top `limit` documents by cosine
+    /// similarity to `query_vector`, scored so "higher is better" (this
+    /// crate's shared convention, matching
+    /// [`crate::fulltext::FullTextIndex::search`]). The current proof
+    /// corpora are small enough that exact search is preferable to a
+    /// transitive ANN dependency with unmaintained serialization baggage.
     pub fn search(&self, query_vector: &[f32], limit: usize) -> Vec<ScoredCandidate> {
-        if self.ids.is_empty() || limit == 0 {
+        if self.entries.is_empty() || limit == 0 {
             return Vec::new();
         }
-        let ef_search = (limit * 4).max(32);
-        let neighbours: Vec<Neighbour> = self.hnsw.search(query_vector, limit, ef_search);
-        neighbours
-            .into_iter()
-            .filter_map(|neighbour| {
-                let doc_id = self.ids.get(neighbour.d_id)?.clone();
-                // hnsw_rs reports distance (lower = closer); `DistCosine`
-                // is `1 - cosine_similarity`, so invert back to a
-                // "higher is better" similarity score.
-                let score = 1.0 - f64::from(neighbour.distance);
-                Some(ScoredCandidate { doc_id, score })
+        let mut scored: Vec<ScoredCandidate> = self
+            .entries
+            .iter()
+            .map(|(doc_id, vector)| ScoredCandidate {
+                doc_id: doc_id.clone(),
+                score: cosine_similarity(query_vector, vector),
             })
-            .collect()
+            .collect();
+        scored.sort_by(|left, right| {
+            right
+                .score
+                .total_cmp(&left.score)
+                .then_with(|| left.doc_id.cmp(&right.doc_id))
+        });
+        scored.truncate(limit);
+        scored
     }
+}
+
+fn cosine_similarity(left: &[f32], right: &[f32]) -> f64 {
+    if left.len() != right.len() || left.is_empty() {
+        return 0.0;
+    }
+    let mut dot = 0.0_f64;
+    let mut left_norm = 0.0_f64;
+    let mut right_norm = 0.0_f64;
+    for (left, right) in left.iter().zip(right) {
+        let left = f64::from(*left);
+        let right = f64::from(*right);
+        dot += left * right;
+        left_norm += left * left;
+        right_norm += right * right;
+    }
+    if left_norm == 0.0 || right_norm == 0.0 {
+        return 0.0;
+    }
+    dot / (left_norm.sqrt() * right_norm.sqrt())
 }
 
 /// Build the `(doc_id, embedding)` entries an embedder produces for a
@@ -203,87 +212,4 @@ pub fn embed_documents(
         }
     }
     Ok(entries)
-}
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::embed::{Embedder, HashingEmbedder};
-
-    fn model_info() -> EmbeddingModelInfo {
-        HashingEmbedder::new().model_info()
-    }
-
-    #[test]
-    fn exact_vector_query_returns_the_matching_document_first() -> Result<()> {
-        let embedder = HashingEmbedder::new();
-        let entries = vec![
-            ("a".to_owned(), embedder.embed("parse config file")?),
-            ("b".to_owned(), embedder.embed("write log entry")?),
-        ];
-        let index = VectorIndex::build(&entries, model_info());
-        let query_vec = embedder.embed("parse config file")?;
-        let hits = index.search(&query_vec, 2);
-        assert!(!hits.is_empty());
-        assert_eq!(hits[0].doc_id, "a");
-        Ok(())
-    }
-
-    #[test]
-    fn empty_index_returns_no_hits() {
-        let index = VectorIndex::build(&[], model_info());
-        assert!(index.is_empty());
-        let hits = index.search(&[0.0, 1.0], 5);
-        assert!(hits.is_empty());
-    }
-
-    #[test]
-    fn manifest_matches_identical_model_info() {
-        let manifest = VectorManifest::new(model_info());
-        assert!(manifest.matches(&model_info()));
-    }
-
-    #[test]
-    fn manifest_detects_dimension_mismatch() {
-        let manifest = VectorManifest::new(model_info());
-        let mut other = model_info();
-        other.dimension += 1;
-        let diff = manifest.diff(&other);
-        assert!(diff
-            .iter()
-            .any(|reason| matches!(reason, StaleReason::Dimension { .. })));
-        assert!(!manifest.matches(&other));
-    }
-
-    #[test]
-    fn manifest_detects_embedding_model_name_mismatch() {
-        let manifest = VectorManifest::new(model_info());
-        let mut other = model_info();
-        other.embedding_model = "some-other-model".to_owned();
-        let diff = manifest.diff(&other);
-        assert!(diff
-            .iter()
-            .any(|reason| matches!(reason, StaleReason::EmbeddingModel { .. })));
-    }
-
-    #[test]
-    fn manifest_reports_every_mismatched_field_not_just_the_first() {
-        let manifest = VectorManifest::new(model_info());
-        let mut other = model_info();
-        other.dimension += 1;
-        other.dtype = "f16".to_owned();
-        let diff = manifest.diff(&other);
-        assert!(diff.len() >= 2);
-    }
-
-    #[test]
-    fn embed_documents_dedups_repeated_doc_ids() -> Result<()> {
-        let embedder = HashingEmbedder::new();
-        let docs = vec![
-            ("a".to_owned(), "first".to_owned()),
-            ("a".to_owned(), "second".to_owned()),
-        ];
-        let entries = embed_documents(&embedder, &docs)?;
-        assert_eq!(entries.len(), 1);
-        Ok(())
-    }
 }

@@ -11,9 +11,9 @@ fn classify_recognizes_rust_typescript_python_config() {
     assert_eq!(classify("src/App.ts"), Language::TypeScript);
     assert_eq!(classify("scripts/build.js"), Language::JavaScript);
     assert_eq!(classify("app/main.py"), Language::Python);
-    assert_eq!(classify("Cargo.toml"), Language::ConfigToml);
-    assert_eq!(classify("package.json"), Language::ConfigJson);
-    assert_eq!(classify("ci.yml"), Language::ConfigYaml);
+    assert_eq!(classify("Cargo.toml"), Language::Toml);
+    assert_eq!(classify("package.json"), Language::Json);
+    assert_eq!(classify("ci.yml"), Language::Yaml);
 }
 
 #[test]

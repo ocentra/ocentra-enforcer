@@ -19,7 +19,6 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
 pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
     use std::io::Write as _;
     use std::path::{Path, PathBuf};
-    use std::process::{Command, Stdio};
     use std::time::Duration;
     use std::time::Instant;
 
@@ -29,11 +28,14 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
         X06ModelLineup,
     };
     use crate::llama_cpp::{
-        list_llama_cpp_devices, llama_binary_name, resolve_llama_cpp_execution,
-        run_llama_cpp_probe, LlamaCppBackendHint, LlamaCppExecutionResolution, LlamaCppProbeConfig,
-        LlamaCppProbeKind,
+        list_llama_cpp_devices, resolve_llama_cpp_execution, run_llama_cpp_probe,
+        LlamaCppBackendHint, LlamaCppExecutionResolution, LlamaCppProbeConfig, LlamaCppProbeKind,
     };
-    use crate::local_runtime::LocalRuntimeAcceleration;
+    use crate::local_runtime::{
+        ort_worker_command, ort_worker_execution_plan_with_provider_resolution,
+        provider_from_env_value, resolve_ort_provider, runtime_backend_contract,
+        LocalRuntimeAcceleration, OrtProviderResolution, OrtWorkerExecutionPlan, OrtWorkerTask,
+    };
     use crate::model_observations::{
         LocalLoadSucceeded, ModelLoadFailure, ModelRuntimeObservationCandidate,
         ModelRuntimeObservationRecord, ProviderDowngrade,
@@ -61,6 +63,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
         cache_root: String,
         cache_root_policy: serde_json::Value,
         service_config: serde_json::Value,
+        runtime_backend_contract: serde_json::Value,
         chat_throughput_policy: ChatThroughputPolicy,
         chat_model_selection: serde_json::Value,
         chat_generation_gguf: serde_json::Value,
@@ -206,6 +209,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
             cache_root: repo_relative_display(&repo_root, &cache_root),
             cache_root_policy: cache_root_policy_proof(&repo_root, &cache_root_policy)?,
             service_config: service_config_proof(&repo_root, &service_config)?,
+            runtime_backend_contract: runtime_backend_contract_proof()?,
             chat_throughput_policy,
             chat_model_selection,
             chat_generation_gguf: proof_skipped_reason(
@@ -248,6 +252,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
             cache_root: repo_relative_display(&repo_root, &cache_root),
             cache_root_policy: cache_root_policy_proof(&repo_root, &cache_root_policy)?,
             service_config: service_config_proof(&repo_root, &service_config)?,
+            runtime_backend_contract: runtime_backend_contract_proof()?,
             chat_throughput_policy,
             chat_model_selection,
             chat_generation_gguf: if should_run_probe(&probe_filter, "chat-generation-gguf") {
@@ -366,6 +371,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
         cache_root: repo_relative_display(&repo_root, &cache_root),
         cache_root_policy: cache_root_policy_proof(&repo_root, &cache_root_policy)?,
         service_config: service_config_proof(&repo_root, &service_config)?,
+        runtime_backend_contract: runtime_backend_contract_proof()?,
         chat_throughput_policy,
         chat_model_selection,
         chat_generation_gguf,
@@ -455,6 +461,10 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
             );
         }
         Ok(value)
+    }
+
+    fn runtime_backend_contract_proof() -> Result<serde_json::Value, serde_json::Error> {
+        serde_json::to_value(runtime_backend_contract())
     }
 
     fn repo_relative_display(repo_root: &Path, path: &Path) -> String {
@@ -1054,16 +1064,17 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
             Err(error) => return proof_error("qwen-embedding-onnx-spec", error),
         };
         let timeout_ms = env_u64("ENFORCER_X06_ORT_TIMEOUT_MS").unwrap_or(30_000);
-        match run_ort_child_probe("embedding", &spec, timeout_ms) {
+        let provider_resolution = ort_provider_resolution_from_env();
+        match run_ort_child_probe("embedding", &spec, &provider_resolution, timeout_ms) {
             Ok(proof) if proof.get("ok").and_then(|value| value.as_bool()) == Some(true) => {
                 observations.push(success_observation(
                     observed_at,
                     run_id,
                     spec.model_id,
                     ModelTask::Embedding,
-                    ProviderKind::Cpu,
+                    provider_resolution.resolved_provider,
                 ));
-                proof
+                attach_ort_provider_resolution(proof, &provider_resolution)
             }
             Ok(proof) => {
                 observations.push(load_failure_observation(LoadFailureInput {
@@ -1071,10 +1082,10 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
                     run_id,
                     model_id: spec.model_id,
                     task: ModelTask::Embedding,
-                    requested_provider: Some(ProviderKind::Cpu),
+                    requested_provider: Some(provider_resolution.requested_provider),
                     failure_reason: proof.to_string(),
                 }));
-                proof
+                attach_ort_provider_resolution(proof, &provider_resolution)
             }
             Err(error) => {
                 observations.push(load_failure_observation(LoadFailureInput {
@@ -1082,7 +1093,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
                     run_id,
                     model_id: spec.model_id,
                     task: ModelTask::Embedding,
-                    requested_provider: Some(ProviderKind::Cpu),
+                    requested_provider: Some(provider_resolution.requested_provider),
                     failure_reason: error.to_string(),
                 }));
                 proof_error("qwen-embedding-onnx", error)
@@ -1101,16 +1112,17 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
             Err(error) => return proof_error("qwen-reranker-onnx-spec", error),
         };
         let timeout_ms = env_u64("ENFORCER_X06_ORT_TIMEOUT_MS").unwrap_or(30_000);
-        match run_ort_child_probe("reranker", &spec, timeout_ms) {
+        let provider_resolution = ort_provider_resolution_from_env();
+        match run_ort_child_probe("reranker", &spec, &provider_resolution, timeout_ms) {
             Ok(proof) if proof.get("ok").and_then(|value| value.as_bool()) == Some(true) => {
                 observations.push(success_observation(
                     observed_at,
                     run_id,
                     spec.model_id,
                     ModelTask::Reranking,
-                    ProviderKind::Cpu,
+                    provider_resolution.resolved_provider,
                 ));
-                proof
+                attach_ort_provider_resolution(proof, &provider_resolution)
             }
             Ok(proof) => {
                 observations.push(load_failure_observation(LoadFailureInput {
@@ -1118,10 +1130,10 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
                     run_id,
                     model_id: spec.model_id,
                     task: ModelTask::Reranking,
-                    requested_provider: Some(ProviderKind::Cpu),
+                    requested_provider: Some(provider_resolution.requested_provider),
                     failure_reason: proof.to_string(),
                 }));
-                proof
+                attach_ort_provider_resolution(proof, &provider_resolution)
             }
             Err(error) => {
                 observations.push(load_failure_observation(LoadFailureInput {
@@ -1129,7 +1141,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
                     run_id,
                     model_id: spec.model_id,
                     task: ModelTask::Reranking,
-                    requested_provider: Some(ProviderKind::Cpu),
+                    requested_provider: Some(provider_resolution.requested_provider),
                     failure_reason: error.to_string(),
                 }));
                 proof_error("qwen-reranker-onnx", error)
@@ -1140,28 +1152,25 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
     fn run_ort_child_probe(
         child_task: &str,
         spec: &ModelSpec,
+        provider_resolution: &OrtProviderResolution,
         timeout_ms: u64,
     ) -> Result<serde_json::Value, String> {
         let started = Instant::now();
-        let mut child = Command::new(std::env::current_exe().map_err(|error| error.to_string())?)
-            .env("ENFORCER_X06_ORT_CHILD_TASK", child_task)
-            .env("ENFORCER_X06_CHILD_MODEL_ID", &spec.model_id)
-            .env("ENFORCER_X06_CHILD_REVISION", &spec.revision)
-            .env("ENFORCER_X06_CHILD_ARTIFACT_PATH", &spec.artifact_path)
-            .env("ENFORCER_X06_CHILD_ARTIFACT_SHA256", &spec.artifact_sha256)
-            .env("ENFORCER_X06_CHILD_TOKENIZER_PATH", &spec.tokenizer_path)
-            .env(
-                "ENFORCER_X06_CHILD_TOKENIZER_SHA256",
-                &spec.tokenizer_sha256,
-            )
-            .env("ENFORCER_X06_CHILD_DTYPE", &spec.dtype)
-            .env("ENFORCER_X06_CHILD_DIMENSION", spec.dimension.to_string())
-            .env("ENFORCER_X06_CHILD_TASK", format!("{:?}", spec.task))
-            .env("ENFORCER_X06_ORT_TIMEOUT_MS", timeout_ms.to_string())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|error| error.to_string())?;
+        let worker_task = match child_task {
+            "embedding" => OrtWorkerTask::Embedding,
+            "reranker" => OrtWorkerTask::Reranker,
+            other => return Err(format!("unknown ORT child task: {other}")),
+        };
+        let plan = ort_worker_execution_plan_with_provider_resolution(
+            std::env::current_exe().map_err(|error| error.to_string())?,
+            worker_task,
+            spec,
+            provider_resolution.clone(),
+            timeout_ms,
+        )
+        .map_err(|error| error.to_string())?;
+        let mut command = ort_worker_command(&plan).map_err(|error| error.to_string())?;
+        let mut child = command.spawn().map_err(|error| error.to_string())?;
         let timeout = Duration::from_millis(timeout_ms);
         let mut timed_out = false;
         loop {
@@ -1183,25 +1192,105 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
             .wait_with_output()
             .map_err(|error| error.to_string())?;
         if timed_out {
-            return Ok(serde_json::json!({
+            let proof = serde_json::json!({
                 "operation": format!("qwen-{child_task}-onnx"),
                 "ok": false,
                 "timedOut": true,
                 "timeoutMs": timeout_ms,
                 "error": "ORT child probe timed out during load or inference"
-            }));
+            });
+            return Ok(attach_ort_provider_resolution(proof, provider_resolution));
         }
         let stdout = String::from_utf8_lossy(&output.stdout);
         if !output.status.success() {
-            return Ok(serde_json::json!({
+            let proof = serde_json::json!({
                 "operation": format!("qwen-{child_task}-onnx"),
                 "ok": false,
                 "exitCode": output.status.code(),
                 "stderr": excerpt_tail(&String::from_utf8_lossy(&output.stderr), 4096),
                 "stdout": excerpt_tail(&stdout, 4096)
-            }));
+            });
+            return Ok(attach_ort_provider_resolution(proof, provider_resolution));
         }
-        serde_json::from_str(stdout.trim()).map_err(|error| error.to_string())
+        let mut proof: serde_json::Value =
+            serde_json::from_str(stdout.trim()).map_err(|error| error.to_string())?;
+        attach_ort_worker_contract(&mut proof, &plan);
+        Ok(proof)
+    }
+
+    fn attach_ort_provider_resolution(
+        mut proof: serde_json::Value,
+        resolution: &OrtProviderResolution,
+    ) -> serde_json::Value {
+        if let Some(object) = proof.as_object_mut() {
+            object.insert(
+                "requestedProvider".to_owned(),
+                serde_json::json!(resolution.requested_provider),
+            );
+            object.insert(
+                "resolvedProvider".to_owned(),
+                serde_json::json!(resolution.resolved_provider),
+            );
+            object.insert(
+                "availableProviders".to_owned(),
+                serde_json::json!(resolution.available_providers),
+            );
+            object.insert(
+                "providerProbePassed".to_owned(),
+                serde_json::json!(resolution.provider_probe_passed),
+            );
+            object.insert(
+                "providerDowngradeReason".to_owned(),
+                serde_json::json!(resolution.downgrade_reason),
+            );
+        }
+        proof
+    }
+
+    fn attach_ort_worker_contract(proof: &mut serde_json::Value, plan: &OrtWorkerExecutionPlan) {
+        if let Some(object) = proof.as_object_mut() {
+            object.insert("workerTask".to_owned(), serde_json::json!(plan.task));
+            object.insert("provider".to_owned(), serde_json::json!(plan.provider));
+            object.insert("ownership".to_owned(), serde_json::json!(plan.ownership));
+            object.insert(
+                "requestProtocol".to_owned(),
+                serde_json::json!(plan.request_protocol),
+            );
+            object.insert(
+                "externalServerAllowed".to_owned(),
+                serde_json::json!(plan.external_server_allowed),
+            );
+            object.insert(
+                "portBindingAllowed".to_owned(),
+                serde_json::json!(plan.port_binding_allowed),
+            );
+            object.insert(
+                "killOnTimeout".to_owned(),
+                serde_json::json!(plan.kill_on_timeout),
+            );
+            object.insert("timeoutMs".to_owned(), serde_json::json!(plan.timeout_ms));
+            object.insert(
+                "providerResolution".to_owned(),
+                serde_json::json!(plan.provider_resolution),
+            );
+        }
+    }
+
+    fn ort_provider_resolution_from_env() -> OrtProviderResolution {
+        let requested = std::env::var("ENFORCER_X06_ORT_PROVIDER")
+            .ok()
+            .as_deref()
+            .and_then(provider_from_env_value)
+            .unwrap_or(ProviderKind::Cpu);
+        let available = std::env::var("ENFORCER_X06_ORT_AVAILABLE_PROVIDERS")
+            .ok()
+            .map(|raw| {
+                raw.split(',')
+                    .filter_map(|entry| provider_from_env_value(entry.trim()))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        resolve_ort_provider(requested, &available)
     }
 
     fn run_ort_child(child_task: &str) -> serde_json::Value {
@@ -1217,8 +1306,18 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
                 });
             }
         };
+        let provider = match child_provider() {
+            Ok(provider) => provider,
+            Err(error) => {
+                return serde_json::json!({
+                    "operation": format!("qwen-{child_task}-onnx"),
+                    "ok": false,
+                    "error": error
+                });
+            }
+        };
         match child_task {
-            "embedding" => match OrtEmbedder::load(&spec, ProviderKind::Cpu).and_then(|embedder| {
+            "embedding" => match OrtEmbedder::load(&spec, provider).and_then(|embedder| {
                 embedder.embed_with_timeout("hello world from qwen3 embedding 0.6b", timeout)
             }) {
                 Ok(vector) => serde_json::json!({
@@ -1250,7 +1349,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
                         score: 0.0,
                     },
                 ];
-                match OrtReranker::load(&spec, ProviderKind::Cpu).and_then(|reranker| {
+                match OrtReranker::load(&spec, provider).and_then(|reranker| {
                     reranker.rerank_with_timeout("qwen model runtime cache", &candidates, timeout)
                 }) {
                     Ok(ranked) => serde_json::json!({
@@ -1274,6 +1373,11 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
                 "error": "unknown ORT child task"
             }),
         }
+    }
+
+    fn child_provider() -> Result<ProviderKind, String> {
+        let raw = std::env::var("ENFORCER_X06_CHILD_PROVIDER").unwrap_or_else(|_| "cpu".to_owned());
+        provider_from_env_value(&raw).ok_or_else(|| format!("unknown ORT child provider: {raw}"))
     }
 
     fn child_model_spec() -> Result<ModelSpec, String> {
@@ -1628,6 +1732,14 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
 
     fn default_llama_embedding() -> Option<PathBuf> {
         first_existing_model_bin(&llama_binary_name("llama-embedding"))
+    }
+
+    fn llama_binary_name(stem: &str) -> String {
+        if cfg!(windows) {
+            format!("{stem}.exe")
+        } else {
+            stem.to_owned()
+        }
     }
 
     fn first_existing_model_bin(file_name: &str) -> Option<PathBuf> {

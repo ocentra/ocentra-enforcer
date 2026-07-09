@@ -7,7 +7,8 @@ use enforcer_memory::hf_cache::{
 };
 use enforcer_memory::llama_cpp::{
     llama_cpp_command_plan, parse_llama_cpp_devices, resolve_llama_cpp_execution,
-    validate_executable, validate_model, LlamaCppBackendHint, LlamaCppDevice, LlamaCppProbeConfig,
+    transition_llama_cpp_lifecycle, validate_executable, validate_model, LlamaCppBackendHint,
+    LlamaCppDevice, LlamaCppLifecycleAction, LlamaCppLifecycleState, LlamaCppProbeConfig,
     LlamaCppProbeKind,
 };
 use enforcer_memory::local_runtime::LocalRuntimeAcceleration;
@@ -54,6 +55,66 @@ fn assert_model_runtime_error(
             other => Err(format!("expected model runtime error, got {other:?}").into()),
         },
         Ok(()) => Err("expected model runtime error, got Ok(())".into()),
+    }
+}
+
+fn string_has_machine_absolute_path(value: &str) -> bool {
+    let chars: Vec<char> = value.chars().collect();
+    for index in 0..chars.len().saturating_sub(2) {
+        let drive = chars[index];
+        if !drive.is_ascii_alphabetic() || chars[index + 1] != ':' {
+            continue;
+        }
+
+        let separator = chars[index + 2];
+        if separator != '\\' && separator != '/' {
+            continue;
+        }
+
+        let previous = index
+            .checked_sub(1)
+            .map(|previous_index| chars[previous_index]);
+        if previous.is_some_and(|character| character.is_ascii_alphanumeric()) {
+            continue;
+        }
+
+        return true;
+    }
+
+    false
+}
+
+fn collect_machine_absolute_path_leaks(
+    file_name: &str,
+    path: &str,
+    value: &serde_json::Value,
+    leaks: &mut Vec<String>,
+) {
+    match value {
+        serde_json::Value::String(value) if string_has_machine_absolute_path(value) => {
+            leaks.push(format!("{file_name}:{path}"));
+        }
+        serde_json::Value::Array(items) => {
+            for (index, item) in items.iter().enumerate() {
+                collect_machine_absolute_path_leaks(
+                    file_name,
+                    &format!("{path}[{index}]"),
+                    item,
+                    leaks,
+                );
+            }
+        }
+        serde_json::Value::Object(fields) => {
+            for (field, item) in fields {
+                let child_path = if path.is_empty() {
+                    field.to_owned()
+                } else {
+                    format!("{path}.{field}")
+                };
+                collect_machine_absolute_path_leaks(file_name, &child_path, item, leaks);
+            }
+        }
+        _ => {}
     }
 }
 
@@ -360,7 +421,7 @@ fn runtime_proof_surface_does_not_hardcode_machine_absolute_paths() {
 }
 
 #[test]
-fn checked_in_real_model_proofs_do_not_hardcode_machine_absolute_paths() {
+fn checked_in_real_model_proofs_do_not_hardcode_machine_absolute_paths() -> TestResult {
     let proof_files = [
         (
             "x06-models.json",
@@ -434,22 +495,20 @@ fn checked_in_real_model_proofs_do_not_hardcode_machine_absolute_paths() {
             "x06-models-tokenizer-mismatch.json",
             include_str!("../../../proof/memory/x06-models-tokenizer-mismatch.json"),
         ),
+        (
+            "x06-runtime-control-plane.json",
+            include_str!("../../../proof/memory/x06-runtime-control-plane.json"),
+        ),
     ];
-    let banned = [
-        concat!("E", ":\\"),
-        concat!("C", ":\\", "Users"),
-        concat!("Desktop", "\\", "TabAgent"),
-        concat!("ocentra", "-", "enforcer", "-", "rust", "-", "build"),
-    ];
+    let mut leaks = Vec::new();
 
     for (name, body) in proof_files {
-        for pattern in banned {
-            assert!(
-                !body.contains(pattern),
-                "{name} contains hardcoded machine path pattern {pattern}"
-            );
-        }
+        let proof: serde_json::Value = serde_json::from_str(body)?;
+        collect_machine_absolute_path_leaks(name, "", &proof, &mut leaks);
     }
+
+    assert_eq!(leaks, Vec::<String>::new());
+    Ok(())
 }
 
 #[test]
@@ -684,6 +743,54 @@ fn checked_in_auto_gpu_chat_probe_selects_qwen_and_is_usable() -> TestResult {
     assert_eq!(observation["modelId"], "Qwen/Qwen3-4B-GGUF");
     assert_eq!(observation["provider"], "vulkan");
     assert_eq!(observation["loadedFromLocalCache"], true);
+    Ok(())
+}
+
+#[test]
+fn checked_in_model_plan_proves_owned_gguf_and_ort_backends() -> TestResult {
+    let proof: serde_json::Value =
+        serde_json::from_str(include_str!("../../../proof/memory/x06-models.json"))?;
+    let contract = &proof["runtimeBackendContract"];
+
+    assert_eq!(proof["runtimeMode"], "plan");
+    assert_eq!(proof["allowNetwork"], false);
+    assert_eq!(proof["proofScope"]["portability"], "portable-contract");
+    assert_eq!(proof["proofScope"]["ciParity"], false);
+    assert_eq!(proof["serviceConfig"]["exposeLlamaServer"], false);
+    assert_eq!(
+        proof["serviceConfig"]["externalRuntimeServersAllowed"],
+        false
+    );
+
+    assert_eq!(contract["llamaCpp"]["backend"], "gguf");
+    assert_eq!(contract["llamaCpp"]["ownership"], "enforcer-subprocess");
+    assert_eq!(contract["llamaCpp"]["requestProtocol"], "enforcer-stdio");
+    assert_eq!(contract["llamaCpp"]["externalHttpAllowed"], false);
+    assert_eq!(contract["llamaCpp"]["portBindingAllowed"], false);
+    assert_eq!(
+        contract["llamaCpp"]["serverSurfaceAcceptedForParity"],
+        false
+    );
+    assert_eq!(
+        contract["llamaCpp"]["route"],
+        "enforcer-managed-llama-cpp-subprocess"
+    );
+    assert!(contract["llamaCpp"]["managedByService"]
+        .as_array()
+        .ok_or("llama.cpp managed service list missing")?
+        .contains(&serde_json::json!("chat")));
+
+    assert_eq!(contract["ort"]["backend"], "onnx");
+    assert_eq!(contract["ort"]["ownership"], "enforcer-isolated-worker");
+    assert_eq!(contract["ort"]["requestProtocol"], "enforcer-worker-env");
+    assert_eq!(contract["ort"]["externalHttpAllowed"], false);
+    assert_eq!(contract["ort"]["portBindingAllowed"], false);
+    assert_eq!(contract["ort"]["serverSurfaceAcceptedForParity"], false);
+    assert_eq!(contract["ort"]["route"], "enforcer-isolated-ort-worker");
+    assert!(contract["ort"]["managedByService"]
+        .as_array()
+        .ok_or("ORT managed service list missing")?
+        .contains(&serde_json::json!("rerank")));
     Ok(())
 }
 
@@ -1150,12 +1257,20 @@ fn portable_plan_proof_does_not_probe_local_hardware() -> TestResult {
         "usable-local-embedding"
     );
     assert_eq!(
+        proof["linkedProofArtifacts"]["ortRuntimeProofs"][0]["provider"],
+        "cpu"
+    );
+    assert_eq!(
         proof["linkedProofArtifacts"]["ortRuntimeProofs"][1]["artifactPath"],
         "proof/memory/x06-models-qwen3-reranker-ort-cpu.json"
     );
     assert_eq!(
         proof["linkedProofArtifacts"]["ortRuntimeProofs"][1]["status"],
         "usable-local-reranker"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["ortRuntimeProofs"][1]["provider"],
+        "cpu"
     );
     assert_eq!(
         proof["linkedProofArtifacts"]["negativeLearningProofs"][0]["observationKind"],
@@ -1250,6 +1365,50 @@ fn checked_in_reranker_runtime_proof_shows_relevance_lift() -> TestResult {
 }
 
 #[test]
+fn checked_in_ort_runtime_proofs_carry_owned_provider_resolution() -> TestResult {
+    let cases = [
+        (
+            "embedding",
+            "qwenEmbeddingOnnx",
+            include_str!("../../../proof/memory/x06-models-qwen3-embedding-ort-cpu.json"),
+        ),
+        (
+            "reranker",
+            "qwenRerankerOnnx",
+            include_str!("../../../proof/memory/x06-models-qwen3-reranker-ort-cpu.json"),
+        ),
+    ];
+
+    for (task, field, body) in cases {
+        let proof: serde_json::Value = serde_json::from_str(body)?;
+        let runtime = &proof[field];
+
+        assert_eq!(proof["runtimeMode"], "probe");
+        assert_eq!(runtime["ok"], true, "{task} ORT proof must be successful");
+        assert_eq!(runtime["provider"], "cpu");
+        assert_eq!(runtime["workerTask"], task);
+        assert_eq!(runtime["ownership"], "enforcer-isolated-worker");
+        assert_eq!(runtime["requestProtocol"], "enforcer-worker-env");
+        assert_eq!(runtime["externalServerAllowed"], false);
+        assert_eq!(runtime["portBindingAllowed"], false);
+        assert_eq!(runtime["killOnTimeout"], true);
+        assert_eq!(runtime["providerResolution"]["requestedProvider"], "cpu");
+        assert_eq!(runtime["providerResolution"]["resolvedProvider"], "cpu");
+        assert_eq!(
+            runtime["providerResolution"]["availableProviders"],
+            serde_json::json!(["cpu"])
+        );
+        assert_eq!(runtime["providerResolution"]["providerProbePassed"], true);
+        assert!(
+            runtime["providerResolution"]["downgradeReason"].is_null(),
+            "{task} CPU proof should not claim a provider downgrade"
+        );
+    }
+
+    Ok(())
+}
+
+#[test]
 fn real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in() {
     let probe = include_str!("../src/runtime_probe.rs");
     let script = include_str!("../scripts/x06-real-model-proof.ps1");
@@ -1271,12 +1430,29 @@ fn real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in() {
             "\"reranker\" | \"ranker\" | \"reranker-onnx\"",
             "one model at a time; CPU first; GPU/NPU only after provider probes pass; timeout kills the child process",
             "fn run_ort_child_probe(",
-            "Command::new(std::env::current_exe()",
-            ".env(\"ENFORCER_X06_ORT_CHILD_TASK\", child_task)",
+            "ort_worker_execution_plan_with_provider_resolution(",
+            "ort_worker_command(&plan)",
+            "attach_ort_worker_contract(&mut proof, &plan);",
+            "\"providerResolution\"",
+            "\"workerTask\"",
+            "\"requestedProvider\"",
+            "\"resolvedProvider\"",
+            "\"availableProviders\"",
+            "\"providerProbePassed\"",
+            "\"providerDowngradeReason\"",
+            "\"requestProtocol\"",
+            "\"externalServerAllowed\"",
+            "\"portBindingAllowed\"",
+            "\"killOnTimeout\"",
+            "ENFORCER_X06_ORT_PROVIDER",
+            "ENFORCER_X06_ORT_AVAILABLE_PROVIDERS",
+            "resolve_ort_provider(requested, &available)",
+            "ENFORCER_X06_CHILD_PROVIDER",
+            "fn child_provider() -> Result<ProviderKind, String>",
             "let _ = child.kill();",
             "\"ORT child probe timed out during load or inference\"",
-            "OrtEmbedder::load(&spec, ProviderKind::Cpu)",
-            "OrtReranker::load(&spec, ProviderKind::Cpu)",
+            "OrtEmbedder::load(&spec, provider)",
+            "OrtReranker::load(&spec, provider)",
         ],
     );
     assert_contract_terms(
@@ -1526,6 +1702,152 @@ fn llama_cpp_npu_plan_requires_openvino_device_env_and_small_context() {
         .iter()
         .any(|(key, value)| key == "GGML_OPENVINO_DEVICE" && value == "NPU"));
     assert!(contains_arg_pair(&plan.args, "-c", "512"));
+}
+
+#[test]
+fn llama_cpp_lifecycle_load_chat_pause_resume_cancel_and_unload_are_owned() -> TestResult {
+    let config = llama_plan_fixture(LocalRuntimeAcceleration::Cpu, LlamaCppBackendHint::Native);
+
+    let toolchain = transition_llama_cpp_lifecycle(
+        &config,
+        LlamaCppLifecycleState::Idle,
+        LlamaCppLifecycleAction::ResolveToolchain,
+    )?;
+    assert_eq!(toolchain.after, LlamaCppLifecycleState::ToolchainReady);
+    assert_eq!(
+        toolchain.ownership,
+        RuntimeOwnershipMode::EnforcerSubprocess
+    );
+    assert_eq!(
+        toolchain.request_protocol,
+        enforcer_memory::local_runtime::RuntimeRequestProtocol::EnforcerStdio
+    );
+    assert!(!toolchain.external_server_allowed);
+    assert!(!toolchain.port_binding_allowed);
+
+    let loading = transition_llama_cpp_lifecycle(
+        &config,
+        toolchain.after,
+        LlamaCppLifecycleAction::LoadModel,
+    )?;
+    assert_eq!(loading.after, LlamaCppLifecycleState::ModelLoading);
+    assert_eq!(
+        loading.activity,
+        enforcer_memory::local_runtime::RuntimeActivityState::Loading
+    );
+
+    let ready =
+        transition_llama_cpp_lifecycle(&config, loading.after, LlamaCppLifecycleAction::MarkReady)?;
+    assert_eq!(ready.after, LlamaCppLifecycleState::Ready);
+
+    let chat =
+        transition_llama_cpp_lifecycle(&config, ready.after, LlamaCppLifecycleAction::StartChat)?;
+    assert_eq!(chat.after, LlamaCppLifecycleState::ChatActive);
+    assert_eq!(chat.execution_route, "llama-cli");
+
+    let paused =
+        transition_llama_cpp_lifecycle(&config, chat.after, LlamaCppLifecycleAction::Pause)?;
+    assert_eq!(paused.after, LlamaCppLifecycleState::PausedChat);
+
+    let resumed =
+        transition_llama_cpp_lifecycle(&config, paused.after, LlamaCppLifecycleAction::Resume)?;
+    assert_eq!(resumed.after, LlamaCppLifecycleState::ChatActive);
+
+    let cancelled =
+        transition_llama_cpp_lifecycle(&config, resumed.after, LlamaCppLifecycleAction::Cancel)?;
+    assert_eq!(cancelled.after, LlamaCppLifecycleState::Cancelled);
+
+    let unloaded =
+        transition_llama_cpp_lifecycle(&config, cancelled.after, LlamaCppLifecycleAction::Unload)?;
+    assert_eq!(unloaded.after, LlamaCppLifecycleState::Unloaded);
+    Ok(())
+}
+
+#[test]
+fn llama_cpp_lifecycle_embedding_rejects_llama_server_route() -> TestResult {
+    let mut config = llama_plan_fixture(LocalRuntimeAcceleration::Cpu, LlamaCppBackendHint::Native);
+    config.binary_path = llama_binary_name("llama-server").into();
+    config.kind = LlamaCppProbeKind::Embedding;
+
+    let err = match transition_llama_cpp_lifecycle(
+        &config,
+        LlamaCppLifecycleState::Ready,
+        LlamaCppLifecycleAction::StartEmbedding,
+    ) {
+        Ok(transition) => {
+            return Err(format!("llama-server lifecycle should fail, got {transition:?}").into());
+        }
+        Err(err) => err,
+    };
+
+    assert!(matches!(
+        err,
+        MemoryError::ModelRuntime {
+            operation: "validate-llama-cpp-lifecycle-config",
+            ..
+        }
+    ));
+    Ok(())
+}
+
+#[test]
+fn llama_cpp_lifecycle_timeout_kill_requires_nonzero_timeout() -> TestResult {
+    let mut config = llama_plan_fixture(LocalRuntimeAcceleration::Cpu, LlamaCppBackendHint::Native);
+
+    let timeout = transition_llama_cpp_lifecycle(
+        &config,
+        LlamaCppLifecycleState::ChatActive,
+        LlamaCppLifecycleAction::TimeoutKill,
+    )?;
+    assert_eq!(timeout.after, LlamaCppLifecycleState::TimedOut);
+    assert!(timeout.kill_on_timeout);
+    assert_eq!(
+        timeout.reason,
+        "Enforcer killed the owned llama.cpp subprocess after timeout"
+    );
+
+    config.timeout_ms = 0;
+    let err = match transition_llama_cpp_lifecycle(
+        &config,
+        LlamaCppLifecycleState::ChatActive,
+        LlamaCppLifecycleAction::TimeoutKill,
+    ) {
+        Ok(transition) => {
+            return Err(format!("zero-timeout lifecycle should fail, got {transition:?}").into());
+        }
+        Err(err) => err,
+    };
+    assert!(matches!(
+        err,
+        MemoryError::ModelRuntime {
+            operation: "validate-llama-cpp-lifecycle-config",
+            ..
+        }
+    ));
+    Ok(())
+}
+
+#[test]
+fn llama_cpp_lifecycle_rejects_invalid_transition() -> TestResult {
+    let config = llama_plan_fixture(LocalRuntimeAcceleration::Cpu, LlamaCppBackendHint::Native);
+
+    let err = match transition_llama_cpp_lifecycle(
+        &config,
+        LlamaCppLifecycleState::Idle,
+        LlamaCppLifecycleAction::StartChat,
+    ) {
+        Ok(transition) => return Err(format!("idle chat should fail, got {transition:?}").into()),
+        Err(err) => err,
+    };
+
+    assert!(matches!(
+        err,
+        MemoryError::ModelRuntime {
+            operation: "transition-llama-cpp-lifecycle",
+            ..
+        }
+    ));
+    Ok(())
 }
 
 #[test]

@@ -1183,7 +1183,8 @@ fn layer_classification(graph: &CodeGraph, prefix: Option<&str>) -> Vec<LayerCla
 /// participating in a cycle (in-degree never reaches zero) is reported
 /// in [`LayeringResult::cycle_cluster_ids`] instead of panicking or
 /// being silently dropped.
-fn layering(clusters: &ClusteringResult) -> LayeringResult {
+#[doc(hidden)]
+pub fn layering(clusters: &ClusteringResult) -> LayeringResult {
     let all_ids: BTreeSet<String> = clusters.clusters.iter().map(|c| c.id.clone()).collect();
     if all_ids.is_empty() {
         return LayeringResult::default();
@@ -1338,57 +1339,5 @@ fn build_tree_node(
         total_file_count,
         total_symbol_count,
         children,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn layers_aspect_reports_cycle_without_panicking() {
-        // Two clusters whose only inter-cluster edges point at each
-        // other in both directions -- a 2-cycle with no way to
-        // establish a partial order.
-        let clusters = ClusteringResult {
-            clusters: vec![
-                clustering::Cluster {
-                    id: "cluster-a".to_string(),
-                    member_node_ids: vec!["file:a.rs".to_string()],
-                    file_ids: vec!["file:a.rs".to_string()],
-                    symbol_ids: vec![],
-                },
-                clustering::Cluster {
-                    id: "cluster-b".to_string(),
-                    member_node_ids: vec!["file:b.rs".to_string()],
-                    file_ids: vec!["file:b.rs".to_string()],
-                    symbol_ids: vec![],
-                },
-            ],
-            inter_cluster_edges: vec![
-                clustering::InterClusterEdge {
-                    from_cluster: "cluster-a".to_string(),
-                    to_cluster: "cluster-b".to_string(),
-                    count: 1,
-                },
-                clustering::InterClusterEdge {
-                    from_cluster: "cluster-b".to_string(),
-                    to_cluster: "cluster-a".to_string(),
-                    count: 1,
-                },
-            ],
-        };
-
-        let result = layering(&clusters);
-        assert!(
-            result.layers.is_empty(),
-            "a pure 2-cycle has no valid layer"
-        );
-        let mut cycle = result.cycle_cluster_ids;
-        cycle.sort();
-        assert_eq!(
-            cycle,
-            vec!["cluster-a".to_string(), "cluster-b".to_string()]
-        );
     }
 }

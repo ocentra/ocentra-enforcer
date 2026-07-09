@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "artifact": "x06-test-shards-rollup",
+  "generatedAt": "2026-07-09T12:51:34.494Z",
+  "package": "enforcer-memory",
+  "shardCount": 8,
+  "totalTargets": 232,
+  "uniqueExecutedTargets": 232,
+  "executedTargets": 232,
+  "allShardsOk": true,
+  "failedTargets": [],
+  "shards": [
+    {
+      "shard": "1/8",
+      "ok": true,
+      "selectedTargets": 29,
+      "executedTargets": 29,
+      "failedTargets": 0,
+      "proof": "proof/memory/x06-test-shards-1-of-8.json"
+    },
+    {
+      "shard": "2/8",
+      "ok": true,
+      "selectedTargets": 29,
+      "executedTargets": 29,
+      "failedTargets": 0,
+      "proof": "proof/memory/x06-test-shards-2-of-8.json"
+    },
+    {
+      "shard": "3/8",
+      "ok": true,
+      "selectedTargets": 29,
+      "executedTargets": 29,
+      "failedTargets": 0,
+      "proof": "proof/memory/x06-test-shards-3-of-8.json"
+    },
+    {
+      "shard": "4/8",
+      "ok": true,
+      "selectedTargets": 29,
+      "executedTargets": 29,
+      "failedTargets": 0,
+      "proof": "proof/memory/x06-test-shards-4-of-8.json"
+    },
+    {
+      "shard": "5/8",
+      "ok": true,
+      "selectedTargets": 29,
+      "executedTargets": 29,
+      "failedTargets": 0,
+      "proof": "proof/memory/x06-test-shards-5-of-8.json"
+    },
+    {
+      "shard": "6/8",
+      "ok": true,
+      "selectedTargets": 29,
+      "executedTargets": 29,
+      "failedTargets": 0,
+      "proof": "proof/memory/x06-test-shards-6-of-8.json"
+    },
+    {
+      "shard": "7/8",
+      "ok": true,
+      "selectedTargets": 29,
+      "executedTargets": 29,
+      "failedTargets": 0,
+      "proof": "proof/memory/x06-test-shards-7-of-8.json"
+    },
+    {
+      "shard": "8/8",
+      "ok": true,
+      "selectedTargets": 29,
+      "executedTargets": 29,
+      "failedTargets": 0,
+      "proof": "proof/memory/x06-test-shards-8-of-8.json"
+    }
+  ],
+  "commandTemplate": "node scripts/x06-enforcer-memory-sharded-test.mjs --shard N/8 --write-proof proof/memory/x06-test-shards-N-of-8.json",
+  "replacesMonolithicGate": "cargo test -p enforcer-memory --quiet -j 1"
+}
