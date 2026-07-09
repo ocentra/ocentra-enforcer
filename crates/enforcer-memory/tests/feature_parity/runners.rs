@@ -6035,7 +6035,10 @@ fn hot_memory_probe(row: &QaRow) -> RowResult {
                 "crates/enforcer-memory/tests/feature_parity_harness.rs",
                 &[
                     "let lessons = dogfood[\"lessons\"].as_array().map_or(0, Vec::len);",
-                    "dogfood proof missing gates or lessons",
+                    "let has_dogfood_coordination =",
+                    "let has_t0_t1_t2 =",
+                    "let has_operational_learning =",
+                    "dogfood proof incomplete:",
                 ],
             ),
         ],

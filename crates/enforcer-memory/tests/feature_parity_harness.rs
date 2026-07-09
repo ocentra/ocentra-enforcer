@@ -586,16 +586,48 @@ fn set_dogfood_status(
     };
     let green_gates = dogfood["greenGates"].as_array().map_or(0, Vec::len);
     let lessons = dogfood["lessons"].as_array().map_or(0, Vec::len);
+    let dogfood_source = serde_json::to_string(&dogfood)?;
+    let has_dogfood_coordination = dogfood_source.contains("ocentra_enforcer_coordination_health")
+        && dogfood_source.contains("ocentra_enforcer_doctor")
+        && dogfood_source.contains("ocentra_enforcer_check");
+    let lesson_shapes = dogfood["lessons"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|lesson| lesson["shape"].as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    let has_t0_t1_t2 = ["t0", "t1", "t2"]
+        .iter()
+        .all(|shape| lesson_shapes.contains(shape));
+    let has_failure_fix_evidence = dogfood_source
+        .contains("Feature-parity runner initially over-claimed")
+        && dogfood_source.contains("Runner claim logic is now fixture-backed")
+        && dogfood_source.contains("feature_parity_harness passed after the fix");
+    let lower_dogfood_source = dogfood_source.to_ascii_lowercase();
+    let has_operational_learning = dogfood_source.contains("Windows paging-file pressure")
+        && lower_dogfood_source.contains("pre-commit hook reported")
+        && dogfood_source.contains("scoped X06 cargo and Enforcer checks");
+    let dogfood_complete = dogfood["status"].as_str()
+        == Some("policy-clean-focused-gates-full-package-timeout")
+        && green_gates > 0
+        && lessons > 0
+        && has_dogfood_coordination
+        && has_t0_t1_t2
+        && has_failure_fix_evidence
+        && has_operational_learning;
     prefixes.insert(
         "DOG",
-        if green_gates > 0 && lessons > 0 {
+        if dogfood_complete {
             green_prefix("DOG", "proof/memory/x06-dogfood.json", "x06-dogfood-closeout")
         } else {
             red_prefix(
                 "DOG",
                 "proof/memory/x06-dogfood.json",
                 Some("x06-dogfood-closeout"),
-                format!("dogfood proof missing gates or lessons: green_gates={green_gates}, lessons={lessons}"),
+                format!(
+                    "dogfood proof incomplete: status={:?}, green_gates={green_gates}, lessons={lessons}, coordination={has_dogfood_coordination}, t0_t1_t2={has_t0_t1_t2}, failure_fix_evidence={has_failure_fix_evidence}, operational_learning={has_operational_learning}",
+                    dogfood["status"].as_str()
+                ),
             )
         },
     );
