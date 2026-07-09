@@ -3342,7 +3342,7 @@ fn first_nonempty_line(text: &str) -> Option<&str> {
 }
 
 fn last_20_module_commits_probe(row: &QaRow) -> RowResult {
-    const MODULE_REL: &str = "crates/enforcer-memory";
+    const MODULE_REL: &str = "crates/enforcer-memory/src";
     let stdout = match run_git_stdout(&["log", "-20", "--format=%H%x09%s", "--", MODULE_REL]) {
         Ok(stdout) => stdout,
         Err(error) => return unrunnable(row, &error),
@@ -3375,7 +3375,7 @@ fn last_20_module_commits_probe(row: &QaRow) -> RowResult {
         );
     }
 
-    let mut ids = vec!["module:enforcer-memory:last-20-commits:20".to_string()];
+    let mut ids = vec!["module:enforcer-memory-src:last-20-commits:20".to_string()];
     ids.extend(commits.into_iter().take(4));
     exact_pass(row, ids, source_refs)
 }
