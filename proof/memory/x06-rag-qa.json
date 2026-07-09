@@ -1,10 +1,10 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 219,
+  "rowsGreen": 221,
   "rowsGreenReal": 0,
-  "rowsGreenDegraded": 219,
+  "rowsGreenDegraded": 221,
   "rowsFailed": 0,
-  "rowsUnrunnable": 31,
+  "rowsUnrunnable": 29,
   "rows": [
     {
       "id": "QA-001",
@@ -682,27 +682,60 @@
       "id": "QA-031",
       "category": "Reranking",
       "query": "Find initialization order.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Reranking",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "init-order:runtime-policy-cpu-first",
+        "init-order:chat-generation-gguf",
+        "init-order:qwen-embedding-onnx",
+        "init-order:qwen-reranker-onnx",
+        "init-order:qwen-embedding-gguf"
+      ],
+      "actualIds": [
+        "init-order:runtime-policy-cpu-first",
+        "init-order:chat-generation-gguf",
+        "init-order:qwen-embedding-onnx",
+        "init-order:qwen-reranker-onnx",
+        "init-order:qwen-embedding-gguf"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/runtime_probe.rs",
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md",
+        "proof/memory/x06-models.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-032",
       "category": "Retrieval",
       "query": "Find where this error type is created.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Retrieval",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "error-constructor:memory-error-enum",
+        "error-constructor:model-runtime-validation",
+        "error-constructor:store-unknown-project",
+        "error-constructor:observation-internal-invariant"
+      ],
+      "actualIds": [
+        "error-constructor:memory-error-enum",
+        "error-constructor:model-runtime-validation",
+        "error-constructor:store-unknown-project",
+        "error-constructor:observation-internal-invariant"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/error.rs",
+        "crates/enforcer-memory/src/model_runtime.rs",
+        "crates/enforcer-memory/src/observations.rs",
+        "crates/enforcer-memory/src/store/mod.rs",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-033",
@@ -2243,8 +2276,8 @@
         "proof/memory/x06-feature-parity.json",
         "proof/memory/x06-rag-qa.json",
         "proof/memory/x06-kg-parity.json",
-        "qa:rows-green:219",
-        "qa:rows-unrunnable:31"
+        "qa:rows-green:221",
+        "qa:rows-unrunnable:29"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
