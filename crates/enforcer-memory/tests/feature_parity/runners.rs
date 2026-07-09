@@ -6741,7 +6741,7 @@ fn recurring_issue_after_landing_probe(row: &QaRow) -> RowResult {
         .collect::<Vec<_>>();
     score_row(
         row,
-        RowEvidence::degraded(
+        RowEvidence::host_local_proof(
             vec![first, second],
             actual_ids,
             None,
@@ -6884,7 +6884,7 @@ fn failures_for_rule_probe(row: &QaRow) -> RowResult {
     }
     score_row(
         row,
-        RowEvidence::degraded(
+        RowEvidence::host_local_proof(
             vec![first, second],
             actual_ids,
             None,
@@ -6918,7 +6918,7 @@ fn successful_fixes_for_rule_probe(row: &QaRow) -> RowResult {
     }
     score_row(
         row,
-        RowEvidence::degraded(
+        RowEvidence::host_local_proof(
             vec!["mem-cl-0001".to_string(), "mem-cl-0003".to_string()],
             actual_ids,
             None,
