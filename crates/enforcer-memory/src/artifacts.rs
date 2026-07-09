@@ -194,6 +194,16 @@ pub enum GraphSymbolKindSnapshot {
     Function,
     Type,
     Test,
+    Method,
+    Class,
+    Struct,
+    Interface,
+    Enum,
+    TypeAlias,
+    Module,
+    Lambda,
+    Variable,
+    Constant,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -259,34 +269,55 @@ impl GraphSnapshot {
                         .symbols
                         .push(symbol_snapshot(s, GraphSymbolKindSnapshot::Test));
                 }
-                // X06 rich vocabulary (additive CodeNode variants): this
-                // wire snapshot's `GraphSymbolKindSnapshot` has not yet
-                // been extended to carry the new label set -- best-effort
-                // fold to the nearest existing snapshot kind so
-                // persistence round-trips (node/edge counts) rather than
-                // silently dropping the node. Extending the wire schema
-                // itself is a follow-up, not this lane's claimed scope.
                 CodeNode::Method(s) => {
                     snapshot
                         .symbols
-                        .push(symbol_snapshot(s, GraphSymbolKindSnapshot::Function));
+                        .push(symbol_snapshot(s, GraphSymbolKindSnapshot::Method));
                 }
-                CodeNode::Class(s)
-                | CodeNode::Struct(s)
-                | CodeNode::Interface(s)
-                | CodeNode::Enum(s)
-                | CodeNode::TypeAlias(s)
-                | CodeNode::Module(s)
-                | CodeNode::Variable(s)
-                | CodeNode::Constant(s) => {
+                CodeNode::Class(s) => {
                     snapshot
                         .symbols
-                        .push(symbol_snapshot(s, GraphSymbolKindSnapshot::Type));
+                        .push(symbol_snapshot(s, GraphSymbolKindSnapshot::Class));
+                }
+                CodeNode::Struct(s) => {
+                    snapshot
+                        .symbols
+                        .push(symbol_snapshot(s, GraphSymbolKindSnapshot::Struct));
+                }
+                CodeNode::Interface(s) => {
+                    snapshot
+                        .symbols
+                        .push(symbol_snapshot(s, GraphSymbolKindSnapshot::Interface));
+                }
+                CodeNode::Enum(s) => {
+                    snapshot
+                        .symbols
+                        .push(symbol_snapshot(s, GraphSymbolKindSnapshot::Enum));
+                }
+                CodeNode::TypeAlias(s) => {
+                    snapshot
+                        .symbols
+                        .push(symbol_snapshot(s, GraphSymbolKindSnapshot::TypeAlias));
+                }
+                CodeNode::Module(s) => {
+                    snapshot
+                        .symbols
+                        .push(symbol_snapshot(s, GraphSymbolKindSnapshot::Module));
                 }
                 CodeNode::Lambda(s) => {
                     snapshot
                         .symbols
-                        .push(symbol_snapshot(s, GraphSymbolKindSnapshot::Function));
+                        .push(symbol_snapshot(s, GraphSymbolKindSnapshot::Lambda));
+                }
+                CodeNode::Variable(s) => {
+                    snapshot
+                        .symbols
+                        .push(symbol_snapshot(s, GraphSymbolKindSnapshot::Variable));
+                }
+                CodeNode::Constant(s) => {
+                    snapshot
+                        .symbols
+                        .push(symbol_snapshot(s, GraphSymbolKindSnapshot::Constant));
                 }
                 CodeNode::Tombstone(t) => snapshot.tombstones.push(GraphTombstoneSnapshot {
                     id: t.id.clone(),
