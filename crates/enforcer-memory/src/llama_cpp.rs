@@ -378,7 +378,7 @@ pub fn run_llama_cpp_probe(config: &LlamaCppProbeConfig) -> Result<LlamaCppProbe
         )?;
     }
 
-    let plan = llama_cpp_command_plan(config);
+    let plan = llama_cpp_command_plan(config)?;
     let mut command = Command::new(&config.binary_path);
     command
         .args(&plan.args)
@@ -461,7 +461,8 @@ pub fn run_llama_cpp_probe(config: &LlamaCppProbeConfig) -> Result<LlamaCppProbe
     })
 }
 
-pub fn llama_cpp_command_plan(config: &LlamaCppProbeConfig) -> LlamaCppCommandPlan {
+pub fn llama_cpp_command_plan(config: &LlamaCppProbeConfig) -> Result<LlamaCppCommandPlan> {
+    validate_llama_cpp_command_config(config)?;
     let mut args = vec![
         "-m".to_owned(),
         config.model_path.display().to_string(),
@@ -487,7 +488,7 @@ pub fn llama_cpp_command_plan(config: &LlamaCppProbeConfig) -> LlamaCppCommandPl
         }
     }
 
-    LlamaCppCommandPlan { args, env }
+    Ok(LlamaCppCommandPlan { args, env })
 }
 
 pub fn transition_llama_cpp_lifecycle(
@@ -589,6 +590,34 @@ fn validate_llama_cpp_lifecycle_config(config: &LlamaCppProbeConfig) -> Result<(
         ));
     }
     Ok(())
+}
+
+fn validate_llama_cpp_command_config(config: &LlamaCppProbeConfig) -> Result<()> {
+    if path_value_is_absolute(&config.model_path.display().to_string()) {
+        return Err(model_error(
+            "validate-llama-cpp-command-config",
+            "llama.cpp GGUF model path must be cache-relative/repo-local, not an absolute or hardcoded machine path",
+        ));
+    }
+    if config.timeout_ms == 0 {
+        return Err(model_error(
+            "validate-llama-cpp-command-config",
+            "llama.cpp command plan requires a non-zero timeout",
+        ));
+    }
+    Ok(())
+}
+
+fn path_value_is_absolute(value: &str) -> bool {
+    let normalized = value.replace('\\', "/");
+    PathBuf::from(value).is_absolute()
+        || normalized.starts_with('/')
+        || normalized.starts_with("//")
+        || normalized
+            .as_bytes()
+            .get(1)
+            .copied()
+            .is_some_and(|byte| byte == b':')
 }
 
 fn llama_lifecycle_activity(state: LlamaCppLifecycleState) -> RuntimeActivityState {

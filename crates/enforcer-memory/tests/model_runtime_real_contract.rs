@@ -1763,28 +1763,30 @@ fn llama_cpp_validation_fails_closed_for_missing_assets() -> TestResult {
 }
 
 #[test]
-fn llama_cpp_native_cpu_plan_forces_zero_gpu_layers() {
+fn llama_cpp_native_cpu_plan_forces_zero_gpu_layers() -> TestResult {
     let config = llama_plan_fixture(LocalRuntimeAcceleration::Cpu, LlamaCppBackendHint::Native);
 
-    let plan = llama_cpp_command_plan(&config);
+    let plan = llama_cpp_command_plan(&config)?;
 
     assert!(contains_arg_pair(&plan.args, "-ngl", "0"));
     assert!(plan.env.is_empty());
+    Ok(())
 }
 
 #[test]
-fn llama_cpp_native_gpu_plan_uses_gpu_layers() {
+fn llama_cpp_native_gpu_plan_uses_gpu_layers() -> TestResult {
     let mut config = llama_plan_fixture(LocalRuntimeAcceleration::Gpu, LlamaCppBackendHint::Native);
     config.gpu_layers = Some(42);
 
-    let plan = llama_cpp_command_plan(&config);
+    let plan = llama_cpp_command_plan(&config)?;
 
     assert!(contains_arg_pair(&plan.args, "-ngl", "42"));
     assert!(plan.env.is_empty());
+    Ok(())
 }
 
 #[test]
-fn llama_cpp_gpu_plan_can_split_across_cpu_and_gpus_with_fit() {
+fn llama_cpp_gpu_plan_can_split_across_cpu_and_gpus_with_fit() -> TestResult {
     let mut config = llama_plan_fixture(LocalRuntimeAcceleration::Gpu, LlamaCppBackendHint::Native);
     config.device = Some("Vulkan0,Vulkan1".to_owned());
     config.main_gpu = Some(0);
@@ -1792,7 +1794,7 @@ fn llama_cpp_gpu_plan_can_split_across_cpu_and_gpus_with_fit() {
     config.tensor_split = Some("4,1".to_owned());
     config.fit = Some(true);
 
-    let plan = llama_cpp_command_plan(&config);
+    let plan = llama_cpp_command_plan(&config)?;
 
     assert!(contains_arg_pair(&plan.args, "--device", "Vulkan0,Vulkan1"));
     assert!(contains_arg_pair(&plan.args, "-ngl", "auto"));
@@ -1800,32 +1802,49 @@ fn llama_cpp_gpu_plan_can_split_across_cpu_and_gpus_with_fit() {
     assert!(contains_arg_pair(&plan.args, "--split-mode", "layer"));
     assert!(contains_arg_pair(&plan.args, "--tensor-split", "4,1"));
     assert!(contains_arg_pair(&plan.args, "--fit", "on"));
+    Ok(())
 }
 
 #[test]
-fn llama_cpp_openvino_gpu_plan_uses_device_env_not_native_offload() {
+fn llama_cpp_openvino_gpu_plan_uses_device_env_not_native_offload() -> TestResult {
     let config = llama_plan_fixture(LocalRuntimeAcceleration::Gpu, LlamaCppBackendHint::OpenVino);
 
-    let plan = llama_cpp_command_plan(&config);
+    let plan = llama_cpp_command_plan(&config)?;
 
     assert!(plan
         .env
         .iter()
         .any(|(key, value)| key == "GGML_OPENVINO_DEVICE" && value == "GPU"));
     assert!(!plan.args.iter().any(|arg| arg == "-ngl"));
+    Ok(())
 }
 
 #[test]
-fn llama_cpp_npu_plan_requires_openvino_device_env_and_small_context() {
+fn llama_cpp_npu_plan_requires_openvino_device_env_and_small_context() -> TestResult {
     let config = llama_plan_fixture(LocalRuntimeAcceleration::Npu, LlamaCppBackendHint::Auto);
 
-    let plan = llama_cpp_command_plan(&config);
+    let plan = llama_cpp_command_plan(&config)?;
 
     assert!(plan
         .env
         .iter()
         .any(|(key, value)| key == "GGML_OPENVINO_DEVICE" && value == "NPU"));
     assert!(contains_arg_pair(&plan.args, "-c", "512"));
+    Ok(())
+}
+
+#[test]
+fn llama_cpp_command_plan_rejects_absolute_gguf_model_path_before_args() -> TestResult {
+    let mut config = llama_plan_fixture(LocalRuntimeAcceleration::Cpu, LlamaCppBackendHint::Native);
+    config.model_path = "C:/Users/sujan/model/ornith/Q4_K_M.gguf".into();
+
+    let result = llama_cpp_command_plan(&config).map(|_| ());
+
+    assert_model_runtime_error(
+        result,
+        "validate-llama-cpp-command-config",
+        "llama.cpp GGUF model path must be cache-relative/repo-local, not an absolute or hardcoded machine path",
+    )
 }
 
 #[test]
