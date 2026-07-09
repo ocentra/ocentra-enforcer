@@ -1531,6 +1531,7 @@ fn real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in() {
             "ort_worker_execution_plan_with_provider_resolution(",
             "ort_worker_command(&plan)",
             "attach_ort_worker_contract(&mut proof, &plan);",
+            "failed to parse ORT child proof JSON",
             "\"providerResolution\"",
             "\"workerTask\"",
             "\"requestedProvider\"",
