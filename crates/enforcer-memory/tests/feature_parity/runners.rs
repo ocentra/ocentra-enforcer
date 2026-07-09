@@ -7018,7 +7018,7 @@ fn oldest_workspace_file_probe(row: &QaRow) -> RowResult {
 }
 
 fn exact_proof_artifacts_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
