@@ -40,6 +40,27 @@ fn checked_in_runtime_control_plane_proof_matches_contract() -> TestResult {
         proof["runtimePolicy"]["onnxOrt"]["inProcessAllowedForParity"],
         false
     );
+    for backend in ["llamaCpp", "onnxOrt"] {
+        let managed = proof["runtimePolicy"][backend]["managedCapabilities"]
+            .as_array()
+            .ok_or("managedCapabilities must be an array")?;
+        for capability in [
+            "load-unload",
+            "pause-resume-cancel",
+            "timeout-kill",
+            "provider-selection",
+            "cache-policy",
+            "chat-history-policy",
+            "workload-admission",
+        ] {
+            assert!(
+                managed
+                    .iter()
+                    .any(|candidate| candidate.as_str() == Some(capability)),
+                "missing {backend} managed capability {capability}"
+            );
+        }
+    }
     assert_eq!(
         proof["runtimePolicy"]["llamaCpp"]["externalServerAllowedForParity"],
         false
