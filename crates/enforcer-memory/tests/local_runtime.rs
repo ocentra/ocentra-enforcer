@@ -12,8 +12,8 @@ use enforcer_memory::local_runtime::{
     validate_control_plane, validate_fixture, validate_ort_worker_execution_plan, BackendReadiness,
     LocalRuntimeControlPlane, LocalRuntimeFixture, LocalRuntimeKind, OrtWorkerLifecycleAction,
     OrtWorkerLifecycleState, OrtWorkerTask, RuntimeActivityState, RuntimeAdmission,
-    RuntimeManagedCapability, RuntimeOwnershipMode, RuntimeRequestProtocol, RuntimeWorkload,
-    REQUIRED_MANAGED_CAPABILITIES,
+    RuntimeExecutionIsolation, RuntimeManagedCapability, RuntimeOwnershipMode,
+    RuntimeRequestProtocol, RuntimeWorkload, REQUIRED_MANAGED_CAPABILITIES,
 };
 use enforcer_memory::model_runtime::{ModelSpec, ProviderKind};
 use serde_json::Value;
@@ -581,6 +581,10 @@ fn runtime_backend_contract_is_derived_from_typed_runtime_ownership() {
         RuntimeOwnershipMode::EnforcerSubprocess
     );
     assert_eq!(
+        contract.llama_cpp.execution_isolation,
+        RuntimeExecutionIsolation::EnforcerManagedChildProcess
+    );
+    assert_eq!(
         contract.llama_cpp.request_protocol,
         RuntimeRequestProtocol::EnforcerStdio
     );
@@ -595,6 +599,10 @@ fn runtime_backend_contract_is_derived_from_typed_runtime_ownership() {
     assert_eq!(
         contract.ort.ownership,
         RuntimeOwnershipMode::EnforcerIsolatedWorker
+    );
+    assert_eq!(
+        contract.ort.execution_isolation,
+        RuntimeExecutionIsolation::EnforcerIsolatedWorkerProcess
     );
     assert_eq!(
         contract.ort.request_protocol,

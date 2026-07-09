@@ -73,6 +73,7 @@
   "runtimeBackendContract": {
     "llamaCpp": {
       "backend": "gguf",
+      "executionIsolation": "enforcer-managed-child-process",
       "externalHttpAllowed": false,
       "managedByService": [
         "chat",
@@ -86,6 +87,7 @@
     },
     "ort": {
       "backend": "onnx",
+      "executionIsolation": "enforcer-isolated-worker-process",
       "externalHttpAllowed": false,
       "managedByService": [
         "embeddings",

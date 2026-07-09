@@ -130,6 +130,20 @@ impl RuntimeOwnershipMode {
     }
 }
 
+/// Process/isolation boundary used by the local runtime backend.
+///
+/// This is separate from ownership so proof artifacts can distinguish
+/// "Enforcer owns it" from "how Enforcer owns it".
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuntimeExecutionIsolation {
+    EnforcerManagedChildProcess,
+    EnforcerIsolatedWorkerProcess,
+    EnforcerInProcessLibrary,
+    ExternalServerProcess,
+    UnmanagedProcess,
+}
+
 /// Request protocol owned by Enforcer for a local runtime worker.
 ///
 /// ORT runs behind an isolated worker protocol, not a model-provider
@@ -218,6 +232,7 @@ pub struct RuntimeBackendContract {
 pub struct RuntimeBackendContractEntry {
     pub backend: &'static str,
     pub ownership: RuntimeOwnershipMode,
+    pub execution_isolation: RuntimeExecutionIsolation,
     pub request_protocol: RuntimeRequestProtocol,
     pub external_http_allowed: bool,
     pub port_binding_allowed: bool,
@@ -788,6 +803,7 @@ pub fn runtime_backend_contract() -> RuntimeBackendContract {
         llama_cpp: RuntimeBackendContractEntry {
             backend: "gguf",
             ownership: RuntimeOwnershipMode::EnforcerSubprocess,
+            execution_isolation: RuntimeExecutionIsolation::EnforcerManagedChildProcess,
             request_protocol: RuntimeRequestProtocol::EnforcerStdio,
             external_http_allowed: false,
             port_binding_allowed: false,
@@ -798,6 +814,7 @@ pub fn runtime_backend_contract() -> RuntimeBackendContract {
         ort: RuntimeBackendContractEntry {
             backend: "onnx",
             ownership: RuntimeOwnershipMode::EnforcerIsolatedWorker,
+            execution_isolation: RuntimeExecutionIsolation::EnforcerIsolatedWorkerProcess,
             request_protocol: RuntimeRequestProtocol::EnforcerWorkerEnv,
             external_http_allowed: false,
             port_binding_allowed: false,

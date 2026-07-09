@@ -764,6 +764,10 @@ fn checked_in_model_plan_proves_owned_gguf_and_ort_backends() -> TestResult {
 
     assert_eq!(contract["llamaCpp"]["backend"], "gguf");
     assert_eq!(contract["llamaCpp"]["ownership"], "enforcer-subprocess");
+    assert_eq!(
+        contract["llamaCpp"]["executionIsolation"],
+        "enforcer-managed-child-process"
+    );
     assert_eq!(contract["llamaCpp"]["requestProtocol"], "enforcer-stdio");
     assert_eq!(contract["llamaCpp"]["externalHttpAllowed"], false);
     assert_eq!(contract["llamaCpp"]["portBindingAllowed"], false);
@@ -782,6 +786,10 @@ fn checked_in_model_plan_proves_owned_gguf_and_ort_backends() -> TestResult {
 
     assert_eq!(contract["ort"]["backend"], "onnx");
     assert_eq!(contract["ort"]["ownership"], "enforcer-isolated-worker");
+    assert_eq!(
+        contract["ort"]["executionIsolation"],
+        "enforcer-isolated-worker-process"
+    );
     assert_eq!(contract["ort"]["requestProtocol"], "enforcer-worker-env");
     assert_eq!(contract["ort"]["externalHttpAllowed"], false);
     assert_eq!(contract["ort"]["portBindingAllowed"], false);
