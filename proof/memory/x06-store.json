@@ -58,6 +58,40 @@
     "windowsSafePathNormalization": {
       "status": "DONE",
       "implementation": "crates/enforcer-memory/src/ids.rs ProjectId::from_repo_root + rel_path/repo_root helpers reuse enforcer_domain::paths::{RepoRoot,RelPath} (normalize_separators); proven by windows_backslash_and_posix_forward_slash_roots_map_to_the_same_store test"
+    },
+    "proceduralObservationNativeLog": {
+      "status": "DONE",
+      "implementation": "crates/enforcer-memory/src/store/mod.rs append_procedural/read_procedural_entries persist procedural-observations.ndjson; crates/enforcer-memory/src/observations.rs replay_procedural_and_routes_from_store projects the log",
+      "test": "crates/enforcer-memory/tests/unit_observations.rs procedural_and_route_records_replay_from_store"
+    },
+    "routeChoiceNativeLog": {
+      "status": "DONE",
+      "implementation": "crates/enforcer-memory/src/store/mod.rs append_route_trace/read_route_trace_entries persist route-traces.ndjson; crates/enforcer-memory/src/observations.rs replay_procedural_and_routes_from_store projects the log",
+      "test": "crates/enforcer-memory/tests/unit_observations.rs procedural_and_route_records_replay_from_store"
+    },
+    "modelRuntimeObservationNativeLog": {
+      "status": "DONE",
+      "implementation": "crates/enforcer-memory/src/store/mod.rs append_model_observation/read_model_observation_entries persist model-observations.ndjson; crates/enforcer-memory/src/model_observations.rs project_model_runtime_observations_from_store projects the log",
+      "tests": [
+        "crates/enforcer-memory/tests/model_observations.rs model_runtime_observation_persists_to_store_and_graph",
+        "crates/enforcer-memory/tests/model_observations.rs store_backed_model_runtime_observation_replays_without_duplicate_writes"
+      ]
+    },
+    "storeBackedLearningProjection": {
+      "status": "DONE",
+      "implementation": "crates/enforcer-memory/src/learning.rs project_learning_from_store replays incident observations, procedural records, route traces, model-runtime observations, learning curves, and recurrence curves from Store",
+      "tests": [
+        "crates/enforcer-memory/tests/unit_learning.rs store_learning_projection_replays_observations_into_curves",
+        "crates/enforcer-memory/tests/continuous_learning.rs store_backed_learning_projection_replays_t0_t1_t2"
+      ]
+    },
+    "legacyObservationPayloadFallbacks": {
+      "status": "DONE",
+      "implementation": "crates/enforcer-memory/src/observations.rs and crates/enforcer-memory/src/model_observations.rs replay legacy observations.ndjson payloads when native logs are empty, preserving older x05/x06 evidence streams",
+      "tests": [
+        "crates/enforcer-memory/tests/unit_observations.rs legacy_observation_payloads_replay_when_native_logs_are_empty",
+        "crates/enforcer-memory/tests/model_observations.rs projection_falls_back_to_legacy_observation_payloads_when_native_log_is_empty"
+      ]
     }
   },
   "hardTests": {
@@ -68,7 +102,13 @@
     "rebuildDeterminism": "store::sqlite::tests::rebuild_is_deterministic",
     "unknownProject": "store::tests::opening_an_unknown_project_errors_and_creates_nothing",
     "pathNormalization": "store::tests::windows_backslash_and_posix_forward_slash_roots_map_to_the_same_store",
-    "l37TamperTest": "log::tests::tampered_chain_is_rejected_against_independent_sidecar"
+    "l37TamperTest": "log::tests::tampered_chain_is_rejected_against_independent_sidecar",
+    "proceduralRouteReplay": "crates/enforcer-memory/tests/unit_observations.rs procedural_and_route_records_replay_from_store",
+    "modelRuntimeObservationPersistence": "crates/enforcer-memory/tests/model_observations.rs model_runtime_observation_persists_to_store_and_graph",
+    "modelRuntimeObservationReplay": "crates/enforcer-memory/tests/model_observations.rs store_backed_model_runtime_observation_replays_without_duplicate_writes",
+    "learningProjection": "crates/enforcer-memory/tests/unit_learning.rs store_learning_projection_replays_observations_into_curves",
+    "continuousLearningProjection": "crates/enforcer-memory/tests/continuous_learning.rs store_backed_learning_projection_replays_t0_t1_t2",
+    "legacyObservationFallbacks": "crates/enforcer-memory/tests/unit_observations.rs legacy_observation_payloads_replay_when_native_logs_are_empty; crates/enforcer-memory/tests/model_observations.rs projection_falls_back_to_legacy_observation_payloads_when_native_log_is_empty"
   },
   "fakeGreenCheck": {
     "realStreamIntegrationTest": "tests/store_real_stream.rs real_stream_file_round_trips_through_the_store",
@@ -90,12 +130,19 @@
       "crates/enforcer-memory/src/store/sqlite.rs",
       "crates/enforcer-memory/src/store/analytics.rs",
       "crates/enforcer-memory/src/store/manifest.rs",
+      "crates/enforcer-memory/src/observations.rs (Store-backed procedural/route replay integration)",
+      "crates/enforcer-memory/src/model_observations.rs (Store-backed model-runtime observation replay integration)",
+      "crates/enforcer-memory/src/learning.rs (Store-backed learning projection integration)",
       "crates/enforcer-memory/tests/store_real_stream.rs",
+      "crates/enforcer-memory/tests/unit_observations.rs",
+      "crates/enforcer-memory/tests/model_observations.rs",
+      "crates/enforcer-memory/tests/unit_learning.rs",
+      "crates/enforcer-memory/tests/continuous_learning.rs",
       "crates/enforcer-memory/Cargo.toml (dep additions only)",
       "memory/streams/x06-1.ndjson",
       "proof/memory/x06-store.json"
     ],
-    "notTouched": "no other crate, no sibling x06 module (code_graph/graph algorithms/search/weaver/learning/mcp/artifacts/parity beyond this subpack's own owns: list)"
+    "notTouched": "no other crate, no sibling x06 module outside the Store-backed persistence and projection surfaces named in owns"
   },
   "workspaceRegression": "cargo build --workspace: all crates compile clean post-change; the pre-existing 18-test slice (record/lesson/graph/ingest/recall/retriever) is untouched and still green (37 lib tests now includes those, 0 regressions)"
 }
