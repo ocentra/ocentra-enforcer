@@ -1911,13 +1911,13 @@ const EXACT_QA_EVIDENCE_IDS: &[&str] = &[
     "QA-139", "QA-140", "QA-142", "QA-145", "QA-146", "QA-147", "QA-148", "QA-149", "QA-150",
     "QA-152", "QA-155", "QA-156", "QA-159", "QA-160", "QA-162", "QA-163", "QA-164", "QA-165",
     "QA-166", "QA-167", "QA-168", "QA-169", "QA-170", "QA-171", "QA-172", "QA-173", "QA-174",
-    "QA-186", "QA-187", "QA-189", "QA-191", "QA-192", "QA-193", "QA-194", "QA-195", "QA-196",
-    "QA-197", "QA-198", "QA-199", "QA-200", "QA-201", "QA-202", "QA-203", "QA-204", "QA-205",
-    "QA-206", "QA-207", "QA-208", "QA-209", "QA-210", "QA-211", "QA-212", "QA-213", "QA-214",
-    "QA-215", "QA-216", "QA-217", "QA-218", "QA-219", "QA-226", "QA-227", "QA-228", "QA-229",
-    "QA-230", "QA-231", "QA-232", "QA-233", "QA-234", "QA-235", "QA-236", "QA-237", "QA-238",
-    "QA-239", "QA-240", "QA-241", "QA-242", "QA-243", "QA-244", "QA-245", "QA-246", "QA-247",
-    "QA-248", "QA-249", "QA-250",
+    "QA-186", "QA-187", "QA-189", "QA-190", "QA-191", "QA-192", "QA-193", "QA-194", "QA-195",
+    "QA-196", "QA-197", "QA-198", "QA-199", "QA-200", "QA-201", "QA-202", "QA-203", "QA-204",
+    "QA-205", "QA-206", "QA-207", "QA-208", "QA-209", "QA-210", "QA-211", "QA-212", "QA-213",
+    "QA-214", "QA-215", "QA-216", "QA-217", "QA-218", "QA-219", "QA-226", "QA-227", "QA-228",
+    "QA-229", "QA-230", "QA-231", "QA-232", "QA-233", "QA-234", "QA-235", "QA-236", "QA-237",
+    "QA-238", "QA-239", "QA-240", "QA-241", "QA-242", "QA-243", "QA-244", "QA-245", "QA-246",
+    "QA-247", "QA-248", "QA-249", "QA-250",
 ];
 
 impl RowRunner for ExactQaEvidenceRunner {
@@ -2083,6 +2083,7 @@ impl RowRunner for ExactQaEvidenceRunner {
             "QA-186" => parse_boundary_strategy_probe(row),
             "QA-187" => previous_cyclic_dependency_issue_probe(row),
             "QA-189" => new_language_crate_strategy_probe(row),
+            "QA-190" => failed_strategy_for_new_validators_probe(row),
             "QA-191" => multi_harness_install_pattern_probe(row),
             "QA-226" => learning_curve_ratchet_probe(row, fixtures),
             "QA-227" => longitudinal_indexing_probe(row),
@@ -6181,6 +6182,43 @@ fn previous_cyclic_dependency_issue_probe(row: &QaRow) -> RowResult {
                     "\"crates/enforcer-ui/src/lib.rs\"",
                     "doc comment describing the dependency direction",
                     "no module-list change",
+                ],
+            ),
+        ],
+    )
+}
+
+fn failed_strategy_for_new_validators_probe(row: &QaRow) -> RowResult {
+    exact_file_marker_probe(
+        row,
+        &[
+            (
+                "experience:failed-validator-strategy:benchmark",
+                QA_BENCHMARK_REL,
+                &[("| QA-190 | Experience | What failed strategy should be avoided for new validators? |")],
+            ),
+            (
+                "experience:failed-validator-strategy:lesson",
+                "proof/memory/x06-learning-curve.json",
+                &[
+                    "A broad QA runner can create fabricated red by claiming rows it cannot prove",
+                    "leave unsupported rows unrunnable",
+                ],
+            ),
+            (
+                "experience:failed-validator-strategy:dogfood",
+                "proof/memory/x06-dogfood.json",
+                &[
+                    "\"incident\": \"Feature-parity runner initially over-claimed Retrieval/Reranking rows and created fabricated QA failures.\"",
+                    "unsupported rows remain unrunnable",
+                ],
+            ),
+            (
+                "experience:failed-validator-strategy:policy-ingest",
+                "crates/enforcer-security/src/policy_ingest.rs",
+                &[
+                    "an un-backed asserted rule that looked",
+                    "makes the gap visible instead of erasing it",
                 ],
             ),
         ],

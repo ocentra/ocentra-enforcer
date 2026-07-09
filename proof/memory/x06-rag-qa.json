@@ -1,10 +1,10 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 235,
+  "rowsGreen": 236,
   "rowsGreenReal": 0,
-  "rowsGreenDegraded": 235,
+  "rowsGreenDegraded": 236,
   "rowsFailed": 0,
-  "rowsUnrunnable": 15,
+  "rowsUnrunnable": 14,
   "rows": [
     {
       "id": "QA-001",
@@ -1536,16 +1536,16 @@
       "expectedIds": [
         "churn:Cargo.lock:70",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
-        "churn:proof/memory/x06-feature-parity.json:44",
-        "churn:proof/memory/x06-rag-qa.json:41",
-        "churn:docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md:40"
+        "churn:proof/memory/x06-feature-parity.json:45",
+        "churn:proof/memory/x06-rag-qa.json:42",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:40"
       ],
       "actualIds": [
         "churn:Cargo.lock:70",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
-        "churn:proof/memory/x06-feature-parity.json:44",
-        "churn:proof/memory/x06-rag-qa.json:41",
-        "churn:docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md:40"
+        "churn:proof/memory/x06-feature-parity.json:45",
+        "churn:proof/memory/x06-rag-qa.json:42",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:40"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -1555,7 +1555,7 @@
         "docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md",
         "proof/memory/x06-feature-parity.json",
         "proof/memory/x06-rag-qa.json",
-        "docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md",
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
         "git:log:name-only"
       ],
       "verdict": "pass",
@@ -2411,8 +2411,8 @@
         "proof/memory/x06-feature-parity.json",
         "proof/memory/x06-rag-qa.json",
         "proof/memory/x06-kg-parity.json",
-        "qa:rows-green:235",
-        "qa:rows-unrunnable:15"
+        "qa:rows-green:236",
+        "qa:rows-unrunnable:14"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -5251,14 +5251,29 @@
       "id": "QA-190",
       "category": "Experience",
       "query": "What failed strategy should be avoided for new validators?",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Experience",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "experience:failed-validator-strategy:benchmark",
+        "experience:failed-validator-strategy:lesson",
+        "experience:failed-validator-strategy:dogfood",
+        "experience:failed-validator-strategy:policy-ingest"
+      ],
+      "actualIds": [
+        "experience:failed-validator-strategy:benchmark",
+        "experience:failed-validator-strategy:lesson",
+        "experience:failed-validator-strategy:dogfood",
+        "experience:failed-validator-strategy:policy-ingest"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-security/src/policy_ingest.rs",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md",
+        "proof/memory/x06-dogfood.json",
+        "proof/memory/x06-learning-curve.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-191",
