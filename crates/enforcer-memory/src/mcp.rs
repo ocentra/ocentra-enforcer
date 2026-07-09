@@ -1242,13 +1242,14 @@ fn handle_search_graph(args: &Value) -> Value {
         Err(err) => return err,
     };
 
-    let embedder = resolve_search_graph_embedder(args);
+    let embedder_resolution = resolve_search_graph_embedder(args);
+    let embedder = &embedder_resolution.embedder;
     let semantic_docs = documents_from_graph(&graph);
     let doc_texts: Vec<(String, String)> = semantic_docs
         .iter()
         .map(|doc| (doc.id.clone(), doc.text.clone()))
         .collect();
-    let entries = match crate::vector::embed_documents(&embedder, &doc_texts) {
+    let entries = match crate::vector::embed_documents(embedder, &doc_texts) {
         Ok(entries) => entries,
         Err(source) => return tool_error("search_graph", format!("{source}")),
     };
@@ -1256,7 +1257,7 @@ fn handle_search_graph(args: &Value) -> Value {
     let semantic: Option<(&dyn Embedder, &crate::vector::VectorIndex)> = spec
         .semantic_query
         .is_some()
-        .then_some((&embedder as &dyn Embedder, &vector_index));
+        .then_some((embedder as &dyn Embedder, &vector_index));
     let result = search_graph_with_semantic(&graph, &spec, semantic);
 
     match result {
@@ -1271,39 +1272,129 @@ fn handle_search_graph(args: &Value) -> Value {
             "total": result.total,
             "hasMore": result.has_more,
             "connectedNames": result.connected_names,
+            "embeddingRuntime": embedder_resolution.to_json(),
         }),
         Err(source) => tool_error("search_graph", format!("{source}")),
     }
 }
 
-fn resolve_search_graph_embedder(args: &Value) -> crate::embed::LocalEmbedder {
+struct SearchGraphEmbedderResolution {
+    embedder: crate::embed::LocalEmbedder,
+    requested_backend: &'static str,
+    resolved_backend: &'static str,
+    fallback_reason: Option<String>,
+}
+
+impl SearchGraphEmbedderResolution {
+    fn hashing(requested_backend: &'static str, fallback_reason: Option<String>) -> Self {
+        Self {
+            embedder: crate::embed::LocalEmbedder::default(),
+            requested_backend,
+            resolved_backend: "hashing",
+            fallback_reason,
+        }
+    }
+
+    fn ort(embedder: crate::embed::LocalEmbedder) -> Self {
+        Self {
+            embedder,
+            requested_backend: "ort",
+            resolved_backend: "ort",
+            fallback_reason: None,
+        }
+    }
+
+    fn to_json(&self) -> Value {
+        let state = match self.embedder.state() {
+            crate::embed::LoadState::Unavailable => "unavailable",
+            crate::embed::LoadState::Loading => "loading",
+            crate::embed::LoadState::Loaded => "loaded",
+            crate::embed::LoadState::Degraded(crate::embed::DegradedState::ProviderUnavailable) => {
+                "degraded/provider-unavailable"
+            }
+            crate::embed::LoadState::Degraded(crate::embed::DegradedState::Overloaded) => {
+                "degraded/overloaded"
+            }
+            crate::embed::LoadState::Degraded(crate::embed::DegradedState::ModelLoadFailed) => {
+                "degraded/model-load-failed"
+            }
+            crate::embed::LoadState::Degraded(crate::embed::DegradedState::InvalidOutput) => {
+                "degraded/invalid-output"
+            }
+            crate::embed::LoadState::Degraded(crate::embed::DegradedState::LowConfidence) => {
+                "degraded/low-confidence"
+            }
+            crate::embed::LoadState::Failed => "failed",
+        };
+        let resource_class = match self.embedder.resource_class() {
+            crate::embed::ResourceClass::Cpu => "cpu",
+            crate::embed::ResourceClass::Gpu => "gpu",
+            crate::embed::ResourceClass::Npu => "npu",
+        };
+        let model = self.embedder.model_info();
+        json!({
+            "requestedBackend": self.requested_backend,
+            "resolvedBackend": self.resolved_backend,
+            "state": state,
+            "resourceClass": resource_class,
+            "model": {
+                "id": model.embedding_model,
+                "dimension": model.dimension,
+                "dtype": model.dtype,
+                "similarityMetric": model.similarity_metric,
+                "normalization": model.normalization
+            },
+            "fallbackReason": self.fallback_reason
+        })
+    }
+}
+
+fn resolve_search_graph_embedder(args: &Value) -> SearchGraphEmbedderResolution {
     if args
         .get("embeddingBackend")
         .and_then(Value::as_str)
         .is_some_and(|value| value == "ort")
     {
-        if let Some(cache_root) = args.get("embeddingCacheRoot").and_then(Value::as_str) {
-            let dimension = args
-                .get("embeddingDimension")
-                .and_then(Value::as_u64)
-                .and_then(|value| usize::try_from(value).ok())
-                .unwrap_or(1024);
-            let hf_spec = crate::hf_cache::HfModelSpec::qwen3_embedding_onnx();
-            if let Ok(spec) = crate::hf_cache::resolve_cached_hf_model_spec(
-                &hf_spec,
-                std::path::Path::new(cache_root),
-                dimension,
-            ) {
-                if let Ok(embedder) = crate::embed::LocalEmbedder::try_ort(
-                    &spec,
-                    crate::model_runtime::ProviderKind::Cpu,
-                ) {
-                    return embedder;
-                }
+        let Some(cache_root) = args.get("embeddingCacheRoot").and_then(Value::as_str) else {
+            return SearchGraphEmbedderResolution::hashing(
+                "ort",
+                Some("embeddingBackend=ort requires embeddingCacheRoot; no network fallback attempted".to_owned()),
+            );
+        };
+        let dimension = args
+            .get("embeddingDimension")
+            .and_then(Value::as_u64)
+            .and_then(|value| usize::try_from(value).ok())
+            .unwrap_or(1024);
+        let hf_spec = crate::hf_cache::HfModelSpec::qwen3_embedding_onnx();
+        let spec = match crate::hf_cache::resolve_cached_hf_model_spec(
+            &hf_spec,
+            std::path::Path::new(cache_root),
+            dimension,
+        ) {
+            Ok(spec) => spec,
+            Err(err) => {
+                return SearchGraphEmbedderResolution::hashing(
+                    "ort",
+                    Some(format!(
+                        "cache-only ORT model resolution failed; degraded hashing fallback used: {err}"
+                    )),
+                );
+            }
+        };
+        match crate::embed::LocalEmbedder::try_ort(&spec, crate::model_runtime::ProviderKind::Cpu) {
+            Ok(embedder) => return SearchGraphEmbedderResolution::ort(embedder),
+            Err(err) => {
+                return SearchGraphEmbedderResolution::hashing(
+                    "ort",
+                    Some(format!(
+                        "cache-only ORT provider load failed; degraded hashing fallback used: {err}"
+                    )),
+                );
             }
         }
     }
-    crate::embed::LocalEmbedder::default()
+    SearchGraphEmbedderResolution::hashing("hashing", None)
 }
 
 // ---------------------------------------------------------------------

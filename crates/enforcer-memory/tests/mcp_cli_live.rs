@@ -372,6 +372,21 @@ fn tools_call_search_graph_ort_embedding_missing_cache_falls_back_without_networ
     let structured = &result["structuredContent"];
     assert_eq!(structured["ok"], json!(true));
     assert!(structured["semanticResults"].is_array());
+    assert_eq!(
+        structured["embeddingRuntime"]["requestedBackend"],
+        json!("ort")
+    );
+    assert_eq!(
+        structured["embeddingRuntime"]["resolvedBackend"],
+        json!("hashing")
+    );
+    assert_eq!(
+        structured["embeddingRuntime"]["state"],
+        json!("degraded/provider-unavailable")
+    );
+    assert!(structured["embeddingRuntime"]["fallbackReason"]
+        .as_str()
+        .is_some_and(|reason| reason.contains("cache-only ORT model resolution failed")));
     Ok(())
 }
 
