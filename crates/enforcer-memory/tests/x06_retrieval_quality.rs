@@ -146,10 +146,60 @@ fn x06_retrieval_quality_metrics_emit_observation_ready_records() -> TestResult 
 
     let serialized = serde_json::to_value(&records)?;
     assert_eq!(serialized.as_array().map(Vec::len), Some(4));
+    let candidates = serialized
+        .as_array()
+        .ok_or("serialized retrieval-quality records must be an array")?;
+    let mut candidates_by_kind = BTreeMap::new();
+    for record in candidates {
+        let candidate = &record["candidate"];
+        let kind = candidate["observationKind"]
+            .as_str()
+            .ok_or("serialized candidate missing observationKind")?;
+        candidates_by_kind.insert(kind.to_owned(), candidate);
+    }
+
+    let retrieval_quality = candidates_by_kind
+        .get("retrieval-quality-proof")
+        .ok_or("missing retrieval-quality-proof observation")?;
+    assert_eq!(retrieval_quality["queryId"], "x06-q-local-runtime");
+    assert_eq!(retrieval_quality["route"], "hybrid-fulltext-vector-rerank");
+    assert_eq!(retrieval_quality["expectedTopK"], expected.len());
+    assert_eq!(retrieval_quality["returnedTopK"], result.context.len());
+    assert_json_number_close(&retrieval_quality["recallAtFive"], recall_at_five)?;
+
+    let reranker_lift = candidates_by_kind
+        .get("reranker-lift-proof")
+        .ok_or("missing reranker-lift-proof observation")?;
+    assert_eq!(reranker_lift["queryId"], "x06-q-local-runtime");
     assert_eq!(
-        serialized[0]["candidate"]["observationKind"],
-        "retrieval-quality-proof"
+        reranker_lift["postRerankTopK"].as_array().map(Vec::len),
+        Some(result.context.len())
     );
+    assert_eq!(reranker_lift["improved"], result.reranker_lift >= 0.0);
+    assert_json_number_close(&reranker_lift["liftScore"], result.reranker_lift)?;
+
+    let token_reduction = candidates_by_kind
+        .get("token-reduction-proof")
+        .ok_or("missing token-reduction-proof observation")?;
+    assert_eq!(token_reduction["queryId"], "x06-q-local-runtime");
+    assert_eq!(
+        token_reduction["naiveTokens"],
+        result.token_reduction_estimate.naive_tokens
+    );
+    assert_eq!(
+        token_reduction["contextTokens"],
+        result.token_reduction_estimate.context_tokens
+    );
+
+    let route_choice = candidates_by_kind
+        .get("route-choice-improvement")
+        .ok_or("missing route-choice-improvement observation")?;
+    assert_eq!(route_choice["queryId"], "x06-q-local-runtime");
+    assert_eq!(route_choice["chosenRoute"], "hybrid-fulltext-vector-rerank");
+    assert_eq!(route_choice["alternativeRoute"], "fulltext-only");
+    assert_json_number_close(&route_choice["chosenRouteScore"], recall_at_five)?;
+    assert_json_number_close(&route_choice["alternativeRouteScore"], 0.5)?;
+    assert_json_number_close(&route_choice["improvementDelta"], recall_at_five - 0.5)?;
     Ok(())
 }
 
