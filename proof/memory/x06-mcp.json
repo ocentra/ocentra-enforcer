@@ -15,6 +15,8 @@
       "mcp_cli_live::tools_call_get_graph_schema_on_a_real_fixture_repo_returns_structured_content",
       "mcp_cli_live::tools_call_index_repository_on_a_real_fixture_repo_reports_files_indexed",
       "mcp_cli_live::tools_call_search_graph_regex_mode_returns_real_matches",
+      "mcp_cli_live::tools_call_search_graph_semantic_mode_returns_a_separate_semantic_results_list",
+      "mcp_cli_live::tools_call_search_graph_ort_embedding_missing_cache_falls_back_without_network",
       "mcp_cli_live::tools_call_trace_path_data_flow_mode_reports_call_graph_only_approximation",
       "mcp_cli_live::tools_call_ingest_traces_merges_a_real_runtime_trace_into_the_call_graph"
     ]
@@ -25,6 +27,9 @@
     "fourteenBaselineTools": "covered",
     "x06ModelRuntimeStatusTool": "covered",
     "liveToolCalls": "covered",
-    "typedToolErrors": "covered"
+    "typedToolErrors": "covered",
+    "searchGraphSemanticRuntimeTelemetry": "covered",
+    "cacheOnlyOrtEmbeddingFallback": "covered",
+    "ortProviderSelectionTelemetry": "covered"
   }
 }

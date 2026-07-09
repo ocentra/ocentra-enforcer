@@ -17,6 +17,8 @@ use serde_json::{json, Value};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
+const X06_MCP_PROOF: &str = include_str!("../../../proof/memory/x06-mcp.json");
+
 /// Push `body` (a bare JSON-RPC message, no framing) through the server as
 /// one NDJSON line and return the parsed single-line JSON reply.
 fn send_ndjson(body: &Value) -> Result<Value, Box<dyn Error>> {
@@ -79,6 +81,33 @@ fn send_content_length(body: &Value) -> Result<Value, Box<dyn Error>> {
 
 fn rpc_request(id: i64, method: &str, params: &Value) -> Value {
     json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params })
+}
+
+#[test]
+fn x06_mcp_proof_names_search_graph_runtime_telemetry_evidence() -> TestResult {
+    let proof: Value = serde_json::from_str(X06_MCP_PROOF)?;
+    let tests = proof["result"]["evidenceTests"]
+        .as_array()
+        .ok_or("x06-mcp proof evidenceTests must be an array")?;
+    assert!(tests.iter().any(|test| {
+        test == "mcp_cli_live::tools_call_search_graph_semantic_mode_returns_a_separate_semantic_results_list"
+    }));
+    assert!(tests.iter().any(|test| {
+        test == "mcp_cli_live::tools_call_search_graph_ort_embedding_missing_cache_falls_back_without_network"
+    }));
+    assert_eq!(
+        proof["hardRequirements"]["searchGraphSemanticRuntimeTelemetry"],
+        json!("covered")
+    );
+    assert_eq!(
+        proof["hardRequirements"]["cacheOnlyOrtEmbeddingFallback"],
+        json!("covered")
+    );
+    assert_eq!(
+        proof["hardRequirements"]["ortProviderSelectionTelemetry"],
+        json!("covered")
+    );
+    Ok(())
 }
 
 // ---------------------------------------------------------------------
