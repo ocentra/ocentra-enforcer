@@ -17,7 +17,7 @@ use crate::model_cache::{
     MODEL_CACHE_SCHEMA_VERSION,
 };
 use crate::model_runtime::{
-    sha256_file, ModelTask, DEFAULT_EMBEDDING_GGUF_FILE, DEFAULT_EMBEDDING_GGUF_REPO,
+    sha256_file, ModelSpec, ModelTask, DEFAULT_EMBEDDING_GGUF_FILE, DEFAULT_EMBEDDING_GGUF_REPO,
     DEFAULT_EMBEDDING_ONNX_FILE, DEFAULT_EMBEDDING_ONNX_REPO, DEFAULT_MODEL_REVISION,
     DEFAULT_ORNITH_GGUF_FILE, DEFAULT_ORNITH_GGUF_REPO, DEFAULT_RERANKER_ONNX_FILE,
     DEFAULT_RERANKER_ONNX_REPO,
@@ -1009,6 +1009,48 @@ pub fn resolve_cached_hf_model_from_manifest(
         cache_dir,
         manifest_path,
         downloaded_files,
+    })
+}
+
+pub fn resolve_cached_hf_model_spec(
+    spec: &HfModelSpec,
+    cache_root: &Path,
+    dimension: usize,
+) -> Result<ModelSpec> {
+    let report = resolve_cached_hf_model_from_manifest(spec, cache_root)
+        .or_else(|_| resolve_cached_hf_model(spec, cache_root))?;
+    let artifact = report
+        .downloaded_files
+        .iter()
+        .find(|file| {
+            spec.files
+                .iter()
+                .any(|entry| entry.path == file.source_path)
+        })
+        .ok_or_else(|| {
+            model_error(
+                "resolve-cached-hf-model-spec",
+                "resolved cache report did not contain the requested model artifact",
+            )
+        })?;
+    let tokenizer_path = report.cache_dir.join("tokenizer.json");
+    if !tokenizer_path.is_file() {
+        return Err(model_error(
+            "resolve-cached-hf-model-spec",
+            format!("cached tokenizer is missing: {}", tokenizer_path.display()),
+        ));
+    }
+    let tokenizer_sha256 = sha256_file(&tokenizer_path)?;
+    Ok(ModelSpec {
+        model_id: spec.model_id.clone(),
+        revision: spec.revision.clone(),
+        artifact_path: artifact.local_path.clone(),
+        artifact_sha256: artifact.sha256.clone(),
+        tokenizer_path,
+        tokenizer_sha256,
+        dtype: "f32".to_owned(),
+        dimension,
+        task: spec.task,
     })
 }
 

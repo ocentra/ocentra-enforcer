@@ -314,6 +314,9 @@ fn tool_input_schema(name: &str) -> Value {
                 "excludeEntryPoints": { "type": "boolean", "default": false },
                 "includeConnected": { "type": "boolean", "default": false },
                 "semanticQuery": { "type": "array", "items": { "type": "string" } },
+                "embeddingBackend": { "type": "string", "enum": ["hashing", "ort"], "default": "hashing", "description": "Semantic mode only. \"hashing\" is the zero-network degraded default. \"ort\" attempts cache-only Qwen3 embedding ONNX loading from embeddingCacheRoot and falls back to hashing on unavailable cache/provider." },
+                "embeddingCacheRoot": { "type": "string", "description": "Cache root for embeddingBackend=\"ort\"; no network is attempted." },
+                "embeddingDimension": { "type": "integer", "minimum": 1, "default": 1024 },
                 "offset": { "type": "integer", "minimum": 0, "default": 0 },
                 "mode": { "type": "string", "enum": ["bm25", "regex", "semantic"], "default": "bm25", "description": "All three modes are wired: bm25 (fulltext::FullTextIndex, the minimal {repoPath,query} shape), regex (namePattern/qnPattern + filters), and semantic (semanticQuery, combined with the regex path per crate::search::search_graph's mode-interaction contract)." },
                 "limit": { "type": "integer", "minimum": 1, "default": 100, "description": "Matches the baseline's actual BM25_DEFAULT_LIMIT code default (100), not its docstring's claim of 200 -- refs/x06-baseline-tool-schemas.md §2.1." }
@@ -1239,7 +1242,7 @@ fn handle_search_graph(args: &Value) -> Value {
         Err(err) => return err,
     };
 
-    let embedder = crate::embed::LocalEmbedder::default();
+    let embedder = resolve_search_graph_embedder(args);
     let semantic_docs = documents_from_graph(&graph);
     let doc_texts: Vec<(String, String)> = semantic_docs
         .iter()
@@ -1271,6 +1274,36 @@ fn handle_search_graph(args: &Value) -> Value {
         }),
         Err(source) => tool_error("search_graph", format!("{source}")),
     }
+}
+
+fn resolve_search_graph_embedder(args: &Value) -> crate::embed::LocalEmbedder {
+    if args
+        .get("embeddingBackend")
+        .and_then(Value::as_str)
+        .is_some_and(|value| value == "ort")
+    {
+        if let Some(cache_root) = args.get("embeddingCacheRoot").and_then(Value::as_str) {
+            let dimension = args
+                .get("embeddingDimension")
+                .and_then(Value::as_u64)
+                .and_then(|value| usize::try_from(value).ok())
+                .unwrap_or(1024);
+            let hf_spec = crate::hf_cache::HfModelSpec::qwen3_embedding_onnx();
+            if let Ok(spec) = crate::hf_cache::resolve_cached_hf_model_spec(
+                &hf_spec,
+                std::path::Path::new(cache_root),
+                dimension,
+            ) {
+                if let Ok(embedder) = crate::embed::LocalEmbedder::try_ort(
+                    &spec,
+                    crate::model_runtime::ProviderKind::Cpu,
+                ) {
+                    return embedder;
+                }
+            }
+        }
+    }
+    crate::embed::LocalEmbedder::default()
 }
 
 // ---------------------------------------------------------------------

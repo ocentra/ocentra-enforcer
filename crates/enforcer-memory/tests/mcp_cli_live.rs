@@ -348,6 +348,34 @@ fn tools_call_search_graph_semantic_mode_returns_a_separate_semantic_results_lis
 }
 
 #[test]
+fn tools_call_search_graph_ort_embedding_missing_cache_falls_back_without_network() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let cache = tempfile::tempdir()?;
+    write_fixture_repo(dir.path())?;
+
+    let reply = send_ndjson(&rpc_request(
+        31,
+        "tools/call",
+        &json!({
+            "name": "search_graph",
+            "arguments": {
+                "repoPath": dir.path().to_string_lossy(),
+                "namePattern": ".*",
+                "semanticQuery": ["helper"],
+                "embeddingBackend": "ort",
+                "embeddingCacheRoot": cache.path().join("missing-cache").to_string_lossy()
+            }
+        }),
+    ))?;
+    let result = &reply["result"];
+    assert_eq!(result["isError"], json!(false));
+    let structured = &result["structuredContent"];
+    assert_eq!(structured["ok"], json!(true));
+    assert!(structured["semanticResults"].is_array());
+    Ok(())
+}
+
+#[test]
 fn tools_call_trace_path_data_flow_mode_reports_call_graph_only_approximation() -> TestResult {
     let dir = tempfile::tempdir()?;
     write_fixture_repo(dir.path())?;
