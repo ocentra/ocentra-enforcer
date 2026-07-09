@@ -1598,17 +1598,17 @@
       "query": "Find files with highest churn.",
       "expectedIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:50",
+        "churn:proof/memory/x06-rag-qa.json:51",
         "churn:proof/memory/x06-feature-parity.json:49",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:44"
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:45"
       ],
       "actualIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:50",
+        "churn:proof/memory/x06-rag-qa.json:51",
         "churn:proof/memory/x06-feature-parity.json:49",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:44"
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:45"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,

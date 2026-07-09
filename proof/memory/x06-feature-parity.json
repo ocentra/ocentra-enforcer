@@ -129,6 +129,8 @@
   "qaRowsGreenReal": 0,
   "qaRowsGreenHostLocalProof": 3,
   "qaRowsGreenDegraded": 247,
+  "degradedRowsAcceptedAsFeatureParity": false,
+  "hostLocalRowsAcceptedAsCiParity": false,
   "kgParityComparedAgainstBaseline": true,
   "mcpCliParity": true,
   "localDenseRetrievalPresent": true,

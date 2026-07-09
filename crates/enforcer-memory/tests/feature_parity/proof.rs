@@ -221,6 +221,10 @@ pub struct FeatureParityDocument {
     pub qa_rows_green_host_local_proof: usize,
     #[serde(rename = "qaRowsGreenDegraded")]
     pub qa_rows_green_degraded: usize,
+    #[serde(rename = "degradedRowsAcceptedAsFeatureParity")]
+    pub degraded_rows_accepted_as_feature_parity: bool,
+    #[serde(rename = "hostLocalRowsAcceptedAsCiParity")]
+    pub host_local_rows_accepted_as_ci_parity: bool,
     #[serde(rename = "kgParityComparedAgainstBaseline")]
     pub kg_parity_compared_against_baseline: bool,
     #[serde(rename = "mcpCliParity")]
@@ -320,6 +324,8 @@ pub fn build_feature_parity_document(
         qa_rows_green_real,
         qa_rows_green_host_local_proof,
         qa_rows_green_degraded,
+        degraded_rows_accepted_as_feature_parity: false,
+        host_local_rows_accepted_as_ci_parity: false,
         kg_parity_compared_against_baseline,
         mcp_cli_parity,
         local_dense_retrieval_present,
@@ -426,6 +432,8 @@ mod tests {
         assert_eq!(feature_document.qa_rows_green_real, 0);
         assert_eq!(feature_document.qa_rows_green_host_local_proof, 1);
         assert_eq!(feature_document.qa_rows_green_degraded, 1);
+        assert!(!feature_document.degraded_rows_accepted_as_feature_parity);
+        assert!(!feature_document.host_local_rows_accepted_as_ci_parity);
     }
 
     #[test]
