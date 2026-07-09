@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "artifact": "x06-models-ort-provider-policy",
+  "runtimeMode": "plan",
+  "allowNetwork": false,
+  "proofScope": {
+    "ciParity": false,
+    "portability": "portable-contract",
+    "localHardwareRequired": false,
+    "reason": "Provider policy proof only; real ORT hardware probes remain local-runtime proof artifacts."
+  },
+  "backend": "onnx",
+  "executionRoute": "enforcer-isolated-ort-worker",
+  "ownership": "enforcer-isolated-worker",
+  "requestProtocol": "enforcer-worker-env",
+  "externalServerAllowed": false,
+  "portBindingAllowed": false,
+  "inProcessAllowedForParity": false,
+  "providerPolicy": {
+    "cpu": {
+      "provider": "cpu",
+      "resourceClass": "cpu",
+      "probeRequired": false,
+      "fallbackProvider": null,
+      "usableWithoutHardwareProbe": true
+    },
+    "gpu": {
+      "providers": [
+        "cuda",
+        "direct-ml",
+        "open-vino",
+        "vulkan",
+        "core-ml"
+      ],
+      "resourceClass": "gpu",
+      "probeRequired": true,
+      "fallbackProvider": "cpu",
+      "usableWithoutHardwareProbe": false
+    },
+    "npu": {
+      "provider": "npu",
+      "resourceClass": "npu",
+      "probeRequired": true,
+      "fallbackProvider": "cpu",
+      "usableWithoutHardwareProbe": false,
+      "openVinoCompatibility": "NPU execution is admitted only when the ORT provider probe reports npu/open-vino availability for the machine."
+    }
+  },
+  "providerResolutionExamples": [
+    {
+      "case": "cpu-default",
+      "requestedProvider": "cpu",
+      "availableProviders": [
+        "cpu"
+      ],
+      "resolvedProvider": "cpu",
+      "providerProbePassed": false,
+      "downgradeReason": null
+    },
+    {
+      "case": "gpu-unprobed-downgrade",
+      "requestedProvider": "open-vino",
+      "availableProviders": [
+        "cpu"
+      ],
+      "resolvedProvider": "cpu",
+      "providerProbePassed": false,
+      "downgradeReason": "requested ORT provider open-vino but provider probe did not report it available; downgraded to cpu"
+    },
+    {
+      "case": "npu-probed",
+      "requestedProvider": "npu",
+      "availableProviders": [
+        "npu",
+        "cpu"
+      ],
+      "resolvedProvider": "npu",
+      "providerProbePassed": true,
+      "downgradeReason": null
+    }
+  ],
+  "childEnvironment": [
+    "ENFORCER_X06_ORT_CHILD_TASK",
+    "ENFORCER_X06_CHILD_PROVIDER",
+    "ENFORCER_X06_CHILD_REQUESTED_PROVIDER",
+    "ENFORCER_X06_CHILD_AVAILABLE_PROVIDERS",
+    "ENFORCER_X06_CHILD_PROVIDER_PROBE_PASSED",
+    "ENFORCER_X06_CHILD_MODEL_ID",
+    "ENFORCER_X06_CHILD_ARTIFACT_PATH",
+    "ENFORCER_X06_CHILD_ARTIFACT_SHA256",
+    "ENFORCER_X06_CHILD_TOKENIZER_PATH",
+    "ENFORCER_X06_CHILD_TOKENIZER_SHA256",
+    "ENFORCER_X06_ORT_TIMEOUT_MS"
+  ],
+  "learningSignals": [
+    "ort-accelerated-provider-requires-positive-probe",
+    "ort-unprobed-acceleration-downgraded-before-child-spawn",
+    "ort-npu-admitted-only-with-provider-evidence",
+    "ort-worker-owned-env-contract-required"
+  ],
+  "evidence": [
+    "crates/enforcer-memory/src/local_runtime.rs::resolve_ort_provider",
+    "crates/enforcer-memory/src/local_runtime.rs::validate_ort_worker_execution_plan",
+    "crates/enforcer-memory/tests/local_runtime.rs::ort_provider_resolution_downgrades_unprobed_acceleration_to_cpu",
+    "crates/enforcer-memory/tests/local_runtime.rs::ort_provider_resolution_accepts_probed_npu_without_duplicate_cpu"
+  ]
+}

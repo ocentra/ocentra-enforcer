@@ -425,6 +425,14 @@
         "provider": "portable-plan",
         "runtimeMode": "plan",
         "status": "multi-probe-plan-variant"
+      },
+      {
+        "artifactPath": "proof/memory/x06-models-ort-provider-policy.json",
+        "ciParity": false,
+        "localHardwareRequired": false,
+        "provider": "portable-ort-provider-policy",
+        "runtimeMode": "plan",
+        "status": "cpu-gpu-npu-provider-policy"
       }
     ]
   }
