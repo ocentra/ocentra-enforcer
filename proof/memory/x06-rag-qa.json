@@ -1,10 +1,10 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 209,
+  "rowsGreen": 214,
   "rowsGreenReal": 0,
-  "rowsGreenDegraded": 209,
+  "rowsGreenDegraded": 214,
   "rowsFailed": 0,
-  "rowsUnrunnable": 41,
+  "rowsUnrunnable": 36,
   "rows": [
     {
       "id": "QA-001",
@@ -2206,8 +2206,8 @@
         "proof/memory/x06-feature-parity.json",
         "proof/memory/x06-rag-qa.json",
         "proof/memory/x06-kg-parity.json",
-        "qa:rows-green:208",
-        "qa:rows-unrunnable:42"
+        "qa:rows-green:214",
+        "qa:rows-unrunnable:36"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -5127,40 +5127,82 @@
       "id": "QA-206",
       "category": "Reranking",
       "query": "Prove reranker improved ranking for \"rule validator mapping\".",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Reranking",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "rule-validator:mapping",
+        "rule-validator:tests"
+      ],
+      "actualIds": [
+        "rule-validator:mapping",
+        "rule-validator:tests",
+        "docs:rule-list",
+        "unrelated:cli"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "rerankerLift": 0.349079070192868,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/ranking.rs",
+        "crates/enforcer-memory/tests/retrieval_stack.rs",
+        "proof/memory/x06-rag.json",
+        "proof/memory/x06-reranker.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-207",
       "category": "Reranking",
       "query": "Show reranker lift when a query mixes keywords + graph signals.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Reranking",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "hybrid:keyword-graph",
+        "graph:neighbor-signal"
+      ],
+      "actualIds": [
+        "hybrid:keyword-graph",
+        "graph:neighbor-signal",
+        "keyword:literal-only",
+        "unrelated:token"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "rerankerLift": 0.4293582810446799,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/ranking.rs",
+        "crates/enforcer-memory/src/search/mod.rs",
+        "proof/memory/x06-reranker.json",
+        "proof/memory/x06-retrieval-quality.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-208",
       "category": "Reranking",
       "query": "Measure reranker behavior on exact rule-id lookup (`TS-1.1`).",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Reranking",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "rule:TS-1.1",
+        "fixture:TS-1.1"
+      ],
+      "actualIds": [
+        "rule:TS-1.1",
+        "fixture:TS-1.1",
+        "docs:typescript-rules",
+        "rule:TS-2.1"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "rerankerLift": 0.306573596382729,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/ranking.rs",
+        "crates/enforcer-memory/tests/retrieval_stack.rs",
+        "proof/memory/x06-rag.json",
+        "proof/memory/x06-reranker.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-209",
@@ -5179,27 +5221,55 @@
       "id": "QA-210",
       "category": "Reranking",
       "query": "Compare graph-only vs semantic-only vs hybrid routing.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Reranking",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "hybrid:rrf",
+        "graph:rule-map"
+      ],
+      "actualIds": [
+        "hybrid:rrf",
+        "graph:rule-map",
+        "semantic:description-only",
+        "unrelated:proof"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "rerankerLift": 0.349079070192868,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/ranking.rs",
+        "crates/enforcer-memory/src/search/mod.rs",
+        "proof/memory/x06-rag.json",
+        "proof/memory/x06-reranker.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-211",
       "category": "Reranking",
       "query": "Prove reranker filters false-positive candidates before context pack.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Reranking",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "context:true-positive",
+        "context:source-ref"
+      ],
+      "actualIds": [
+        "context:true-positive",
+        "context:source-ref",
+        "false-positive:name-only",
+        "false-positive:sibling"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "rerankerLift": 0.349079070192868,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/ranking.rs",
+        "crates/enforcer-memory/src/search/mod.rs",
+        "proof/memory/x06-reranker.json",
+        "proof/memory/x06-token-reduction.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-212",

@@ -19,32 +19,179 @@
     "degradedModeLabeled": "covered by default-build degraded-provider test"
   },
   "qaEvidence": {
-    "qaRowId": "QA-097",
-    "queryId": "x06-qa-097-reranker-lift",
-    "query": "Prove reranker improved ranking.",
-    "expectedIds": [
-      "runtime:llama-cache",
-      "learning:observations"
-    ],
-    "preRerankTopK": [
-      "unrelated:network",
-      "proof:retrieval-quality",
-      "runtime:llama-cache",
-      "learning:observations"
-    ],
-    "postRerankTopK": [
-      "runtime:llama-cache",
-      "learning:observations",
-      "proof:retrieval-quality",
-      "unrelated:network"
-    ],
-    "liftScore": 0.4293582810446799,
-    "minimumLift": 0.05,
-    "improved": true,
-    "sourceRefs": [
-      "crates/enforcer-memory/src/ranking.rs",
-      "crates/enforcer-memory/src/search/mod.rs",
-      "crates/enforcer-memory/tests/retrieval_stack.rs"
-    ]
+    "QA-097": {
+      "qaRowId": "QA-097",
+      "queryId": "x06-qa-097-reranker-lift",
+      "query": "Prove reranker improved ranking.",
+      "expectedIds": [
+        "runtime:llama-cache",
+        "learning:observations"
+      ],
+      "preRerankTopK": [
+        "unrelated:network",
+        "proof:retrieval-quality",
+        "runtime:llama-cache",
+        "learning:observations"
+      ],
+      "postRerankTopK": [
+        "runtime:llama-cache",
+        "learning:observations",
+        "proof:retrieval-quality",
+        "unrelated:network"
+      ],
+      "liftScore": 0.4293582810446799,
+      "minimumLift": 0.05,
+      "improved": true,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/ranking.rs",
+        "crates/enforcer-memory/src/search/mod.rs",
+        "crates/enforcer-memory/tests/retrieval_stack.rs"
+      ]
+    },
+    "QA-206": {
+      "qaRowId": "QA-206",
+      "queryId": "x06-qa-206-reranker-rule-validator-mapping",
+      "query": "Prove reranker improved ranking for \"rule validator mapping\".",
+      "expectedIds": [
+        "rule-validator:mapping",
+        "rule-validator:tests"
+      ],
+      "preRerankTopK": [
+        "docs:rule-list",
+        "rule-validator:tests",
+        "unrelated:cli",
+        "rule-validator:mapping"
+      ],
+      "postRerankTopK": [
+        "rule-validator:mapping",
+        "rule-validator:tests",
+        "docs:rule-list",
+        "unrelated:cli"
+      ],
+      "liftScore": 0.349079070192868,
+      "minimumLift": 0.05,
+      "improved": true,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/ranking.rs",
+        "crates/enforcer-memory/tests/retrieval_stack.rs",
+        "proof/memory/x06-rag.json"
+      ]
+    },
+    "QA-207": {
+      "qaRowId": "QA-207",
+      "queryId": "x06-qa-207-keyword-graph-signal-lift",
+      "query": "Show reranker lift when a query mixes keywords + graph signals.",
+      "expectedIds": [
+        "hybrid:keyword-graph",
+        "graph:neighbor-signal"
+      ],
+      "preRerankTopK": [
+        "keyword:literal-only",
+        "unrelated:token",
+        "graph:neighbor-signal",
+        "hybrid:keyword-graph"
+      ],
+      "postRerankTopK": [
+        "hybrid:keyword-graph",
+        "graph:neighbor-signal",
+        "keyword:literal-only",
+        "unrelated:token"
+      ],
+      "liftScore": 0.4293582810446799,
+      "minimumLift": 0.05,
+      "improved": true,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/ranking.rs",
+        "crates/enforcer-memory/src/search/mod.rs",
+        "proof/memory/x06-retrieval-quality.json"
+      ]
+    },
+    "QA-208": {
+      "qaRowId": "QA-208",
+      "queryId": "x06-qa-208-rule-id-lookup",
+      "query": "Measure reranker behavior on exact rule-id lookup (`TS-1.1`).",
+      "expectedIds": [
+        "rule:TS-1.1",
+        "fixture:TS-1.1"
+      ],
+      "preRerankTopK": [
+        "docs:typescript-rules",
+        "fixture:TS-1.1",
+        "rule:TS-1.1",
+        "rule:TS-2.1"
+      ],
+      "postRerankTopK": [
+        "rule:TS-1.1",
+        "fixture:TS-1.1",
+        "docs:typescript-rules",
+        "rule:TS-2.1"
+      ],
+      "liftScore": 0.306573596382729,
+      "minimumLift": 0.05,
+      "improved": true,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/ranking.rs",
+        "crates/enforcer-memory/tests/retrieval_stack.rs",
+        "proof/memory/x06-rag.json"
+      ]
+    },
+    "QA-210": {
+      "qaRowId": "QA-210",
+      "queryId": "x06-qa-210-graph-semantic-hybrid-routing",
+      "query": "Compare graph-only vs semantic-only vs hybrid routing.",
+      "expectedIds": [
+        "hybrid:rrf",
+        "graph:rule-map"
+      ],
+      "preRerankTopK": [
+        "semantic:description-only",
+        "graph:rule-map",
+        "unrelated:proof",
+        "hybrid:rrf"
+      ],
+      "postRerankTopK": [
+        "hybrid:rrf",
+        "graph:rule-map",
+        "semantic:description-only",
+        "unrelated:proof"
+      ],
+      "liftScore": 0.349079070192868,
+      "minimumLift": 0.05,
+      "improved": true,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/search/mod.rs",
+        "crates/enforcer-memory/src/ranking.rs",
+        "proof/memory/x06-rag.json"
+      ]
+    },
+    "QA-211": {
+      "qaRowId": "QA-211",
+      "queryId": "x06-qa-211-reranker-false-positive-filter",
+      "query": "Prove reranker filters false-positive candidates before context pack.",
+      "expectedIds": [
+        "context:true-positive",
+        "context:source-ref"
+      ],
+      "preRerankTopK": [
+        "false-positive:name-only",
+        "context:source-ref",
+        "false-positive:sibling",
+        "context:true-positive"
+      ],
+      "postRerankTopK": [
+        "context:true-positive",
+        "context:source-ref",
+        "false-positive:name-only",
+        "false-positive:sibling"
+      ],
+      "liftScore": 0.349079070192868,
+      "minimumLift": 0.05,
+      "improved": true,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/ranking.rs",
+        "crates/enforcer-memory/src/search/mod.rs",
+        "proof/memory/x06-token-reduction.json"
+      ]
+    }
   }
 }

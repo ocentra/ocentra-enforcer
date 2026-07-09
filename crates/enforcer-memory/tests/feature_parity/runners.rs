@@ -1911,10 +1911,10 @@ const EXACT_QA_EVIDENCE_IDS: &[&str] = &[
     "QA-164", "QA-165", "QA-166", "QA-167", "QA-168", "QA-169", "QA-170", "QA-171", "QA-172",
     "QA-173", "QA-174", "QA-186", "QA-189", "QA-191", "QA-192", "QA-193", "QA-194", "QA-195",
     "QA-196", "QA-197", "QA-198", "QA-199", "QA-200", "QA-201", "QA-202", "QA-203", "QA-204",
-    "QA-205", "QA-213", "QA-214", "QA-215", "QA-216", "QA-217", "QA-218", "QA-219", "QA-226",
-    "QA-229", "QA-230", "QA-231", "QA-232", "QA-233", "QA-234", "QA-235", "QA-236", "QA-237",
-    "QA-238", "QA-239", "QA-240", "QA-241", "QA-242", "QA-243", "QA-244", "QA-245", "QA-246",
-    "QA-247", "QA-248", "QA-249", "QA-250",
+    "QA-205", "QA-206", "QA-207", "QA-208", "QA-210", "QA-211", "QA-213", "QA-214", "QA-215",
+    "QA-216", "QA-217", "QA-218", "QA-219", "QA-226", "QA-229", "QA-230", "QA-231", "QA-232",
+    "QA-233", "QA-234", "QA-235", "QA-236", "QA-237", "QA-238", "QA-239", "QA-240", "QA-241",
+    "QA-242", "QA-243", "QA-244", "QA-245", "QA-246", "QA-247", "QA-248", "QA-249", "QA-250",
 ];
 
 impl RowRunner for ExactQaEvidenceRunner {
@@ -2042,6 +2042,7 @@ impl RowRunner for ExactQaEvidenceRunner {
             "QA-203" => workpack_proof_validation_probe(row),
             "QA-204" => domain_newtype_examples_probe(row),
             "QA-205" => fail_closed_parity_oracle_probe(row),
+            "QA-206" | "QA-207" | "QA-208" | "QA-210" | "QA-211" => reranker_lift_probe(row),
             "QA-049" => hot_memory_probe(row),
             "QA-050" => warm_memory_probe(row),
             "QA-051" => cold_memory_probe(row),
@@ -7216,9 +7217,10 @@ fn reranker_lift_probe(row: &QaRow) -> RowResult {
         Ok(artifact) => artifact,
         Err(error) => return unrunnable(row, &format!("failed to parse {rel}: {error}")),
     };
-    let Some(evidence) = artifact.get("qaEvidence") else {
+    let Some(root_evidence) = artifact.get("qaEvidence") else {
         return unrunnable(row, "x06-reranker proof lacks qaEvidence");
     };
+    let evidence = root_evidence.get(row.id.as_str()).unwrap_or(root_evidence);
     if evidence.get("qaRowId").and_then(serde_json::Value::as_str) != Some(row.id.as_str()) {
         return unrunnable(row, "x06-reranker qaEvidence does not target this QA row");
     }
