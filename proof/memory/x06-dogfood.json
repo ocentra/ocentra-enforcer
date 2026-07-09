@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-dogfood",
-  "generatedAt": "2026-07-09T12:51:38.197Z",
+  "generatedAt": "2026-07-09T13:00:00.000Z",
   "hub": "ocentra-enforcer",
   "stateRoot": "<ledger>/ocentra-enforcer",
   "lane": "codex-x06-harvest-sync",
@@ -126,6 +126,11 @@
     "node scripts/x06-enforcer-memory-sharded-test.mjs --list --write-proof proof/memory/x06-test-shards.json passed and discovered 232 current enforcer-memory integration test targets across deterministic categories",
     "node scripts/x06-enforcer-memory-sharded-test.mjs --only local --write-proof proof/memory/x06-test-shards-local-exec.json passed and executed cargo test -p enforcer-memory --test local_runtime --quiet -j 1 through the sharded runner",
     "node scripts/x06-enforcer-memory-sharded-test.mjs --shard N/8 --write-proof proof/memory/x06-test-shards-N-of-8.json passed for N=1..8; proof/memory/x06-test-shards-rollup.json records 232 unique executed targets and allShardsOk=true",
+    "cargo test -p enforcer-memory --test model_runtime_real_contract real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in --quiet -j 1 passed after wiring runtime_probe.rs through ort_worker_command and requiring owned-worker proof fields",
+    "cargo test -p enforcer-memory --test local_runtime ort_worker_command_uses_owned_worker_args_and_env_without_server_surface --quiet -j 1 passed after the runtime probe began reusing the shared ORT command seam",
+    "cargo check -p enforcer-memory --features real-models --example x06_model_runtime_probe and cargo clippy -p enforcer-memory --features real-models --example x06_model_runtime_probe -- -D warnings passed after ORT worker proof contract stamping",
+    "rustfmt --check crates/enforcer-memory/src/runtime_probe.rs crates/enforcer-memory/tests/model_runtime_real_contract.rs passed after workspace cargo fmt --check hit Windows os error 206 path-length friction",
+    "ocentra_enforcer_check source-shape and secrets scope=files passed for runtime_probe.rs and model_runtime_real_contract.rs; generic ocentra_enforcer_scan still expanded into existing Cargo.toml/Cargo.lock dependency debt outside this runtime patch",
     "cargo test -p enforcer-memory --test unit_store_sqlite store_backed_projection_rebuilds_from_a_real_code_graph_fixture -- --exact passed after GPH Store-backed projection proof",
     "cargo test -p enforcer-memory --test unit_store_sqlite --quiet passed after GPH Store-backed projection proof",
     "hardcoded-path scan over changed QA/GPH proof files returned no drive-root, user-profile, or rust-build-sync machine-path matches after source refs were normalized to repo-relative paths",
@@ -1211,6 +1216,18 @@
     {
       "shape": "t2",
       "evidence": "node scripts/x06-enforcer-memory-sharded-test.mjs --list --write-proof proof/memory/x06-test-shards.json produced a 232-target deterministic manifest; node scripts/x06-enforcer-memory-sharded-test.mjs --only local --write-proof proof/memory/x06-test-shards-local-exec.json executed the local_runtime target successfully; node scripts/x06-enforcer-memory-sharded-test.mjs --shard N/8 --write-proof proof/memory/x06-test-shards-N-of-8.json passed for N=1..8, and proof/memory/x06-test-shards-rollup.json records 232 unique executed targets with allShardsOk=true."
+    },
+    {
+      "shape": "t0",
+      "incident": "The real-model ORT probe already spawned an isolated child, but it hand-built the child command instead of reusing the audited ort_worker_command seam that proves args, env, null stdin, piped output, no server surface, and no port binding."
+    },
+    {
+      "shape": "t1",
+      "fix": "Changed runtime_probe.rs to build the ORT child process through ort_worker_command and to stamp successful ORT child proof JSON with workerTask, provider, ownership, requestProtocol, externalServerAllowed, portBindingAllowed, killOnTimeout, and timeoutMs from the validated plan."
+    },
+    {
+      "shape": "t2",
+      "evidence": "cargo test -p enforcer-memory --test model_runtime_real_contract real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in --quiet -j 1, cargo test -p enforcer-memory --test local_runtime ort_worker_command_uses_owned_worker_args_and_env_without_server_surface --quiet -j 1, cargo check -p enforcer-memory --features real-models --example x06_model_runtime_probe, and cargo clippy -p enforcer-memory --features real-models --example x06_model_runtime_probe -- -D warnings all passed; source-shape and secrets checks over the touched runtime files passed."
     }
   ]
 }

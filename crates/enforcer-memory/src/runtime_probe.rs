@@ -19,7 +19,6 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
 pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
     use std::io::Write as _;
     use std::path::{Path, PathBuf};
-    use std::process::{Command, Stdio};
     use std::time::Duration;
     use std::time::Instant;
 
@@ -33,8 +32,8 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
         LlamaCppBackendHint, LlamaCppExecutionResolution, LlamaCppProbeConfig, LlamaCppProbeKind,
     };
     use crate::local_runtime::{
-        ort_worker_execution_plan, provider_from_env_value, runtime_backend_contract,
-        LocalRuntimeAcceleration, OrtWorkerTask,
+        ort_worker_command, ort_worker_execution_plan, provider_from_env_value,
+        runtime_backend_contract, LocalRuntimeAcceleration, OrtWorkerExecutionPlan, OrtWorkerTask,
     };
     use crate::model_observations::{
         LocalLoadSucceeded, ModelLoadFailure, ModelRuntimeObservationCandidate,
@@ -1166,11 +1165,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
             timeout_ms,
         )
         .map_err(|error| error.to_string())?;
-        let mut command = Command::new(&plan.executable_path);
-        command
-            .envs(plan.env.iter().map(|(key, value)| (key, value)))
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+        let mut command = ort_worker_command(&plan).map_err(|error| error.to_string())?;
         let mut child = command.spawn().map_err(|error| error.to_string())?;
         let timeout = Duration::from_millis(timeout_ms);
         let mut timed_out = false;
@@ -1211,7 +1206,35 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
                 "stdout": excerpt_tail(&stdout, 4096)
             }));
         }
-        serde_json::from_str(stdout.trim()).map_err(|error| error.to_string())
+        let mut proof: serde_json::Value =
+            serde_json::from_str(stdout.trim()).map_err(|error| error.to_string())?;
+        attach_ort_worker_contract(&mut proof, &plan);
+        Ok(proof)
+    }
+
+    fn attach_ort_worker_contract(proof: &mut serde_json::Value, plan: &OrtWorkerExecutionPlan) {
+        if let Some(object) = proof.as_object_mut() {
+            object.insert("workerTask".to_owned(), serde_json::json!(plan.task));
+            object.insert("provider".to_owned(), serde_json::json!(plan.provider));
+            object.insert("ownership".to_owned(), serde_json::json!(plan.ownership));
+            object.insert(
+                "requestProtocol".to_owned(),
+                serde_json::json!(plan.request_protocol),
+            );
+            object.insert(
+                "externalServerAllowed".to_owned(),
+                serde_json::json!(plan.external_server_allowed),
+            );
+            object.insert(
+                "portBindingAllowed".to_owned(),
+                serde_json::json!(plan.port_binding_allowed),
+            );
+            object.insert(
+                "killOnTimeout".to_owned(),
+                serde_json::json!(plan.kill_on_timeout),
+            );
+            object.insert("timeoutMs".to_owned(), serde_json::json!(plan.timeout_ms));
+        }
     }
 
     fn run_ort_child(child_task: &str) -> serde_json::Value {
