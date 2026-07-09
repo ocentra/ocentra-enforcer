@@ -1,10 +1,10 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 203,
+  "rowsGreen": 205,
   "rowsGreenReal": 0,
-  "rowsGreenDegraded": 203,
+  "rowsGreenDegraded": 205,
   "rowsFailed": 0,
-  "rowsUnrunnable": 47,
+  "rowsUnrunnable": 45,
   "rows": [
     {
       "id": "QA-001",
@@ -1296,27 +1296,63 @@
       "id": "QA-061",
       "category": "Repository",
       "query": "Find commit that introduced this function.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_DECISIONS.md does not contain expected evidence marker Windows-first with CPU/GPU/NPU routing;",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "retrieval:intel-backend:benchmark",
+        "retrieval:intel-backend:decision",
+        "retrieval:intel-backend:ort",
+        "retrieval:intel-backend:llama-cpp",
+        "retrieval:intel-backend:probe-policy"
+      ],
+      "actualIds": [
+        "retrieval:intel-backend:benchmark",
+        "retrieval:intel-backend:decision",
+        "retrieval:intel-backend:ort",
+        "retrieval:intel-backend:llama-cpp",
+        "retrieval:intel-backend:probe-policy"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/llama_cpp.rs",
+        "crates/enforcer-memory/src/ort_runtime.rs",
+        "crates/enforcer-memory/src/runtime_probe.rs",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_DECISIONS.md",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-062",
       "category": "Architecture",
       "query": "Find commit that last changed this behavior.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_DECISIONS.md does not contain expected evidence marker the default build remains deterministic and offline",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "retrieval:no-remote:benchmark",
+        "retrieval:no-remote:decision",
+        "retrieval:no-remote:model-cache",
+        "retrieval:no-remote:runtime-state",
+        "retrieval:no-remote:test"
+      ],
+      "actualIds": [
+        "retrieval:no-remote:benchmark",
+        "retrieval:no-remote:decision",
+        "retrieval:no-remote:model-cache",
+        "retrieval:no-remote:runtime-state",
+        "retrieval:no-remote:test"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/model_cache.rs",
+        "crates/enforcer-memory/src/model_runtime.rs",
+        "crates/enforcer-memory/tests/retrieval_stack.rs",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_DECISIONS.md",
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-063",
