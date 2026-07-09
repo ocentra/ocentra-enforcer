@@ -1,4 +1,6 @@
 {
+  "schemaVersion": 1,
+  "status": "green",
   "rowsTotal": 250,
   "rowsGreen": 250,
   "rowsGreenReal": 0,
@@ -1596,16 +1598,16 @@
       "query": "Find files with highest churn.",
       "expectedIds": [
         "churn:Cargo.lock:71",
+        "churn:proof/memory/x06-rag-qa.json:49",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
         "churn:proof/memory/x06-feature-parity.json:48",
-        "churn:proof/memory/x06-rag-qa.json:48",
         "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:44"
       ],
       "actualIds": [
         "churn:Cargo.lock:71",
+        "churn:proof/memory/x06-rag-qa.json:49",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
         "churn:proof/memory/x06-feature-parity.json:48",
-        "churn:proof/memory/x06-rag-qa.json:48",
         "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:44"
       ],
       "recallAt5": 1.0,
@@ -1613,9 +1615,9 @@
       "ndcgAt10": 1.0,
       "sourceRefs": [
         "Cargo.lock",
+        "proof/memory/x06-rag-qa.json",
         "docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md",
         "proof/memory/x06-feature-parity.json",
-        "proof/memory/x06-rag-qa.json",
         "crates/enforcer-memory/tests/feature_parity/runners.rs",
         "git:log:name-only"
       ],

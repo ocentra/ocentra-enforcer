@@ -1,5 +1,12 @@
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
+fn workspace_root() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .components()
+        .collect()
+}
+
 fn looks_like_machine_absolute_path(value: &str) -> bool {
     let chars: Vec<char> = value.chars().collect();
     for index in 0..chars.len().saturating_sub(3) {
@@ -76,6 +83,32 @@ fn assert_ndjson_portable(artifact: &str, body: &str) -> TestResult {
         collect_json_path_leaks(artifact, &format!("line{}", index + 1), &value, &mut leaks);
     }
     assert_eq!(leaks, Vec::<String>::new());
+    Ok(())
+}
+
+#[test]
+fn all_x06_json_proofs_do_not_leak_machine_paths() -> TestResult {
+    let proof_dir = workspace_root().join("proof/memory");
+    let mut checked = Vec::new();
+    for entry in std::fs::read_dir(&proof_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        if !file_name.starts_with("x06-") || !file_name.ends_with(".json") {
+            continue;
+        }
+        let artifact = format!("proof/memory/{file_name}");
+        let body = std::fs::read_to_string(&path)?;
+        assert_json_portable(&artifact, &body)?;
+        checked.push(file_name.to_owned());
+    }
+    checked.sort();
+    assert!(
+        checked.len() >= 50,
+        "expected broad X06 proof coverage, checked only {checked:?}"
+    );
     Ok(())
 }
 

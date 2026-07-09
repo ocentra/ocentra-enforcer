@@ -81,6 +81,9 @@ impl From<&RowResult> for QaProofRow {
 /// never in `rows_green`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct QaProofDocument {
+    #[serde(rename = "schemaVersion")]
+    pub schema_version: u32,
+    pub status: String,
     #[serde(rename = "rowsTotal")]
     pub rows_total: usize,
     #[serde(rename = "rowsGreen")]
@@ -118,7 +121,14 @@ pub fn build_qa_proof_document(results: &[RowResult]) -> QaProofDocument {
         .count();
     let rows_unrunnable = results.iter().filter(|r| r.is_unrunnable()).count();
     let rows_failed = results.len() - rows_green - rows_unrunnable;
+    let status = if rows_failed == 0 && rows_unrunnable == 0 && rows_green == results.len() {
+        "green"
+    } else {
+        "incomplete"
+    };
     QaProofDocument {
+        schema_version: 1,
+        status: status.to_owned(),
         rows_total: results.len(),
         rows_green,
         rows_green_real,
@@ -195,6 +205,9 @@ pub struct MatrixPrefixRow {
 /// `exactArtifactMismatchCount`, `externalModelProviderUsed`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FeatureParityDocument {
+    #[serde(rename = "schemaVersion")]
+    pub schema_version: u32,
+    pub status: String,
     pub prefixes: Vec<MatrixPrefixRow>,
     #[serde(rename = "allMatrixPrefixesGreen")]
     pub all_matrix_prefixes_green: bool,
@@ -291,8 +304,15 @@ pub fn build_feature_parity_document(
     let token_reduction_median_at_least_10x = prefix_statuses
         .get("TOK")
         .is_some_and(|row| row.status.is_green());
+    let status = if all_matrix_prefixes_green && qa_rows_green == qa_results.len() {
+        "green"
+    } else {
+        "incomplete"
+    };
 
     FeatureParityDocument {
+        schema_version: 1,
+        status: status.to_owned(),
         prefixes,
         all_matrix_prefixes_green,
         qa_rows_total: qa_results.len(),
@@ -376,6 +396,8 @@ mod tests {
             unrunnable(&sample_row("QA-002"), "no wired runner"),
         ];
         let document = build_qa_proof_document(&results);
+        assert_eq!(document.schema_version, 1);
+        assert_eq!(document.status, "incomplete");
         assert_eq!(document.rows_total, 2);
         assert_eq!(document.rows_green, 1);
         assert_eq!(document.rows_green_real, 0);
@@ -429,6 +451,8 @@ mod tests {
         let mut prefixes = all_green_prefixes();
         // Sanity: with every prefix green, the aggregate must be true.
         let all_green_document = build_feature_parity_document(&prefixes, &[]);
+        assert_eq!(all_green_document.schema_version, 1);
+        assert_eq!(all_green_document.status, "green");
         assert!(all_green_document.all_matrix_prefixes_green);
 
         // Flip exactly one prefix (QA, this harness's own area) to Red.
@@ -443,6 +467,7 @@ mod tests {
             },
         );
         let one_red_document = build_feature_parity_document(&prefixes, &[]);
+        assert_eq!(one_red_document.status, "incomplete");
         assert!(
             !one_red_document.all_matrix_prefixes_green,
             "a single red prefix must veto the aggregate green claim"
