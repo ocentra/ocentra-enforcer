@@ -6,11 +6,13 @@
 
 use enforcer_memory::error::MemoryError;
 use enforcer_memory::local_runtime::{
-    arbitrate_runtime_workload, onnx_ort_feature_compiled, provider_order, validate_control_plane,
-    validate_fixture, BackendReadiness, LocalRuntimeControlPlane, LocalRuntimeFixture,
-    LocalRuntimeKind, RuntimeActivityState, RuntimeAdmission, RuntimeManagedCapability,
-    RuntimeOwnershipMode, RuntimeWorkload, REQUIRED_MANAGED_CAPABILITIES,
+    arbitrate_runtime_workload, onnx_ort_feature_compiled, ort_worker_execution_plan,
+    provider_from_env_value, provider_order, validate_control_plane, validate_fixture,
+    validate_ort_worker_execution_plan, BackendReadiness, LocalRuntimeControlPlane,
+    LocalRuntimeFixture, LocalRuntimeKind, OrtWorkerTask, RuntimeActivityState, RuntimeAdmission,
+    RuntimeManagedCapability, RuntimeOwnershipMode, RuntimeWorkload, REQUIRED_MANAGED_CAPABILITIES,
 };
+use enforcer_memory::model_runtime::{ModelSpec, ProviderKind};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -210,4 +212,89 @@ fn runtime_arbitration_chat_queues_background_work() {
         decision.reason,
         "chat has priority; queue background model work"
     );
+}
+
+#[test]
+fn ort_worker_plan_materializes_enforcer_owned_child_env_contract() -> TestResult {
+    let spec = ModelSpec::qwen3_embedding(
+        "model/hf/qwen/model.onnx",
+        "abc123",
+        "model/hf/qwen/tokenizer.json",
+        "def456",
+    );
+    let plan = ort_worker_execution_plan(
+        "target/debug/x06_model_runtime_probe",
+        OrtWorkerTask::Embedding,
+        &spec,
+        ProviderKind::OpenVino,
+        30_000,
+    )?;
+
+    validate_ort_worker_execution_plan(&plan)?;
+    assert_eq!(plan.ownership, RuntimeOwnershipMode::EnforcerIsolatedWorker);
+    assert!(plan.kill_on_timeout);
+    assert_eq!(
+        plan.env_value("ENFORCER_X06_ORT_CHILD_TASK"),
+        Some("embedding")
+    );
+    assert_eq!(
+        plan.env_value("ENFORCER_X06_CHILD_PROVIDER"),
+        Some("open-vino")
+    );
+    assert_eq!(
+        plan.env_value("ENFORCER_X06_CHILD_ARTIFACT_PATH"),
+        Some("model/hf/qwen/model.onnx")
+    );
+    assert_eq!(
+        plan.env_value("ENFORCER_X06_CHILD_TOKENIZER_PATH"),
+        Some("model/hf/qwen/tokenizer.json")
+    );
+    assert_eq!(plan.env_value("ENFORCER_X06_ORT_TIMEOUT_MS"), Some("30000"));
+    Ok(())
+}
+
+#[test]
+fn ort_worker_plan_rejects_zero_timeout() -> TestResult {
+    let spec = ModelSpec::qwen3_reranker(
+        "model/hf/qwen-reranker/model.onnx",
+        "abc123",
+        "model/hf/qwen-reranker/tokenizer.json",
+        "def456",
+    );
+
+    let err = match ort_worker_execution_plan(
+        "target/debug/x06_model_runtime_probe",
+        OrtWorkerTask::Reranker,
+        &spec,
+        ProviderKind::Cpu,
+        0,
+    ) {
+        Ok(plan) => return Err(format!("zero-timeout ORT plan should fail, got {plan:?}").into()),
+        Err(err) => err,
+    };
+
+    assert!(matches!(
+        err,
+        MemoryError::ModelRuntime {
+            operation: "build-ort-worker-execution-plan",
+            ..
+        }
+    ));
+    Ok(())
+}
+
+#[test]
+fn ort_provider_env_roundtrip_covers_cpu_gpu_and_npu_names() {
+    assert_eq!(provider_from_env_value("cpu"), Some(ProviderKind::Cpu));
+    assert_eq!(provider_from_env_value("cuda"), Some(ProviderKind::Cuda));
+    assert_eq!(
+        provider_from_env_value("direct-ml"),
+        Some(ProviderKind::DirectMl)
+    );
+    assert_eq!(
+        provider_from_env_value("open-vino"),
+        Some(ProviderKind::OpenVino)
+    );
+    assert_eq!(provider_from_env_value("npu"), Some(ProviderKind::Npu));
+    assert_eq!(provider_from_env_value("llama-server"), None);
 }

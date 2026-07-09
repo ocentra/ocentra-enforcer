@@ -1536,16 +1536,16 @@
       "expectedIds": [
         "churn:Cargo.lock:70",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
-        "churn:proof/memory/x06-feature-parity.json:43",
+        "churn:proof/memory/x06-feature-parity.json:44",
         "churn:docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md:40",
-        "churn:proof/memory/x06-rag-qa.json:39"
+        "churn:proof/memory/x06-rag-qa.json:40"
       ],
       "actualIds": [
         "churn:Cargo.lock:70",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
-        "churn:proof/memory/x06-feature-parity.json:43",
+        "churn:proof/memory/x06-feature-parity.json:44",
         "churn:docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md:40",
-        "churn:proof/memory/x06-rag-qa.json:39"
+        "churn:proof/memory/x06-rag-qa.json:40"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,

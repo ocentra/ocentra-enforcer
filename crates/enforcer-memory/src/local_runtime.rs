@@ -21,7 +21,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use crate::error::{MemoryError, Result};
-use crate::model_runtime::{ModelTask, SourcePolicy};
+use crate::model_runtime::{ModelSpec, ModelTask, ProviderKind, SourcePolicy};
 
 /// Runtime/provider kind for the local model seam.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -143,6 +143,40 @@ pub enum RuntimeManagedCapability {
     WorkloadAdmission,
 }
 
+/// ORT workload executed by Enforcer's isolated worker subprocess.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum OrtWorkerTask {
+    Embedding,
+    Reranker,
+}
+
+impl OrtWorkerTask {
+    pub const fn env_value(self) -> &'static str {
+        match self {
+            Self::Embedding => "embedding",
+            Self::Reranker => "reranker",
+        }
+    }
+}
+
+/// Fully materialized ORT child-process contract.
+///
+/// This is intentionally backend-neutral data rather than a `Command`.
+/// Runtime code owns process spawning, but tests and proof artifacts can
+/// inspect this plan without loading ORT or touching local hardware.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OrtWorkerExecutionPlan {
+    pub executable_path: PathBuf,
+    pub task: OrtWorkerTask,
+    pub provider: ProviderKind,
+    pub timeout_ms: u64,
+    pub ownership: RuntimeOwnershipMode,
+    pub kill_on_timeout: bool,
+    pub env: Vec<(String, String)>,
+}
+
 pub const REQUIRED_MANAGED_CAPABILITIES: &[RuntimeManagedCapability] = &[
     RuntimeManagedCapability::LoadUnload,
     RuntimeManagedCapability::PauseResumeCancel,
@@ -227,6 +261,15 @@ pub struct LocalRuntimeControlPlane {
     pub cache_policy_enforced: bool,
     pub provider_selection_controlled: bool,
     pub managed_capabilities: Vec<RuntimeManagedCapability>,
+}
+
+impl OrtWorkerExecutionPlan {
+    pub fn env_value(&self, key: &str) -> Option<&str> {
+        self.env
+            .iter()
+            .find(|(candidate, _)| candidate == key)
+            .map(|(_, value)| value.as_str())
+    }
 }
 
 impl LocalRuntimeControlPlane {
@@ -407,6 +450,137 @@ pub fn validate_fixture(
     }
 
     Ok(report)
+}
+
+pub fn ort_worker_execution_plan(
+    executable_path: impl Into<PathBuf>,
+    task: OrtWorkerTask,
+    spec: &ModelSpec,
+    provider: ProviderKind,
+    timeout_ms: u64,
+) -> Result<OrtWorkerExecutionPlan> {
+    let control = LocalRuntimeControlPlane::onnx_ort_managed();
+    validate_control_plane(&control)?;
+    if timeout_ms == 0 {
+        return Err(model_runtime_error(
+            "build-ort-worker-execution-plan",
+            "ORT worker timeout must be greater than zero",
+        ));
+    }
+    let env = vec![
+        (
+            "ENFORCER_X06_ORT_CHILD_TASK".to_owned(),
+            task.env_value().to_owned(),
+        ),
+        (
+            "ENFORCER_X06_CHILD_PROVIDER".to_owned(),
+            provider_env_value(provider).to_owned(),
+        ),
+        (
+            "ENFORCER_X06_CHILD_MODEL_ID".to_owned(),
+            spec.model_id.clone(),
+        ),
+        (
+            "ENFORCER_X06_CHILD_REVISION".to_owned(),
+            spec.revision.clone(),
+        ),
+        (
+            "ENFORCER_X06_CHILD_ARTIFACT_PATH".to_owned(),
+            spec.artifact_path.display().to_string(),
+        ),
+        (
+            "ENFORCER_X06_CHILD_ARTIFACT_SHA256".to_owned(),
+            spec.artifact_sha256.clone(),
+        ),
+        (
+            "ENFORCER_X06_CHILD_TOKENIZER_PATH".to_owned(),
+            spec.tokenizer_path.display().to_string(),
+        ),
+        (
+            "ENFORCER_X06_CHILD_TOKENIZER_SHA256".to_owned(),
+            spec.tokenizer_sha256.clone(),
+        ),
+        ("ENFORCER_X06_CHILD_DTYPE".to_owned(), spec.dtype.clone()),
+        (
+            "ENFORCER_X06_CHILD_DIMENSION".to_owned(),
+            spec.dimension.to_string(),
+        ),
+        (
+            "ENFORCER_X06_CHILD_TASK".to_owned(),
+            format!("{:?}", spec.task),
+        ),
+        (
+            "ENFORCER_X06_ORT_TIMEOUT_MS".to_owned(),
+            timeout_ms.to_string(),
+        ),
+    ];
+    Ok(OrtWorkerExecutionPlan {
+        executable_path: executable_path.into(),
+        task,
+        provider,
+        timeout_ms,
+        ownership: control.ownership,
+        kill_on_timeout: control.timeout_kill_supported,
+        env,
+    })
+}
+
+pub fn validate_ort_worker_execution_plan(plan: &OrtWorkerExecutionPlan) -> Result<()> {
+    if plan.ownership != RuntimeOwnershipMode::EnforcerIsolatedWorker || !plan.kill_on_timeout {
+        return Err(model_runtime_error(
+            "validate-ort-worker-execution-plan",
+            "ORT worker must be an Enforcer-owned isolated worker with timeout kill support",
+        ));
+    }
+    if plan.timeout_ms == 0 {
+        return Err(model_runtime_error(
+            "validate-ort-worker-execution-plan",
+            "ORT worker timeout must be greater than zero",
+        ));
+    }
+    for required in [
+        "ENFORCER_X06_ORT_CHILD_TASK",
+        "ENFORCER_X06_CHILD_PROVIDER",
+        "ENFORCER_X06_CHILD_MODEL_ID",
+        "ENFORCER_X06_CHILD_ARTIFACT_PATH",
+        "ENFORCER_X06_CHILD_ARTIFACT_SHA256",
+        "ENFORCER_X06_CHILD_TOKENIZER_PATH",
+        "ENFORCER_X06_CHILD_TOKENIZER_SHA256",
+        "ENFORCER_X06_ORT_TIMEOUT_MS",
+    ] {
+        if plan.env_value(required).is_none() {
+            return Err(model_runtime_error(
+                "validate-ort-worker-execution-plan",
+                format!("ORT worker plan missing required env {required}"),
+            ));
+        }
+    }
+    Ok(())
+}
+
+pub fn provider_env_value(provider: ProviderKind) -> &'static str {
+    match provider {
+        ProviderKind::Cpu => "cpu",
+        ProviderKind::DirectMl => "direct-ml",
+        ProviderKind::OpenVino => "open-vino",
+        ProviderKind::Vulkan => "vulkan",
+        ProviderKind::Cuda => "cuda",
+        ProviderKind::CoreMl => "core-ml",
+        ProviderKind::Npu => "npu",
+    }
+}
+
+pub fn provider_from_env_value(value: &str) -> Option<ProviderKind> {
+    match value {
+        "cpu" | "Cpu" | "CPU" => Some(ProviderKind::Cpu),
+        "direct-ml" | "directml" | "DirectMl" => Some(ProviderKind::DirectMl),
+        "open-vino" | "openvino" | "OpenVino" => Some(ProviderKind::OpenVino),
+        "vulkan" | "Vulkan" => Some(ProviderKind::Vulkan),
+        "cuda" | "Cuda" | "CUDA" => Some(ProviderKind::Cuda),
+        "core-ml" | "coreml" | "CoreMl" => Some(ProviderKind::CoreMl),
+        "npu" | "Npu" | "NPU" => Some(ProviderKind::Npu),
+        _ => None,
+    }
 }
 
 pub fn arbitrate_runtime_workload(

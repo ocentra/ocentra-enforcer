@@ -33,7 +33,9 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
         run_llama_cpp_probe, LlamaCppBackendHint, LlamaCppExecutionResolution, LlamaCppProbeConfig,
         LlamaCppProbeKind,
     };
-    use crate::local_runtime::LocalRuntimeAcceleration;
+    use crate::local_runtime::{
+        ort_worker_execution_plan, provider_from_env_value, LocalRuntimeAcceleration, OrtWorkerTask,
+    };
     use crate::model_observations::{
         LocalLoadSucceeded, ModelLoadFailure, ModelRuntimeObservationCandidate,
         ModelRuntimeObservationRecord, ProviderDowngrade,
@@ -1143,25 +1145,25 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
         timeout_ms: u64,
     ) -> Result<serde_json::Value, String> {
         let started = Instant::now();
-        let mut child = Command::new(std::env::current_exe().map_err(|error| error.to_string())?)
-            .env("ENFORCER_X06_ORT_CHILD_TASK", child_task)
-            .env("ENFORCER_X06_CHILD_MODEL_ID", &spec.model_id)
-            .env("ENFORCER_X06_CHILD_REVISION", &spec.revision)
-            .env("ENFORCER_X06_CHILD_ARTIFACT_PATH", &spec.artifact_path)
-            .env("ENFORCER_X06_CHILD_ARTIFACT_SHA256", &spec.artifact_sha256)
-            .env("ENFORCER_X06_CHILD_TOKENIZER_PATH", &spec.tokenizer_path)
-            .env(
-                "ENFORCER_X06_CHILD_TOKENIZER_SHA256",
-                &spec.tokenizer_sha256,
-            )
-            .env("ENFORCER_X06_CHILD_DTYPE", &spec.dtype)
-            .env("ENFORCER_X06_CHILD_DIMENSION", spec.dimension.to_string())
-            .env("ENFORCER_X06_CHILD_TASK", format!("{:?}", spec.task))
-            .env("ENFORCER_X06_ORT_TIMEOUT_MS", timeout_ms.to_string())
+        let worker_task = match child_task {
+            "embedding" => OrtWorkerTask::Embedding,
+            "reranker" => OrtWorkerTask::Reranker,
+            other => return Err(format!("unknown ORT child task: {other}")),
+        };
+        let plan = ort_worker_execution_plan(
+            std::env::current_exe().map_err(|error| error.to_string())?,
+            worker_task,
+            spec,
+            ProviderKind::Cpu,
+            timeout_ms,
+        )
+        .map_err(|error| error.to_string())?;
+        let mut command = Command::new(&plan.executable_path);
+        command
+            .envs(plan.env.iter().map(|(key, value)| (key, value)))
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|error| error.to_string())?;
+            .stderr(Stdio::piped());
+        let mut child = command.spawn().map_err(|error| error.to_string())?;
         let timeout = Duration::from_millis(timeout_ms);
         let mut timed_out = false;
         loop {
@@ -1217,8 +1219,18 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
                 });
             }
         };
+        let provider = match child_provider() {
+            Ok(provider) => provider,
+            Err(error) => {
+                return serde_json::json!({
+                    "operation": format!("qwen-{child_task}-onnx"),
+                    "ok": false,
+                    "error": error
+                });
+            }
+        };
         match child_task {
-            "embedding" => match OrtEmbedder::load(&spec, ProviderKind::Cpu).and_then(|embedder| {
+            "embedding" => match OrtEmbedder::load(&spec, provider).and_then(|embedder| {
                 embedder.embed_with_timeout("hello world from qwen3 embedding 0.6b", timeout)
             }) {
                 Ok(vector) => serde_json::json!({
@@ -1250,7 +1262,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
                         score: 0.0,
                     },
                 ];
-                match OrtReranker::load(&spec, ProviderKind::Cpu).and_then(|reranker| {
+                match OrtReranker::load(&spec, provider).and_then(|reranker| {
                     reranker.rerank_with_timeout("qwen model runtime cache", &candidates, timeout)
                 }) {
                     Ok(ranked) => serde_json::json!({
@@ -1274,6 +1286,11 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
                 "error": "unknown ORT child task"
             }),
         }
+    }
+
+    fn child_provider() -> Result<ProviderKind, String> {
+        let raw = std::env::var("ENFORCER_X06_CHILD_PROVIDER").unwrap_or_else(|_| "cpu".to_owned());
+        provider_from_env_value(&raw).ok_or_else(|| format!("unknown ORT child provider: {raw}"))
     }
 
     fn child_model_spec() -> Result<ModelSpec, String> {
