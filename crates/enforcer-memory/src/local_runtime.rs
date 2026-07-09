@@ -125,6 +125,30 @@ impl RuntimeOwnershipMode {
     }
 }
 
+/// Product responsibilities that must stay in Enforcer even when the
+/// low-level backend is llama.cpp or ORT.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuntimeManagedCapability {
+    LoadUnload,
+    PauseResumeCancel,
+    TimeoutKill,
+    ProviderSelection,
+    CachePolicy,
+    ChatHistoryPolicy,
+    WorkloadAdmission,
+}
+
+pub const REQUIRED_MANAGED_CAPABILITIES: &[RuntimeManagedCapability] = &[
+    RuntimeManagedCapability::LoadUnload,
+    RuntimeManagedCapability::PauseResumeCancel,
+    RuntimeManagedCapability::TimeoutKill,
+    RuntimeManagedCapability::ProviderSelection,
+    RuntimeManagedCapability::CachePolicy,
+    RuntimeManagedCapability::ChatHistoryPolicy,
+    RuntimeManagedCapability::WorkloadAdmission,
+];
+
 /// One cached artifact participating in a local runtime candidate.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -198,6 +222,7 @@ pub struct LocalRuntimeControlPlane {
     pub timeout_kill_supported: bool,
     pub cache_policy_enforced: bool,
     pub provider_selection_controlled: bool,
+    pub managed_capabilities: Vec<RuntimeManagedCapability>,
 }
 
 impl LocalRuntimeControlPlane {
@@ -210,6 +235,7 @@ impl LocalRuntimeControlPlane {
             timeout_kill_supported: true,
             cache_policy_enforced: true,
             provider_selection_controlled: true,
+            managed_capabilities: REQUIRED_MANAGED_CAPABILITIES.to_vec(),
         }
     }
 
@@ -222,6 +248,7 @@ impl LocalRuntimeControlPlane {
             timeout_kill_supported: true,
             cache_policy_enforced: true,
             provider_selection_controlled: true,
+            managed_capabilities: REQUIRED_MANAGED_CAPABILITIES.to_vec(),
         }
     }
 
@@ -234,6 +261,7 @@ impl LocalRuntimeControlPlane {
             timeout_kill_supported: false,
             cache_policy_enforced: false,
             provider_selection_controlled: false,
+            managed_capabilities: Vec::new(),
         }
     }
 }
@@ -442,6 +470,17 @@ pub fn validate_control_plane(control: &LocalRuntimeControlPlane) -> Result<()> 
         return Err(model_runtime_error(
             "validate-local-runtime-control-plane",
             "runtime must enforce Enforcer cache policy and provider selection",
+        ));
+    }
+    let missing_capabilities: Vec<RuntimeManagedCapability> = REQUIRED_MANAGED_CAPABILITIES
+        .iter()
+        .copied()
+        .filter(|capability| !control.managed_capabilities.contains(capability))
+        .collect();
+    if !missing_capabilities.is_empty() {
+        return Err(model_runtime_error(
+            "validate-local-runtime-control-plane",
+            format!("runtime is missing managed capabilities: {missing_capabilities:?}"),
         ));
     }
     Ok(())

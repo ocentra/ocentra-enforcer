@@ -385,10 +385,48 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
         if let Some(parent) = proof_out.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        std::fs::write(proof_out, serde_json::to_string_pretty(&proof)?)?;
+        let proof_text = serde_json::to_string_pretty(proof)?;
+        let proof_text = preserve_linked_proof_artifacts(proof_out, proof_text)?;
+        std::fs::write(proof_out, proof_text)?;
         let proof_path = format!("{}\n", proof_out.display());
         std::io::stdout().write_all(proof_path.as_bytes())?;
         Ok(())
+    }
+
+    fn preserve_linked_proof_artifacts(
+        proof_out: &Path,
+        proof_text: String,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        let existing = match std::fs::read_to_string(proof_out) {
+            Ok(existing) => existing,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(proof_text),
+            Err(error) => return Err(Box::new(error)),
+        };
+        let existing_value: serde_json::Value = serde_json::from_str(&existing)?;
+        let Some(linked) = existing_value.get("linkedProofArtifacts").cloned() else {
+            return Ok(proof_text);
+        };
+        let linked_text = indent_json_value(&serde_json::to_string_pretty(&linked)?);
+        let insertion = format!(",\n  \"linkedProofArtifacts\": {linked_text}\n}}");
+        Ok(proof_text
+            .strip_suffix("\n}")
+            .map(|prefix| format!("{prefix}{insertion}"))
+            .unwrap_or(proof_text))
+    }
+
+    fn indent_json_value(value: &str) -> String {
+        value
+            .lines()
+            .enumerate()
+            .map(|(index, line)| {
+                if index == 0 {
+                    line.to_owned()
+                } else {
+                    format!("  {line}")
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 
     fn service_config_proof(
