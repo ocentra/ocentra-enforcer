@@ -136,7 +136,7 @@
     },
     {
       "lessonId": "dogfood-012",
-      "lesson": "Repo-local GGUF proof harnesses must discover the full llama.cpp toolchain, not only llama-cli, because embedding proof may legitimately fall back to llama-server or llama-embedding depending on the shipped binary set.",
+      "lesson": "Repo-local GGUF proof harnesses must discover direct llama.cpp worker binaries, not only llama-cli, because embedding proof must use an Enforcer-owned route such as llama-embedding and reject llama-server as an external API surface.",
       "evidence": [
         "crates/enforcer-memory/scripts/x06-real-model-proof.ps1",
         "crates/enforcer-memory/src/runtime_probe.rs",
