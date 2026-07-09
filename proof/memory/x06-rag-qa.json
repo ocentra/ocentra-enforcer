@@ -1,10 +1,10 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 216,
+  "rowsGreen": 217,
   "rowsGreenReal": 0,
-  "rowsGreenDegraded": 216,
+  "rowsGreenDegraded": 217,
   "rowsFailed": 0,
-  "rowsUnrunnable": 34,
+  "rowsUnrunnable": 33,
   "rows": [
     {
       "id": "QA-001",
@@ -1542,14 +1542,26 @@
       "id": "QA-073",
       "category": "Retrieval",
       "query": "Find lessons related to this file.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Retrieval",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "lessons:file:proof-gate",
+        "lessons:file:learning-curve",
+        "lessons:file:dogfood"
+      ],
+      "actualIds": [
+        "lessons:file:proof-gate",
+        "lessons:file:learning-curve",
+        "lessons:file:dogfood"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md",
+        "proof/memory/x06-dogfood.json",
+        "proof/memory/x06-learning-curve.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-074",
@@ -2206,8 +2218,8 @@
         "proof/memory/x06-feature-parity.json",
         "proof/memory/x06-rag-qa.json",
         "proof/memory/x06-kg-parity.json",
-        "qa:rows-green:216",
-        "qa:rows-unrunnable:34"
+        "qa:rows-green:217",
+        "qa:rows-unrunnable:33"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
