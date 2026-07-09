@@ -1,12 +1,14 @@
 //! X06 learning observation contracts for model runtime outcomes.
 //!
 //! This module defines typed, serializable observation candidates the
-//! model-runtime/learning surface can emit before any dedicated
-//! persistence seam is built.
+//! model-runtime/learning surface emits for load failures, provider
+//! downgrade, hash/tokenizer mismatches, degraded fallback, successful
+//! local loads, and RAG quality proofs.
 //!
-//! It is intentionally stand-alone (no graph mutations), so callers can
-//! stage these as NDJSON append candidates first and wire them into
-//! `Store` follow-up writers later.
+//! Store-backed callers append each candidate to the dedicated
+//! model-observation log and bridge it into the generic observation log
+//! so learning projections can replay durable evidence without a manual
+//! capture step.
 
 use serde::{Deserialize, Serialize};
 
@@ -56,8 +58,8 @@ impl ModelRuntimeObservationKind {
     }
 }
 
-/// The store-follow-up envelope: a pure data contract only. This crate
-/// does not persist these entries directly yet.
+/// Durable model-runtime observation envelope stored in the native
+/// model-observation log and mirrored into the generic observation log.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModelRuntimeObservationRecord {
