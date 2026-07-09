@@ -1,0 +1,20 @@
+package example:host;
+
+interface types {
+    record point {
+        x: u32,
+        y: u32,
+    }
+
+    resource counter {
+        constructor(start: u32);
+        increment: func();
+    }
+
+    greet: func(name: string) -> string;
+}
+
+world my-world {
+    import types;
+    export example:host/types;
+}

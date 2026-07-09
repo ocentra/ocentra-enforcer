@@ -366,6 +366,71 @@ pub enum LanguageTag {
     /// SystemVerilog. Language-parity wave G2.3b. Courtesy addition, same
     /// reason as [`LanguageTag::Qml`] above.
     Systemverilog,
+    /// Cap'n Proto. Language-parity wave G2.4c/orchestrator completion
+    /// pass. Courtesy addition, same reason as [`LanguageTag::Qml`]
+    /// above.
+    Capnp,
+    /// Emacs Lisp. Language-parity wave G2.4e/orchestrator completion
+    /// pass. Courtesy addition, same reason as [`LanguageTag::Qml`]
+    /// above.
+    EmacsLisp,
+    /// AWK. Language-parity wave G2.4a.
+    Awk,
+    /// Fish. Language-parity wave G2.4a.
+    Fish,
+    /// Zsh. Language-parity wave G2.4a.
+    Zsh,
+    /// Tcl. Language-parity wave G2.4a.
+    Tcl,
+    /// Scheme. Language-parity wave G2.4a.
+    Scheme,
+    /// Racket. Language-parity wave G2.4a.
+    Racket,
+    /// Smithy. Language-parity wave G2.4c/orchestrator completion pass.
+    Smithy,
+    /// Pine Script. Language-parity wave G2.4e/orchestrator completion
+    /// pass.
+    Pine,
+    /// MATLAB. Language-parity wave G2.4d redo.
+    Matlab,
+    /// Luau. Language-parity wave G2.4d redo.
+    Luau,
+    /// Teal. Language-parity wave G2.4d redo.
+    Teal,
+    /// Fennel. Language-parity wave G2.4d redo.
+    Fennel,
+    /// Meson. Language-parity wave G2.4d redo.
+    Meson,
+    /// Kconfig. Language-parity wave G2.4d redo.
+    Kconfig,
+    /// HCL. Language-parity wave G2.4b-redo.
+    Hcl,
+    /// Nix. Language-parity wave G2.4b-redo.
+    Nix,
+    /// SQL. Language-parity wave G2.4b-redo.
+    Sql,
+    /// Protobuf. Language-parity wave G2.4b-redo.
+    Protobuf,
+    /// Prisma. Language-parity wave G2.4b-redo.
+    Prisma,
+    /// Pkl. Language-parity wave G2.4b-redo.
+    Pkl,
+    /// Thrift. Language-parity wave G2.4c-redo.
+    Thrift,
+    /// WIT. Language-parity wave G2.4c-redo.
+    Wit,
+    /// LLVM IR. Language-parity wave G2.4c-redo.
+    LlvmIr,
+    /// LLVM TableGen. Language-parity wave G2.4c-redo.
+    TableGen,
+    /// CFML (tag dialect). Language-parity wave G2.4e redo.
+    Cfml,
+    /// Go Template. Language-parity wave G2.4e redo.
+    Gotemplate,
+    /// DeviceTree. Language-parity wave G2.4e redo.
+    Devicetree,
+    /// Smali. Language-parity wave G2.4e redo.
+    Smali,
     ConfigToml,
     ConfigJson,
     ConfigYaml,
@@ -457,6 +522,36 @@ impl From<Language> for LanguageTag {
             Language::Verilog => LanguageTag::Verilog,
             Language::Vhdl => LanguageTag::Vhdl,
             Language::Systemverilog => LanguageTag::Systemverilog,
+            Language::Capnp => LanguageTag::Capnp,
+            Language::EmacsLisp => LanguageTag::EmacsLisp,
+            Language::Awk => LanguageTag::Awk,
+            Language::Fish => LanguageTag::Fish,
+            Language::Zsh => LanguageTag::Zsh,
+            Language::Tcl => LanguageTag::Tcl,
+            Language::Scheme => LanguageTag::Scheme,
+            Language::Racket => LanguageTag::Racket,
+            Language::Smithy => LanguageTag::Smithy,
+            Language::Pine => LanguageTag::Pine,
+            Language::Matlab => LanguageTag::Matlab,
+            Language::Luau => LanguageTag::Luau,
+            Language::Teal => LanguageTag::Teal,
+            Language::Fennel => LanguageTag::Fennel,
+            Language::Meson => LanguageTag::Meson,
+            Language::Kconfig => LanguageTag::Kconfig,
+            Language::Hcl => LanguageTag::Hcl,
+            Language::Nix => LanguageTag::Nix,
+            Language::Sql => LanguageTag::Sql,
+            Language::Protobuf => LanguageTag::Protobuf,
+            Language::Prisma => LanguageTag::Prisma,
+            Language::Pkl => LanguageTag::Pkl,
+            Language::Thrift => LanguageTag::Thrift,
+            Language::Wit => LanguageTag::Wit,
+            Language::LlvmIr => LanguageTag::LlvmIr,
+            Language::TableGen => LanguageTag::TableGen,
+            Language::Cfml => LanguageTag::Cfml,
+            Language::Gotemplate => LanguageTag::Gotemplate,
+            Language::Devicetree => LanguageTag::Devicetree,
+            Language::Smali => LanguageTag::Smali,
             Language::ConfigToml => LanguageTag::ConfigToml,
             Language::ConfigJson => LanguageTag::ConfigJson,
             Language::ConfigYaml => LanguageTag::ConfigYaml,
@@ -2058,6 +2153,92 @@ fn complexity_language(language: Language) -> Option<crate::complexity::Complexi
         | Language::Verilog
         | Language::Vhdl
         | Language::Systemverilog
+        // Courtesy additions (found by the G2.4a worker while
+        // compile-checking its own claim -- Capnp/EmacsLisp are a
+        // sibling G2.4c/G2.4e batch's own languages, not this worker's;
+        // the `complexity_language`/`LanguageTag` matches are
+        // exhaustive, so any language variant left unlisted here breaks
+        // every concurrent worker's own `cargo check`, the same
+        // "courtesy-fix a crate-wide blocker, document it, move on"
+        // situation `Language::Qml`'s own `LanguageTag` doc comment
+        // already documents for an earlier wave): same "not yet wired
+        // into `complexity.rs`" convention as every language above.
+        | Language::Capnp
+        | Language::EmacsLisp
+        // Language-parity wave G2.4a: same "not yet wired into
+        // `complexity.rs`" convention as every language above -- all six
+        // have real `branch_types` arrays this wave already ported (see
+        // `LangSpec::awk`/`fish`/`zsh`/`tcl`'s own doc comments), but
+        // wiring a dedicated `ComplexityLanguage`/`NodeKindTable` arm for
+        // any of them is out of this wave's own explicit scope (defs
+        // extraction may be deferred to complexity per the workpack's own
+        // "complexity extraction may be deferred (return `None`) this
+        // wave" allowance) -- Scheme/Racket's own defs are additionally
+        // entirely quirk-claimed unfielded `list` nodes, the identical
+        // "no `name_field` `find_definition_node` could resolve without a
+        // dedicated fallback shape" gap [`Language::Clojure`]'s own
+        // arm above already documents.
+        | Language::Awk
+        | Language::Fish
+        | Language::Zsh
+        | Language::Tcl
+        | Language::Scheme
+        | Language::Racket
+        // Smithy/Pine (orchestrator completion pass): same "not yet
+        // wired into complexity.rs" convention as every language above.
+        | Language::Smithy
+        | Language::Pine
+        // Language-parity wave G2.4d redo: MATLAB/Luau/Teal/Fennel/
+        // Meson/Kconfig. Same "not yet wired into complexity.rs"
+        // convention as every language above -- every one has real
+        // `branch_types` this wave already ported (see each
+        // `LangSpec::matlab`/`luau`/`teal`/`fennel`/`meson`/`kconfig`'s
+        // own doc comment), but wiring a dedicated
+        // `ComplexityLanguage`/`NodeKindTable` arm for any of them is
+        // out of this wave's own explicit scope (defs extraction may be
+        // deferred to complexity per the workpack's own "complexity
+        // extraction may be deferred (return `None`) this wave"
+        // allowance).
+        | Language::Matlab
+        | Language::Luau
+        | Language::Teal
+        | Language::Fennel
+        | Language::Meson
+        | Language::Kconfig
+        // Language-parity wave G2.4b-redo: HCL/Nix/SQL/Protobuf/Prisma/
+        // Pkl. Same "not yet wired into complexity.rs" convention as
+        // every language above -- Nix/SQL both have real `branch_types`
+        // arrays this wave already ported (`if_expression`/`case`), but
+        // wiring a dedicated `ComplexityLanguage`/`NodeKindTable` arm
+        // for either is out of this wave's own explicit scope (defs
+        // extraction may be deferred to complexity per the workpack's
+        // own "complexity extraction may be deferred (return `None`)
+        // this wave" allowance).
+        | Language::Hcl
+        | Language::Nix
+        | Language::Sql
+        | Language::Protobuf
+        | Language::Prisma
+        | Language::Pkl
+        // Language-parity wave G2.4c-redo: Thrift/WIT/LLVM IR/TableGen.
+        // Same "not yet wired into complexity.rs" convention as every
+        // language above -- LLVM IR has a real `branch_types` array
+        // this wave already ported (`instruction_br`/
+        // `instruction_switch`), but wiring a dedicated
+        // `ComplexityLanguage`/`NodeKindTable` arm for it is out of this
+        // wave's own explicit scope (same "may be deferred" allowance
+        // as every prior wave above).
+        | Language::Thrift
+        | Language::Wit
+        | Language::LlvmIr
+        | Language::TableGen
+        // Language-parity wave G2.4e redo: CFML/Go Template/DeviceTree/
+        // Smali. Same "not yet wired into complexity.rs" convention as
+        // every language above.
+        | Language::Cfml
+        | Language::Gotemplate
+        | Language::Devicetree
+        | Language::Smali
         | Language::ConfigToml
         | Language::ConfigJson
         | Language::ConfigYaml

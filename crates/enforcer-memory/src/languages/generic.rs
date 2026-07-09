@@ -20996,3 +20996,3226 @@ pub fn parse_nasm(source: &str) -> ParsedFile {
     let language: tree_sitter::Language = tree_sitter_nasm_local::language().into();
     parse_with_spec(source, &language, &spec, &quirks, false)
 }
+
+/// Emacs Lisp's own missing-`body`-field gap (see
+/// [`crate::languages::spec::LangSpec::emacslisp`]'s own doc comment):
+/// re-walks every sibling of `node` (a `function_definition`/
+/// `macro_definition`) that comes AFTER its own `parameters` child,
+/// with `FnScope` set to this def's own name/line -- the generic
+/// engine's own `body_field`-driven recursion has nothing to find here
+/// since no such field exists at all, so without this hook every call
+/// inside a `defun`/`defmacro` body would be invisible.
+fn emacslisp_on_method_defined(
+    node: Node<'_>,
+    name: &str,
+    line: usize,
+    src: &[u8],
+    out: &mut ParsedFile,
+) {
+    let spec = LangSpec::emacslisp();
+    let quirks = emacslisp_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    let Some(parameters) = node.child_by_field_name("parameters") else {
+        return;
+    };
+    let fn_scope = FnScope {
+        name: Some(name),
+        line: Some(line),
+    };
+    let mut past_parameters = false;
+    for i in 0..node.child_count() {
+        let Some(child) = node.child(i) else { continue };
+        if child.id() == parameters.id() {
+            past_parameters = true;
+            continue;
+        }
+        if past_parameters {
+            walk(child, &ctx, out, Some(name), fn_scope);
+        }
+    }
+}
+
+/// Every `list` node (a parenthesized form) is Emacs Lisp's ONLY call
+/// shape and is entirely fieldless (see
+/// [`crate::languages::spec::LangSpec::emacslisp`]'s own doc comment) --
+/// this override resolves the callee positionally: a `list`'s own
+/// first non-`(`/`)` child, if a bare `symbol`, is the callee; every
+/// remaining named child's own source text is captured as an argument.
+/// Returns `false` (falls through to generic recursion into the list's
+/// own children, so nested calls inside the arguments are still
+/// visited) whenever the first child is not a plain `symbol` -- e.g. a
+/// parameter list `(a b)` reached directly (not via
+/// [`emacslisp_on_method_defined`]'s own by-identity skip, which
+/// already prevents that for the two def-forms this file recognizes,
+/// but a `let`/`lambda`'s own parameter list would otherwise be
+/// misread as a call to a function literally named after its first
+/// parameter).
+fn emacslisp_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "list" {
+        return false;
+    }
+    let Some(callee_node) = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|c| c.kind() != "(" && c.kind() != ")")
+    else {
+        return false;
+    };
+    if callee_node.kind() != "symbol" {
+        return false;
+    }
+    let Ok(callee) = callee_node.utf8_text(src) else {
+        return false;
+    };
+    let arg_texts = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .filter(|c| c.id() != callee_node.id() && c.kind() != "(" && c.kind() != ")")
+        .filter_map(|c| c.utf8_text(src).ok().map(str::to_owned))
+        .collect();
+    out.calls.push(CallRef {
+        callee: callee.to_owned(),
+        line: node.start_position().row + 1,
+        from_symbol: from_symbol.map(str::to_owned),
+        from_symbol_line,
+        receiver_text: None,
+        receiver_hint: None,
+        arg_texts,
+    });
+    true
+}
+
+pub fn emacslisp_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: None,
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: Some(Box::new(emacslisp_on_method_defined)),
+        call_override: Some(Box::new(emacslisp_call_override)),
+    }
+}
+
+/// Parse Emacs Lisp source through the generic engine. Grammar:
+/// `tree-sitter-elisp` 1.6.1 (`Wilfred/tree-sitter-elisp`), a real
+/// crates.io grammar (no vendoring needed). Language-parity wave
+/// G2.4e/orchestrator completion pass.
+pub fn parse_emacslisp(source: &str) -> ParsedFile {
+    let spec = LangSpec::emacslisp();
+    let quirks = emacslisp_quirks();
+    let language: tree_sitter::Language = tree_sitter_elisp::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Every named node kind in Cap'n Proto's grammar exposes ZERO fields
+/// at all (see
+/// [`crate::languages::spec::LangSpec::capnp`]'s own doc comment for
+/// the full construct-by-construct breakdown) -- this quirk fully
+/// claims every recognized construct via `on_unmatched_node` (the
+/// `LangSpec` itself lists no `func_types`/`class_types`/etc. at all,
+/// so the generic engine's own field-based matching never intercepts
+/// any of them first) and recurses into children manually, threading
+/// `enclosing` for DEFINES edges the same way the generic engine's own
+/// lexical-nesting walk would if fields existed to drive it.
+fn capnp_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    let spec = LangSpec::capnp();
+    let quirks = capnp_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    let line = node.start_position().row + 1;
+    match node.kind() {
+        "message" => {
+            walk_children(node, &ctx, out, None, FnScope::default());
+            true
+        }
+        "struct" | "interface" => {
+            let Some(name) = capnp_positional_text(node, "type_identifier", src) else {
+                return true;
+            };
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: if node.kind() == "struct" {
+                    SymbolKind::Class
+                } else {
+                    SymbolKind::Interface
+                },
+                line,
+            });
+            if let Some(container) = enclosing {
+                out.defines.push(DefinesRef {
+                    container_name: container.to_owned(),
+                    member_name: name.clone(),
+                    line,
+                });
+            }
+            walk_children(node, &ctx, out, Some(name.as_str()), FnScope::default());
+            true
+        }
+        "enum" => {
+            let Some(name) = capnp_positional_text(node, "enum_identifier", src) else {
+                return true;
+            };
+            out.symbols.push(SymbolRef {
+                name,
+                kind: SymbolKind::Enum,
+                line,
+            });
+            true
+        }
+        "const" => {
+            let Some(name) = capnp_positional_text(node, "const_identifier", src) else {
+                return true;
+            };
+            out.symbols.push(SymbolRef {
+                name,
+                kind: SymbolKind::Constant,
+                line,
+            });
+            true
+        }
+        "field" => {
+            if let (Some(container), Some(member)) = (
+                enclosing,
+                capnp_positional_text(node, "field_identifier", src),
+            ) {
+                out.defines.push(DefinesRef {
+                    container_name: container.to_owned(),
+                    member_name: member,
+                    line,
+                });
+            }
+            // Nested in-place type definitions parse as
+            // `field > nested_struct > struct`, not as a direct child
+            // of the outer struct -- recurse with `enclosing`
+            // UNCHANGED so a nested struct's own DEFINES edge still
+            // points at the correct (outer) container.
+            walk_children(node, &ctx, out, enclosing, FnScope::default());
+            true
+        }
+        "method" => {
+            let Some(name) = capnp_positional_text(node, "method_identifier", src) else {
+                return true;
+            };
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: SymbolKind::Method,
+                line,
+            });
+            if let Some(container) = enclosing {
+                out.defines.push(DefinesRef {
+                    container_name: container.to_owned(),
+                    member_name: name,
+                    line,
+                });
+            }
+            true
+        }
+        "using_directive" => {
+            if let Some(path) = capnp_import_path_text(node, src) {
+                out.imports.push(ImportRef {
+                    module_path: path,
+                    line,
+                });
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+/// A Cap'n Proto construct node's own named identifier child, found by
+/// KIND (never by field -- see [`capnp_quirk`]'s own doc comment: every
+/// node in this grammar is fieldless).
+fn capnp_positional_text(node: Node<'_>, identifier_kind: &str, src: &[u8]) -> Option<String> {
+    (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|c| c.kind() == identifier_kind)
+        .and_then(|c| c.utf8_text(src).ok())
+        .map(str::to_owned)
+}
+
+/// A `using_directive`'s own descendant `import_path` -> `string_fragment`
+/// text (the quoted `.capnp` path Cap'n Proto's `using X = import
+/// "path.capnp";` form always carries).
+fn capnp_import_path_text(node: Node<'_>, src: &[u8]) -> Option<String> {
+    fn find_string_fragment<'a>(node: Node<'a>) -> Option<Node<'a>> {
+        if node.kind() == "string_fragment" {
+            return Some(node);
+        }
+        (0..node.child_count())
+            .filter_map(|i| node.child(i))
+            .find_map(find_string_fragment)
+    }
+    find_string_fragment(node)
+        .and_then(|n| n.utf8_text(src).ok())
+        .map(str::to_owned)
+}
+
+pub fn capnp_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(capnp_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse Cap'n Proto source through the generic engine. Grammar:
+/// `tree-sitter-capnp` 1.5.0 (`amaanq/tree-sitter-capnp`), VENDORED
+/// (see `vendor/tree-sitter-capnp-local/`). Language-parity wave
+/// G2.4c/orchestrator completion pass.
+pub fn parse_capnp(source: &str) -> ParsedFile {
+    let spec = LangSpec::capnp();
+    let quirks = capnp_quirks();
+    let language: tree_sitter::Language = tree_sitter_capnp_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// MATLAB (language-parity wave G2.4d redo)
+// =====================================================================
+
+/// MATLAB's `function_definition` has no `body` field at all -- see
+/// [`crate::languages::spec::LangSpec::matlab`]'s own doc comment. This
+/// walks the `block` child found by KIND directly, the same "no body
+/// field, walk by kind" idiom [`emacslisp_on_method_defined`] already
+/// established for Emacs Lisp.
+fn matlab_on_method_defined(
+    node: Node<'_>,
+    name: &str,
+    line: usize,
+    src: &[u8],
+    out: &mut ParsedFile,
+) {
+    let spec = LangSpec::matlab();
+    let quirks = matlab_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    let fn_scope = FnScope {
+        name: Some(name),
+        line: Some(line),
+    };
+    for i in 0..node.child_count() {
+        let Some(child) = node.child(i) else {
+            continue;
+        };
+        if child.kind() == "block" {
+            walk_children(child, &ctx, out, None, fn_scope);
+        }
+    }
+}
+
+/// MATLAB's unparenthesized command-syntax call (`close all`) is a
+/// `command` node with no fields at all -- its `command_name`/
+/// `command_argument` children are found by KIND (see
+/// [`crate::languages::spec::LangSpec::matlab`]'s own doc comment).
+/// `from_symbol` is always `None` here: `on_unmatched_node` hooks only
+/// ever receive the lexical `enclosing` class name, not the
+/// `FnScope` a call-shaped node would otherwise get -- no MATLAB test
+/// asserts `from_symbol` on a command-syntax call.
+fn matlab_quirk(
+    node: Node<'_>,
+    _enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "command" {
+        return false;
+    }
+    let mut callee = None;
+    let mut args = Vec::new();
+    for i in 0..node.child_count() {
+        let Some(child) = node.child(i) else {
+            continue;
+        };
+        match child.kind() {
+            "command_name" => callee = child.utf8_text(src).ok().map(str::to_owned),
+            "command_argument" => {
+                if let Ok(text) = child.utf8_text(src) {
+                    args.push(text.to_string());
+                }
+            }
+            _ => {}
+        }
+    }
+    let Some(callee) = callee else {
+        return false;
+    };
+    out.calls.push(CallRef {
+        callee,
+        line: node.start_position().row + 1,
+        from_symbol: None,
+        from_symbol_line: None,
+        receiver_text: None,
+        receiver_hint: None,
+        arg_texts: args,
+    });
+    true
+}
+
+pub fn matlab_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(matlab_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: Some(Box::new(matlab_on_method_defined)),
+        call_override: None,
+    }
+}
+
+/// Parse MATLAB source through the generic engine. Grammar:
+/// `tree-sitter-matlab` 1.3.0 (`acristoffers/tree-sitter-matlab`, real
+/// crates.io crate). Language-parity wave G2.4d redo -- see
+/// `tests/unit_languages_matlab.rs`.
+pub fn parse_matlab(source: &str) -> ParsedFile {
+    let spec = LangSpec::matlab();
+    let quirks = matlab_quirks();
+    let language: tree_sitter::Language = tree_sitter_matlab::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Luau (language-parity wave G2.4d redo)
+// =====================================================================
+
+/// Parse Luau source through the generic engine -- every construct this
+/// grammar exercises (plain/dotted `function_declaration` naming, the
+/// anonymous `function_definition` literal, `type_definition` type
+/// aliases, ordinary calls) resolves through real fields with zero
+/// quirks needed (see
+/// [`crate::languages::spec::LangSpec::luau`]'s own doc comment).
+/// Grammar: `tree-sitter-luau` 1.2.0
+/// (`tree-sitter-grammars/tree-sitter-luau`, real crates.io crate).
+/// Language-parity wave G2.4d redo -- see `tests/unit_languages_luau.rs`.
+pub fn parse_luau(source: &str) -> ParsedFile {
+    let spec = LangSpec::luau();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_luau::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Teal (language-parity wave G2.4d redo)
+// =====================================================================
+
+/// Parse Teal source through the generic engine -- every construct this
+/// grammar exercises (plain/dotted `function_statement` naming,
+/// `record_declaration` DEFINES nesting, `function_call`'s own
+/// `called_object` field, `numeric_for_statement` recursion) resolves
+/// through real fields with zero quirks needed (see
+/// [`crate::languages::spec::LangSpec::teal`]'s own doc comment).
+/// Grammar VENDORED (see `vendor/tree-sitter-teal-local/`).
+/// Language-parity wave G2.4d redo -- see `tests/unit_languages_teal.rs`.
+pub fn parse_teal(source: &str) -> ParsedFile {
+    let spec = LangSpec::teal();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_teal_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Fennel (language-parity wave G2.4d redo)
+// =====================================================================
+
+/// Fennel's `fn_form`/`lambda_form` have a real optional `name` field
+/// and a real `args` field, but NO `body` field at all -- their body
+/// forms are each a REPEATED `item` field sibling of `args` (see
+/// [`crate::languages::spec::LangSpec::fennel`]'s own doc comment).
+/// This walks every sibling AFTER the `args` node (found by field, then
+/// compared by node identity) with `FnScope` set to this def's own
+/// name -- the same "no body field, walk positionally past a known
+/// boundary field" idiom [`emacslisp_on_method_defined`] already
+/// established for Emacs Lisp.
+fn fennel_on_method_defined(
+    node: Node<'_>,
+    name: &str,
+    line: usize,
+    src: &[u8],
+    out: &mut ParsedFile,
+) {
+    let spec = LangSpec::fennel();
+    let quirks = fennel_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    let Some(args) = node.child_by_field_name("args") else {
+        return;
+    };
+    let fn_scope = FnScope {
+        name: Some(name),
+        line: Some(line),
+    };
+    let mut past_args = false;
+    for i in 0..node.child_count() {
+        let Some(child) = node.child(i) else {
+            continue;
+        };
+        if child.id() == args.id() {
+            past_args = true;
+            continue;
+        }
+        if past_args {
+            walk(child, &ctx, out, Some(name), fn_scope);
+        }
+    }
+}
+
+pub fn fennel_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: None,
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: Some(Box::new(fennel_on_method_defined)),
+        call_override: None,
+    }
+}
+
+/// Parse Fennel source through the generic engine. Grammar VENDORED
+/// (see `vendor/tree-sitter-fennel-local/`). Language-parity wave
+/// G2.4d redo -- see `tests/unit_languages_fennel.rs`.
+pub fn parse_fennel(source: &str) -> ParsedFile {
+    let spec = LangSpec::fennel();
+    let quirks = fennel_quirks();
+    let language: tree_sitter::Language = tree_sitter_fennel_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Meson (language-parity wave G2.4d redo)
+// =====================================================================
+
+/// Parse Meson source through the generic engine -- every construct
+/// this grammar exercises (`normal_command`'s own `command` field, no
+/// function-definition concept at all, `if_command`/`foreach_command`
+/// recursion) resolves through real fields with zero quirks needed
+/// (see [`crate::languages::spec::LangSpec::meson`]'s own doc comment).
+/// Grammar VENDORED (see `vendor/tree-sitter-meson-local/`).
+/// Language-parity wave G2.4d redo -- see `tests/unit_languages_meson.rs`.
+pub fn parse_meson(source: &str) -> ParsedFile {
+    let spec = LangSpec::meson();
+    let quirks = Quirks::default();
+    let language: tree_sitter::Language = tree_sitter_meson_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Kconfig (language-parity wave G2.4d redo)
+// =====================================================================
+
+/// Kconfig's `source "path/Kconfig"` include directive is entirely
+/// fieldless -- this finds the descendant `string_content` node by
+/// KIND and reads its text as the import's `module_path` (see
+/// [`crate::languages::spec::LangSpec::kconfig`]'s own doc comment).
+fn kconfig_quirk(
+    node: Node<'_>,
+    _enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "source" {
+        return false;
+    }
+    fn find_string_content<'a>(node: Node<'a>) -> Option<Node<'a>> {
+        if node.kind() == "string_content" {
+            return Some(node);
+        }
+        (0..node.child_count())
+            .filter_map(|i| node.child(i))
+            .find_map(find_string_content)
+    }
+    let Some(module_path) = find_string_content(node).and_then(|n| n.utf8_text(src).ok()) else {
+        return false;
+    };
+    out.imports.push(ImportRef {
+        module_path: module_path.to_string(),
+        line: node.start_position().row + 1,
+    });
+    true
+}
+
+pub fn kconfig_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(kconfig_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse Kconfig source through the generic engine. Grammar:
+/// `tree-sitter-kconfig` 1.3.0
+/// (`tree-sitter-grammars/tree-sitter-kconfig`, real crates.io crate).
+/// Language-parity wave G2.4d redo -- see
+/// `tests/unit_languages_kconfig.rs`.
+pub fn parse_kconfig(source: &str) -> ParsedFile {
+    let spec = LangSpec::kconfig();
+    let quirks = kconfig_quirks();
+    let language: tree_sitter::Language = tree_sitter_kconfig::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// AWK
+// =====================================================================
+
+fn ctx_for_awk(src: &[u8]) -> Ctx<'_> {
+    static SPEC: std::sync::OnceLock<LangSpec> = std::sync::OnceLock::new();
+    let spec = SPEC.get_or_init(LangSpec::awk);
+    let quirks: &'static Quirks = Box::leak(Box::new(awk_quirks()));
+    Ctx {
+        spec,
+        src,
+        quirks,
+        is_test_file: false,
+    }
+}
+
+/// AWK's `func_def`'s own `block` body child -- purely positional (no
+/// `body`-named field exists at all, see [`LangSpec::awk`]'s own doc
+/// comment), found by a linear scan of `func_def`'s direct children.
+fn awk_func_body(func_def: Node<'_>) -> Option<Node<'_>> {
+    (0..func_def.child_count())
+        .filter_map(|i| func_def.child(i))
+        .find(|c| c.kind() == "block")
+}
+
+/// [`Quirks::on_unmatched_node`] for AWK: `func_def`'s own symbol +
+/// scoped body walk. Fully claims the node (`true`) whether or not a
+/// name/body were actually recoverable, matching every other
+/// fully-quirk-claimed def-shaped node kind's "still recurse, just with
+/// no scope" fallback posture (see [`lua_quirk`]'s own doc comment).
+fn awk_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    if node.kind() != "func_def" {
+        return false;
+    }
+    let ctx = ctx_for_awk(src);
+    let name = child_text(node, "name", src);
+    let fn_scope = match &name {
+        Some(name) => {
+            let line = node.start_position().row + 1;
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: SymbolKind::Function,
+                line,
+            });
+            FnScope {
+                name: Some(name.as_str()),
+                line: Some(line),
+            }
+        }
+        None => FnScope::default(),
+    };
+    if let Some(block) = awk_func_body(node) {
+        walk_children(block, &ctx, out, None, fn_scope);
+    }
+    true
+}
+
+/// `func_call`'s own `args` child -- purely positional (confirmed by
+/// `node-types.json`: `func_call`'s own `"fields"` holds only `"name"`,
+/// its `args` child is an unfielded sibling), so
+/// [`call_arg_texts`]'s single-field-lookup convention cannot read it --
+/// mirrors [`LangSpec::awk`]'s own doc comment.
+fn awk_call_args(func_call: Node<'_>, src: &[u8]) -> Vec<String> {
+    let Some(args) = (0..func_call.child_count())
+        .filter_map(|i| func_call.child(i))
+        .find(|c| c.kind() == "args")
+    else {
+        return Vec::new();
+    };
+    (0..args.child_count())
+        .filter_map(|i| args.child(i))
+        .filter(|c| !matches!(c.kind(), "(" | ")" | ","))
+        .filter_map(|c| c.utf8_text(src).ok().map(str::to_string))
+        .collect()
+}
+
+/// [`Quirks::call_override`] for AWK: `func_call`'s own real `name`
+/// field for the callee, plus [`awk_call_args`] for `arg_texts`
+/// (neither of which [`LangSpec::awk`]'s flat `call_function_field`/
+/// `call_arguments_field` placeholders could express -- see
+/// [`LangSpec::awk`]'s own doc comment).
+fn awk_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "func_call" {
+        return false;
+    }
+    let Some(name_node) = node.child_by_field_name("name") else {
+        return false;
+    };
+    let Ok(callee) = name_node.utf8_text(src) else {
+        return false;
+    };
+    out.calls.push(CallRef {
+        callee: callee.to_string(),
+        line: node.start_position().row + 1,
+        from_symbol: from_symbol.map(str::to_string),
+        from_symbol_line,
+        receiver_text: None,
+        receiver_hint: None,
+        arg_texts: awk_call_args(node, src),
+    });
+    true
+}
+
+/// AWK's [`Quirks`] row: `func_def` symbol + scoped body walk via
+/// `on_unmatched_node`, full `func_call` CALLS recording via
+/// `call_override`. No `is_test_name`/`route_from_call`/
+/// `on_method_defined`: the baseline gives AWK no test-name convention,
+/// route-registration-by-call-shape detection, or DEFINES-container-by-
+/// receiver-clause convention either.
+pub fn awk_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(awk_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(awk_call_override)),
+    }
+}
+
+/// Parse AWK source through the generic engine. Grammar: `arborium-awk`
+/// (part of the `bearcove/arborium` tree-sitter-grammar-bundle crate
+/// family this crate already depends on for ReScript/Typst -- see
+/// [`LangSpec::awk`]'s own doc comment and `tests/unit_languages_awk.rs`).
+pub fn parse_awk(source: &str) -> ParsedFile {
+    let spec = LangSpec::awk();
+    let quirks = awk_quirks();
+    let language: tree_sitter::Language = arborium_awk::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Fish
+// =====================================================================
+
+fn ctx_for_fish(src: &[u8]) -> Ctx<'_> {
+    static SPEC: std::sync::OnceLock<LangSpec> = std::sync::OnceLock::new();
+    let spec = SPEC.get_or_init(LangSpec::fish);
+    let quirks: &'static Quirks = Box::leak(Box::new(fish_quirks()));
+    Ctx {
+        spec,
+        src,
+        quirks,
+        is_test_file: false,
+    }
+}
+
+/// [`Quirks::on_unmatched_node`] for Fish: `function_definition`'s own
+/// symbol + scoped body walk. Its own body statements are positional
+/// siblings of the `name`/`option` fields (no `body`-named field
+/// exists, see [`LangSpec::fish`]'s own doc comment), so rather than
+/// hunting for a single wrapper child (there is none), this re-walks
+/// the WHOLE node's own children generically under the new `FnScope` --
+/// harmless for the `name`/`option` fields themselves (a bare `word`
+/// node matches none of this row's own type arrays) and correctly
+/// scopes every real statement that follows.
+fn fish_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    if node.kind() != "function_definition" {
+        return false;
+    }
+    let ctx = ctx_for_fish(src);
+    let name = child_text(node, "name", src);
+    let fn_scope = match &name {
+        Some(name) => {
+            let line = node.start_position().row + 1;
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: SymbolKind::Function,
+                line,
+            });
+            FnScope {
+                name: Some(name.as_str()),
+                line: Some(line),
+            }
+        }
+        None => FnScope::default(),
+    };
+    for i in 0..node.child_count() {
+        if let Some(child) = node.child(i) {
+            walk(child, &ctx, out, None, fn_scope);
+        }
+    }
+    true
+}
+
+/// [`Quirks::call_override`] for Fish: `command`'s own real `name`
+/// field for the callee, plus its own `argument`-field children (via
+/// [`Node::children_by_field_name`], since the field is `multiple:
+/// true` with no wrapper node -- see [`LangSpec::fish`]'s own doc
+/// comment) for `arg_texts`. Mirrors [`bash_call_override`] exactly
+/// (identical `command` node shape in both grammars).
+fn fish_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "command" {
+        return false;
+    }
+    let Some(name_node) = node.child_by_field_name("name") else {
+        return false;
+    };
+    let Ok(callee) = name_node.utf8_text(src) else {
+        return false;
+    };
+    let mut cursor = node.walk();
+    let arg_texts: Vec<String> = node
+        .children_by_field_name("argument", &mut cursor)
+        .filter_map(|arg| arg.utf8_text(src).ok().map(str::to_string))
+        .collect();
+    out.calls.push(CallRef {
+        callee: callee.to_string(),
+        line: node.start_position().row + 1,
+        from_symbol: from_symbol.map(str::to_string),
+        from_symbol_line,
+        receiver_text: None,
+        receiver_hint: None,
+        arg_texts,
+    });
+    true
+}
+
+/// Fish's [`Quirks`] row: `function_definition` symbol + scoped body
+/// walk via `on_unmatched_node`, full `command` CALLS recording via
+/// `call_override`. No `is_test_name`/`route_from_call`/
+/// `on_method_defined`: the baseline gives Fish no test-name
+/// convention, route-registration-by-call-shape detection, or DEFINES-
+/// container-by-receiver-clause convention either.
+pub fn fish_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(fish_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(fish_call_override)),
+    }
+}
+
+/// Parse Fish source through the generic engine. Grammar:
+/// `tree-sitter-fish` (crates.io, maintained) -- see
+/// `tests/unit_languages_fish.rs`.
+pub fn parse_fish(source: &str) -> ParsedFile {
+    let spec = LangSpec::fish();
+    let quirks = fish_quirks();
+    let language: tree_sitter::Language = tree_sitter_fish::language();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Zsh
+// =====================================================================
+
+/// [`Quirks::call_override`] for Zsh: same "own real `name` field for
+/// the callee, `children_by_field_name("argument", ...)` for
+/// `arg_texts`" posture as [`fish_call_override`]/[`bash_call_override`]
+/// -- this grammar's own `command` node has the identical
+/// `multiple: true`, wrapper-less `argument` field shape (confirmed via
+/// `node-types.json` and the real parse dump, see [`LangSpec::zsh`]'s
+/// own doc comment).
+fn zsh_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "command" {
+        return false;
+    }
+    let Some(name_node) = node.child_by_field_name("name") else {
+        return false;
+    };
+    let Ok(callee) = name_node.utf8_text(src) else {
+        return false;
+    };
+    let mut cursor = node.walk();
+    let arg_texts: Vec<String> = node
+        .children_by_field_name("argument", &mut cursor)
+        .filter_map(|arg| arg.utf8_text(src).ok().map(str::to_string))
+        .collect();
+    out.calls.push(CallRef {
+        callee: callee.to_string(),
+        line: node.start_position().row + 1,
+        from_symbol: from_symbol.map(str::to_string),
+        from_symbol_line,
+        receiver_text: None,
+        receiver_hint: None,
+        arg_texts,
+    });
+    true
+}
+
+/// Zsh's [`Quirks`] row: full `command` CALLS recording via
+/// `call_override`. No `on_unmatched_node`: `function_definition` has a
+/// real `name`/`body` field pair the generic engine's own func/method
+/// branch already handles unaided (see [`LangSpec::zsh`]'s own doc
+/// comment). No `is_test_name`/`route_from_call`/`on_method_defined`
+/// either -- same no-convention posture as [`Self::fish`]'s row.
+pub fn zsh_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: None,
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(zsh_call_override)),
+    }
+}
+
+/// Parse Zsh source through the generic engine. Grammar:
+/// `tree-sitter-zsh` (crates.io, maintained) -- see
+/// `tests/unit_languages_zsh.rs`.
+pub fn parse_zsh(source: &str) -> ParsedFile {
+    let spec = LangSpec::zsh();
+    let quirks = zsh_quirks();
+    let language: tree_sitter::Language = tree_sitter_zsh::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Tcl
+// =====================================================================
+
+/// A `namespace` node's own `word_list` child's named children, or
+/// `None` if the node's own shape does not match (see
+/// [`LangSpec::tcl`]'s own doc comment: `namespace`'s ENTIRE shape is
+/// one flat, unfielded `word_list`).
+fn tcl_namespace_words<'a>(namespace: Node<'a>, src: &'a [u8]) -> Option<Vec<Node<'a>>> {
+    let word_list = namespace.named_child(0)?;
+    if word_list.kind() != "word_list" {
+        return None;
+    }
+    let words: Vec<Node<'a>> = (0..word_list.named_child_count())
+        .filter_map(|i| word_list.named_child(i))
+        .collect();
+    if words.len() < 2 {
+        return None;
+    }
+    let _ = src;
+    Some(words)
+}
+
+/// [`Quirks::on_unmatched_node`] for Tcl: `namespace eval NAME {body}`
+/// specifically (not `namespace import`/`export`/`parent`/... -- those
+/// subcommands carry no body worth scoping, and this grammar gives them
+/// all the SAME `namespace` node kind, see [`LangSpec::tcl`]'s own doc
+/// comment) -- emits a Class symbol for `NAME` and re-walks the
+/// remaining words (typically one `braced_word`) with `NAME` as the new
+/// `enclosing` container, so a `proc` defined inside is correctly
+/// DEFINES-attributed. Returns `false` for every other `namespace`
+/// subcommand (own shape does not match `eval NAME {...}`), letting the
+/// walker's own generic recursion still visit its children unscoped --
+/// never drops a subtree, just does not attribute it to a container.
+fn tcl_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    if node.kind() != "namespace" {
+        return false;
+    }
+    let Some(words) = tcl_namespace_words(node, src) else {
+        return false;
+    };
+    let Ok(subcommand) = words[0].utf8_text(src) else {
+        return false;
+    };
+    if subcommand != "eval" {
+        return false;
+    }
+    let Ok(name) = words[1].utf8_text(src) else {
+        return false;
+    };
+    if name.is_empty() {
+        return false;
+    }
+    let line = node.start_position().row + 1;
+    out.symbols.push(SymbolRef {
+        name: name.to_string(),
+        kind: SymbolKind::Class,
+        line,
+    });
+    let spec = LangSpec::tcl();
+    let quirks = tcl_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    for word in &words[2..] {
+        walk(*word, &ctx, out, Some(name), FnScope::default());
+    }
+    true
+}
+
+/// Tcl's [`Quirks`] row: `namespace eval` Class symbol + scoped body
+/// walk via `on_unmatched_node`. No `call_override`: `command`'s own
+/// `name`/`arguments` fields are both directly usable through the
+/// generic engine's own single-field convention unaided (see
+/// [`LangSpec::tcl`]'s own doc comment). No `is_test_name`/
+/// `route_from_call`/`on_method_defined` either -- same no-convention
+/// posture as every other language onboarded this wave.
+pub fn tcl_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(tcl_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse Tcl source through the generic engine. Grammar:
+/// `bca-tree-sitter-tcl` (crates.io, the `big-code-analysis` fork of
+/// `tree-sitter-grammars/tree-sitter-tcl`; its own crate/lib name is
+/// `tree_sitter_tcl`) -- see `tests/unit_languages_tcl.rs`.
+pub fn parse_tcl(source: &str) -> ParsedFile {
+    let spec = LangSpec::tcl();
+    let quirks = tcl_quirks();
+    let language: tree_sitter::Language = tree_sitter_tcl::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Scheme
+// =====================================================================
+
+/// Scheme's own real subset of the baseline's shared Lisp-family
+/// `lisp_is_def_head` table -- see [`LangSpec::scheme`]'s own doc
+/// comment for why this is narrowed rather than the full shared array
+/// (mirrors [`CLOJURE_DEF_HEADS`]'s own identical narrowing).
+const SCHEME_DEF_HEADS: &[&str] = &[
+    "define",
+    "define-syntax",
+    "define-values",
+    "define-syntax-rule",
+    "define-record-type",
+];
+
+/// Import/dependency head keywords this quirk recognizes for Scheme --
+/// mirrors the baseline's own shared `lisp_process_list`'s plain-import
+/// branch (`internal/cbm/extract_imports.c`:1791-1805), narrowed to the
+/// heads real Scheme source actually uses (`import`/`require`/`load`/
+/// `include`; `use` is a Clojure/Racket-only convention, omitted here).
+const SCHEME_IMPORT_HEADS: &[&str] = &["import", "require", "load", "include"];
+
+/// A `list` node's own head symbol -- its first named child's
+/// `.utf8_text()`, generic across Scheme/Racket (both grammars share
+/// the identical unfielded `list`/`symbol`/`quote` vocabulary, see
+/// [`LangSpec::racket`]'s own doc comment) -- mirrors
+/// [`clojure_head_text`] exactly, just for this pair's own `"list"` node
+/// kind rather than Clojure's `"list_lit"`. `None` for an empty list.
+fn lisp2_head_text<'a>(list_node: Node<'a>, src: &'a [u8]) -> Option<&'a str> {
+    let head = (0..list_node.named_child_count()).find_map(|i| list_node.named_child(i))?;
+    head.utf8_text(src).ok()
+}
+
+/// A def-form's own defined name -- mirrors [`clojure_def_name`]
+/// exactly, just for this pair's own `"list"` node kind (`(define (foo
+/// args) ...)`'s name is the nested list's own first named child;
+/// `(struct point (x y))`'s name is the second named child directly).
+fn lisp2_def_name<'a>(list_node: Node<'a>, src: &'a [u8]) -> Option<&'a str> {
+    if list_node.named_child_count() < 2 {
+        return None;
+    }
+    let target = list_node.named_child(1)?;
+    let name_node = if target.kind() == "list" && target.named_child_count() > 0 {
+        target.named_child(0)?
+    } else {
+        target
+    };
+    let text = name_node.utf8_text(src).ok()?;
+    if text.is_empty() {
+        None
+    } else {
+        Some(text)
+    }
+}
+
+/// `(import mod)`/`(require mod)`/`(load mod)`/`(include mod)` --
+/// pushes every argument after the head as an IMPORTS edge, unwrapping
+/// a `quote`-wrapped symbol the same way the baseline's own
+/// `lisp_push_module` does (`internal/cbm/extract_imports.c`:1636-1665)
+/// -- a bare `list` argument (e.g. R7RS's `(import (scheme base))`) is
+/// pushed using its own full text with the outer parens stripped,
+/// mirroring that same baseline helper's `list`/`list_lit` branch
+/// exactly.
+fn lisp2_import(head_node: Node<'_>, src: &[u8], out: &mut ParsedFile) {
+    let line = head_node.start_position().row + 1;
+    for i in 1..head_node.named_child_count() {
+        let Some(arg) = head_node.named_child(i) else {
+            continue;
+        };
+        let module = match arg.kind() {
+            "quote" if arg.named_child_count() > 0 => {
+                arg.named_child(0).and_then(|n| n.utf8_text(src).ok())
+            }
+            "symbol" | "string" => arg.utf8_text(src).ok(),
+            "list" => arg.utf8_text(src).ok().map(|text| {
+                text.strip_prefix('(')
+                    .and_then(|t| t.strip_suffix(')'))
+                    .unwrap_or(text)
+            }),
+            _ => None,
+        };
+        if let Some(module) = module.filter(|m| !m.is_empty()) {
+            out.imports.push(ImportRef {
+                module_path: module.to_string(),
+                line,
+            });
+        }
+    }
+}
+
+fn ctx_for_scheme(src: &[u8]) -> Ctx<'_> {
+    static SPEC: std::sync::OnceLock<LangSpec> = std::sync::OnceLock::new();
+    let spec = SPEC.get_or_init(LangSpec::scheme);
+    let quirks: &'static Quirks = Box::leak(Box::new(scheme_quirks()));
+    Ctx {
+        spec,
+        src,
+        quirks,
+        is_test_file: false,
+    }
+}
+
+/// Recurses into a def-form's own remaining children (from index 2
+/// onward) with `fn_scope` set to the newly-defined name/line -- mirrors
+/// [`clojure_walk_def_body`] exactly, just for Scheme's own `LangSpec`/
+/// `Quirks` pair.
+fn scheme_walk_def_body(
+    def_node: Node<'_>,
+    src: &[u8],
+    name: &str,
+    line: usize,
+    out: &mut ParsedFile,
+) {
+    let ctx = ctx_for_scheme(src);
+    let fn_scope = FnScope {
+        name: Some(name),
+        line: Some(line),
+    };
+    for i in 2..def_node.named_child_count() {
+        if let Some(child) = def_node.named_child(i) {
+            walk(child, &ctx, out, None, fn_scope);
+        }
+    }
+}
+
+/// Scheme's [`Quirks::on_unmatched_node`]: `import`/`require`/`load`/
+/// `include` IMPORTS (returns `false` so the walker's own unchanged-
+/// scope recursion still descends into the form's own arguments) plus
+/// def-form recognition (`define`/`define-syntax`/... -- returns `true`,
+/// claiming the subtree via [`scheme_walk_def_body`]'s own scoped
+/// recursion, same as [`clojure_quirk`]).
+fn scheme_quirk(
+    node: Node<'_>,
+    _enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "list" {
+        return false;
+    }
+    let Some(head) = lisp2_head_text(node, src) else {
+        return false;
+    };
+    if SCHEME_IMPORT_HEADS.contains(&head) {
+        lisp2_import(node, src, out);
+        return false;
+    }
+    if SCHEME_DEF_HEADS.contains(&head) {
+        if let Some(name) = lisp2_def_name(node, src) {
+            let line = node.start_position().row + 1;
+            let kind = if head == "define-record-type" {
+                SymbolKind::Struct
+            } else {
+                SymbolKind::Function
+            };
+            out.symbols.push(SymbolRef {
+                name: name.to_string(),
+                kind,
+                line,
+            });
+            scheme_walk_def_body(node, src, name, line, out);
+            return true;
+        }
+    }
+    false
+}
+
+/// Scheme's [`Quirks::call_override`]: every `list`'s own head symbol
+/// is recorded as a call callee, unconditionally -- mirrors
+/// [`clojure_call_override`] exactly (same "a def-form's own head
+/// keyword is ALSO recorded as a call callee, by design" posture, see
+/// [`LangSpec::scheme`]'s own doc comment).
+fn scheme_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    let Some(head) = lisp2_head_text(node, src) else {
+        return false;
+    };
+    let arg_texts = (1..node.named_child_count())
+        .filter_map(|i| node.named_child(i))
+        .filter_map(|n| n.utf8_text(src).ok().map(str::to_string))
+        .collect();
+    out.calls.push(CallRef {
+        callee: head.to_string(),
+        line: node.start_position().row + 1,
+        from_symbol: from_symbol.map(str::to_string),
+        from_symbol_line,
+        receiver_text: None,
+        receiver_hint: None,
+        arg_texts,
+    });
+    true
+}
+
+/// Scheme's [`Quirks`] row: `list` def-form recognition (Struct/
+/// Function symbol kinds per the baseline's own `lisp_label`
+/// convention) plus `import`/`require`/`load`/`include` IMPORTS via
+/// `on_unmatched_node`, and full unconditional head-symbol callee
+/// recording via `call_override`. No `route_from_call`/
+/// `on_method_defined`/`is_test_name`: same no-convention posture as
+/// [`Self::clojure`]'s row.
+pub fn scheme_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(scheme_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(scheme_call_override)),
+    }
+}
+
+/// Parse Scheme source through the generic engine. Grammar:
+/// `tree-sitter-scheme` (crates.io, maintained) -- see
+/// `tests/unit_languages_scheme.rs`.
+pub fn parse_scheme(source: &str) -> ParsedFile {
+    let spec = LangSpec::scheme();
+    let quirks = scheme_quirks();
+    let language: tree_sitter::Language = tree_sitter_scheme::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Racket
+// =====================================================================
+
+/// Racket's own real subset of the baseline's shared Lisp-family
+/// `lisp_is_def_head` table, INCLUDING `"struct"` (Racket's own
+/// struct-definition form, see [`LangSpec::racket`]'s own doc comment
+/// for why this is a real `list`-head keyword here, unlike the
+/// unrelated real `structure` NODE KIND) -- mirrors
+/// [`SCHEME_DEF_HEADS`]'s identical narrowing rationale.
+const RACKET_DEF_HEADS: &[&str] = &[
+    "define",
+    "define-syntax",
+    "define-values",
+    "define-syntax-rule",
+    "define-struct",
+    "define-record-type",
+    "define/contract",
+    "struct",
+];
+
+/// Import head keywords this quirk recognizes for Racket -- `require`
+/// is Racket's own real, idiomatic form; `import`/`load`/`include` are
+/// accepted too for the same "narrowed baseline table, but do not
+/// under-accept a form that IS real for this dialect" reasoning as
+/// [`SCHEME_IMPORT_HEADS`].
+const RACKET_IMPORT_HEADS: &[&str] = &["require", "import", "load", "include"];
+
+fn ctx_for_racket(src: &[u8]) -> Ctx<'_> {
+    static SPEC: std::sync::OnceLock<LangSpec> = std::sync::OnceLock::new();
+    let spec = SPEC.get_or_init(LangSpec::racket);
+    let quirks: &'static Quirks = Box::leak(Box::new(racket_quirks()));
+    Ctx {
+        spec,
+        src,
+        quirks,
+        is_test_file: false,
+    }
+}
+
+/// Mirrors [`scheme_walk_def_body`] exactly, just for Racket's own
+/// `LangSpec`/`Quirks` pair.
+fn racket_walk_def_body(
+    def_node: Node<'_>,
+    src: &[u8],
+    name: &str,
+    line: usize,
+    out: &mut ParsedFile,
+) {
+    let ctx = ctx_for_racket(src);
+    let fn_scope = FnScope {
+        name: Some(name),
+        line: Some(line),
+    };
+    for i in 2..def_node.named_child_count() {
+        if let Some(child) = def_node.named_child(i) {
+            walk(child, &ctx, out, None, fn_scope);
+        }
+    }
+}
+
+/// The [`SymbolKind`] a Racket def-form's own head keyword records --
+/// mirrors the baseline's own `lisp_label` special-casing exactly:
+/// `struct`/`define-struct`/`define-record-type` are product types
+/// ([`SymbolKind::Struct`]); everything else is
+/// [`SymbolKind::Function`]. No Interface-shaped head in this dialect's
+/// own real subset (`definterface`/`defprotocol` are Clojure-only).
+fn racket_def_symbol_kind(head: &str) -> SymbolKind {
+    match head {
+        "struct" | "define-struct" | "define-record-type" => SymbolKind::Struct,
+        _ => SymbolKind::Function,
+    }
+}
+
+/// Mirrors [`scheme_quirk`] exactly, just dispatching through
+/// [`RACKET_DEF_HEADS`]/[`RACKET_IMPORT_HEADS`]/
+/// [`racket_def_symbol_kind`]/[`racket_walk_def_body`] for this
+/// language's own (Racket-specific) keyword tables.
+fn racket_quirk(
+    node: Node<'_>,
+    _enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    if node.kind() != "list" {
+        return false;
+    }
+    let Some(head) = lisp2_head_text(node, src) else {
+        return false;
+    };
+    if RACKET_IMPORT_HEADS.contains(&head) {
+        lisp2_import(node, src, out);
+        return false;
+    }
+    if RACKET_DEF_HEADS.contains(&head) {
+        if let Some(name) = lisp2_def_name(node, src) {
+            let line = node.start_position().row + 1;
+            out.symbols.push(SymbolRef {
+                name: name.to_string(),
+                kind: racket_def_symbol_kind(head),
+                line,
+            });
+            racket_walk_def_body(node, src, name, line, out);
+            return true;
+        }
+    }
+    false
+}
+
+/// Mirrors [`scheme_call_override`] exactly.
+fn racket_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    let Some(head) = lisp2_head_text(node, src) else {
+        return false;
+    };
+    let arg_texts = (1..node.named_child_count())
+        .filter_map(|i| node.named_child(i))
+        .filter_map(|n| n.utf8_text(src).ok().map(str::to_string))
+        .collect();
+    out.calls.push(CallRef {
+        callee: head.to_string(),
+        line: node.start_position().row + 1,
+        from_symbol: from_symbol.map(str::to_string),
+        from_symbol_line,
+        receiver_text: None,
+        receiver_hint: None,
+        arg_texts,
+    });
+    true
+}
+
+/// Racket's [`Quirks`] row: mirrors [`scheme_quirks`] exactly, just for
+/// this language's own hooks.
+pub fn racket_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(racket_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(racket_call_override)),
+    }
+}
+
+/// Parse Racket source through the generic engine. Grammar:
+/// `tree-sitter-racket` (crates.io, maintained) -- see
+/// `tests/unit_languages_racket.rs`.
+pub fn parse_racket(source: &str) -> ParsedFile {
+    let spec = LangSpec::racket();
+    let quirks = racket_quirks();
+    let language: tree_sitter::Language = tree_sitter_racket::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Smithy's own `namespace_statement`/`external_shape_id` gap (see
+/// [`crate::languages::spec::LangSpec::smithy`]'s own doc comment):
+/// every OTHER def kind (`structure_statement`/`service_statement`/
+/// `operation_statement`/`resource_statement`/`union_statement`) and
+/// `structure_member` genuinely has a real `"name"` field, handled by
+/// the generic engine's own `class_types`/`func_types`/`field_types`
+/// matching with no quirk needed at all -- confirmed via a real
+/// parse-tree dump. Only these two need this hook:
+/// - `namespace_statement` has NO fields at all (confirmed absent from
+///   both `node-types.json` AND the real dump); its own content is the
+///   literal `namespace` keyword followed by a child node ALSO named
+///   `namespace` (a dotted path) -- found here by kind, not field.
+/// - `external_shape_id` (a `use aws.protocols#restJson1` import) DOES
+///   have real `namespace`/`shape_id` fields, joined here into one
+///   import path text (the bare `use` keyword sibling node carries no
+///   information and is ignored).
+fn smithy_quirk(
+    node: Node<'_>,
+    _enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    match node.kind() {
+        "namespace_statement" => {
+            // Two children both have kind `"namespace"`: the bare
+            // literal keyword leaf (text `"namespace"`, zero children)
+            // AND the actual dotted-path node (real content, at least
+            // one child) -- `child_count() > 0` distinguishes the real
+            // path from the keyword confirmed by a real parse-tree
+            // dump.
+            let Some(ns) = (0..node.child_count())
+                .filter_map(|i| node.child(i))
+                .find(|c| c.kind() == "namespace" && c.child_count() > 0)
+            else {
+                return true;
+            };
+            if let Ok(name) = ns.utf8_text(src) {
+                out.symbols.push(SymbolRef {
+                    name: name.to_owned(),
+                    kind: SymbolKind::Module,
+                    line: node.start_position().row + 1,
+                });
+            }
+            true
+        }
+        "external_shape_id" => {
+            let namespace = node
+                .child_by_field_name("namespace")
+                .and_then(|n| n.utf8_text(src).ok())
+                .unwrap_or_default();
+            let shape_id = node
+                .child_by_field_name("shape_id")
+                .and_then(|n| n.utf8_text(src).ok())
+                .unwrap_or_default();
+            out.imports.push(ImportRef {
+                module_path: format!("{namespace}#{shape_id}"),
+                line: node.start_position().row + 1,
+            });
+            true
+        }
+        _ => false,
+    }
+}
+
+pub fn smithy_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(smithy_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse Smithy (AWS API IDL, `.smithy`) source through the generic
+/// engine. Grammar VENDORED (see `vendor/tree-sitter-smithy-local/`).
+/// Language-parity wave G2.4c/orchestrator completion pass. See
+/// `tests/unit_languages_smithy.rs`.
+pub fn parse_smithy(source: &str) -> ParsedFile {
+    let spec = LangSpec::smithy();
+    let quirks = smithy_quirks();
+    let language: tree_sitter::Language = tree_sitter_smithy_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+/// Pine Script's own `function_declaration_statement` name gap (see
+/// [`crate::languages::spec::LangSpec::pine`]'s own doc comment): its
+/// real name-bearing field is called `"function"`, not this file's
+/// usual `"name"` default -- a real parse-tree dump confirms this
+/// node's OWN `"body"` field is claimed by BOTH the literal `=>` token
+/// AND the actual `block` node (the same field name on two different
+/// children), so the block must be found by KIND, not by
+/// `child_by_field_name("body")` (which would return the `=>` token,
+/// the first match). `type_definition_statement` and `call` both have
+/// real `"name"`/`"function"`+`"arguments"` fields respectively and
+/// need no quirk at all -- only the function-declaration name+body gap
+/// is handled here.
+fn pine_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    if node.kind() != "function_declaration_statement" {
+        return false;
+    }
+    let Some(name_node) = node.child_by_field_name("function") else {
+        return true;
+    };
+    let Ok(name) = name_node.utf8_text(src) else {
+        return true;
+    };
+    let line = node.start_position().row + 1;
+    out.symbols.push(SymbolRef {
+        name: name.to_owned(),
+        kind: SymbolKind::Function,
+        line,
+    });
+    let spec = LangSpec::pine();
+    let quirks = pine_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    let fn_scope = FnScope {
+        name: Some(name),
+        line: Some(line),
+    };
+    if let Some(block) = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|c| c.kind() == "block")
+    {
+        walk(block, &ctx, out, enclosing, fn_scope);
+    }
+    true
+}
+
+pub fn pine_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(pine_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse Pine Script (TradingView, `.pine`) source through the generic
+/// engine. Grammar VENDORED (see `vendor/tree-sitter-pine-local/`).
+/// Language-parity wave G2.4e/orchestrator completion pass. See
+/// `tests/unit_languages_pine.rs`.
+pub fn parse_pine(source: &str) -> ParsedFile {
+    let spec = LangSpec::pine();
+    let quirks = pine_quirks();
+    let language: tree_sitter::Language = tree_sitter_pine_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// HCL
+// =====================================================================
+
+/// A node's own DIRECT child of kind `kind`, found positionally (never
+/// by field -- see [`hcl_quirk`]'s own doc comment: `block`/
+/// `function_call` are both fully fieldless in this grammar).
+fn hcl_positional_child<'a>(node: Node<'a>, kind: &str) -> Option<Node<'a>> {
+    (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|c| c.kind() == kind)
+}
+
+/// A `string_lit`'s own unquoted text, read off its `template_literal`
+/// child (the quote characters are anonymous tokens, never part of
+/// `template_literal`'s own span).
+fn hcl_string_lit_text(node: Node<'_>, src: &[u8]) -> Option<String> {
+    hcl_positional_child(node, "template_literal")
+        .and_then(|c| c.utf8_text(src).ok())
+        .map(str::to_owned)
+}
+
+/// [`Quirks::on_unmatched_node`] for HCL: full claim of `block` (name
+/// synthesis + DEFINES-scoped recursion into its `body`) and
+/// `function_call` (positional callee + recursion into
+/// `function_arguments` for nested calls) -- see
+/// [`crate::languages::spec::LangSpec::hcl`]'s own doc comment for why
+/// both need this rather than the generic engine's own field-based
+/// paths.
+fn hcl_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    let spec = LangSpec::hcl();
+    let quirks = hcl_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    let line = node.start_position().row + 1;
+    match node.kind() {
+        "block" => {
+            let Some(type_name) = hcl_positional_child(node, "identifier")
+                .and_then(|c| c.utf8_text(src).ok())
+                .map(str::to_owned)
+            else {
+                walk_children(node, &ctx, out, enclosing, FnScope::default());
+                return true;
+            };
+            let labels: Vec<String> = (0..node.child_count())
+                .filter_map(|i| node.child(i))
+                .filter(|c| c.kind() == "string_lit")
+                .filter_map(|c| hcl_string_lit_text(c, src))
+                .collect();
+            let name = if labels.is_empty() {
+                type_name
+            } else {
+                format!("{type_name}.{}", labels.join("."))
+            };
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: SymbolKind::Class,
+                line,
+            });
+            if let Some(container) = enclosing {
+                out.defines.push(DefinesRef {
+                    container_name: container.to_owned(),
+                    member_name: name.clone(),
+                    line,
+                });
+            }
+            if let Some(body) = hcl_positional_child(node, "body") {
+                walk_children(body, &ctx, out, Some(name.as_str()), FnScope::default());
+            }
+            true
+        }
+        "function_call" => {
+            let Some(callee) = hcl_positional_child(node, "identifier")
+                .and_then(|c| c.utf8_text(src).ok())
+                .map(str::to_owned)
+            else {
+                return false;
+            };
+            out.calls.push(CallRef {
+                callee,
+                line,
+                ..CallRef::default()
+            });
+            if let Some(args) = hcl_positional_child(node, "function_arguments") {
+                walk_children(args, &ctx, out, enclosing, FnScope::default());
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+pub fn hcl_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(hcl_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse HCL (`.tf`) source through the generic engine. Grammar:
+/// `tree-sitter-hcl` 1.1.0 (`tree-sitter-grammars/tree-sitter-hcl`), a
+/// real crates.io crate. Language-parity wave G2.4b-redo.
+pub fn parse_hcl(source: &str) -> ParsedFile {
+    let spec = LangSpec::hcl();
+    let quirks = hcl_quirks();
+    let language: tree_sitter::Language = tree_sitter_hcl::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Nix
+// =====================================================================
+
+/// A `function_expression`'s own resolved name, climbing to its parent
+/// `binding` (if any) and reading that binding's own `attrpath` field's
+/// first `identifier` child -- see
+/// [`crate::languages::spec::LangSpec::nix`]'s own doc comment: a Nix
+/// lambda carries no `name` field of its own at all, bound or not.
+fn nix_lambda_name(node: Node<'_>, src: &[u8]) -> Option<String> {
+    let parent = node.parent()?;
+    if parent.kind() != "binding" {
+        return None;
+    }
+    let attrpath = parent.child_by_field_name("attrpath")?;
+    (0..attrpath.child_count())
+        .filter_map(|i| attrpath.child(i))
+        .find(|c| c.kind() == "identifier")
+        .and_then(|c| c.utf8_text(src).ok())
+        .map(str::to_owned)
+}
+
+/// The ultimate callee identifier at the bottom of a (possibly curried)
+/// `apply_expression` chain -- recurses through nested
+/// `apply_expression`/`variable_expression` `function`-field children;
+/// see [`crate::languages::spec::LangSpec::nix`]'s own doc comment for
+/// why a single-field text read is not enough on its own.
+fn nix_call_callee(node: Node<'_>, src: &[u8]) -> Option<String> {
+    match node.kind() {
+        "apply_expression" => node
+            .child_by_field_name("function")
+            .and_then(|f| nix_call_callee(f, src)),
+        "variable_expression" => node
+            .child_by_field_name("name")
+            .and_then(|n| n.utf8_text(src).ok())
+            .map(str::to_owned),
+        _ => node.utf8_text(src).ok().map(str::to_owned),
+    }
+}
+
+/// [`Quirks::on_unmatched_node`] for Nix: full claim of
+/// `function_expression` only when a name is actually resolvable (an
+/// unbound inline lambda returns `false`, leaving the generic walker to
+/// recurse into its `formals`/`body` unscoped, matching this language's
+/// own hard-test expectation that it stays anonymous rather than being
+/// dropped or mis-scoped).
+fn nix_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    if node.kind() != "function_expression" {
+        return false;
+    }
+    let Some(name) = nix_lambda_name(node, src) else {
+        return false;
+    };
+    let line = node.start_position().row + 1;
+    out.symbols.push(SymbolRef {
+        name: name.clone(),
+        kind: SymbolKind::Function,
+        line,
+    });
+    if let Some(container) = enclosing {
+        out.defines.push(DefinesRef {
+            container_name: container.to_owned(),
+            member_name: name.clone(),
+            line,
+        });
+    }
+    let spec = LangSpec::nix();
+    let quirks = nix_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    if let Some(body) = node.child_by_field_name("body") {
+        walk(
+            body,
+            &ctx,
+            out,
+            enclosing,
+            FnScope {
+                name: Some(name.as_str()),
+                line: Some(line),
+            },
+        );
+    }
+    true
+}
+
+/// [`Quirks::call_override`] for Nix: resolves `apply_expression`'s own
+/// callee via [`nix_call_callee`] and records it per-node (not
+/// curry-chain collapsed) -- see
+/// [`crate::languages::spec::LangSpec::nix`]'s own doc comment.
+fn nix_call_override(
+    node: Node<'_>,
+    fn_scope_name: Option<&str>,
+    fn_scope_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    let Some(function_field) = node.child_by_field_name("function") else {
+        return false;
+    };
+    let Some(callee) = nix_call_callee(function_field, src) else {
+        return false;
+    };
+    out.calls.push(CallRef {
+        callee,
+        line: node.start_position().row + 1,
+        from_symbol: fn_scope_name.map(str::to_owned),
+        from_symbol_line: fn_scope_line,
+        ..CallRef::default()
+    });
+    true
+}
+
+pub fn nix_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(nix_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(nix_call_override)),
+    }
+}
+
+/// Parse Nix (`.nix`) source through the generic engine. Grammar:
+/// `tree-sitter-nix` 0.3.0 (`nix-community/tree-sitter-nix`), a real
+/// crates.io crate. Language-parity wave G2.4b-redo.
+pub fn parse_nix(source: &str) -> ParsedFile {
+    let spec = LangSpec::nix();
+    let quirks = nix_quirks();
+    let language: tree_sitter::Language = tree_sitter_nix::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// SQL
+// =====================================================================
+
+/// A node's own first DIRECT child of kind `kind`, found positionally.
+fn sql_positional_child<'a>(node: Node<'a>, kind: &str) -> Option<Node<'a>> {
+    (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|c| c.kind() == kind)
+}
+
+/// `create_function`/`create_type`'s own resolved name: their first
+/// `object_reference` child (found positionally, not via either node's
+/// own declared `name`/`custom_type` field -- see
+/// [`crate::languages::spec::LangSpec::sql`]'s own doc comment), read
+/// off THAT node's own real `name` field.
+fn sql_def_name(node: Node<'_>, src: &[u8]) -> Option<String> {
+    let object_reference = sql_positional_child(node, "object_reference")?;
+    let name = object_reference.child_by_field_name("name")?;
+    name.utf8_text(src).ok().map(str::to_owned)
+}
+
+/// [`Quirks::on_unmatched_node`] for SQL: full claim of `create_function`
+/// (-> Function) and `create_type` (-> Class). Returns `false` even when
+/// a symbol was recorded, so the generic walker's own bottom fallback
+/// still recurses into this node's children afterward (a
+/// `create_function`'s own procedural body can contain nested
+/// `invocation`/`case` nodes worth finding).
+fn sql_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    let kind_name = node.kind();
+    if kind_name != "create_function" && kind_name != "create_type" {
+        return false;
+    }
+    let Some(name) = sql_def_name(node, src) else {
+        return false;
+    };
+    out.symbols.push(SymbolRef {
+        name,
+        kind: if kind_name == "create_function" {
+            SymbolKind::Function
+        } else {
+            SymbolKind::Class
+        },
+        line: node.start_position().row + 1,
+    });
+    false
+}
+
+/// [`Quirks::call_override`] for SQL: `invocation`'s own callee, read
+/// via a positional `object_reference` scan rather than its own
+/// declared-but-dead `unit` field (confirmed empty on a real parse --
+/// see [`crate::languages::spec::LangSpec::sql`]'s own doc comment).
+fn sql_call_override(
+    node: Node<'_>,
+    fn_scope_name: Option<&str>,
+    fn_scope_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    let Some(object_reference) = sql_positional_child(node, "object_reference") else {
+        return false;
+    };
+    let Ok(callee) = object_reference.utf8_text(src) else {
+        return false;
+    };
+    out.calls.push(CallRef {
+        callee: callee.to_owned(),
+        line: node.start_position().row + 1,
+        from_symbol: fn_scope_name.map(str::to_owned),
+        from_symbol_line: fn_scope_line,
+        ..CallRef::default()
+    });
+    true
+}
+
+pub fn sql_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(sql_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(sql_call_override)),
+    }
+}
+
+/// Parse SQL (`.sql`) source through the generic engine. Grammar:
+/// `tree-sitter-sequel` 0.3.11 (derekstride/tree-sitter-sql's own real
+/// crates.io package name). Language-parity wave G2.4b-redo.
+pub fn parse_sql(source: &str) -> ParsedFile {
+    let spec = LangSpec::sql();
+    let quirks = sql_quirks();
+    let language: tree_sitter::Language = tree_sitter_sequel::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Protobuf
+// =====================================================================
+
+/// A node's own first DIRECT child of kind `kind`, found positionally
+/// (every construct in this grammar is fieldless -- see
+/// [`crate::languages::spec::LangSpec::protobuf`]'s own doc comment).
+fn protobuf_positional_child<'a>(node: Node<'a>, kind: &str) -> Option<Node<'a>> {
+    (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|c| c.kind() == kind)
+}
+
+/// `message`/`service`/`enum`/`rpc`'s own resolved name, read through a
+/// dedicated wrapper child (`message_name`/`service_name`/`enum_name`/
+/// `rpc_name`) one level down -- that wrapper's own single `identifier`
+/// child.
+fn protobuf_wrapper_name(node: Node<'_>, wrapper_kind: &str, src: &[u8]) -> Option<String> {
+    let wrapper = protobuf_positional_child(node, wrapper_kind)?;
+    protobuf_positional_child(wrapper, "identifier")
+        .and_then(|c| c.utf8_text(src).ok())
+        .map(str::to_owned)
+}
+
+/// `import`'s own quoted `path` field text, with its surrounding quote
+/// characters stripped (the quotes are part of `path`'s own `string`
+/// child span, not separated into their own child node).
+fn protobuf_import_path_text(node: Node<'_>, src: &[u8]) -> Option<String> {
+    let path = node.child_by_field_name("path")?;
+    let text = path.utf8_text(src).ok()?;
+    Some(text.trim_matches(['"', '\'']).to_owned())
+}
+
+/// [`Quirks::on_unmatched_node`] for Protobuf: full claim of every
+/// construct this row cares about -- see
+/// [`crate::languages::spec::LangSpec::protobuf`]'s own doc comment for
+/// the full construct-by-construct breakdown.
+fn protobuf_quirk(
+    node: Node<'_>,
+    enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    let spec = LangSpec::protobuf();
+    let quirks = protobuf_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    let line = node.start_position().row + 1;
+    match node.kind() {
+        "message" | "service" => {
+            let wrapper_kind = if node.kind() == "message" {
+                "message_name"
+            } else {
+                "service_name"
+            };
+            let Some(name) = protobuf_wrapper_name(node, wrapper_kind, src) else {
+                walk_children(node, &ctx, out, enclosing, FnScope::default());
+                return true;
+            };
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: SymbolKind::Class,
+                line,
+            });
+            if let Some(container) = enclosing {
+                out.defines.push(DefinesRef {
+                    container_name: container.to_owned(),
+                    member_name: name.clone(),
+                    line,
+                });
+            }
+            walk_children(node, &ctx, out, Some(name.as_str()), FnScope::default());
+            true
+        }
+        "enum" => {
+            let Some(name) = protobuf_wrapper_name(node, "enum_name", src) else {
+                return true;
+            };
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: SymbolKind::Enum,
+                line,
+            });
+            if let Some(container) = enclosing {
+                out.defines.push(DefinesRef {
+                    container_name: container.to_owned(),
+                    member_name: name,
+                    line,
+                });
+            }
+            true
+        }
+        "rpc" => {
+            let Some(name) = protobuf_wrapper_name(node, "rpc_name", src) else {
+                return true;
+            };
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: SymbolKind::Function,
+                line,
+            });
+            if let Some(container) = enclosing {
+                out.defines.push(DefinesRef {
+                    container_name: container.to_owned(),
+                    member_name: name,
+                    line,
+                });
+            }
+            true
+        }
+        "field" | "map_field" => {
+            if let (Some(container), Some(member)) = (
+                enclosing,
+                protobuf_positional_child(node, "identifier")
+                    .and_then(|c| c.utf8_text(src).ok())
+                    .map(str::to_owned),
+            ) {
+                out.defines.push(DefinesRef {
+                    container_name: container.to_owned(),
+                    member_name: member,
+                    line,
+                });
+            }
+            true
+        }
+        "import" => {
+            if let Some(path) = protobuf_import_path_text(node, src) {
+                out.imports.push(ImportRef {
+                    module_path: path,
+                    line,
+                });
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+pub fn protobuf_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(protobuf_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse Protobuf (`.proto`) source through the generic engine.
+/// Grammar: `tree-sitter-proto` 0.4.0 (`coder3101/tree-sitter-proto`), a
+/// real crates.io crate. Language-parity wave G2.4b-redo.
+pub fn parse_protobuf(source: &str) -> ParsedFile {
+    let spec = LangSpec::protobuf();
+    let quirks = protobuf_quirks();
+    let language: tree_sitter::Language = tree_sitter_proto::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Prisma
+// =====================================================================
+
+/// A node's own first DIRECT child of kind `kind`, found positionally
+/// (every construct in this grammar is fieldless -- see
+/// [`crate::languages::spec::LangSpec::prisma`]'s own doc comment).
+fn prisma_positional_child<'a>(node: Node<'a>, kind: &str) -> Option<Node<'a>> {
+    (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|c| c.kind() == kind)
+}
+
+/// [`Quirks::on_unmatched_node`] for Prisma: full claim of every
+/// construct this row cares about -- see
+/// [`crate::languages::spec::LangSpec::prisma`]'s own doc comment for
+/// the full construct-by-construct breakdown.
+fn prisma_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    let spec = LangSpec::prisma();
+    let quirks = prisma_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    let line = node.start_position().row + 1;
+    match node.kind() {
+        "model_declaration"
+        | "datasource_declaration"
+        | "generator_declaration"
+        | "enum_declaration" => {
+            let Some(name) = prisma_positional_child(node, "identifier")
+                .and_then(|c| c.utf8_text(src).ok())
+                .map(str::to_owned)
+            else {
+                walk_children(node, &ctx, out, enclosing, FnScope::default());
+                return true;
+            };
+            let symbol_kind = if node.kind() == "enum_declaration" {
+                SymbolKind::Enum
+            } else {
+                SymbolKind::Class
+            };
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: symbol_kind,
+                line,
+            });
+            if let Some(container) = enclosing {
+                out.defines.push(DefinesRef {
+                    container_name: container.to_owned(),
+                    member_name: name.clone(),
+                    line,
+                });
+            }
+            if let Some(body) = prisma_positional_child(node, "statement_block") {
+                walk_children(body, &ctx, out, Some(name.as_str()), FnScope::default());
+            } else if let Some(body) = prisma_positional_child(node, "enum_block") {
+                walk_children(body, &ctx, out, Some(name.as_str()), FnScope::default());
+            }
+            true
+        }
+        "column_declaration" => {
+            if let (Some(container), Some(member)) = (
+                enclosing,
+                prisma_positional_child(node, "identifier")
+                    .and_then(|c| c.utf8_text(src).ok())
+                    .map(str::to_owned),
+            ) {
+                out.defines.push(DefinesRef {
+                    container_name: container.to_owned(),
+                    member_name: member,
+                    line,
+                });
+            }
+            walk_children(node, &ctx, out, enclosing, FnScope::default());
+            true
+        }
+        "call_expression" => {
+            let callee = prisma_positional_child(node, "identifier")
+                .and_then(|c| c.utf8_text(src).ok())
+                .map(str::to_owned)
+                .or_else(|| {
+                    prisma_positional_child(node, "member_expression")
+                        .and_then(|c| c.utf8_text(src).ok())
+                        .map(str::to_owned)
+                });
+            let Some(callee) = callee else {
+                return false;
+            };
+            out.calls.push(CallRef {
+                callee,
+                line,
+                ..CallRef::default()
+            });
+            if let Some(args) = prisma_positional_child(node, "arguments") {
+                walk_children(args, &ctx, out, enclosing, FnScope::default());
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+pub fn prisma_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(prisma_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse Prisma (`.prisma`) source through the generic engine. Grammar:
+/// `tree-sitter-prisma-io` 1.6.0 (victorhqc/tree-sitter-prisma's own
+/// real crates.io package name). Language-parity wave G2.4b-redo.
+pub fn parse_prisma(source: &str) -> ParsedFile {
+    let spec = LangSpec::prisma();
+    let quirks = prisma_quirks();
+    let language: tree_sitter::Language = tree_sitter_prisma_io::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Pkl
+// =====================================================================
+
+/// A node's own first DIRECT child of kind `kind`, found positionally
+/// (every construct in this grammar is fieldless -- see
+/// [`crate::languages::spec::LangSpec::pkl`]'s own doc comment).
+fn pkl_positional_child<'a>(node: Node<'a>, kind: &str) -> Option<Node<'a>> {
+    (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|c| c.kind() == kind)
+}
+
+/// A descendant of kind `kind`, found via depth-first search -- used to
+/// reach `stringConstant` regardless of how deep `importClause`/
+/// `extendsOrAmendsClause` happen to nest it.
+fn pkl_find_descendant<'a>(node: Node<'a>, kind: &str) -> Option<Node<'a>> {
+    if node.kind() == kind {
+        return Some(node);
+    }
+    (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find_map(|c| pkl_find_descendant(c, kind))
+}
+
+/// A `stringConstant` node's own unquoted text, read off its
+/// `slStringLiteralPart` child (the quote characters are anonymous
+/// tokens, never part of that child's own span).
+fn pkl_string_constant_text(node: Node<'_>, src: &[u8]) -> Option<String> {
+    let string_constant = pkl_find_descendant(node, "stringConstant")?;
+    pkl_positional_child(string_constant, "slStringLiteralPart")
+        .and_then(|c| c.utf8_text(src).ok())
+        .map(str::to_owned)
+}
+
+/// [`Quirks::on_unmatched_node`] for Pkl: full claim of `clazz`,
+/// `classMethod`, `importClause`, and `extendsOrAmendsClause` -- see
+/// [`crate::languages::spec::LangSpec::pkl`]'s own doc comment for the
+/// full construct-by-construct breakdown.
+fn pkl_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    let spec = LangSpec::pkl();
+    let quirks = pkl_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    let line = node.start_position().row + 1;
+    match node.kind() {
+        "clazz" => {
+            let Some(name) = pkl_positional_child(node, "identifier")
+                .and_then(|c| c.utf8_text(src).ok())
+                .map(str::to_owned)
+            else {
+                walk_children(node, &ctx, out, enclosing, FnScope::default());
+                return true;
+            };
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: SymbolKind::Class,
+                line,
+            });
+            if let Some(container) = enclosing {
+                out.defines.push(DefinesRef {
+                    container_name: container.to_owned(),
+                    member_name: name.clone(),
+                    line,
+                });
+            }
+            if let Some(body) = pkl_positional_child(node, "classBody") {
+                walk_children(body, &ctx, out, Some(name.as_str()), FnScope::default());
+            }
+            true
+        }
+        "classMethod" => {
+            let Some(header) = pkl_positional_child(node, "methodHeader") else {
+                walk_children(node, &ctx, out, enclosing, FnScope::default());
+                return true;
+            };
+            let Some(name) = pkl_positional_child(header, "identifier")
+                .and_then(|c| c.utf8_text(src).ok())
+                .map(str::to_owned)
+            else {
+                walk_children(node, &ctx, out, enclosing, FnScope::default());
+                return true;
+            };
+            let symbol_kind = if enclosing.is_some() {
+                SymbolKind::Method
+            } else {
+                SymbolKind::Function
+            };
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: symbol_kind,
+                line,
+            });
+            if let Some(container) = enclosing {
+                out.defines.push(DefinesRef {
+                    container_name: container.to_owned(),
+                    member_name: name.clone(),
+                    line,
+                });
+            }
+            let fn_scope = FnScope {
+                name: Some(name.as_str()),
+                line: Some(line),
+            };
+            for i in 0..node.child_count() {
+                if let Some(child) = node.child(i) {
+                    if matches!(
+                        child.kind(),
+                        "methodHeader" | "annotation" | "docComment" | "modifier"
+                    ) {
+                        continue;
+                    }
+                    walk(child, &ctx, out, enclosing, fn_scope);
+                }
+            }
+            true
+        }
+        "importClause" | "extendsOrAmendsClause" => {
+            if let Some(path) = pkl_string_constant_text(node, src) {
+                out.imports.push(ImportRef {
+                    module_path: path,
+                    line,
+                });
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+pub fn pkl_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(pkl_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse Pkl (`.pkl`) source through the generic engine. Grammar:
+/// `tree-sitter-pkl` 0.21.0 (`apple/tree-sitter-pkl`), pinned via a
+/// `git` dependency (no crates.io release exists for this grammar).
+/// Language-parity wave G2.4b-redo.
+pub fn parse_pkl(source: &str) -> ParsedFile {
+    let spec = LangSpec::pkl();
+    let quirks = pkl_quirks();
+    let language: tree_sitter::Language = tree_sitter_pkl::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Thrift
+// =====================================================================
+
+/// A Thrift construct node's own leading positional `identifier` child,
+/// found by KIND (never by field -- see
+/// [`crate::languages::spec::LangSpec::thrift`]'s own doc comment: every
+/// node this helper is used for is completely fieldless). Only DIRECT
+/// children are scanned, never descendants, so a struct-level `field`'s
+/// own nested identifier is never mistaken for the struct's own name.
+fn thrift_positional_identifier(node: Node<'_>, src: &[u8]) -> Option<String> {
+    (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|c| c.kind() == "identifier")
+        .and_then(|c| c.utf8_text(src).ok())
+        .map(str::to_owned)
+}
+
+/// An `include_statement`'s own descendant `string` -> `string_fragment`
+/// text (the quoted `.thrift` path).
+fn thrift_include_path_text(node: Node<'_>, src: &[u8]) -> Option<String> {
+    fn find_string_fragment<'a>(node: Node<'a>) -> Option<Node<'a>> {
+        if node.kind() == "string_fragment" {
+            return Some(node);
+        }
+        (0..node.child_count())
+            .filter_map(|i| node.child(i))
+            .find_map(find_string_fragment)
+    }
+    find_string_fragment(node)
+        .and_then(|n| n.utf8_text(src).ok())
+        .map(str::to_owned)
+}
+
+/// Claims exactly the five completely fieldless Thrift construct kinds
+/// this row's own `LangSpec` cannot express via any field-based array
+/// (see [`crate::languages::spec::LangSpec::thrift`]'s own doc comment
+/// for the full per-kind rationale) -- `struct_definition`/
+/// `union_definition`/`enum_definition`/`senum_definition`/
+/// `service_definition`/`interaction_definition` all carry a real
+/// `"type"` field and are NOT claimed here, falling through (`_ =>
+/// false`) to the generic engine's own field-based matching instead.
+fn thrift_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    let spec = LangSpec::thrift();
+    let quirks = thrift_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    let line = node.start_position().row + 1;
+    match node.kind() {
+        "exception_definition" => {
+            let Some(name) = thrift_positional_identifier(node, src) else {
+                return true;
+            };
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: SymbolKind::Class,
+                line,
+            });
+            walk_children(node, &ctx, out, Some(name.as_str()), FnScope::default());
+            true
+        }
+        "function_definition" => {
+            let Some(name) = thrift_positional_identifier(node, src) else {
+                return true;
+            };
+            let kind = if enclosing.is_some() {
+                SymbolKind::Method
+            } else {
+                SymbolKind::Function
+            };
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind,
+                line,
+            });
+            if let Some(container) = enclosing {
+                out.defines.push(DefinesRef {
+                    container_name: container.to_owned(),
+                    member_name: name,
+                    line,
+                });
+            }
+            true
+        }
+        "field" => {
+            if let (Some(container), Some(name)) =
+                (enclosing, thrift_positional_identifier(node, src))
+            {
+                out.defines.push(DefinesRef {
+                    container_name: container.to_owned(),
+                    member_name: name,
+                    line,
+                });
+            }
+            true
+        }
+        "const_definition" => {
+            let Some(name) = thrift_positional_identifier(node, src) else {
+                return true;
+            };
+            out.symbols.push(SymbolRef {
+                name,
+                kind: SymbolKind::Constant,
+                line,
+            });
+            true
+        }
+        "include_statement" => {
+            if let Some(path) = thrift_include_path_text(node, src) {
+                out.imports.push(ImportRef {
+                    module_path: path,
+                    line,
+                });
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+pub fn thrift_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(thrift_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse Thrift (`.thrift`) source through the generic engine. Grammar
+/// VENDORED (see `vendor/tree-sitter-thrift-local/`). Language-parity
+/// wave G2.4c-redo. See `tests/unit_languages_thrift.rs`.
+pub fn parse_thrift(source: &str) -> ParsedFile {
+    let spec = LangSpec::thrift();
+    let quirks = thrift_quirks();
+    let language: tree_sitter::Language = tree_sitter_thrift_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// WIT (WebAssembly Interface Types)
+// =====================================================================
+
+/// Claims exactly `resource_item`/`import_item`/`export_item` (see
+/// [`crate::languages::spec::LangSpec::wit`]'s own doc comment for the
+/// full rationale) -- every other WIT construct rides the generic
+/// engine's own field-based matching untouched.
+fn wit_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    let line = node.start_position().row + 1;
+    match node.kind() {
+        "resource_item" => {
+            let Some(name) = node
+                .child_by_field_name("name")
+                .and_then(|n| n.utf8_text(src).ok())
+                .map(str::to_owned)
+            else {
+                return true;
+            };
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: SymbolKind::Class,
+                line,
+            });
+            if let Some(container) = enclosing {
+                out.defines.push(DefinesRef {
+                    container_name: container.to_owned(),
+                    member_name: name.clone(),
+                    line,
+                });
+            }
+            for i in 0..node.child_count() as u32 {
+                if node.field_name_for_child(i) != Some("methods") {
+                    continue;
+                }
+                let Some(method_node) = node.child(i as usize) else {
+                    continue;
+                };
+                for j in 0..method_node.child_count() {
+                    let Some(func_node) = method_node.child(j) else {
+                        continue;
+                    };
+                    if func_node.kind() != "func_item" {
+                        continue;
+                    }
+                    let Some(func_name) = func_node
+                        .child_by_field_name("name")
+                        .and_then(|n| n.utf8_text(src).ok())
+                        .map(str::to_owned)
+                    else {
+                        continue;
+                    };
+                    let func_line = func_node.start_position().row + 1;
+                    out.symbols.push(SymbolRef {
+                        name: func_name.clone(),
+                        kind: SymbolKind::Method,
+                        line: func_line,
+                    });
+                    out.defines.push(DefinesRef {
+                        container_name: name.clone(),
+                        member_name: func_name,
+                        line: func_line,
+                    });
+                }
+            }
+            true
+        }
+        "import_item" | "export_item" => {
+            if let Ok(text) = node.utf8_text(src) {
+                out.imports.push(ImportRef {
+                    module_path: text.trim().to_string(),
+                    line,
+                });
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+pub fn wit_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(wit_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse WIT (`.wit`) source through the generic engine. Grammar:
+/// `tree-sitter-wit` 0.2.0 (`Michael-F-Bryan/wit-lsp`), a real
+/// crates.io crate. Language-parity wave G2.4c-redo. See
+/// `tests/unit_languages_wit.rs`.
+pub fn parse_wit(source: &str) -> ParsedFile {
+    let spec = LangSpec::wit();
+    let quirks = wit_quirks();
+    let language: tree_sitter::Language = tree_sitter_wit::language();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// LLVM IR
+// =====================================================================
+
+/// An `fn_define`/`declare` node's own positional `function_header`
+/// child's real `"name"` field, sigil-stripped of its leading `@`.
+fn llvm_fn_name(node: Node<'_>, src: &[u8]) -> Option<String> {
+    let header = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|c| c.kind() == "function_header")?;
+    let name_node = header.child_by_field_name("name")?;
+    let text = name_node.utf8_text(src).ok()?;
+    Some(text.trim_start_matches('@').to_string())
+}
+
+/// Claims exactly `fn_define`/`declare` (see
+/// [`crate::languages::spec::LangSpec::llvm_ir`]'s own doc comment for
+/// why neither carries a `"name"` field of its own) -- every other LLVM
+/// IR construct (`instruction_call`/`instruction_invoke`) rides the
+/// generic engine's own field-based call matching untouched.
+fn llvm_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    let spec = LangSpec::llvm_ir();
+    let quirks = llvm_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    let line = node.start_position().row + 1;
+    match node.kind() {
+        "fn_define" => {
+            let Some(name) = llvm_fn_name(node, src) else {
+                return true;
+            };
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: SymbolKind::Function,
+                line,
+            });
+            if let Some(body) = node.child_by_field_name("body") {
+                walk_children(
+                    body,
+                    &ctx,
+                    out,
+                    enclosing,
+                    FnScope {
+                        name: Some(name.as_str()),
+                        line: Some(line),
+                    },
+                );
+            }
+            true
+        }
+        "declare" => {
+            let Some(name) = llvm_fn_name(node, src) else {
+                return true;
+            };
+            out.symbols.push(SymbolRef {
+                name,
+                kind: SymbolKind::Function,
+                line,
+            });
+            true
+        }
+        _ => false,
+    }
+}
+
+pub fn llvm_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(llvm_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse LLVM IR (`.ll`) source through the generic engine. Grammar:
+/// `tree-sitter-llvm` 1.1.0 (`tree-sitter/tree-sitter-LLVM`), a real
+/// crates.io crate. Language-parity wave G2.4c-redo. See
+/// `tests/unit_languages_llvm_ir.rs`.
+pub fn parse_llvm_ir(source: &str) -> ParsedFile {
+    let spec = LangSpec::llvm_ir();
+    let quirks = llvm_quirks();
+    let language: tree_sitter::Language = tree_sitter_llvm::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// LLVM TableGen
+// =====================================================================
+
+/// An `include_directive`'s own descendant `string` -> `string_content`
+/// text (the quoted `.td` path -- NOT `string_fragment`, the sibling
+/// grammar's own name for the identical concept; see
+/// [`crate::languages::spec::LangSpec::tablegen`]'s own doc comment).
+fn tablegen_include_path_text(node: Node<'_>, src: &[u8]) -> Option<String> {
+    fn find_string_content<'a>(node: Node<'a>) -> Option<Node<'a>> {
+        if node.kind() == "string_content" {
+            return Some(node);
+        }
+        (0..node.child_count())
+            .filter_map(|i| node.child(i))
+            .find_map(find_string_content)
+    }
+    find_string_content(node)
+        .and_then(|n| n.utf8_text(src).ok())
+        .map(str::to_owned)
+}
+
+/// Claims exactly `include_directive` (see
+/// [`crate::languages::spec::LangSpec::tablegen`]'s own doc comment for
+/// why it carries no field of its own) -- every other TableGen
+/// construct (`class`/`def`/`multiclass`/`defm`) rides the generic
+/// engine's own field-based matching untouched.
+fn tablegen_quirk(
+    node: Node<'_>,
+    _enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    let line = node.start_position().row + 1;
+    match node.kind() {
+        "include_directive" => {
+            if let Some(path) = tablegen_include_path_text(node, src) {
+                out.imports.push(ImportRef {
+                    module_path: path,
+                    line,
+                });
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+pub fn tablegen_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(tablegen_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse LLVM TableGen (`.td`) source through the generic engine.
+/// Grammar VENDORED (see `vendor/tree-sitter-tablegen-local/`).
+/// Language-parity wave G2.4c-redo. See
+/// `tests/unit_languages_tablegen.rs`.
+pub fn parse_tablegen(source: &str) -> ParsedFile {
+    let spec = LangSpec::tablegen();
+    let quirks = tablegen_quirks();
+    let language: tree_sitter::Language = tree_sitter_tablegen_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// CFML (tag dialect)
+// =====================================================================
+
+/// A `cf_function_tag`/`cf_selfclose_tag`'s own `cf_attribute` child
+/// whose `cf_attribute_name` text case-insensitively equals `key`,
+/// resolved to that same attribute's value text (see
+/// [`crate::languages::spec::LangSpec::cfml`]'s own doc comment: real
+/// CFML tag attribute names are case-insensitive, e.g. `NAME=`/`name=`
+/// both name a `<cffunction>`). Descends by KIND, never by field --
+/// `cf_attribute` itself is completely fieldless.
+fn cfml_tag_attribute_text(node: Node<'_>, src: &[u8], key: &str) -> Option<String> {
+    (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .filter(|c| c.kind() == "cf_attribute")
+        .find_map(|attr| {
+            let mut name_matches = false;
+            let mut value = None;
+            for i in 0..attr.child_count() {
+                let Some(c) = attr.child(i) else { continue };
+                match c.kind() {
+                    "cf_attribute_name" => {
+                        if let Ok(t) = c.utf8_text(src) {
+                            name_matches = t.eq_ignore_ascii_case(key);
+                        }
+                    }
+                    "cf_attribute_value" | "quoted_cf_attribute_value" => {
+                        value = cfml_attribute_value_text(c, src);
+                    }
+                    _ => {}
+                }
+            }
+            if name_matches {
+                value
+            } else {
+                None
+            }
+        })
+}
+
+/// A `cf_attribute_value`/`quoted_cf_attribute_value`'s own inner
+/// `attribute_value` descendant's text (the unquoted value, e.g.
+/// `getUser` from `name="getUser"`) -- found by KIND since both wrapper
+/// kinds are fieldless.
+fn cfml_attribute_value_text(node: Node<'_>, src: &[u8]) -> Option<String> {
+    fn find_attribute_value(n: Node<'_>) -> Option<Node<'_>> {
+        if n.kind() == "attribute_value" {
+            return Some(n);
+        }
+        (0..n.child_count())
+            .filter_map(|i| n.child(i))
+            .find_map(find_attribute_value)
+    }
+    find_attribute_value(node)
+        .and_then(|n| n.utf8_text(src).ok())
+        .map(str::to_owned)
+}
+
+/// Claims `cf_function_tag` (see
+/// [`crate::languages::spec::LangSpec::cfml`]'s own doc comment: fully
+/// fieldless, name resolved via [`cfml_tag_attribute_text`]) and
+/// `cf_script_content` (an embedded `<cfscript>` block's own raw,
+/// unstructured text -- re-parsed through
+/// [`parse_cfscript`]/[`LangSpec::cfscript`], the sibling grammar this
+/// crate already drives for `.cfc` files, with every result line
+/// shifted by this node's own start row).
+fn cfml_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    match node.kind() {
+        "cf_function_tag" => {
+            let line = node.start_position().row + 1;
+            let name = cfml_tag_attribute_text(node, src, "name");
+            if let Some(name) = &name {
+                out.symbols.push(SymbolRef {
+                    name: name.clone(),
+                    kind: SymbolKind::Function,
+                    line,
+                });
+                if let Some(container) = enclosing {
+                    out.defines.push(DefinesRef {
+                        container_name: container.to_owned(),
+                        member_name: name.clone(),
+                        line,
+                    });
+                }
+            }
+            let spec = LangSpec::cfml();
+            let quirks = cfml_quirks();
+            let ctx = Ctx {
+                spec: &spec,
+                src,
+                quirks: &quirks,
+                is_test_file: false,
+            };
+            let fn_scope = FnScope {
+                name: name.as_deref(),
+                line: Some(line),
+            };
+            walk_children(node, &ctx, out, enclosing, fn_scope);
+            true
+        }
+        "cf_script_content" => {
+            let Ok(text) = node.utf8_text(src) else {
+                return true;
+            };
+            let offset = node.start_position().row;
+            let sub = parse_cfscript(text);
+            for s in sub.symbols {
+                out.symbols.push(SymbolRef {
+                    name: s.name,
+                    kind: s.kind,
+                    line: s.line + offset,
+                });
+            }
+            for c in sub.calls {
+                out.calls.push(CallRef {
+                    callee: c.callee,
+                    line: c.line + offset,
+                    from_symbol: c.from_symbol,
+                    from_symbol_line: c.from_symbol_line.map(|l| l + offset),
+                    receiver_text: c.receiver_text,
+                    receiver_hint: c.receiver_hint,
+                    arg_texts: c.arg_texts,
+                });
+            }
+            for d in sub.defines {
+                out.defines.push(DefinesRef {
+                    container_name: d.container_name,
+                    member_name: d.member_name,
+                    line: d.line + offset,
+                });
+            }
+            for i in sub.imports {
+                out.imports.push(ImportRef {
+                    module_path: i.module_path,
+                    line: i.line + offset,
+                });
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+pub fn cfml_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(cfml_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse CFML (tag dialect, `.cfm`) source through the generic engine.
+/// Grammar: `tree-sitter-cfml` 0.26.20's `LANGUAGE_CFML` entry point
+/// (this crate already depends on the crate for
+/// [`parse_cfscript`]/`LANGUAGE_CFSCRIPT`). Language-parity wave
+/// G2.4e redo. See `tests/unit_languages_cfml.rs`.
+pub fn parse_cfml(source: &str) -> ParsedFile {
+    let spec = LangSpec::cfml();
+    let quirks = cfml_quirks();
+    let language: tree_sitter::Language = tree_sitter_cfml::LANGUAGE_CFML.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Go Template
+// =====================================================================
+
+/// Strips a Go Template string-literal token's own surrounding quote
+/// characters (`"..."` or `` `...` ``) -- used only for
+/// `template_action`'s own callee text (see
+/// [`crate::languages::spec::LangSpec::gotemplate`]'s own doc comment:
+/// unlike `define_action`'s own symbol name, which deliberately KEEPS
+/// its quotes, a real hard test asserts `template_action`'s callee is
+/// bare, e.g. `"footer"` not `"\"footer\""`).
+fn gotemplate_unquote(text: &str) -> String {
+    text.trim_matches(|c| c == '"' || c == '`').to_owned()
+}
+
+/// Closes a real gap in the generic engine's own default `body_field`
+/// handling: `define_action`'s own `"body"` field is `multiple: true`
+/// (confirmed in `node-types.json` -- a `{{define "main"}}` block's
+/// every top-level statement/action/text node is separately tagged
+/// `body`, not wrapped in one single body node), but
+/// `Node::child_by_field_name` only ever returns the FIRST node with a
+/// given field name -- the generic engine's own post-symbol
+/// `walk_children(node.child_by_field_name(body_field), ...)` step
+/// therefore only ever visits that first `body`-tagged child, silently
+/// dropping every statement after it (caught by a real hard test: a
+/// `define_action` fixture with `{{ .Name | upper }}` then a
+/// `{{ range ... }}` then a `{{ template "footer" . }}` came back with
+/// an EMPTY `calls` list before this hook was added, since the
+/// generic-default single-child walk only ever reached the first
+/// `{{ .Name | upper }}` pipeline). This hook re-walks every REMAINING
+/// `body`-tagged child via `Node::children_by_field_name` (skipping the
+/// first one by identity, since the generic engine's own default step
+/// still visits that one on its own -- walking it twice here would
+/// double-count its calls).
+fn gotemplate_on_method_defined(
+    node: Node<'_>,
+    name: &str,
+    line: usize,
+    src: &[u8],
+    out: &mut ParsedFile,
+) {
+    let spec = LangSpec::gotemplate();
+    let quirks = gotemplate_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    let Some(first_body) = node.child_by_field_name("body") else {
+        return;
+    };
+    let fn_scope = FnScope {
+        name: Some(name),
+        line: Some(line),
+    };
+    let mut cursor = node.walk();
+    for child in node.children_by_field_name("body", &mut cursor) {
+        if child.id() == first_body.id() {
+            continue;
+        }
+        walk(child, &ctx, out, None, fn_scope);
+    }
+}
+
+/// Handles Go Template's three differently-shaped call nodes (see
+/// [`crate::languages::spec::LangSpec::gotemplate`]'s own doc comment
+/// for the full per-node-kind breakdown): `function_call` falls through
+/// to the generic engine's own default (its real `function`/`arguments`
+/// fields already match this row's flat defaults exactly);
+/// `method_call`'s own callee field is spelled `"method"`, not
+/// `"function"`; `template_action`'s own callee is a quoted `"name"`
+/// field needing [`gotemplate_unquote`], with a single optional
+/// `"argument"` field (singular) rather than an argument-list wrapper.
+fn gotemplate_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    match node.kind() {
+        "method_call" => {
+            let Some(method) = node.child_by_field_name("method") else {
+                return true;
+            };
+            let Ok(callee) = method.utf8_text(src) else {
+                return true;
+            };
+            out.calls.push(CallRef {
+                callee: callee.to_owned(),
+                line: node.start_position().row + 1,
+                from_symbol: from_symbol.map(str::to_owned),
+                from_symbol_line,
+                receiver_text: None,
+                receiver_hint: None,
+                arg_texts: call_arg_texts(node, "arguments", src),
+            });
+            true
+        }
+        "template_action" => {
+            let Some(name_node) = node.child_by_field_name("name") else {
+                return true;
+            };
+            let Ok(raw) = name_node.utf8_text(src) else {
+                return true;
+            };
+            let arg_texts = node
+                .child_by_field_name("argument")
+                .and_then(|a| a.utf8_text(src).ok())
+                .map(|s| vec![s.to_owned()])
+                .unwrap_or_default();
+            out.calls.push(CallRef {
+                callee: gotemplate_unquote(raw),
+                line: node.start_position().row + 1,
+                from_symbol: from_symbol.map(str::to_owned),
+                from_symbol_line,
+                receiver_text: None,
+                receiver_hint: None,
+                arg_texts,
+            });
+            true
+        }
+        _ => false,
+    }
+}
+
+pub fn gotemplate_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: None,
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: Some(Box::new(gotemplate_on_method_defined)),
+        call_override: Some(Box::new(gotemplate_call_override)),
+    }
+}
+
+/// Parse Go Template source through the generic engine. Grammar
+/// VENDORED (see `vendor/tree-sitter-gotemplate-local/`). Language-
+/// parity wave G2.4e redo. See `tests/unit_languages_gotemplate.rs`.
+pub fn parse_gotemplate(source: &str) -> ParsedFile {
+    let spec = LangSpec::gotemplate();
+    let quirks = gotemplate_quirks();
+    let language: tree_sitter::Language = tree_sitter_gotemplate_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// DeviceTree
+// =====================================================================
+
+/// A `preproc_include`/`dtsi_include`'s own real `"path"` field text,
+/// with its surrounding quote/angle-bracket characters stripped (see
+/// [`crate::languages::spec::LangSpec::devicetree`]'s own doc comment).
+fn devicetree_import_path(node: Node<'_>, src: &[u8]) -> Option<String> {
+    let path_node = node.child_by_field_name("path")?;
+    let text = path_node.utf8_text(src).ok()?;
+    Some(
+        text.trim_matches(|c| c == '"' || c == '<' || c == '>')
+            .to_owned(),
+    )
+}
+
+/// Claims `preproc_include`/`dtsi_include` (see
+/// [`crate::languages::spec::LangSpec::devicetree`]'s own doc comment:
+/// the generic walker's own `import_types` branch has no field-driven
+/// default of its own at all, regardless of how real the field is).
+fn devicetree_quirk(
+    node: Node<'_>,
+    _enclosing: Option<&str>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    match node.kind() {
+        "preproc_include" | "dtsi_include" => {
+            if let Some(path) = devicetree_import_path(node, src) {
+                out.imports.push(ImportRef {
+                    module_path: path,
+                    line: node.start_position().row + 1,
+                });
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+pub fn devicetree_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(devicetree_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse DeviceTree (`.dts`/`.dtsi`/`.overlay`) source through the
+/// generic engine. Grammar: `tree-sitter-devicetree` 0.15.0
+/// (`joelspadin/tree-sitter-devicetree`, real crates.io crate).
+/// Language-parity wave G2.4e redo. See
+/// `tests/unit_languages_devicetree.rs`.
+pub fn parse_devicetree(source: &str) -> ParsedFile {
+    let spec = LangSpec::devicetree();
+    let quirks = devicetree_quirks();
+    let language: tree_sitter::Language = tree_sitter_devicetree::LANGUAGE.into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// Smali
+// =====================================================================
+
+/// The first descendant of `node` (including `node` itself) whose own
+/// `.kind()` equals `kind`, found by depth-first search -- every named
+/// node kind in this grammar is completely fieldless (see
+/// [`crate::languages::spec::LangSpec::smali`]'s own doc comment), so
+/// every lookup in [`smali_quirk`] resolves this way.
+fn smali_descendant_kind_text(node: Node<'_>, kind: &str, src: &[u8]) -> Option<String> {
+    if node.kind() == kind {
+        return node.utf8_text(src).ok().map(str::to_owned);
+    }
+    (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find_map(|c| smali_descendant_kind_text(c, kind, src))
+}
+
+/// Claims the grammar's own ROOT node kind, `class_definition`,
+/// wholesale (see [`crate::languages::spec::LangSpec::smali`]'s own doc
+/// comment for the full construct-by-construct breakdown: a single
+/// `.smali` file is always exactly one class, and every construct
+/// inside it -- `class_directive`/`super_directive`/
+/// `implements_directive`/`method_definition`/`field_definition` -- is
+/// completely fieldless, resolved here by descending into each one's
+/// own children by KIND via [`smali_descendant_kind_text`]).
+fn smali_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    if node.kind() != "class_definition" {
+        return false;
+    }
+    let line = node.start_position().row + 1;
+    let class_name = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .find(|c| c.kind() == "class_directive")
+        .and_then(|cd| smali_descendant_kind_text(cd, "class_identifier", src));
+
+    if let Some(name) = &class_name {
+        out.symbols.push(SymbolRef {
+            name: name.clone(),
+            kind: SymbolKind::Class,
+            line,
+        });
+    }
+
+    for i in 0..node.child_count() {
+        let Some(child) = node.child(i) else { continue };
+        let child_line = child.start_position().row + 1;
+        match child.kind() {
+            "super_directive" | "implements_directive" => {
+                if let Some(path) = smali_descendant_kind_text(child, "class_identifier", src) {
+                    out.imports.push(ImportRef {
+                        module_path: path,
+                        line: child_line,
+                    });
+                }
+            }
+            "method_definition" => {
+                if let Some(method_name) =
+                    smali_descendant_kind_text(child, "method_identifier", src)
+                {
+                    out.symbols.push(SymbolRef {
+                        name: method_name.clone(),
+                        kind: SymbolKind::Method,
+                        line: child_line,
+                    });
+                    if let Some(container) = &class_name {
+                        out.defines.push(DefinesRef {
+                            container_name: container.clone(),
+                            member_name: method_name,
+                            line: child_line,
+                        });
+                    }
+                }
+            }
+            "field_definition" => {
+                if let Some(field_name) = smali_descendant_kind_text(child, "field_identifier", src)
+                {
+                    if let Some(container) = &class_name {
+                        out.defines.push(DefinesRef {
+                            container_name: container.clone(),
+                            member_name: field_name,
+                            line: child_line,
+                        });
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    true
+}
+
+pub fn smali_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(smali_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse Smali (Android bytecode disassembly text format, `.smali`)
+/// source through the generic engine. Grammar VENDORED (see
+/// `vendor/tree-sitter-smali-local/`). Language-parity wave G2.4e redo.
+/// See `tests/unit_languages_smali.rs`.
+pub fn parse_smali(source: &str) -> ParsedFile {
+    let spec = LangSpec::smali();
+    let quirks = smali_quirks();
+    let language: tree_sitter::Language = tree_sitter_smali_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}

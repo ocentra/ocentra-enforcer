@@ -1097,6 +1097,99 @@ tree-sitter-verilog = "1.0"
 tree-sitter-vhdl = "1.4"
 tree-sitter-systemverilog = "0.3"
 tree-sitter-cobol-local = { path = "vendor/tree-sitter-cobol-local" }
+# Emacs Lisp (Wilfred/tree-sitter-elisp) -- a real crates.io grammar,
+# same `tree-sitter-language` ABI-stable shim pattern as every other
+# grammar dependency in this file.
+tree-sitter-elisp = "1.6"
+# Cap'n Proto -- vendored rather than depending on the published
+# `tree-sitter-capnp` crate directly: that crate's own `cc = "~1.0"`
+# build-dependency pin conflicts with this workspace's `tree-sitter =
+# "0.25"` core (which transitively requires `cc ^1.2.10`) -- confirmed
+# directly via `cargo check`'s own "failed to select a version for
+# `cc`" error naming this exact conflict. See
+# `vendor/tree-sitter-capnp-local/src/lib.rs` for the full rationale.
+tree-sitter-capnp-local = { path = "vendor/tree-sitter-capnp-local" }
+# Smithy and Pine Script -- vendored crates already prepared by earlier
+# G2.4c/G2.4e workers but never wired into this dependency list.
+tree-sitter-smithy-local = { path = "vendor/tree-sitter-smithy-local" }
+tree-sitter-pine-local = { path = "vendor/tree-sitter-pine-local" }
+# Language-parity wave G2.4d redo: MATLAB/Luau/Kconfig have real
+# crates.io grammar crates (confirmed compiling clean against this
+# workspace's `tree-sitter = "0.25"` core); Teal/Meson/Fennel have no
+# directly-bindable crate (Teal: no crates.io crate at all; Meson: the
+# real `arborium-meson` crate binds through the `bearcove/arborium`
+# framework's own trait, not a plain `LanguageFn`; Fennel: the upstream
+# `alexmozaidze/tree-sitter-fennel` Rust binding is ABI-stale) -- see
+# each `LangSpec::matlab`/`luau`/`teal`/`fennel`/`meson`/`kconfig`'s own
+# doc comment.
+tree-sitter-matlab = "1.3.0"
+tree-sitter-luau = "1.2.0"
+tree-sitter-kconfig = "1.3.0"
+tree-sitter-teal-local = { path = "vendor/tree-sitter-teal-local" }
+tree-sitter-meson-local = { path = "vendor/tree-sitter-meson-local" }
+tree-sitter-fennel-local = { path = "vendor/tree-sitter-fennel-local" }
+# Language-parity wave G2.4a: AWK/Fish/Zsh/Tcl/Scheme/Racket (Tier-1).
+# `arborium-awk` is part of the same `bearcove/arborium` tree-sitter-
+# grammar-bundle family this crate already depends on for ReScript/
+# Typst (see the `arborium-rescript`/`arborium-typst` entries above) --
+# reused here rather than any of the several unmaintained standalone
+# `tree-sitter-awk` crates. `bca-tree-sitter-tcl`'s own crate/lib name
+# is `tree_sitter_tcl` (its package name carries the `bca-` fork prefix,
+# its lib name does not) -- see `LangSpec::tcl`'s own doc comment.
+arborium-awk = "2.18"
+# Language-parity wave G2.4b-redo: HCL/Nix/SQL/Protobuf/Prisma/Pkl
+# (Tier-1). `tree-sitter-sequel` is the real crates.io package name for
+# derekstride/tree-sitter-sql's own grammar -- the plain `tree-sitter-sql`
+# crate name's own published releases are ABI-incompatible with this
+# workspace's `tree-sitter = "0.25"` core. `tree-sitter-prisma-io` is
+# likewise the real name for victorhqc/tree-sitter-prisma's grammar --
+# the plain `tree-sitter-prisma` crate name is a different, ABI-
+# incompatible grammar. `tree-sitter-pkl` has no crates.io release at
+# all; pinned via git to a specific commit of `apple/tree-sitter-pkl`.
+tree-sitter-hcl = "1.1"
+tree-sitter-nix = "0.3"
+tree-sitter-sequel = "0.3"
+tree-sitter-proto = "0.4"
+tree-sitter-prisma-io = "1.6"
+tree-sitter-pkl = { git = "https://github.com/apple/tree-sitter-pkl", rev = "5893fb5dc832ea51a9bff3f84462528c766ecd7d" }
+tree-sitter-fish = "3.6"
+tree-sitter-zsh = "0.63"
+bca-tree-sitter-tcl = "2.0"
+tree-sitter-scheme = "0.24"
+tree-sitter-racket = "0.24"
+# Language-parity wave G2.4e redo (original G2.4e landing wiped by a
+# concurrent-worker file collision on this exact file; re-added, not
+# blindly re-transcribed, against a fresh real grammar probe):
+# CFML/Go Template/DeviceTree/Smali (Tier-1). CFML's tag dialect reuses
+# the SAME `tree-sitter-cfml` crate already depended on above for
+# CFScript (`LANGUAGE_CFML` is a sibling entry point in that one crate
+# to `LANGUAGE_CFSCRIPT`, no new dependency needed). Go Template/Smali
+# are VENDORED path-dependencies (already prepared by the original,
+# since-wiped G2.4e worker and left untouched under `vendor/` -- see
+# each one's own `src/lib.rs` for why vendoring was needed). DeviceTree
+# is a real crates.io grammar (`joelspadin/tree-sitter-devicetree`)
+# depending on `tree-sitter-language` (not `tree-sitter` core) as its
+# runtime binding -- `tree-sitter = "0.25.10"` is only a
+# `[dev-dependencies]` entry on its own `Cargo.toml`, confirmed via the
+# crates.io sparse index before being added here.
+tree-sitter-devicetree = "0.15"
+tree-sitter-gotemplate-local = { path = "vendor/tree-sitter-gotemplate-local" }
+tree-sitter-smali-local = { path = "vendor/tree-sitter-smali-local" }
+# Thrift and LLVM TableGen -- vendored (`tree-sitter-thrift`/
+# `tree-sitter-tablegen` both hard-pin `tree-sitter = "~0.20.9"` as a
+# normal build-time dependency, the same ABI/dependency-graph conflict
+# every other vendored grammar in this file's own comments already
+# document). Vendor crates prepared by an earlier G2.4c worker but
+# never wired into this dependency list. Language-parity wave
+# G2.4c-redo.
+tree-sitter-thrift-local = { path = "vendor/tree-sitter-thrift-local" }
+tree-sitter-tablegen-local = { path = "vendor/tree-sitter-tablegen-local" }
+# WIT and LLVM IR -- real crates.io crates, both confirmed (via a real
+# scratch-crate build against this workspace's own `tree-sitter =
+# "0.25"` core) to resolve cleanly with no version conflict, unlike
+# the vendored grammars above. Language-parity wave G2.4c-redo.
+tree-sitter-wit = "0.2"
+tree-sitter-llvm = "1.1"
 
 [dev-dependencies]
 tempfile = "3"

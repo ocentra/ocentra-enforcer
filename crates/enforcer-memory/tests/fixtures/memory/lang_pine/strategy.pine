@@ -1,0 +1,9 @@
+//@version=5
+indicator("My Script")
+
+myFunc(x, y) =>
+    result = x + y
+    plotResult(result)
+    result
+
+plot(myFunc(1, 2))

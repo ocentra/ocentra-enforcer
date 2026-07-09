@@ -693,6 +693,145 @@ pub enum Language {
     /// (mirrors [`Language::Cpp`]'s own multi-suffix header handling in
     /// spirit) rather than leaving `.svh` unclassified.
     Systemverilog,
+    /// Cap'n Proto schema (`.capnp`). Language-parity wave
+    /// G2.4c/orchestrator completion pass. Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-capnp-local/`), not
+    /// the published `tree-sitter-capnp` crate directly -- see
+    /// [`crate::languages::spec::LangSpec::capnp`]'s own doc comment
+    /// for why.
+    Capnp,
+    /// Emacs Lisp (`.el`). Language-parity wave G2.4e/orchestrator
+    /// completion pass. Grammar: `tree-sitter-elisp`
+    /// (`Wilfred/tree-sitter-elisp`), a real crates.io dependency.
+    EmacsLisp,
+    /// AWK (`.awk`). Language-parity wave G2.4a.
+    Awk,
+    /// Fish (`.fish`). Language-parity wave G2.4a.
+    Fish,
+    /// Zsh (`.zsh`/`.zshrc`/`.zshenv`/`.zprofile`). Language-parity wave
+    /// G2.4a. Baseline's own `EXT_TABLE` maps these three dotfile
+    /// conventions to `CBM_LANG_ZSH` alongside the ordinary `.zsh`
+    /// extension -- [`classify`]'s own plain "split on the last dot"
+    /// convention already reads a bare `.zshrc`-style filename's own
+    /// text-after-the-dot as if it were an extension (there is no other
+    /// dot in `.zshrc` to split on), so no dedicated filename-table
+    /// mechanism is needed to reach them.
+    Zsh,
+    /// Tcl (`.tcl`). Language-parity wave G2.4a.
+    Tcl,
+    /// Scheme (`.scm`/`.ss`). Language-parity wave G2.4a.
+    Scheme,
+    /// Racket (`.rkt`). Language-parity wave G2.4a.
+    Racket,
+    /// Smithy (AWS API IDL, `.smithy`). Language-parity wave
+    /// G2.4c/orchestrator completion pass. Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-smithy-local/`).
+    Smithy,
+    /// Pine Script (TradingView, `.pine`). Language-parity wave
+    /// G2.4e/orchestrator completion pass. Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-pine-local/`).
+    Pine,
+    /// MATLAB (`.m`, but that extension is already claimed by
+    /// [`Language::ObjectiveC`] -- see that variant's own doc comment;
+    /// this variant is reached only by a caller invoking
+    /// [`crate::languages::generic::parse_matlab`] directly, not
+    /// through [`classify`]). Language-parity wave G2.4d redo. Grammar:
+    /// `tree-sitter-matlab` 1.3.0, a real crates.io crate.
+    Matlab,
+    /// Luau (Roblox's typed Lua dialect, `.luau`). Language-parity wave
+    /// G2.4d redo. Grammar: `tree-sitter-luau` 1.2.0, a real crates.io
+    /// crate.
+    Luau,
+    /// Teal (typed Lua dialect, `.tl`). Language-parity wave G2.4d
+    /// redo. Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-teal-local/`) -- no
+    /// discoverable crates.io crate exists for this grammar.
+    Teal,
+    /// Fennel (Lisp that compiles to Lua, `.fnl`). Language-parity wave
+    /// G2.4d redo. Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-fennel-local/`).
+    Fennel,
+    /// Meson (build-system DSL, `.meson`/`meson.build`). Language-parity
+    /// wave G2.4d redo. Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-meson-local/`) -- the
+    /// real crates.io `arborium-meson` crate binds through the
+    /// `bearcove/arborium` framework's own trait, not a plain
+    /// `LanguageFn` this crate's generic engine can consume directly.
+    Meson,
+    /// Kconfig (Linux-kernel-style build-config DSL, filename
+    /// `Kconfig` -- no [`classify`] mapping exists for it at all, same
+    /// filename-only-baseline-entry precedent as [`Language::Makefile`]'s
+    /// own doc comment; reached only by a caller invoking
+    /// [`crate::languages::generic::parse_kconfig`] directly).
+    /// Language-parity wave G2.4d redo. Grammar: `tree-sitter-kconfig`
+    /// 1.3.0, a real crates.io crate.
+    Kconfig,
+    /// HCL (`.tf`, Terraform's own dialect). Language-parity wave
+    /// G2.4b-redo. Grammar: `tree-sitter-hcl` 1.1.0, a real crates.io
+    /// crate.
+    Hcl,
+    /// Nix (`.nix`). Language-parity wave G2.4b-redo. Grammar:
+    /// `tree-sitter-nix` 0.3.0, a real crates.io crate.
+    Nix,
+    /// SQL (`.sql`). Language-parity wave G2.4b-redo. Grammar:
+    /// `tree-sitter-sequel` 0.3.11 -- the real crates.io package name
+    /// for derekstride/tree-sitter-sql's own grammar (see
+    /// [`crate::languages::spec::LangSpec::sql`]'s own doc comment for
+    /// why the plain `tree-sitter-sql` crate name is the wrong one).
+    Sql,
+    /// Protobuf (`.proto`). Language-parity wave G2.4b-redo. Grammar:
+    /// `tree-sitter-proto` 0.4.0, a real crates.io crate.
+    Protobuf,
+    /// Prisma (`.prisma`). Language-parity wave G2.4b-redo. Grammar:
+    /// `tree-sitter-prisma-io` 1.6.0 -- the real crates.io package name
+    /// for victorhqc/tree-sitter-prisma's own grammar (see
+    /// [`crate::languages::spec::LangSpec::prisma`]'s own doc comment
+    /// for why the plain `tree-sitter-prisma` crate name is a
+    /// different, ABI-incompatible grammar).
+    Prisma,
+    /// Pkl (Apple's config language, `.pkl`). Language-parity wave
+    /// G2.4b-redo. Grammar: `tree-sitter-pkl` 0.21.0
+    /// (`apple/tree-sitter-pkl`), pinned via a `git` dependency -- no
+    /// crates.io release exists for this grammar at all.
+    Pkl,
+    /// Thrift (`.thrift`). Language-parity wave G2.4c-redo. Grammar
+    /// VENDORED (`crates/enforcer-memory/vendor/tree-sitter-thrift-local/`).
+    Thrift,
+    /// WIT (WebAssembly Interface Types, `.wit`). Language-parity wave
+    /// G2.4c-redo. Grammar: `tree-sitter-wit` 0.2.0, a real crates.io
+    /// crate.
+    Wit,
+    /// LLVM IR (`.ll`). Language-parity wave G2.4c-redo. Grammar:
+    /// `tree-sitter-llvm` 1.1.0, a real crates.io crate.
+    LlvmIr,
+    /// LLVM TableGen (`.td`). Language-parity wave G2.4c-redo. Grammar
+    /// VENDORED (`crates/enforcer-memory/vendor/tree-sitter-tablegen-local/`).
+    TableGen,
+    /// CFML (tag dialect, `.cfm` templates -- NOT `.cfc`, which is
+    /// [`Language::Cfscript`]'s own script dialect). Language-parity
+    /// wave G2.4e redo (original G2.4e landing wiped by a
+    /// concurrent-worker file collision; redone from a fresh real
+    /// grammar probe). Grammar: `tree-sitter-cfml` 0.26.20's own
+    /// `LANGUAGE_CFML` entry point, the sibling grammar to
+    /// [`Language::Cfscript`]'s own `LANGUAGE_CFSCRIPT` in the same
+    /// crate.
+    Cfml,
+    /// Go Template (`.gotmpl`/`.tpl`/`.tmpl`). Language-parity wave
+    /// G2.4e redo (original G2.4e landing wiped by a concurrent-worker
+    /// file collision; redone from a fresh real grammar probe). Grammar
+    /// VENDORED (`crates/enforcer-memory/vendor/tree-sitter-gotemplate-local/`).
+    Gotemplate,
+    /// DeviceTree (`.dts`/`.dtsi`/`.overlay`). Language-parity wave
+    /// G2.4e redo (original G2.4e landing wiped by a concurrent-worker
+    /// file collision; redone from a fresh real grammar probe). Grammar:
+    /// `tree-sitter-devicetree` 0.15.0, a real crates.io crate.
+    Devicetree,
+    /// Smali (Android bytecode disassembly text format, `.smali`).
+    /// Language-parity wave G2.4e redo (original G2.4e landing wiped by
+    /// a concurrent-worker file collision; redone from a fresh real
+    /// grammar probe). Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-smali-local/`).
+    Smali,
     TextOnly,
 }
 
@@ -873,6 +1012,49 @@ pub fn classify(rel_path: &str) -> Language {
         // rather than the baseline's own (never-actually-reached) plain
         // Verilog mapping.
         "sv" | "svh" => Language::Systemverilog,
+        "capnp" => Language::Capnp,
+        "el" => Language::EmacsLisp,
+        "awk" => Language::Awk,
+        "fish" => Language::Fish,
+        // See `Language::Zsh`'s own doc comment for why the dotfile
+        // conventions (`.zshrc`/`.zshenv`/`.zprofile`) fall out of this
+        // same plain extension-split match arm.
+        "zsh" | "zshrc" | "zshenv" | "zprofile" => Language::Zsh,
+        "tcl" => Language::Tcl,
+        "scm" | "ss" => Language::Scheme,
+        "rkt" => Language::Racket,
+        "smithy" => Language::Smithy,
+        "pine" => Language::Pine,
+        // No ".m" -- already claimed by `Language::ObjectiveC` above;
+        // see `Language::Matlab`'s own doc comment. No mapping for
+        // Kconfig either -- its baseline entry is bare-filename-only
+        // (`Kconfig`), and this `classify` has no filename-dispatch
+        // mechanism at all (see `Language::Matlab`/`Language::Kconfig`'s
+        // own doc comments).
+        "luau" => Language::Luau,
+        "tl" => Language::Teal,
+        "fnl" => Language::Fennel,
+        "meson" => Language::Meson,
+        "tf" => Language::Hcl,
+        "nix" => Language::Nix,
+        "sql" => Language::Sql,
+        "proto" => Language::Protobuf,
+        "prisma" => Language::Prisma,
+        "pkl" => Language::Pkl,
+        "thrift" => Language::Thrift,
+        "wit" => Language::Wit,
+        "ll" => Language::LlvmIr,
+        "td" => Language::TableGen,
+        "cfm" => Language::Cfml,
+        // Baseline's own `EXT_TABLE` maps all three of `.gotmpl`/`.tpl`
+        // (Helm's `_helpers.tpl` named-template-definition convention)/
+        // `.tmpl` to `CBM_LANG_GOTEMPLATE`.
+        "gotmpl" | "tpl" | "tmpl" => Language::Gotemplate,
+        // Baseline's own `EXT_TABLE` maps all three of `.dts`/`.dtsi`/
+        // `.overlay` (a Zephyr/Linux devicetree overlay fragment) to
+        // `CBM_LANG_DEVICETREE`.
+        "dts" | "dtsi" | "overlay" => Language::Devicetree,
+        "smali" => Language::Smali,
         _ => Language::TextOnly,
     }
 }
@@ -1451,6 +1633,210 @@ pub fn parse_file(language: Language, source: &str, rel_path: &str) -> Option<Pa
             // parse_systemverilog`) -- see
             // `tests/unit_languages_systemverilog.rs`.
             Some(generic::parse_systemverilog(source))
+        }
+        Language::Capnp => {
+            // Language-parity wave G2.4c/orchestrator completion pass:
+            // onboarded directly through the generic spec-table engine
+            // (`languages::generic::parse_capnp`) -- see
+            // `tests/unit_languages_capnp.rs`.
+            Some(generic::parse_capnp(source))
+        }
+        Language::EmacsLisp => {
+            // Language-parity wave G2.4e/orchestrator completion pass:
+            // onboarded directly through the generic spec-table engine
+            // (`languages::generic::parse_emacslisp`) -- see
+            // `tests/unit_languages_emacslisp.rs`.
+            Some(generic::parse_emacslisp(source))
+        }
+        Language::Awk => {
+            // Language-parity wave G2.4a: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_awk`) -- see `tests/unit_languages_awk.rs`.
+            Some(generic::parse_awk(source))
+        }
+        Language::Fish => {
+            // Language-parity wave G2.4a: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_fish`) -- see `tests/unit_languages_fish.rs`.
+            Some(generic::parse_fish(source))
+        }
+        Language::Zsh => {
+            // Language-parity wave G2.4a: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_zsh`) -- see `tests/unit_languages_zsh.rs`.
+            Some(generic::parse_zsh(source))
+        }
+        Language::Tcl => {
+            // Language-parity wave G2.4a: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_tcl`) -- see `tests/unit_languages_tcl.rs`.
+            Some(generic::parse_tcl(source))
+        }
+        Language::Scheme => {
+            // Language-parity wave G2.4a: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_scheme`) -- see `tests/unit_languages_scheme.rs`.
+            Some(generic::parse_scheme(source))
+        }
+        Language::Racket => {
+            // Language-parity wave G2.4a: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_racket`) -- see `tests/unit_languages_racket.rs`.
+            Some(generic::parse_racket(source))
+        }
+        Language::Smithy => {
+            // Language-parity wave G2.4c/orchestrator completion pass:
+            // onboarded directly through the generic spec-table engine
+            // (`languages::generic::parse_smithy`) -- see
+            // `tests/unit_languages_smithy.rs`.
+            Some(generic::parse_smithy(source))
+        }
+        Language::Pine => {
+            // Language-parity wave G2.4e/orchestrator completion pass:
+            // onboarded directly through the generic spec-table engine
+            // (`languages::generic::parse_pine`) -- see
+            // `tests/unit_languages_pine.rs`.
+            Some(generic::parse_pine(source))
+        }
+        Language::Matlab => {
+            // Language-parity wave G2.4d redo: onboarded directly
+            // through the generic spec-table engine
+            // (`languages::generic::parse_matlab`) -- see
+            // `tests/unit_languages_matlab.rs`.
+            Some(generic::parse_matlab(source))
+        }
+        Language::Luau => {
+            // Language-parity wave G2.4d redo: onboarded directly
+            // through the generic spec-table engine
+            // (`languages::generic::parse_luau`) -- see
+            // `tests/unit_languages_luau.rs`.
+            Some(generic::parse_luau(source))
+        }
+        Language::Teal => {
+            // Language-parity wave G2.4d redo: onboarded directly
+            // through the generic spec-table engine
+            // (`languages::generic::parse_teal`) -- see
+            // `tests/unit_languages_teal.rs`.
+            Some(generic::parse_teal(source))
+        }
+        Language::Fennel => {
+            // Language-parity wave G2.4d redo: onboarded directly
+            // through the generic spec-table engine
+            // (`languages::generic::parse_fennel`) -- see
+            // `tests/unit_languages_fennel.rs`.
+            Some(generic::parse_fennel(source))
+        }
+        Language::Meson => {
+            // Language-parity wave G2.4d redo: onboarded directly
+            // through the generic spec-table engine
+            // (`languages::generic::parse_meson`) -- see
+            // `tests/unit_languages_meson.rs`.
+            Some(generic::parse_meson(source))
+        }
+        Language::Kconfig => {
+            // Language-parity wave G2.4d redo: onboarded directly
+            // through the generic spec-table engine
+            // (`languages::generic::parse_kconfig`) -- see
+            // `tests/unit_languages_kconfig.rs`.
+            Some(generic::parse_kconfig(source))
+        }
+        Language::Hcl => {
+            // Language-parity wave G2.4b-redo: onboarded directly
+            // through the generic spec-table engine
+            // (`languages::generic::parse_hcl`) -- see
+            // `tests/unit_languages_hcl.rs`.
+            Some(generic::parse_hcl(source))
+        }
+        Language::Nix => {
+            // Language-parity wave G2.4b-redo: onboarded directly
+            // through the generic spec-table engine
+            // (`languages::generic::parse_nix`) -- see
+            // `tests/unit_languages_nix.rs`.
+            Some(generic::parse_nix(source))
+        }
+        Language::Sql => {
+            // Language-parity wave G2.4b-redo: onboarded directly
+            // through the generic spec-table engine
+            // (`languages::generic::parse_sql`) -- see
+            // `tests/unit_languages_sql.rs`.
+            Some(generic::parse_sql(source))
+        }
+        Language::Protobuf => {
+            // Language-parity wave G2.4b-redo: onboarded directly
+            // through the generic spec-table engine
+            // (`languages::generic::parse_protobuf`) -- see
+            // `tests/unit_languages_protobuf.rs`.
+            Some(generic::parse_protobuf(source))
+        }
+        Language::Prisma => {
+            // Language-parity wave G2.4b-redo: onboarded directly
+            // through the generic spec-table engine
+            // (`languages::generic::parse_prisma`) -- see
+            // `tests/unit_languages_prisma.rs`.
+            Some(generic::parse_prisma(source))
+        }
+        Language::Pkl => {
+            // Language-parity wave G2.4b-redo: onboarded directly
+            // through the generic spec-table engine
+            // (`languages::generic::parse_pkl`) -- see
+            // `tests/unit_languages_pkl.rs`.
+            Some(generic::parse_pkl(source))
+        }
+        Language::Thrift => {
+            // Language-parity wave G2.4c-redo: onboarded directly
+            // through the generic spec-table engine
+            // (`languages::generic::parse_thrift`) -- see
+            // `tests/unit_languages_thrift.rs`.
+            Some(generic::parse_thrift(source))
+        }
+        Language::Wit => {
+            // Language-parity wave G2.4c-redo: onboarded directly
+            // through the generic spec-table engine
+            // (`languages::generic::parse_wit`) -- see
+            // `tests/unit_languages_wit.rs`.
+            Some(generic::parse_wit(source))
+        }
+        Language::LlvmIr => {
+            // Language-parity wave G2.4c-redo: onboarded directly
+            // through the generic spec-table engine
+            // (`languages::generic::parse_llvm_ir`) -- see
+            // `tests/unit_languages_llvm_ir.rs`.
+            Some(generic::parse_llvm_ir(source))
+        }
+        Language::TableGen => {
+            // Language-parity wave G2.4c-redo: onboarded directly
+            // through the generic spec-table engine
+            // (`languages::generic::parse_tablegen`) -- see
+            // `tests/unit_languages_tablegen.rs`.
+            Some(generic::parse_tablegen(source))
+        }
+        Language::Cfml => {
+            // Language-parity wave G2.4e redo: onboarded directly
+            // through the generic spec-table engine
+            // (`languages::generic::parse_cfml`) -- see
+            // `tests/unit_languages_cfml.rs`.
+            Some(generic::parse_cfml(source))
+        }
+        Language::Gotemplate => {
+            // Language-parity wave G2.4e redo: onboarded directly
+            // through the generic spec-table engine
+            // (`languages::generic::parse_gotemplate`) -- see
+            // `tests/unit_languages_gotemplate.rs`.
+            Some(generic::parse_gotemplate(source))
+        }
+        Language::Devicetree => {
+            // Language-parity wave G2.4e redo: onboarded directly
+            // through the generic spec-table engine
+            // (`languages::generic::parse_devicetree`) -- see
+            // `tests/unit_languages_devicetree.rs`.
+            Some(generic::parse_devicetree(source))
+        }
+        Language::Smali => {
+            // Language-parity wave G2.4e redo: onboarded directly
+            // through the generic spec-table engine
+            // (`languages::generic::parse_smali`) -- see
+            // `tests/unit_languages_smali.rs`.
+            Some(generic::parse_smali(source))
         }
         Language::ConfigToml | Language::ConfigJson | Language::ConfigYaml | Language::TextOnly => {
             None

@@ -1,0 +1,5 @@
+{{define "main"}}
+{{ .Name | upper }}
+{{ range .Items }}{{ . }}{{ end }}
+{{ template "footer" . }}
+{{end}}

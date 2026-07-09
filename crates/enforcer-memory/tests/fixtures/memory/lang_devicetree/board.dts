@@ -1,0 +1,10 @@
+/dts-v1/;
+#include "board-common.dtsi"
+
+/ {
+    compatible = "acme,board";
+
+    leds: leds@0 {
+        status = "okay";
+    };
+};
