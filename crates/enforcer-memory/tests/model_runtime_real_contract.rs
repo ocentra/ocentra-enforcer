@@ -57,6 +57,66 @@ fn assert_model_runtime_error(
     }
 }
 
+fn string_has_machine_absolute_path(value: &str) -> bool {
+    let chars: Vec<char> = value.chars().collect();
+    for index in 0..chars.len().saturating_sub(2) {
+        let drive = chars[index];
+        if !drive.is_ascii_alphabetic() || chars[index + 1] != ':' {
+            continue;
+        }
+
+        let separator = chars[index + 2];
+        if separator != '\\' && separator != '/' {
+            continue;
+        }
+
+        let previous = index
+            .checked_sub(1)
+            .map(|previous_index| chars[previous_index]);
+        if previous.is_some_and(|character| character.is_ascii_alphanumeric()) {
+            continue;
+        }
+
+        return true;
+    }
+
+    false
+}
+
+fn collect_machine_absolute_path_leaks(
+    file_name: &str,
+    path: &str,
+    value: &serde_json::Value,
+    leaks: &mut Vec<String>,
+) {
+    match value {
+        serde_json::Value::String(value) if string_has_machine_absolute_path(value) => {
+            leaks.push(format!("{file_name}:{path}"));
+        }
+        serde_json::Value::Array(items) => {
+            for (index, item) in items.iter().enumerate() {
+                collect_machine_absolute_path_leaks(
+                    file_name,
+                    &format!("{path}[{index}]"),
+                    item,
+                    leaks,
+                );
+            }
+        }
+        serde_json::Value::Object(fields) => {
+            for (field, item) in fields {
+                let child_path = if path.is_empty() {
+                    field.to_owned()
+                } else {
+                    format!("{path}.{field}")
+                };
+                collect_machine_absolute_path_leaks(file_name, &child_path, item, leaks);
+            }
+        }
+        _ => {}
+    }
+}
+
 #[test]
 fn hf_specs_pin_enforcer_model_lineup() -> TestResult {
     let lineup = X06ModelLineup::defaults();
@@ -360,7 +420,7 @@ fn runtime_proof_surface_does_not_hardcode_machine_absolute_paths() {
 }
 
 #[test]
-fn checked_in_real_model_proofs_do_not_hardcode_machine_absolute_paths() {
+fn checked_in_real_model_proofs_do_not_hardcode_machine_absolute_paths() -> TestResult {
     let proof_files = [
         (
             "x06-models.json",
@@ -434,22 +494,20 @@ fn checked_in_real_model_proofs_do_not_hardcode_machine_absolute_paths() {
             "x06-models-tokenizer-mismatch.json",
             include_str!("../../../proof/memory/x06-models-tokenizer-mismatch.json"),
         ),
+        (
+            "x06-runtime-control-plane.json",
+            include_str!("../../../proof/memory/x06-runtime-control-plane.json"),
+        ),
     ];
-    let banned = [
-        concat!("E", ":\\"),
-        concat!("C", ":\\", "Users"),
-        concat!("Desktop", "\\", "TabAgent"),
-        concat!("ocentra", "-", "enforcer", "-", "rust", "-", "build"),
-    ];
+    let mut leaks = Vec::new();
 
     for (name, body) in proof_files {
-        for pattern in banned {
-            assert!(
-                !body.contains(pattern),
-                "{name} contains hardcoded machine path pattern {pattern}"
-            );
-        }
+        let proof: serde_json::Value = serde_json::from_str(body)?;
+        collect_machine_absolute_path_leaks(name, "", &proof, &mut leaks);
     }
+
+    assert_eq!(leaks, Vec::<String>::new());
+    Ok(())
 }
 
 #[test]
