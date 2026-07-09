@@ -1911,10 +1911,11 @@ const EXACT_QA_EVIDENCE_IDS: &[&str] = &[
     "QA-164", "QA-165", "QA-166", "QA-167", "QA-168", "QA-169", "QA-170", "QA-171", "QA-172",
     "QA-173", "QA-174", "QA-186", "QA-189", "QA-191", "QA-192", "QA-193", "QA-194", "QA-195",
     "QA-196", "QA-197", "QA-198", "QA-199", "QA-200", "QA-201", "QA-202", "QA-203", "QA-204",
-    "QA-205", "QA-206", "QA-207", "QA-208", "QA-210", "QA-211", "QA-213", "QA-214", "QA-215",
-    "QA-216", "QA-217", "QA-218", "QA-219", "QA-226", "QA-229", "QA-230", "QA-231", "QA-232",
-    "QA-233", "QA-234", "QA-235", "QA-236", "QA-237", "QA-238", "QA-239", "QA-240", "QA-241",
-    "QA-242", "QA-243", "QA-244", "QA-245", "QA-246", "QA-247", "QA-248", "QA-249", "QA-250",
+    "QA-205", "QA-206", "QA-207", "QA-208", "QA-209", "QA-210", "QA-211", "QA-212", "QA-213",
+    "QA-214", "QA-215", "QA-216", "QA-217", "QA-218", "QA-219", "QA-226", "QA-229", "QA-230",
+    "QA-231", "QA-232", "QA-233", "QA-234", "QA-235", "QA-236", "QA-237", "QA-238", "QA-239",
+    "QA-240", "QA-241", "QA-242", "QA-243", "QA-244", "QA-245", "QA-246", "QA-247", "QA-248",
+    "QA-249", "QA-250",
 ];
 
 impl RowRunner for ExactQaEvidenceRunner {
@@ -2043,6 +2044,8 @@ impl RowRunner for ExactQaEvidenceRunner {
             "QA-204" => domain_newtype_examples_probe(row),
             "QA-205" => fail_closed_parity_oracle_probe(row),
             "QA-206" | "QA-207" | "QA-208" | "QA-210" | "QA-211" => reranker_lift_probe(row),
+            "QA-209" => reranker_degraded_query_probe(row),
+            "QA-212" => reranker_latency_probe(row),
             "QA-049" => hot_memory_probe(row),
             "QA-050" => warm_memory_probe(row),
             "QA-051" => cold_memory_probe(row),
@@ -7278,6 +7281,108 @@ fn reranker_lift_probe(row: &QaRow) -> RowResult {
             None,
             source_refs,
         ),
+    )
+}
+
+fn reranker_qa_evidence(row: &QaRow) -> Result<serde_json::Value, String> {
+    let root = super::queryset::workspace_root();
+    let rel = "proof/memory/x06-reranker.json";
+    let artifact: serde_json::Value = std::fs::read_to_string(root.join(rel))
+        .and_then(|raw| serde_json::from_str(&raw).map_err(std::io::Error::other))
+        .map_err(|error| format!("failed to parse {rel}: {error}"))?;
+    let root_evidence = artifact
+        .get("qaEvidence")
+        .ok_or_else(|| "x06-reranker proof lacks qaEvidence".to_string())?;
+    let evidence = root_evidence
+        .get(row.id.as_str())
+        .ok_or_else(|| format!("x06-reranker proof lacks qaEvidence for {}", row.id))?;
+    if evidence.get("qaRowId").and_then(serde_json::Value::as_str) != Some(row.id.as_str()) {
+        return Err("x06-reranker qaEvidence does not target this QA row".to_string());
+    }
+    Ok(evidence.clone())
+}
+
+fn reranker_degraded_query_probe(row: &QaRow) -> RowResult {
+    let rel = "proof/memory/x06-reranker.json";
+    let evidence = match reranker_qa_evidence(row) {
+        Ok(evidence) => evidence,
+        Err(error) => return unrunnable(row, &error),
+    };
+    let expected_ids = match json_string_array(&evidence, "expectedIds", rel) {
+        Ok(ids) => ids,
+        Err(error) => return unrunnable(row, &error),
+    };
+    let pre_rerank_ids = match json_string_array(&evidence, "preRerankTopK", rel) {
+        Ok(ids) => ids,
+        Err(error) => return unrunnable(row, &error),
+    };
+    let post_rerank_ids = match json_string_array(&evidence, "postRerankTopK", rel) {
+        Ok(ids) => ids,
+        Err(error) => return unrunnable(row, &error),
+    };
+    let lift_score = match json_number(&evidence, "liftScore", rel) {
+        Ok(value) => value,
+        Err(error) => return unrunnable(row, &error),
+    };
+    let recomputed = metrics::reranker_lift(&expected_ids, &pre_rerank_ids, &post_rerank_ids, 10);
+    if (recomputed - lift_score).abs() > 1e-9 {
+        return unrunnable(
+            row,
+            "x06-reranker degraded-query liftScore does not match recomputed ranking lift",
+        );
+    }
+    if lift_score >= 0.0 {
+        return unrunnable(
+            row,
+            "x06-reranker degraded-query proof must show negative lift",
+        );
+    }
+    let mut source_refs = json_string_array(&evidence, "sourceRefs", rel).unwrap_or_default();
+    source_refs.push(rel.to_string());
+    source_refs.sort();
+    source_refs.dedup();
+    exact_pass(
+        row,
+        vec!["reranker:degraded-query-detected".to_string()],
+        source_refs,
+    )
+}
+
+fn reranker_latency_probe(row: &QaRow) -> RowResult {
+    let rel = "proof/memory/x06-reranker.json";
+    let evidence = match reranker_qa_evidence(row) {
+        Ok(evidence) => evidence,
+        Err(error) => return unrunnable(row, &error),
+    };
+    let candidate_count = match json_usize(&evidence, "candidateCount", rel) {
+        Ok(value) => value,
+        Err(error) => return unrunnable(row, &error),
+    };
+    let latency_ms = match json_number(&evidence, "latencyMs", rel) {
+        Ok(value) => value,
+        Err(error) => return unrunnable(row, &error),
+    };
+    let max_latency_ms = match json_number(&evidence, "maxLatencyMs", rel) {
+        Ok(value) => value,
+        Err(error) => return unrunnable(row, &error),
+    };
+    if candidate_count != 100 {
+        return unrunnable(
+            row,
+            "QA-212 latency proof must measure exactly top-100 candidates",
+        );
+    }
+    if latency_ms < 0.0 || latency_ms > max_latency_ms {
+        return unrunnable(row, "QA-212 latency proof exceeds maxLatencyMs gate");
+    }
+    let mut source_refs = json_string_array(&evidence, "sourceRefs", rel).unwrap_or_default();
+    source_refs.push(rel.to_string());
+    source_refs.sort();
+    source_refs.dedup();
+    exact_pass(
+        row,
+        vec!["reranker:top100-latency-within-gate".to_string()],
+        source_refs,
     )
 }
 

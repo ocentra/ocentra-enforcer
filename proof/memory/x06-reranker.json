@@ -135,6 +135,35 @@
         "proof/memory/x06-rag.json"
       ]
     },
+    "QA-209": {
+      "qaRowId": "QA-209",
+      "queryId": "x06-qa-209-reranker-degraded-query",
+      "query": "Find queries where reranking degraded ranking.",
+      "expectedIds": [
+        "degraded:expected-primary",
+        "degraded:expected-secondary"
+      ],
+      "preRerankTopK": [
+        "degraded:expected-primary",
+        "degraded:expected-secondary",
+        "false-positive:keyword-only",
+        "false-positive:graph-neighbor"
+      ],
+      "postRerankTopK": [
+        "false-positive:keyword-only",
+        "false-positive:graph-neighbor",
+        "degraded:expected-primary",
+        "degraded:expected-secondary"
+      ],
+      "liftScore": -0.4293582810446799,
+      "maximumLift": -0.000000001,
+      "degraded": true,
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/feature_parity/metrics.rs",
+        "crates/enforcer-memory/tests/retrieval_stack.rs",
+        "proof/memory/x06-reranker.json"
+      ]
+    },
     "QA-210": {
       "qaRowId": "QA-210",
       "queryId": "x06-qa-210-graph-semantic-hybrid-routing",
@@ -191,6 +220,20 @@
         "crates/enforcer-memory/src/ranking.rs",
         "crates/enforcer-memory/src/search/mod.rs",
         "proof/memory/x06-token-reduction.json"
+      ]
+    },
+    "QA-212": {
+      "qaRowId": "QA-212",
+      "queryId": "x06-qa-212-reranker-top100-latency",
+      "query": "Measure reranker latency on top-100 candidates.",
+      "candidateCount": 100,
+      "latencyMs": 3.7,
+      "maxLatencyMs": 50.0,
+      "runtimeMode": "deterministic-fixture-proof",
+      "sourceRefs": [
+        "crates/enforcer-memory/src/ranking.rs",
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "proof/memory/x06-reranker.json"
       ]
     }
   }

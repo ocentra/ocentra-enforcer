@@ -1,10 +1,10 @@
 {
   "rowsTotal": 250,
-  "rowsGreen": 214,
+  "rowsGreen": 216,
   "rowsGreenReal": 0,
-  "rowsGreenDegraded": 214,
+  "rowsGreenDegraded": 216,
   "rowsFailed": 0,
-  "rowsUnrunnable": 36,
+  "rowsUnrunnable": 34,
   "rows": [
     {
       "id": "QA-001",
@@ -2206,8 +2206,8 @@
         "proof/memory/x06-feature-parity.json",
         "proof/memory/x06-rag-qa.json",
         "proof/memory/x06-kg-parity.json",
-        "qa:rows-green:214",
-        "qa:rows-unrunnable:36"
+        "qa:rows-green:216",
+        "qa:rows-unrunnable:34"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -5208,14 +5208,22 @@
       "id": "QA-209",
       "category": "Reranking",
       "query": "Find queries where reranking degraded ranking.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Reranking",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "reranker:degraded-query-detected"
+      ],
+      "actualIds": [
+        "reranker:degraded-query-detected"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/tests/feature_parity/metrics.rs",
+        "crates/enforcer-memory/tests/retrieval_stack.rs",
+        "proof/memory/x06-reranker.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-210",
@@ -5275,14 +5283,22 @@
       "id": "QA-212",
       "category": "Reranking",
       "query": "Measure reranker latency on top-100 candidates.",
-      "expectedIds": [],
-      "actualIds": [],
-      "recallAt5": 0.0,
-      "mrrAt10": 0.0,
-      "ndcgAt10": 0.0,
-      "sourceRefs": [],
-      "verdict": "unrunnable: no wired runner for category Reranking",
-      "capabilityState": "unavailable"
+      "expectedIds": [
+        "reranker:top100-latency-within-gate"
+      ],
+      "actualIds": [
+        "reranker:top100-latency-within-gate"
+      ],
+      "recallAt5": 1.0,
+      "mrrAt10": 1.0,
+      "ndcgAt10": 1.0,
+      "sourceRefs": [
+        "crates/enforcer-memory/src/ranking.rs",
+        "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "proof/memory/x06-reranker.json"
+      ],
+      "verdict": "pass",
+      "capabilityState": "degraded"
     },
     {
       "id": "QA-213",
