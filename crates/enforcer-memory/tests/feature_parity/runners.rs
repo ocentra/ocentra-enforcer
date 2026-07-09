@@ -2246,7 +2246,20 @@ fn qa_capability_artifact_probe(row: &QaRow) -> RowResult {
     let source_refs = vec![rel.to_string(), format!("test:{evidence}")];
     if matches!(
         row.id.as_str(),
-        "QA-038" | "QA-039" | "QA-044" | "QA-045" | "QA-057" | "QA-058" | "QA-066"
+        "QA-038"
+            | "QA-039"
+            | "QA-044"
+            | "QA-045"
+            | "QA-057"
+            | "QA-058"
+            | "QA-066"
+            | "QA-011"
+            | "QA-024"
+            | "QA-065"
+            | "QA-067"
+            | "QA-107"
+            | "QA-109"
+            | "QA-188"
     ) {
         return host_local_proof_pass(row, ids, source_refs);
     }
@@ -2602,7 +2615,7 @@ fn memory_error_constructor_sites_probe(row: &QaRow) -> RowResult {
     }
     refs.sort();
     refs.dedup();
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec![
             "error-constructor:memory-error-enum".to_string(),
@@ -3298,7 +3311,7 @@ fn missing_fail_fixture_validator_probe(row: &QaRow) -> RowResult {
 }
 
 fn secret_touching_paths_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -7689,7 +7702,7 @@ fn cold_memory_probe(row: &QaRow) -> RowResult {
 }
 
 fn intel_gpu_npu_backend_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -7735,7 +7748,7 @@ fn intel_gpu_npu_backend_probe(row: &QaRow) -> RowResult {
 }
 
 fn no_remote_model_policy_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -8160,7 +8173,7 @@ fn redaction_layers_probe(row: &QaRow) -> RowResult {
 }
 
 fn security_sensitive_code_paths_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (

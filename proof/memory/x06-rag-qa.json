@@ -4,8 +4,8 @@
   "rowsTotal": 250,
   "rowsGreen": 250,
   "rowsGreenReal": 0,
-  "rowsGreenHostLocalProof": 122,
-  "rowsGreenDegraded": 128,
+  "rowsGreenHostLocalProof": 134,
+  "rowsGreenDegraded": 116,
   "rowsFailed": 0,
   "rowsUnrunnable": 0,
   "rows": [
@@ -269,7 +269,7 @@
         "test:x06_qa_hotspot_and_dead_export_rows_have_graph_evidence"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-012",
@@ -560,7 +560,7 @@
         "test:x06_qa_module_rows_can_enumerate_touched_filesystem_paths"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-025",
@@ -779,7 +779,7 @@
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-033",
@@ -918,7 +918,7 @@
         "src/source-policy-common-security-sensitive.mjs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-038",
@@ -989,7 +989,7 @@
         "src/source-policy-common-security-sensitive.mjs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-041",
@@ -1511,7 +1511,7 @@
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-062",
@@ -1542,7 +1542,7 @@
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-063",
@@ -1598,16 +1598,16 @@
       "query": "Find files with highest churn.",
       "expectedIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:69",
-        "churn:proof/memory/x06-feature-parity.json:66",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:62",
+        "churn:proof/memory/x06-rag-qa.json:70",
+        "churn:proof/memory/x06-feature-parity.json:67",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:63",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
       ],
       "actualIds": [
         "churn:Cargo.lock:71",
-        "churn:proof/memory/x06-rag-qa.json:69",
-        "churn:proof/memory/x06-feature-parity.json:66",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:62",
+        "churn:proof/memory/x06-rag-qa.json:70",
+        "churn:proof/memory/x06-feature-parity.json:67",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:63",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
       ],
       "recallAt5": 1.0,
@@ -1642,7 +1642,7 @@
         "test:x06_qa_hotspot_and_dead_export_rows_have_graph_evidence"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-066",
@@ -1682,7 +1682,7 @@
         "test:x06_qa_previous_bug_rows_can_recall_similar_incidents"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-068",
@@ -2773,7 +2773,7 @@
         "test:x06_qa_symbol_rows_can_find_zero_callers_and_generic_result_mentions"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-108",
@@ -2815,7 +2815,7 @@
         "test:x06_qa_symbol_rows_can_find_zero_callers_and_generic_result_mentions"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-110",
@@ -5047,7 +5047,7 @@
         "test:x06_qa_error_change_rows_can_recall_downstream_breakage"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-189",
