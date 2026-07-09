@@ -7398,7 +7398,7 @@ fn emitted_durable_logs_probe(row: &QaRow) -> RowResult {
 }
 
 fn retrieval_pipeline_shape_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
