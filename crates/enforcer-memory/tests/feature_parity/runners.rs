@@ -4801,7 +4801,7 @@ fn enforcer_install_history_probe(row: &QaRow) -> RowResult {
 }
 
 fn mcp_check_tool_schema_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -4870,7 +4870,7 @@ fn mcp_route_lifecycle_probe(row: &QaRow) -> RowResult {
 }
 
 fn mcp_explain_rule_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -4938,7 +4938,7 @@ fn mcp_deferred_markers_probe(row: &QaRow) -> RowResult {
 }
 
 fn coordination_ledger_mutation_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -4963,7 +4963,7 @@ fn coordination_ledger_mutation_probe(row: &QaRow) -> RowResult {
 }
 
 fn ndjson_readers_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -4991,7 +4991,7 @@ fn ndjson_readers_probe(row: &QaRow) -> RowResult {
 }
 
 fn ndjson_appenders_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5014,7 +5014,7 @@ fn ndjson_appenders_probe(row: &QaRow) -> RowResult {
 }
 
 fn mcp_proof_status_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5045,7 +5045,7 @@ fn mcp_proof_status_probe(row: &QaRow) -> RowResult {
 }
 
 fn mcp_scan_handler_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5108,7 +5108,7 @@ fn route_plan_probe(row: &QaRow) -> RowResult {
 }
 
 fn harness_last_failure_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5139,7 +5139,7 @@ fn harness_last_failure_probe(row: &QaRow) -> RowResult {
 }
 
 fn mcp_context_budget_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5176,7 +5176,7 @@ fn mcp_context_budget_probe(row: &QaRow) -> RowResult {
 }
 
 fn doctor_wiring_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5205,7 +5205,7 @@ fn doctor_wiring_probe(row: &QaRow) -> RowResult {
 }
 
 fn cli_telemetry_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5239,7 +5239,7 @@ fn cli_telemetry_probe(row: &QaRow) -> RowResult {
 }
 
 fn cli_scan_languages_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5282,7 +5282,7 @@ fn cli_scan_languages_probe(row: &QaRow) -> RowResult {
 }
 
 fn cli_run_tsc_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5333,7 +5333,7 @@ fn cli_run_tsc_probe(row: &QaRow) -> RowResult {
 }
 
 fn cli_runs_last_failure_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5378,7 +5378,7 @@ fn cli_runs_last_failure_probe(row: &QaRow) -> RowResult {
 }
 
 fn cli_scan_mapping_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5410,7 +5410,7 @@ fn cli_scan_mapping_probe(row: &QaRow) -> RowResult {
 }
 
 fn cli_lifecycle_surface_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5504,7 +5504,7 @@ fn cli_install_claude_adapter_probe(row: &QaRow) -> RowResult {
 }
 
 fn cli_doctor_fixtures_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5546,7 +5546,7 @@ fn cli_doctor_fixtures_probe(row: &QaRow) -> RowResult {
 }
 
 fn cli_mcp_parity_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
