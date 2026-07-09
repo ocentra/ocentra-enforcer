@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "status": "degraded-pass-evidence",
+  "proofScope": {
+    "ciParity": false,
+    "portability": "portable-fixture-proof",
+    "localHardwareRequired": false,
+    "reason": "Fixture-backed QA capability evidence only; final QA row promotion remains in x06-rag-qa runner."
+  },
+  "testCommand": "cargo test -p enforcer-memory --test x06_qa_capabilities -- --nocapture",
+  "clippyCommand": "cargo clippy -p enforcer-memory --test x06_qa_capabilities -- -D warnings",
+  "rowsCovered": [
+    {
+      "id": "QA-011",
+      "capability": "dead-export-structural-zero-caller",
+      "evidence": "x06_qa_hotspot_and_dead_export_rows_have_graph_evidence",
+      "status": "degraded-pass"
+    },
+    {
+      "id": "QA-038",
+      "capability": "route-auth-check-pairing",
+      "evidence": "x06_qa_route_auth_rows_can_pair_routes_with_permission_checks",
+      "status": "degraded-pass"
+    },
+    {
+      "id": "QA-039",
+      "capability": "route-auth-gap-detection-inputs",
+      "evidence": "x06_qa_route_auth_rows_can_pair_routes_with_permission_checks",
+      "status": "degraded-pass"
+    },
+    {
+      "id": "QA-044",
+      "capability": "affected-rules-from-file-change",
+      "evidence": "x06_qa_diff_rows_can_identify_rules_or_workpacks_affected_by_changed_file",
+      "status": "degraded-pass"
+    },
+    {
+      "id": "QA-045",
+      "capability": "affected-rules-from-crate-change",
+      "evidence": "x06_qa_diff_rows_can_identify_rules_or_workpacks_affected_by_changed_file",
+      "status": "degraded-pass"
+    },
+    {
+      "id": "QA-057",
+      "capability": "rules-affected-by-git-diff",
+      "evidence": "x06_qa_diff_rows_can_identify_rules_or_workpacks_affected_by_changed_file",
+      "status": "degraded-pass"
+    },
+    {
+      "id": "QA-058",
+      "capability": "workpacks-affected-by-git-diff",
+      "evidence": "x06_qa_diff_rows_can_identify_rules_or_workpacks_affected_by_changed_file",
+      "status": "degraded-pass"
+    },
+    {
+      "id": "QA-065",
+      "capability": "high-risk-hotspot-ranking",
+      "evidence": "x06_qa_hotspot_and_dead_export_rows_have_graph_evidence",
+      "status": "degraded-pass"
+    },
+    {
+      "id": "QA-107",
+      "capability": "symbol-zero-callers",
+      "evidence": "x06_qa_symbol_rows_can_find_zero_callers_and_generic_result_mentions",
+      "status": "degraded-pass"
+    },
+    {
+      "id": "QA-109",
+      "capability": "generic-result-type-reference",
+      "evidence": "x06_qa_symbol_rows_can_find_zero_callers_and_generic_result_mentions",
+      "status": "degraded-pass"
+    }
+  ],
+  "rowsStillNeedingRunnerOrCode": [
+    {
+      "id": "QA-024",
+      "reason": "Needs filesystem/module touch path evidence hook."
+    },
+    {
+      "id": "QA-066",
+      "reason": "Needs duplicate or similar-logic retrieval evidence hook."
+    },
+    {
+      "id": "QA-067",
+      "reason": "Needs previous-bug similarity evidence hook."
+    },
+    {
+      "id": "QA-188",
+      "reason": "Needs experience and error-change history evidence hook."
+    }
+  ],
+  "lessons": [
+    "reverse_dependents includes containment and file structure; use call edges for zero-caller evidence."
+  ]
+}

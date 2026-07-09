@@ -1,6 +1,8 @@
 use enforcer_memory::analysis::CodeAdjacency;
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use enforcer_memory::impact::analyze_diff_impact;
+use serde_json::Value;
+use std::collections::BTreeSet;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -34,6 +36,77 @@ fn index_files(root: &Path, files: &[&str]) -> TestResult<CodeGraph> {
     let paths = files.iter().map(|file| root.join(file)).collect::<Vec<_>>();
     graph.index_repository(root, &paths, &Manifest::default())?;
     Ok(graph)
+}
+
+#[test]
+fn checked_in_x06_qa_capabilities_proof_matches_fixture_tests() -> TestResult {
+    let proof: Value = serde_json::from_str(include_str!(
+        "../../../proof/memory/x06-qa-capabilities.json"
+    ))?;
+    assert_eq!(proof["schemaVersion"], 1);
+    assert_eq!(proof["status"], "degraded-pass-evidence");
+    assert_eq!(proof["proofScope"]["ciParity"], false);
+    assert_eq!(proof["proofScope"]["portability"], "portable-fixture-proof");
+    assert_eq!(proof["proofScope"]["localHardwareRequired"], false);
+
+    let covered = proof["rowsCovered"]
+        .as_array()
+        .ok_or("rowsCovered must be an array")?;
+    let covered_ids = covered
+        .iter()
+        .map(|row| {
+            row["status"]
+                .as_str()
+                .filter(|status| *status == "degraded-pass")
+                .ok_or("covered rows must have degraded-pass status")?;
+            row["evidence"]
+                .as_str()
+                .filter(|evidence| {
+                    matches!(
+                        *evidence,
+                        "x06_qa_diff_rows_can_identify_rules_or_workpacks_affected_by_changed_file"
+                            | "x06_qa_hotspot_and_dead_export_rows_have_graph_evidence"
+                            | "x06_qa_route_auth_rows_can_pair_routes_with_permission_checks"
+                            | "x06_qa_symbol_rows_can_find_zero_callers_and_generic_result_mentions"
+                    )
+                })
+                .ok_or("covered row must point at a focused fixture test")?;
+            row["id"].as_str().ok_or("covered row id must be a string")
+        })
+        .collect::<Result<BTreeSet<_>, _>>()?;
+    assert_eq!(
+        covered_ids,
+        BTreeSet::from([
+            "QA-011", "QA-038", "QA-039", "QA-044", "QA-045", "QA-057", "QA-058", "QA-065",
+            "QA-107", "QA-109"
+        ])
+    );
+
+    let still_needed = proof["rowsStillNeedingRunnerOrCode"]
+        .as_array()
+        .ok_or("rowsStillNeedingRunnerOrCode must be an array")?
+        .iter()
+        .map(|row| {
+            row["reason"]
+                .as_str()
+                .filter(|reason| !reason.is_empty())
+                .ok_or("still-needed row must have a reason")?;
+            row["id"]
+                .as_str()
+                .ok_or("still-needed row id must be a string")
+        })
+        .collect::<Result<BTreeSet<_>, _>>()?;
+    assert_eq!(
+        still_needed,
+        BTreeSet::from(["QA-024", "QA-066", "QA-067", "QA-188"])
+    );
+    assert!(
+        proof["lessons"]
+            .as_array()
+            .is_some_and(|lessons| !lessons.is_empty()),
+        "proof must carry durable learning evidence"
+    );
+    Ok(())
 }
 
 #[test]
