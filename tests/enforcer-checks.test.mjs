@@ -50,6 +50,19 @@ test('check no-zod-source runs a filtered scanner-backed rule set', () => {
   assert.deepEqual([...new Set(report.violations.map((violation) => violation.ruleId))], ['TS-1.2']);
 });
 
+test('scanner-backed checks respect explicit file scope', () => {
+  const project = makeProject({
+    'src/requested.ts': 'export const requested = 1;\n',
+    'src/not-requested.ts': ['import { z } from "zo', 'd";\nexport const value = z.string();\n'].join(''),
+  });
+  const result = run(project, ['check', 'no-zod-source', '--json', '--files', 'src/requested.ts']);
+  assert.equal(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.ok, true);
+  assert.deepEqual(report.scope.files, ['src/requested.ts']);
+  assert.deepEqual(report.violations, []);
+});
+
 test('check no-naked-domain-strings ignores generated TypeScript DTO folders', () => {
   const project = makeProject({
     'packages/schema-domain/src/generated/contracts.ts': 'export type GeneratedDeviceId = string;\n',

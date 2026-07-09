@@ -1,5 +1,12 @@
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
+fn workspace_root() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .components()
+        .collect()
+}
+
 fn looks_like_machine_absolute_path(value: &str) -> bool {
     let chars: Vec<char> = value.chars().collect();
     for index in 0..chars.len().saturating_sub(3) {
@@ -80,6 +87,32 @@ fn assert_ndjson_portable(artifact: &str, body: &str) -> TestResult {
 }
 
 #[test]
+fn all_x06_json_proofs_do_not_leak_machine_paths() -> TestResult {
+    let proof_dir = workspace_root().join("proof/memory");
+    let mut checked = Vec::new();
+    for entry in std::fs::read_dir(&proof_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        if !file_name.starts_with("x06-") || !file_name.ends_with(".json") {
+            continue;
+        }
+        let artifact = format!("proof/memory/{file_name}");
+        let body = std::fs::read_to_string(&path)?;
+        assert_json_portable(&artifact, &body)?;
+        checked.push(file_name.to_owned());
+    }
+    checked.sort();
+    assert!(
+        checked.len() >= 50,
+        "expected broad X06 proof coverage, checked only {checked:?}"
+    );
+    Ok(())
+}
+
+#[test]
 fn x06_dogfood_and_learning_proofs_do_not_leak_machine_paths() -> TestResult {
     assert_json_portable(
         "proof/memory/x06-dogfood.json",
@@ -89,6 +122,35 @@ fn x06_dogfood_and_learning_proofs_do_not_leak_machine_paths() -> TestResult {
         "proof/memory/x06-learning-curve.json",
         include_str!("../../../proof/memory/x06-learning-curve.json"),
     )?;
+    Ok(())
+}
+
+#[test]
+fn x06_rag_rollup_proofs_do_not_leak_machine_paths() -> TestResult {
+    for (artifact, body) in [
+        (
+            "proof/memory/x06-feature-parity.json",
+            include_str!("../../../proof/memory/x06-feature-parity.json"),
+        ),
+        (
+            "proof/memory/x06-rag-qa.json",
+            include_str!("../../../proof/memory/x06-rag-qa.json"),
+        ),
+        (
+            "proof/memory/x06-rag.json",
+            include_str!("../../../proof/memory/x06-rag.json"),
+        ),
+        (
+            "proof/memory/x06-retrieval-quality.json",
+            include_str!("../../../proof/memory/x06-retrieval-quality.json"),
+        ),
+        (
+            "proof/memory/x06-token-reduction.json",
+            include_str!("../../../proof/memory/x06-token-reduction.json"),
+        ),
+    ] {
+        assert_json_portable(artifact, body)?;
+    }
     Ok(())
 }
 

@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-test-shards",
-  "generatedAt": "2026-07-09T11:38:10.212Z",
+  "generatedAt": "2026-07-09T15:00:48.688Z",
   "package": "enforcer-memory",
   "testRoot": "crates/enforcer-memory/tests",
-  "totalTargets": 232,
-  "selectedTargets": 232,
+  "totalTargets": 245,
+  "selectedTargets": 245,
   "shard": "all",
   "only": null,
   "byCategory": {
     "integration": 10,
-    "x06-proof": 4,
+    "x06-proof": 17,
     "model-runtime": 5,
     "parity-live": 4,
     "unit-core": 56,
@@ -3238,6 +3238,132 @@
       ]
     },
     {
+      "target": "x06_cli_mcp_weaver_proof",
+      "category": "x06-proof",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "x06_cli_mcp_weaver_proof",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "x06_code_graph_proof",
+      "category": "x06-proof",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "x06_code_graph_proof",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "x06_diagnostics_summaries_proof",
+      "category": "x06-proof",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "x06_diagnostics_summaries_proof",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "x06_dogfood_proof",
+      "category": "x06-proof",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "x06_dogfood_proof",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "x06_feature_parity_proof",
+      "category": "x06-proof",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "x06_feature_parity_proof",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "x06_indexing_fulltext_proof",
+      "category": "x06-proof",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "x06_indexing_fulltext_proof",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "x06_kg_proof",
+      "category": "x06-proof",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "x06_kg_proof",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "x06_longitudinal_proof",
+      "category": "x06-proof",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "x06_longitudinal_proof",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "x06_policy_federation_proof",
+      "category": "x06-proof",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "x06_policy_federation_proof",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
       "target": "x06_proof_portability",
       "category": "x06-proof",
       "cargoArgs": [
@@ -3266,6 +3392,20 @@
       ]
     },
     {
+      "target": "x06_rag_qa_proof",
+      "category": "x06-proof",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "x06_rag_qa_proof",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
       "target": "x06_retrieval_quality",
       "category": "x06-proof",
       "cargoArgs": [
@@ -3274,6 +3414,48 @@
         "enforcer-memory",
         "--test",
         "x06_retrieval_quality",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "x06_store_proof",
+      "category": "x06-proof",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "x06_store_proof",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "x06_test_shards_proof",
+      "category": "x06-proof",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "x06_test_shards_proof",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "x06_vector_proof",
+      "category": "x06-proof",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "x06_vector_proof",
         "--quiet",
         "-j",
         "1"

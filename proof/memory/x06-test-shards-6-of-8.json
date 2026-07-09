@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
   "artifact": "x06-test-shards",
-  "generatedAt": "2026-07-09T12:33:28.547Z",
+  "generatedAt": "2026-07-09T16:34:09.530Z",
   "package": "enforcer-memory",
   "testRoot": "crates/enforcer-memory/tests",
-  "totalTargets": 232,
-  "selectedTargets": 29,
+  "totalTargets": 245,
+  "selectedTargets": 30,
   "shard": "6/8",
   "only": null,
   "byCategory": {
     "integration": 10,
-    "x06-proof": 4,
+    "x06-proof": 17,
     "model-runtime": 5,
     "parity-live": 4,
     "unit-core": 56,
@@ -27,7 +27,7 @@
   "result": {
     "mode": "executed",
     "ok": true,
-    "executedTargets": 29,
+    "executedTargets": 30,
     "failedTargets": []
   },
   "targets": [
@@ -424,14 +424,28 @@
       ]
     },
     {
-      "target": "x06_proof_portability",
+      "target": "x06_cli_mcp_weaver_proof",
       "category": "x06-proof",
       "cargoArgs": [
         "test",
         "-p",
         "enforcer-memory",
         "--test",
-        "x06_proof_portability",
+        "x06_cli_mcp_weaver_proof",
+        "--quiet",
+        "-j",
+        "1"
+      ]
+    },
+    {
+      "target": "x06_policy_federation_proof",
+      "category": "x06-proof",
+      "cargoArgs": [
+        "test",
+        "-p",
+        "enforcer-memory",
+        "--test",
+        "x06_policy_federation_proof",
         "--quiet",
         "-j",
         "1"

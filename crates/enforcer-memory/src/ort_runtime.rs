@@ -277,6 +277,10 @@ mod real {
             .map_err(|source| model_error("configure-ort-intra-threads", source.to_string()))?
             .with_inter_threads(2)
             .map_err(|source| model_error("configure-ort-inter-threads", source.to_string()))?
+            .with_parallel_execution(true)
+            .map_err(|source| model_error("configure-ort-parallel-execution", source.to_string()))?
+            .with_memory_pattern(true)
+            .map_err(|source| model_error("configure-ort-memory-pattern", source.to_string()))?
             .commit_from_file(model_path)
             .map_err(|source| model_error("load-ort-model", source.to_string()))
     }

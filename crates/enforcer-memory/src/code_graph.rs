@@ -1297,6 +1297,16 @@ impl CodeGraph {
                 crate::artifacts::GraphSymbolKindSnapshot::Function => CodeNode::Function(node),
                 crate::artifacts::GraphSymbolKindSnapshot::Type => CodeNode::Type(node),
                 crate::artifacts::GraphSymbolKindSnapshot::Test => CodeNode::Test(node),
+                crate::artifacts::GraphSymbolKindSnapshot::Method => CodeNode::Method(node),
+                crate::artifacts::GraphSymbolKindSnapshot::Class => CodeNode::Class(node),
+                crate::artifacts::GraphSymbolKindSnapshot::Struct => CodeNode::Struct(node),
+                crate::artifacts::GraphSymbolKindSnapshot::Interface => CodeNode::Interface(node),
+                crate::artifacts::GraphSymbolKindSnapshot::Enum => CodeNode::Enum(node),
+                crate::artifacts::GraphSymbolKindSnapshot::TypeAlias => CodeNode::TypeAlias(node),
+                crate::artifacts::GraphSymbolKindSnapshot::Module => CodeNode::Module(node),
+                crate::artifacts::GraphSymbolKindSnapshot::Lambda => CodeNode::Lambda(node),
+                crate::artifacts::GraphSymbolKindSnapshot::Variable => CodeNode::Variable(node),
+                crate::artifacts::GraphSymbolKindSnapshot::Constant => CodeNode::Constant(node),
             });
         }
         for tombstone in &snapshot.tombstones {

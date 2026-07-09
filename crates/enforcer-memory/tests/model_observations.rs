@@ -1,8 +1,8 @@
 //! X06 model runtime learning-observation serialization contracts.
 //!
 //! These tests validate that every required candidate shape stays
-//! wire-compatible for a future Store writer (no persistence exists in
-//! this pass).
+//! wire-compatible for Store-backed model-observation persistence and
+//! replay.
 
 use enforcer_domain::paths::RepoRoot;
 use enforcer_memory::graph::MemoryGraph;

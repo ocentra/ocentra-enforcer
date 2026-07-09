@@ -13,7 +13,8 @@ use enforcer_memory::llama_cpp::{
 };
 use enforcer_memory::local_runtime::LocalRuntimeAcceleration;
 use enforcer_memory::local_runtime::{
-    RuntimeManagedCapability, RuntimeOwnershipMode, REQUIRED_MANAGED_CAPABILITIES,
+    arbitrate_runtime_workload, RuntimeActivityState, RuntimeAdmission, RuntimeManagedCapability,
+    RuntimeOwnershipMode, RuntimeWorkload, REQUIRED_MANAGED_CAPABILITIES,
 };
 use enforcer_memory::model_runtime::{
     dev_model_cache_root, evaluate_chat_usability, loaded_non_chat_usability,
@@ -56,6 +57,31 @@ fn assert_model_runtime_error(
         },
         Ok(()) => Err("expected model runtime error, got Ok(())".into()),
     }
+}
+
+#[test]
+fn ort_runtime_session_uses_enforcer_owned_execution_policy() {
+    let runtime = include_str!("../src/ort_runtime.rs");
+
+    assert_contract_terms(
+        runtime,
+        &[
+            ".with_execution_providers(&providers)",
+            ".with_optimization_level(GraphOptimizationLevel::Level3)",
+            ".with_intra_threads(4)",
+            ".with_inter_threads(2)",
+            ".with_parallel_execution(true)",
+            ".with_memory_pattern(true)",
+            "\"configure-ort-providers\"",
+            "\"configure-ort-optimization\"",
+            "\"configure-ort-intra-threads\"",
+            "\"configure-ort-inter-threads\"",
+            "\"configure-ort-parallel-execution\"",
+            "\"configure-ort-memory-pattern\"",
+            ".commit_from_file(model_path)",
+            "\"load-ort-model\"",
+        ],
+    );
 }
 
 fn string_has_machine_absolute_path(value: &str) -> bool {
@@ -202,6 +228,38 @@ fn chat_model_selector_prefers_q4_model_that_fits_detected_hardware() {
     assert_eq!(
         selection.reason,
         "selected Qwen/Qwen3-4B-GGUF:Q4_K_M because detected free VRAM is 7484 MiB and required free VRAM is 4096 MiB"
+    );
+}
+
+#[test]
+fn chat_model_selector_uses_smallest_q4_fallback_without_gpu_memory_report() {
+    let selection = select_x06_chat_model_for_hardware(None);
+
+    assert_eq!(
+        selection.selected.model_id,
+        "bartowski/google_gemma-3-4b-it-GGUF:Q4_K_M"
+    );
+    assert_eq!(selection.selected_quantization, "Q4_K_M");
+    assert_eq!(selection.detected_free_vram_mib, None);
+    assert_eq!(
+        selection.reason,
+        "selected smallest Q4 chat fallback bartowski/google_gemma-3-4b-it-GGUF:Q4_K_M because no llama.cpp GPU memory report was available"
+    );
+}
+
+#[test]
+fn chat_model_selector_falls_back_to_smallest_q4_when_reported_vram_is_below_floor() {
+    let selection = select_x06_chat_model_for_hardware(Some(512));
+
+    assert_eq!(
+        selection.selected.model_id,
+        "bartowski/google_gemma-3-4b-it-GGUF:Q4_K_M"
+    );
+    assert_eq!(selection.selected_quantization, "Q4_K_M");
+    assert_eq!(selection.detected_free_vram_mib, Some(512));
+    assert_eq!(
+        selection.reason,
+        "selected smallest Q4 chat fallback bartowski/google_gemma-3-4b-it-GGUF:Q4_K_M because detected free VRAM is only 512 MiB"
     );
 }
 
@@ -421,6 +479,50 @@ fn runtime_proof_surface_does_not_hardcode_machine_absolute_paths() {
 }
 
 #[test]
+fn runtime_backend_contract_exposes_chat_priority_workload_admission() {
+    let contract = enforcer_memory::local_runtime::runtime_backend_contract();
+
+    assert!(contract
+        .llama_cpp
+        .workload_admission_policy
+        .contains(&"chat-active-queues-background-model-work"));
+    assert!(contract
+        .llama_cpp
+        .workload_admission_policy
+        .contains(&"background-retrieval-pauses-before-chat"));
+    assert!(contract
+        .ort
+        .workload_admission_policy
+        .contains(&"chat-active-queues-ort-background-work"));
+    assert!(contract
+        .ort
+        .workload_admission_policy
+        .contains(&"ort-background-retrieval-pauses-before-chat"));
+
+    let embedding_to_chat =
+        arbitrate_runtime_workload(RuntimeActivityState::EmbeddingActive, RuntimeWorkload::Chat);
+    assert_eq!(
+        embedding_to_chat.admission,
+        RuntimeAdmission::PauseBackgroundThenAdmit
+    );
+
+    let reranking_to_chat =
+        arbitrate_runtime_workload(RuntimeActivityState::RerankingActive, RuntimeWorkload::Chat);
+    assert_eq!(
+        reranking_to_chat.admission,
+        RuntimeAdmission::PauseBackgroundThenAdmit
+    );
+
+    let chat_to_embedding =
+        arbitrate_runtime_workload(RuntimeActivityState::ChatActive, RuntimeWorkload::Embedding);
+    assert_eq!(chat_to_embedding.admission, RuntimeAdmission::Queue);
+
+    let chat_to_reranking =
+        arbitrate_runtime_workload(RuntimeActivityState::ChatActive, RuntimeWorkload::Reranking);
+    assert_eq!(chat_to_reranking.admission, RuntimeAdmission::Queue);
+}
+
+#[test]
 fn checked_in_real_model_proofs_do_not_hardcode_machine_absolute_paths() -> TestResult {
     let proof_files = [
         (
@@ -434,6 +536,10 @@ fn checked_in_real_model_proofs_do_not_hardcode_machine_absolute_paths() -> Test
         (
             "x06-models-multi-probe-plan.json",
             include_str!("../../../proof/memory/x06-models-multi-probe-plan.json"),
+        ),
+        (
+            "x06-models-ort-provider-policy.json",
+            include_str!("../../../proof/memory/x06-models-ort-provider-policy.json"),
         ),
         (
             "x06-models-qwen3-4b-download-local.json",
@@ -517,6 +623,7 @@ fn checked_in_real_model_proofs_are_not_claimed_as_ci_parity() -> TestResult {
         include_str!("../../../proof/memory/x06-models.json"),
         include_str!("../../../proof/memory/x06-models-chat-plan.json"),
         include_str!("../../../proof/memory/x06-models-multi-probe-plan.json"),
+        include_str!("../../../proof/memory/x06-models-ort-provider-policy.json"),
         include_str!("../../../proof/memory/x06-models-qwen3-4b-download-local.json"),
         include_str!("../../../proof/memory/x06-models-qwen3-4b-cpu-windows-local.json"),
         include_str!("../../../proof/memory/x06-models-qwen3-4b-vulkan-windows-local.json"),
@@ -539,6 +646,63 @@ fn checked_in_real_model_proofs_are_not_claimed_as_ci_parity() -> TestResult {
         assert_eq!(proof["proofScope"]["ciParity"], false);
         assert_ne!(proof["proofScope"]["portability"], "portable-ci-proof");
     }
+    Ok(())
+}
+
+#[test]
+fn model_rollup_linked_artifacts_exist_and_are_not_ci_parity() -> TestResult {
+    let workspace_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .ok_or("failed to resolve workspace root from CARGO_MANIFEST_DIR")?;
+    let rollup: serde_json::Value =
+        serde_json::from_str(include_str!("../../../proof/memory/x06-models.json"))?;
+    let linked = rollup["linkedProofArtifacts"]
+        .as_object()
+        .ok_or("x06-models linkedProofArtifacts must be an object")?;
+    let expected_groups = [
+        "cacheAcquisitionProofs",
+        "ggufRuntimeProofs",
+        "localRuntimeProofs",
+        "negativeLearningProofs",
+        "ortRuntimeProofs",
+        "planningProofs",
+    ];
+
+    for group in expected_groups {
+        let entries = linked
+            .get(group)
+            .and_then(serde_json::Value::as_array)
+            .ok_or_else(|| format!("{group} must be present as an array"))?;
+        assert!(
+            !entries.is_empty(),
+            "{group} must not be an empty rollup bucket"
+        );
+
+        for entry in entries {
+            assert_eq!(entry["ciParity"], false, "{group} must stay non-CI proof");
+            let artifact_path = entry["artifactPath"]
+                .as_str()
+                .ok_or_else(|| format!("{group} entry must include artifactPath"))?;
+            assert!(
+                artifact_path.starts_with("proof/memory/x06-models"),
+                "{artifact_path} must stay inside the X06 model proof namespace"
+            );
+
+            let proof_path = workspace_root.join(artifact_path);
+            assert!(
+                proof_path.is_file(),
+                "{artifact_path} is linked from x06-models.json but missing on disk"
+            );
+            let proof: serde_json::Value =
+                serde_json::from_str(&std::fs::read_to_string(&proof_path)?)?;
+            assert_eq!(
+                proof["proofScope"]["ciParity"], false,
+                "{artifact_path} must not claim portable CI model parity"
+            );
+        }
+    }
+
     Ok(())
 }
 
@@ -764,6 +928,10 @@ fn checked_in_model_plan_proves_owned_gguf_and_ort_backends() -> TestResult {
 
     assert_eq!(contract["llamaCpp"]["backend"], "gguf");
     assert_eq!(contract["llamaCpp"]["ownership"], "enforcer-subprocess");
+    assert_eq!(
+        contract["llamaCpp"]["executionIsolation"],
+        "enforcer-managed-child-process"
+    );
     assert_eq!(contract["llamaCpp"]["requestProtocol"], "enforcer-stdio");
     assert_eq!(contract["llamaCpp"]["externalHttpAllowed"], false);
     assert_eq!(contract["llamaCpp"]["portBindingAllowed"], false);
@@ -782,11 +950,23 @@ fn checked_in_model_plan_proves_owned_gguf_and_ort_backends() -> TestResult {
 
     assert_eq!(contract["ort"]["backend"], "onnx");
     assert_eq!(contract["ort"]["ownership"], "enforcer-isolated-worker");
+    assert_eq!(
+        contract["ort"]["executionIsolation"],
+        "enforcer-isolated-worker-process"
+    );
     assert_eq!(contract["ort"]["requestProtocol"], "enforcer-worker-env");
     assert_eq!(contract["ort"]["externalHttpAllowed"], false);
     assert_eq!(contract["ort"]["portBindingAllowed"], false);
     assert_eq!(contract["ort"]["serverSurfaceAcceptedForParity"], false);
     assert_eq!(contract["ort"]["route"], "enforcer-isolated-ort-worker");
+    assert_eq!(
+        contract["ort"]["ownedCommandBuilder"],
+        "crates/enforcer-memory/src/local_runtime.rs::ort_worker_command"
+    );
+    assert_eq!(
+        contract["ort"]["workerCommandProof"],
+        "crates/enforcer-memory/tests/local_runtime.rs::ort_worker_command_uses_owned_worker_args_and_env_without_server_surface"
+    );
     assert!(contract["ort"]["managedByService"]
         .as_array()
         .ok_or("ORT managed service list missing")?
@@ -1145,6 +1325,26 @@ fn portable_plan_proof_does_not_probe_local_hardware() -> TestResult {
         "plan"
     );
     assert_eq!(
+        proof["linkedProofArtifacts"]["planningProofs"][2]["artifactPath"],
+        "proof/memory/x06-models-ort-provider-policy.json"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["planningProofs"][2]["status"],
+        "cpu-gpu-npu-provider-policy"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["planningProofs"][2]["provider"],
+        "portable-ort-provider-policy"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["planningProofs"][2]["runtimeMode"],
+        "plan"
+    );
+    assert_eq!(
+        proof["linkedProofArtifacts"]["planningProofs"][2]["localHardwareRequired"],
+        false
+    );
+    assert_eq!(
         proof["linkedProofArtifacts"]["localRuntimeProofs"][0]["artifactPath"],
         "proof/memory/x06-models-qwen3-4b-vulkan-windows-local.json"
     );
@@ -1433,6 +1633,7 @@ fn real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in() {
             "ort_worker_execution_plan_with_provider_resolution(",
             "ort_worker_command(&plan)",
             "attach_ort_worker_contract(&mut proof, &plan);",
+            "failed to parse ORT child proof JSON",
             "\"providerResolution\"",
             "\"workerTask\"",
             "\"requestedProvider\"",
@@ -1639,28 +1840,30 @@ fn llama_cpp_validation_fails_closed_for_missing_assets() -> TestResult {
 }
 
 #[test]
-fn llama_cpp_native_cpu_plan_forces_zero_gpu_layers() {
+fn llama_cpp_native_cpu_plan_forces_zero_gpu_layers() -> TestResult {
     let config = llama_plan_fixture(LocalRuntimeAcceleration::Cpu, LlamaCppBackendHint::Native);
 
-    let plan = llama_cpp_command_plan(&config);
+    let plan = llama_cpp_command_plan(&config)?;
 
     assert!(contains_arg_pair(&plan.args, "-ngl", "0"));
     assert!(plan.env.is_empty());
+    Ok(())
 }
 
 #[test]
-fn llama_cpp_native_gpu_plan_uses_gpu_layers() {
+fn llama_cpp_native_gpu_plan_uses_gpu_layers() -> TestResult {
     let mut config = llama_plan_fixture(LocalRuntimeAcceleration::Gpu, LlamaCppBackendHint::Native);
     config.gpu_layers = Some(42);
 
-    let plan = llama_cpp_command_plan(&config);
+    let plan = llama_cpp_command_plan(&config)?;
 
     assert!(contains_arg_pair(&plan.args, "-ngl", "42"));
     assert!(plan.env.is_empty());
+    Ok(())
 }
 
 #[test]
-fn llama_cpp_gpu_plan_can_split_across_cpu_and_gpus_with_fit() {
+fn llama_cpp_gpu_plan_can_split_across_cpu_and_gpus_with_fit() -> TestResult {
     let mut config = llama_plan_fixture(LocalRuntimeAcceleration::Gpu, LlamaCppBackendHint::Native);
     config.device = Some("Vulkan0,Vulkan1".to_owned());
     config.main_gpu = Some(0);
@@ -1668,7 +1871,7 @@ fn llama_cpp_gpu_plan_can_split_across_cpu_and_gpus_with_fit() {
     config.tensor_split = Some("4,1".to_owned());
     config.fit = Some(true);
 
-    let plan = llama_cpp_command_plan(&config);
+    let plan = llama_cpp_command_plan(&config)?;
 
     assert!(contains_arg_pair(&plan.args, "--device", "Vulkan0,Vulkan1"));
     assert!(contains_arg_pair(&plan.args, "-ngl", "auto"));
@@ -1676,32 +1879,49 @@ fn llama_cpp_gpu_plan_can_split_across_cpu_and_gpus_with_fit() {
     assert!(contains_arg_pair(&plan.args, "--split-mode", "layer"));
     assert!(contains_arg_pair(&plan.args, "--tensor-split", "4,1"));
     assert!(contains_arg_pair(&plan.args, "--fit", "on"));
+    Ok(())
 }
 
 #[test]
-fn llama_cpp_openvino_gpu_plan_uses_device_env_not_native_offload() {
+fn llama_cpp_openvino_gpu_plan_uses_device_env_not_native_offload() -> TestResult {
     let config = llama_plan_fixture(LocalRuntimeAcceleration::Gpu, LlamaCppBackendHint::OpenVino);
 
-    let plan = llama_cpp_command_plan(&config);
+    let plan = llama_cpp_command_plan(&config)?;
 
     assert!(plan
         .env
         .iter()
         .any(|(key, value)| key == "GGML_OPENVINO_DEVICE" && value == "GPU"));
     assert!(!plan.args.iter().any(|arg| arg == "-ngl"));
+    Ok(())
 }
 
 #[test]
-fn llama_cpp_npu_plan_requires_openvino_device_env_and_small_context() {
+fn llama_cpp_npu_plan_requires_openvino_device_env_and_small_context() -> TestResult {
     let config = llama_plan_fixture(LocalRuntimeAcceleration::Npu, LlamaCppBackendHint::Auto);
 
-    let plan = llama_cpp_command_plan(&config);
+    let plan = llama_cpp_command_plan(&config)?;
 
     assert!(plan
         .env
         .iter()
         .any(|(key, value)| key == "GGML_OPENVINO_DEVICE" && value == "NPU"));
     assert!(contains_arg_pair(&plan.args, "-c", "512"));
+    Ok(())
+}
+
+#[test]
+fn llama_cpp_command_plan_rejects_absolute_gguf_model_path_before_args() -> TestResult {
+    let mut config = llama_plan_fixture(LocalRuntimeAcceleration::Cpu, LlamaCppBackendHint::Native);
+    config.model_path = "C:/Users/sujan/model/ornith/Q4_K_M.gguf".into();
+
+    let result = llama_cpp_command_plan(&config).map(|_| ());
+
+    assert_model_runtime_error(
+        result,
+        "validate-llama-cpp-command-config",
+        "llama.cpp GGUF model path must be cache-relative/repo-local, not an absolute or hardcoded machine path",
+    )
 }
 
 #[test]

@@ -12,8 +12,8 @@ use enforcer_memory::local_runtime::{
     validate_control_plane, validate_fixture, validate_ort_worker_execution_plan, BackendReadiness,
     LocalRuntimeControlPlane, LocalRuntimeFixture, LocalRuntimeKind, OrtWorkerLifecycleAction,
     OrtWorkerLifecycleState, OrtWorkerTask, RuntimeActivityState, RuntimeAdmission,
-    RuntimeManagedCapability, RuntimeOwnershipMode, RuntimeRequestProtocol, RuntimeWorkload,
-    REQUIRED_MANAGED_CAPABILITIES,
+    RuntimeExecutionIsolation, RuntimeManagedCapability, RuntimeOwnershipMode,
+    RuntimeRequestProtocol, RuntimeWorkload, REQUIRED_MANAGED_CAPABILITIES,
 };
 use enforcer_memory::model_runtime::{ModelSpec, ProviderKind};
 use serde_json::Value;
@@ -40,6 +40,27 @@ fn checked_in_runtime_control_plane_proof_matches_contract() -> TestResult {
         proof["runtimePolicy"]["onnxOrt"]["inProcessAllowedForParity"],
         false
     );
+    for backend in ["llamaCpp", "onnxOrt"] {
+        let managed = proof["runtimePolicy"][backend]["managedCapabilities"]
+            .as_array()
+            .ok_or("managedCapabilities must be an array")?;
+        for capability in [
+            "load-unload",
+            "pause-resume-cancel",
+            "timeout-kill",
+            "provider-selection",
+            "cache-policy",
+            "chat-history-policy",
+            "workload-admission",
+        ] {
+            assert!(
+                managed
+                    .iter()
+                    .any(|candidate| candidate.as_str() == Some(capability)),
+                "missing {backend} managed capability {capability}"
+            );
+        }
+    }
     assert_eq!(
         proof["runtimePolicy"]["llamaCpp"]["externalServerAllowedForParity"],
         false
@@ -463,6 +484,64 @@ fn ort_worker_plan_materializes_enforcer_owned_child_env_contract() -> TestResul
 }
 
 #[test]
+fn ort_worker_plan_rejects_absolute_model_or_tokenizer_paths_before_spawn() -> TestResult {
+    let absolute_model = ModelSpec::qwen3_embedding(
+        "C:/Users/sujan/model/qwen/model.onnx",
+        "abc123",
+        "model/hf/qwen/tokenizer.json",
+        "def456",
+    );
+    let model_error = match ort_worker_execution_plan(
+        "target/debug/x06_model_runtime_probe",
+        OrtWorkerTask::Embedding,
+        &absolute_model,
+        ProviderKind::Cpu,
+        30_000,
+    ) {
+        Ok(plan) => {
+            return Err(
+                format!("absolute model path admitted into ORT worker plan: {plan:?}").into(),
+            )
+        }
+        Err(error) => error,
+    };
+    assert!(
+        model_error
+            .to_string()
+            .contains("ENFORCER_X06_CHILD_ARTIFACT_PATH must be cache-relative/repo-local"),
+        "unexpected absolute model path error: {model_error}"
+    );
+
+    let absolute_tokenizer = ModelSpec::qwen3_embedding(
+        "model/hf/qwen/model.onnx",
+        "abc123",
+        "/home/sujan/model/qwen/tokenizer.json",
+        "def456",
+    );
+    let tokenizer_error = match ort_worker_execution_plan(
+        "target/debug/x06_model_runtime_probe",
+        OrtWorkerTask::Embedding,
+        &absolute_tokenizer,
+        ProviderKind::Cpu,
+        30_000,
+    ) {
+        Ok(plan) => {
+            return Err(
+                format!("absolute tokenizer path admitted into ORT worker plan: {plan:?}").into(),
+            )
+        }
+        Err(error) => error,
+    };
+    assert!(
+        tokenizer_error
+            .to_string()
+            .contains("ENFORCER_X06_CHILD_TOKENIZER_PATH must be cache-relative/repo-local"),
+        "unexpected absolute tokenizer path error: {tokenizer_error}"
+    );
+    Ok(())
+}
+
+#[test]
 fn ort_worker_command_uses_owned_worker_args_and_env_without_server_surface() -> TestResult {
     let spec = ModelSpec::qwen3_reranker(
         "model/hf/qwen-reranker/model.onnx",
@@ -581,6 +660,10 @@ fn runtime_backend_contract_is_derived_from_typed_runtime_ownership() {
         RuntimeOwnershipMode::EnforcerSubprocess
     );
     assert_eq!(
+        contract.llama_cpp.execution_isolation,
+        RuntimeExecutionIsolation::EnforcerManagedChildProcess
+    );
+    assert_eq!(
         contract.llama_cpp.request_protocol,
         RuntimeRequestProtocol::EnforcerStdio
     );
@@ -595,6 +678,10 @@ fn runtime_backend_contract_is_derived_from_typed_runtime_ownership() {
     assert_eq!(
         contract.ort.ownership,
         RuntimeOwnershipMode::EnforcerIsolatedWorker
+    );
+    assert_eq!(
+        contract.ort.execution_isolation,
+        RuntimeExecutionIsolation::EnforcerIsolatedWorkerProcess
     );
     assert_eq!(
         contract.ort.request_protocol,
@@ -895,4 +982,125 @@ fn ort_provider_resolution_accepts_probed_npu_without_duplicate_cpu() {
     );
     assert!(resolution.provider_probe_passed);
     assert_eq!(resolution.downgrade_reason, None);
+}
+
+#[test]
+fn checked_in_ort_provider_policy_proof_matches_resolver_contract() -> TestResult {
+    let proof: Value = serde_json::from_str(include_str!(
+        "../../../proof/memory/x06-models-ort-provider-policy.json"
+    ))?;
+
+    assert_eq!(proof["schemaVersion"], 1);
+    assert_eq!(proof["artifact"], "x06-models-ort-provider-policy");
+    assert_eq!(proof["runtimeMode"], "plan");
+    assert_eq!(proof["allowNetwork"], false);
+    assert_eq!(proof["proofScope"]["ciParity"], false);
+    assert_eq!(proof["proofScope"]["localHardwareRequired"], false);
+    assert_eq!(proof["backend"], "onnx");
+    assert_eq!(proof["executionRoute"], "enforcer-isolated-ort-worker");
+    assert_eq!(proof["ownership"], "enforcer-isolated-worker");
+    assert_eq!(proof["requestProtocol"], "enforcer-worker-env");
+    assert_eq!(proof["externalServerAllowed"], false);
+    assert_eq!(proof["portBindingAllowed"], false);
+    assert_eq!(proof["inProcessAllowedForParity"], false);
+
+    let cpu = resolve_ort_provider(ProviderKind::Cpu, &[]);
+    let gpu_downgrade = resolve_ort_provider(ProviderKind::OpenVino, &[]);
+    let npu = resolve_ort_provider(
+        ProviderKind::Npu,
+        &[ProviderKind::Npu, ProviderKind::Npu, ProviderKind::Cpu],
+    );
+    let examples = proof["providerResolutionExamples"]
+        .as_array()
+        .ok_or("providerResolutionExamples must be an array")?;
+
+    assert_provider_example(&examples[0], "cpu-default", &cpu);
+    assert_provider_example(&examples[1], "gpu-unprobed-downgrade", &gpu_downgrade);
+    assert_provider_example(&examples[2], "npu-probed", &npu);
+
+    assert_eq!(proof["providerPolicy"]["cpu"]["probeRequired"], false);
+    assert_eq!(
+        proof["providerPolicy"]["cpu"]["usableWithoutHardwareProbe"],
+        true
+    );
+    assert_eq!(proof["providerPolicy"]["gpu"]["probeRequired"], true);
+    assert_eq!(
+        proof["providerPolicy"]["gpu"]["fallbackProvider"],
+        serde_json::json!("cpu")
+    );
+    assert_eq!(proof["providerPolicy"]["npu"]["probeRequired"], true);
+    assert_eq!(
+        proof["providerPolicy"]["npu"]["fallbackProvider"],
+        serde_json::json!("cpu")
+    );
+    assert!(proof["providerPolicy"]["npu"]["openVinoCompatibility"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("provider probe reports npu/open-vino availability"));
+
+    let signals = proof["learningSignals"]
+        .as_array()
+        .ok_or("learningSignals must be an array")?;
+    for signal in [
+        "ort-accelerated-provider-requires-positive-probe",
+        "ort-unprobed-acceleration-downgraded-before-child-spawn",
+        "ort-npu-admitted-only-with-provider-evidence",
+        "ort-worker-owned-env-contract-required",
+    ] {
+        assert!(
+            signals
+                .iter()
+                .any(|candidate| candidate.as_str() == Some(signal)),
+            "missing ORT provider learning signal {signal}"
+        );
+    }
+    Ok(())
+}
+
+fn assert_provider_example(
+    example: &Value,
+    case: &str,
+    resolution: &enforcer_memory::local_runtime::OrtProviderResolution,
+) {
+    assert_eq!(example["case"], case);
+    assert_eq!(
+        example["requestedProvider"],
+        serde_json::json!(provider_env_name(resolution.requested_provider))
+    );
+    assert_eq!(
+        example["resolvedProvider"],
+        serde_json::json!(provider_env_name(resolution.resolved_provider))
+    );
+    assert_eq!(
+        example["providerProbePassed"],
+        serde_json::json!(resolution.provider_probe_passed)
+    );
+    assert_eq!(
+        example["downgradeReason"],
+        resolution
+            .downgrade_reason
+            .as_deref()
+            .map_or(serde_json::Value::Null, serde_json::Value::from)
+    );
+    let expected_available: Vec<serde_json::Value> = resolution
+        .available_providers
+        .iter()
+        .map(|provider| serde_json::json!(provider_env_name(*provider)))
+        .collect();
+    assert_eq!(
+        example["availableProviders"],
+        serde_json::Value::Array(expected_available)
+    );
+}
+
+fn provider_env_name(provider: ProviderKind) -> &'static str {
+    match provider {
+        ProviderKind::Cpu => "cpu",
+        ProviderKind::DirectMl => "direct-ml",
+        ProviderKind::OpenVino => "open-vino",
+        ProviderKind::Cuda => "cuda",
+        ProviderKind::Vulkan => "vulkan",
+        ProviderKind::CoreMl => "core-ml",
+        ProviderKind::Npu => "npu",
+    }
 }

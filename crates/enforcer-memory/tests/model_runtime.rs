@@ -7,10 +7,10 @@
 
 use enforcer_memory::error::MemoryError;
 use enforcer_memory::model_runtime::{
-    default_provider_order, default_zero_network_proof, degraded_capability_report,
-    discover_onnx_artifacts, ort_feature_compiled, validate_embedding_output,
-    validate_model_artifacts, validate_reranker_scores, validate_sha256_hex,
-    CacheCorruptionReasonCode, CacheHealth, CacheState, CacheStorageErrorCode,
+    default_model_runtime_probe_plan, default_provider_order, default_zero_network_proof,
+    degraded_capability_report, discover_onnx_artifacts, ort_feature_compiled,
+    validate_embedding_output, validate_model_artifacts, validate_reranker_scores,
+    validate_sha256_hex, CacheCorruptionReasonCode, CacheHealth, CacheState, CacheStorageErrorCode,
     CacheUnavailableReason, DownloadStatus, LoadStateReport, ManifestIntegrity, ModelCacheStatus,
     ModelRuntimeFile, ModelRuntimeObservationKind, ModelSpec, ModelTask, ProviderKind,
     SourcePolicy,
@@ -30,6 +30,24 @@ fn write_temp(contents: &[u8]) -> Result<(NamedTempFile, String), Box<dyn std::e
     })?;
     let digest = enforcer_memory::model_runtime::sha256_file(file.path())?;
     Ok((file, digest))
+}
+
+#[test]
+fn default_model_runtime_probe_plan_pins_safe_chat_probe_policy() {
+    let plan = default_model_runtime_probe_plan();
+
+    assert_eq!(plan.default_probe_filter, "chat");
+    assert!(plan.one_model_at_a_time);
+    assert!(plan.cpu_first);
+    assert!(plan.gpu_and_npu_require_provider_probe);
+    assert!(plan.kill_on_timeout);
+    assert_eq!(plan.minimum_chat_tokens_per_second, 10);
+    assert_eq!(plan.target_chat_tokens_per_second_low, 40);
+    assert_eq!(plan.target_chat_tokens_per_second_high, 60);
+    assert!(
+        plan.provider_probe_timeout_ms < plan.model_probe_timeout_ms,
+        "provider probes must fail fast before any model load attempt"
+    );
 }
 
 #[test]
@@ -159,8 +177,12 @@ fn provider_order_preserves_preferences_without_duplicates() {
         order,
         vec![
             ProviderKind::DirectMl,
-            ProviderKind::Cpu,
-            ProviderKind::OpenVino
+            ProviderKind::Cuda,
+            ProviderKind::Vulkan,
+            ProviderKind::OpenVino,
+            ProviderKind::CoreMl,
+            ProviderKind::Npu,
+            ProviderKind::Cpu
         ]
     );
 }
@@ -357,7 +379,11 @@ fn provider_order_keeps_preference_then_local_fallbacks() {
         order,
         vec![
             ProviderKind::DirectMl,
+            ProviderKind::Cuda,
+            ProviderKind::Vulkan,
             ProviderKind::OpenVino,
+            ProviderKind::CoreMl,
+            ProviderKind::Npu,
             ProviderKind::Cpu,
         ]
     );
@@ -380,12 +406,15 @@ fn discovers_onnx_artifact_with_external_data_and_support_files() {
     assert_eq!(artifact.onnx_path, "onnx/model_q4f16.onnx");
     assert_eq!(artifact.dtype, "q4f16");
     assert!(artifact.has_external_data);
-    assert!(artifact
-        .files
-        .contains(&"onnx/model_q4f16.onnx_data".to_owned()));
-    assert!(artifact.files.contains(&"onnx/tokenizer.json".to_owned()));
-    assert!(artifact.files.contains(&"config.json".to_owned()));
-    assert!(!artifact.files.contains(&"other/readme.md".to_owned()));
+    assert_eq!(
+        artifact.files,
+        vec![
+            "onnx/model_q4f16.onnx".to_owned(),
+            "onnx/model_q4f16.onnx_data".to_owned(),
+            "config.json".to_owned(),
+            "onnx/tokenizer.json".to_owned(),
+        ]
+    );
 }
 
 #[test]
@@ -402,11 +431,14 @@ fn artifact_discovery_handles_windows_separators() {
     assert_eq!(artifacts.len(), 1);
     let artifact = &artifacts[0];
     assert!(artifact.has_external_data);
-    assert!(artifact
-        .files
-        .contains(&r"onnx\model_fp16.onnx.data".to_owned()));
-    assert!(artifact.files.contains(&r"onnx\tokenizer.json".to_owned()));
-    assert!(!artifact.files.contains(&r"other\tokenizer.json".to_owned()));
+    assert_eq!(
+        artifact.files,
+        vec![
+            r"onnx\model_fp16.onnx".to_owned(),
+            r"onnx\model_fp16.onnx.data".to_owned(),
+            r"onnx\tokenizer.json".to_owned(),
+        ]
+    );
 }
 
 #[test]

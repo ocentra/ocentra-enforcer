@@ -4,6 +4,8 @@ use enforcer_memory::llama_cpp::{
 };
 use enforcer_memory::local_runtime::LocalRuntimeAcceleration;
 
+type TestResult = Result<(), Box<dyn std::error::Error>>;
+
 fn llama_binary_name(base_name: &str) -> String {
     format!("{base_name}{}", std::env::consts::EXE_SUFFIX)
 }
@@ -38,40 +40,43 @@ fn build_probe_config(
 }
 
 #[test]
-fn generation_plan_is_single_turn_and_subprocess_safe() {
+fn generation_plan_is_single_turn_and_subprocess_safe() -> TestResult {
     let config = build_probe_config(LocalRuntimeAcceleration::Cpu, LlamaCppBackendHint::Native);
 
-    let plan = llama_cpp_command_plan(&config);
+    let plan = llama_cpp_command_plan(&config)?;
 
     assert!(plan.args.iter().any(|arg| arg == "-st"));
     assert!(plan.args.iter().any(|arg| arg == "--simple-io"));
     assert!(plan.args.iter().any(|arg| arg == "--no-display-prompt"));
+    Ok(())
 }
 
 #[test]
-fn auto_acceleration_defaults_to_cpu_first() {
+fn auto_acceleration_defaults_to_cpu_first() -> TestResult {
     let config = build_probe_config(LocalRuntimeAcceleration::Auto, LlamaCppBackendHint::Native);
 
-    let plan = llama_cpp_command_plan(&config);
+    let plan = llama_cpp_command_plan(&config)?;
 
     assert!(contains_arg_pair(&plan.args, "-ngl", "0"));
     assert!(plan.env.is_empty());
+    Ok(())
 }
 
 #[test]
-fn openvino_auto_acceleration_keeps_cpu_device_selection() {
+fn openvino_auto_acceleration_keeps_cpu_device_selection() -> TestResult {
     let config = build_probe_config(
         LocalRuntimeAcceleration::Auto,
         LlamaCppBackendHint::OpenVino,
     );
 
-    let plan = llama_cpp_command_plan(&config);
+    let plan = llama_cpp_command_plan(&config)?;
 
     assert!(plan
         .env
         .iter()
         .any(|(key, value)| key == "GGML_OPENVINO_DEVICE" && value == "CPU"));
     assert!(!plan.args.iter().any(|arg| arg == "-ngl"));
+    Ok(())
 }
 
 #[test]

@@ -2,8 +2,9 @@
   "schemaVersion": 1,
   "artifact": "x06-token-reduction",
   "generatedAt": "2026-07-07T04:20:00Z",
-  "status": "green-fixture-proof",
+  "status": "green-derived-proof",
   "sourceArtifact": "proof/memory/x06-retrieval-quality.json",
+  "derivedFrom": "proof/memory/x06-retrieval-quality.json#/observations[token-reduction-proof]",
   "queries": [
     {
       "queryId": "q-retrieval-exact",

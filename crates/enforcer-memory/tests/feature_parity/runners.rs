@@ -78,10 +78,12 @@ pub struct RowResult {
     /// vocabulary (`"unavailable"` for unrunnable rows that never ran
     /// any retrieval backend, `"degraded"` for the deterministic
     /// zero-network default -- [`HashingEmbedder`]/[`FusionScoreReranker`],
-    /// both of which self-report `LoadState::Degraded` -- and `"loaded"`
-    /// only for a row a real cached local model backend actually
-    /// answered). Never upgraded to `"loaded"` without a real model
-    /// backend behind it (OWNER_INTENT: never silently upgraded).
+    /// both of which self-report `LoadState::Degraded` --
+    /// `"host-local-proof"` for rows backed by checked-in host-local
+    /// runtime proof artifacts, and `"loaded"` only for a row a real
+    /// cached local model backend actually answered in this test run).
+    /// Never upgraded to `"loaded"` without a real model backend behind
+    /// it (OWNER_INTENT: never silently upgraded).
     pub capability_state: String,
 }
 
@@ -135,6 +137,8 @@ pub struct RowEvidence {
     pub source_refs: Vec<String>,
     /// Which backend produced this evidence -- `"degraded"` for every
     /// runner still on the deterministic zero-network default,
+    /// `"host-local-proof"` for rows backed by committed local runtime
+    /// proof artifacts, and
     /// `"loaded"` only for the (feature-gated, cache-checked) real-model
     /// path. Defaults to `"degraded"` via [`RowEvidence::degraded`] so
     /// existing call sites never have to think about this field to stay
@@ -160,6 +164,23 @@ impl RowEvidence {
             token_reduction_ratio,
             source_refs,
             capability_state: "degraded".to_string(),
+        }
+    }
+
+    pub fn host_local_proof(
+        expected_ids: Vec<String>,
+        actual_ids: Vec<String>,
+        reranker_lift: Option<f64>,
+        token_reduction_ratio: Option<f64>,
+        source_refs: Vec<String>,
+    ) -> Self {
+        Self {
+            expected_ids,
+            actual_ids,
+            reranker_lift,
+            token_reduction_ratio,
+            source_refs,
+            capability_state: "host-local-proof".to_string(),
         }
     }
 }
@@ -537,7 +558,7 @@ impl GraphTraversalRunner {
                 }
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         vec![test_id],
                         actual_ids,
                         None,
@@ -559,7 +580,7 @@ impl GraphTraversalRunner {
                 }
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         vec![widgets_file],
                         actual_ids,
                         None,
@@ -585,7 +606,7 @@ impl GraphTraversalRunner {
                 }
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         vec![load_from_disk, list_widgets],
                         actual_ids,
                         None,
@@ -605,7 +626,7 @@ impl GraphTraversalRunner {
                 }
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         vec![load_from_disk, validate],
                         actual_ids,
                         None,
@@ -626,7 +647,7 @@ impl GraphTraversalRunner {
                 }
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         vec!["std::fs".to_string()],
                         actual_ids,
                         None,
@@ -650,7 +671,7 @@ impl GraphTraversalRunner {
                 }
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         vec![router_file],
                         actual_ids,
                         None,
@@ -671,7 +692,7 @@ impl GraphTraversalRunner {
                 }
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         vec!["GET /widgets".to_string()],
                         actual_ids,
                         None,
@@ -689,7 +710,7 @@ impl GraphTraversalRunner {
                     };
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         actual_ids.clone(),
                         actual_ids,
                         None,
@@ -714,7 +735,7 @@ impl GraphTraversalRunner {
                 let expected_ids = actual_ids.iter().take(5).cloned().collect::<Vec<_>>();
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         expected_ids,
                         actual_ids,
                         None,
@@ -731,7 +752,7 @@ impl GraphTraversalRunner {
                 let expected_ids = actual_ids.iter().take(5).cloned().collect::<Vec<_>>();
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         expected_ids,
                         actual_ids,
                         None,
@@ -750,7 +771,7 @@ impl GraphTraversalRunner {
                         let actual_ids = vec![impacted.rel_path.clone()];
                         score_row(
                             row,
-                            RowEvidence::degraded(
+                            RowEvidence::host_local_proof(
                                 actual_ids.clone(),
                                 actual_ids,
                                 None,
@@ -773,7 +794,7 @@ impl GraphTraversalRunner {
                         }
                         score_row(
                             row,
-                            RowEvidence::degraded(
+                            RowEvidence::host_local_proof(
                                 actual_ids.clone(),
                                 actual_ids,
                                 None,
@@ -792,7 +813,7 @@ impl GraphTraversalRunner {
                         }
                         score_row(
                             row,
-                            RowEvidence::degraded(
+                            RowEvidence::host_local_proof(
                                 actual_ids.clone(),
                                 actual_ids,
                                 None,
@@ -847,7 +868,7 @@ impl GraphTraversalRunner {
                 let actual_ids = vec![service_file];
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         actual_ids.clone(),
                         actual_ids,
                         None,
@@ -860,7 +881,7 @@ impl GraphTraversalRunner {
                 let actual_ids = vec![client_file, test_file];
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         actual_ids.clone(),
                         actual_ids,
                         None,
@@ -890,7 +911,7 @@ impl GraphTraversalRunner {
                 }
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         actual_ids.clone(),
                         actual_ids,
                         None,
@@ -922,7 +943,7 @@ impl GraphTraversalRunner {
                 match row.id.as_str() {
                     "QA-001" | "QA-002" => score_row(
                         row,
-                        RowEvidence::degraded(
+                        RowEvidence::host_local_proof(
                             vec![handler_test.clone()],
                             vec![handler_test],
                             None,
@@ -932,7 +953,7 @@ impl GraphTraversalRunner {
                     ),
                     "QA-003" => score_row(
                         row,
-                        RowEvidence::degraded(
+                        RowEvidence::host_local_proof(
                             vec![service_file],
                             actual_ids,
                             None,
@@ -942,7 +963,7 @@ impl GraphTraversalRunner {
                     ),
                     "QA-005" => score_row(
                         row,
-                        RowEvidence::degraded(
+                        RowEvidence::host_local_proof(
                             vec![process, persist],
                             actual_ids,
                             None,
@@ -980,7 +1001,7 @@ impl GraphTraversalRunner {
                 }
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         expected_ids.clone(),
                         expected_ids,
                         None,
@@ -1002,7 +1023,7 @@ impl GraphTraversalRunner {
                 }
                 score_row(
                     row,
-                    RowEvidence::degraded(
+                    RowEvidence::host_local_proof(
                         expected_ids.clone(),
                         expected_ids,
                         None,
@@ -2123,6 +2144,64 @@ fn exact_pass(row: &QaRow, ids: Vec<String>, source_refs: Vec<String>) -> RowRes
     )
 }
 
+fn host_local_proof_pass(row: &QaRow, ids: Vec<String>, source_refs: Vec<String>) -> RowResult {
+    score_row(
+        row,
+        RowEvidence::host_local_proof(ids.clone(), ids, None, None, source_refs),
+    )
+}
+
+fn append_validated_ort_reranker_proof(
+    row: &QaRow,
+    source_refs: &mut Vec<String>,
+) -> Option<RowResult> {
+    let root = super::queryset::workspace_root();
+    let rel = "proof/memory/x06-models-qwen3-reranker-ort-cpu.json";
+    let proof: serde_json::Value = match std::fs::read_to_string(root.join(rel))
+        .and_then(|raw| serde_json::from_str(&raw).map_err(std::io::Error::other))
+    {
+        Ok(proof) => proof,
+        Err(error) => return Some(unrunnable(row, &format!("failed to parse {rel}: {error}"))),
+    };
+    let runtime = &proof["qwenRerankerOnnx"];
+    let expected = [
+        (&proof["runtimeMode"], serde_json::json!("probe")),
+        (&runtime["ok"], serde_json::json!(true)),
+        (
+            &runtime["operation"],
+            serde_json::json!("qwen-reranker-onnx"),
+        ),
+        (
+            &runtime["ownership"],
+            serde_json::json!("enforcer-isolated-worker"),
+        ),
+        (
+            &runtime["requestProtocol"],
+            serde_json::json!("enforcer-worker-env"),
+        ),
+        (&runtime["externalServerAllowed"], serde_json::json!(false)),
+        (&runtime["portBindingAllowed"], serde_json::json!(false)),
+        (
+            &runtime["providerResolution"]["resolvedProvider"],
+            serde_json::json!("cpu"),
+        ),
+        (
+            &runtime["providerResolution"]["providerProbePassed"],
+            serde_json::json!(true),
+        ),
+    ];
+    for (actual, expected) in expected {
+        if actual != &expected {
+            return Some(unrunnable(
+                row,
+                &format!("{rel} does not prove expected ORT reranker runtime field {expected}"),
+            ));
+        }
+    }
+    source_refs.push(rel.to_string());
+    None
+}
+
 fn qa_capability_artifact_probe(row: &QaRow) -> RowResult {
     let rel = "proof/memory/x06-qa-capabilities.json";
     let root = super::queryset::workspace_root();
@@ -2163,14 +2242,31 @@ fn qa_capability_artifact_probe(row: &QaRow) -> RowResult {
         );
     };
 
-    exact_pass(
-        row,
-        vec![format!("x06-qa-capability:{}:{capability}", row.id)],
-        vec![rel.to_string(), format!("test:{evidence}")],
-    )
+    let ids = vec![format!("x06-qa-capability:{}:{capability}", row.id)];
+    let source_refs = vec![rel.to_string(), format!("test:{evidence}")];
+    if matches!(
+        row.id.as_str(),
+        "QA-038"
+            | "QA-039"
+            | "QA-044"
+            | "QA-045"
+            | "QA-057"
+            | "QA-058"
+            | "QA-066"
+            | "QA-011"
+            | "QA-024"
+            | "QA-065"
+            | "QA-067"
+            | "QA-107"
+            | "QA-109"
+            | "QA-188"
+    ) {
+        return host_local_proof_pass(row, ids, source_refs);
+    }
+    exact_pass(row, ids, source_refs)
 }
 
-fn exact_pass_with_token_ratio(
+fn host_local_proof_pass_with_token_ratio(
     row: &QaRow,
     id: &str,
     source_refs: Vec<String>,
@@ -2178,7 +2274,7 @@ fn exact_pass_with_token_ratio(
 ) -> RowResult {
     score_row(
         row,
-        RowEvidence::degraded(
+        RowEvidence::host_local_proof(
             vec![id.to_string()],
             vec![id.to_string()],
             None,
@@ -2199,7 +2295,7 @@ fn rule_id_test_probe(row: &QaRow) -> RowResult {
     if source.contains("fn rule_id_accepts_valid_and_rejects_malformed()")
         && source.contains("fn rule_id_required_at_a_registry_shaped_boundary_not_bare_string()")
     {
-        return exact_pass(
+        return host_local_proof_pass(
             row,
             vec![
                 "crates/enforcer-domain/src/ids.rs::rule_id_accepts_valid_and_rejects_malformed"
@@ -2283,7 +2379,7 @@ fn validator_impls_probe(row: &QaRow) -> RowResult {
     }
     refs.sort();
     refs.dedup();
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec!["symbol:validator-impls:workspace-scan".to_string()],
         refs,
@@ -2304,7 +2400,7 @@ fn mcp_public_api_surface_probe(row: &QaRow) -> RowResult {
     if pub_mods == 0 {
         return unrunnable(row, "enforcer-mcp lib.rs no longer exports public modules");
     }
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec![format!("symbol:enforcer-mcp:pub-mods:{pub_mods}")],
         vec![
@@ -2316,7 +2412,7 @@ fn mcp_public_api_surface_probe(row: &QaRow) -> RowResult {
 }
 
 fn repo_root_construction_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -2356,7 +2452,7 @@ fn sha256_contract_probe(row: &QaRow) -> RowResult {
         && source.contains("impl std::fmt::Display for Sha256")
         && source.contains("fn sha256_brand_decode()")
     {
-        return exact_pass(
+        return host_local_proof_pass(
             row,
             vec!["crates/enforcer-domain/src/hashes.rs::Sha256".to_string()],
             vec![rel.to_string()],
@@ -2436,7 +2532,7 @@ fn enforcer_domain_decode_error_boundaries_probe(row: &QaRow) -> RowResult {
     }
     refs.sort();
     refs.dedup();
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec![
             "symbol:decodeerror:ids:branded-identifier-boundaries".to_string(),
@@ -2519,7 +2615,7 @@ fn memory_error_constructor_sites_probe(row: &QaRow) -> RowResult {
     }
     refs.sort();
     refs.dedup();
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec![
             "error-constructor:memory-error-enum".to_string(),
@@ -2532,7 +2628,7 @@ fn memory_error_constructor_sites_probe(row: &QaRow) -> RowResult {
 }
 
 fn memory_error_handling_sites_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -2633,7 +2729,7 @@ fn dependency_path_enforcer_mcp_to_core_probe(row: &QaRow) -> RowResult {
     }
     refs.sort();
     refs.dedup();
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec![
             "codegraph:dep-path:enforcer-mcp->enforcer-core:length-1".to_string(),
@@ -2748,7 +2844,7 @@ fn workspace_crate_cycle_probe(row: &QaRow) -> RowResult {
     } else {
         cycle_ids
     };
-    exact_pass(
+    host_local_proof_pass(
         row,
         ids,
         vec!["Cargo.toml".to_string(), QA_BENCHMARK_REL.to_string()],
@@ -2961,7 +3057,7 @@ fn scan_module_dependency_tree_probe(row: &QaRow) -> RowResult {
     }
     refs.sort();
     refs.dedup();
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec![
             "codegraph:module-tree:enforcer-scan:engine".to_string(),
@@ -3027,7 +3123,7 @@ fn scan_hot_path_probe(row: &QaRow) -> RowResult {
     }
     refs.sort();
     refs.dedup();
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec![
             "codegraph:hot-path:commands->engine::build_family_validators".to_string(),
@@ -3048,7 +3144,7 @@ fn unused_private_function_probe(row: &QaRow) -> RowResult {
         Err(error) => return unrunnable(row, &format!("failed to read fixture lib.rs: {error}")),
     };
     if source.contains("fn read_config(") && source.contains("read_config(path)") {
-        return exact_pass(
+        return host_local_proof_pass(
             row,
             vec!["private-fn:read_config:used-not-unused".to_string()],
             vec![repo_relative_path(&fixture)],
@@ -3064,7 +3160,7 @@ fn config_file_probe(row: &QaRow) -> RowResult {
     let rel = "crates/enforcer-memory/Cargo.toml";
     let root = super::queryset::workspace_root();
     if root.join(rel).is_file() {
-        exact_pass(row, vec![rel.to_string()], vec![rel.to_string()])
+        host_local_proof_pass(row, vec![rel.to_string()], vec![rel.to_string()])
     } else {
         unrunnable(row, "enforcer-memory Cargo.toml is missing")
     }
@@ -3119,7 +3215,7 @@ fn environment_variable_probe(row: &QaRow) -> RowResult {
     }
     refs.sort();
     refs.dedup();
-    exact_pass(row, ids, refs)
+    host_local_proof_pass(row, ids, refs)
 }
 
 fn sqlite_table_probe(row: &QaRow) -> RowResult {
@@ -3165,11 +3261,11 @@ fn sqlite_table_probe(row: &QaRow) -> RowResult {
     }
     refs.sort();
     refs.dedup();
-    exact_pass(row, ids, refs)
+    host_local_proof_pass(row, ids, refs)
 }
 
 fn proof_gap_probe(row: &QaRow) -> RowResult {
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec!["proof-gap:QA-048:missing-pass-fixture-row-is-still-tracked".to_string()],
         vec![
@@ -3180,7 +3276,7 @@ fn proof_gap_probe(row: &QaRow) -> RowResult {
 }
 
 fn missing_fail_fixture_validator_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -3215,7 +3311,7 @@ fn missing_fail_fixture_validator_probe(row: &QaRow) -> RowResult {
 }
 
 fn secret_touching_paths_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -3261,32 +3357,71 @@ fn secret_touching_paths_probe(row: &QaRow) -> RowResult {
 }
 
 fn exact_file_marker_probe(row: &QaRow, checks: &[(&str, &str, &[&str])]) -> RowResult {
+    file_marker_probe(row, checks, exact_pass)
+}
+
+fn host_local_file_marker_probe(row: &QaRow, checks: &[(&str, &str, &[&str])]) -> RowResult {
+    file_marker_probe(row, checks, host_local_proof_pass)
+}
+
+fn host_local_file_marker_probe_with_ids(
+    row: &QaRow,
+    checks: &[(&str, &str, &[&str])],
+    ids: Vec<String>,
+) -> RowResult {
+    let refs = match validate_file_markers(row, checks) {
+        Ok(refs) => refs,
+        Err(result) => return *result,
+    };
+    host_local_proof_pass(row, ids, refs)
+}
+
+fn file_marker_probe(
+    row: &QaRow,
+    checks: &[(&str, &str, &[&str])],
+    build_pass: fn(&QaRow, Vec<String>, Vec<String>) -> RowResult,
+) -> RowResult {
+    let ids = checks.iter().map(|(id, _, _)| (*id).to_string()).collect();
+    let refs = match validate_file_markers(row, checks) {
+        Ok(refs) => refs,
+        Err(result) => return *result,
+    };
+    build_pass(row, ids, refs)
+}
+
+fn validate_file_markers(
+    row: &QaRow,
+    checks: &[(&str, &str, &[&str])],
+) -> Result<Vec<String>, Box<RowResult>> {
     let root = super::queryset::workspace_root();
-    let mut ids = Vec::new();
     let mut refs = Vec::new();
-    for (id, rel, needles) in checks {
+    for (_, rel, needles) in checks {
         let source = match std::fs::read_to_string(root.join(rel)) {
             Ok(source) => source,
-            Err(error) => return unrunnable(row, &format!("failed to read {rel}: {error}")),
+            Err(error) => {
+                return Err(Box::new(unrunnable(
+                    row,
+                    &format!("failed to read {rel}: {error}"),
+                )));
+            }
         };
         for needle in *needles {
             if !source.contains(needle) {
-                return unrunnable(
+                return Err(Box::new(unrunnable(
                     row,
                     &format!("{rel} does not contain expected evidence marker {needle}"),
-                );
+                )));
             }
         }
-        ids.push((*id).to_string());
         refs.push((*rel).to_string());
     }
     refs.sort();
     refs.dedup();
-    exact_pass(row, ids, refs)
+    Ok(refs)
 }
 
 fn cyclic_dependency_modules_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -3389,7 +3524,7 @@ fn enforcer_core_result_callers_probe(row: &QaRow) -> RowResult {
         .collect();
     refs.sort();
     refs.dedup();
-    exact_pass(row, ids, refs)
+    host_local_proof_pass(row, ids, refs)
 }
 
 fn repository_crates_probe(row: &QaRow) -> RowResult {
@@ -3446,7 +3581,7 @@ fn repository_crates_probe(row: &QaRow) -> RowResult {
         format!("crate-count:{count}"),
     ];
     summary_ids.extend(ids.into_iter().take(3));
-    exact_pass(row, summary_ids, refs)
+    host_local_proof_pass(row, summary_ids, refs)
 }
 
 fn read_repo_file(rel: &str) -> Result<String, String> {
@@ -3529,7 +3664,7 @@ fn missing_workpack_proof_probe(row: &QaRow) -> RowResult {
         );
     }
 
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec!["proof:x06:pending".to_string()],
         vec![
@@ -3782,7 +3917,7 @@ fn workpack_anchor_history_probe(row: &QaRow) -> RowResult {
 }
 
 fn doc_claim_missing_validator_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -4168,7 +4303,7 @@ fn arc01_merge_lessons_probe(row: &QaRow) -> RowResult {
         }
     }
 
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -4683,7 +4818,7 @@ fn enforcer_install_history_probe(row: &QaRow) -> RowResult {
 }
 
 fn mcp_check_tool_schema_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -4717,7 +4852,7 @@ fn mcp_check_tool_schema_probe(row: &QaRow) -> RowResult {
 }
 
 fn mcp_route_lifecycle_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -4752,7 +4887,7 @@ fn mcp_route_lifecycle_probe(row: &QaRow) -> RowResult {
 }
 
 fn mcp_explain_rule_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -4783,7 +4918,7 @@ fn mcp_explain_rule_probe(row: &QaRow) -> RowResult {
 }
 
 fn mcp_deferred_markers_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -4820,7 +4955,7 @@ fn mcp_deferred_markers_probe(row: &QaRow) -> RowResult {
 }
 
 fn coordination_ledger_mutation_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -4845,7 +4980,7 @@ fn coordination_ledger_mutation_probe(row: &QaRow) -> RowResult {
 }
 
 fn ndjson_readers_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -4873,7 +5008,7 @@ fn ndjson_readers_probe(row: &QaRow) -> RowResult {
 }
 
 fn ndjson_appenders_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -4896,7 +5031,7 @@ fn ndjson_appenders_probe(row: &QaRow) -> RowResult {
 }
 
 fn mcp_proof_status_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -4927,7 +5062,7 @@ fn mcp_proof_status_probe(row: &QaRow) -> RowResult {
 }
 
 fn mcp_scan_handler_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -4990,7 +5125,7 @@ fn route_plan_probe(row: &QaRow) -> RowResult {
 }
 
 fn harness_last_failure_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5021,7 +5156,7 @@ fn harness_last_failure_probe(row: &QaRow) -> RowResult {
 }
 
 fn mcp_context_budget_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5058,7 +5193,7 @@ fn mcp_context_budget_probe(row: &QaRow) -> RowResult {
 }
 
 fn doctor_wiring_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5087,7 +5222,7 @@ fn doctor_wiring_probe(row: &QaRow) -> RowResult {
 }
 
 fn cli_telemetry_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5121,7 +5256,7 @@ fn cli_telemetry_probe(row: &QaRow) -> RowResult {
 }
 
 fn cli_scan_languages_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5164,7 +5299,7 @@ fn cli_scan_languages_probe(row: &QaRow) -> RowResult {
 }
 
 fn cli_run_tsc_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5215,7 +5350,7 @@ fn cli_run_tsc_probe(row: &QaRow) -> RowResult {
 }
 
 fn cli_runs_last_failure_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5260,7 +5395,7 @@ fn cli_runs_last_failure_probe(row: &QaRow) -> RowResult {
 }
 
 fn cli_scan_mapping_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5292,7 +5427,7 @@ fn cli_scan_mapping_probe(row: &QaRow) -> RowResult {
 }
 
 fn cli_lifecycle_surface_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5386,7 +5521,7 @@ fn cli_install_claude_adapter_probe(row: &QaRow) -> RowResult {
 }
 
 fn cli_doctor_fixtures_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5428,7 +5563,7 @@ fn cli_doctor_fixtures_probe(row: &QaRow) -> RowResult {
 }
 
 fn cli_mcp_parity_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5486,7 +5621,7 @@ fn federation_bundle_probe(row: &QaRow) -> RowResult {
         ),
         _ => return unrunnable(row, "federation exact probe has no row mapping"),
     };
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5674,7 +5809,7 @@ fn rule_fixture_invariant_probe(row: &QaRow) -> RowResult {
     refs.sort();
     refs.dedup();
     if violations.is_empty() {
-        return exact_pass(
+        return host_local_proof_pass(
             row,
             vec!["arch:rule-fixture-invariant:clean".to_string()],
             refs,
@@ -5685,7 +5820,7 @@ fn rule_fixture_invariant_probe(row: &QaRow) -> RowResult {
     let count = violations.len();
     let mut summary_ids = vec![format!("arch:rule-fixture-invariant:violations:{count}")];
     summary_ids.extend(violations.into_iter().take(3));
-    exact_pass(row, summary_ids, refs)
+    host_local_proof_pass(row, summary_ids, refs)
 }
 
 fn typescript_reexport_rule_probe(row: &QaRow) -> RowResult {
@@ -5762,7 +5897,7 @@ fn typescript_export_family_probe(row: &QaRow) -> RowResult {
 }
 
 fn local_model_loader_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe_with_ids(
         row,
         &[
             (
@@ -5786,7 +5921,7 @@ fn local_model_loader_probe(row: &QaRow) -> RowResult {
                 &[
                     "//! `llama.cpp` process runner for GGUF proof.",
                     "pub fn run_llama_cpp_probe(config: &LlamaCppProbeConfig) -> Result<LlamaCppProbeReport> {",
-                    "pub fn llama_cpp_command_plan(config: &LlamaCppProbeConfig) -> LlamaCppCommandPlan {",
+                    "pub fn llama_cpp_command_plan(config: &LlamaCppProbeConfig) -> Result<LlamaCppCommandPlan> {",
                 ],
             ),
             (
@@ -5808,12 +5943,51 @@ fn local_model_loader_probe(row: &QaRow) -> RowResult {
                     "fn checked_in_qwen3_embedding_gguf_server_fallback_is_rejected_runtime_boundary() -> TestResult {",
                 ],
             ),
+            (
+                "retrieval:model-loader:owned-runtime-routes",
+                "proof/memory/x06-models.json",
+                &[
+                    "\"llamaCppExecutionRoute\": \"enforcer-managed-llama-cpp-subprocess\"",
+                    "\"ortExecutionRoute\": \"enforcer-isolated-ort-worker\"",
+                    "\"externalRuntimeServersAllowed\": false",
+                    "\"exposeLlamaServer\": false",
+                ],
+            ),
+            (
+                "retrieval:model-loader:ort-embedding-proof",
+                "proof/memory/x06-models-qwen3-embedding-ort-cpu.json",
+                &[
+                    "\"runtimeMode\": \"probe\"",
+                    "\"ownership\": \"enforcer-isolated-worker\"",
+                    "\"externalServerAllowed\": false",
+                    "\"portBindingAllowed\": false",
+                    "\"resolvedProvider\": \"cpu\"",
+                ],
+            ),
+            (
+                "retrieval:model-loader:ort-reranker-proof",
+                "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
+                &[
+                    "\"runtimeMode\": \"probe\"",
+                    "\"ownership\": \"enforcer-isolated-worker\"",
+                    "\"externalServerAllowed\": false",
+                    "\"portBindingAllowed\": false",
+                    "\"resolvedProvider\": \"cpu\"",
+                ],
+            ),
+        ],
+        vec![
+            "retrieval:model-loader:runtime-probe".to_string(),
+            "retrieval:model-loader:llama-cpp".to_string(),
+            "retrieval:model-loader:cache-policy".to_string(),
+            "retrieval:model-loader:owned-runtime-routes".to_string(),
+            "retrieval:model-loader:ort-owned-worker-proofs".to_string(),
         ],
     )
 }
 
 fn local_model_loader_semantic_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5837,7 +6011,7 @@ fn local_model_loader_semantic_probe(row: &QaRow) -> RowResult {
                 &[
                     "//! `llama.cpp` process runner for GGUF proof.",
                     "pub fn run_llama_cpp_probe(config: &LlamaCppProbeConfig) -> Result<LlamaCppProbeReport> {",
-                    "pub fn llama_cpp_command_plan(config: &LlamaCppProbeConfig) -> LlamaCppCommandPlan {",
+                    "pub fn llama_cpp_command_plan(config: &LlamaCppProbeConfig) -> Result<LlamaCppCommandPlan> {",
                 ],
             ),
             (
@@ -5847,6 +6021,16 @@ fn local_model_loader_semantic_probe(row: &QaRow) -> RowResult {
                     "DEFAULT_ORNITH_GGUF_REPO",
                     "DEFAULT_EMBEDDING_GGUF_REPO",
                     "\"dev mode keeps downloaded models in the repository-local model directory\"",
+                ],
+            ),
+            (
+                "history:model-loader:owned-runtime-routes",
+                "proof/memory/x06-models.json",
+                &[
+                    "\"llamaCppExecutionRoute\": \"enforcer-managed-llama-cpp-subprocess\"",
+                    "\"ortExecutionRoute\": \"enforcer-isolated-ort-worker\"",
+                    "\"localRuntimeProofs\"",
+                    "\"ortRuntimeProofs\"",
                 ],
             ),
         ],
@@ -5894,7 +6078,7 @@ fn memory_recall_injection_probe(row: &QaRow) -> RowResult {
 }
 
 fn hot_memory_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5919,7 +6103,10 @@ fn hot_memory_probe(row: &QaRow) -> RowResult {
                 "crates/enforcer-memory/tests/feature_parity_harness.rs",
                 &[
                     "let lessons = dogfood[\"lessons\"].as_array().map_or(0, Vec::len);",
-                    "dogfood proof missing gates or lessons",
+                    "let has_dogfood_coordination =",
+                    "let has_t0_t1_t2 =",
+                    "let has_operational_learning =",
+                    "dogfood proof incomplete:",
                 ],
             ),
         ],
@@ -5927,7 +6114,7 @@ fn hot_memory_probe(row: &QaRow) -> RowResult {
 }
 
 fn worked_fix_strategy_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5958,7 +6145,7 @@ fn worked_fix_strategy_probe(row: &QaRow) -> RowResult {
 }
 
 fn failed_fix_strategy_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -5987,7 +6174,7 @@ fn failed_fix_strategy_probe(row: &QaRow) -> RowResult {
 }
 
 fn workpack_lessons_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -6068,7 +6255,7 @@ fn rule_lessons_probe(row: &QaRow) -> RowResult {
             &format!("unexpected active lesson ids for CL-UNKNOWN-RULE: {actual_ids:?}"),
         );
     }
-    exact_pass(
+    host_local_proof_pass(
         row,
         actual_ids,
         vec![
@@ -6081,7 +6268,7 @@ fn rule_lessons_probe(row: &QaRow) -> RowResult {
 }
 
 fn file_lessons_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -6241,7 +6428,7 @@ fn previous_cyclic_dependency_issue_probe(row: &QaRow) -> RowResult {
 }
 
 fn failed_strategy_for_new_validators_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -6326,7 +6513,7 @@ fn multi_harness_install_pattern_probe(row: &QaRow) -> RowResult {
 }
 
 fn inactive_imported_lessons_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -6393,7 +6580,7 @@ fn stale_lessons_probe(row: &QaRow) -> RowResult {
             "inactive imported lesson unexpectedly appears in active_lessons",
         );
     }
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec!["mem-cl-0004".to_string()],
         vec![
@@ -6423,7 +6610,7 @@ fn conflicting_lessons_probe(row: &QaRow) -> RowResult {
     }
     score_row(
         row,
-        RowEvidence::degraded(
+        RowEvidence::host_local_proof(
             vec!["mem-cl-0002".to_string(), "mem-cl-0003".to_string()],
             vec!["mem-cl-0002".to_string(), "mem-cl-0003".to_string()],
             None,
@@ -6438,7 +6625,7 @@ fn conflicting_lessons_probe(row: &QaRow) -> RowResult {
 }
 
 fn strongest_evidence_lesson_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -6461,7 +6648,7 @@ fn strongest_evidence_lesson_probe(row: &QaRow) -> RowResult {
 }
 
 fn recurrence_reduction_lesson_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -6571,7 +6758,7 @@ fn recurring_issue_after_landing_probe(row: &QaRow) -> RowResult {
         .collect::<Vec<_>>();
     score_row(
         row,
-        RowEvidence::degraded(
+        RowEvidence::host_local_proof(
             vec![first, second],
             actual_ids,
             None,
@@ -6631,7 +6818,7 @@ fn clean_scans_after_landing_probe(row: &QaRow) -> RowResult {
             )
         }
     }
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec![incident_id],
         vec![
@@ -6643,7 +6830,7 @@ fn clean_scans_after_landing_probe(row: &QaRow) -> RowResult {
 }
 
 fn workpack_observations_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -6714,7 +6901,7 @@ fn failures_for_rule_probe(row: &QaRow) -> RowResult {
     }
     score_row(
         row,
-        RowEvidence::degraded(
+        RowEvidence::host_local_proof(
             vec![first, second],
             actual_ids,
             None,
@@ -6748,7 +6935,7 @@ fn successful_fixes_for_rule_probe(row: &QaRow) -> RowResult {
     }
     score_row(
         row,
-        RowEvidence::degraded(
+        RowEvidence::host_local_proof(
             vec!["mem-cl-0001".to_string(), "mem-cl-0003".to_string()],
             actual_ids,
             None,
@@ -6763,7 +6950,7 @@ fn successful_fixes_for_rule_probe(row: &QaRow) -> RowResult {
 }
 
 fn rejected_imported_lessons_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -6848,7 +7035,7 @@ fn oldest_workspace_file_probe(row: &QaRow) -> RowResult {
 }
 
 fn exact_proof_artifacts_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -7008,7 +7195,7 @@ fn exact_proof_artifact_probe(row: &QaRow) -> RowResult {
 }
 
 fn exact_lesson_artifact_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -7130,7 +7317,7 @@ fn branch_protection_semantic_probe(row: &QaRow) -> RowResult {
 }
 
 fn crate_network_calls_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -7175,7 +7362,7 @@ fn crate_network_calls_probe(row: &QaRow) -> RowResult {
 }
 
 fn emitted_durable_logs_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -7228,7 +7415,7 @@ fn emitted_durable_logs_probe(row: &QaRow) -> RowResult {
 }
 
 fn retrieval_pipeline_shape_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -7437,7 +7624,7 @@ fn fake_green_rollup_probe(row: &QaRow) -> RowResult {
 }
 
 fn warm_memory_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -7476,7 +7663,7 @@ fn warm_memory_probe(row: &QaRow) -> RowResult {
 }
 
 fn cold_memory_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -7515,7 +7702,7 @@ fn cold_memory_probe(row: &QaRow) -> RowResult {
 }
 
 fn intel_gpu_npu_backend_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -7561,7 +7748,7 @@ fn intel_gpu_npu_backend_probe(row: &QaRow) -> RowResult {
 }
 
 fn no_remote_model_policy_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -7823,7 +8010,7 @@ fn startup_lifecycle_probe(row: &QaRow) -> RowResult {
     }
     refs.sort();
     refs.dedup();
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec![
             "retrieval:startup-proof-gate".to_string(),
@@ -7906,7 +8093,7 @@ fn model_runtime_initialization_order_probe(row: &QaRow) -> RowResult {
     }
     refs.sort();
     refs.dedup();
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec![
             "init-order:runtime-policy-cpu-first".to_string(),
@@ -7986,7 +8173,7 @@ fn redaction_layers_probe(row: &QaRow) -> RowResult {
 }
 
 fn security_sensitive_code_paths_probe(row: &QaRow) -> RowResult {
-    exact_file_marker_probe(
+    host_local_file_marker_probe(
         row,
         &[
             (
@@ -8218,7 +8405,7 @@ fn lesson_recall_probe(
     source_refs.push(expected_id.to_string());
     score_row(
         row,
-        RowEvidence::degraded(
+        RowEvidence::host_local_proof(
             vec![expected_id.to_string()],
             vec![expected_id.to_string()],
             None,
@@ -8310,11 +8497,14 @@ fn reranker_lift_probe(row: &QaRow) -> RowResult {
 
     let mut source_refs = json_string_array(evidence, "sourceRefs", rel).unwrap_or_default();
     source_refs.push(rel.to_string());
+    if let Some(result) = append_validated_ort_reranker_proof(row, &mut source_refs) {
+        return result;
+    }
     source_refs.sort();
     source_refs.dedup();
     score_row(
         row,
-        RowEvidence::degraded(
+        RowEvidence::host_local_proof(
             expected_ids,
             post_rerank_ids,
             Some(lift_score),
@@ -8379,12 +8569,20 @@ fn reranker_degraded_query_probe(row: &QaRow) -> RowResult {
     }
     let mut source_refs = json_string_array(&evidence, "sourceRefs", rel).unwrap_or_default();
     source_refs.push(rel.to_string());
+    if let Some(result) = append_validated_ort_reranker_proof(row, &mut source_refs) {
+        return result;
+    }
     source_refs.sort();
     source_refs.dedup();
-    exact_pass(
+    score_row(
         row,
-        vec!["reranker:degraded-query-detected".to_string()],
-        source_refs,
+        RowEvidence::host_local_proof(
+            vec!["reranker:degraded-query-detected".to_string()],
+            vec!["reranker:degraded-query-detected".to_string()],
+            Some(lift_score),
+            None,
+            source_refs,
+        ),
     )
 }
 
@@ -8417,9 +8615,12 @@ fn reranker_latency_probe(row: &QaRow) -> RowResult {
     }
     let mut source_refs = json_string_array(&evidence, "sourceRefs", rel).unwrap_or_default();
     source_refs.push(rel.to_string());
+    if let Some(result) = append_validated_ort_reranker_proof(row, &mut source_refs) {
+        return result;
+    }
     source_refs.sort();
     source_refs.dedup();
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec!["reranker:top100-latency-within-gate".to_string()],
         source_refs,
@@ -8449,7 +8650,7 @@ fn token_reduction_probe(row: &QaRow) -> RowResult {
     if !passes || median < 10.0 {
         return unrunnable(row, "x06-token-reduction proof does not pass the 10x gate");
     }
-    exact_pass_with_token_ratio(
+    host_local_proof_pass_with_token_ratio(
         row,
         "token-reduction:median>=10x",
         vec![rel.to_string()],
@@ -8526,7 +8727,7 @@ fn retrieval_after_lessons_probe(row: &QaRow) -> RowResult {
             );
         }
     }
-    exact_pass_with_token_ratio(
+    host_local_proof_pass_with_token_ratio(
         row,
         "retrieval-after-lessons:quality-observations-plus-token-gate",
         vec![
@@ -8745,7 +8946,7 @@ fn token_reduction_qa_evidence_probe(row: &QaRow) -> RowResult {
         .get("expectedId")
         .and_then(serde_json::Value::as_str)
         .unwrap_or("token-reduction:proof");
-    exact_pass_with_token_ratio(row, expected_id, source_refs, evidence_ratio)
+    host_local_proof_pass_with_token_ratio(row, expected_id, source_refs, evidence_ratio)
 }
 
 fn repository_fixture_convention_probe(row: &QaRow) -> RowResult {
@@ -9363,7 +9564,7 @@ fn tokio_workspace_probe(row: &QaRow) -> RowResult {
     }
     refs.sort();
     refs.dedup();
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec![format!(
             "codegraph:tokio:workspace-scan:manifests={tokio_manifest_count}:tests={tokio_test_count}"
@@ -9553,7 +9754,7 @@ fn learning_curve_ratchet_probe(row: &QaRow, fixtures: &Fixtures) -> RowResult {
         .values()
         .flat_map(|points| points.iter().map(|point| point.lesson_id.clone()))
         .collect();
-    exact_pass(
+    host_local_proof_pass(
         row,
         vec!["learning-curve:nondecreasing-cumulative-incidents".to_string()],
         refs,

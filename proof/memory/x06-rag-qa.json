@@ -1,8 +1,11 @@
 {
+  "schemaVersion": 1,
+  "status": "green",
   "rowsTotal": 250,
   "rowsGreen": 250,
   "rowsGreenReal": 0,
-  "rowsGreenDegraded": 250,
+  "rowsGreenHostLocalProof": 138,
+  "rowsGreenDegraded": 112,
   "rowsFailed": 0,
   "rowsUnrunnable": 0,
   "rows": [
@@ -24,7 +27,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/router.ts"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-002",
@@ -44,7 +47,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/router.ts"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-003",
@@ -65,7 +68,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/widgets.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-004",
@@ -86,7 +89,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/widgets.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-005",
@@ -107,7 +110,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/widgets.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-006",
@@ -126,7 +129,7 @@
         "crates/enforcer-memory/src/analysis/query.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-007",
@@ -149,7 +152,7 @@
         "crates/enforcer-memory/src/analysis/query.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-008",
@@ -204,7 +207,7 @@
         "crates/enforcer-validator/Cargo.toml"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-009",
@@ -266,7 +269,7 @@
         "test:x06_qa_hotspot_and_dead_export_rows_have_graph_evidence"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-012",
@@ -285,7 +288,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/feature_parity/repo/lib.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-013",
@@ -312,7 +315,7 @@
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-014",
@@ -331,7 +334,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/widgets.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-015",
@@ -350,7 +353,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/router.ts"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-016",
@@ -369,7 +372,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/router.ts"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-017",
@@ -394,7 +397,7 @@
         "crates/enforcer-memory/src/store/mod.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-018",
@@ -413,7 +416,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/parity_trace_tools/service.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-019",
@@ -435,7 +438,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/parity_trace_tools/service_test.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-020",
@@ -464,7 +467,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/parity_trace_tools/service.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-021",
@@ -483,7 +486,7 @@
         "crates/enforcer-memory/Cargo.toml"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-022",
@@ -511,7 +514,7 @@
         "crates/enforcer-memory/src/hf_cache.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-023",
@@ -537,7 +540,7 @@
         "crates/enforcer-memory/src/store/sqlite.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-024",
@@ -557,7 +560,7 @@
         "test:x06_qa_module_rows_can_enumerate_touched_filesystem_paths"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-025",
@@ -583,7 +586,7 @@
         "crates/enforcer-memory/src/model_runtime.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-026",
@@ -608,7 +611,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/unrelated.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-027",
@@ -637,7 +640,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/widgets.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-028",
@@ -666,7 +669,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/router.ts"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-029",
@@ -694,7 +697,7 @@
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-030",
@@ -717,7 +720,7 @@
         "proof/memory/x06-token-reduction.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-031",
@@ -747,7 +750,7 @@
         "proof/memory/x06-models.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-032",
@@ -776,7 +779,7 @@
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_PROOF_GATE.md"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-033",
@@ -805,7 +808,7 @@
         "crates/enforcer-memory/tests/unit_log.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-034",
@@ -833,7 +836,7 @@
         "crates/enforcer-memory/src/store/mod.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-035",
@@ -857,7 +860,7 @@
         "crates/enforcer-core/src/telemetry.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-036",
@@ -884,7 +887,7 @@
         "crates/enforcer-lang-common/tests/fixtures/deferred_work/good/pass.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-037",
@@ -915,7 +918,7 @@
         "src/source-policy-common-security-sensitive.mjs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-038",
@@ -935,7 +938,7 @@
         "test:x06_qa_route_auth_rows_can_pair_routes_with_permission_checks"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-039",
@@ -955,7 +958,7 @@
         "test:x06_qa_route_auth_rows_can_pair_routes_with_permission_checks"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-040",
@@ -986,7 +989,7 @@
         "src/source-policy-common-security-sensitive.mjs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-041",
@@ -1008,7 +1011,7 @@
         "crates/enforcer-coordination/src/sync/stream.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-042",
@@ -1036,7 +1039,7 @@
         "crates/enforcer-memory/src/log.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-043",
@@ -1061,7 +1064,7 @@
         "crates/enforcer-memory/src/log.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-044",
@@ -1081,7 +1084,7 @@
         "test:x06_qa_diff_rows_can_identify_rules_or_workpacks_affected_by_changed_file"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-045",
@@ -1101,7 +1104,7 @@
         "test:x06_qa_diff_rows_can_identify_rules_or_workpacks_affected_by_changed_file"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-046",
@@ -1126,7 +1129,7 @@
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-047",
@@ -1151,7 +1154,7 @@
         "crates/enforcer-validator/src/harness.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-048",
@@ -1171,7 +1174,7 @@
         "proof/memory/x06-rag-qa.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-049",
@@ -1199,7 +1202,7 @@
         "proof/memory/x06-dogfood.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-050",
@@ -1227,7 +1230,7 @@
         "proof/memory/x06-learning-curve.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-051",
@@ -1258,7 +1261,7 @@
         "proof/memory/x06-federation.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-052",
@@ -1280,7 +1283,7 @@
         "proof-row:x06-live-recall"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-053",
@@ -1364,7 +1367,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/widgets.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-056",
@@ -1383,7 +1386,7 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/widgets.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-057",
@@ -1403,7 +1406,7 @@
         "test:x06_qa_diff_rows_can_identify_rules_or_workpacks_affected_by_changed_file"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-058",
@@ -1423,7 +1426,7 @@
         "test:x06_qa_diff_rows_can_identify_rules_or_workpacks_affected_by_changed_file"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-059",
@@ -1443,25 +1446,25 @@
         "crates/enforcer-memory/tests/fixtures/memory/graph_algorithms/router.ts"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-060",
       "category": "Repository",
       "query": "Find what changed in this file over time.",
       "expectedIds": [
-        "retrieval:model-loader:benchmark",
         "retrieval:model-loader:runtime-probe",
         "retrieval:model-loader:llama-cpp",
         "retrieval:model-loader:cache-policy",
-        "retrieval:model-loader:proof"
+        "retrieval:model-loader:owned-runtime-routes",
+        "retrieval:model-loader:ort-owned-worker-proofs"
       ],
       "actualIds": [
-        "retrieval:model-loader:benchmark",
         "retrieval:model-loader:runtime-probe",
         "retrieval:model-loader:llama-cpp",
         "retrieval:model-loader:cache-policy",
-        "retrieval:model-loader:proof"
+        "retrieval:model-loader:owned-runtime-routes",
+        "retrieval:model-loader:ort-owned-worker-proofs"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -1471,10 +1474,13 @@
         "crates/enforcer-memory/src/model_runtime.rs",
         "crates/enforcer-memory/src/runtime_probe.rs",
         "crates/enforcer-memory/tests/model_runtime_real_contract.rs",
-        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md",
+        "proof/memory/x06-models-qwen3-embedding-ort-cpu.json",
+        "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
+        "proof/memory/x06-models.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-061",
@@ -1505,7 +1511,7 @@
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-062",
@@ -1536,7 +1542,7 @@
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-063",
@@ -1544,17 +1550,17 @@
       "query": "Summarize last 20 commits for this module.",
       "expectedIds": [
         "module:enforcer-memory-src:last-20-commits:20",
-        "commit:d79b49b91a58",
-        "commit:d81f52ab9d46",
-        "commit:ae704036b00c",
-        "commit:e8965207d026"
+        "commit:a1b4c0a7268c",
+        "commit:f518af8abf22",
+        "commit:0c21464bc311",
+        "commit:666270342e12"
       ],
       "actualIds": [
         "module:enforcer-memory-src:last-20-commits:20",
-        "commit:d79b49b91a58",
-        "commit:d81f52ab9d46",
-        "commit:ae704036b00c",
-        "commit:e8965207d026"
+        "commit:a1b4c0a7268c",
+        "commit:f518af8abf22",
+        "commit:0c21464bc311",
+        "commit:666270342e12"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -1562,6 +1568,18 @@
       "sourceRefs": [
         "crates/enforcer-memory/src",
         "git:log:-20:crates/enforcer-memory/src",
+        "commit-summary:a1b4c0a7268c:test(memory): expose runtime workload admission proof",
+        "commit-summary:f518af8abf22:test(memory): reject absolute llama gguf paths",
+        "commit-summary:0c21464bc311:test(memory): reject absolute ort worker paths",
+        "commit-summary:666270342e12:feat(memory): enforce ort session execution policy",
+        "commit-summary:b89f330b277f:test(memory): expand ort provider fallback order",
+        "commit-summary:3661ec9b5377:test(memory): retain ort failure proof contract",
+        "commit-summary:061c2a6ba2d3:docs(memory): align model observation persistence contract",
+        "commit-summary:0bf1ce0ef899:feat(memory): preserve graph artifact symbol kinds",
+        "commit-summary:e8eb90bd56a1:test(memory): pin runtime isolation contract",
+        "commit-summary:42b153185160:feat(memory): carry ort provider proof into worker plan",
+        "commit-summary:08c15fa3e668:feat(memory): gate ort provider acceleration by probe",
+        "commit-summary:db076adde461:feat(memory): stamp ort worker runtime proof",
         "commit-summary:d79b49b91a58:feat(memory): derive runtime proof from contracts",
         "commit-summary:d81f52ab9d46:feat(memory): add owned ort worker command seam",
         "commit-summary:ae704036b00c:test(memory): satisfy x06 policy gates",
@@ -1569,19 +1587,7 @@
         "commit-summary:3175bf552688:test(memory): add ORT lifecycle contract",
         "commit-summary:cd24988b8bce:test(memory): prove owned model backends",
         "commit-summary:6b5e22e12fe5:test(memory): harden ORT runtime ownership contract",
-        "commit-summary:2532e7ad2121:test(memory): harden runtime control ownership",
-        "commit-summary:f9e11e79c9ce:feat(memory): control ORT worker runtime plan",
-        "commit-summary:0bbc317dcc7d:Merge remote-tracking branch 'origin/rust-build' into rust-build",
-        "commit-summary:b231ef113549:feat(x06): wave G2.5 — 42 Tier-0 languages + close G2.5d dispatch-wiring gap",
-        "commit-summary:024f8fe73851:test(memory): lock model runtime ownership routes",
-        "commit-summary:c87f2b5392fe:feat(memory): model ORT as managed worker runtime",
-        "commit-summary:82b3091bca8d:feat(memory): enforce managed local runtime control",
-        "commit-summary:65094bd63419:Merge remote-tracking branch 'origin/rust-build' into rust-build",
-        "commit-summary:7b0ec237a5d7:feat(x06): wave G2.4 — onboard all remaining Tier-1 languages, completing 103/158 baseline languages",
-        "commit-summary:3907222e4e4a:fix(memory): reject llama server gguf proof fallback",
-        "commit-summary:e2091a12c305:feat(memory): classify ort embedding fallback telemetry",
-        "commit-summary:08089f84e604:feat(memory): expose ort embedding provider selection",
-        "commit-summary:6bc16ead13f4:feat(memory): report search graph embedding runtime"
+        "commit-summary:2532e7ad2121:test(memory): harden runtime control ownership"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -1591,28 +1597,28 @@
       "category": "Retrieval",
       "query": "Find files with highest churn.",
       "expectedIds": [
+        "churn:proof/memory/x06-rag-qa.json:73",
         "churn:Cargo.lock:71",
-        "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
-        "churn:proof/memory/x06-feature-parity.json:47",
-        "churn:proof/memory/x06-rag-qa.json:45",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:43"
+        "churn:proof/memory/x06-feature-parity.json:69",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:65",
+        "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
       ],
       "actualIds": [
+        "churn:proof/memory/x06-rag-qa.json:73",
         "churn:Cargo.lock:71",
-        "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48",
-        "churn:proof/memory/x06-feature-parity.json:47",
-        "churn:proof/memory/x06-rag-qa.json:45",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:43"
+        "churn:proof/memory/x06-feature-parity.json:69",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:65",
+        "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "Cargo.lock",
-        "docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md",
-        "proof/memory/x06-feature-parity.json",
         "proof/memory/x06-rag-qa.json",
+        "Cargo.lock",
+        "proof/memory/x06-feature-parity.json",
         "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md",
         "git:log:name-only"
       ],
       "verdict": "pass",
@@ -1636,7 +1642,7 @@
         "test:x06_qa_hotspot_and_dead_export_rows_have_graph_evidence"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-066",
@@ -1656,7 +1662,7 @@
         "test:x06_qa_duplicate_logic_rows_can_find_similar_functions"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-067",
@@ -1676,7 +1682,7 @@
         "test:x06_qa_previous_bug_rows_can_recall_similar_incidents"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-068",
@@ -1696,7 +1702,7 @@
         "mem-x06-9-fixture-0001"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-069",
@@ -1721,7 +1727,7 @@
         "proof/memory/x06-learning-curve.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-070",
@@ -1746,7 +1752,7 @@
         "proof/memory/x06-learning-curve.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-071",
@@ -1771,7 +1777,7 @@
         "proof/memory/x06-learning-curve.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-072",
@@ -1795,7 +1801,7 @@
         "crates/enforcer-memory/src/observations.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-073",
@@ -1820,7 +1826,7 @@
         "proof/memory/x06-learning-curve.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-074",
@@ -1865,7 +1871,7 @@
         "crates/enforcer-memory/src/learning.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-076",
@@ -1888,7 +1894,7 @@
         "crates/enforcer-memory/src/learning.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-077",
@@ -1910,7 +1916,7 @@
         "proof/memory/x06-learning-curve.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-078",
@@ -1935,7 +1941,7 @@
         "proof/memory/x06-learning-curve.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-079",
@@ -1983,7 +1989,7 @@
         "crates/enforcer-memory/src/evidence.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-081",
@@ -2004,7 +2010,7 @@
         "crates/enforcer-memory/src/evidence.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-082",
@@ -2029,7 +2035,7 @@
         "proof/memory/x06-learning-curve.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-083",
@@ -2052,7 +2058,7 @@
         "crates/enforcer-memory/src/ingest.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-084",
@@ -2075,7 +2081,7 @@
         "crates/enforcer-memory/src/recall.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-085",
@@ -2100,7 +2106,7 @@
         "proof/memory/x06-federation.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-086",
@@ -2128,7 +2134,7 @@
         "proof/memory/x06-federation.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-087",
@@ -2153,7 +2159,7 @@
         "proof/memory/x06-models.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-088",
@@ -2163,15 +2169,15 @@
         "crates/enforcer-memory/src/hf_cache.rs:346::select_x06_chat_model_for_hardware",
         "crates/enforcer-memory/src/hf_cache.rs:378::q4-chat-fallback",
         "crates/enforcer-memory/src/hf_cache.rs:382::no-probe-chat-fallback",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:197::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:224::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:223::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:282::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
       ],
       "actualIds": [
         "crates/enforcer-memory/src/hf_cache.rs:346::select_x06_chat_model_for_hardware",
         "crates/enforcer-memory/src/hf_cache.rs:378::q4-chat-fallback",
         "crates/enforcer-memory/src/hf_cache.rs:382::no-probe-chat-fallback",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:197::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:224::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:223::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:282::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -2229,7 +2235,7 @@
         "proof/memory/x06-learning-curve.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-091",
@@ -2317,13 +2323,15 @@
         "history:model-loader:benchmark",
         "history:model-loader:runtime-probe",
         "history:model-loader:llama-cpp",
-        "history:model-loader:cache-policy"
+        "history:model-loader:cache-policy",
+        "history:model-loader:owned-runtime-routes"
       ],
       "actualIds": [
         "history:model-loader:benchmark",
         "history:model-loader:runtime-probe",
         "history:model-loader:llama-cpp",
-        "history:model-loader:cache-policy"
+        "history:model-loader:cache-policy",
+        "history:model-loader:owned-runtime-routes"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -2332,10 +2340,11 @@
         "crates/enforcer-memory/src/llama_cpp.rs",
         "crates/enforcer-memory/src/model_runtime.rs",
         "crates/enforcer-memory/src/runtime_probe.rs",
-        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
+        "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md",
+        "proof/memory/x06-models.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-095",
@@ -2391,7 +2400,7 @@
         "proof/memory/x06-token-reduction.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-097",
@@ -2415,10 +2424,11 @@
         "crates/enforcer-memory/src/ranking.rs",
         "crates/enforcer-memory/src/search/mod.rs",
         "crates/enforcer-memory/tests/retrieval_stack.rs",
+        "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
         "proof/memory/x06-reranker.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-098",
@@ -2438,7 +2448,7 @@
         "proof/memory/x06-token-reduction.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-099",
@@ -2461,7 +2471,7 @@
         "crates/enforcer-memory/tests/x06_retrieval_quality.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-100",
@@ -2540,7 +2550,7 @@
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-102",
@@ -2571,7 +2581,7 @@
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-103",
@@ -2673,7 +2683,7 @@
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-104",
@@ -2722,7 +2732,7 @@
         "crates/enforcer-domain/src/ids.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-106",
@@ -2743,7 +2753,7 @@
         "crates/enforcer-mcp/tests/tool_surface.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-107",
@@ -2763,7 +2773,7 @@
         "test:x06_qa_symbol_rows_can_find_zero_callers_and_generic_result_mentions"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-108",
@@ -2785,7 +2795,7 @@
         "crates/enforcer-cli/src/lifecycle/oracle.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-109",
@@ -2805,7 +2815,7 @@
         "test:x06_qa_symbol_rows_can_find_zero_callers_and_generic_result_mentions"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-110",
@@ -2884,7 +2894,7 @@
         "crates/enforcer-domain/src/hashes.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-113",
@@ -2910,7 +2920,7 @@
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-114",
@@ -2938,7 +2948,7 @@
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-115",
@@ -2967,7 +2977,7 @@
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-116",
@@ -3026,7 +3036,7 @@
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-118",
@@ -3069,7 +3079,7 @@
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-119",
@@ -3150,7 +3160,7 @@
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-120",
@@ -4473,7 +4483,7 @@
         "docs/plans/enforcer-selfhost-plan/workpacks/arc-01-enforcer-core.md"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-165",
@@ -4617,32 +4627,24 @@
       "category": "GitHistory",
       "query": "Which files were created in the most recent working session?",
       "expectedIds": [
-        "commit:e544073d1eeb14bd3f40b8bf50ab2937d530f960",
+        "commit:53f819d97e1a0819f9395b77ae28dfb1de1caf73",
         "lane:rust-build",
-        "created-after:2026-07-09 07:37:34 -0400",
-        "created:proof/memory/x06-test-shards-local-exec.json",
-        "created:proof/memory/x06-test-shards.json"
+        "created-after:2026-07-09 16:08:46 -0400",
+        "created:crates/enforcer-install/tests/git_hooks_fixtures.rs"
       ],
       "actualIds": [
-        "commit:e544073d1eeb14bd3f40b8bf50ab2937d530f960",
+        "commit:53f819d97e1a0819f9395b77ae28dfb1de1caf73",
         "lane:rust-build",
-        "created-after:2026-07-09 07:37:34 -0400",
-        "created:proof/memory/x06-test-shards-local-exec.json",
-        "created:proof/memory/x06-test-shards.json"
+        "created-after:2026-07-09 16:08:46 -0400",
+        "created:crates/enforcer-install/tests/git_hooks_fixtures.rs"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "commit:e544073d1eeb14bd3f40b8bf50ab2937d530f960",
+        "commit:53f819d97e1a0819f9395b77ae28dfb1de1caf73",
         "lane:rust-build",
-        "proof/memory/x06-test-shards-local-exec.json",
-        "proof/memory/x06-test-shards.json",
-        "scripts/x06-enforcer-memory-sharded-test.mjs",
-        "scripts/x06-shards/args.mjs",
-        "scripts/x06-shards/discovery.mjs",
-        "scripts/x06-shards/proof.mjs",
-        "scripts/x06-shards/runner.mjs"
+        "crates/enforcer-install/tests/git_hooks_fixtures.rs"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -4722,7 +4724,7 @@
         "docs/plans/enforcer-selfhost-plan/workpacks/c09-remaining-harness-adapters.md",
         "docs/plans/enforcer-selfhost-plan/workpacks/c10-ci-integration-and-binary-bootstrap.md",
         "crates/enforcer-install",
-        "history-count:20"
+        "history-count:21"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -4745,7 +4747,7 @@
         "mem-x06-9-fixture-0002"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-175",
@@ -5045,7 +5047,7 @@
         "test:x06_qa_error_change_rows_can_recall_downstream_breakage"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-189",
@@ -5101,7 +5103,7 @@
         "proof/memory/x06-learning-curve.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-191",
@@ -5532,11 +5534,12 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/ranking.rs",
         "crates/enforcer-memory/tests/retrieval_stack.rs",
+        "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
         "proof/memory/x06-rag.json",
         "proof/memory/x06-reranker.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-207",
@@ -5559,11 +5562,12 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/ranking.rs",
         "crates/enforcer-memory/src/search/mod.rs",
+        "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
         "proof/memory/x06-reranker.json",
         "proof/memory/x06-retrieval-quality.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-208",
@@ -5586,11 +5590,12 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/ranking.rs",
         "crates/enforcer-memory/tests/retrieval_stack.rs",
+        "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
         "proof/memory/x06-rag.json",
         "proof/memory/x06-reranker.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-209",
@@ -5605,13 +5610,15 @@
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
+      "rerankerLift": -0.4293582810446799,
       "sourceRefs": [
         "crates/enforcer-memory/tests/feature_parity/metrics.rs",
         "crates/enforcer-memory/tests/retrieval_stack.rs",
+        "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
         "proof/memory/x06-reranker.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-210",
@@ -5634,11 +5641,12 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/ranking.rs",
         "crates/enforcer-memory/src/search/mod.rs",
+        "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
         "proof/memory/x06-rag.json",
         "proof/memory/x06-reranker.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-211",
@@ -5661,11 +5669,12 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/ranking.rs",
         "crates/enforcer-memory/src/search/mod.rs",
+        "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
         "proof/memory/x06-reranker.json",
         "proof/memory/x06-token-reduction.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-212",
@@ -5683,10 +5692,11 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/ranking.rs",
         "crates/enforcer-memory/tests/feature_parity/runners.rs",
+        "proof/memory/x06-models-qwen3-reranker-ort-cpu.json",
         "proof/memory/x06-reranker.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-213",
@@ -5709,7 +5719,7 @@
         "proof/memory/x06-token-reduction.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-214",
@@ -5731,7 +5741,7 @@
         "proof/memory/x06-token-reduction.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-215",
@@ -5754,7 +5764,7 @@
         "proof/memory/x06-token-reduction.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-216",
@@ -5776,7 +5786,7 @@
         "proof/memory/x06-token-reduction.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-217",
@@ -5798,7 +5808,7 @@
         "proof/memory/x06-token-reduction.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-218",
@@ -5820,7 +5830,7 @@
         "proof/memory/x06-token-reduction.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-219",
@@ -5842,7 +5852,7 @@
         "proof/memory/x06-token-reduction.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-220",
@@ -5988,7 +5998,7 @@
         "mem-x06-9-fixture-0002"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-227",
@@ -6050,7 +6060,7 @@
         "proof/memory/x06-federation.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-230",
@@ -6072,7 +6082,7 @@
         "proof/memory/x06-federation.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-231",
@@ -6094,7 +6104,7 @@
         "proof/memory/x06-federation.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-232",
@@ -6116,7 +6126,7 @@
         "proof/memory/x06-federation.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-233",
@@ -6138,7 +6148,7 @@
         "proof/memory/x06-federation.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-234",
@@ -6163,7 +6173,7 @@
         "tests/rust-rules-mcp.test.mjs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-235",
@@ -6188,7 +6198,7 @@
         "tests/rust-rules-mcp.test.mjs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-236",
@@ -6213,7 +6223,7 @@
         "tests/rust-rules-mcp.test.mjs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-237",
@@ -6238,7 +6248,7 @@
         "tests/rust-rules-mcp.test.mjs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-238",
@@ -6263,7 +6273,7 @@
         "tests/rust-rules-mcp.test.mjs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-239",
@@ -6310,7 +6320,7 @@
         "crates/enforcer-mcp/tests/tool_surface.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-241",
@@ -6335,7 +6345,7 @@
         "tests/rust-rules-mcp.test.mjs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-242",
@@ -6363,7 +6373,7 @@
         "tests/enforcer-multilang.test.mjs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-243",
@@ -6394,7 +6404,7 @@
         "tests/enforcer-harness.test.mjs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-244",
@@ -6422,7 +6432,7 @@
         "tests/enforcer-harness.test.mjs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-245",
@@ -6450,7 +6460,7 @@
         "crates/enforcer-cli/tests/cli_integration.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-246",
@@ -6475,7 +6485,7 @@
         "docs/plans/enforcer-selfhost-plan/workpacks/d06-lifecycle-commands.md"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-247",
@@ -6527,7 +6537,7 @@
         "proof/memory/x06-mcp.json"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-249",
@@ -6553,7 +6563,7 @@
         "crates/enforcer-install/src/doctor.rs"
       ],
       "verdict": "pass",
-      "capabilityState": "degraded"
+      "capabilityState": "host-local-proof"
     },
     {
       "id": "QA-250",

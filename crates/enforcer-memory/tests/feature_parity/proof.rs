@@ -81,12 +81,17 @@ impl From<&RowResult> for QaProofRow {
 /// never in `rows_green`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct QaProofDocument {
+    #[serde(rename = "schemaVersion")]
+    pub schema_version: u32,
+    pub status: String,
     #[serde(rename = "rowsTotal")]
     pub rows_total: usize,
     #[serde(rename = "rowsGreen")]
     pub rows_green: usize,
     #[serde(rename = "rowsGreenReal")]
     pub rows_green_real: usize,
+    #[serde(rename = "rowsGreenHostLocalProof")]
+    pub rows_green_host_local_proof: usize,
     #[serde(rename = "rowsGreenDegraded")]
     pub rows_green_degraded: usize,
     #[serde(rename = "rowsFailed")]
@@ -106,16 +111,28 @@ pub fn build_qa_proof_document(results: &[RowResult]) -> QaProofDocument {
         .iter()
         .filter(|r| r.is_green() && r.capability_state == "loaded")
         .count();
+    let rows_green_host_local_proof = results
+        .iter()
+        .filter(|r| r.is_green() && r.capability_state == "host-local-proof")
+        .count();
     let rows_green_degraded = results
         .iter()
         .filter(|r| r.is_green() && r.capability_state == "degraded")
         .count();
     let rows_unrunnable = results.iter().filter(|r| r.is_unrunnable()).count();
     let rows_failed = results.len() - rows_green - rows_unrunnable;
+    let status = if rows_failed == 0 && rows_unrunnable == 0 && rows_green == results.len() {
+        "green"
+    } else {
+        "incomplete"
+    };
     QaProofDocument {
+        schema_version: 1,
+        status: status.to_owned(),
         rows_total: results.len(),
         rows_green,
         rows_green_real,
+        rows_green_host_local_proof,
         rows_green_degraded,
         rows_failed,
         rows_unrunnable,
@@ -188,6 +205,9 @@ pub struct MatrixPrefixRow {
 /// `exactArtifactMismatchCount`, `externalModelProviderUsed`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FeatureParityDocument {
+    #[serde(rename = "schemaVersion")]
+    pub schema_version: u32,
+    pub status: String,
     pub prefixes: Vec<MatrixPrefixRow>,
     #[serde(rename = "allMatrixPrefixesGreen")]
     pub all_matrix_prefixes_green: bool,
@@ -197,8 +217,14 @@ pub struct FeatureParityDocument {
     pub qa_rows_green: usize,
     #[serde(rename = "qaRowsGreenReal")]
     pub qa_rows_green_real: usize,
+    #[serde(rename = "qaRowsGreenHostLocalProof")]
+    pub qa_rows_green_host_local_proof: usize,
     #[serde(rename = "qaRowsGreenDegraded")]
     pub qa_rows_green_degraded: usize,
+    #[serde(rename = "degradedRowsAcceptedAsFeatureParity")]
+    pub degraded_rows_accepted_as_feature_parity: bool,
+    #[serde(rename = "hostLocalRowsAcceptedAsCiParity")]
+    pub host_local_rows_accepted_as_ci_parity: bool,
     #[serde(rename = "kgParityComparedAgainstBaseline")]
     pub kg_parity_compared_against_baseline: bool,
     #[serde(rename = "mcpCliParity")]
@@ -247,11 +273,16 @@ pub fn build_feature_parity_document(
         .iter()
         .filter(|r| r.is_green() && r.capability_state == "loaded")
         .count();
+    let qa_rows_green_host_local_proof = qa_results
+        .iter()
+        .filter(|r| r.is_green() && r.capability_state == "host-local-proof")
+        .count();
     let qa_rows_green_degraded = qa_results
         .iter()
         .filter(|r| r.is_green() && r.capability_state == "degraded")
         .count();
-    let qa_rows_green = qa_rows_green_real + qa_rows_green_degraded;
+    let qa_rows_green =
+        qa_rows_green_real + qa_rows_green_host_local_proof + qa_rows_green_degraded;
 
     let kg_parity_compared_against_baseline = prefix_statuses
         .get("PAR")
@@ -277,14 +308,24 @@ pub fn build_feature_parity_document(
     let token_reduction_median_at_least_10x = prefix_statuses
         .get("TOK")
         .is_some_and(|row| row.status.is_green());
+    let status = if all_matrix_prefixes_green && qa_rows_green == qa_results.len() {
+        "green"
+    } else {
+        "incomplete"
+    };
 
     FeatureParityDocument {
+        schema_version: 1,
+        status: status.to_owned(),
         prefixes,
         all_matrix_prefixes_green,
         qa_rows_total: qa_results.len(),
         qa_rows_green,
         qa_rows_green_real,
+        qa_rows_green_host_local_proof,
         qa_rows_green_degraded,
+        degraded_rows_accepted_as_feature_parity: false,
+        host_local_rows_accepted_as_ci_parity: false,
         kg_parity_compared_against_baseline,
         mcp_cli_parity,
         local_dense_retrieval_present,
@@ -329,6 +370,13 @@ mod tests {
         }
     }
 
+    fn host_local_proof_result(id: &str) -> RowResult {
+        let mut result = green_result(id);
+        result.capability_state = "host-local-proof".to_string();
+        result.source_refs = vec!["proof/memory/x06-models.json".to_string()];
+        result
+    }
+
     fn all_green_prefixes() -> BTreeMap<&'static str, MatrixPrefixRow> {
         REQUIRED_PREFIXES
             .iter()
@@ -354,13 +402,38 @@ mod tests {
             unrunnable(&sample_row("QA-002"), "no wired runner"),
         ];
         let document = build_qa_proof_document(&results);
+        assert_eq!(document.schema_version, 1);
+        assert_eq!(document.status, "incomplete");
         assert_eq!(document.rows_total, 2);
         assert_eq!(document.rows_green, 1);
         assert_eq!(document.rows_green_real, 0);
+        assert_eq!(document.rows_green_host_local_proof, 0);
         assert_eq!(document.rows_green_degraded, 1);
         assert_eq!(document.rows_unrunnable, 1);
         assert_eq!(document.rows_failed, 0);
         assert_eq!(document.rows.len(), document.rows_total);
+    }
+
+    #[test]
+    fn host_local_runtime_proof_counts_separately_from_live_loaded_and_degraded_rows() {
+        let results = vec![
+            green_result("QA-001"),
+            host_local_proof_result("QA-031"),
+            unrunnable(&sample_row("QA-002"), "no wired runner"),
+        ];
+        let qa_document = build_qa_proof_document(&results);
+        assert_eq!(qa_document.rows_green, 2);
+        assert_eq!(qa_document.rows_green_real, 0);
+        assert_eq!(qa_document.rows_green_host_local_proof, 1);
+        assert_eq!(qa_document.rows_green_degraded, 1);
+
+        let feature_document = build_feature_parity_document(&all_green_prefixes(), &results);
+        assert_eq!(feature_document.qa_rows_green, 2);
+        assert_eq!(feature_document.qa_rows_green_real, 0);
+        assert_eq!(feature_document.qa_rows_green_host_local_proof, 1);
+        assert_eq!(feature_document.qa_rows_green_degraded, 1);
+        assert!(!feature_document.degraded_rows_accepted_as_feature_parity);
+        assert!(!feature_document.host_local_rows_accepted_as_ci_parity);
     }
 
     #[test]
@@ -386,6 +459,8 @@ mod tests {
         let mut prefixes = all_green_prefixes();
         // Sanity: with every prefix green, the aggregate must be true.
         let all_green_document = build_feature_parity_document(&prefixes, &[]);
+        assert_eq!(all_green_document.schema_version, 1);
+        assert_eq!(all_green_document.status, "green");
         assert!(all_green_document.all_matrix_prefixes_green);
 
         // Flip exactly one prefix (QA, this harness's own area) to Red.
@@ -400,6 +475,7 @@ mod tests {
             },
         );
         let one_red_document = build_feature_parity_document(&prefixes, &[]);
+        assert_eq!(one_red_document.status, "incomplete");
         assert!(
             !one_red_document.all_matrix_prefixes_green,
             "a single red prefix must veto the aggregate green claim"
@@ -467,14 +543,12 @@ mod tests {
     }
 
     #[test]
-    fn today_honest_rollup_is_not_all_green_because_most_prefixes_are_pending() {
-        // The actual state of this harness today: only QA is
-        // computable from real row results; every other prefix is
-        // owned by a subpack whose proof artifact this lane must not
-        // fabricate. This test asserts that HONEST state is what the
-        // rollup produces -- i.e. this test would fail (correctly) if
-        // a future edit accidentally marked every prefix Green without
-        // real proof backing it.
+    fn rollup_refuses_skeleton_state_that_marks_missing_prefix_proofs_pending() {
+        // Regression fixture for the old skeleton state: a missing
+        // prefix proof must remain Pending/Red until artifact-backed
+        // evidence exists. Current checked-in X06 proof is green, but
+        // this guard keeps future migrations from reintroducing
+        // fabricated aggregate green by silently skipping prefixes.
         let mut prefixes: BTreeMap<&'static str, MatrixPrefixRow> = REQUIRED_PREFIXES
             .iter()
             .map(|prefix| {
@@ -485,7 +559,9 @@ mod tests {
                         status: PrefixStatus::Pending,
                         test_name: None,
                         artifact_path: format!("proof/memory/x06-{prefix}.json"),
-                        failure_reason: Some("not yet emitted (X06.9 skeleton pass)".to_string()),
+                        failure_reason: Some(
+                            "negative fixture: proof artifact missing".to_string(),
+                        ),
                     },
                 )
             })
@@ -498,7 +574,7 @@ mod tests {
                 test_name: Some("x06_9_qa_gate".to_string()),
                 artifact_path: "proof/memory/x06-rag-qa.json".to_string(),
                 failure_reason: Some(
-                    "most QA-001..QA-250 rows are unrunnable pending parallel-lane MCP/CLI/federation surfaces"
+                    "negative fixture: QA proof cannot be green while required prefixes are missing"
                         .to_string(),
                 ),
             },

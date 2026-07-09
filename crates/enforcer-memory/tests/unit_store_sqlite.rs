@@ -1,4 +1,4 @@
-use enforcer_memory::artifacts::GraphSnapshot;
+use enforcer_memory::artifacts::{GraphSnapshot, GraphSymbolKindSnapshot};
 use enforcer_memory::code_graph::{CodeGraph, CodeNode, Manifest};
 use enforcer_memory::error::Result;
 use enforcer_memory::ids::repo_root;
@@ -125,13 +125,48 @@ fn store_backed_projection_rebuilds_from_a_real_code_graph_fixture(
     run_git(repo_dir.path(), &["config", "user.name", "Test"])?;
 
     let file_path = repo_dir.path().join("lib.rs");
-    std::fs::write(&file_path, "fn alpha() {}\nfn beta() { alpha(); }\n")?;
+    std::fs::write(
+        &file_path,
+        r#"
+struct Widget;
+enum Mode { Fast }
+type WidgetAlias = Widget;
+const LIMIT: usize = 1;
+
+impl Widget {
+    fn method(&self) {}
+}
+
+fn alpha() {}
+fn beta() { alpha(); }
+
+#[test]
+fn beta_test() { beta(); }
+"#,
+    )?;
     run_git(repo_dir.path(), &["add", "-A"])?;
     run_git(repo_dir.path(), &["commit", "--quiet", "-m", "fixture"])?;
 
     let mut graph = CodeGraph::new();
     graph.index_repository(repo_dir.path(), &[file_path], &Manifest::default())?;
     let snapshot = GraphSnapshot::from_code_graph(&graph);
+    for (name, kind) in [
+        ("Widget", GraphSymbolKindSnapshot::Struct),
+        ("Mode", GraphSymbolKindSnapshot::Enum),
+        ("WidgetAlias", GraphSymbolKindSnapshot::TypeAlias),
+        ("LIMIT", GraphSymbolKindSnapshot::Constant),
+        ("method", GraphSymbolKindSnapshot::Method),
+        ("alpha", GraphSymbolKindSnapshot::Function),
+        ("beta_test", GraphSymbolKindSnapshot::Test),
+    ] {
+        assert!(
+            snapshot
+                .symbols
+                .iter()
+                .any(|symbol| symbol.name == name && symbol.kind == kind),
+            "snapshot must preserve {name} as {kind:?}"
+        );
+    }
 
     let stores_dir = tempfile::tempdir()?;
     let repo_root = repo_root(&repo_dir.path().to_string_lossy())?;

@@ -1,4 +1,24 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
-ocentra-enforcer scan --root . --workspace --config "${OCENTRA_ENFORCER_CONFIG:-ocentra-enforcer.config.json}"
+ROOT="${OCENTRA_ENFORCER_TARGET_ROOT:-$(pwd)}"
+
+if [ "${OCENTRA_ENFORCER_PRECOMMIT_SCOPE:-staged}" = "workspace" ]; then
+  ocentra-enforcer scan --root "$ROOT" --all --config "${OCENTRA_ENFORCER_CONFIG:-ocentra-enforcer.config.json}"
+  exit $?
+fi
+
+set --
+while IFS= read -r path; do
+  [ "$path" = "" ] && continue
+  set -- "$@" "$path"
+done <<EOF
+$(git -C "$ROOT" diff --cached --name-only --diff-filter=ACMR)
+EOF
+
+if [ "$#" -eq 0 ]; then
+  printf '%s\n' "ocentra-enforcer pre-commit skipped: no staged files"
+  exit 0
+fi
+
+ocentra-enforcer scan --root "$ROOT" "$@" --config "${OCENTRA_ENFORCER_CONFIG:-ocentra-enforcer.config.json}"

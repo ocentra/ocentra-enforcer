@@ -1192,28 +1192,41 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
             .wait_with_output()
             .map_err(|error| error.to_string())?;
         if timed_out {
-            let proof = serde_json::json!({
+            let mut proof = serde_json::json!({
                 "operation": format!("qwen-{child_task}-onnx"),
                 "ok": false,
                 "timedOut": true,
                 "timeoutMs": timeout_ms,
                 "error": "ORT child probe timed out during load or inference"
             });
+            attach_ort_worker_contract(&mut proof, &plan);
             return Ok(attach_ort_provider_resolution(proof, provider_resolution));
         }
         let stdout = String::from_utf8_lossy(&output.stdout);
         if !output.status.success() {
-            let proof = serde_json::json!({
+            let mut proof = serde_json::json!({
                 "operation": format!("qwen-{child_task}-onnx"),
                 "ok": false,
                 "exitCode": output.status.code(),
                 "stderr": excerpt_tail(&String::from_utf8_lossy(&output.stderr), 4096),
                 "stdout": excerpt_tail(&stdout, 4096)
             });
+            attach_ort_worker_contract(&mut proof, &plan);
             return Ok(attach_ort_provider_resolution(proof, provider_resolution));
         }
-        let mut proof: serde_json::Value =
-            serde_json::from_str(stdout.trim()).map_err(|error| error.to_string())?;
+        let mut proof: serde_json::Value = match serde_json::from_str(stdout.trim()) {
+            Ok(proof) => proof,
+            Err(error) => {
+                let mut proof = serde_json::json!({
+                    "operation": format!("qwen-{child_task}-onnx"),
+                    "ok": false,
+                    "error": format!("failed to parse ORT child proof JSON: {error}"),
+                    "stdout": excerpt_tail(&stdout, 4096)
+                });
+                attach_ort_worker_contract(&mut proof, &plan);
+                return Ok(attach_ort_provider_resolution(proof, provider_resolution));
+            }
+        };
         attach_ort_worker_contract(&mut proof, &plan);
         Ok(proof)
     }

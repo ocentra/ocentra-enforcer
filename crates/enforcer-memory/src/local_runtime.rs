@@ -130,6 +130,20 @@ impl RuntimeOwnershipMode {
     }
 }
 
+/// Process/isolation boundary used by the local runtime backend.
+///
+/// This is separate from ownership so proof artifacts can distinguish
+/// "Enforcer owns it" from "how Enforcer owns it".
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RuntimeExecutionIsolation {
+    EnforcerManagedChildProcess,
+    EnforcerIsolatedWorkerProcess,
+    EnforcerInProcessLibrary,
+    ExternalServerProcess,
+    UnmanagedProcess,
+}
+
 /// Request protocol owned by Enforcer for a local runtime worker.
 ///
 /// ORT runs behind an isolated worker protocol, not a model-provider
@@ -218,12 +232,14 @@ pub struct RuntimeBackendContract {
 pub struct RuntimeBackendContractEntry {
     pub backend: &'static str,
     pub ownership: RuntimeOwnershipMode,
+    pub execution_isolation: RuntimeExecutionIsolation,
     pub request_protocol: RuntimeRequestProtocol,
     pub external_http_allowed: bool,
     pub port_binding_allowed: bool,
     pub server_surface_accepted_for_parity: bool,
     pub route: &'static str,
     pub managed_by_service: Vec<&'static str>,
+    pub workload_admission_policy: Vec<&'static str>,
 }
 
 /// Owned ORT worker lifecycle state.
@@ -660,7 +676,7 @@ pub fn ort_worker_execution_plan_with_provider_resolution(
             timeout_ms.to_string(),
         ),
     ];
-    Ok(OrtWorkerExecutionPlan {
+    let plan = OrtWorkerExecutionPlan {
         executable_path: executable_path.into(),
         task,
         provider: provider_resolution.resolved_provider,
@@ -672,7 +688,9 @@ pub fn ort_worker_execution_plan_with_provider_resolution(
         port_binding_allowed: false,
         kill_on_timeout: control.timeout_kill_supported,
         env,
-    })
+    };
+    validate_ort_worker_execution_plan(&plan)?;
+    Ok(plan)
 }
 
 pub fn validate_ort_worker_execution_plan(plan: &OrtWorkerExecutionPlan) -> Result<()> {
@@ -729,7 +747,38 @@ pub fn validate_ort_worker_execution_plan(plan: &OrtWorkerExecutionPlan) -> Resu
             "accelerated ORT provider requires positive provider probe evidence",
         ));
     }
+    for key in [
+        "ENFORCER_X06_CHILD_ARTIFACT_PATH",
+        "ENFORCER_X06_CHILD_TOKENIZER_PATH",
+    ] {
+        let value = plan.env_value(key).ok_or_else(|| {
+            model_runtime_error(
+                "validate-ort-worker-execution-plan",
+                format!("ORT worker plan missing required env {key}"),
+            )
+        })?;
+        if path_value_is_absolute(value) {
+            return Err(model_runtime_error(
+                "validate-ort-worker-execution-plan",
+                format!(
+                    "ORT worker {key} must be cache-relative/repo-local, not an absolute or hardcoded machine path"
+                ),
+            ));
+        }
+    }
     Ok(())
+}
+
+fn path_value_is_absolute(value: &str) -> bool {
+    let normalized = value.replace('\\', "/");
+    PathBuf::from(value).is_absolute()
+        || normalized.starts_with('/')
+        || normalized.starts_with("//")
+        || normalized
+            .as_bytes()
+            .get(1)
+            .copied()
+            .is_some_and(|byte| byte == b':')
 }
 
 pub fn resolve_ort_provider(
@@ -788,22 +837,34 @@ pub fn runtime_backend_contract() -> RuntimeBackendContract {
         llama_cpp: RuntimeBackendContractEntry {
             backend: "gguf",
             ownership: RuntimeOwnershipMode::EnforcerSubprocess,
+            execution_isolation: RuntimeExecutionIsolation::EnforcerManagedChildProcess,
             request_protocol: RuntimeRequestProtocol::EnforcerStdio,
             external_http_allowed: false,
             port_binding_allowed: false,
             server_surface_accepted_for_parity: false,
             route: "enforcer-managed-llama-cpp-subprocess",
             managed_by_service: vec!["chat", "embeddings"],
+            workload_admission_policy: vec![
+                "chat-active-queues-background-model-work",
+                "background-retrieval-pauses-before-chat",
+                "model-load-is-exclusive",
+            ],
         },
         ort: RuntimeBackendContractEntry {
             backend: "onnx",
             ownership: RuntimeOwnershipMode::EnforcerIsolatedWorker,
+            execution_isolation: RuntimeExecutionIsolation::EnforcerIsolatedWorkerProcess,
             request_protocol: RuntimeRequestProtocol::EnforcerWorkerEnv,
             external_http_allowed: false,
             port_binding_allowed: false,
             server_surface_accepted_for_parity: false,
             route: "enforcer-isolated-ort-worker",
             managed_by_service: vec!["embeddings", "rerank"],
+            workload_admission_policy: vec![
+                "chat-active-queues-ort-background-work",
+                "ort-background-retrieval-pauses-before-chat",
+                "model-load-is-exclusive",
+            ],
         },
     }
 }

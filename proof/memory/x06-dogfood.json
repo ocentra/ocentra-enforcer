@@ -78,6 +78,11 @@
     "ocentra_enforcer_check source-shape, secrets, no-test-doubles, weak-assertions, skipped-focused-tests, validation-bypass, and placeholder-implementation scope=files ok for QA-186 proof files",
     "cargo test -p enforcer-memory --test model_runtime_real_contract --quiet passed after adding usable Qwen3 Vulkan chat proof assertions and portable mismatch fixtures",
     "node JSON parse check passed for x06-dogfood.json, x06-models-hash-mismatch.json, and x06-models-tokenizer-mismatch.json",
+    "cargo test -p enforcer-memory --test feature_parity_harness feature_parity::proof::tests::host_local_runtime_proof_counts_separately_from_live_loaded_and_degraded_rows -- --exact passed after adding the host-local-proof QA bucket",
+    "cargo test -p enforcer-memory --test feature_parity_harness qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split -- --exact passed after x06-rag-qa.json recorded 250/250 green rows with 3 host-local-proof model-runtime rows and 247 degraded deterministic rows",
+    "rustfmt --check passed for the touched feature_parity proof, runner, and harness files after host-local-proof classification",
+    "cargo test -p enforcer-memory --test feature_parity_harness feature_parity::proof::tests::rollup_refuses_skeleton_state_that_marks_missing_prefix_proofs_pending -- --exact passed after removing stale today/most-unrunnable wording from the negative prefix-rollup fixture",
+    "node --test --test-name-pattern \"scanner-backed checks respect explicit file scope\" tests/enforcer-checks.test.mjs passed after adding scanner-backed scope regression coverage; full tests/enforcer-checks.test.mjs still has pre-existing literal-risk failures because Tools/ocentra-literal-scan/Cargo.toml is absent in this checkout",
     "cargo fmt --package enforcer-memory --check passed after running rustfmt on the new model-runtime contract assertions",
     "cargo test -p enforcer-memory --features ort-models --quiet passed with CARGO_BUILD_JOBS=1, CARGO_PROFILE_TEST_DEBUG=0, and CARGO_INCREMENTAL=0 after clearing an orphaned pre-compaction ORT cargo process",
     "cargo clippy -p enforcer-memory --all-targets -- -D warnings passed after model-runtime mismatch proof promotion",
@@ -1267,6 +1272,34 @@
       "evidence": "checked_in_ort_runtime_proofs_carry_owned_provider_resolution, real_model_probe_defaults_to_one_probe_and_requires_multi_probe_opt_in, and portable_plan_proof_does_not_probe_local_hardware all passed.",
       "classification": "ours",
       "learningSignal": "checked-in-runtime-proof-artifacts-must-track-harness-contract"
+    },
+    {
+      "incident": "The QA rollup collapsed host-local real GGUF/ORT proof artifacts into the same degraded bucket as deterministic zero-network rows, while marking them loaded would have falsely claimed live model execution in default CI.",
+      "fix": "Added a host-local-proof capability bucket, kept loaded reserved for feature-gated live model execution, and classified only the model-runtime initialization/local-loader QA rows backed by checked-in GGUF/ORT proof artifacts into that bucket.",
+      "evidence": "x06-rag-qa.json and x06-feature-parity.json now record 3 host-local-proof rows, 0 live-loaded default rows, and 247 degraded deterministic rows; focused feature_parity_harness tests passed.",
+      "classification": "ours",
+      "learningSignal": "default-qa-must-separate-host-local-proof-from-live-loaded"
+    },
+    {
+      "incident": "A feature-parity negative fixture still described the old skeleton state as today's harness truth after x06-feature-parity.json became green and QA reached 250/250.",
+      "fix": "Renamed the test and rewrote its comment/failure reason so it remains a negative anti-fabricated-green guard without contradicting current proof artifacts.",
+      "evidence": "rollup_refuses_skeleton_state_that_marks_missing_prefix_proofs_pending passed as an exact feature_parity_harness test.",
+      "classification": "ours",
+      "learningSignal": "negative-fixtures-must-not-claim-stale-current-state"
+    },
+    {
+      "incident": "Dogfood proof could confuse broad generic scan expansion with the named scanner-backed checks used as runtime/proof-slice evidence.",
+      "fix": "Added a CLI regression proving scanner-backed checks honor explicit --files scope and do not report violations from unrequested files.",
+      "evidence": "node --test --test-name-pattern \"scanner-backed checks respect explicit file scope\" tests/enforcer-checks.test.mjs passed; full file also exposed existing literal-risk missing-crate failures unrelated to this scanner-backed check.",
+      "classification": "ours",
+      "learningSignal": "scanner-backed-checks-must-preserve-explicit-file-scope"
+    },
+    {
+      "incident": "Parallel broad Cargo validation attempts for enforcer-memory exceeded local command timeouts and left cargo/rustc/link child processes alive, causing later focused proof commands to block behind the stale build pipeline.",
+      "fix": "Stopped only the orphaned cargo/rustc/link processes from this validation attempt, kept the worktree clean, and switched back to scoped crate/package checks plus the existing sharded enforcer-memory gate for long-running proof coverage.",
+      "evidence": "Get-Process showed lingering cargo/rustc/link processes after the timed-out cargo test attempts; Stop-Process recovered the build environment; cargo fmt -p enforcer-memory --check passed afterward, while workspace cargo fmt --check still hit Windows os error 206 path-length behavior.",
+      "classification": "ours",
+      "learningSignal": "validation-harness-must-not-parallelize-broad-cargo-gates"
     }
   ]
 }

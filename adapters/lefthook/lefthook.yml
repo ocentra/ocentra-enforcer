@@ -1,4 +1,9 @@
 pre-commit:
   commands:
     ocentra-enforcer:
-      run: ocentra-enforcer scan --root . --workspace --config "${OCENTRA_ENFORCER_CONFIG:-ocentra-enforcer.config.json}"
+      run: |
+        if [ "${OCENTRA_ENFORCER_PRECOMMIT_SCOPE:-staged}" = "workspace" ]; then
+          ocentra-enforcer scan --root . --all --config "${OCENTRA_ENFORCER_CONFIG:-ocentra-enforcer.config.json}"
+        else
+          ocentra-enforcer scan --root . {staged_files} --config "${OCENTRA_ENFORCER_CONFIG:-ocentra-enforcer.config.json}"
+        fi

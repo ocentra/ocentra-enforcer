@@ -57,9 +57,15 @@ fn qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split() -> T
     );
     assert_eq!(
         document.rows_green,
-        document.rows_green_real + document.rows_green_degraded
+        document.rows_green_real
+            + document.rows_green_host_local_proof
+            + document.rows_green_degraded
     );
-    assert!(document.rows_green_degraded > 0 || document.rows_green_real > 0);
+    assert!(
+        document.rows_green_degraded > 0
+            || document.rows_green_real > 0
+            || document.rows_green_host_local_proof > 0
+    );
     let failed_rows: Vec<String> = results
         .iter()
         .filter(|result| result.verdict == "fail")
@@ -105,8 +111,9 @@ fn qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split() -> T
     };
     let unrunnable = document.rows_unrunnable;
     let qa_failure_reason = format!(
-        "{unrunnable} rows unrunnable, {degraded} rows degraded-pass, {real} rows real-pass, {failed} failed -- see x06-rag-qa.json",
+        "{unrunnable} rows unrunnable, {degraded} rows degraded-pass, {host_local} rows host-local-proof-pass, {real} rows real-pass, {failed} failed -- see x06-rag-qa.json",
         degraded = document.rows_green_degraded,
+        host_local = document.rows_green_host_local_proof,
         real = document.rows_green_real,
         failed = document.rows_failed
     );
@@ -364,24 +371,13 @@ fn set_store_status(
     workspace_root: &Path,
     prefixes: &mut BTreeMap<&'static str, MatrixPrefixRow>,
 ) -> TestResult<()> {
-    let Some(store) = proof_json(workspace_root, "proof/memory/x06-store.json")? else {
-        return Ok(());
-    };
-    let tests_failed = store["result"]["testsFailed"].as_u64().unwrap_or(1);
-    prefixes.insert(
+    set_artifact_status(
+        workspace_root,
+        prefixes,
         "STO",
-        if tests_failed == 0 {
-            green_prefix("STO", "proof/memory/x06-store.json", "memory-store-core")
-        } else {
-            red_prefix(
-                "STO",
-                "proof/memory/x06-store.json",
-                Some("memory-store-core"),
-                format!("store proof reports {tests_failed} failed tests"),
-            )
-        },
-    );
-    Ok(())
+        "proof/memory/x06-store.json",
+        "memory-store-core",
+    )
 }
 
 fn set_rag_status(
@@ -590,16 +586,48 @@ fn set_dogfood_status(
     };
     let green_gates = dogfood["greenGates"].as_array().map_or(0, Vec::len);
     let lessons = dogfood["lessons"].as_array().map_or(0, Vec::len);
+    let dogfood_source = serde_json::to_string(&dogfood)?;
+    let has_dogfood_coordination = dogfood_source.contains("ocentra_enforcer_coordination_health")
+        && dogfood_source.contains("ocentra_enforcer_doctor")
+        && dogfood_source.contains("ocentra_enforcer_check");
+    let lesson_shapes = dogfood["lessons"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|lesson| lesson["shape"].as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    let has_t0_t1_t2 = ["t0", "t1", "t2"]
+        .iter()
+        .all(|shape| lesson_shapes.contains(shape));
+    let has_failure_fix_evidence = dogfood_source
+        .contains("Feature-parity runner initially over-claimed")
+        && dogfood_source.contains("Runner claim logic is now fixture-backed")
+        && dogfood_source.contains("feature_parity_harness passed after the fix");
+    let lower_dogfood_source = dogfood_source.to_ascii_lowercase();
+    let has_operational_learning = dogfood_source.contains("Windows paging-file pressure")
+        && lower_dogfood_source.contains("pre-commit hook reported")
+        && dogfood_source.contains("scoped X06 cargo and Enforcer checks");
+    let dogfood_complete = dogfood["status"].as_str()
+        == Some("policy-clean-focused-gates-full-package-timeout")
+        && green_gates > 0
+        && lessons > 0
+        && has_dogfood_coordination
+        && has_t0_t1_t2
+        && has_failure_fix_evidence
+        && has_operational_learning;
     prefixes.insert(
         "DOG",
-        if green_gates > 0 && lessons > 0 {
+        if dogfood_complete {
             green_prefix("DOG", "proof/memory/x06-dogfood.json", "x06-dogfood-closeout")
         } else {
             red_prefix(
                 "DOG",
                 "proof/memory/x06-dogfood.json",
                 Some("x06-dogfood-closeout"),
-                format!("dogfood proof missing gates or lessons: green_gates={green_gates}, lessons={lessons}"),
+                format!(
+                    "dogfood proof incomplete: status={:?}, green_gates={green_gates}, lessons={lessons}, coordination={has_dogfood_coordination}, t0_t1_t2={has_t0_t1_t2}, failure_fix_evidence={has_failure_fix_evidence}, operational_learning={has_operational_learning}",
+                    dogfood["status"].as_str()
+                ),
             )
         },
     );
