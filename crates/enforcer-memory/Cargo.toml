@@ -1310,6 +1310,14 @@ tree-sitter-csv-local = { path = "vendor/tree-sitter-csv-local" }
 tree-sitter-dockerfile-local = { path = "vendor/tree-sitter-dockerfile-local" }
 tree-sitter-dotenv-local = { path = "vendor/tree-sitter-dotenv-local" }
 tree-sitter-gitattributes-local = { path = "vendor/tree-sitter-gitattributes-local" }
+# Wave G2.6: Agda and FORM, found missing during G2.5 closeout (they were
+# marked "done" in an earlier progress-doc roster but never actually had a
+# `LangSpec`, extractor, or dispatch wiring). Neither has a maintained
+# crates.io crate; vendored from the baseline's own
+# `internal/cbm/vendored/grammars/{agda,form}/` (see each vendor crate's
+# own `src/lib.rs` for provenance and ABI-version confirmation).
+tree-sitter-agda-local = { path = "vendor/tree-sitter-agda-local" }
+tree-sitter-form-local = { path = "vendor/tree-sitter-form-local" }
 
 [dev-dependencies]
 tempfile = "3"

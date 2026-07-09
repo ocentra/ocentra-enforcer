@@ -13485,4 +13485,101 @@ impl LangSpec {
             body_field: "body",
         }
     }
+
+    /// Agda. Language-parity wave G2.6 -- found genuinely missing
+    /// (no `LangSpec`, no extractor, no dispatch wiring at all) during
+    /// wave G2.5's closeout audit against the C baseline's own
+    /// `CBM_LANG_*` identifiers, despite being listed as "done" in an
+    /// earlier progress-doc roster. Grammar VENDORED (no maintained
+    /// `tree-sitter-agda` crate on crates.io) from the baseline's own
+    /// `internal/cbm/vendored/grammars/agda/` -- see
+    /// `vendor/tree-sitter-agda-local/src/lib.rs`.
+    ///
+    /// This grammar exposes **zero field names anywhere** (confirmed
+    /// via a real grammar probe: dumping a parse tree with
+    /// `field_name_for_child` at every node found not a single
+    /// non-`None` result) -- `call_function_field`/`call_arguments_field`/
+    /// `name_field`/`body_field` are all unreachable placeholders;
+    /// every extraction is positional, handled entirely by
+    /// [`crate::languages::generic::agda_quirks`]'s
+    /// `on_unmatched_node`/`call_override` hooks. `branch_types` drops
+    /// the baseline's own `"match"` entry -- confirmed absent from this
+    /// grammar's real symbol table (`sym_match` does not exist in the
+    /// vendored `parser.c`; likely a baseline-side listing from a
+    /// different upstream grammar revision) -- kept `"lambda"`/`"do"`,
+    /// both confirmed present.
+    pub const fn agda() -> Self {
+        Self {
+            name: "agda",
+            func_types: &["function"],
+            method_types: &[],
+            class_types: &["data", "record"],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source_file"],
+            call_types: &["expr"],
+            call_function_field: "UNUSED_SEE_AGDA_QUIRK",
+            call_arguments_field: "UNUSED_SEE_AGDA_QUIRK",
+            import_types: &["open", "import"],
+            branch_types: &["lambda", "do"],
+            decorator_types: &[],
+            name_field: "UNUSED_SEE_AGDA_QUIRK",
+            body_field: "UNUSED_SEE_AGDA_QUIRK",
+        }
+    }
+
+    /// FORM (symbolic-manipulation language used in high-energy
+    /// physics). Language-parity wave G2.6 -- found genuinely missing
+    /// alongside [`Self::agda`] during the same G2.5 closeout audit.
+    /// Grammar VENDORED (no maintained `tree-sitter-form` crate on
+    /// crates.io) from the baseline's own
+    /// `internal/cbm/vendored/grammars/form/` -- see
+    /// `vendor/tree-sitter-form-local/src/lib.rs`. Every node kind in
+    /// the baseline's own `form_*_types` rows
+    /// (`procedure_definition`/`call_statement`/`include_directive`/
+    /// `if_statement`/`repeat_statement`/`do_loop`/
+    /// `declaration_statement`/`substitution_statement`) is confirmed
+    /// present verbatim in the real grammar's own `node-types.json`
+    /// (checked directly, not transcribed from the C spec table
+    /// blindly).
+    ///
+    /// `call_statement` DOES carry a real `name` field (confirmed in
+    /// `node-types.json`), so calls extract generically with no quirk.
+    /// `procedure_definition` also has a real `name` field but is
+    /// deliberately kept OUT of `func_types`: the generic func-handling
+    /// branch pushes the symbol and then unconditionally returns,
+    /// whether or not `body_field` resolves -- and this grammar's
+    /// `procedure_definition` has NO `body`-style wrapper field at all
+    /// (its statement children are direct, unfielded children per
+    /// `node-types.json`), so taking that generic path would silently
+    /// drop every call/branch nested inside every procedure. Handled
+    /// instead via [`crate::languages::generic::form_quirks`]'s
+    /// `on_unmatched_node`, which extracts the same real `name` field
+    /// itself and then manually recurses into the procedure's
+    /// children. `include_directive` similarly has NO fields at all
+    /// (`"fields": {}` in `node-types.json`, single unfielded child) --
+    /// the same hook extracts its import path positionally.
+    pub const fn form() -> Self {
+        Self {
+            name: "form",
+            func_types: &[],
+            method_types: &[],
+            class_types: &[],
+            interface_types: &[],
+            enum_types: &[],
+            alias_types: &[],
+            field_types: &[],
+            module_types: &["source_file"],
+            call_types: &["call_statement"],
+            call_function_field: "name",
+            call_arguments_field: "UNUSED_NO_SUCH_FIELD_IN_GRAMMAR",
+            import_types: &["include_directive"],
+            branch_types: &["if_statement", "repeat_statement", "do_loop"],
+            decorator_types: &[],
+            name_field: "UNUSED_SEE_FORM_QUIRK",
+            body_field: "UNUSED_SEE_FORM_QUIRK",
+        }
+    }
 }

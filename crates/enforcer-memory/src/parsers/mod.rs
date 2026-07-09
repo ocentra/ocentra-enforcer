@@ -704,6 +704,18 @@ pub enum Language {
     /// completion pass. Grammar: `tree-sitter-elisp`
     /// (`Wilfred/tree-sitter-elisp`), a real crates.io dependency.
     EmacsLisp,
+    /// Agda (`.agda`). Language-parity wave G2.6 -- found missing
+    /// during the G2.5 closeout audit (see
+    /// [`crate::languages::spec::LangSpec::agda`]'s own doc comment).
+    /// Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-agda-local/`).
+    Agda,
+    /// FORM (`.frm`, the baseline's own extension for this
+    /// symbolic-manipulation language). Language-parity wave G2.6 --
+    /// found missing alongside [`Language::Agda`] during the same
+    /// audit. Grammar VENDORED
+    /// (`crates/enforcer-memory/vendor/tree-sitter-form-local/`).
+    Form,
     /// AWK (`.awk`). Language-parity wave G2.4a.
     Awk,
     /// Fish (`.fish`). Language-parity wave G2.4a.
@@ -1283,6 +1295,11 @@ pub fn classify(rel_path: &str) -> Language {
         "sv" | "svh" => Language::Systemverilog,
         "capnp" => Language::Capnp,
         "el" => Language::EmacsLisp,
+        "agda" => Language::Agda,
+        // Baseline's own `src/discover/language.c` maps BOTH `.frm`
+        // and `.prc` to `CBM_LANG_FORM` -- confirmed directly, not
+        // guessed.
+        "frm" | "prc" => Language::Form,
         "awk" => Language::Awk,
         "fish" => Language::Fish,
         // See `Language::Zsh`'s own doc comment for why the dotfile
@@ -1984,6 +2001,18 @@ pub fn parse_file(language: Language, source: &str, rel_path: &str) -> Option<Pa
             // (`languages::generic::parse_emacslisp`) -- see
             // `tests/unit_languages_emacslisp.rs`.
             Some(generic::parse_emacslisp(source))
+        }
+        Language::Agda => {
+            // Language-parity wave G2.6: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_agda`) -- see `tests/unit_languages_agda.rs`.
+            Some(generic::parse_agda(source))
+        }
+        Language::Form => {
+            // Language-parity wave G2.6: onboarded directly through the
+            // generic spec-table engine (`languages::generic::
+            // parse_form`) -- see `tests/unit_languages_form.rs`.
+            Some(generic::parse_form(source))
         }
         Language::Awk => {
             // Language-parity wave G2.4a: onboarded directly through the

@@ -25464,3 +25464,321 @@ pub fn parse_gitattributes(source: &str) -> ParsedFile {
     let language: tree_sitter::Language = tree_sitter_gitattributes_local::language().into();
     parse_with_spec(source, &language, &spec, &quirks, false)
 }
+
+// =====================================================================
+// Agda (language-parity wave G2.6 -- found missing during G2.5 closeout)
+// =====================================================================
+
+/// Recursively finds the first LEAF (no-children) descendant of `node`
+/// and returns its text -- confirmed via a real grammar probe (not
+/// `node-types.json` alone) that this Agda grammar's own
+/// `tree-sitter-agda` upstream exposes **zero field names anywhere**:
+/// `lhs`'s first child is either `function_name > atom > qid` (a
+/// top-level signature clause, `f : Nat -> Nat`) or a bare `atom > qid`
+/// (an equation clause, `f x = ...`) -- either way the leftmost-deepest
+/// leaf is the defined name. Same shape resolves `data_name`/
+/// `record_name` containers (`data_name` wraps a same-named leaf
+/// holding the text directly; `record_name` wraps a `qid` leaf) -- one
+/// helper covers both without a second bespoke walker.
+fn agda_first_leaf_text(node: Node<'_>, src: &[u8]) -> Option<String> {
+    if node.child_count() == 0 {
+        return node.utf8_text(src).ok().map(str::to_string);
+    }
+    for i in 0..node.child_count() {
+        if let Some(child) = node.child(i) {
+            if let Some(text) = agda_first_leaf_text(child, src) {
+                return Some(text);
+            }
+        }
+    }
+    None
+}
+
+/// Recursively finds the first descendant of kind `target_kind` --
+/// used to reach into `open`'s nested `import > module_name` (or a
+/// standalone top-level `import > module_name`) without assuming a
+/// fixed depth (an `open import Data.Nat` combo nests one level deeper
+/// than a bare `import Data.Nat`).
+fn agda_find_descendant<'a>(node: Node<'a>, target_kind: &str) -> Option<Node<'a>> {
+    if node.kind() == target_kind {
+        return Some(node);
+    }
+    for i in 0..node.child_count() {
+        let child = node.child(i)?;
+        if let Some(found) = agda_find_descendant(child, target_kind) {
+            return Some(found);
+        }
+    }
+    None
+}
+
+/// Agda's [`Quirks::on_unmatched_node`] hook. Handles three shapes the
+/// grammar's total absence of field names rules out of every generic
+/// `LangSpec`-array path:
+/// - `function` (both signature clauses `f : T` and equation clauses
+///   `f x = ...` share this one node kind, matching the baseline's own
+///   `agda_func_types = {"function", NULL}` row exactly) -- recurses
+///   into the `rhs` child afterward with `fn_scope` set to the defined
+///   name, so calls in the equation body still attribute correctly.
+/// - `data`/`record` (routed here via [`LangSpec::class_types`]'s own
+///   inline `on_unmatched_node` call, which fires before that branch's
+///   generic `name_field` fallback) -- recurses into the whole node
+///   with `enclosing` set to the type name. Note: `record`'s nested
+///   `field`-block `signature`/`field_name` children are NOT wired to a
+///   DEFINES edge -- they carry no field names either (same real-probe
+///   finding as [`agda_first_leaf_text`]'s own doc comment), and adding
+///   a third positional walker for them is left as a documented,
+///   explicit non-goal at this Tier-2 depth (defs/calls/imports, not
+///   full field enumeration) rather than a silent gap -- L45
+///   discipline.
+/// - `open`/`import` -- finds the nested `module_name` (present at
+///   different depths for `open import X` vs. bare `import X`) and
+///   records it as an [`ImportRef`]; returns `true` without recursing
+///   further so an `open import X` combo's own nested `import` node is
+///   never independently re-visited (would double-count otherwise).
+fn agda_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    match node.kind() {
+        "function" => {
+            let children: Vec<Node<'_>> = (0..node.child_count())
+                .filter_map(|i| node.child(i))
+                .collect();
+            let Some(lhs) = children.iter().find(|c| c.kind() == "lhs") else {
+                return false;
+            };
+            let Some(name) = agda_first_leaf_text(*lhs, src) else {
+                return false;
+            };
+            let line = node.start_position().row + 1;
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: SymbolKind::Function,
+                line,
+            });
+            if let Some(container) = enclosing {
+                out.defines.push(DefinesRef {
+                    container_name: container.to_string(),
+                    member_name: name.clone(),
+                    line,
+                });
+            }
+            let ctx = ctx_for_agda(src);
+            let fn_scope = FnScope {
+                name: Some(name.as_str()),
+                line: Some(line),
+            };
+            if let Some(rhs) = children.iter().find(|c| c.kind() == "rhs") {
+                walk(*rhs, &ctx, out, enclosing, fn_scope);
+            }
+            true
+        }
+        "data" | "record" => {
+            let name_container = (0..node.child_count())
+                .filter_map(|i| node.child(i))
+                .find(|c| c.kind() == "data_name" || c.kind() == "record_name");
+            let Some(name) = name_container.and_then(|c| agda_first_leaf_text(c, src)) else {
+                return false;
+            };
+            let ctx = ctx_for_agda(src);
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: SymbolKind::Class,
+                line: node.start_position().row + 1,
+            });
+            walk_children(node, &ctx, out, Some(name.as_str()), FnScope::default());
+            true
+        }
+        "open" | "import" => {
+            let Some(module_name) = agda_find_descendant(node, "module_name") else {
+                return false;
+            };
+            let Some(path) = agda_first_leaf_text(module_name, src) else {
+                return false;
+            };
+            out.imports.push(ImportRef {
+                module_path: path,
+                line: node.start_position().row + 1,
+            });
+            true
+        }
+        _ => false,
+    }
+}
+
+fn ctx_for_agda(src: &[u8]) -> Ctx<'_> {
+    static SPEC: std::sync::OnceLock<LangSpec> = std::sync::OnceLock::new();
+    let spec = SPEC.get_or_init(LangSpec::agda);
+    let quirks: &'static Quirks = Box::leak(Box::new(agda_quirks()));
+    Ctx {
+        spec,
+        src,
+        quirks,
+        is_test_file: false,
+    }
+}
+
+/// Agda's [`Quirks::call_override`] hook. Handles `expr` nodes shaped
+/// as a function-application chain (`g x`, confirmed via a real parse:
+/// `expr: atom(qid="g"), atom(qid="x")` -- every direct child is
+/// `atom`) while rejecting type-signature `expr` nodes that mix in an
+/// operator token or a nested `expr` child (`Nat -> Nat` parses as
+/// `expr: atom(Nat), ->(token), expr(atom(Nat))` -- not all-`atom`),
+/// which this grammar's total absence of field names means cannot be
+/// told apart any other way. Deliberately conservative: an
+/// application-looking `expr` that happens to also be a type index
+/// (rare in this Tier-2-depth extractor's own scope) is accepted as a
+/// call; anything mixing in a non-`atom` child is rejected outright
+/// rather than guessed at.
+fn agda_call_override(
+    node: Node<'_>,
+    from_symbol: Option<&str>,
+    from_symbol_line: Option<usize>,
+    src: &[u8],
+    out: &mut ParsedFile,
+) -> bool {
+    let children: Vec<Node<'_>> = (0..node.child_count())
+        .filter_map(|i| node.child(i))
+        .collect();
+    if children.len() < 2 || !children.iter().all(|c| c.kind() == "atom") {
+        return false;
+    }
+    let Some(callee) = agda_first_leaf_text(children[0], src) else {
+        return false;
+    };
+    let arg_texts = children[1..]
+        .iter()
+        .filter_map(|c| c.utf8_text(src).ok().map(str::to_string))
+        .collect();
+    out.calls.push(CallRef {
+        callee,
+        line: node.start_position().row + 1,
+        from_symbol: from_symbol.map(str::to_string),
+        from_symbol_line,
+        receiver_text: None,
+        receiver_hint: None,
+        arg_texts,
+    });
+    true
+}
+
+/// Agda's [`Quirks`] row.
+pub fn agda_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(agda_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: Some(Box::new(agda_call_override)),
+    }
+}
+
+/// Parse Agda source through the generic engine. Grammar VENDORED
+/// (`crates/enforcer-memory/vendor/tree-sitter-agda-local/`) -- no
+/// maintained crates.io crate exists. Language-parity wave G2.6.
+pub fn parse_agda(source: &str) -> ParsedFile {
+    let spec = LangSpec::agda();
+    let quirks = agda_quirks();
+    let language: tree_sitter::Language = tree_sitter_agda_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}
+
+// =====================================================================
+// FORM (language-parity wave G2.6 -- found missing during G2.5 closeout)
+// =====================================================================
+
+/// FORM's [`Quirks::on_unmatched_node`] hook -- see [`LangSpec::form`]'s
+/// own doc comment for why `procedure_definition`/`include_directive`
+/// can't take the generic `LangSpec`-array path despite both having
+/// real field names for the parts they DO expose.
+fn form_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
+    match node.kind() {
+        "procedure_definition" => {
+            let Some(name) = child_text(node, "name", src) else {
+                return false;
+            };
+            let line = node.start_position().row + 1;
+            out.symbols.push(SymbolRef {
+                name: name.clone(),
+                kind: SymbolKind::Function,
+                line,
+            });
+            if let Some(container) = enclosing {
+                out.defines.push(DefinesRef {
+                    container_name: container.to_string(),
+                    member_name: name.clone(),
+                    line,
+                });
+            }
+            let ctx = ctx_for_form(src);
+            walk_children(
+                node,
+                &ctx,
+                out,
+                enclosing,
+                FnScope {
+                    name: Some(name.as_str()),
+                    line: Some(line),
+                },
+            );
+            true
+        }
+        "include_directive" => {
+            let Some(raw) = first_named_child_text(node, src) else {
+                return false;
+            };
+            // `#include "widget_defs.h"` parses its path as a
+            // `string_literal` node whose own text includes the
+            // surrounding quotes (confirmed via `grammar.js`'s
+            // `string_literal: _ => seq('"', /[^"]*/, '"')` rule) --
+            // stripped here so `module_path` matches every other
+            // language's own unquoted-path convention. `#include foo`
+            // (bare `identifier`, no quotes) is unaffected.
+            let path = raw
+                .strip_prefix('"')
+                .and_then(|s| s.strip_suffix('"'))
+                .unwrap_or(&raw)
+                .to_string();
+            out.imports.push(ImportRef {
+                module_path: path,
+                line: node.start_position().row + 1,
+            });
+            true
+        }
+        _ => false,
+    }
+}
+
+fn ctx_for_form(src: &[u8]) -> Ctx<'_> {
+    static SPEC: std::sync::OnceLock<LangSpec> = std::sync::OnceLock::new();
+    let spec = SPEC.get_or_init(LangSpec::form);
+    let quirks: &'static Quirks = Box::leak(Box::new(form_quirks()));
+    Ctx {
+        spec,
+        src,
+        quirks,
+        is_test_file: false,
+    }
+}
+
+/// FORM's [`Quirks`] row.
+pub fn form_quirks() -> Quirks {
+    Quirks {
+        on_unmatched_node: Some(Box::new(form_quirk)),
+        is_test_name: |_| false,
+        route_from_call: None,
+        on_method_defined: None,
+        call_override: None,
+    }
+}
+
+/// Parse FORM source through the generic engine. `call_statement`
+/// extracts generically (real `name` field); `procedure_definition`/
+/// `include_directive` go through [`form_quirks`] -- see
+/// [`LangSpec::form`]'s own doc comment for why. Grammar VENDORED
+/// (`crates/enforcer-memory/vendor/tree-sitter-form-local/`). No
+/// maintained crates.io crate exists. Language-parity wave G2.6.
+pub fn parse_form(source: &str) -> ParsedFile {
+    let spec = LangSpec::form();
+    let quirks = form_quirks();
+    let language: tree_sitter::Language = tree_sitter_form_local::language().into();
+    parse_with_spec(source, &language, &spec, &quirks, false)
+}

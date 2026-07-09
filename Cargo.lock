@@ -1392,6 +1392,7 @@ dependencies = [
  "tokio",
  "tree-sitter",
  "tree-sitter-ada",
+ "tree-sitter-agda-local",
  "tree-sitter-asm",
  "tree-sitter-astro-local",
  "tree-sitter-bash",
@@ -1426,6 +1427,7 @@ dependencies = [
  "tree-sitter-erlang",
  "tree-sitter-fennel-local",
  "tree-sitter-fish",
+ "tree-sitter-form-local",
  "tree-sitter-fortran",
  "tree-sitter-fsharp",
  "tree-sitter-func-local",
@@ -4339,6 +4341,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "tree-sitter-agda-local"
+version = "0.1.0"
+dependencies = [
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
 name = "tree-sitter-asm"
 version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4652,6 +4662,14 @@ checksum = "014e3b299f251e9c2e372e3b5e1b0323ef21196e9aa2e90a5bc1f6130cbe8b18"
 dependencies = [
  "cc",
  "tree-sitter",
+]
+
+[[package]]
+name = "tree-sitter-form-local"
+version = "0.1.0"
+dependencies = [
+ "cc",
+ "tree-sitter-language",
 ]
 
 [[package]]

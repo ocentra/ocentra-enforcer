@@ -374,6 +374,13 @@ pub enum LanguageTag {
     /// pass. Courtesy addition, same reason as [`LanguageTag::Qml`]
     /// above.
     EmacsLisp,
+    /// Agda. Language-parity wave G2.6 (found missing during G2.5
+    /// closeout). Courtesy addition, same reason as [`LanguageTag::Qml`]
+    /// above.
+    Agda,
+    /// FORM. Language-parity wave G2.6, same as [`LanguageTag::Agda`]
+    /// above.
+    Form,
     /// AWK. Language-parity wave G2.4a.
     Awk,
     /// Fish. Language-parity wave G2.4a.
@@ -612,6 +619,8 @@ impl From<Language> for LanguageTag {
             Language::Systemverilog => LanguageTag::Systemverilog,
             Language::Capnp => LanguageTag::Capnp,
             Language::EmacsLisp => LanguageTag::EmacsLisp,
+            Language::Agda => LanguageTag::Agda,
+            Language::Form => LanguageTag::Form,
             Language::Awk => LanguageTag::Awk,
             Language::Fish => LanguageTag::Fish,
             Language::Zsh => LanguageTag::Zsh,
@@ -2295,6 +2304,11 @@ fn complexity_language(language: Language) -> Option<crate::complexity::Complexi
         // into `complexity.rs`" convention as every language above.
         | Language::Capnp
         | Language::EmacsLisp
+        // Language-parity wave G2.6 (found missing during G2.5
+        // closeout): same "not yet wired into complexity.rs" convention
+        // as every language above.
+        | Language::Agda
+        | Language::Form
         // Language-parity wave G2.4a: same "not yet wired into
         // `complexity.rs`" convention as every language above -- all six
         // have real `branch_types` arrays this wave already ported (see
