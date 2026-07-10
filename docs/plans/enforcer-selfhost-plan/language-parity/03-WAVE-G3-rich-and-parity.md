@@ -23,56 +23,83 @@ Deferred grammars (G2 step B.3) are recorded as `pending`, not `worse`.
 
 ## Scoping (done 2026-07-09, before spawning any workers)
 
-Measured actual current coverage rather than assuming the onboarding waves left room for this:
+**First pass (superseded below): wrong.** An initial grep-based estimate ("33
+`out.inherits.push` call sites across ~10 hand-migrated languages, ~20+ Tier-3 languages are
+greenfield") undercounted badly — it missed that most Tier-3 languages already picked up
+heritage quirks organically during the G2.2-G2.4 onboarding waves (worker discretion went
+beyond the strict tier requirement in a lot of cases), not just the original 10.
 
-- **Inherits: 100% quirk-only, no generic fallback exists.** `walk()` has zero `LangSpec`
-  field for heritage/base-class node kinds — `InheritsRef` is populated at exactly 33 call
-  sites in `generic.rs`, all inside per-language `Quirks` hooks (Go, TypeScript/JS, Python,
-  Java, C#, and a handful more of the original hand-migrated set). None of the ~24 other
-  Tier-3 languages (PHP/Kotlin/Squirrel/Julia/F#/D/PowerShell/Pascal/C++/Swift/Dart/Scala/
-  Groovy/Apex/Crystal/QML/ReScript/Cairo/CFScript/GDScript/Ruby/Rust/R/…) get any inherits
-  edges at all today, despite being Tier-3.
-- **Decorators: partially generic.** 18 languages have non-empty `decorator_types` rows in
-  `spec.rs` (Rust, TypeScript, Python, Java, C#, PHP, Kotlin, Swift, GDScript, Dart, Scala,
-  Groovy, Apex, Crystal, QML, ReScript, Cairo, CFScript) — the spec field itself is consulted
-  generically, unlike inherits. Not yet independently verified end-to-end that `walk()`
-  actually surfaces every one of these into a graph-visible decorator edge (vs. some being
-  inert metadata) — first task of this wave, not an assumption to carry forward.
+**Corrected pass: cross-referenced every language with non-empty `class_types` in `spec.rs`
+against every function in `generic.rs` that actually calls `out.inherits.push`, by name, not
+by grep count.** Real result: **24 of the 34 Tier-3 languages already have inherits** (Ada,
+Apex, C++, Crystal, C#, D, Dart, F#, Groovy, Java, Julia, Kotlin, Objective-C, Odin, Pascal,
+PHP, PowerShell, Python, Rust, Scala, Squirrel, Swift, TypeScript, Go). Of the remaining 10
+(C, CUDA, GDScript, Gleam, GLSL, QML, ReScript, Solidity, TSX, Zig):
+- **TSX** shares TypeScript's quirk — already covered.
+- **C, CUDA, GLSL, Zig** have no class-based inheritance concept in the language at all — zero
+  INHERITS edges is *correct* baseline behavior, not a gap.
+- **GDScript** treats `extends` as an IMPORT by deliberate design (the whole file is an
+  implicit single class; there's no `class_declaration`-shaped node to attach a `sub_name`
+  to) — also correct as-is, not a gap.
+- **Gleam, ReScript, QML** are functional/component-composition languages without
+  `class X : Y`-shaped heritage syntax — very likely also N/A, not independently re-verified
+  line-by-line here (low priority given the pattern above).
+- **Solidity** was the one real, confirmed gap: `contract Foo is Bar, Baz(args)` produced zero
+  INHERITS edges (`solidity_quirk` didn't claim `contract_declaration`/`interface_declaration`
+  at all, and no other quirk did either) — **fixed as part of Stage 1** (see below).
+
+**Revised conclusion: this is a much smaller build-out than first estimated for inherits
+specifically** — a generic engine fallback still has value (future-proofing for languages
+onboarded later with no quirk, matching the baseline's own design faithfully), but it will not
+newly light up "~20+ languages." **Decorators and routes have not been re-audited with this
+same rigor yet** — treat their counts below as the original (possibly also-overstated)
+estimate until Stage 3/4 actually measure them the same way Stage 1 did for inherits.
+
+- **Decorators: partially generic, not yet re-verified.** 18 languages have non-empty
+  `decorator_types` rows in `spec.rs` (Rust, TypeScript, Python, Java, C#, PHP, Kotlin, Swift,
+  GDScript, Dart, Scala, Groovy, Apex, Crystal, QML, ReScript, Cairo, CFScript). Whether
+  `walk()` actually surfaces every one of these into a graph-visible decorator edge (vs. some
+  being inert metadata) is Stage 3's first task, not an assumption to carry forward.
 - **Routes: 4 quirk wirings only** (`go_quirks`, `typescript_quirks`, `csharp_quirks`,
-  `qml_quirks`, via `route_from_call: Some(...)`). Every other Tier-3 language with
-  web-framework imports (Python/Flask-Django, PHP/Laravel, Kotlin/Ktor, Java/Spring, Ruby/
-  Rails, Swift/Vapor, …) currently produces zero route edges. `service_patterns.c:315-377`
-  (baseline's library-name matching) has not been ported at all yet.
+  `qml_quirks`, via `route_from_call: Some(...)`). This count came from the same shallow grep
+  method that undercounted inherits — re-audit properly (by function name, not raw count)
+  before assuming the gap size in Stage 4.
 
-**Conclusion: this is not a polish pass, it's a build-out.** Inherits and routes are
-essentially greenfield for ~20+ of the 34 Tier-3 languages. Staging:
+Staging (Stage 1 done, see below; Stages 2-5 unchanged in shape, revised in expected size):
 
-1. **Stage 1 (engine change, orchestrator, no coordination risk):** add a generic
-   heritage-field fallback to `walk()` — mirrors how `call_types`/`decorator_types` are
-   already consulted directly from `LangSpec` — driven by a new `inherit_types`-style field
-   checking the baseline's common heritage field/node names (`superclass`, `superinterfaces`,
-   `class_heritage`, `implements_clause`, `base_list`, `base_class_clause`). One engine change,
-   benefits every Tier-3 language at once without per-language worker fan-out.
-2. **Stage 2 (quirk walkers, worker-sized):** dedicated heritage quirks only for the languages
-   the baseline itself special-cases beyond the generic fallback (TS/PHP/Kotlin/Squirrel/
-   Julia/F#/D/PowerShell/Pascal/C++/C# per the baseline's `extract_base_classes`,
-   `extract_defs.c:2373`) — most of these already have quirks from earlier hand-migration; the
-   gap is the *other* ~15 Tier-3 languages that need a check against whether the Stage-1
-   generic fallback alone is sufficient for them.
+1. **Stage 1 — DONE (2026-07-09).** Added `generic_base_class_names()` to `generic.rs`, a
+   direct Rust port of the baseline's own generic fallback tier in `extract_base_classes`
+   (`extract_defs.c:2540-2576`, ground-truth field list: `superclass`, `superclasses`,
+   `superinterfaces`, `interfaces`, `bases`, `type_inheritance_clause`,
+   `delegation_specifiers`, plus the `extends_interfaces`/`super_interfaces` named-child
+   fallback for Java-shaped interface heritage) — wired into `walk()`'s `class_types` branch,
+   firing only when no `on_unmatched_node` quirk already claimed the node (every language with
+   an existing heritage quirk short-circuits before reaching it, zero double-counting, zero
+   regression risk by construction). Also fixed the one confirmed real gap found during
+   scoping: extended `solidity_quirk` to claim `contract_declaration`/`interface_declaration`
+   directly, extracting `inheritance_specifier` children's `ancestor` field (verified against
+   `tree-sitter-solidity`'s own `node-types.json`, not guessed) — `contract Foo is Bar, Baz(42)`
+   now produces real INHERITS edges. Net effect on the generic *field-name* fallback itself:
+   likely zero-to-few additional languages get new edges from it today (most of Tier-3 that
+   has real heritage syntax already had a quirk), but it's still correct architecture and
+   directly benefits any future language onboarded without one.
+2. **Stage 2 (quirk walkers, worker-sized, now much smaller than first estimated):** spot-check
+   the handful of unconfirmed Tier-3 languages (Gleam, ReScript, QML) for real heritage syntax
+   this generic fallback might miss; everything else in Tier-3 is already covered or
+   legitimately N/A per the corrected scoping above.
 3. **Stage 3 (decorators):** verify the 18 languages with populated `decorator_types` actually
-   surface decorator edges end-to-end; wire the field for any Tier-3 language missing it.
-4. **Stage 4 (routes):** port `service_patterns.c:315-377`'s library-name matching as a
-   generic layer over the import graph (not per-language quirks) so route edges appear for any
-   onboarded language whose imports name a known web framework — this is the highest-leverage
-   single change for routes, same reasoning as Stage 1 for inherits.
+   surface decorator edges end-to-end, the same rigorous per-language way Stage 1 was
+   corrected — don't trust a raw count again; wire the field for any Tier-3 language missing it.
+4. **Stage 4 (routes):** re-audit the real gap size first (same method as Stage 1's
+   correction), then port `service_patterns.c:315-377`'s library-name matching as a generic
+   layer over the import graph (not per-language quirks) so route edges appear for any
+   onboarded language whose imports name a known web framework.
 5. **Stage 5:** full parity re-verification per the "Full parity re-verification" section below,
    once Stages 1-4 land.
 
-Also carrying forward from the G2.5 closeout: **Agda and FORM are not onboarded at all**
-(found during G2.5's audit against the C baseline, documented in `00-OVERVIEW.md`) — decide
-whether to fold their onboarding into this wave (idle worker headroom) or run a short G2.6
-first. Recommendation: G2.6 first (it's pure onboarding, same playbook as G2.1-G2.5, no reason
-to block it on G3's harder engine work), then G3 Stages 1-5.
+Also carrying forward: **Agda and FORM**, found missing during G2.5's audit, were onboarded in
+wave G2.6 (see `00-OVERVIEW.md` — 156/158 total, only K8s/Kustomize deliberately deferred) —
+done before Stage 1 started, per the recommendation below.
 
 ## Done when
 Every onboarded language verified equal-or-better vs the baseline; deferred-grammar list is
