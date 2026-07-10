@@ -5325,6 +5325,9 @@ fn kotlin_function_like(
                 line,
             });
         }
+        if let Some(route) = kotlin_route_from_mapping(node, src) {
+            out.routes.push(route);
+        }
     } else if node.kind() == "secondary_constructor" {
         out.symbols.push(SymbolRef {
             name: String::new(),
@@ -5417,6 +5420,91 @@ fn kotlin_annotations(node: Node<'_>, src: &[u8]) -> Vec<String> {
         }
     }
     out
+}
+
+/// Spring MVC route detection for Kotlin -- language-parity wave G3
+/// stage 4. The baseline's own route mechanism (`annotation_route_method`,
+/// `extract_defs.c:1275`) is purely name-based with no per-language
+/// gating at all, and its route-prefix-joining logic explicitly treats
+/// `CBM_LANG_JAVA`/`CBM_LANG_KOTLIN` identically
+/// (`extract_defs.c:4137`) -- Spring Boot backends written in Kotlin
+/// use the exact same `@GetMapping`/`@PostMapping`/etc. annotations as
+/// Java, reusing [`JAVA_MAPPING_ANNOTATIONS`] (mirrors
+/// [`java_route_from_mapping`], adapted for Kotlin's fields-less
+/// `annotation` node shape from [`kotlin_annotation_name`]).
+fn kotlin_route_from_mapping(node: Node<'_>, src: &[u8]) -> Option<RouteRef> {
+    for i in 0..node.child_count() {
+        let child = node.child(i)?;
+        if child.kind() != "modifiers" {
+            continue;
+        }
+        for j in 0..child.child_count() {
+            let Some(modifier) = child.child(j) else {
+                continue;
+            };
+            if modifier.kind() != "annotation" {
+                continue;
+            }
+            let Some(name) = kotlin_annotation_name(modifier, src) else {
+                continue;
+            };
+            let Some(http_method) = JAVA_MAPPING_ANNOTATIONS
+                .iter()
+                .find(|(candidate, _)| *candidate == name)
+                .map(|(_, method)| method.to_string())
+            else {
+                continue;
+            };
+            let path = kotlin_annotation_path_argument(modifier, src).unwrap_or_default();
+            return Some(RouteRef {
+                method: http_method,
+                path,
+                line: node.start_position().row + 1,
+            });
+        }
+    }
+    None
+}
+
+/// The first string-literal argument of an `@Annotation("path")`
+/// call-form annotation -- `constructor_invocation` -> `value_arguments`
+/// -> `value_argument` -> `string_literal` (confirmed via a real
+/// grammar check: `value_argument`'s own `"fields": {}`, its `expression`
+/// supertype child resolving to the concrete `string_literal` kind for a
+/// bare positional string argument).
+fn kotlin_annotation_path_argument(annotation_node: Node<'_>, src: &[u8]) -> Option<String> {
+    for i in 0..annotation_node.child_count() {
+        let child = annotation_node.child(i)?;
+        if child.kind() != "constructor_invocation" {
+            continue;
+        }
+        for j in 0..child.child_count() {
+            let Some(value_arguments) = child.child(j) else {
+                continue;
+            };
+            if value_arguments.kind() != "value_arguments" {
+                continue;
+            }
+            for k in 0..value_arguments.child_count() {
+                let Some(value_argument) = value_arguments.child(k) else {
+                    continue;
+                };
+                if value_argument.kind() != "value_argument" {
+                    continue;
+                }
+                for m in 0..value_argument.child_count() {
+                    if let Some(expr) = value_argument.child(m) {
+                        if expr.kind() == "string_literal" {
+                            if let Ok(raw) = expr.utf8_text(src) {
+                                return Some(raw.trim_matches('"').to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    None
 }
 
 /// Kotlin's `class_declaration`/`object_declaration`/

@@ -295,3 +295,24 @@ class Widget {
     assert_eq!(fn_edge.decorator_name, "Deprecated");
     Ok(())
 }
+
+#[test]
+fn spring_mapping_annotation_records_a_route() -> TestResult {
+    // language-parity wave G3 stage 4: Spring Boot backends written in
+    // Kotlin use the same `@GetMapping`/`@PostMapping`/etc. annotations
+    // as Java -- the baseline's own route mechanism is purely name-based
+    // with no per-language gating (`extract_defs.c:1275`,
+    // `extract_defs.c:4137` explicitly treats Java/Kotlin identically).
+    let src = r#"
+@GetMapping("/widgets")
+fun listWidgets() {}
+"#;
+    let parsed = parse_kotlin(src);
+    let route = parsed
+        .routes
+        .first()
+        .ok_or("expected a route for listWidgets")?;
+    assert_eq!(route.method, "GET");
+    assert_eq!(route.path, "/widgets");
+    Ok(())
+}
