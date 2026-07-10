@@ -108,11 +108,43 @@ Staging (Stage 1 done, see below; Stages 2-5 unchanged in shape, revised in expe
    unconsulted by the generic engine outside per-language quirks — same architectural shape as
    inherits before Stage 1, and as routes below: there is no generic field-driven fallback for
    decorators, only quirks/`on_method_defined` hooks per language.
-4. **Stage 4 (routes) — scoping in progress.** Re-audit the real gap size first (same
-   by-function-name method as Stages 1/3's corrections, not the original shallow grep), then
-   either implement directly (if the real gap is small, matching the Stage 1/3 pattern) or, if
-   it needs a genuinely new generic layer (porting `service_patterns.c:315-377`'s library-name
-   matching over the import graph), scope it fully before writing code.
+4. **Stage 4 — DONE (2026-07-10).** The original plan ("port `service_patterns.c:315-377`'s
+   library-name matching") was based on a table that turned out to be **dead code in the
+   baseline itself** — `route_reg_libraries` and every function in `service_patterns.c` that
+   consults it (`cbm_service_pattern_match`, `cbm_service_pattern_route_method`, etc.) has
+   **zero callers anywhere else in the C codebase**, confirmed by grepping the whole
+   `internal/cbm/` tree. The baseline's REAL, actually-wired route mechanism is
+   `extract_route_from_decorators`/`annotation_route_method` (`extract_defs.c:1275,1303`),
+   called unconditionally for every function/method regardless of language, purely by matching
+   the DECORATOR/ANNOTATION's own name against a small fixed list (`GetMapping`→GET,
+   `PostMapping`→POST, `PutMapping`→PUT, `PatchMapping`→PATCH, `DeleteMapping`→DELETE,
+   `RequestMapping`→ANY, plus bare JAX-RS `GET`/`POST`/`PUT`/`DELETE`/`PATCH`) or a Python-style
+   `@x.route(...)`/`@x.get(...)` call-shaped decorator. No per-language whitelist at all except
+   one special case: `extract_defs.c:4137` explicitly joins a class-level route prefix for
+   `CBM_LANG_JAVA`/`CBM_LANG_KOTLIN` identically (Spring MVC's `@RequestMapping` on the
+   controller class), confirming Kotlin is meant to get the exact same treatment as Java.
+
+   Re-auditing our own port by function name (not the original shallow `route_from_call: Some(`
+   grep) found real coverage already exists for **8 languages**, not 4: Go/TypeScript/C#
+   (call-shape, `route_from_call` hook), QML (via `ts_quirk` delegation), Python
+   (`py_route_from_decorated`, decorator-call-shape), Java (`java_route_from_mapping`,
+   Spring-annotation-shape), PHP (`php_routes_from_attributes`/`php_route_from_symfony_attribute`/
+   `php_route_from_scoped_call`). The one real, confirmed gap: **Kotlin** had annotation
+   extraction (from Stage 3) but no route detection reusing it — fixed by adding
+   `kotlin_route_from_mapping`/`kotlin_annotation_path_argument`, reusing
+   `JAVA_MAPPING_ANNOTATIONS` verbatim (verified against `tree-sitter-kotlin-ng`'s own
+   `node-types.json` for the `value_arguments`/`value_argument`/`string_literal` path-argument
+   shape), wired into `kotlin_function_like`'s existing per-function decorator scan.
+
+   Rust (actix/axum/rocket), Ruby (Sinatra/ActionDispatch), Elixir (Phoenix), and Scala
+   (akka-http/play) remain without route detection — **not a gap**, because none of their
+   idiomatic routing styles match the baseline's actual (narrow) decorator/annotation-name
+   mechanism: Sinatra/Phoenix/akka-http are call-DSL or macro-based, not decorator-based; Rocket
+   IS attribute-based (`#[get("/path")]`) but uses lowercase `get`/`post`, and
+   `annotation_route_method`'s own `strcmp` checks are case-sensitive against uppercase
+   `GET`/`POST` — so the baseline itself would not recognize Rocket's routes either. Extracting
+   these anyway would mean implementing behavior the baseline doesn't have, which is not what
+   parity means. 1 new test (`spring_mapping_annotation_records_a_route`).
 5. **Stage 5:** full parity re-verification per the "Full parity re-verification" section below,
    once Stages 1-4 land.
 
