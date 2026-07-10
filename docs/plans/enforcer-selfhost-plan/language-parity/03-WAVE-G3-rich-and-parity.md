@@ -83,17 +83,36 @@ Staging (Stage 1 done, see below; Stages 2-5 unchanged in shape, revised in expe
    likely zero-to-few additional languages get new edges from it today (most of Tier-3 that
    has real heritage syntax already had a quirk), but it's still correct architecture and
    directly benefits any future language onboarded without one.
-2. **Stage 2 (quirk walkers, worker-sized, now much smaller than first estimated):** spot-check
-   the handful of unconfirmed Tier-3 languages (Gleam, ReScript, QML) for real heritage syntax
-   this generic fallback might miss; everything else in Tier-3 is already covered or
-   legitimately N/A per the corrected scoping above.
-3. **Stage 3 (decorators):** verify the 18 languages with populated `decorator_types` actually
-   surface decorator edges end-to-end, the same rigorous per-language way Stage 1 was
-   corrected — don't trust a raw count again; wire the field for any Tier-3 language missing it.
-4. **Stage 4 (routes):** re-audit the real gap size first (same method as Stage 1's
-   correction), then port `service_patterns.c:315-377`'s library-name matching as a generic
-   layer over the import graph (not per-language quirks) so route edges appear for any
-   onboarded language whose imports name a known web framework.
+2. **Stage 2 — DONE (2026-07-09).** Spot-checked the 3 unconfirmed Tier-3 languages: **no real
+   gap found.** Gleam (`type_definition`/`type_alias` class_types — functional, no class-based
+   inheritance concept) and ReScript (`module_declaration`/`type_declaration` class_types —
+   same, OCaml-family module/type system) are legitimately N/A. QML already gets full heritage
+   coverage via `qml_quirk`'s `_ => ts_quirk(...)` delegation for class-shaped nodes — missed by
+   the earlier by-function-name grep since the `inherits.push` call physically lives inside
+   `ts_quirk`, not `qml_quirk` itself.
+3. **Stage 3 — DONE (2026-07-10).** Audited the 18 languages with populated `decorator_types`
+   the same rigorous way Stage 1 was corrected (cross-referencing which functions actually call
+   `out.decorates.push`, not a raw count). Real result: only 9 (Rust, TypeScript, Python, Java,
+   C#, PHP, GDScript, Apex, ReScript) plus QML (via the same `ts_quirk` delegation as Stage 2)
+   had real extraction — the other 8 (Kotlin, Swift, Dart, Scala, Groovy, Crystal, Cairo,
+   CFScript) had decorator/annotation syntax declared but zero extraction code. Fixed 7 of them
+   via 8 parallel grammar-research passes, each independently verified against the grammar's own
+   `node-types.json`/`grammar.js`, not guessed from cross-language convention — every language's
+   annotation shape turned out genuinely different (fields vs. fields-less, modifiers-wrapper
+   vs. direct-positional-child vs. prev-sibling; see the `40ce6c9` commit message for the full
+   per-language breakdown). The 8th, CFScript, was a confirmed **negative** finding: its
+   `decorator_types: &["decorator"]` was a vestigial copy-paste artifact from a shared JS/TS
+   grammar-generation script — the `decorator` node is TC39 `@Name` syntax unreachable from any
+   real ColdFusion construct — corrected to `&[]` rather than forcing a quirk onto nothing.
+   7 new tests, one per fixed language. Confirms `decorator_types` itself remains globally
+   unconsulted by the generic engine outside per-language quirks — same architectural shape as
+   inherits before Stage 1, and as routes below: there is no generic field-driven fallback for
+   decorators, only quirks/`on_method_defined` hooks per language.
+4. **Stage 4 (routes) — scoping in progress.** Re-audit the real gap size first (same
+   by-function-name method as Stages 1/3's corrections, not the original shallow grep), then
+   either implement directly (if the real gap is small, matching the Stage 1/3 pattern) or, if
+   it needs a genuinely new generic layer (porting `service_patterns.c:315-377`'s library-name
+   matching over the import graph), scope it fully before writing code.
 5. **Stage 5:** full parity re-verification per the "Full parity re-verification" section below,
    once Stages 1-4 land.
 
