@@ -264,3 +264,34 @@ fn fixture_file_parses_without_panic() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn annotated_class_and_function_record_decorates_edges() -> TestResult {
+    // language-parity wave G3 stage 3: Kotlin's `annotation` node has no
+    // fields at all -- its name bottoms out in a `user_type` child,
+    // either directly (bare `@Serializable`) or nested inside a
+    // `constructor_invocation` (`@Deprecated("old")`) -- and sits inside
+    // an unfielded `modifiers` wrapper child of the declaration it
+    // decorates.
+    let src = r#"
+@Serializable
+class Widget {
+    @Deprecated("old")
+    fun draw() {}
+}
+"#;
+    let parsed = parse_kotlin(src);
+    let class_edge = parsed
+        .decorates
+        .iter()
+        .find(|d| d.target_name == "Widget")
+        .ok_or("expected a DECORATES edge for Widget")?;
+    assert_eq!(class_edge.decorator_name, "Serializable");
+    let fn_edge = parsed
+        .decorates
+        .iter()
+        .find(|d| d.target_name == "draw")
+        .ok_or("expected a DECORATES edge for draw")?;
+    assert_eq!(fn_edge.decorator_name, "Deprecated");
+    Ok(())
+}

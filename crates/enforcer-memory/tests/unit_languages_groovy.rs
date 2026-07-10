@@ -282,3 +282,33 @@ fn fixture_file_parses_without_panic() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn annotated_class_and_method_record_decorates_edges() -> TestResult {
+    // language-parity wave G3 stage 3: Groovy's `marker_annotation`/
+    // `annotation` nodes both have a real `"name"` field (identical
+    // shape to Java's own annotation nodes) and sit inside an unfielded
+    // `modifiers` wrapper child of the class/method declaration they
+    // decorate.
+    let src = r#"
+@Deprecated
+class Widget {
+    @Override
+    def draw() {}
+}
+"#;
+    let parsed = parse_groovy(src);
+    let class_edge = parsed
+        .decorates
+        .iter()
+        .find(|d| d.target_name == "Widget")
+        .ok_or("expected a DECORATES edge for Widget")?;
+    assert_eq!(class_edge.decorator_name, "Deprecated");
+    let method_edge = parsed
+        .decorates
+        .iter()
+        .find(|d| d.target_name == "draw")
+        .ok_or("expected a DECORATES edge for draw")?;
+    assert_eq!(method_edge.decorator_name, "Override");
+    Ok(())
+}

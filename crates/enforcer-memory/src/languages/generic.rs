@@ -5318,6 +5318,13 @@ fn kotlin_function_like(
                 line,
             });
         }
+        for decorator_name in kotlin_annotations(node, src) {
+            out.decorates.push(crate::parsers::DecoratesRef {
+                target_name: name.clone(),
+                decorator_name,
+                line,
+            });
+        }
     } else if node.kind() == "secondary_constructor" {
         out.symbols.push(SymbolRef {
             name: String::new(),
@@ -5338,6 +5345,78 @@ fn kotlin_function_like(
         );
     }
     true
+}
+
+/// Kotlin's `annotation` node has no fields at all (`"fields": {}` in
+/// `tree-sitter-kotlin-ng`'s own `node-types.json`, confirmed via a real
+/// grammar check for wave G3 stage 3) -- its own name bottoms out in a
+/// `user_type` child, either directly (bare `@Foo`) or nested inside a
+/// `constructor_invocation` child (`@Foo(args)`, whose own children are
+/// `type` -> `user_type` + `value_arguments`, args deliberately not
+/// captured, matching every other language's name-only convention).
+fn kotlin_annotation_name(annotation_node: Node<'_>, src: &[u8]) -> Option<String> {
+    for i in 0..annotation_node.child_count() {
+        let child = annotation_node.child(i)?;
+        match child.kind() {
+            "user_type" => return kotlin_user_type_name(child, src),
+            "constructor_invocation" => {
+                for j in 0..child.child_count() {
+                    if let Some(inner) = child.child(j) {
+                        if inner.kind() == "user_type" {
+                            if let Some(name) = kotlin_user_type_name(inner, src) {
+                                return Some(name);
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// A `user_type` node's own leading `identifier` child -- also
+/// fields-less, per [`kotlin_annotation_name`]'s own doc comment.
+fn kotlin_user_type_name(user_type_node: Node<'_>, src: &[u8]) -> Option<String> {
+    for i in 0..user_type_node.child_count() {
+        if let Some(child) = user_type_node.child(i) {
+            if child.kind() == "identifier" {
+                return child.utf8_text(src).ok().map(str::to_string);
+            }
+        }
+    }
+    None
+}
+
+/// Kotlin's `annotation` sits inside an unfielded `modifiers` wrapper
+/// child of `class_declaration`/`function_declaration`/
+/// `property_declaration` (confirmed via a real grammar check, not a
+/// field the way Java's own annotation-bearing declarations expose it)
+/// -- mirrors [`java_annotations`]'s identical modifiers-wrapper scan
+/// shape, minus the `name` field Java's own `annotation` node has and
+/// Kotlin's does not (see [`kotlin_annotation_name`]).
+fn kotlin_annotations(node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    for i in 0..node.child_count() {
+        let Some(child) = node.child(i) else {
+            continue;
+        };
+        if child.kind() != "modifiers" {
+            continue;
+        }
+        for j in 0..child.child_count() {
+            let Some(modifier) = child.child(j) else {
+                continue;
+            };
+            if modifier.kind() == "annotation" {
+                if let Some(name) = kotlin_annotation_name(modifier, src) {
+                    out.push(name);
+                }
+            }
+        }
+    }
+    out
 }
 
 /// Kotlin's `class_declaration`/`object_declaration`/
@@ -5361,6 +5440,13 @@ fn kotlin_class_like(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
         out.inherits.push(InheritsRef {
             sub_name: name.clone(),
             super_name,
+            line,
+        });
+    }
+    for decorator_name in kotlin_annotations(node, src) {
+        out.decorates.push(crate::parsers::DecoratesRef {
+            target_name: name.clone(),
+            decorator_name,
             line,
         });
     }
@@ -5720,6 +5806,60 @@ pub fn parse_kotlin(source: &str) -> ParsedFile {
 /// (`SymbolKind::Class`) cannot express -- an `extension` (no
 /// dedicated `SymbolKind` variant exists for it) stays `Class`, same as
 /// a plain `class`/`actor`.
+/// Swift's `attribute` node has no fields at all (`"fields": {}` in
+/// `tree-sitter-swift`'s own `node-types.json`, confirmed via a real
+/// grammar check for wave G3 stage 3) -- its own name is its first
+/// named child (`user_type`), whose own first named child is the
+/// `type_identifier` holding the actual attribute name (`@objc` ->
+/// `attribute` -> `user_type` -> `type_identifier`("objc")).
+/// Call-style arguments (`@available(iOS 13, *)`) are additional
+/// unfielded children after the `user_type`, deliberately not captured
+/// here, matching every other language's name-only convention.
+fn swift_attribute_name(attribute_node: Node<'_>, src: &[u8]) -> Option<String> {
+    let user_type = (0..attribute_node.named_child_count())
+        .filter_map(|i| attribute_node.named_child(i))
+        .find(|n| n.kind() == "user_type")?;
+    let type_identifier = (0..user_type.named_child_count())
+        .filter_map(|i| user_type.named_child(i))
+        .find(|n| n.kind() == "type_identifier")?;
+    type_identifier.utf8_text(src).ok().map(str::to_string)
+}
+
+/// Swift's `attribute` sits inside an unfielded `modifiers` wrapper
+/// child of `class_declaration`/`function_declaration` (confirmed via a
+/// real grammar check: neither declaration's own `"fields"` map lists
+/// `modifiers`, only its `"children"` array does) -- mirrors
+/// [`java_annotations`]'s identical modifiers-wrapper scan shape, minus
+/// the `name` field Java's own annotation node has and Swift's
+/// `attribute` does not (see [`swift_attribute_name`]). Deliberately
+/// does NOT also scan bare `attribute` children directly on the
+/// declaration node itself -- those reach the declaration through a
+/// different, narrower grammar path (an inheritance-clause type or an
+/// `@escaping` parameter attribute), not a decorator on the
+/// declaration as a whole.
+fn swift_annotations(node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    for i in 0..node.child_count() {
+        let Some(child) = node.child(i) else {
+            continue;
+        };
+        if child.kind() != "modifiers" {
+            continue;
+        }
+        for j in 0..child.child_count() {
+            let Some(modifier) = child.child(j) else {
+                continue;
+            };
+            if modifier.kind() == "attribute" {
+                if let Some(name) = swift_attribute_name(modifier, src) {
+                    out.push(name);
+                }
+            }
+        }
+    }
+    out
+}
+
 fn swift_class_like(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
     let Some(name) = child_text(node, "name", src) else {
         return true;
@@ -5740,6 +5880,13 @@ fn swift_class_like(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
         out.inherits.push(InheritsRef {
             sub_name: name.clone(),
             super_name,
+            line,
+        });
+    }
+    for decorator_name in swift_annotations(node, src) {
+        out.decorates.push(crate::parsers::DecoratesRef {
+            target_name: name.clone(),
+            decorator_name,
             line,
         });
     }
@@ -6090,12 +6237,38 @@ fn swift_call_suffix_arg_texts(call_node: Node<'_>, suffix_kind: &str, src: &[u8
 /// extracts no Swift routes, so this generic-engine row correctly
 /// matches that by leaving `route_from_call` unwired rather than
 /// inventing a heuristic the baseline has no equivalent for.
+/// Function/method-level attribute DECORATES for a just-recorded
+/// Swift function symbol -- Swift's `function_declaration` is not
+/// claimed by [`swift_quirk`] (it falls through to the generic
+/// engine's own `func_types` branch), so its attributes are only
+/// reachable via [`Quirks::on_method_defined`], mirroring
+/// [`rust_on_method_defined`]'s posture for Rust's own attribute
+/// macros.
+fn swift_on_method_defined(
+    node: Node<'_>,
+    name: &str,
+    line: usize,
+    src: &[u8],
+    out: &mut ParsedFile,
+) {
+    if node.kind() != "function_declaration" {
+        return;
+    }
+    for decorator_name in swift_annotations(node, src) {
+        out.decorates.push(crate::parsers::DecoratesRef {
+            target_name: name.to_string(),
+            decorator_name,
+            line,
+        });
+    }
+}
+
 pub fn swift_quirks() -> Quirks {
     Quirks {
         on_unmatched_node: Some(Box::new(swift_quirk)),
         is_test_name: |_| false,
         route_from_call: None,
-        on_method_defined: None,
+        on_method_defined: Some(Box::new(swift_on_method_defined)),
         call_override: Some(Box::new(swift_call_override)),
     }
 }
@@ -6742,6 +6915,31 @@ fn dart_interfaces(class_node: Node<'_>, src: &[u8]) -> Vec<String> {
     out
 }
 
+/// `@override`/`@JsonSerializable(...)` -- Dart's `annotation` node has
+/// a real `"name"` field (unlike Kotlin/Swift's fields-less shape,
+/// confirmed via a real grammar check for wave G3 stage 3) and is a
+/// direct, unfielded, positional child of the
+/// `class_declaration`/`function_declaration`/`method_declaration` node
+/// it decorates (no `modifiers` wrapper the way Java/Kotlin/Groovy/
+/// Swift need). Call-style arguments (a separate unfielded
+/// `annotation_arguments` child) are deliberately not captured,
+/// matching every other language's name-only convention.
+fn dart_annotations(node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    for i in 0..node.child_count() {
+        let Some(child) = node.child(i) else {
+            continue;
+        };
+        if child.kind() != "annotation" {
+            continue;
+        }
+        if let Some(name) = child_text(child, "name", src) {
+            out.push(name);
+        }
+    }
+    out
+}
+
 /// A `function_declaration`/`method_declaration` node's own name --
 /// both wrap their name-bearing node one level deeper under a
 /// `signature` field (`function_signature` directly for
@@ -6863,6 +7061,13 @@ fn dart_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
                         line,
                     });
                 }
+                for decorator_name in dart_annotations(node, src) {
+                    out.decorates.push(crate::parsers::DecoratesRef {
+                        target_name: name.clone(),
+                        decorator_name,
+                        line,
+                    });
+                }
                 dart_walk_scoped_body(node, src, Some(name.as_str()), out);
             }
             true
@@ -6895,6 +7100,13 @@ fn dart_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
                 out.defines.push(DefinesRef {
                     container_name: container.to_string(),
                     member_name: name.clone(),
+                    line,
+                });
+            }
+            for decorator_name in dart_annotations(node, src) {
+                out.decorates.push(crate::parsers::DecoratesRef {
+                    target_name: name.clone(),
+                    decorator_name,
                     line,
                 });
             }
@@ -7103,6 +7315,31 @@ fn scala_import_path(node: Node<'_>, src: &[u8]) -> Option<String> {
 /// (a companion/singleton object) can ALSO carry an `extend` field
 /// (`object Foo extends Base`), so it is claimed here too for the same
 /// heritage reason, not because its own name resolution needs it.
+/// `@deprecated`/`@SerialVersionUID(1L)` -- Scala's `annotation` node
+/// has a real `"name"` field (a type node, e.g. `type_identifier`, per
+/// a real grammar check for wave G3 stage 3) and is a direct,
+/// unfielded, positional child of the `class_definition`/
+/// `function_definition` node it decorates, preceding the `class`/`def`
+/// keyword itself -- no `modifiers` wrapper the way Java/Kotlin/
+/// Groovy/Swift need. Call-style arguments (a repeated unfielded
+/// `arguments` child) are deliberately not captured, matching every
+/// other language's name-only convention.
+fn scala_annotations(node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    for i in 0..node.child_count() {
+        let Some(child) = node.child(i) else {
+            continue;
+        };
+        if child.kind() != "annotation" {
+            continue;
+        }
+        if let Some(name) = child_text(child, "name", src) {
+            out.push(name);
+        }
+    }
+    out
+}
+
 fn scala_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
     match node.kind() {
         "class_definition" | "trait_definition" | "object_definition" => {
@@ -7124,6 +7361,13 @@ fn scala_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
                 out.inherits.push(InheritsRef {
                     sub_name: name.clone(),
                     super_name: base,
+                    line,
+                });
+            }
+            for decorator_name in scala_annotations(node, src) {
+                out.decorates.push(crate::parsers::DecoratesRef {
+                    target_name: name.clone(),
+                    decorator_name,
                     line,
                 });
             }
@@ -7170,6 +7414,31 @@ fn scala_walk_scoped_body(
     }
 }
 
+/// Function/method-level annotation DECORATES for a just-recorded
+/// Scala function symbol -- `function_definition` is not claimed by
+/// [`scala_quirk`] (it falls through to the generic engine's own
+/// `func_types` branch), so its annotations are only reachable via
+/// [`Quirks::on_method_defined`], mirroring [`rust_on_method_defined`]'s
+/// posture for Rust's own attribute macros.
+fn scala_on_method_defined(
+    node: Node<'_>,
+    name: &str,
+    line: usize,
+    src: &[u8],
+    out: &mut ParsedFile,
+) {
+    if node.kind() != "function_definition" {
+        return;
+    }
+    for decorator_name in scala_annotations(node, src) {
+        out.decorates.push(crate::parsers::DecoratesRef {
+            target_name: name.to_string(),
+            decorator_name,
+            line,
+        });
+    }
+}
+
 /// Scala's [`Quirks`] row: class/trait/object heritage
 /// (`extends ... with ...` as INHERITS) + DEFINES-scoped body walk, and
 /// repeated-field import-path reconstruction.
@@ -7178,7 +7447,7 @@ pub fn scala_quirks() -> Quirks {
         on_unmatched_node: Some(Box::new(scala_quirk)),
         is_test_name: |_| false,
         route_from_call: None,
-        on_method_defined: None,
+        on_method_defined: Some(Box::new(scala_on_method_defined)),
         call_override: None,
     }
 }
@@ -7413,6 +7682,36 @@ fn groovy_call_override(
 /// qualified callee is a separate [`Quirks::call_override`] hook (see
 /// [`groovy_call_override`]), since neither needs anything this
 /// `on_unmatched_node` hook's node-kind dispatch could add.
+/// `@Deprecated`/`@Grab('...')` -- Groovy's `marker_annotation`
+/// (no-arg) and `annotation` (call-style) node kinds both have a real
+/// `"name"` field (confirmed via a real grammar check for wave G3 stage
+/// 3, byte-for-byte identical shape to Java's own annotation nodes,
+/// since this grammar mirrors Java's class/method syntax) sitting
+/// inside an unfielded `modifiers` wrapper child -- mirrors
+/// [`java_annotations`] exactly.
+fn groovy_annotations(node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    for i in 0..node.child_count() {
+        let Some(child) = node.child(i) else {
+            continue;
+        };
+        if child.kind() != "modifiers" {
+            continue;
+        }
+        for j in 0..child.child_count() {
+            let Some(modifier) = child.child(j) else {
+                continue;
+            };
+            if matches!(modifier.kind(), "marker_annotation" | "annotation") {
+                if let Some(name) = child_text(modifier, "name", src) {
+                    out.push(name);
+                }
+            }
+        }
+    }
+    out
+}
+
 fn groovy_quirk(
     node: Node<'_>,
     _enclosing: Option<&str>,
@@ -7449,6 +7748,13 @@ fn groovy_quirk(
                     out.implements.push(ImplementsRef {
                         type_name: name.clone(),
                         trait_name: interface_name,
+                        line,
+                    });
+                }
+                for decorator_name in groovy_annotations(node, src) {
+                    out.decorates.push(crate::parsers::DecoratesRef {
+                        target_name: name.clone(),
+                        decorator_name,
                         line,
                     });
                 }
@@ -7495,6 +7801,29 @@ fn groovy_walk_scoped_body(
     }
 }
 
+/// Method-level annotation DECORATES for a just-recorded Groovy method
+/// symbol -- `method_declaration` goes through the generic engine's own
+/// `method_types` branch (not claimed by [`groovy_quirk`]), so its
+/// annotations are only reachable via [`Quirks::on_method_defined`].
+fn groovy_on_method_defined(
+    node: Node<'_>,
+    name: &str,
+    line: usize,
+    src: &[u8],
+    out: &mut ParsedFile,
+) {
+    if node.kind() != "method_declaration" {
+        return;
+    }
+    for decorator_name in groovy_annotations(node, src) {
+        out.decorates.push(crate::parsers::DecoratesRef {
+            target_name: name.to_string(),
+            decorator_name,
+            line,
+        });
+    }
+}
+
 /// Groovy's [`Quirks`] row: dotted package Module symbol, class heritage
 /// (INHERITS/IMPLEMENTS) + DEFINES-scoped body walk, dotted/wildcard
 /// import paths, and full receiver-qualified callee reconstruction for
@@ -7504,7 +7833,7 @@ pub fn groovy_quirks() -> Quirks {
         on_unmatched_node: Some(Box::new(groovy_quirk)),
         is_test_name: |_| false,
         route_from_call: None,
-        on_method_defined: None,
+        on_method_defined: Some(Box::new(groovy_on_method_defined)),
         call_override: Some(Box::new(groovy_call_override)),
     }
 }
@@ -12169,6 +12498,46 @@ fn crystal_walk_scoped_body(node: Node<'_>, src: &[u8], name: &str, out: &mut Pa
     }
 }
 
+/// `@[Deprecated]`/`@[Serializable]` -- Crystal's `annotation` node has
+/// no fields at all (confirmed via a real grammar check for wave G3
+/// stage 3), so its own name is a positional `constant` child. Neither
+/// `class_def`/`struct_def`/`method_def` has an `annotation`
+/// field/child of its own either -- an annotation is simply the
+/// PREVIOUS STATEMENT in the enclosing `expressions` list, mirroring
+/// [`ts_preceding_decorators`]'s prev-sibling walk (not
+/// [`java_annotations`]'s wrapper-field scan: Crystal has no
+/// `modifiers` node at all).
+fn crystal_annotation_name(annotation_node: Node<'_>, src: &[u8]) -> Option<String> {
+    for i in 0..annotation_node.child_count() {
+        if let Some(child) = annotation_node.child(i) {
+            if child.kind() == "constant" {
+                return child.utf8_text(src).ok().map(str::to_string);
+            }
+        }
+    }
+    None
+}
+
+/// Walks `node`'s preceding siblings while they're `annotation` nodes,
+/// same shape as [`ts_preceding_decorators`] but with no
+/// `child_by_field_name("decorator")` first step (Crystal has no such
+/// field on any declaration node).
+fn crystal_preceding_annotations(node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut sibling = node.prev_sibling();
+    while let Some(candidate) = sibling {
+        if candidate.kind() != "annotation" {
+            break;
+        }
+        if let Some(name) = crystal_annotation_name(candidate, src) {
+            out.push(name);
+        }
+        sibling = candidate.prev_sibling();
+    }
+    out.reverse();
+    out
+}
+
 /// Everything Crystal's flat [`LangSpec`] arrays cannot express:
 /// `class_def`/`struct_def` INHERITS (from their own `superclass` field)
 /// + DEFINES-scoped body walk for all five `class_types` kinds,
@@ -12206,6 +12575,13 @@ fn crystal_quirk(
                     out.inherits.push(InheritsRef {
                         sub_name: name.clone(),
                         super_name,
+                        line,
+                    });
+                }
+                for decorator_name in crystal_preceding_annotations(node, src) {
+                    out.decorates.push(crate::parsers::DecoratesRef {
+                        target_name: name.clone(),
+                        decorator_name,
                         line,
                     });
                 }
@@ -12353,12 +12729,36 @@ fn crystal_call_override(
 /// `route_reg_libraries` table -- matches the identical Apex/Salesforce
 /// finding, a real baseline gap left unfilled per this wave's own
 /// "match, don't invent" mandate).
+/// Method-level annotation DECORATES for a just-recorded Crystal
+/// method symbol -- `method_def`/`abstract_method_def` go through the
+/// generic engine's own `method_types` branch (not claimed by
+/// [`crystal_quirk`]), so their annotations are only reachable via
+/// [`Quirks::on_method_defined`].
+fn crystal_on_method_defined(
+    node: Node<'_>,
+    name: &str,
+    line: usize,
+    src: &[u8],
+    out: &mut ParsedFile,
+) {
+    if !matches!(node.kind(), "method_def" | "abstract_method_def") {
+        return;
+    }
+    for decorator_name in crystal_preceding_annotations(node, src) {
+        out.decorates.push(crate::parsers::DecoratesRef {
+            target_name: name.to_string(),
+            decorator_name,
+            line,
+        });
+    }
+}
+
 pub fn crystal_quirks() -> Quirks {
     Quirks {
         on_unmatched_node: Some(Box::new(crystal_quirk)),
         is_test_name: |_| false,
         route_from_call: None,
-        on_method_defined: None,
+        on_method_defined: Some(Box::new(crystal_on_method_defined)),
         call_override: Some(Box::new(crystal_call_override)),
     }
 }
@@ -18003,6 +18403,50 @@ fn cairo_leading_identifier_name(node: Node<'_>, src: &[u8]) -> Option<String> {
 /// `LangSpec::cairo`'s own doc comment), so this claims naming and the
 /// scoped body walk directly (mirrors [`odin_quirk`]'s
 /// `procedure_declaration` arm).
+/// `#[external(v0)]`/`#[derive(Drop)]` -- Cairo's `attribute_item`
+/// (`#[...]`) node has no fields at all (confirmed via a real grammar
+/// check for wave G3 stage 3, identical shape to `tree-sitter-rust`'s
+/// own fields-less `attribute_item`), so its own name is a positional
+/// `identifier`/`scoped_identifier` child. Neither `function_definition`/
+/// `function_signature`/`struct_item` has an `attribute_item`
+/// field/child of its own either -- an attribute is simply the
+/// PREVIOUS SIBLING in the enclosing item list, exactly like
+/// [`rust_attribute_decorators`]'s own prev-sibling walk (this helper
+/// intentionally does not reuse `rust_attribute_decorators` itself: that
+/// helper reads the whole attribute's raw text and string-splits it,
+/// relying on Rust's specific `#[name(args)]`/`#[name]` textual shape,
+/// whereas Cairo's `attribute_item` exposes its name as a real child
+/// node -- reading that child directly is more robust than re-deriving
+/// the same information from text).
+fn cairo_attribute_name(attribute_node: Node<'_>, src: &[u8]) -> Option<String> {
+    for i in 0..attribute_node.child_count() {
+        if let Some(child) = attribute_node.child(i) {
+            if matches!(child.kind(), "identifier" | "scoped_identifier") {
+                return child.utf8_text(src).ok().map(str::to_string);
+            }
+        }
+    }
+    None
+}
+
+/// Walks `node`'s preceding siblings while they're `attribute_item`
+/// nodes -- see [`cairo_attribute_name`]'s own doc comment.
+fn cairo_preceding_attributes(node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut sibling = node.prev_sibling();
+    while let Some(candidate) = sibling {
+        if candidate.kind() != "attribute_item" {
+            break;
+        }
+        if let Some(name) = cairo_attribute_name(candidate, src) {
+            out.push(name);
+        }
+        sibling = candidate.prev_sibling();
+    }
+    out.reverse();
+    out
+}
+
 fn cairo_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
     match node.kind() {
         "function_definition" | "function_signature" => {
@@ -18014,6 +18458,13 @@ fn cairo_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
                     kind: SymbolKind::Function,
                     line,
                 });
+                for decorator_name in cairo_preceding_attributes(node, src) {
+                    out.decorates.push(crate::parsers::DecoratesRef {
+                        target_name: name.clone(),
+                        decorator_name,
+                        line,
+                    });
+                }
             }
             let fn_scope = FnScope {
                 name: name.as_deref(),
@@ -18024,6 +18475,32 @@ fn cairo_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
                 .find(|n| n.kind() == "block")
             {
                 cairo_walk_scoped(body, src, None, fn_scope, out);
+            }
+            true
+        }
+        // `struct_item` would otherwise fall through to the generic
+        // engine's own `class_types` fallback (`LangSpec::cairo`'s
+        // `class_types` lists it) -- claimed fully here purely to add
+        // the attribute scan the generic fallback has no hook for,
+        // replicating that fallback's own symbol-push + recurse shape
+        // exactly (real `"name"` field, `SymbolKind::Class`, scoped
+        // recursion) so this is a pure addition, not a behavior change.
+        "struct_item" => {
+            if let Some(name) = child_text(node, "name", src) {
+                let line = node.start_position().row + 1;
+                out.symbols.push(SymbolRef {
+                    name: name.clone(),
+                    kind: SymbolKind::Class,
+                    line,
+                });
+                for decorator_name in cairo_preceding_attributes(node, src) {
+                    out.decorates.push(crate::parsers::DecoratesRef {
+                        target_name: name.clone(),
+                        decorator_name,
+                        line,
+                    });
+                }
+                cairo_walk_scoped(node, src, Some(name.as_str()), FnScope::default(), out);
             }
             true
         }

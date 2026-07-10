@@ -7223,6 +7223,22 @@ impl LangSpec {
     ///   set/`program`) are all real, confirmed, kept from the shared
     ///   JS arrays unchanged, matching this baseline row's own explicit
     ///   "reuses the JS arrays" design.
+    /// - `decorator_types` is EMPTY, NOT `["decorator"]` (found and fixed
+    ///   during wave G3 stage 3's decorator-coverage audit): a `decorator`
+    ///   node kind does exist in this grammar's `node-types.json`, but
+    ///   it's TC39/JS-decorator syntax (`@Name`) inherited verbatim from
+    ///   the shared JS/TS grammar-generation script this dialect forks
+    ///   from -- it's only reachable from a JS object-literal
+    ///   `method_definition`/`field_definition`, which never occurs
+    ///   inside a real `component_body` (ColdFusion components parse as
+    ///   `component`, whose only children are `component_attribute`) nor
+    ///   from a real `function_declaration` statement. Confirmed
+    ///   unreachable from any actual CFScript/CFC construct via both the
+    ///   grammar's own field maps and zero references in
+    ///   `cfscript/queries/*.scm`. Real ColdFusion metadata (`component
+    ///   displayname="X" extends="Y" { }`) is `component_attribute`, a
+    ///   structurally unrelated node this row has no extraction need for
+    ///   today.
     pub const fn cfscript() -> Self {
         Self {
             name: "cfscript",
@@ -7253,7 +7269,10 @@ impl LangSpec {
                 "&&",
                 "||",
             ],
-            decorator_types: &["decorator"],
+            // See this const's own doc comment: EMPTY, not `["decorator"]`
+            // -- the grammar's `decorator` node is JS-decorator syntax
+            // unreachable from any real CFScript construct.
+            decorator_types: &[],
             name_field: "name",
             body_field: "body",
         }

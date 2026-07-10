@@ -146,6 +146,37 @@ fn parses_fixture_counter_without_panicking() -> TestResult {
 }
 
 #[test]
+fn attributed_function_and_struct_record_decorates_edges() -> TestResult {
+    // language-parity wave G3 stage 3: Cairo's `#[...]` `attribute_item`
+    // node has no fields at all -- its name is a positional
+    // `identifier`/`scoped_identifier` child -- and is simply the
+    // PREVIOUS SIBLING of the function/struct it decorates, not a field
+    // or wrapper (identical shape to `tree-sitter-rust`'s own
+    // `attribute_item`).
+    let src = r#"
+#[external(v0)]
+fn draw() {}
+
+#[derive(Drop)]
+struct Widget {}
+"#;
+    let parsed = parse_cairo(src);
+    let fn_edge = parsed
+        .decorates
+        .iter()
+        .find(|d| d.target_name == "draw")
+        .ok_or("expected a DECORATES edge for draw")?;
+    assert_eq!(fn_edge.decorator_name, "external");
+    let struct_edge = parsed
+        .decorates
+        .iter()
+        .find(|d| d.target_name == "Widget")
+        .ok_or("expected a DECORATES edge for Widget")?;
+    assert_eq!(struct_edge.decorator_name, "derive");
+    Ok(())
+}
+
+#[test]
 fn incremental_reindex_is_deterministic() {
     let src = "fn main() {\n    helper();\n}\n";
     let first = parse_cairo(src);

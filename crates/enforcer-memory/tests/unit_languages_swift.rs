@@ -260,3 +260,33 @@ fn fixture_file_parses_without_panic() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn attributed_class_and_function_record_decorates_edges() -> TestResult {
+    // language-parity wave G3 stage 3: Swift's `attribute` node has no
+    // fields at all -- its name is `named_child(0)` (`user_type`) ->
+    // `named_child(0)` (`type_identifier`) -- and sits inside an
+    // unfielded `modifiers` wrapper child of the declaration it
+    // decorates.
+    let src = r#"
+@MainActor
+class Widget {}
+
+@objc
+func draw() {}
+"#;
+    let parsed = parse_swift(src);
+    let class_edge = parsed
+        .decorates
+        .iter()
+        .find(|d| d.target_name == "Widget")
+        .ok_or("expected a DECORATES edge for Widget")?;
+    assert_eq!(class_edge.decorator_name, "MainActor");
+    let fn_edge = parsed
+        .decorates
+        .iter()
+        .find(|d| d.target_name == "draw")
+        .ok_or("expected a DECORATES edge for draw")?;
+    assert_eq!(fn_edge.decorator_name, "objc");
+    Ok(())
+}

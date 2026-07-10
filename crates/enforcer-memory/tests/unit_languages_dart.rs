@@ -283,3 +283,32 @@ fn fixture_file_parses_without_panic() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn annotated_class_and_method_record_decorates_edges() -> TestResult {
+    // language-parity wave G3 stage 3: Dart's `annotation` node has a
+    // real `"name"` field, and is a direct, unfielded, positional child
+    // of the class/method declaration it decorates (no `modifiers`
+    // wrapper).
+    let src = r#"
+@immutable
+class Widget {
+    @override
+    void draw() {}
+}
+"#;
+    let parsed = parse_dart(src);
+    let class_edge = parsed
+        .decorates
+        .iter()
+        .find(|d| d.target_name == "Widget")
+        .ok_or("expected a DECORATES edge for Widget")?;
+    assert_eq!(class_edge.decorator_name, "immutable");
+    let method_edge = parsed
+        .decorates
+        .iter()
+        .find(|d| d.target_name == "draw")
+        .ok_or("expected a DECORATES edge for draw")?;
+    assert_eq!(method_edge.decorator_name, "override");
+    Ok(())
+}

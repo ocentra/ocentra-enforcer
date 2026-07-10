@@ -350,3 +350,33 @@ fn fixture_file_parses_without_panic() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn annotated_class_and_method_record_decorates_edges() -> TestResult {
+    // language-parity wave G3 stage 3: Crystal's `@[...]` `annotation`
+    // node has no fields at all -- its name is a positional `constant`
+    // child -- and is simply the PREVIOUS SIBLING statement of the
+    // class/method it decorates, not a field or wrapper.
+    let src = r#"
+@[Serializable]
+class Widget
+  @[Deprecated]
+  def draw
+  end
+end
+"#;
+    let parsed = parse_crystal(src);
+    let class_edge = parsed
+        .decorates
+        .iter()
+        .find(|d| d.target_name == "Widget")
+        .ok_or("expected a DECORATES edge for Widget")?;
+    assert_eq!(class_edge.decorator_name, "Serializable");
+    let method_edge = parsed
+        .decorates
+        .iter()
+        .find(|d| d.target_name == "draw")
+        .ok_or("expected a DECORATES edge for draw")?;
+    assert_eq!(method_edge.decorator_name, "Deprecated");
+    Ok(())
+}
