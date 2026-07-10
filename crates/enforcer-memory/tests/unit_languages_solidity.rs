@@ -266,6 +266,65 @@ contract Widget is IWidget {
 }
 
 #[test]
+fn contract_inheritance_clause_records_an_inherits_edge() -> TestResult {
+    // language-parity wave G3 stage 1: `inheritance_specifier` is an
+    // unfielded repeated child of `contract_declaration` (confirmed via
+    // `tree-sitter-solidity`'s own `node-types.json`), so this was
+    // previously falling through to zero INHERITS edges.
+    let src = r#"
+contract Base {}
+
+contract Widget is Base {
+    function draw() external {}
+}
+"#;
+    let parsed = parse_solidity(src);
+    let edge = parsed
+        .inherits
+        .iter()
+        .find(|i| i.sub_name == "Widget")
+        .ok_or("expected an INHERITS edge for Widget")?;
+    assert_eq!(edge.super_name, "Base");
+    Ok(())
+}
+
+#[test]
+fn contract_with_multiple_bases_and_constructor_args_records_every_ancestor() {
+    let src = r#"
+contract Widget is Base1, Base2(42) {
+    function draw() external {}
+}
+"#;
+    let parsed = parse_solidity(src);
+    let supers: Vec<&str> = parsed
+        .inherits
+        .iter()
+        .filter(|i| i.sub_name == "Widget")
+        .map(|i| i.super_name.as_str())
+        .collect();
+    assert_eq!(supers, vec!["Base1", "Base2"], "{:?}", parsed.inherits);
+}
+
+#[test]
+fn interface_extending_another_interface_records_an_inherits_edge() -> TestResult {
+    let src = r#"
+interface IBase {}
+
+interface IWidget is IBase {
+    function draw() external;
+}
+"#;
+    let parsed = parse_solidity(src);
+    let edge = parsed
+        .inherits
+        .iter()
+        .find(|i| i.sub_name == "IWidget")
+        .ok_or("expected an INHERITS edge for IWidget")?;
+    assert_eq!(edge.super_name, "IBase");
+    Ok(())
+}
+
+#[test]
 fn malformed_source_does_not_panic() {
     let parsed = parse_solidity("contract ( { this is not valid solidity @@@");
     let _ = parsed;

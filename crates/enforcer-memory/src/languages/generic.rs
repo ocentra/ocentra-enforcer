@@ -300,6 +300,13 @@ fn walk(
                 kind: generic_kind,
                 line,
             });
+            for super_name in generic_base_class_names(node, ctx.src) {
+                out.inherits.push(InheritsRef {
+                    sub_name: name.clone(),
+                    super_name,
+                    line,
+                });
+            }
             walk_children(node, ctx, out, Some(name.as_str()), fn_scope);
             return;
         }
@@ -532,6 +539,100 @@ fn child_text(node: Node<'_>, field: &str, src: &[u8]) -> Option<String> {
     node.child_by_field_name(field)
         .and_then(|n| n.utf8_text(src).ok())
         .map(str::to_string)
+}
+
+/// Generic fallback for INHERITS edges on a class/struct/interface node
+/// that no per-language `on_unmatched_node` quirk has already claimed --
+/// ports the baseline's own `extract_base_classes` generic tier
+/// (`codebase-memory-mcp/internal/cbm/extract_defs.c:2540-2576`, the
+/// path reached only after every language-specific special case --
+/// TS/PHP/Kotlin/Squirrel/Julia/F#/D/PowerShell/Pascal/C++/C# -- has
+/// already had its shot at claiming the node). Checks the baseline's own
+/// field-name list first (`superclass`, `superclasses`,
+/// `superinterfaces`, `interfaces`, `bases`, `type_inheritance_clause`,
+/// `delegation_specifiers`), then two named-child kinds some grammars
+/// expose without a field at all (`extends_interfaces`,
+/// `super_interfaces` -- Java's `interface X extends A, B` shape).
+/// Deliberately does not distinguish INHERITS from IMPLEMENTS: the
+/// baseline's own `base_classes` is a single flat list at this generic
+/// tier -- that split only exists in the per-language quirks, which
+/// never reach this function (they return `true` from
+/// `on_unmatched_node` and short-circuit `walk`'s class_types branch
+/// before this runs). Most languages with real class-style inheritance
+/// syntax already have a dedicated quirk from an earlier onboarding
+/// wave; this exists so a language onboarded in the future with no
+/// quirk at all still gets INHERITS edges for free when its grammar
+/// happens to use one of these common field/child names, matching the
+/// baseline's own fallback-of-last-resort posture.
+fn generic_base_class_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
+    const DIRECT_TYPE_KINDS: &[&str] = &[
+        "type_identifier",
+        "generic_type",
+        "qualified_name",
+        "scoped_type_identifier",
+        "user_type",
+    ];
+    const CHILD_TYPE_KINDS: &[&str] = &[
+        "type_identifier",
+        "generic_type",
+        "qualified_name",
+        "scoped_type_identifier",
+        "user_type",
+        "identifier",
+        "attribute",
+    ];
+
+    fn extract_text(candidate: Node<'_>, src: &[u8], out: &mut Vec<String>) {
+        if let Ok(text) = candidate.utf8_text(src) {
+            let text = text.split('<').next().unwrap_or(text).trim().to_string();
+            if !text.is_empty() {
+                out.push(text);
+            }
+        }
+    }
+
+    fn collect_from_field_node(field_node: Node<'_>, src: &[u8], out: &mut Vec<String>) {
+        if DIRECT_TYPE_KINDS.contains(&field_node.kind()) {
+            extract_text(field_node, src, out);
+            return;
+        }
+        for i in 0..field_node.named_child_count() {
+            if let Some(child) = field_node.named_child(i) {
+                if CHILD_TYPE_KINDS.contains(&child.kind()) {
+                    extract_text(child, src, out);
+                }
+            }
+        }
+    }
+
+    const HERITAGE_FIELDS: &[&str] = &[
+        "superclass",
+        "superclasses",
+        "superinterfaces",
+        "interfaces",
+        "bases",
+        "type_inheritance_clause",
+        "delegation_specifiers",
+    ];
+    let mut bases = Vec::new();
+    for field in HERITAGE_FIELDS {
+        if let Some(field_node) = node.child_by_field_name(field) {
+            collect_from_field_node(field_node, src, &mut bases);
+        }
+    }
+    if !bases.is_empty() {
+        return bases;
+    }
+
+    const HERITAGE_CHILD_KINDS: &[&str] = &["extends_interfaces", "super_interfaces"];
+    for i in 0..node.child_count() {
+        if let Some(child) = node.child(i) {
+            if HERITAGE_CHILD_KINDS.contains(&child.kind()) {
+                collect_from_field_node(child, src, &mut bases);
+            }
+        }
+    }
+    bases
 }
 
 /// HTTP methods recognized in route-registration calls -- shared by
@@ -6051,7 +6152,14 @@ fn solidity_using_directive_library_name(node: Node<'_>, src: &[u8]) -> Option<S
 /// generic engine's own default import handling is recursion-only, by
 /// design -- see [`walk`]'s `import_types` branch doc comment -- so a
 /// language wanting real IMPORTS edges out of it supplies exactly this
-/// kind of quirk, same as every other language row that has one).
+/// kind of quirk, same as every other language row that has one), and
+/// `contract`/`interface` heritage (`contract Foo is Bar, Baz(args)`):
+/// confirmed via `tree-sitter-solidity`'s own `node-types.json` that
+/// `inheritance_specifier` is an unfielded repeated child of
+/// `contract_declaration`/`interface_declaration` (not a named field
+/// the generic engine's own [`generic_base_class_names`] fallback would
+/// ever find), so this claims both node kinds directly rather than
+/// leaving them to fall through with zero INHERITS edges.
 /// Wired as this row's [`Quirks::on_unmatched_node`] hook.
 fn solidity_quirk(
     node: Node<'_>,
@@ -6078,7 +6186,77 @@ fn solidity_quirk(
             }
             true
         }
+        "contract_declaration" | "interface_declaration" => {
+            if let Some(name) = child_text(node, "name", src) {
+                let line = node.start_position().row + 1;
+                let symbol_kind = if node.kind() == "interface_declaration" {
+                    SymbolKind::Interface
+                } else {
+                    SymbolKind::Class
+                };
+                out.symbols.push(SymbolRef {
+                    name: name.clone(),
+                    kind: symbol_kind,
+                    line,
+                });
+                for super_name in solidity_inheritance_specifier_names(node, src) {
+                    out.inherits.push(InheritsRef {
+                        sub_name: name.clone(),
+                        super_name,
+                        line,
+                    });
+                }
+                solidity_walk_scoped(node, src, Some(name.as_str()), out);
+            }
+            true
+        }
         _ => false,
+    }
+}
+
+/// `contract Foo is Bar, Baz(args) { ... }` -- `inheritance_specifier`
+/// carries the base name in its own `ancestor` field (`user_defined_type`,
+/// per `tree-sitter-solidity`'s `node-types.json`); constructor-call
+/// arguments (`ancestor_arguments`) are ignored, matching every other
+/// language's heritage extraction (base *name* only, no constructor args).
+fn solidity_inheritance_specifier_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    for i in 0..node.child_count() {
+        let Some(child) = node.child(i) else {
+            continue;
+        };
+        if child.kind() != "inheritance_specifier" {
+            continue;
+        }
+        if let Some(ancestor) = child.child_by_field_name("ancestor") {
+            if let Ok(text) = ancestor.utf8_text(src) {
+                out.push(text.to_string());
+            }
+        }
+    }
+    out
+}
+
+/// Re-walks a `contract_declaration`/`interface_declaration`'s own
+/// children with `enclosing` set to its own name -- claiming the node
+/// via `on_unmatched_node` (returning `true`) skips `walk`'s own
+/// `walk_children` call, so nested function/field defs need this
+/// manual re-entry into the generic walker, same pattern as every
+/// other language quirk that fully claims its class-shaped node (e.g.
+/// [`py_walk_scoped_body`]).
+fn solidity_walk_scoped(node: Node<'_>, src: &[u8], name: Option<&str>, out: &mut ParsedFile) {
+    let spec = LangSpec::solidity();
+    let quirks = solidity_quirks();
+    let ctx = Ctx {
+        spec: &spec,
+        src,
+        quirks: &quirks,
+        is_test_file: false,
+    };
+    for i in 0..node.child_count() {
+        if let Some(child) = node.child(i) {
+            walk(child, &ctx, out, name, FnScope::default());
+        }
     }
 }
 
