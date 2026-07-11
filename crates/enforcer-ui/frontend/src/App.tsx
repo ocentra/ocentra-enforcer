@@ -41,7 +41,7 @@ type ProjectInspectionPayload = {
   branch?: string;
   detectedLanguages: string[];
 };
-type GraphSearchPayload = { total: number; hasMore: boolean; results: Array<{ nodeId: string; name: string; qualifiedName: string; label: string; filePath: string; rank?: number }> };
+type GraphSearchPayload = { total: number; hasMore: boolean; query: string; projectScope: string; results: Array<{ nodeId: string; name: string; qualifiedName: string; label: string; filePath: string; evidenceKind: "code-graph" | "learning-memory" | "proof-artifact"; rank?: string }> };
 type ProofArtifactPayload = { path: string; modifiedAt: string; bytes: number };
 type ProjectProofSnapshot = {
   proofRoot: string;
