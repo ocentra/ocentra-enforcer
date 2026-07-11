@@ -1,1 +1,1 @@
-b02 bonus proof: scanned 113 live workpacks under docs/plans/enforcer-selfhost-plan/workpacks/, found 96 PLAN-* finding(s) (reported read-only; not fixed by this pack).
+b02 bonus proof: scanned 115 live workpacks under docs/plans/enforcer-selfhost-plan/workpacks/, found 99 PLAN-* finding(s) (reported read-only; not fixed by this pack).

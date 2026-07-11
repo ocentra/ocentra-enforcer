@@ -103,6 +103,7 @@ fn checked_in_kg_parity_counts_match_rows_without_fake_green() -> TestResult {
     assert_eq!(parity["tools_total"], 23);
     assert_eq!(parity["tools_worse"], 0);
     assert_eq!(parity["tools_unrunnable"], 0);
+    assert_eq!(parity["tools_incomparable"], 0);
 
     let rows = parity["rows"]
         .as_array()
@@ -130,9 +131,43 @@ fn checked_in_kg_parity_counts_match_rows_without_fake_green() -> TestResult {
         );
     }
 
-    assert_eq!(counts.get("equal").copied().unwrap_or_default(), 18);
-    assert_eq!(counts.get("better").copied().unwrap_or_default(), 3);
-    assert_eq!(counts.get("incomparable").copied().unwrap_or_default(), 2);
+    assert_eq!(counts.get("equal").copied().unwrap_or_default(), 16);
+    assert_eq!(counts.get("better").copied().unwrap_or_default(), 7);
+    assert_eq!(counts.get("incomparable").copied().unwrap_or_default(), 0);
     assert_eq!(counts.values().sum::<u64>(), 23);
+
+    let similarity = rows
+        .iter()
+        .find(|row| row["tool"].as_str() == Some("get_graph_schema(similarity)"))
+        .ok_or("missing get_graph_schema(similarity) parity row")?;
+    assert_eq!(similarity["comparison_verdict"], "better");
+    assert!(
+        similarity["better_because"]
+            .as_str()
+            .map(|text| {
+                text.contains("fp/k")
+                    && text.contains("body-shingle")
+                    && text.contains("identifier-token")
+            })
+            .unwrap_or(false),
+        "similarity row must prove persisted baseline-compatible MinHash plus Rust-native signals"
+    );
+
+    let cross_repo = rows
+        .iter()
+        .find(|row| row["tool"].as_str() == Some("index_repository(cross-repo-intelligence)"))
+        .ok_or("missing index_repository(cross-repo-intelligence) parity row")?;
+    assert_eq!(cross_repo["comparison_verdict"], "better");
+    assert!(
+        cross_repo["better_because"]
+            .as_str()
+            .map(|text| {
+                text.contains("Route/HTTP_CALLS")
+                    && text.contains("Channel")
+                    && text.contains("LiteralUrl")
+            })
+            .unwrap_or(false),
+        "cross-repo row must prove live baseline Route/Channel parity plus Rust literal URL reach"
+    );
     Ok(())
 }

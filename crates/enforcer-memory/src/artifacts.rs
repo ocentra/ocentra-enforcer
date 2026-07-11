@@ -213,6 +213,18 @@ pub struct GraphSymbolSnapshot {
     pub name: String,
     pub file_id: String,
     pub line: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_body_fingerprint: Option<GraphSourceBodyFingerprintSnapshot>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GraphSourceBodyFingerprintSnapshot {
+    pub source_hash: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fp: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub k: Option<usize>,
+    pub body_grams: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -389,6 +401,14 @@ fn symbol_snapshot(
         name: s.name.clone(),
         file_id: s.file_id.clone(),
         line: s.line,
+        source_body_fingerprint: s.source_body_fingerprint.as_ref().map(|fp| {
+            GraphSourceBodyFingerprintSnapshot {
+                source_hash: fp.source_hash.clone(),
+                fp: fp.fp.clone(),
+                k: fp.k,
+                body_grams: fp.body_grams.iter().cloned().collect(),
+            }
+        }),
     }
 }
 

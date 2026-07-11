@@ -18,6 +18,9 @@
 //! - [`version_drift`] — d13: detects when a rule record's declared
 //!   `version` is out of sync with a change to its validator/fixtures/
 //!   doc-anchor, so a rule cannot silently drift from its parity artifacts.
+//! - [`waiver`] — a path-and-rule-scoped, typed exception registry. It is
+//!   deliberately separate from `enforcer-config`'s project-wide rule
+//!   toggles: a waiver can only suppress one known rule for one exact file.
 //!
 //! It also SHIPS the baseline T1 rule records under `rules/**`: the
 //! `[workspace.lints]` deny-wall (rules-as-data mirror of the deny set
@@ -42,6 +45,7 @@ pub mod loader;
 pub mod registry;
 pub mod rules;
 pub mod version_drift;
+pub mod waiver;
 
 /// Load-time / structural failure for the rule registry.
 #[derive(Debug, thiserror::Error, PartialEq, Eq, Clone)]

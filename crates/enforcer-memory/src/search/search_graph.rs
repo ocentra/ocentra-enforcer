@@ -208,6 +208,7 @@ impl SearchGraphSpec {
 /// One `results`/`semantic_results` row.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SearchGraphHit {
+    pub node_id: String,
     pub name: String,
     pub qualified_name: String,
     pub label: &'static str,
@@ -448,6 +449,7 @@ fn run_bm25(
         .skip(offset)
         .take(limit)
         .map(|(n, score)| SearchGraphHit {
+            node_id: n.node_id.to_owned(),
             name: n.name.to_owned(),
             qualified_name: n.qualified_name,
             label: n.label.as_str(),
@@ -551,6 +553,7 @@ fn run_regex_mode(
                 None
             };
             SearchGraphHit {
+                node_id: n.node_id.to_owned(),
                 name: n.name.to_owned(),
                 qualified_name: n.qualified_name,
                 label: n.label.as_str(),
@@ -765,6 +768,7 @@ fn run_semantic(
         .filter_map(|(node_id, score)| {
             let node = by_id.get(node_id.as_str())?;
             Some(SearchGraphHit {
+                node_id: node.node_id.to_owned(),
                 name: node.name.to_owned(),
                 qualified_name: node.qualified_name.clone(),
                 label: node.label.as_str(),

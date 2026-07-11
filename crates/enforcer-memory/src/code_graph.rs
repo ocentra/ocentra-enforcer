@@ -34,8 +34,12 @@
 //! per the file-ownership split with X06.1.
 
 use crate::git::GitMetadata;
+mod fingerprint;
+
+pub use fingerprint::SourceBodyFingerprint;
+
 use crate::parsers::{self, Language, ParsedFile};
-use sha2::{Digest, Sha256};
+use fingerprint::{hash_bytes, source_body_fingerprints_for_symbols};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -146,6 +150,11 @@ pub struct SymbolNode {
     /// populated by a post-index pass over the whole repo's call graph
     /// once every symbol id is known. `None` until that pass runs.
     pub transitive_metrics: Option<crate::complexity::TransitiveMetrics>,
+    /// Baseline-compatible source/body fingerprint evidence for
+    /// `SIMILAR_TO`: deterministic shingles over the callable body text
+    /// recovered during indexing. `None` when no source body can be
+    /// recovered, such as Store projections without source text.
+    pub source_body_fingerprint: Option<SourceBodyFingerprint>,
 }
 
 /// A file that was indexed in a previous run and is no longer present.
@@ -1292,6 +1301,14 @@ impl CodeGraph {
                 // which recomputes them fresh (see `insert_file_and_chunks`).
                 metrics: None,
                 transitive_metrics: None,
+                source_body_fingerprint: symbol.source_body_fingerprint.as_ref().map(|fp| {
+                    SourceBodyFingerprint {
+                        source_hash: fp.source_hash.clone(),
+                        fp: fp.fp.clone(),
+                        k: fp.k,
+                        body_grams: fp.body_grams.iter().cloned().collect(),
+                    }
+                }),
             };
             self.nodes.push(match symbol.kind {
                 crate::artifacts::GraphSymbolKindSnapshot::Function => CodeNode::Function(node),
@@ -1613,6 +1630,9 @@ impl CodeGraph {
                     crate::complexity::metrics_for_symbols(lang, text, &names)
                 })
                 .unwrap_or_default();
+            let fingerprints_by_symbol = text
+                .map(|text| source_body_fingerprints_for_symbols(text, &parsed.symbols))
+                .unwrap_or_default();
 
             for symbol in &parsed.symbols {
                 let sym_id = format!("sym:{rel_path}:{}:{}", symbol.line, symbol.name);
@@ -1626,6 +1646,9 @@ impl CodeGraph {
                     line: symbol.line,
                     metrics,
                     transitive_metrics: None,
+                    source_body_fingerprint: fingerprints_by_symbol
+                        .get(&(symbol.name.clone(), symbol.line))
+                        .cloned(),
                 };
                 sym_id_by_name.insert(symbol.name.clone(), sym_id.clone());
                 self.nodes.push(match symbol.kind {
@@ -1921,6 +1944,7 @@ fn symbol_node_from_projection_id(node_id: &str) -> SymbolNode {
         line,
         metrics: None,
         transitive_metrics: None,
+        source_body_fingerprint: None,
     }
 }
 
@@ -2462,17 +2486,6 @@ fn complexity_language(language: Language) -> Option<crate::complexity::Complexi
         | Language::ConfigYaml
         | Language::TextOnly => None,
     }
-}
-
-fn hash_bytes(bytes: &[u8]) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    let digest = hasher.finalize();
-    let mut out = String::with_capacity(digest.len() * 2);
-    for byte in digest {
-        out.push_str(&format!("{byte:02x}"));
-    }
-    out
 }
 
 fn normalize_rel_path(repo_root: &Path, path: &Path) -> Result<String, IndexError> {

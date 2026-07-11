@@ -19,6 +19,7 @@ use crate::error::{CoordinationError, Result};
 /// not inside every event read, matching the workpack's own note that
 /// context is opaque/`Schema.Unknown` in the JS source.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct HubEvent {
     pub id: String,
     pub schema: u32,
@@ -350,5 +351,42 @@ mod tests {
         let mut tampered = completed;
         tampered.reason = Some("tampered".into());
         assert!(assert_event_hash(&tampered).is_err());
+    }
+
+    #[test]
+    fn legacy_camel_case_stream_event_decodes_and_retains_its_wire_hash(
+    ) -> std::result::Result<(), Box<dyn std::error::Error>> {
+        let raw = serde_json::json!({
+            "id": "evt_099919a29a5e422b839b850265207b1b",
+            "schema": 1,
+            "hub": "ocentra-enforcer",
+            "nodeId": "node_7450523d7490414f86992de67525c1c2",
+            "nodeName": "GameDev",
+            "lane": "codex-a",
+            "writer": "node_7450523d7490414f86992de67525c1c2.codex-a",
+            "type": "claim",
+            "ts": "2026-07-01T06:42:40.372Z",
+            "seq": 1,
+            "prevEventId": null,
+            "prevHash": null,
+            "hash": "sha256:33b3162802c03d2e780d429d12e2711e80d91beeff2c3db70f8d9c3c53c10602",
+            "paths": ["scripts/test/portal-e2e-runner.test.mjs"],
+            "reason": "proof migration fix portal tooling profile reference",
+            "context": {
+                "projectId": "ocentra-OcentraParent",
+                "branch": "codex/tracking-plan-full-continuation-a"
+            }
+        });
+
+        let event: HubEvent = serde_json::from_value(raw)?;
+        let rendered = serde_json::to_value(&event)?;
+
+        assert_eq!(
+            rendered.get("nodeId").and_then(Value::as_str),
+            Some("node_7450523d7490414f86992de67525c1c2")
+        );
+        assert_eq!(rendered.get("node_id"), None);
+        assert_event_hash(&event)?;
+        Ok(())
     }
 }
