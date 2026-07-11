@@ -1,9 +1,9 @@
 {
   "baseline_executed": true,
-  "baseline_binary_path": "C:\\Users\\sujan\\AppData\\Local\\Programs\\codebase-memory-mcp\\codebase-memory-mcp.exe",
+  "baseline_binary_path": "C:\\Users\\sujan.mishra\\AppData\\Local\\Programs\\codebase-memory-mcp\\codebase-memory-mcp.exe",
   "tools_total": 23,
-  "tools_equal": 16,
-  "tools_better": 7,
+  "tools_equal": 15,
+  "tools_better": 8,
   "tools_worse": 0,
   "tools_incomparable": 0,
   "tools_unrunnable": 0,
@@ -16,8 +16,8 @@
         "compared by named-symbol-set containment, not byte-identical JSON shape (schemas intentionally differ)",
         "baseline delete_project run against a second, throwaway indexed project distinct from ctx.baseline_project (so other rows' project is left intact); candidate projects::delete_project run against a separate throwaway Store populated via the same graph-event-log write path compare_list_projects/compare_index_status use -- both sides compared on report-deleted-success AND actual-removal-verified, not report alone"
       ],
-      "baseline_latency_ms": 21.6985,
-      "candidate_latency_ms": 159.1204
+      "baseline_latency_ms": 20.4923,
+      "candidate_latency_ms": 246.3481
     },
     {
       "tool": "detect_changes",
@@ -29,8 +29,8 @@
         "both sides fed an empty changed-file list (fixture repo has no uncommitted diff); this row only checks the zero-change shape, not a real diff comparison",
         "baseline detect_changes exited without parseable JSON on the clean fixture while candidate returned the deterministic zero-change view; raw baseline stderr/stdout is recorded in tool-results.ndjson"
       ],
-      "baseline_latency_ms": 47.0364,
-      "candidate_latency_ms": 0.004
+      "baseline_latency_ms": 66.9846,
+      "candidate_latency_ms": 0.0037
     },
     {
       "tool": "get_architecture(clusters)",
@@ -40,8 +40,8 @@
         "compared by named-symbol-set containment, not byte-identical JSON shape (schemas intentionally differ)",
         "compared presence of non-empty clusters data on both sides, not exact node/edge counts (candidate re-derives every metric from its own graph model per MEMORY_RETRIEVAL_BORROW_POLICY, never ports the baseline's SQL)"
       ],
-      "baseline_latency_ms": 20.977800000000002,
-      "candidate_latency_ms": 0.5825
+      "baseline_latency_ms": 40.8038,
+      "candidate_latency_ms": 0.5934999999999999
     },
     {
       "tool": "get_architecture(overview)",
@@ -51,8 +51,8 @@
         "compared by named-symbol-set containment, not byte-identical JSON shape (schemas intentionally differ)",
         "compared presence of non-empty overview data on both sides, not exact node/edge counts (candidate re-derives every metric from its own graph model per MEMORY_RETRIEVAL_BORROW_POLICY, never ports the baseline's SQL)"
       ],
-      "baseline_latency_ms": 19.5001,
-      "candidate_latency_ms": 0.3116
+      "baseline_latency_ms": 40.712900000000005,
+      "candidate_latency_ms": 1.2368
     },
     {
       "tool": "get_code_snippet",
@@ -63,8 +63,8 @@
         "compared by named-symbol-set containment, not byte-identical JSON shape (schemas intentionally differ)",
         "candidate get_code_snippet additionally returns a sha256 hash the baseline has no equivalent field for (documented enforcer-native improvement, not a divergence to penalize)"
       ],
-      "baseline_latency_ms": 20.8995,
-      "candidate_latency_ms": 0.2569
+      "baseline_latency_ms": 28.0963,
+      "candidate_latency_ms": 0.7634
     },
     {
       "tool": "get_graph_schema",
@@ -74,8 +74,8 @@
         "compared by named-symbol-set containment, not byte-identical JSON shape (schemas intentionally differ)",
         "compared node-label VOCABULARY (label name set), not per-label counts (schemas' base column sets differ)"
       ],
-      "baseline_latency_ms": 20.8876,
-      "candidate_latency_ms": 0.2339
+      "baseline_latency_ms": 34.7709,
+      "candidate_latency_ms": 0.3543
     },
     {
       "tool": "get_graph_schema(rich_vocab)",
@@ -86,8 +86,8 @@
         "compared by named-symbol-set containment, not byte-identical JSON shape (schemas intentionally differ)",
         "compared rich-vocabulary PRESENCE (Interface-or-Trait/Struct/Method labels; at least one of INHERITS/IMPLEMENTS/TYPE_REF/DEFINES edge rows on the baseline side, all four required on the candidate side), not per-row counts -- the two extractors derive node/edge sets from independent parsers"
       ],
-      "baseline_latency_ms": 16.4443,
-      "candidate_latency_ms": 0.0539
+      "baseline_latency_ms": 20.7626,
+      "candidate_latency_ms": 0.057800000000000004
     },
     {
       "tool": "get_graph_schema(similarity)",
@@ -100,8 +100,8 @@
         "candidate is required to emit the baseline-compatible persisted 64-slot MinHash SIMILAR_TO plus two additive Rust signals: BODY_SHINGLE_SIMILAR_TO and RUST_IDENTIFIER_SIMILAR_TO; all preserve the 0.95 threshold, same-extension gate, 10-edge cap, and ordered-pair dedup",
         "SEMANTICALLY_RELATED recorded, not graded: baseline_present=false, candidate_count=0 because the two systems use different semantic-combination models"
       ],
-      "baseline_latency_ms": 17.4532,
-      "candidate_latency_ms": 0.5431
+      "baseline_latency_ms": 21.988899999999997,
+      "candidate_latency_ms": 0.5268
     },
     {
       "tool": "index_repository",
@@ -111,8 +111,8 @@
         "compared by named-symbol-set containment, not byte-identical JSON shape (schemas intentionally differ)",
         "compared indexing SUCCESS plus node/edge-count-nonzero presence on both sides, not exact counts -- the baseline's SQLite-backed graph and the candidate's in-memory CodeGraph derive node/edge sets from independent schemas (e.g. baseline may add synthetic project/root nodes the candidate does not), so absolute counts are not a meaningful equality bar"
       ],
-      "baseline_latency_ms": 305.3869,
-      "candidate_latency_ms": 0.001
+      "baseline_latency_ms": 269.95390000000003,
+      "candidate_latency_ms": 0.0009
     },
     {
       "tool": "index_repository(cross-repo-intelligence)",
@@ -123,19 +123,20 @@
         "compared by named-symbol-set containment, not byte-identical JSON shape (schemas intentionally differ)",
         "baseline parity is graded on its documented Route/HTTP_CALLS and Channel surfaces, each requiring a live baseline edge and equivalent Rust evidence. Async broker, gRPC, GraphQL, and tRPC are separately required Rust protocol signals covered by the same fixture and focused unit tests; bare-fetch LiteralUrl remains additive and cannot satisfy Route or Channel parity"
       ],
-      "baseline_latency_ms": 546.5899000000001,
-      "candidate_latency_ms": 45.953300000000006
+      "baseline_latency_ms": 362.7982,
+      "candidate_latency_ms": 82.8073
     },
     {
       "tool": "index_repository(multi_language)",
-      "comparison_verdict": "equal",
+      "comparison_verdict": "better",
+      "better_because": "candidate extracted every per-language symbol; baseline search_graph could not find [\"Sample.astro\", \"other.beancount\", \"sample.bib\", \"do_compile\", \"sample.blade.php\", \"foo.css\", \"sample.csv\", \"board-common.dtsi\", \"diff\", \"Dockerfile\", \"sample.env\", \"sample.gitattributes\", \".gitignore\", \"//build/config.gni\", \"footer\", \"page.html\", \"hyprland.conf\", \"template.jinja2\", \"comment.jsdoc\", \"config.json\", \"sample.json5\", \"greeting\", \"sample.kdl\", \"ASSERT\", \"header.liquid\", \"sample.md\", \"sample.mmd\", \"project\", \"addOne\", \"sample.po\", \"sample.properties\", \"sample.ron\", \"sample.rst\", \"flex-center\", \"sample.soql\", \"sample.sosl\", \"Sample.svelte\", \"Sample.vue\", \"types\", \"sample.yaml\"] in its own index of the same repo (raw responses recorded in tool-results.ndjson as evidence)",
       "normalizations": [
         "stripped machine-specific fields (file_path, path, root_path, qualified_name, project, elapsed_ms, size_bytes)",
         "compared by named-symbol-set containment, not byte-identical JSON shape (schemas intentionally differ)",
-        "same 9-language fixture set (Rust, Go, Java, C, C++, C#, PHP, Python, TypeScript -- committed repo fixtures, copied at run time) indexed on both sides; one language-unique symbol per file must be findable per side (baseline via search_graph, candidate via node-name containment) -- per-language attribution, not total node-count equality"
+        "155 onboarded languages (committed repo fixtures, copied at run time) indexed on both sides; one language-unique fact per file must be findable per side (baseline via search_graph; candidate via node-debug containment for SymbolName/Filename, or a direct per-file parsers::parse_file re-parse for ImportPath/CallCallee) -- per-language attribution, not total node-count equality"
       ],
-      "baseline_latency_ms": 1105.2693,
-      "candidate_latency_ms": 49.7194
+      "baseline_latency_ms": 4553.119600000002,
+      "candidate_latency_ms": 545.5333999999999
     },
     {
       "tool": "index_status",
@@ -145,8 +146,8 @@
         "compared by named-symbol-set containment, not byte-identical JSON shape (schemas intentionally differ)",
         "candidate index_status exercised over a crate::store::Store::init-ed project populated with real NodeAdded/EdgeAdded graph events derived from the candidate CodeGraph (via graph_event_log_mut + OperationalGraph::rebuild -- the store's own documented log-replay write path), so this row compares field-level ready/empty status semantics against the baseline's own indexed project, not just the wiring on an empty throwaway store"
       ],
-      "baseline_latency_ms": 134.15009999999998,
-      "candidate_latency_ms": 175.84920000000002
+      "baseline_latency_ms": 26.238500000000002,
+      "candidate_latency_ms": 243.8084
     },
     {
       "tool": "ingest_traces",
@@ -157,8 +158,8 @@
         "compared by named-symbol-set containment, not byte-identical JSON shape (schemas intentionally differ)",
         "baseline ingest_traces is a documented unimplemented stub (refs/x06-baseline-tool-schemas.md §15.2: handler never reads caller/callee/count, does no store lookup, unconditionally returns {status:accepted, traces_received:N, note:'not yet implemented'}); candidate enforcer_memory::traces::TraceStore performs a real merge, annotating the matching CALLS edge with an observed_count and tracking unresolved records explicitly"
       ],
-      "baseline_latency_ms": 19.0681,
-      "candidate_latency_ms": 0.135
+      "baseline_latency_ms": 22.9785,
+      "candidate_latency_ms": 0.1182
     },
     {
       "tool": "list_projects",
@@ -168,8 +169,8 @@
         "compared by named-symbol-set containment, not byte-identical JSON shape (schemas intentionally differ)",
         "candidate list_projects exercised over a stores_dir populated via the real graph-event-log + OperationalGraph::rebuild write path (same fixture project the baseline indexed); compared entry PRESENCE and field semantics (name/root present), not byte-identical schema, since the two persistence models differ"
       ],
-      "baseline_latency_ms": 300.6894,
-      "candidate_latency_ms": 183.0405
+      "baseline_latency_ms": 126.9948,
+      "candidate_latency_ms": 316.9499
     },
     {
       "tool": "manage_adr(get/update)",
@@ -180,8 +181,8 @@
         "compared the whole-document compat API on both sides: baseline update(content=<whole markdown>) then get() returning it, vs. candidate AdrStore::update_document(...) then get_document() returning the same content -- same shape class, no longer the section-based extension API",
         "candidate additionally exposes a section-based extension API (AdrStore::create/update_section/get) and list_document_headings(), which the baseline's whole-document model has no equivalent for -- documented enforcer-native extension, not part of the equality comparison itself"
       ],
-      "baseline_latency_ms": 19.3515,
-      "candidate_latency_ms": 0.0385
+      "baseline_latency_ms": 22.5139,
+      "candidate_latency_ms": 0.0098
     },
     {
       "tool": "query_graph",
@@ -191,8 +192,8 @@
         "compared by named-symbol-set containment, not byte-identical JSON shape (schemas intentionally differ)",
         "compared baseline's Cypher MATCH...RETURN against enforcer_memory::analysis::query's read-only D-05 Cypher subset over the same class of query (MATCH (n:Label) RETURN col ORDER BY col)"
       ],
-      "baseline_latency_ms": 20.559,
-      "candidate_latency_ms": 0.38989999999999997
+      "baseline_latency_ms": 50.5206,
+      "candidate_latency_ms": 0.8246
     },
     {
       "tool": "query_graph(complexity)",
@@ -202,8 +203,8 @@
         "compared by named-symbol-set containment, not byte-identical JSON shape (schemas intentionally differ)",
         "same class of Cypher complexity-property query on both sides (WHERE f.complexity >= 2 / WHERE f.transitive_loop_depth >= 1); candidate answers via analysis::query's resolve_property over complexity::ComplexityMetrics (Tier A) and TransitiveMetrics (Tier B), baseline via its SQLite node-property columns -- compared on which function each filter selects (describe), never on independently-derived score equality"
       ],
-      "baseline_latency_ms": 118.8355,
-      "candidate_latency_ms": 0.3217
+      "baseline_latency_ms": 45.212599999999995,
+      "candidate_latency_ms": 0.3439
     },
     {
       "tool": "search_code",
@@ -214,8 +215,8 @@
         "compared by named-symbol-set containment, not byte-identical JSON shape (schemas intentionally differ)",
         "compared baseline's search_code text-match-plus-structural-rank result against enforcer_memory::code_search::search_code's graph-augmented grep over the same fixture repo_root (presence of a match, not exact rank ordering, since the two score formulas are independently derived)"
       ],
-      "baseline_latency_ms": 160.5636,
-      "candidate_latency_ms": 0.5712999999999999
+      "baseline_latency_ms": 76.2732,
+      "candidate_latency_ms": 1.1567
     },
     {
       "tool": "search_graph(bm25)",
@@ -226,8 +227,8 @@
         "baseline BM25 full-text search compared against enforcer_memory::search::search_graph::search_graph's real BM25 mode (SearchGraphSpec{query: Some(..)}, run_bm25 over the indexed fixture graph) -- no longer a symbol-name-lookup shortcut",
         "both sides find the symbol via a ranked full-text/BM25-style mechanism over the same fixture graph; hit-set containment compared, not exact score/rank values (independently derived scoring formulas)"
       ],
-      "baseline_latency_ms": 19.6957,
-      "candidate_latency_ms": 0.21000000000000002
+      "baseline_latency_ms": 37.8386,
+      "candidate_latency_ms": 0.37179999999999996
     },
     {
       "tool": "search_graph(regex)",
@@ -237,8 +238,8 @@
         "compared by named-symbol-set containment, not byte-identical JSON shape (schemas intentionally differ)",
         "baseline regex name_pattern search compared against enforcer_memory::search::search_graph::search_graph's real regex mode (SearchGraphSpec{name_pattern: Some(\"...\")}, run_regex_mode over the indexed fixture graph) -- no longer a substring-match shortcut"
       ],
-      "baseline_latency_ms": 133.5682,
-      "candidate_latency_ms": 7.6505
+      "baseline_latency_ms": 52.0855,
+      "candidate_latency_ms": 10.4588
     },
     {
       "tool": "trace_path(calls)",
@@ -247,8 +248,8 @@
         "stripped machine-specific fields (file_path, path, root_path, qualified_name, project, elapsed_ms, size_bytes)",
         "compared by named-symbol-set containment, not byte-identical JSON shape (schemas intentionally differ)"
       ],
-      "baseline_latency_ms": 20.5318,
-      "candidate_latency_ms": 0.2452
+      "baseline_latency_ms": 43.121,
+      "candidate_latency_ms": 0.4348
     },
     {
       "tool": "trace_path(calls,type_resolution)",
@@ -258,8 +259,8 @@
         "compared by named-symbol-set containment, not byte-identical JSON shape (schemas intentionally differ)",
         "candidate graded on resolution::resolve's ladder output for the widget.draw() call site (exactly one candidate at Resolved/Probable confidence -- type-aware receiver match or documented lower-confidence rung, never an arbitrary pick from an Ambiguous set); baseline graded on its trace_path from describe reaching draw, its own resolution surface"
       ],
-      "baseline_latency_ms": 24.719,
-      "candidate_latency_ms": 0.33330000000000004
+      "baseline_latency_ms": 22.331699999999998,
+      "candidate_latency_ms": 0.3359
     },
     {
       "tool": "trace_path(data_flow)",
@@ -269,8 +270,8 @@
         "compared by named-symbol-set containment, not byte-identical JSON shape (schemas intentionally differ)",
         "candidate data_flow is the documented honest analog: call-graph walk plus real captured argument text (CallEdge::arg_texts -> ParamLink::argument_expr), approximation=CallGraphOnly; ParamLink::parameter_name is always None because no language extractor records callee parameter names (data_flow.rs/analysis::trace module docs) -- the same granularity as the baseline's own caller_args raw-JSON copy, which also never binds arguments to parameters by name"
       ],
-      "baseline_latency_ms": 152.1381,
-      "candidate_latency_ms": 0.2723
+      "baseline_latency_ms": 21.7019,
+      "candidate_latency_ms": 0.2969
     }
   ]
 }
