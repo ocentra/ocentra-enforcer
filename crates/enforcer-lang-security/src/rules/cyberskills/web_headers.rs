@@ -8,6 +8,18 @@
 //! generic JSON snapshot of `{ headers, cookies }` (the shape a captured
 //! response, an HTTP archive entry, or an already-fetched header dump
 //! would carry), dropping the network call entirely.
+//!
+//! Parity note: HSTS (missing / `max-age` under one year) and CSP (missing
+//! / `'unsafe-inline'` / `'unsafe-eval'` / bare wildcard `*` / missing
+//! `default-src`) reproduce their full vendor `check_hsts` / `check_csp`
+//! detection branches (the `includeSubDomains` / `preload` fields the
+//! vendor records do NOT change its severity, so they are not flag
+//! branches). The vendor script also has three MORE header checks —
+//! `check_frame_options` (X-Frame-Options / frame-ancestors),
+//! `check_content_type_options` (X-Content-Type-Options: nosniff), and
+//! `check_referrer_policy` — which are outside the h11 workpack's named
+//! HSTS/CSP/cookie slice; they are tracked as follow-up rules, not silently
+//! dropped.
 
 use enforcer_core::error::DecodeError;
 use enforcer_domain::findings::Finding;
@@ -144,29 +156,56 @@ impl Validator for CspMissingValidator {
         let Some(snapshot) = parse(input.source) else {
             return Vec::new();
         };
-        let csp = header(&snapshot, "Content-Security-Policy");
-        let detail = match csp {
-            None => Some(
-                "no `Content-Security-Policy` header present. Fix: add a restrictive CSP \
-                 (e.g. `default-src 'self'`)."
-                    .to_owned(),
+        // Mirrors vendor `check_csp` (agent.py L70-102): missing header, or
+        // present-but-weak via `'unsafe-inline'` / `'unsafe-eval'` (High), a
+        // bare wildcard `*` source (Medium), or a missing `default-src`
+        // fallback (advisory). High issues => Error; only lower issues =>
+        // Warning (mirroring the vendor severity ladder).
+        let (detail, severity) = match header(&snapshot, "Content-Security-Policy") {
+            None => (
+                Some(
+                    "no `Content-Security-Policy` header present. Fix: add a restrictive CSP \
+                     (e.g. `default-src 'self'`)."
+                        .to_owned(),
+                ),
+                Severity::Error,
             ),
             Some(value) => {
-                let mut issues = Vec::new();
+                let mut high: Vec<&str> = Vec::new();
+                let mut low: Vec<&str> = Vec::new();
                 if value.contains("'unsafe-inline'") {
-                    issues.push("`'unsafe-inline'` allows inline script execution (XSS risk)");
+                    high.push("`'unsafe-inline'` allows inline script execution (XSS risk)");
                 }
                 if value.contains("'unsafe-eval'") {
-                    issues.push("`'unsafe-eval'` allows eval() calls (XSS risk)");
+                    high.push("`'unsafe-eval'` allows eval() calls (XSS risk)");
                 }
-                if issues.is_empty() {
-                    None
+                // Vendor: `" * " in f" {csp} " or csp.strip().endswith("*")`.
+                let padded = format!(" {value} ");
+                if padded.contains(" * ") || value.trim().ends_with('*') {
+                    low.push("wildcard `*` source allows loading from any origin");
+                }
+                if !value.contains("default-src") {
+                    low.push("missing `default-src` fallback directive");
+                }
+                if high.is_empty() && low.is_empty() {
+                    (None, Severity::Error)
                 } else {
-                    Some(format!(
-                        "Content-Security-Policy has weaknesses: {}. Fix: remove \
-                         `'unsafe-inline'`/`'unsafe-eval'` and use nonces/hashes instead.",
-                        issues.join("; ")
-                    ))
+                    let severity = if high.is_empty() {
+                        Severity::Warning
+                    } else {
+                        Severity::Error
+                    };
+                    let mut all = high;
+                    all.extend(low);
+                    (
+                        Some(format!(
+                            "Content-Security-Policy has weaknesses: {}. Fix: remove \
+                             `'unsafe-inline'`/`'unsafe-eval'`, avoid a bare wildcard `*` source, \
+                             and set a restrictive `default-src`.",
+                            all.join("; ")
+                        )),
+                        severity,
+                    )
                 }
             }
         };
@@ -174,7 +213,7 @@ impl Validator for CspMissingValidator {
             .map(|detail| {
                 vec![Finding {
                     rule_id: self.rule_id.clone(),
-                    severity: Severity::Error,
+                    severity,
                     title: "CSP header missing or weak".to_owned(),
                     detail,
                     file: input.file.clone(),

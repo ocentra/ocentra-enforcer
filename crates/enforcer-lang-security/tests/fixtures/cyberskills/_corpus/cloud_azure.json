@@ -1,0 +1,152 @@
+[
+  {
+    "name": "public_blob_access_flag_true",
+    "input": "{\"name\":\"storage1\",\"allow_blob_public_access\":true,\"enable_https_traffic_only\":true,\"minimum_tls_version\":\"TLS1_2\"}",
+    "expect": "flag",
+    "reason": "allow_blob_public_access is explicitly true"
+  },
+  {
+    "name": "public_blob_access_clean_false",
+    "input": "{\"name\":\"storage1\",\"allow_blob_public_access\":false,\"enable_https_traffic_only\":true,\"minimum_tls_version\":\"TLS1_2\"}",
+    "expect": "clean",
+    "reason": "allow_blob_public_access is false (secure)"
+  },
+  {
+    "name": "public_blob_access_clean_missing",
+    "input": "{\"name\":\"storage1\",\"enable_https_traffic_only\":true,\"minimum_tls_version\":\"TLS1_2\"}",
+    "expect": "clean",
+    "reason": "allow_blob_public_access is missing, defaults to secure"
+  },
+  {
+    "name": "https_enforcement_flag_false",
+    "input": "{\"name\":\"storage2\",\"allow_blob_public_access\":false,\"enable_https_traffic_only\":false,\"minimum_tls_version\":\"TLS1_2\"}",
+    "expect": "flag",
+    "reason": "enable_https_traffic_only is explicitly false"
+  },
+  {
+    "name": "https_enforcement_clean_true",
+    "input": "{\"name\":\"storage2\",\"allow_blob_public_access\":false,\"enable_https_traffic_only\":true,\"minimum_tls_version\":\"TLS1_2\"}",
+    "expect": "clean",
+    "reason": "enable_https_traffic_only is true (secure)"
+  },
+  {
+    "name": "https_enforcement_clean_missing",
+    "input": "{\"name\":\"storage2\",\"allow_blob_public_access\":false,\"minimum_tls_version\":\"TLS1_2\"}",
+    "expect": "clean",
+    "reason": "enable_https_traffic_only is missing, defaults to secure"
+  },
+  {
+    "name": "minimum_tls_version_flag_tls10",
+    "input": "{\"name\":\"storage3\",\"allow_blob_public_access\":false,\"enable_https_traffic_only\":true,\"minimum_tls_version\":\"TLS1_0\"}",
+    "expect": "flag",
+    "reason": "minimum_tls_version is TLS1_0 (weak)"
+  },
+  {
+    "name": "minimum_tls_version_flag_tls11",
+    "input": "{\"name\":\"storage4\",\"allow_blob_public_access\":false,\"enable_https_traffic_only\":true,\"minimum_tls_version\":\"TLS1_1\"}",
+    "expect": "flag",
+    "reason": "minimum_tls_version is TLS1_1 (weak)"
+  },
+  {
+    "name": "minimum_tls_version_clean_tls12",
+    "input": "{\"name\":\"storage5\",\"allow_blob_public_access\":false,\"enable_https_traffic_only\":true,\"minimum_tls_version\":\"TLS1_2\"}",
+    "expect": "clean",
+    "reason": "minimum_tls_version is TLS1_2 (secure)"
+  },
+  {
+    "name": "minimum_tls_version_clean_tls13",
+    "input": "{\"name\":\"storage6\",\"allow_blob_public_access\":false,\"enable_https_traffic_only\":true,\"minimum_tls_version\":\"TLS1_3\"}",
+    "expect": "clean",
+    "reason": "minimum_tls_version is TLS1_3 (secure, stronger)"
+  },
+  {
+    "name": "minimum_tls_version_clean_missing",
+    "input": "{\"name\":\"storage7\",\"allow_blob_public_access\":false,\"enable_https_traffic_only\":true}",
+    "expect": "clean",
+    "reason": "minimum_tls_version is missing"
+  },
+  {
+    "name": "blob_encryption_clean_enabled",
+    "input": "{\"name\":\"storage10\",\"allow_blob_public_access\":false,\"enable_https_traffic_only\":true,\"encryption\":{\"services\":{\"blob\":{\"enabled\":true}}}}",
+    "expect": "clean",
+    "reason": "blob encryption is enabled"
+  },
+  {
+    "name": "blob_encryption_clean_with_file",
+    "input": "{\"name\":\"storage11\",\"allow_blob_public_access\":false,\"enable_https_traffic_only\":true,\"encryption\":{\"services\":{\"blob\":{\"enabled\":true},\"file\":{\"enabled\":true}}}}",
+    "expect": "clean",
+    "reason": "both blob and file encryption enabled"
+  },
+  {
+    "name": "file_encryption_clean_enabled",
+    "input": "{\"name\":\"storage14\",\"allow_blob_public_access\":false,\"enable_https_traffic_only\":true,\"encryption\":{\"services\":{\"blob\":{\"enabled\":true},\"file\":{\"enabled\":true}}}}",
+    "expect": "clean",
+    "reason": "file encryption is enabled"
+  },
+  {
+    "name": "encryption_missing_clean_exists",
+    "input": "{\"name\":\"storage17\",\"allow_blob_public_access\":false,\"enable_https_traffic_only\":true,\"encryption\":{}}",
+    "expect": "clean",
+    "reason": "encryption config exists (even if empty, avoids encryption_missing check)"
+  },
+  {
+    "name": "network_default_allow_clean_deny",
+    "input": "{\"name\":\"storage19\",\"allow_blob_public_access\":false,\"enable_https_traffic_only\":true,\"network_rule_set\":{\"default_action\":\"Deny\"}}",
+    "expect": "clean",
+    "reason": "network default action is Deny (secure, allow-list mode)"
+  },
+  {
+    "name": "network_default_allow_clean_missing",
+    "input": "{\"name\":\"storage20\",\"allow_blob_public_access\":false,\"enable_https_traffic_only\":true}",
+    "expect": "clean",
+    "reason": "network_rule_set is missing"
+  },
+  {
+    "name": "network_default_allow_clean_null",
+    "input": "{\"name\":\"storage21\",\"allow_blob_public_access\":false,\"enable_https_traffic_only\":true,\"network_rule_set\":null}",
+    "expect": "clean",
+    "reason": "network_rule_set is null"
+  },
+  {
+    "name": "infrastructure_encryption_clean_enabled",
+    "input": "{\"name\":\"storage24\",\"allow_blob_public_access\":false,\"enable_https_traffic_only\":true,\"encryption\":{\"require_infrastructure_encryption\":true}}",
+    "expect": "clean",
+    "reason": "infrastructure encryption is enabled"
+  },
+  {
+    "name": "customer_managed_keys_clean_keyvault",
+    "input": "{\"name\":\"storage26\",\"allow_blob_public_access\":false,\"enable_https_traffic_only\":true,\"encryption\":{\"key_source\":\"Microsoft.KeyVault\"}}",
+    "expect": "clean",
+    "reason": "using customer-managed keys via Key Vault"
+  },
+  {
+    "name": "customer_managed_keys_clean_missing",
+    "input": "{\"name\":\"storage27\",\"allow_blob_public_access\":false,\"enable_https_traffic_only\":true,\"encryption\":{}}",
+    "expect": "clean",
+    "reason": "key_source is missing"
+  },
+  {
+    "name": "combined_all_secure",
+    "input": "{\"name\":\"storage_secure\",\"allow_blob_public_access\":false,\"enable_https_traffic_only\":true,\"minimum_tls_version\":\"TLS1_2\",\"encryption\":{\"services\":{\"blob\":{\"enabled\":true},\"file\":{\"enabled\":true}},\"require_infrastructure_encryption\":true,\"key_source\":\"Microsoft.KeyVault\"},\"network_rule_set\":{\"default_action\":\"Deny\"}}",
+    "expect": "clean",
+    "reason": "all security checks pass"
+  },
+  {
+    "name": "minimal_valid_secure",
+    "input": "{\"name\":\"min_secure\"}",
+    "expect": "clean",
+    "reason": "minimal JSON with all optional fields absent defaults to secure"
+  },
+  {
+    "name": "minimal_unsafe_blob",
+    "input": "{\"allow_blob_public_access\":true}",
+    "expect": "flag",
+    "reason": "minimal JSON flagging only blob public access"
+  },
+  {
+    "name": "tls_empty_string",
+    "input": "{\"name\":\"storage29\",\"allow_blob_public_access\":false,\"enable_https_traffic_only\":true,\"minimum_tls_version\":\"\"}",
+    "expect": "clean",
+    "reason": "empty TLS version string does not match TLS1_0 or TLS1_1"
+  }
+]

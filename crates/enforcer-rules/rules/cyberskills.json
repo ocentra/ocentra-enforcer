@@ -162,7 +162,7 @@
     {
         "ruleId": "CYBER-DEPCONFUSION.1",
         "version": 1,
-        "title": "Unscoped dependency names must not look internal-only (dependency-confusion claimable)",
+        "title": "Unscoped internal-looking dependency name is a dependency-confusion candidate (heuristic; registry-verified detection is h12)",
         "tier": "T1",
         "validator": {
             "crateName": "enforcer-lang-security",

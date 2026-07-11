@@ -1,0 +1,260 @@
+[
+  {
+    "name": "valid-minimal-all-fields",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "clean",
+    "reason": "All 8 required fields present, valid kebab-case name, description >= 50 chars, domain==cybersecurity, allowed subdomain, 2+ tags"
+  },
+  {
+    "name": "missing-field-name",
+    "input": "---\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "flag",
+    "reason": "Required field 'name' missing triggers missing-required-field-name branch"
+  },
+  {
+    "name": "missing-field-description",
+    "input": "---\nname: valid-test-skill\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "flag",
+    "reason": "Required field 'description' missing triggers missing-required-field-description branch"
+  },
+  {
+    "name": "missing-field-domain",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "flag",
+    "reason": "Required field 'domain' missing triggers missing-required-field-domain branch"
+  },
+  {
+    "name": "missing-field-subdomain",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "flag",
+    "reason": "Required field 'subdomain' missing triggers missing-required-field-subdomain branch"
+  },
+  {
+    "name": "missing-field-tags",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "flag",
+    "reason": "Required field 'tags' missing triggers missing-required-field-tags branch"
+  },
+  {
+    "name": "missing-field-version",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "flag",
+    "reason": "Required field 'version' missing triggers missing-required-field-version branch"
+  },
+  {
+    "name": "missing-field-author",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nlicense: Apache-2.0\n---\nbody",
+    "expect": "flag",
+    "reason": "Required field 'author' missing triggers missing-required-field-author branch"
+  },
+  {
+    "name": "missing-field-license",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\n---\nbody",
+    "expect": "flag",
+    "reason": "Required field 'license' missing triggers missing-required-field-license branch"
+  },
+  {
+    "name": "invalid-kebab-case-uppercase",
+    "input": "---\nname: Invalid-Test-Skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "flag",
+    "reason": "Name contains uppercase letters, fails kebab-case regex check"
+  },
+  {
+    "name": "invalid-kebab-case-underscore",
+    "input": "---\nname: valid_test_skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "flag",
+    "reason": "Name contains underscore, fails kebab-case regex check"
+  },
+  {
+    "name": "invalid-kebab-case-start-hyphen",
+    "input": "---\nname: -test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "flag",
+    "reason": "Name starts with hyphen, fails kebab-case pattern ^[a-z0-9]+(-[a-z0-9]+)*$"
+  },
+  {
+    "name": "invalid-kebab-case-end-hyphen",
+    "input": "---\nname: test-skill-\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "flag",
+    "reason": "Name ends with hyphen, fails kebab-case pattern"
+  },
+  {
+    "name": "invalid-kebab-case-consecutive-hyphens",
+    "input": "---\nname: test--skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "flag",
+    "reason": "Name has consecutive hyphens, fails kebab-case regex"
+  },
+  {
+    "name": "name-too-long-95-chars",
+    "input": "---\nname: this-is-a-very-long-skill-name-that-exceeds-the-maximum-allowed-length-of-sixty-four-characters\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "flag",
+    "reason": "Name is 95 characters, exceeds 64 character limit"
+  },
+  {
+    "name": "name-exactly-64-chars-boundary",
+    "input": "---\nname: exactly-sixty-four-char-name-that-is-valid-kebab-case-test-ab\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "clean",
+    "reason": "Name is exactly 64 characters (boundary), valid kebab-case, all other fields valid"
+  },
+  {
+    "name": "description-too-short-43-chars",
+    "input": "---\nname: valid-test-skill\ndescription: Short description text is too brief here.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "flag",
+    "reason": "Description is 43 characters, below 50 character minimum"
+  },
+  {
+    "name": "description-exactly-50-chars-boundary",
+    "input": "---\nname: valid-test-skill\ndescription: This is exactly fifty characters in total\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "flag",
+    "reason": "Description is exactly 50 characters (boundary), all other fields valid [reconciled: description is actually 41 chars (<50), vendor flags too]"
+  },
+  {
+    "name": "domain-wrong-value",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: network-security\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "flag",
+    "reason": "Domain is 'network-security', must be exactly 'cybersecurity'"
+  },
+  {
+    "name": "subdomain-unknown-invalid-value",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: quantum-hacking-defense\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "flag",
+    "reason": "Subdomain 'quantum-hacking-defense' is not in the 46-value allowed set"
+  },
+  {
+    "name": "subdomain-alias-red-team",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: red-team\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "clean",
+    "reason": "'red-team' is accepted alias for 'red-teaming' in 46-value flat set; vendor warns but doesn't error"
+  },
+  {
+    "name": "subdomain-alias-security-operations",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: security-operations\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "clean",
+    "reason": "'security-operations' is accepted alias for 'soc-operations' in 46-value flat set"
+  },
+  {
+    "name": "subdomain-alias-identity-and-access-management",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: identity-and-access-management\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "clean",
+    "reason": "'identity-and-access-management' is accepted alias in 46-value flat set"
+  },
+  {
+    "name": "subdomain-alias-zero-trust",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: zero-trust\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "clean",
+    "reason": "'zero-trust' is accepted alias for 'zero-trust-architecture' in 46-value flat set"
+  },
+  {
+    "name": "tags-only-1-entry",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "flag",
+    "reason": "Only 1 tag, need at least 2"
+  },
+  {
+    "name": "tags-empty-list",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "flag",
+    "reason": "0 tags (empty list), need at least 2"
+  },
+  {
+    "name": "tags-exactly-2-boundary",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "clean",
+    "reason": "Exactly 2 tags (boundary), all other fields valid"
+  },
+  {
+    "name": "tags-multiple-3-entries",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\n- infrastructure\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "clean",
+    "reason": "3 tags, meets and exceeds minimum requirement of 2"
+  },
+  {
+    "name": "name-valid-all-numbers",
+    "input": "---\nname: 123456789\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "clean",
+    "reason": "All-numeric name matches kebab-case pattern ^[a-z0-9]+(-[a-z0-9]+)*$"
+  },
+  {
+    "name": "name-valid-mixed-numbers-hyphens",
+    "input": "---\nname: test-123-skill-456\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\n---\nbody",
+    "expect": "clean",
+    "reason": "Name with numbers and hyphens is valid kebab-case"
+  },
+  {
+    "name": "valid-mitre-T1190",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\nmitre_attack:\n- T1190\n---\nbody",
+    "expect": "clean",
+    "reason": "T1190 is well-formed MITRE ATT&CK id (Rust extension validates; vendor doesn't)"
+  },
+  {
+    "name": "valid-mitre-T1078.004",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\nmitre_attack:\n- T1078.004\n---\nbody",
+    "expect": "clean",
+    "reason": "T1078.004 is well-formed MITRE ATT&CK sub-technique id"
+  },
+  {
+    "name": "malformed-mitre-T99",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\nmitre_attack:\n- T99\n---\nbody",
+    "expect": "flag",
+    "reason": "T99 is malformed, requires 4 digits after T; fails T\\d{4}(\\. \\d{3})? pattern"
+  },
+  {
+    "name": "malformed-mitre-X1190",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\nmitre_attack:\n- X1190\n---\nbody",
+    "expect": "flag",
+    "reason": "X1190 has wrong prefix (X instead of T); fails pattern"
+  },
+  {
+    "name": "malformed-mitre-T1190.01",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\nmitre_attack:\n- T1190.01\n---\nbody",
+    "expect": "flag",
+    "reason": "T1190.01 has sub-technique with only 2 digits, requires 3"
+  },
+  {
+    "name": "valid-nist-DE.CM-01",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\nnist_csf:\n- DE.CM-01\n---\nbody",
+    "expect": "clean",
+    "reason": "DE.CM-01 is well-formed NIST-CSF id matching (GV|ID|PR|DE|RS|RC)\\.[A-Z]{2}(-\\d{2})?"
+  },
+  {
+    "name": "valid-nist-ID.RA",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\nnist_csf:\n- ID.RA\n---\nbody",
+    "expect": "clean",
+    "reason": "ID.RA is well-formed NIST-CSF category id (no -NN suffix is optional)"
+  },
+  {
+    "name": "valid-nist-all-6-functions",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\nnist_csf:\n- GV.AB-01\n- ID.RA-02\n- PR.AT-03\n- DE.CM-04\n- RS.CO-05\n- RC.RP-06\n---\nbody",
+    "expect": "clean",
+    "reason": "All 6 NIST-CSF functions (GV, ID, PR, DE, RS, RC) represented with valid formatting"
+  },
+  {
+    "name": "malformed-nist-ZZ.CM-01",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\nnist_csf:\n- ZZ.CM-01\n---\nbody",
+    "expect": "flag",
+    "reason": "ZZ is not a valid NIST-CSF function; must be one of: GV, ID, PR, DE, RS, RC"
+  },
+  {
+    "name": "malformed-nist-DE.C-01",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\nnist_csf:\n- DE.C-01\n---\nbody",
+    "expect": "flag",
+    "reason": "DE.C-01 has only 1 category letter; requires 2 uppercase letters"
+  },
+  {
+    "name": "malformed-nist-DE.CM-1",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\nnist_csf:\n- DE.CM-1\n---\nbody",
+    "expect": "flag",
+    "reason": "DE.CM-1 has only 1 digit in suffix; must be 2 digits"
+  },
+  {
+    "name": "malformed-nist-DE-CM-01",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\nnist_csf:\n- DE-CM-01\n---\nbody",
+    "expect": "flag",
+    "reason": "DE-CM-01 is missing required dot separator after function; must be function.category[-suffix]"
+  },
+  {
+    "name": "multiple-mitre-and-nist-mixed-valid-invalid",
+    "input": "---\nname: valid-test-skill\ndescription: This is a valid skill description that exceeds the minimum character requirement of fifty characters for the description field.\ndomain: cybersecurity\nsubdomain: cloud-security\ntags:\n- security\n- cloud\nversion: 1.0\nauthor: test-author\nlicense: Apache-2.0\nmitre_attack:\n- T1190\n- T99\nnist_csf:\n- DE.CM-01\n- ZZ.CM-01\n---\nbody",
+    "expect": "flag",
+    "reason": "Contains both valid (T1190, DE.CM-01) and invalid (T99, ZZ.CM-01) threat ids; any invalid id causes flag"
+  }
+]

@@ -136,7 +136,17 @@ impl Validator for S3EncryptionRequiredValidator {
 /// `Effect == "Allow"` is flagged (Rego: `aws_iam_no_wildcards.rego`).
 pub struct IamNoWildcardActionValidator {
     rule_id: RuleId,
+    /// Vendor deny-rule A (`aws_iam_no_wildcards.rego` L159-165):
+    /// `Action == "*"` (exact, or a list containing the exact `"*"`).
     wildcard_action: Regex,
+    /// Vendor deny-rule B (L167-174): `contains(statement.Action[_], "*")`
+    /// — an Action string CONTAINING `*` as a substring (e.g. `s3:*`,
+    /// `iam:Put*`), scalar or in a list.
+    action_contains_wildcard: Regex,
+    /// Vendor deny-rule B: `statement.Resource == "*"` (exact, or a list
+    /// containing `"*"` — a superset of the Rego `==`, since a resource
+    /// list carrying `"*"` is equally a wildcard resource).
+    resource_wildcard: Regex,
     allow_effect: Regex,
 }
 
@@ -150,6 +160,12 @@ impl IamNoWildcardActionValidator {
             rule_id: "CYBER-IAC-IAM-WILDCARD.1".parse()?,
             wildcard_action: compile_regex(
                 r#"(?i)"?Action"?\s*[:=]\s*(?:\[[^]]*"\*"[^]]*]|"\*")"#,
+            )?,
+            action_contains_wildcard: compile_regex(
+                r#"(?i)"?Action"?\s*[:=]\s*(?:\[[^]]*"[^"]*\*[^"]*"[^]]*]|"[^"]*\*[^"]*")"#,
+            )?,
+            resource_wildcard: compile_regex(
+                r#"(?i)"?Resource"?\s*[:=]\s*(?:\[[^]]*"\*"[^]]*]|"\*")"#,
             )?,
             allow_effect: compile_regex(r#"(?i)"?Effect"?\s*[:=]\s*"Allow""#)?,
         })
@@ -173,24 +189,44 @@ impl Validator for IamNoWildcardActionValidator {
             // `resource.policy.Statement[_]`.
             let statements = split_statements(block.body);
             for statement in statements {
-                if self.wildcard_action.is_match(statement) && self.allow_effect.is_match(statement)
-                {
-                    findings.push(Finding {
-                        rule_id: self.rule_id.clone(),
-                        severity: Severity::Error,
-                        title: "IAM policy must not use wildcard (*) actions".to_owned(),
-                        detail: format!(
-                            "IAM policy '{}' has a statement with `Action: \"*\"` and \
-                             `Effect: \"Allow\"`. Fix: enumerate the specific actions the \
-                             policy actually needs instead of a wildcard.",
-                            block.name
-                        ),
-                        file: input.file.clone(),
-                        line: block.line,
-                        snippet: None,
-                    });
-                    break;
+                if !self.allow_effect.is_match(statement) {
+                    continue;
                 }
+                // Vendor deny-rule A: Action is the exact wildcard "*".
+                let rule_a = self.wildcard_action.is_match(statement);
+                // Vendor deny-rule B: Resource is "*" AND some Action string
+                // contains "*" as a substring (e.g. `s3:*`).
+                let rule_b = self.resource_wildcard.is_match(statement)
+                    && self.action_contains_wildcard.is_match(statement);
+                if !rule_a && !rule_b {
+                    continue;
+                }
+                let detail = if rule_a {
+                    format!(
+                        "IAM policy '{}' has a statement with `Action: \"*\"` and \
+                         `Effect: \"Allow\"`. Fix: enumerate the specific actions the \
+                         policy actually needs instead of a wildcard.",
+                        block.name
+                    )
+                } else {
+                    format!(
+                        "IAM policy '{}' has a statement with `Resource: \"*\"`, \
+                         `Effect: \"Allow\"`, and a wildcard action (e.g. `service:*`). Fix: \
+                         scope the resource and enumerate specific actions instead of a wildcard \
+                         on all resources.",
+                        block.name
+                    )
+                };
+                findings.push(Finding {
+                    rule_id: self.rule_id.clone(),
+                    severity: Severity::Error,
+                    title: "IAM policy must not use wildcard (*) actions".to_owned(),
+                    detail,
+                    file: input.file.clone(),
+                    line: block.line,
+                    snippet: None,
+                });
+                break;
             }
         }
         findings

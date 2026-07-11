@@ -1,19 +1,31 @@
-//! `CYBER-DEPCONFUSION.1` (T1) — harvest target 7 (h11 workpack): manifest
-//! name parsing ported from
-//! `vendor/anthropic-cybersecurity-skills/skills/detecting-dependency-confusion/scripts/agent.py`
-//! (L46-92)'s `parse_npm`/`is_secure` logic. The original agent.py resolves
-//! each dependency name against the public npm registry (an HTTP call) to
-//! see whether an internal-looking package name is claimable by an
-//! attacker; this validator drops the network lookup and instead applies
-//! the SAME "internal-looking name" predicate the corpus script's
-//! `is_secure` helper checks BEFORE it ever calls the registry: an
-//! unscoped dependency name that looks internal (matches an
-//! organization-private naming convention: a bare `internal-*`/`corp-*`/
-//! `private-*` prefix, or a name with no `@scope/` and no registry
-//! pin/lockfile-resolved integrity hash) is flagged as
-//! dependency-confusion-CLAIMABLE — never as a proven live takeover
-//! (that verdict needs the registry-404 check this crate does not
-//! perform).
+//! `CYBER-DEPCONFUSION.1` (T2 heuristic advisory) — harvest target 7 (h11
+//! workpack): manifest name parsing derived from
+//! `vendor/anthropic-cybersecurity-skills/skills/detecting-dependency-confusion/scripts/agent.py`.
+//!
+//! # Honest divergence from the vendor (NOT a 1:1 port)
+//!
+//! The vendor's actual claimability verdict is a NETWORK check: for each
+//! manifest name it performs an HTTP request to the public registry
+//! (`http_status`, agent.py L140) and reports `CLAIMABLE` only on a 404
+//! (`status != 200`, L146). Its `is_secure(name, patterns)` helper (L95-96)
+//! is NOT an "internal name" detector — it is a user-supplied
+//! `--secure-namespaces` glob allowlist used to SKIP names before the
+//! lookup (empty by default). So there is no offline predicate in the
+//! vendor that decides claimability; the deciding signal is the live
+//! registry probe.
+//!
+//! That network probe cannot run in h11 (native-only, no subprocess/HTTP —
+//! registry-verified detection is the `h12` adapter pack's job). This
+//! validator is therefore a deterministic NAMING-CONVENTION HEURISTIC, not
+//! a faithful reproduction of the vendor verdict: it flags an UNSCOPED
+//! dependency whose name matches a common organization-private convention
+//! (`internal-*` / `corp-*` / `private-*`) as a CANDIDATE for dependency
+//! confusion — "this looks like an internal package published unscoped;
+//! confirm it is claimed/reserved on the public registry". Scoped
+//! (`@org/name`) packages are treated as not-claimable (npm scoping is the
+//! standard mitigation). It never asserts a proven takeover, and it will
+//! neither find every claimable name the registry probe would (no network)
+//! nor apply the vendor's `--secure-namespaces` skip list.
 
 use enforcer_core::error::DecodeError;
 use enforcer_domain::findings::Finding;
@@ -33,11 +45,13 @@ struct PackageManifest {
     peer_dependencies: std::collections::BTreeMap<String, String>,
 }
 
-/// Internal-looking naming prefixes, mirroring the org-private naming
-/// convention `is_secure` in the corpus script guards against (an unscoped
-/// package whose name signals "this is meant to be internal-only" is
-/// claimable on the public registry unless it is scoped).
-const INTERNAL_PREFIXES: &[&str] = &["internal-", "corp-", "private-", "acme-"];
+/// Common organization-private naming prefixes. An UNSCOPED dependency
+/// whose name starts with one of these signals "meant to be internal-only"
+/// and, published unscoped, is a candidate for dependency-confusion
+/// takeover. This is a heuristic convention (see the module docs), not a
+/// vendor-defined list — the vendor decides claimability by a live
+/// registry probe, which h11 cannot perform.
+const INTERNAL_PREFIXES: &[&str] = &["internal-", "corp-", "private-"];
 
 fn looks_internal(name: &str) -> bool {
     if name.starts_with('@') {
@@ -95,12 +109,14 @@ impl Validator for DependencyConfusionClaimableValidator {
             findings.push(Finding {
                 rule_id: self.rule_id.clone(),
                 severity: Severity::Warning,
-                title: "dependency name is dependency-confusion claimable".to_owned(),
+                title: "dependency name is a dependency-confusion candidate (heuristic)".to_owned(),
                 detail: format!(
                     "dependency `{name}` is unscoped and matches an internal-looking naming \
-                     convention. Fix: publish it under an org scope (`@your-org/{name}`), or \
-                     confirm the public-registry name is claimed/reserved by your org to \
-                     prevent a dependency-confusion takeover."
+                     convention, so it is a CANDIDATE for a dependency-confusion takeover. This \
+                     is a naming heuristic, not a registry-verified verdict (see h12 for the \
+                     registry-probe adapter). Fix: publish it under an org scope \
+                     (`@your-org/{name}`), or confirm the public-registry name is \
+                     claimed/reserved by your org."
                 ),
                 file: input.file.clone(),
                 line: 1,

@@ -8,6 +8,18 @@
 //! JSON snapshot of that object (the shape a `terraform show -json` /
 //! `az storage account show` dump or an IaC-plan export would carry),
 //! dropping the SDK/network call entirely.
+//!
+//! Scope note (h11 thin-slice): the vendor `audit_storage_account`
+//! function checks NINE conditions; this pack ports the THREE named in the
+//! h11 workpack checklist (public blob, HTTPS-only, min TLS). The other six
+//! are the same shape (boolean/enum predicates over the same snapshot) and
+//! are tracked as follow-up rules, NOT silently dropped:
+//! `blob_encryption` (services.blob.enabled false), `file_encryption`
+//! (services.file.enabled false), `encryption_missing` (no encryption
+//! object), `network_default_allow` (network_rule_set.default_action ==
+//! "Allow"), `infrastructure_encryption` (require_infrastructure_encryption
+//! false, Low), and `customer_managed_keys` (key_source ==
+//! "Microsoft.Storage", Low). Adding them is a bounded next step.
 
 use enforcer_core::error::DecodeError;
 use enforcer_domain::findings::Finding;

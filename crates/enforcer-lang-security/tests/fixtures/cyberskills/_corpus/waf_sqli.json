@@ -1,0 +1,632 @@
+[
+  {
+    "name": "union_select_1",
+    "input": "GET /search?id=1 UNION SELECT username,password FROM users",
+    "expect": "flag",
+    "reason": "UNION-based SELECT (critical)"
+  },
+  {
+    "name": "union_all_select_2",
+    "input": "SELECT * FROM products UNION ALL SELECT id,name FROM admin_users",
+    "expect": "flag",
+    "reason": "UNION ALL SELECT variant"
+  },
+  {
+    "name": "union_lowercase_3",
+    "input": "/api/query?q=1 union select secret from secrets",
+    "expect": "flag",
+    "reason": "Case-insensitive UNION SELECT"
+  },
+  {
+    "name": "or_tautology_1",
+    "input": "GET /login?user=admin' OR 1=1",
+    "expect": "flag",
+    "reason": "OR 1=1 tautology (high)"
+  },
+  {
+    "name": "or_tautology_2",
+    "input": "id=5 OR '5'='5",
+    "expect": "flag",
+    "reason": "OR with quoted numbers"
+  },
+  {
+    "name": "or_tautology_3",
+    "input": "username='' OR 1='1",
+    "expect": "flag",
+    "reason": "OR tautology mixed quotes"
+  },
+  {
+    "name": "and_tautology_1",
+    "input": "id=1 AND 1=1",
+    "expect": "flag",
+    "reason": "AND 1=1 tautology (high)"
+  },
+  {
+    "name": "and_tautology_2",
+    "input": "user=' AND '1'='1",
+    "expect": "flag",
+    "reason": "AND tautology single quotes"
+  },
+  {
+    "name": "and_tautology_3",
+    "input": "id=10 AND \"10\"=\"10",
+    "expect": "flag",
+    "reason": "AND tautology double quotes"
+  },
+  {
+    "name": "sleep_1",
+    "input": "id=1; SLEEP(5)",
+    "expect": "flag",
+    "reason": "SLEEP(5) time-based blind (critical)"
+  },
+  {
+    "name": "sleep_2",
+    "input": "SELECT * FROM users WHERE id=1 SLEEP(10)",
+    "expect": "flag",
+    "reason": "SLEEP(10) in SELECT"
+  },
+  {
+    "name": "sleep_3",
+    "input": "username=admin' SLEEP(3) AND '1'='1",
+    "expect": "flag",
+    "reason": "SLEEP with tautology"
+  },
+  {
+    "name": "benchmark_1",
+    "input": "id=1 BENCHMARK(1000000, MD5('test'))",
+    "expect": "flag",
+    "reason": "BENCHMARK time-based (critical)"
+  },
+  {
+    "name": "benchmark_2",
+    "input": "SELECT BENCHMARK(100000, CONCAT(username,password)) FROM admin",
+    "expect": "flag",
+    "reason": "BENCHMARK with CONCAT"
+  },
+  {
+    "name": "benchmark_3",
+    "input": "query=1 AND BENCHMARK(50000, SHA1('x'))",
+    "expect": "flag",
+    "reason": "BENCHMARK with SHA1"
+  },
+  {
+    "name": "waitfor_1",
+    "input": "id=1; WAITFOR DELAY '00:00:05'",
+    "expect": "flag",
+    "reason": "WAITFOR DELAY (critical MSSQL)"
+  },
+  {
+    "name": "waitfor_2",
+    "input": "username=' WAITFOR DELAY '00:00:10",
+    "expect": "flag",
+    "reason": "WAITFOR DELAY in field"
+  },
+  {
+    "name": "waitfor_3",
+    "input": "SELECT * FROM users WAITFOR DELAY '00:00:02'",
+    "expect": "flag",
+    "reason": "WAITFOR in SELECT"
+  },
+  {
+    "name": "stacked_drop_1",
+    "input": "id=1'; DROP TABLE users; --",
+    "expect": "flag",
+    "reason": "Stacked DROP (critical)"
+  },
+  {
+    "name": "stacked_delete_2",
+    "input": "name=' ; DELETE FROM products WHERE id=1",
+    "expect": "flag",
+    "reason": "Stacked DELETE"
+  },
+  {
+    "name": "stacked_insert_3",
+    "input": "username=admin'; INSERT INTO log VALUES('hacked'); --",
+    "expect": "flag",
+    "reason": "Stacked INSERT"
+  },
+  {
+    "name": "info_schema_1",
+    "input": "SELECT * FROM information_schema.tables",
+    "expect": "flag",
+    "reason": "INFORMATION_SCHEMA (high)"
+  },
+  {
+    "name": "info_schema_2",
+    "input": "query=1 AND 1=1 UNION SELECT table_name FROM information_schema.columns",
+    "expect": "flag",
+    "reason": "INFORMATION_SCHEMA with UNION"
+  },
+  {
+    "name": "info_schema_3",
+    "input": "/api/data?filter=information_schema",
+    "expect": "flag",
+    "reason": "INFORMATION_SCHEMA in param"
+  },
+  {
+    "name": "load_file_1",
+    "input": "file=LOAD_FILE('/etc/passwd')",
+    "expect": "flag",
+    "reason": "LOAD_FILE file read (critical)"
+  },
+  {
+    "name": "load_file_2",
+    "input": "id=1 AND LOAD_FILE('/var/www/config.php')",
+    "expect": "flag",
+    "reason": "LOAD_FILE in AND"
+  },
+  {
+    "name": "load_file_3",
+    "input": "SELECT * WHERE LOAD_FILE('C:\\windows\\system32\\config\\sam')",
+    "expect": "flag",
+    "reason": "LOAD_FILE Windows path"
+  },
+  {
+    "name": "outfile_1",
+    "input": "SELECT * FROM users INTO OUTFILE '/tmp/dump.txt'",
+    "expect": "flag",
+    "reason": "INTO OUTFILE write (critical)"
+  },
+  {
+    "name": "dumpfile_2",
+    "input": "id=1 UNION SELECT username INTO DUMPFILE '/var/www/shell.php'",
+    "expect": "flag",
+    "reason": "INTO DUMPFILE shell"
+  },
+  {
+    "name": "outfile_3",
+    "input": "SELECT password INTO OUTFILE '/tmp/test' FROM admin",
+    "expect": "flag",
+    "reason": "SELECT INTO OUTFILE"
+  },
+  {
+    "name": "concat_select_1",
+    "input": "CONCAT(username, CONCAT(password, SELECT data FROM secrets))",
+    "expect": "flag",
+    "reason": "CONCAT nested SELECT (high)"
+  },
+  {
+    "name": "concat_select_2",
+    "input": "CONCAT(username, SELECT secret FROM admin_users)",
+    "expect": "flag",
+    "reason": "CONCAT with SELECT"
+  },
+  {
+    "name": "group_concat_1",
+    "input": "SELECT GROUP_CONCAT(username) FROM users",
+    "expect": "flag",
+    "reason": "GROUP_CONCAT (high)"
+  },
+  {
+    "name": "group_concat_2",
+    "input": "id=1 UNION SELECT GROUP_CONCAT(password SEPARATOR ',') FROM accounts",
+    "expect": "flag",
+    "reason": "GROUP_CONCAT in UNION"
+  },
+  {
+    "name": "extractvalue_1",
+    "input": "EXTRACTVALUE(1, CONCAT(0x7e, (SELECT database())))",
+    "expect": "flag",
+    "reason": "EXTRACTVALUE error-based (high)"
+  },
+  {
+    "name": "extractvalue_2",
+    "input": "SELECT EXTRACTVALUE(1, CONCAT('~', version()))",
+    "expect": "flag",
+    "reason": "EXTRACTVALUE with version()"
+  },
+  {
+    "name": "updatexml_1",
+    "input": "UPDATEXML(1, CONCAT(0x7e, (SELECT user())), 1)",
+    "expect": "flag",
+    "reason": "UPDATEXML error-based (high)"
+  },
+  {
+    "name": "updatexml_2",
+    "input": "SELECT UPDATEXML(0x3c783e, 0x2f783e, (SELECT password FROM admin))",
+    "expect": "flag",
+    "reason": "UPDATEXML with subquery"
+  },
+  {
+    "name": "comment_dash_1",
+    "input": "admin' --",
+    "expect": "flag",
+    "reason": "SQL comment -- (medium)"
+  },
+  {
+    "name": "comment_hash_2",
+    "input": "id=1 #",
+    "expect": "flag",
+    "reason": "SQL comment # (medium)"
+  },
+  {
+    "name": "comment_block_3",
+    "input": "username=test /* malicious comment */",
+    "expect": "clean",
+    "reason": "Block comment /* */ (medium) [reconciled: vendor comment regex requires (--|#|/*) at line end; /* is inline here]"
+  },
+  {
+    "name": "char_1",
+    "input": "CHAR(83, 69, 76, 69, 67, 84)",
+    "expect": "flag",
+    "reason": "CHAR() encoding bypass (medium)"
+  },
+  {
+    "name": "char_2",
+    "input": "id=CHAR(49)",
+    "expect": "flag",
+    "reason": "CHAR(49) encoding"
+  },
+  {
+    "name": "char_3",
+    "input": "SELECT * FROM CHAR(116, 97, 98, 108, 101)",
+    "expect": "flag",
+    "reason": "CHAR() in FROM"
+  },
+  {
+    "name": "hex_1",
+    "input": "0x73656c656374",
+    "expect": "flag",
+    "reason": "Hex encoding bypass (medium)"
+  },
+  {
+    "name": "hex_2",
+    "input": "username=0x61646d696e",
+    "expect": "flag",
+    "reason": "Hex admin"
+  },
+  {
+    "name": "hex_3",
+    "input": "id=0x3141544945523838",
+    "expect": "flag",
+    "reason": "Hex 6+ chars"
+  },
+  {
+    "name": "modsec_942100",
+    "input": "[id:\"942100\"] UNION SELECT username, password FROM users",
+    "expect": "flag",
+    "reason": "ModSecurity 942100 libinjection"
+  },
+  {
+    "name": "modsec_942170",
+    "input": "[id:\"942170\"] UNION ALL SELECT admin FROM users",
+    "expect": "flag",
+    "reason": "ModSecurity 942170 UNION"
+  },
+  {
+    "name": "modsec_942130",
+    "input": "id=1 OR 1=1 [id:\"942130\"]",
+    "expect": "flag",
+    "reason": "ModSecurity 942130 tautology"
+  },
+  {
+    "name": "modsec_942160",
+    "input": "[id:\"942160\"] BENCHMARK(1000000, MD5('x'))",
+    "expect": "flag",
+    "reason": "ModSecurity 942160"
+  },
+  {
+    "name": "modsec_942180",
+    "input": "[id:\"942180\"] auth bypass",
+    "expect": "flag",
+    "reason": "ModSecurity 942180 auth"
+  },
+  {
+    "name": "modsec_942200",
+    "input": "[id:\"942200\"] /**/SELECT/**/ content",
+    "expect": "flag",
+    "reason": "ModSecurity 942200"
+  },
+  {
+    "name": "modsec_942210",
+    "input": "[id:\"942210\"] chained injection",
+    "expect": "flag",
+    "reason": "ModSecurity 942210"
+  },
+  {
+    "name": "modsec_942140",
+    "input": "[id:\"942140\"] mysql.user",
+    "expect": "flag",
+    "reason": "ModSecurity 942140"
+  },
+  {
+    "name": "modsec_942150",
+    "input": "[id:\"942150\"] SLEEP(5)",
+    "expect": "flag",
+    "reason": "ModSecurity 942150"
+  },
+  {
+    "name": "modsec_942190",
+    "input": "[id:\"942190\"] xp_cmdshell",
+    "expect": "flag",
+    "reason": "ModSecurity 942190"
+  },
+  {
+    "name": "modsec_942220",
+    "input": "[id:\"942220\"] overflow",
+    "expect": "flag",
+    "reason": "ModSecurity 942220"
+  },
+  {
+    "name": "modsec_942230",
+    "input": "[id:\"942230\"] conditional",
+    "expect": "flag",
+    "reason": "ModSecurity 942230"
+  },
+  {
+    "name": "modsec_942240",
+    "input": "[id:\"942240\"] NAMES",
+    "expect": "flag",
+    "reason": "ModSecurity 942240"
+  },
+  {
+    "name": "modsec_942250",
+    "input": "[id:\"942250\"] MATCH AGAINST",
+    "expect": "flag",
+    "reason": "ModSecurity 942250"
+  },
+  {
+    "name": "modsec_942260",
+    "input": "[id:\"942260\"] auth bypass",
+    "expect": "flag",
+    "reason": "ModSecurity 942260"
+  },
+  {
+    "name": "modsec_942270",
+    "input": "[id:\"942270\"] enumeration",
+    "expect": "flag",
+    "reason": "ModSecurity 942270"
+  },
+  {
+    "name": "modsec_942280",
+    "input": "[id:\"942280\"] pg_sleep",
+    "expect": "flag",
+    "reason": "ModSecurity 942280"
+  },
+  {
+    "name": "modsec_942290",
+    "input": "[id:\"942290\"] MongoDB",
+    "expect": "flag",
+    "reason": "ModSecurity 942290"
+  },
+  {
+    "name": "modsec_942110",
+    "input": "[id:\"942110\"] SELECT name FROM",
+    "expect": "flag",
+    "reason": "ModSecurity 942110"
+  },
+  {
+    "name": "modsec_942120",
+    "input": "[id:\"942120\"] operator",
+    "expect": "flag",
+    "reason": "ModSecurity 942120"
+  },
+  {
+    "name": "benign_normal_get",
+    "input": "GET /search?id=1&category=electronics",
+    "expect": "clean",
+    "reason": "Normal GET request"
+  },
+  {
+    "name": "benign_post",
+    "input": "POST /api/users?filter=active&sort=name",
+    "expect": "clean",
+    "reason": "Normal POST"
+  },
+  {
+    "name": "benign_union_station",
+    "input": "GET /page?name=union+station",
+    "expect": "clean",
+    "reason": "Word union in place name"
+  },
+  {
+    "name": "benign_oracle_brand",
+    "input": "GET /products?brand=Oracle&model=9i",
+    "expect": "clean",
+    "reason": "Brand Oracle not SQL"
+  },
+  {
+    "name": "benign_anderson",
+    "input": "GET /locations?filter=Anderson",
+    "expect": "clean",
+    "reason": "Person name Anderson"
+  },
+  {
+    "name": "benign_params",
+    "input": "GET /api/data?id=123&user=john",
+    "expect": "clean",
+    "reason": "Standard parameters"
+  },
+  {
+    "name": "benign_pagination",
+    "input": "GET /items?page=1&limit=10",
+    "expect": "clean",
+    "reason": "Pagination"
+  },
+  {
+    "name": "benign_email",
+    "input": "GET /contact?email=union.square@example.com",
+    "expect": "clean",
+    "reason": "Email with union"
+  },
+  {
+    "name": "benign_comment_middle",
+    "input": "GET /api/data -- comment",
+    "expect": "clean",
+    "reason": "Comment not at end"
+  },
+  {
+    "name": "benign_charset",
+    "input": "GET /page?charset=utf-8",
+    "expect": "clean",
+    "reason": "Character set param"
+  },
+  {
+    "name": "benign_hex_color",
+    "input": "GET /design?color=0xFF0000",
+    "expect": "flag",
+    "reason": "Hex color 6 chars [reconciled: vendor 0x[0-9a-f]{6,} matches 0xFF0000 (aggressive hex-encoding pattern)]"
+  },
+  {
+    "name": "benign_length",
+    "input": "GET /search?len=LENGTH(x)=5",
+    "expect": "clean",
+    "reason": "LENGTH function"
+  },
+  {
+    "name": "benign_substr",
+    "input": "GET /data?x=SUBSTR(y, 1, 5)",
+    "expect": "clean",
+    "reason": "SUBSTR function"
+  },
+  {
+    "name": "benign_upper",
+    "input": "GET /filter?name=UPPER(john)",
+    "expect": "clean",
+    "reason": "UPPER function"
+  },
+  {
+    "name": "benign_database",
+    "input": "GET /admin?database=mysql_prod",
+    "expect": "clean",
+    "reason": "Database name param"
+  },
+  {
+    "name": "benign_server",
+    "input": "GET /query?server=db.example.com",
+    "expect": "clean",
+    "reason": "Server param"
+  },
+  {
+    "name": "benign_token",
+    "input": "GET /api?token=Bearer+abc",
+    "expect": "clean",
+    "reason": "Bearer token"
+  },
+  {
+    "name": "benign_timestamp",
+    "input": "GET /logs?ts=2024-01-15T10:30:00Z",
+    "expect": "clean",
+    "reason": "ISO timestamp"
+  },
+  {
+    "name": "benign_dates",
+    "input": "GET /report?from=2024-01-01&to=2024-12-31",
+    "expect": "clean",
+    "reason": "Date range"
+  },
+  {
+    "name": "benign_form",
+    "input": "POST /form id=user&pass=123",
+    "expect": "clean",
+    "reason": "Form fields"
+  },
+  {
+    "name": "benign_json",
+    "input": "GET /api?data={\"name\":\"union\"}",
+    "expect": "clean",
+    "reason": "JSON value"
+  },
+  {
+    "name": "benign_path_union",
+    "input": "GET /unions/local-123",
+    "expect": "clean",
+    "reason": "URL path"
+  },
+  {
+    "name": "benign_search_or",
+    "input": "GET /search?q=history+or+geo",
+    "expect": "clean",
+    "reason": "Search term"
+  },
+  {
+    "name": "benign_drew",
+    "input": "GET /books?author=Drew",
+    "expect": "clean",
+    "reason": "Name Drew"
+  },
+  {
+    "name": "benign_info_drive",
+    "input": "GET /map?addr=100+Information",
+    "expect": "clean",
+    "reason": "Address"
+  },
+  {
+    "name": "benign_select_param",
+    "input": "GET /list?view=select&mode=multi",
+    "expect": "clean",
+    "reason": "Select param"
+  },
+  {
+    "name": "benign_numeric",
+    "input": "GET /records?id=42&parent=7",
+    "expect": "clean",
+    "reason": "Numeric IDs"
+  },
+  {
+    "name": "benign_rest",
+    "input": "DELETE /api/v1/users/123",
+    "expect": "clean",
+    "reason": "REST DELETE"
+  },
+  {
+    "name": "benign_auth",
+    "input": "Authorization: Basic abc123",
+    "expect": "clean",
+    "reason": "Auth header"
+  },
+  {
+    "name": "benign_multi",
+    "input": "GET /search?q=laptop&price=500",
+    "expect": "clean",
+    "reason": "Multiple params"
+  },
+  {
+    "name": "benign_fragment",
+    "input": "GET /docs#section-3",
+    "expect": "clean",
+    "reason": "URL fragment"
+  },
+  {
+    "name": "benign_upload",
+    "input": "POST /upload?file=doc.pdf",
+    "expect": "clean",
+    "reason": "File upload"
+  },
+  {
+    "name": "benign_config",
+    "input": "GET /config?char_width=10",
+    "expect": "clean",
+    "reason": "Config param"
+  },
+  {
+    "name": "benign_locale",
+    "input": "GET /page?lang=en_US",
+    "expect": "clean",
+    "reason": "Locale"
+  },
+  {
+    "name": "benign_math",
+    "input": "GET /calc?a=1&b=2&op=add",
+    "expect": "clean",
+    "reason": "Math"
+  },
+  {
+    "name": "benign_encoded",
+    "input": "GET /search?name=John%20Doe",
+    "expect": "clean",
+    "reason": "URL encoded"
+  },
+  {
+    "name": "benign_uuid",
+    "input": "GET /item?uuid=550e8400-e29b",
+    "expect": "clean",
+    "reason": "UUID"
+  },
+  {
+    "name": "benign_version",
+    "input": "GET /status?version=2.1.4",
+    "expect": "clean",
+    "reason": "Version"
+  }
+]

@@ -1,0 +1,247 @@
+[
+  {
+    "name": "s3_missing_sse_basic",
+    "input": "resource \"aws_s3_bucket\" \"data\" {\n  bucket = \"my-bucket\"\n  acl    = \"private\"\n}",
+    "expect": "flag",
+    "reason": "S3 bucket missing server_side_encryption_configuration block",
+    "branch": "S3-SSE-MISSING"
+  },
+  {
+    "name": "s3_missing_sse_with_versioning",
+    "input": "resource \"aws_s3_bucket\" \"logs\" {\n  bucket = \"logs-bucket\"\n  versioning {\n    enabled = true\n  }\n}",
+    "expect": "flag",
+    "reason": "S3 bucket has versioning but missing required server_side_encryption_configuration",
+    "branch": "S3-SSE-MISSING"
+  },
+  {
+    "name": "s3_with_sse_aes256",
+    "input": "resource \"aws_s3_bucket\" \"data\" {\n  bucket = \"my-bucket\"\n  server_side_encryption_configuration {\n    rule {\n      apply_server_side_encryption_by_default {\n        sse_algorithm = \"AES256\"\n      }\n    }\n  }\n}",
+    "expect": "clean",
+    "reason": "S3 bucket has server_side_encryption_configuration with AES256",
+    "branch": "S3-SSE-MISSING"
+  },
+  {
+    "name": "s3_with_sse_kms",
+    "input": "resource \"aws_s3_bucket\" \"data\" {\n  bucket = \"my-bucket\"\n  server_side_encryption_configuration {\n    rule {\n      apply_server_side_encryption_by_default {\n        sse_algorithm     = \"aws:kms\"\n        kms_master_key_id = \"arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012\"\n      }\n    }\n  }\n}",
+    "expect": "clean",
+    "reason": "S3 bucket has server_side_encryption_configuration with KMS",
+    "branch": "S3-SSE-MISSING"
+  },
+  {
+    "name": "s3_bucket_policy_not_sse_config",
+    "input": "resource \"aws_s3_bucket\" \"data\" {\n  bucket = \"my-bucket\"\n  bucket_policy = jsonencode({...})\n}",
+    "expect": "flag",
+    "reason": "bucket_policy is not server_side_encryption_configuration; SSE still missing",
+    "branch": "S3-SSE-MISSING"
+  },
+  {
+    "name": "non_s3_resource_missing_sse",
+    "input": "resource \"aws_s3_bucket_versioning\" \"data\" {\n  bucket = \"my-bucket\"\n  versioning_configuration {\n    status = \"Enabled\"\n  }\n}",
+    "expect": "clean",
+    "reason": "Different resource type (aws_s3_bucket_versioning) - vendor rule only checks aws_s3_bucket",
+    "branch": "S3-SSE-MISSING"
+  },
+  {
+    "name": "iam_action_exact_wildcard_allow",
+    "input": "resource \"aws_iam_policy\" \"admin\" {\n  name = \"admin\"\n  policy = jsonencode({\n    Statement = [{\n      Effect = \"Allow\"\n      Action = \"*\"\n      Resource = \"*\"\n    }]\n  })\n}",
+    "expect": "flag",
+    "reason": "IAM policy statement with Action=\"*\" and Effect=\"Allow\" (Rule A)",
+    "branch": "IAM-ACTION-WILDCARD"
+  },
+  {
+    "name": "iam_action_wildcard_in_list_allow",
+    "input": "resource \"aws_iam_policy\" \"mixed\" {\n  name = \"mixed\"\n  policy = jsonencode({\n    Statement = [{\n      Effect = \"Allow\"\n      Action = [\"s3:GetObject\", \"*\", \"ec2:Describe*\"]\n      Resource = \"arn:aws:s3:::bucket/*\"\n    }]\n  })\n}",
+    "expect": "flag",
+    "reason": "IAM policy statement with Action list containing \"*\" and Effect=\"Allow\" (Rule A)",
+    "branch": "IAM-ACTION-WILDCARD"
+  },
+  {
+    "name": "iam_action_wildcard_deny",
+    "input": "resource \"aws_iam_policy\" \"restrictive\" {\n  name = \"deny-admin\"\n  policy = jsonencode({\n    Statement = [{\n      Effect = \"Deny\"\n      Action = \"*\"\n      Resource = \"*\"\n    }]\n  })\n}",
+    "expect": "clean",
+    "reason": "Action=\"*\" but Effect=\"Deny\" (not Allow) - vendor rule requires Allow",
+    "branch": "IAM-ACTION-WILDCARD"
+  },
+  {
+    "name": "iam_service_prefix_wildcard_allow",
+    "input": "resource \"aws_iam_policy\" \"s3_admin\" {\n  name = \"s3-admin\"\n  policy = jsonencode({\n    Statement = [{\n      Effect = \"Allow\"\n      Action = \"s3:*\"\n      Resource = \"*\"\n    }]\n  })\n}",
+    "expect": "flag",
+    "reason": "Action=\"s3:*\" (service-scoped) is NOT the exact wildcard \"*\" that Rule A matches [reconciled: vendor deny-rule B: Resource==* & Allow & Action contains *]",
+    "branch": "IAM-ACTION-WILDCARD"
+  },
+  {
+    "name": "iam_action_semicolon_syntax",
+    "input": "resource \"aws_iam_policy\" \"admin\" {\n  name = \"admin\"\n  policy = jsonencode({\n    Statement = [{\n      Effect: \"Allow\"\n      Action: \"*\"\n      Resource: \"*\"\n    }]\n  })\n}",
+    "expect": "flag",
+    "reason": "Action=\"*\" with Effect=\"Allow\" using colon syntax (case-insensitive regex matches)",
+    "branch": "IAM-ACTION-WILDCARD"
+  },
+  {
+    "name": "iam_no_effect",
+    "input": "resource \"aws_iam_policy\" \"incomplete\" {\n  name = \"incomplete\"\n  policy = jsonencode({\n    Statement = [{\n      Action = \"*\"\n      Resource = \"*\"\n    }]\n  })\n}",
+    "expect": "clean",
+    "reason": "Action=\"*\" but no Effect specified - vendor rule requires Effect=\"Allow\"",
+    "branch": "IAM-ACTION-WILDCARD"
+  },
+  {
+    "name": "iam_resource_wildcard_action_wildcard_allow",
+    "input": "resource \"aws_iam_policy\" \"full_admin\" {\n  name = \"full\"\n  policy = jsonencode({\n    Statement = [{\n      Effect = \"Allow\"\n      Resource = \"*\"\n      Action = \"*\"\n    }]\n  })\n}",
+    "expect": "flag",
+    "reason": "Resource=\"*\" and Effect=\"Allow\" and Action=\"*\" contains wildcard (Rule B)",
+    "branch": "IAM-RESOURCE-WILDCARD-ACTIONS"
+  },
+  {
+    "name": "iam_resource_wildcard_action_service_wildcard_allow",
+    "input": "resource \"aws_iam_policy\" \"s3_all\" {\n  name = \"s3-all\"\n  policy = jsonencode({\n    Statement = [{\n      Effect = \"Allow\"\n      Resource = \"*\"\n      Action = \"s3:*\"\n    }]\n  })\n}",
+    "expect": "flag",
+    "reason": "Resource=\"*\" and Effect=\"Allow\" and Action=\"s3:*\" contains wildcard (Rule B)",
+    "branch": "IAM-RESOURCE-WILDCARD-ACTIONS"
+  },
+  {
+    "name": "iam_resource_wildcard_action_list_with_wildcard_allow",
+    "input": "resource \"aws_iam_policy\" \"mixed_services\" {\n  name = \"mixed\"\n  policy = jsonencode({\n    Statement = [{\n      Effect = \"Allow\"\n      Resource = \"*\"\n      Action = [\"s3:GetObject\", \"ec2:*\", \"dynamodb:GetItem\"]\n    }]\n  })\n}",
+    "expect": "flag",
+    "reason": "Resource=\"*\" and Effect=\"Allow\" and Action list contains \"ec2:*\" with wildcard (Rule B)",
+    "branch": "IAM-RESOURCE-WILDCARD-ACTIONS"
+  },
+  {
+    "name": "iam_resource_wildcard_no_wildcard_action_allow",
+    "input": "resource \"aws_iam_policy\" \"readonly\" {\n  name = \"read\"\n  policy = jsonencode({\n    Statement = [{\n      Effect = \"Allow\"\n      Resource = \"*\"\n      Action = [\"s3:GetObject\", \"s3:ListBucket\", \"ec2:DescribeInstances\"]\n    }]\n  })\n}",
+    "expect": "clean",
+    "reason": "Resource=\"*\" and Effect=\"Allow\" but NO wildcard in Action list (no * in any action)",
+    "branch": "IAM-RESOURCE-WILDCARD-ACTIONS"
+  },
+  {
+    "name": "iam_resource_scoped_wildcard_action_allow",
+    "input": "resource \"aws_iam_policy\" \"bucket_admin\" {\n  name = \"bucket\"\n  policy = jsonencode({\n    Statement = [{\n      Effect = \"Allow\"\n      Resource = \"arn:aws:s3:::my-bucket/*\"\n      Action = \"s3:*\"\n    }]\n  })\n}",
+    "expect": "clean",
+    "reason": "Action=\"s3:*\" contains wildcard but Resource is NOT \"*\" (Rule B requires Resource=\"*\")",
+    "branch": "IAM-RESOURCE-WILDCARD-ACTIONS"
+  },
+  {
+    "name": "iam_resource_wildcard_wildcard_action_deny",
+    "input": "resource \"aws_iam_policy\" \"deny_all\" {\n  name = \"deny\"\n  policy = jsonencode({\n    Statement = [{\n      Effect = \"Deny\"\n      Resource = \"*\"\n      Action = \"s3:*\"\n    }]\n  })\n}",
+    "expect": "clean",
+    "reason": "Resource=\"*\" and Action=\"s3:*\" but Effect=\"Deny\" (not Allow) - Rule B requires Allow",
+    "branch": "IAM-RESOURCE-WILDCARD-ACTIONS"
+  },
+  {
+    "name": "sg_rule_ingress_public_ssh_exact",
+    "input": "resource \"aws_security_group_rule\" \"ssh\" {\n  type            = \"ingress\"\n  from_port       = 22\n  to_port         = 22\n  protocol        = \"tcp\"\n  cidr_blocks     = [\"0.0.0.0/0\"]\n  security_group_id = \"sg-12345\"\n}",
+    "expect": "flag",
+    "reason": "Ingress rule with type=\"ingress\", cidr=0.0.0.0/0, from_port=22, to_port=22 covers port 22",
+    "branch": "SG-PUBLIC-SSH-INGRESS"
+  },
+  {
+    "name": "sg_rule_ingress_public_ssh_range",
+    "input": "resource \"aws_security_group_rule\" \"all\" {\n  type            = \"ingress\"\n  from_port       = 0\n  to_port         = 65535\n  protocol        = \"tcp\"\n  cidr_blocks     = [\"0.0.0.0/0\"]\n  security_group_id = \"sg-12345\"\n}",
+    "expect": "flag",
+    "reason": "Ingress rule with from_port=0, to_port=65535 includes port 22 in range",
+    "branch": "SG-PUBLIC-SSH-INGRESS"
+  },
+  {
+    "name": "sg_rule_ingress_public_ssh_range_partial",
+    "input": "resource \"aws_security_group_rule\" \"wide\" {\n  type            = \"ingress\"\n  from_port       = 20\n  to_port         = 25\n  protocol        = \"tcp\"\n  cidr_blocks     = [\"0.0.0.0/0\"]\n  security_group_id = \"sg-12345\"\n}",
+    "expect": "flag",
+    "reason": "Ingress rule with from_port=20, to_port=25 covers port 22 (20 <= 22 <= 25)",
+    "branch": "SG-PUBLIC-SSH-INGRESS"
+  },
+  {
+    "name": "sg_rule_egress_public_ssh",
+    "input": "resource \"aws_security_group_rule\" \"out\" {\n  type            = \"egress\"\n  from_port       = 22\n  to_port         = 22\n  protocol        = \"tcp\"\n  cidr_blocks     = [\"0.0.0.0/0\"]\n  security_group_id = \"sg-12345\"\n}",
+    "expect": "clean",
+    "reason": "Egress rule (not ingress) to 0.0.0.0/0 on port 22 - vendor rule requires type=\"ingress\"",
+    "branch": "SG-PUBLIC-SSH-INGRESS"
+  },
+  {
+    "name": "sg_rule_ingress_private_ssh",
+    "input": "resource \"aws_security_group_rule\" \"internal\" {\n  type            = \"ingress\"\n  from_port       = 22\n  to_port         = 22\n  protocol        = \"tcp\"\n  cidr_blocks     = [\"10.0.0.0/8\"]\n  security_group_id = \"sg-12345\"\n}",
+    "expect": "clean",
+    "reason": "Ingress rule on port 22 but cidr=10.0.0.0/8 (private, not 0.0.0.0/0)",
+    "branch": "SG-PUBLIC-SSH-INGRESS"
+  },
+  {
+    "name": "sg_rule_ingress_public_http",
+    "input": "resource \"aws_security_group_rule\" \"web\" {\n  type            = \"ingress\"\n  from_port       = 80\n  to_port         = 443\n  protocol        = \"tcp\"\n  cidr_blocks     = [\"0.0.0.0/0\"]\n  security_group_id = \"sg-12345\"\n}",
+    "expect": "clean",
+    "reason": "Ingress rule public to 0.0.0.0/0 but from_port=80, to_port=443 (no port 22)",
+    "branch": "SG-PUBLIC-SSH-INGRESS"
+  },
+  {
+    "name": "sg_rule_ingress_public_ssh_before_port_range",
+    "input": "resource \"aws_security_group_rule\" \"web\" {\n  type            = \"ingress\"\n  from_port       = 1\n  to_port         = 21\n  protocol        = \"tcp\"\n  cidr_blocks     = [\"0.0.0.0/0\"]\n  security_group_id = \"sg-12345\"\n}",
+    "expect": "clean",
+    "reason": "Ingress rule public but from_port=1, to_port=21 (excludes port 22)",
+    "branch": "SG-PUBLIC-SSH-INGRESS"
+  },
+  {
+    "name": "sg_rule_ingress_public_ssh_after_port_range",
+    "input": "resource \"aws_security_group_rule\" \"web\" {\n  type            = \"ingress\"\n  from_port       = 23\n  to_port         = 100\n  protocol        = \"tcp\"\n  cidr_blocks     = [\"0.0.0.0/0\"]\n  security_group_id = \"sg-12345\"\n}",
+    "expect": "clean",
+    "reason": "Ingress rule public but from_port=23, to_port=100 (excludes port 22)",
+    "branch": "SG-PUBLIC-SSH-INGRESS"
+  },
+  {
+    "name": "sg_inline_ingress_public_ssh",
+    "input": "resource \"aws_security_group\" \"web\" {\n  name = \"web-sg\"\n  ingress {\n    from_port   = 22\n    to_port     = 22\n    protocol    = \"tcp\"\n    cidr_blocks = [\"0.0.0.0/0\"]\n  }\n}",
+    "expect": "flag",
+    "reason": "Inline ingress block in aws_security_group with 0.0.0.0/0 on port 22 (Rust extension)",
+    "branch": "SG-PUBLIC-SSH-INGRESS"
+  },
+  {
+    "name": "sg_inline_egress_public_ssh",
+    "input": "resource \"aws_security_group\" \"web\" {\n  name = \"web-sg\"\n  egress {\n    from_port   = 22\n    to_port     = 22\n    protocol    = \"tcp\"\n    cidr_blocks = [\"0.0.0.0/0\"]\n  }\n}",
+    "expect": "clean",
+    "reason": "Inline egress block (not ingress) - vendor Rego only checks ingress",
+    "branch": "SG-PUBLIC-SSH-INGRESS"
+  },
+  {
+    "name": "sg_inline_ingress_private",
+    "input": "resource \"aws_security_group\" \"internal\" {\n  name = \"internal-sg\"\n  ingress {\n    from_port   = 22\n    to_port     = 22\n    protocol    = \"tcp\"\n    cidr_blocks = [\"172.16.0.0/12\"]\n  }\n}",
+    "expect": "clean",
+    "reason": "Inline ingress block on port 22 but cidr=172.16.0.0/12 (private, not 0.0.0.0/0)",
+    "branch": "SG-PUBLIC-SSH-INGRESS"
+  },
+  {
+    "name": "sg_rule_multiple_cidrs_one_public",
+    "input": "resource \"aws_security_group_rule\" \"mixed\" {\n  type            = \"ingress\"\n  from_port       = 22\n  to_port         = 22\n  protocol        = \"tcp\"\n  cidr_blocks     = [\"10.0.0.0/8\", \"0.0.0.0/0\", \"192.168.0.0/16\"]\n  security_group_id = \"sg-12345\"\n}",
+    "expect": "flag",
+    "reason": "Ingress on port 22 with cidr_blocks containing 0.0.0.0/0 (vendor checks if ANY matches)",
+    "branch": "SG-PUBLIC-SSH-INGRESS"
+  },
+  {
+    "name": "iam_multiple_statements_first_flagged",
+    "input": "resource \"aws_iam_policy\" \"multi\" {\n  name = \"multi\"\n  policy = jsonencode({\n    Statement = [\n      {\n        Effect = \"Allow\"\n        Action = \"*\"\n        Resource = \"arn:aws:s3:::bucket1/*\"\n      },\n      {\n        Effect = \"Allow\"\n        Action = \"s3:GetObject\"\n        Resource = \"arn:aws:s3:::bucket2/*\"\n      }\n    ]\n  })\n}",
+    "expect": "flag",
+    "reason": "First statement has Action=\"*\" with Effect=\"Allow\" (Rule A fires on first statement)",
+    "branch": "IAM-ACTION-WILDCARD"
+  },
+  {
+    "name": "iam_multiple_statements_second_flagged",
+    "input": "resource \"aws_iam_policy\" \"multi\" {\n  name = \"multi\"\n  policy = jsonencode({\n    Statement = [\n      {\n        Effect = \"Allow\"\n        Action = \"s3:GetObject\"\n        Resource = \"arn:aws:s3:::bucket1/*\"\n      },\n      {\n        Effect = \"Allow\"\n        Action = \"*\"\n        Resource = \"*\"\n      }\n    ]\n  })\n}",
+    "expect": "flag",
+    "reason": "Second statement has Action=\"*\" with Effect=\"Allow\" (vendor checks all statements)",
+    "branch": "IAM-ACTION-WILDCARD"
+  },
+  {
+    "name": "s3_with_sse_empty_block",
+    "input": "resource \"aws_s3_bucket\" \"data\" {\n  bucket = \"my-bucket\"\n  server_side_encryption_configuration {\n  }\n}",
+    "expect": "clean",
+    "reason": "server_side_encryption_configuration block exists (even if empty) - vendor checks for block presence",
+    "branch": "S3-SSE-MISSING"
+  },
+  {
+    "name": "iam_action_case_insensitive_effect",
+    "input": "resource \"aws_iam_policy\" \"admin\" {\n  name = \"admin\"\n  policy = jsonencode({\n    Statement = [{\n      effect = \"allow\"\n      action = \"*\"\n      resource = \"*\"\n    }]\n  })\n}",
+    "expect": "flag",
+    "reason": "effect=\"allow\" (lowercase) and action=\"*\" - Rust regex is case-insensitive",
+    "branch": "IAM-ACTION-WILDCARD"
+  },
+  {
+    "name": "sg_rule_string_port_values",
+    "input": "resource \"aws_security_group_rule\" \"ssh\" {\n  type            = \"ingress\"\n  from_port       = \"22\"\n  to_port         = \"22\"\n  protocol        = \"tcp\"\n  cidr_blocks     = [\"0.0.0.0/0\"]\n  security_group_id = \"sg-12345\"\n}",
+    "expect": "flag",
+    "reason": "from_port and to_port as strings \"22\" should still parse and match port 22",
+    "branch": "SG-PUBLIC-SSH-INGRESS"
+  }
+]

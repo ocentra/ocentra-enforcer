@@ -122,10 +122,11 @@ const SQLI_PATTERNS_SRC: &[SqliPattern] = &[
     },
 ];
 
-/// The `MODSEC_RULE_MAP` 942xxx lexicon (agent.py L34-55), ported verbatim
-/// — used to enrich a finding's detail when the scanned log line itself
-/// carries a ModSecurity `id:"942xxx"` field (the corpus script's audit-log
-/// format).
+/// The `MODSEC_RULE_MAP` 942xxx lexicon (agent.py L34-55), ported verbatim.
+/// `942xxx` is ModSecurity's SQL-injection CRS rule family, so a log line
+/// carrying one of these ids is a WAF-confirmed SQLi hit: the id both
+/// TRIGGERS a finding (even when no raw `SQLI_PATTERNS` signature survives
+/// in the logged text) and enriches its detail with the rule description.
 const MODSEC_RULE_MAP: &[(&str, &str)] = &[
     ("942100", "SQL Injection via libinjection"),
     ("942110", "SQL Injection (common keywords)"),
@@ -214,22 +215,37 @@ impl Validator for WafSqliSignatureValidator {
                     hits.push((label, severity));
                 }
             }
-            if hits.is_empty() {
+            // A `942xxx` id is ModSecurity's SQL-injection CRS rule family:
+            // its presence means the WAF itself already matched SQLi on this
+            // request, so the line is a hit even when no raw `SQLI_PATTERNS`
+            // signature survives in the logged (truncated/encoded) text.
+            let modsec = modsec_label(line);
+            if hits.is_empty() && modsec.is_none() {
                 continue;
             }
-            hits.sort_by_key(|(_, severity)| std::cmp::Reverse(severity_weight(severity)));
-            let (worst_label, worst_severity) = hits[0];
-            let modsec = modsec_label(line)
+
+            let (worst_label, worst_severity): (&str, &str) = if hits.is_empty() {
+                // ModSecurity-only hit: a CRS SQLi rule fired => high confidence.
+                ("ModSecurity SQLi rule (942xxx)", "high")
+            } else {
+                hits.sort_by_key(|(_, severity)| std::cmp::Reverse(severity_weight(severity)));
+                hits[0]
+            };
+
+            let modsec_note = modsec
                 .map(|label| format!(" ModSecurity rule match: {label}."))
                 .unwrap_or_default();
-            let matched_labels: Vec<&str> = hits.iter().map(|(label, _)| *label).collect();
+            let mut matched_labels: Vec<&str> = hits.iter().map(|(label, _)| *label).collect();
+            if let (true, Some(label)) = (matched_labels.is_empty(), modsec) {
+                matched_labels.push(label);
+            }
             findings.push(Finding {
                 rule_id: self.rule_id.clone(),
                 severity: to_severity(worst_severity),
                 title: "WAF log line matches a SQLi signature (T2 scored)".to_owned(),
                 detail: format!(
                     "confidence: {worst_severity}, primary signature: {worst_label}, all \
-                     signatures matched: {}.{modsec} Fix: block/parameterize the offending \
+                     signatures matched: {}.{modsec_note} Fix: block/parameterize the offending \
                      request path; treat this log line as a probable SQL injection attempt.",
                     matched_labels.join(", ")
                 ),
