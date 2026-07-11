@@ -21,6 +21,11 @@ enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 [dev-dependencies]
 enforcer-rules = { path = "../enforcer-rules", version = "0.1.0" }
 enforcer-mechanization = { path = "../enforcer-mechanization", version = "0.1.0" }
+# Test-only: the h11 cyberskills.* rule-scaffold-parity oracle sweep needs
+# the 11 source-pattern validators that live in enforcer-lang-security
+# alongside this crate's own frontmatter linter (see
+# tests/cyberskills_parity.rs). Dev-only, so it adds no runtime coupling.
+enforcer-lang-security = { path = "../enforcer-lang-security", version = "0.1.0" }
 
 [lints]
 workspace = true

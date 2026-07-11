@@ -12,7 +12,7 @@
             "fail": "crates/enforcer-security/tests/fixtures/cyberskills/skill_frontmatter/bad/bad_attack_id.md",
             "pass": "crates/enforcer-security/tests/fixtures/cyberskills/skill_frontmatter/good/valid.md"
         },
-        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
         "tags": ["cyberskills", "h11", "frontmatter", "threat-vocab"]
     },
     {
@@ -28,7 +28,7 @@
             "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/iac.tf.s3-encryption-required/bad/no_sse.tf",
             "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/iac.tf.s3-encryption-required/good/sse.tf"
         },
-        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
         "tags": ["cyberskills", "h11", "iac", "terraform", "aws"]
     },
     {
@@ -44,7 +44,7 @@
             "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/iac.tf.iam-no-wildcard-action/bad/wildcard.tf",
             "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/iac.tf.iam-no-wildcard-action/good/scoped.tf"
         },
-        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
         "tags": ["cyberskills", "h11", "iac", "terraform", "aws"]
     },
     {
@@ -60,7 +60,7 @@
             "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/iac.tf.sg-no-public-ssh-ingress/bad/public_ssh.tf",
             "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/iac.tf.sg-no-public-ssh-ingress/good/restricted.tf"
         },
-        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
         "tags": ["cyberskills", "h11", "iac", "terraform", "aws"]
     },
     {
@@ -76,7 +76,7 @@
             "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.azure.storage-public-blob/bad/public.json",
             "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.azure.storage-public-blob/good/private.json"
         },
-        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
         "tags": ["cyberskills", "h11", "cloud", "azure"]
     },
     {
@@ -92,7 +92,7 @@
             "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.azure.storage-require-https/bad/http.json",
             "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.azure.storage-require-https/good/https.json"
         },
-        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
         "tags": ["cyberskills", "h11", "cloud", "azure"]
     },
     {
@@ -108,7 +108,7 @@
             "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.azure.storage-min-tls12/bad/tls10.json",
             "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.azure.storage-min-tls12/good/tls12.json"
         },
-        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
         "tags": ["cyberskills", "h11", "cloud", "azure"]
     },
     {
@@ -124,7 +124,7 @@
             "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.headers.hsts-missing-or-weak/bad/missing.json",
             "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.headers.hsts-missing-or-weak/good/strong.json"
         },
-        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
         "tags": ["cyberskills", "h11", "web", "headers"]
     },
     {
@@ -140,7 +140,7 @@
             "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.headers.csp-missing/bad/missing.json",
             "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.headers.csp-missing/good/restrictive.json"
         },
-        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
         "tags": ["cyberskills", "h11", "web", "headers"]
     },
     {
@@ -156,7 +156,7 @@
             "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.cookie.secure-httponly-samesite/bad/insecure.json",
             "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.cookie.secure-httponly-samesite/good/secure.json"
         },
-        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
         "tags": ["cyberskills", "h11", "web", "cookies"]
     },
     {
@@ -172,7 +172,7 @@
             "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/supplychain.dependency-confusion-claimable/bad/package.json",
             "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/supplychain.dependency-confusion-claimable/good/package.json"
         },
-        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
         "tags": ["cyberskills", "h11", "supplychain", "dependency-confusion"]
     },
     {
@@ -188,7 +188,7 @@
             "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/detect.waf.sqli-signature/bad/union_select.log.txt",
             "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/detect.waf.sqli-signature/good/benign.log.txt"
         },
-        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#requirement-checklist",
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
         "tags": ["cyberskills", "h11", "waf", "sqli", "scored"]
     }
 ]

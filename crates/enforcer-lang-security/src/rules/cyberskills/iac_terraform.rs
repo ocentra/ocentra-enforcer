@@ -256,6 +256,20 @@ fn allows_public_cidr(body: &str) -> bool {
     body.contains("0.0.0.0/0")
 }
 
+/// True when `body` declares a string HCL attribute `name = "value"`
+/// (case-insensitive), e.g. `type = "ingress"`. Used to honor the vendor
+/// Rego's explicit `resource.type == "ingress"` predicate so an `egress`
+/// rule to `0.0.0.0/0` on port 22 is NOT flagged.
+fn string_attr_eq(body: &str, name: &str, value: &str) -> bool {
+    let Ok(pattern) = Regex::new(&format!(r#"(?i)\b{name}\s*=\s*"([^"]*)""#)) else {
+        return false;
+    };
+    pattern
+        .captures(body)
+        .and_then(|c| c.get(1))
+        .is_some_and(|m| m.as_str().eq_ignore_ascii_case(value))
+}
+
 fn covers_port_22(body: &str) -> bool {
     match (int_attr(body, "from_port"), int_attr(body, "to_port")) {
         (Some(from), Some(to)) => from <= 22 && to >= 22,
@@ -271,38 +285,41 @@ impl Validator for SgNoPublicSshIngressValidator {
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let mut findings = Vec::new();
         for block in resource_blocks(input.source) {
-            let is_sg_rule = block.resource_type == "aws_security_group_rule"
-                || block.resource_type == "aws_security_group";
-            if !is_sg_rule {
-                continue;
-            }
-            // Both a standalone `aws_security_group_rule` (type = "ingress"
-            // implicit via `ingress`/`type` attrs) and an inline `ingress {
-            // ... }` block inside `aws_security_group` are checked: scan
-            // every `ingress { ... }` sub-block plus the block body itself
-            // (the standalone-rule shape has no nested `ingress` block).
-            let mut candidates = vec![block.body];
-            candidates.extend(ingress_subblocks(block.body));
-            for candidate in candidates {
-                let is_ingress = candidate.contains("ingress")
-                    || block.resource_type == "aws_security_group_rule";
-                if is_ingress && allows_public_cidr(candidate) && covers_port_22(candidate) {
-                    findings.push(Finding {
-                        rule_id: self.rule_id.clone(),
-                        severity: Severity::Error,
-                        title: "Security group rule allows SSH from 0.0.0.0/0".to_owned(),
-                        detail: format!(
-                            "Security group rule '{}' allows ingress from `0.0.0.0/0` across a \
-                             port range covering 22 (SSH). Fix: restrict `cidr_blocks` to a \
-                             known range or remove port 22 from the public rule.",
-                            block.name
-                        ),
-                        file: input.file.clone(),
-                        line: block.line,
-                        snippet: None,
-                    });
-                    break;
+            // The two shapes the vendor Rego + inline-block convention
+            // cover, kept faithful to `aws_no_public_ingress.rego` (which
+            // fires only when `resource.type == "ingress"`):
+            // - standalone `aws_security_group_rule`: the block body itself
+            //   is the rule, and it must declare `type = "ingress"` (an
+            //   `egress` rule to 0.0.0.0/0 on port 22 is NOT flagged);
+            // - `aws_security_group`: only its inline `ingress { ... }`
+            //   sub-blocks are ingress (egress sub-blocks are out of scope),
+            //   so the whole body is never scanned as one candidate.
+            let is_public_ssh_ingress = match block.resource_type {
+                "aws_security_group_rule" => {
+                    string_attr_eq(block.body, "type", "ingress")
+                        && allows_public_cidr(block.body)
+                        && covers_port_22(block.body)
                 }
+                "aws_security_group" => ingress_subblocks(block.body)
+                    .into_iter()
+                    .any(|ingress| allows_public_cidr(ingress) && covers_port_22(ingress)),
+                _ => false,
+            };
+            if is_public_ssh_ingress {
+                findings.push(Finding {
+                    rule_id: self.rule_id.clone(),
+                    severity: Severity::Error,
+                    title: "Security group rule allows SSH from 0.0.0.0/0".to_owned(),
+                    detail: format!(
+                        "Security group rule '{}' allows ingress from `0.0.0.0/0` across a \
+                         port range covering 22 (SSH). Fix: restrict `cidr_blocks` to a \
+                         known range or remove port 22 from the public rule.",
+                        block.name
+                    ),
+                    file: input.file.clone(),
+                    line: block.line,
+                    snippet: None,
+                });
             }
         }
         findings
@@ -330,13 +347,69 @@ fn ingress_subblocks(body: &str) -> Vec<&str> {
 mod tests {
     use std::path::PathBuf;
 
+    use enforcer_domain::findings::ScanScope;
+    use enforcer_domain::paths::RelPath;
     use enforcer_validator::harness::run_fixture_parity;
+    use enforcer_validator::validator::{ValidationInput, Validator};
 
     use super::SgNoPublicSshIngressValidator;
     use super::{IamNoWildcardActionValidator, S3EncryptionRequiredValidator};
 
     fn manifest_dir() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    }
+
+    fn sg_findings(source: &str) -> Result<usize, Box<dyn std::error::Error>> {
+        let validator = SgNoPublicSshIngressValidator::new()?;
+        let file: RelPath = "main.tf".parse()?;
+        Ok(validator
+            .validate(ValidationInput {
+                file: &file,
+                source,
+                scope: ScanScope::Files,
+            })
+            .len())
+    }
+
+    /// Regression for the egress false-positive: the vendor Rego fires only
+    /// when `resource.type == "ingress"`, so a standalone
+    /// `aws_security_group_rule` with `type = "egress"` opening
+    /// 0.0.0.0/0 on port 22 must NOT be flagged, while the same rule with
+    /// `type = "ingress"` MUST be flagged.
+    #[test]
+    fn sg_rule_egress_is_not_flagged_but_ingress_is() -> Result<(), Box<dyn std::error::Error>> {
+        let egress = r#"
+resource "aws_security_group_rule" "out" {
+  type        = "egress"
+  from_port   = 22
+  to_port     = 22
+  protocol    = "tcp"
+  cidr_blocks = ["0.0.0.0/0"]
+  security_group_id = "sg-123"
+}
+"#;
+        assert_eq!(
+            sg_findings(egress)?,
+            0,
+            "an egress rule to 0.0.0.0/0 on port 22 must not be flagged (vendor requires type==ingress)"
+        );
+
+        let ingress = r#"
+resource "aws_security_group_rule" "in" {
+  type        = "ingress"
+  from_port   = 22
+  to_port     = 22
+  protocol    = "tcp"
+  cidr_blocks = ["0.0.0.0/0"]
+  security_group_id = "sg-123"
+}
+"#;
+        assert_eq!(
+            sg_findings(ingress)?,
+            1,
+            "a standalone ingress rule to 0.0.0.0/0 on port 22 must be flagged"
+        );
+        Ok(())
     }
 
     #[test]

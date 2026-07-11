@@ -79,20 +79,50 @@ pub fn is_known_nist_csf_id(id: &str) -> bool {
     suffix.len() == 2 && suffix.chars().all(|c| c.is_ascii_digit())
 }
 
-/// The 46-entry canonical subdomain allowlist (`validate-skill.py`'s
-/// `ALLOWED_SUBDOMAINS`, canonical forms only — aliases normalize to one
-/// of these before membership is checked, mirroring the corpus
-/// validator's alias->canonical table without porting the WARN-only alias
-/// UX, since this validator's contract is pass/fail, not advisory).
+/// The subdomain allowlist, ported 1:1 from `validate-skill.py`'s
+/// `ALLOWED_SUBDOMAINS` — the FLAT set of every accepted value (each
+/// canonical form PLUS all of its aliases in `_SUBDOMAIN_ALIASES`), 46
+/// entries total. The vendor validator accepts a subdomain iff it is a
+/// member of this flat set (it only WARNs, non-blocking, when an accepted
+/// value is an alias rather than the canonical form); since this Rust
+/// validator's contract is pass/fail, not advisory, membership in the flat
+/// set is exactly the accept/reject decision — so the flat set, not the
+/// canonical-only subset, is the faithful port. Grouped below by vendor
+/// canonical (first entry) followed by its aliases, mirroring the
+/// `_SUBDOMAIN_ALIASES` table so the port is auditable line-for-line
+/// against `tools/validate-skill.py` (L21-62).
+///
+/// Kept as a sorted-within-group verbatim copy of the vendor set: a value
+/// the corpus's 817 SKILL.md actually use (e.g. `security-operations`,
+/// `ransomware-defense`, `threat-detection`, `application-security`,
+/// `identity-and-access-management`) must be accepted, and a value the
+/// vendor does NOT accept must be rejected — the earlier hand-authored
+/// list diverged from the vendor set in both directions and is replaced
+/// here.
 pub const ALLOWED_SUBDOMAINS: &[&str] = &[
+    // identity
     "identity-access-management",
+    "identity-and-access-management",
+    "identity-security",
+    // zero-trust
     "zero-trust-architecture",
+    "zero-trust",
+    // OT/ICS
     "ot-ics-security",
+    "ot-security",
+    // SOC / security ops
     "soc-operations",
+    "security-operations",
+    // red team
     "red-teaming",
+    "red-team",
+    // web / application security
     "web-application-security",
+    "application-security",
     "network-security",
+    // pentest / offensive
     "penetration-testing",
+    "offensive-security",
     "digital-forensics",
     "malware-analysis",
     "threat-intelligence",
@@ -100,37 +130,32 @@ pub const ALLOWED_SUBDOMAINS: &[&str] = &[
     "container-security",
     "cryptography",
     "vulnerability-management",
+    // compliance / GRC
     "compliance-governance",
+    "governance-risk-compliance",
     "devsecops",
     "threat-hunting",
     "incident-response",
     "endpoint-security",
+    // phishing / social-engineering defense
     "phishing-defense",
+    "social-engineering-defense",
     "api-security",
     "mobile-security",
-    "iot-security",
+    "ransomware-defense",
+    "threat-detection",
     "blockchain-security",
-    "data-security",
-    "email-security",
-    "physical-security",
-    "supply-chain-security",
-    "security-awareness-training",
-    "privacy-engineering",
-    "secure-coding",
-    "security-architecture",
-    "risk-management",
-    "insider-threat",
-    "disaster-recovery",
-    "business-continuity",
-    "security-automation",
-    "ai-security",
-    "quantum-security",
-    "critical-infrastructure-security",
-    "wireless-security",
-    "database-security",
-    "virtualization-security",
+    "data-protection",
+    "deception-technology",
+    // hardware / firmware
+    "hardware-firmware-security",
+    "firmware-analysis",
     "firmware-security",
-    "social-engineering-defense",
+    "privacy-compliance",
+    "purple-team",
+    "supply-chain-security",
+    "wireless-security",
+    "ai-security",
 ];
 
 /// The deduplicated union of every well-formed `mitre_attack`/`nist_csf`
@@ -231,8 +256,10 @@ fn find_skill_md_files(root: &Path) -> Vec<std::path::PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::{
-        extract_list, is_known_mitre_attack_id, is_known_nist_csf_id, union_frontmatter_ids,
+        extract_list, find_skill_md_files, is_known_mitre_attack_id, is_known_nist_csf_id,
+        union_frontmatter_ids, ALLOWED_SUBDOMAINS,
     };
+    use std::collections::BTreeSet;
     use std::path::PathBuf;
 
     #[test]
@@ -262,6 +289,137 @@ mod tests {
             extract_list(source, "nist_csf"),
             vec!["DE.CM-01".to_owned()]
         );
+    }
+
+    /// The allowlist is exactly the 46-value flat set `validate-skill.py`
+    /// accepts, with no duplicates. Guards against re-introducing a
+    /// hand-authored list of a different size/content.
+    #[test]
+    fn allowlist_is_the_46_value_vendor_flat_set_with_no_duplicates() {
+        let unique: BTreeSet<&&str> = ALLOWED_SUBDOMAINS.iter().collect();
+        assert_eq!(
+            unique.len(),
+            ALLOWED_SUBDOMAINS.len(),
+            "ALLOWED_SUBDOMAINS has duplicate entries"
+        );
+        assert_eq!(
+            ALLOWED_SUBDOMAINS.len(),
+            46,
+            "vendor validate-skill.py ALLOWED_SUBDOMAINS is a 46-value flat set"
+        );
+        // Vendor-accepted values the earlier fabricated list wrongly
+        // rejected (real corpus subdomains) MUST be accepted now.
+        for accepted in [
+            "security-operations",
+            "ransomware-defense",
+            "threat-detection",
+            "deception-technology",
+            "application-security",
+            "identity-and-access-management",
+            "red-team",
+            "zero-trust",
+            "governance-risk-compliance",
+            "offensive-security",
+            "ot-security",
+            "privacy-compliance",
+            "purple-team",
+            "hardware-firmware-security",
+            "firmware-analysis",
+            "data-protection",
+        ] {
+            assert!(
+                ALLOWED_SUBDOMAINS.contains(&accepted),
+                "vendor accepts '{accepted}' but our allowlist rejects it"
+            );
+        }
+        // Values the earlier fabricated list invented but the vendor never
+        // accepts MUST NOT be present (they would let invalid skills pass).
+        for fabricated in [
+            "iot-security",
+            "data-security",
+            "email-security",
+            "physical-security",
+            "security-awareness-training",
+            "privacy-engineering",
+            "secure-coding",
+            "security-architecture",
+            "risk-management",
+            "insider-threat",
+            "disaster-recovery",
+            "business-continuity",
+            "security-automation",
+            "quantum-security",
+            "critical-infrastructure-security",
+            "database-security",
+            "virtualization-security",
+        ] {
+            assert!(
+                !ALLOWED_SUBDOMAINS.contains(&fabricated),
+                "'{fabricated}' is not in vendor validate-skill.py's allowlist but ours accepts it"
+            );
+        }
+    }
+
+    /// Extract the scalar `subdomain:` value from a SKILL.md frontmatter
+    /// block (the corpus never uses a list/folded form for this field).
+    fn subdomain_of(source: &str) -> Option<String> {
+        let mut lines = source.lines();
+        if lines.next().map(str::trim) != Some("---") {
+            return None;
+        }
+        for line in lines {
+            if line.trim() == "---" {
+                break;
+            }
+            if line.starts_with(char::is_whitespace) {
+                continue;
+            }
+            if let Some((key, value)) = line.split_once(':') {
+                if key.trim() == "subdomain" {
+                    let v = value.trim().trim_matches(['\'', '"']).to_owned();
+                    if !v.is_empty() {
+                        return Some(v);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Corpus-backed parity proof (the real defect the earlier list had):
+    /// every `subdomain:` value actually used across the vendored 817
+    /// SKILL.md must be accepted by our allowlist — otherwise the linter
+    /// false-rejects legitimate corpus skills. Skipped gracefully when the
+    /// vendor dir is absent (L12 honesty protocol).
+    #[test]
+    fn allowlist_accepts_every_subdomain_the_corpus_actually_uses(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let corpus_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../vendor/anthropic-cybersecurity-skills/skills");
+        if !corpus_dir.is_dir() {
+            return Ok(());
+        }
+        let allow: BTreeSet<&str> = ALLOWED_SUBDOMAINS.iter().copied().collect();
+        let mut rejected: BTreeSet<String> = BTreeSet::new();
+        let mut seen = 0usize;
+        for path in find_skill_md_files(&corpus_dir) {
+            let Ok(source) = std::fs::read_to_string(&path) else {
+                continue;
+            };
+            if let Some(subdomain) = subdomain_of(&source) {
+                seen += 1;
+                if !allow.contains(subdomain.as_str()) {
+                    rejected.insert(subdomain);
+                }
+            }
+        }
+        assert!(seen > 0, "expected to read at least one SKILL.md subdomain");
+        assert!(
+            rejected.is_empty(),
+            "allowlist rejects subdomains the corpus actually uses (linter would false-flag real \
+             skills): {rejected:?}"
+        );
+        Ok(())
     }
 
     /// Repo-level acceptance proof (h11 workpack "h03 vocab seed"): scan
