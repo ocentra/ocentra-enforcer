@@ -42,6 +42,10 @@ import {
   splitFindings,
 } from "../src/policy.mjs";
 import {
+  applyPackagedWaivers,
+  loadPackagedWaiverRegistry,
+} from "../src/packaged-waivers.mjs";
+import {
   enrichFindingMetadata,
   enrichFindingsMetadata,
   registryRules as loadRegistryRules,
@@ -761,7 +765,7 @@ function printCodexDoctorReport(report) {
   for (const step of report.nextSteps) console.log(`next: ${step}`);
 }
 
-function applyPolicyAndWaivers(findings, config) {
+function applyPolicyAndWaivers(findings, config, root) {
   const enriched = enrichFindingsMetadata(findings, PACK_ROOT, {
     ...RULES,
     ...CHECK_RULES,
@@ -774,12 +778,25 @@ function applyPolicyAndWaivers(findings, config) {
     ruleRegistryRules(),
     { ci: process.env.CI === "true" },
   );
-  const { violations, warnings, bySeverity } = splitFindings(active, config);
+  const packagedWaivers = loadPackagedWaiverRegistry(
+    path.join(PACK_ROOT, "crates", "enforcer-rules", "waivers.json"),
+    ruleRegistryRules(),
+  );
+  const packaged = applyPackagedWaivers(active, packagedWaivers);
+  const projectWaiverPath = path.join(root, ".enforce", "waivers.json");
+  const projectWaivers = fs.existsSync(projectWaiverPath)
+    ? loadPackagedWaiverRegistry(projectWaiverPath, ruleRegistryRules())
+    : [];
+  const project = applyPackagedWaivers(packaged.active, projectWaivers, {
+    waiverIdPrefix: "PROJECT-WAIVER",
+    waiverSource: "project-registry",
+  });
+  const { violations, warnings, bySeverity } = splitFindings(project.active, config);
   return {
     violations,
     warnings,
-    waived,
-    findings: [...active, ...waived],
+    waived: [...waived, ...packaged.waived, ...project.waived],
+    findings: [...project.active, ...waived, ...packaged.waived, ...project.waived],
     bySeverity,
   };
 }

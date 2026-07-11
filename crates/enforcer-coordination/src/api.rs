@@ -1,4 +1,4 @@
-//! Public command surface: init/claim/release/closeout.
+//! Public command surface: init/message/ack/claim/release/closeout.
 //!
 //! Ported (narrowed) from `src/coordination/api.mjs`. Three live dogfood
 //! findings (`docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md`
@@ -90,6 +90,17 @@ struct ClaimContextExtras {
 pub struct Hub {
     pub root: PathBuf,
     pub config: HubConfig,
+}
+
+/// Open an existing hub identity without creating or replacing it.
+///
+/// Desktop and service callers use this when a human explicitly dispatches
+/// against a configured ledger. Unlike [`init`], this never creates state.
+pub fn open(root: &Path) -> Result<Hub> {
+    Ok(Hub {
+        root: root.to_path_buf(),
+        config: load_identity(root)?,
+    })
 }
 
 /// L1: idempotent init. If an identity already exists at `root`, it is
@@ -373,6 +384,7 @@ pub fn claim_all(hub: &Hub, request: ClaimRequestArgs<'_>) -> Result<ClaimOutcom
                 paths: Some(batch.to_vec()),
                 reason: reason.map(str::to_owned),
                 context: Some(&context),
+                metadata: EventMetadata::default(),
             },
         )?;
         events.push(event);
@@ -403,6 +415,99 @@ pub fn release(
             paths: Some(paths.to_vec()),
             reason: reason.map(str::to_owned),
             context: Some(&context),
+            metadata: EventMetadata::default(),
+        },
+    )
+}
+
+/// Append a lane-addressed coordination message to the caller's own stream.
+///
+/// The recipient is a lane id, not an arbitrary writer string. The caller's
+/// context is embedded exactly like claim/release events so desktop dispatch
+/// never attributes a message to the Tauri process working directory.
+pub fn send_message(
+    hub: &Hub,
+    lane: &LaneId,
+    recipient_lane: &str,
+    body: &str,
+    caller: &CallerContext,
+) -> Result<HubEvent> {
+    let recipient: LaneId = recipient_lane
+        .trim()
+        .parse()
+        .map_err(|error: enforcer_core::error::DecodeError| CoordinationError::from(error))?;
+    let body = body.trim();
+    if body.is_empty() {
+        return Err(CoordinationError::rejected(
+            "coordination message body is required",
+        ));
+    }
+    let context = caller
+        .clone()
+        .into_claim_context(ClaimContextExtras::default());
+    append_event(
+        hub,
+        AppendEventArgs {
+            lane,
+            kind: "message",
+            paths: None,
+            reason: None,
+            context: Some(&context),
+            metadata: EventMetadata {
+                to: Some(recipient.as_str().to_owned()),
+                body: Some(body.to_owned()),
+                ..Default::default()
+            },
+        },
+    )
+}
+
+/// Append an acknowledgement for an existing message or handoff event.
+///
+/// Rejecting unknown/non-message ids prevents detached acknowledgements that
+/// cannot be rendered back to a MailRow.
+pub fn acknowledge_message(
+    hub: &Hub,
+    lane: &LaneId,
+    message_id: &str,
+    caller: &CallerContext,
+) -> Result<HubEvent> {
+    let message_id = message_id.trim();
+    let all = read_all_streams(&hub.root)?;
+    let is_message = all.events.iter().any(|event| {
+        event.id == message_id && (event.kind == "message" || event.kind == "handoff")
+    });
+    if !is_message {
+        return Err(CoordinationError::rejected(
+            "coordination acknowledgement requires an existing message id",
+        ));
+    }
+    let writer = WriterId::new(&hub.config.node_id, lane);
+    let already_acknowledged = all.events.iter().any(|event| {
+        event.kind == "ack"
+            && event.message_id.as_deref() == Some(message_id)
+            && event.writer == writer.as_str()
+    });
+    if already_acknowledged {
+        return Err(CoordinationError::rejected(
+            "coordination message is already acknowledged by this writer",
+        ));
+    }
+    let context = caller
+        .clone()
+        .into_claim_context(ClaimContextExtras::default());
+    append_event(
+        hub,
+        AppendEventArgs {
+            lane,
+            kind: "ack",
+            paths: None,
+            reason: None,
+            context: Some(&context),
+            metadata: EventMetadata {
+                message_id: Some(message_id.to_owned()),
+                ..Default::default()
+            },
         },
     )
 }
@@ -518,6 +623,7 @@ pub fn closeout(
                 paths: Some(paths),
                 reason: Some(reason.clone()),
                 context: Some(&context),
+                metadata: EventMetadata::default(),
             },
         )?;
         events.push(event);
@@ -556,6 +662,14 @@ struct AppendEventArgs<'a> {
     paths: Option<Vec<String>>,
     reason: Option<String>,
     context: Option<&'a ClaimContext>,
+    metadata: EventMetadata,
+}
+
+#[derive(Default)]
+struct EventMetadata {
+    to: Option<String>,
+    body: Option<String>,
+    message_id: Option<String>,
 }
 
 /// Build + hash-chain + append one event to the caller's own writer stream.
@@ -566,6 +680,7 @@ fn append_event(hub: &Hub, args: AppendEventArgs<'_>) -> Result<HubEvent> {
         paths,
         reason,
         context,
+        metadata,
     } = args;
     let tip = stream_tip(&hub.root, &hub.config.node_id, lane)?;
     let writer = WriterId::new(&hub.config.node_id, lane);
@@ -586,9 +701,9 @@ fn append_event(hub: &Hub, args: AppendEventArgs<'_>) -> Result<HubEvent> {
         prev_event_id,
         prev_hash,
         hash: String::new(),
-        to: None,
-        body: None,
-        message_id: None,
+        to: metadata.to,
+        body: metadata.body,
+        message_id: metadata.message_id,
         paths,
         reason,
         owner: None,
@@ -801,5 +916,109 @@ mod tests {
         let all = read_all_streams(&hub.root).expect("read all");
         assert_eq!(all.events.len(), 2, "claim + release, append-only");
         assert!(active_claims(&all.events).is_empty());
+    }
+
+    #[test]
+    fn message_and_ack_are_hash_chained_and_caller_attributed(
+    ) -> std::result::Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let hub = open_hub(dir.path(), "test-hub", "desktop");
+        let sender: LaneId = "desktop".parse()?;
+        let ack_lane: LaneId = "reviewer".parse()?;
+
+        let message = send_message(
+            &hub,
+            &sender,
+            "reviewer",
+            "Please inspect the proof artifact.",
+            &caller("C:/worktrees/desktop", "ui/hub"),
+        )?;
+        let acknowledgement = acknowledge_message(
+            &hub,
+            &ack_lane,
+            &message.id,
+            &caller("C:/worktrees/reviewer", "review"),
+        )?;
+
+        assert_eq!(message.kind, "message");
+        assert_eq!(message.to.as_deref(), Some("reviewer"));
+        assert_eq!(
+            message.body.as_deref(),
+            Some("Please inspect the proof artifact.")
+        );
+        assert_eq!(
+            message
+                .context
+                .as_ref()
+                .and_then(|context| context.get("worktreeRoot"))
+                .and_then(serde_json::Value::as_str),
+            Some("C:/worktrees/desktop")
+        );
+        assert_eq!(acknowledgement.kind, "ack");
+        assert_eq!(
+            acknowledgement.message_id.as_deref(),
+            Some(message.id.as_str())
+        );
+
+        let all = read_all_streams(&hub.root)?;
+        assert_eq!(all.events.len(), 2);
+        assert_eq!(
+            acknowledgement.prev_event_id, None,
+            "an acknowledgement from another lane begins its own writer stream"
+        );
+        assert_eq!(
+            all.events
+                .iter()
+                .find(|event| event.kind == "ack")
+                .and_then(|event| event.message_id.as_deref()),
+            Some(message.id.as_str())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn acknowledgement_rejects_a_missing_message(
+    ) -> std::result::Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let hub = open_hub(dir.path(), "test-hub", "desktop");
+        let lane: LaneId = "desktop".parse()?;
+
+        let error = acknowledge_message(&hub, &lane, "evt_missing", &caller("wt", "branch"))
+            .err()
+            .ok_or_else(|| {
+                std::io::Error::other("missing acknowledgement unexpectedly succeeded")
+            })?;
+        assert_eq!(
+            error.to_string(),
+            "coordination acknowledgement requires an existing message id"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn acknowledgement_is_idempotent_per_writer(
+    ) -> std::result::Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let hub = open_hub(dir.path(), "test-hub", "desktop");
+        let lane: LaneId = "desktop".parse()?;
+        let message = send_message(
+            &hub,
+            &lane,
+            "reviewer",
+            "Please inspect.",
+            &caller("wt", "branch"),
+        )?;
+        acknowledge_message(&hub, &lane, &message.id, &caller("wt", "branch"))?;
+
+        let error = acknowledge_message(&hub, &lane, &message.id, &caller("wt", "branch"))
+            .err()
+            .ok_or_else(|| {
+                std::io::Error::other("duplicate acknowledgement unexpectedly succeeded")
+            })?;
+        assert_eq!(
+            error.to_string(),
+            "coordination message is already acknowledged by this writer"
+        );
+        Ok(())
     }
 }

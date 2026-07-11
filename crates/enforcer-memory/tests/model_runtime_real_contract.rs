@@ -85,29 +85,23 @@ fn ort_runtime_session_uses_enforcer_owned_execution_policy() {
 }
 
 fn string_has_machine_absolute_path(value: &str) -> bool {
-    let chars: Vec<char> = value.chars().collect();
-    for index in 0..chars.len().saturating_sub(2) {
-        let drive = chars[index];
-        if !drive.is_ascii_alphabetic() || chars[index + 1] != ':' {
-            continue;
-        }
+    value
+        .as_bytes()
+        .windows(3)
+        .enumerate()
+        .any(|(index, window)| {
+            let [drive, colon, separator] = window else {
+                return false;
+            };
+            let is_drive_prefix =
+                drive.is_ascii_alphabetic() && *colon == b':' && matches!(*separator, b'\\' | b'/');
+            let follows_word = index
+                .checked_sub(1)
+                .and_then(|previous| value.as_bytes().get(previous))
+                .is_some_and(|character| character.is_ascii_alphanumeric());
 
-        let separator = chars[index + 2];
-        if separator != '\\' && separator != '/' {
-            continue;
-        }
-
-        let previous = index
-            .checked_sub(1)
-            .map(|previous_index| chars[previous_index]);
-        if previous.is_some_and(|character| character.is_ascii_alphanumeric()) {
-            continue;
-        }
-
-        return true;
-    }
-
-    false
+            is_drive_prefix && !follows_word
+        })
 }
 
 fn collect_machine_absolute_path_leaks(
@@ -323,7 +317,7 @@ fn auto_llama_execution_prefers_best_gpu_and_backend_from_device_probe() {
 }
 
 #[test]
-fn requested_gpu_without_provider_probe_downgrades_to_cpu() {
+fn requested_gpu_without_provider_probe_downgrades_to_cpu() -> TestResult {
     let resolution = resolve_llama_cpp_execution(
         LlamaCppBackendHint::Auto,
         LocalRuntimeAcceleration::Gpu,
@@ -336,11 +330,15 @@ fn requested_gpu_without_provider_probe_downgrades_to_cpu() {
         LocalRuntimeAcceleration::Cpu
     );
     assert_eq!(resolution.selected_device_id, None);
-    assert!(resolution
+    let downgrade_reason = resolution
         .downgrade_reason
         .as_deref()
-        .unwrap_or_default()
-        .contains("requested GPU acceleration"));
+        .ok_or("GPU fallback must record a downgrade reason")?;
+    assert_eq!(
+        downgrade_reason,
+        "requested GPU acceleration but llama.cpp provider probe did not report a usable GPU device"
+    );
+    Ok(())
 }
 
 #[test]

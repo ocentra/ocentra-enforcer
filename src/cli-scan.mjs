@@ -56,6 +56,7 @@ export function runRustRules(options = {}, deps) {
         ...cargoViolations,
       ],
       config,
+      root,
     );
   return decorateRuleDocs(
     {
@@ -142,6 +143,7 @@ export function runEnforcerScan(options = {}, deps) {
       ...genericReport.violations,
     ],
     config,
+    root,
   );
   const findings = [
     ...(rustReport.violations ?? []),

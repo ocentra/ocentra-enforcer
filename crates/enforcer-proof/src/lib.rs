@@ -38,3 +38,4 @@ pub mod envelope;
 pub mod harness;
 pub mod journal;
 pub mod legacy_import;
+pub mod read_model;

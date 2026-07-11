@@ -153,6 +153,7 @@ fn random_hex(len: usize) -> String {
 /// The persisted hub identity record (`identity/node.json`).
 /// Ported from `domain.js#HubConfigSchema`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct HubConfig {
     pub hub: HubName,
     pub node_id: NodeId,
@@ -275,5 +276,28 @@ mod tests {
     fn resolve_ledger_root_joins_home_and_hub_when_no_explicit_root() {
         let root = resolve_ledger_root(Some("enforcer-rust-build"), None);
         assert!(root.ends_with("enforcer-rust-build"));
+    }
+
+    #[test]
+    fn persisted_hub_identity_uses_camel_case_wire_fields(
+    ) -> std::result::Result<(), Box<dyn std::error::Error>> {
+        let raw = serde_json::json!({
+            "hub": "ocentra-enforcer",
+            "nodeId": "node_7450523d7490414f86992de67525c1c2",
+            "nodeName": "GameDev",
+            "defaultLane": "codex-proof-migration",
+            "createdAt": "2026-06-30T23:19:16.344Z"
+        });
+
+        let config: HubConfig = serde_json::from_value(raw)?;
+        let rendered = serde_json::to_value(&config)?;
+
+        assert_eq!(config.default_lane.as_str(), "codex-proof-migration");
+        assert_eq!(
+            rendered.get("nodeId").and_then(serde_json::Value::as_str),
+            Some("node_7450523d7490414f86992de67525c1c2")
+        );
+        assert_eq!(rendered.get("node_id"), None);
+        Ok(())
     }
 }

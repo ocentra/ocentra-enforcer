@@ -1,0 +1,1 @@
+{"record":{"schemaVersion":1,"eventType":"proof-finished","runId":"fixture-proof-001","proofId":"PROOF-FIXTURE-1","timestamp":"2026-07-10T12:01:00Z","payload":{"source":"controlled-fixture"}},"digest":"sha256:7e98318e18a278f57045bf9ab6e8076395540f2bcf3d6d0080a11ccf10507c5d"}

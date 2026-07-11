@@ -51,17 +51,22 @@
 //! "honest limitations" precedent for the same reason (a real
 //! LSP/type-checker/embedding-model input this crate does not have).
 //!
-//! ## `SIMILAR_TO` reduction
+//! ## `SIMILAR_TO` contract
 //!
-//! In place of a 64-permutation MinHash over AST shingles, [`similar_to`]
-//! computes the Jaccard similarity of each symbol's *name tokens*
-//! (camelCase/snake_case-split, matching [`tokenize_identifier`]) --
-//! still a structural/lexical near-duplicate signal (e.g. `parseJson`
-//! and `parse_json_value` share `{parse, json}`), just computed over
-//! identifier text instead of a body-shingle fingerprint. The same
-//! threshold (0.95), same-extension gate, max-edges-per-node cap (10),
-//! and `source_id < target_id` dedup as the baseline are preserved
-//! exactly; only the fingerprint's *input* differs.
+//! [`similar_to`] now follows the baseline's actual contract closely:
+//! it reads persisted 64-slot MinHash fingerprint evidence (`fp` hex,
+//! `k=64`) from [`crate::code_graph::SymbolNode`]s, requires same file
+//! extension, uses the baseline's 0.95 signature-agreement threshold,
+//! caps emission at 10 edges per node, and emits each pair once with
+//! `source_id < target_id`.
+//!
+//! Two older analog signals remain available explicitly rather than
+//! silently masquerading as baseline parity:
+//!
+//! - [`similar_to_body_shingles`] — exact Jaccard over persisted
+//!   body-token 5-shingles.
+//! - [`similar_to_identifier_tokens`] — Rust-only identifier-token
+//!   overlap, kept as an additive local heuristic.
 //!
 //! ## `SEMANTICALLY_RELATED` reduction
 //!
@@ -131,9 +136,19 @@ const WEIGHT_COMPLEXITY_PROFILE: f64 = 0.30;
 pub struct SimilarToEdge {
     pub source_id: String,
     pub target_id: String,
+    pub mode: SimilarityMode,
     pub jaccard: f64,
     pub same_file: bool,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SimilarityMode {
+    MinHashFingerprint,
+    BodyShingle,
+    IdentifierToken,
+}
+
+const MINHASH_K: usize = 64;
 
 /// One materialized `SEMANTICALLY_RELATED` edge: `source_id` and
 /// `target_id` are [`SymbolNode::id`]s with `source_id < target_id`,
@@ -238,8 +253,15 @@ struct SymbolProfile<'g> {
     rel_path: &'g str,
     ext: &'g str,
     name_tokens: BTreeSet<String>,
+    fingerprint: Option<MinHashSignature>,
+    body_shingles: Option<&'g BTreeSet<String>>,
     callees: HashSet<&'g str>,
     metrics: Option<ComplexityMetrics>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct MinHashSignature {
+    values: [u32; MINHASH_K],
 }
 
 /// Whether `node` is one of the callable kinds the baseline's
@@ -318,6 +340,20 @@ fn build_profiles<'g>(graph: &'g CodeGraph) -> Vec<SymbolProfile<'g>> {
             rel_path,
             ext: file_ext(rel_path),
             name_tokens,
+            fingerprint: sym
+                .source_body_fingerprint
+                .as_ref()
+                .and_then(|fingerprint| {
+                    fingerprint
+                        .fp
+                        .as_deref()
+                        .zip(fingerprint.k)
+                        .and_then(|(fp, k)| decode_minhash_hex(fp, k))
+                }),
+            body_shingles: sym
+                .source_body_fingerprint
+                .as_ref()
+                .map(|fingerprint| &fingerprint.body_grams),
             callees,
             metrics: sym.metrics,
         });
@@ -387,6 +423,46 @@ pub fn similar_to(graph: &CodeGraph) -> Vec<SimilarToEdge> {
             {
                 continue;
             }
+            let (Some(a_fp), Some(b_fp)) = (a.fingerprint, b.fingerprint) else {
+                continue;
+            };
+            let j_score = minhash_jaccard(&a_fp, &b_fp);
+            if j_score < SIMILAR_TO_THRESHOLD {
+                continue;
+            }
+            let (source_id, target_id) = order_pair(a.id, b.id);
+            let same_file = !a.rel_path.is_empty() && a.rel_path == b.rel_path;
+            edges.push(SimilarToEdge {
+                source_id,
+                target_id,
+                mode: SimilarityMode::MinHashFingerprint,
+                jaccard: j_score,
+                same_file,
+            });
+            *edge_counts.entry(a.id).or_insert(0) += 1;
+            *edge_counts.entry(b.id).or_insert(0) += 1;
+        }
+    }
+    edges
+}
+
+pub fn similar_to_identifier_tokens(graph: &CodeGraph) -> Vec<SimilarToEdge> {
+    let profiles = build_profiles(graph);
+    let mut edge_counts: HashMap<&str, usize> = HashMap::new();
+    let mut edges = Vec::new();
+
+    for i in 0..profiles.len() {
+        for j in (i + 1)..profiles.len() {
+            let a = &profiles[i];
+            let b = &profiles[j];
+            if a.ext != ".rs" || b.ext != ".rs" {
+                continue;
+            }
+            if !has_budget(&edge_counts, a.id, SIMILAR_TO_MAX_EDGES_PER_NODE)
+                || !has_budget(&edge_counts, b.id, SIMILAR_TO_MAX_EDGES_PER_NODE)
+            {
+                continue;
+            }
             let j_score = jaccard(&a.name_tokens, &b.name_tokens);
             if j_score < SIMILAR_TO_THRESHOLD {
                 continue;
@@ -396,6 +472,47 @@ pub fn similar_to(graph: &CodeGraph) -> Vec<SimilarToEdge> {
             edges.push(SimilarToEdge {
                 source_id,
                 target_id,
+                mode: SimilarityMode::IdentifierToken,
+                jaccard: j_score,
+                same_file,
+            });
+            *edge_counts.entry(a.id).or_insert(0) += 1;
+            *edge_counts.entry(b.id).or_insert(0) += 1;
+        }
+    }
+    edges
+}
+
+pub fn similar_to_body_shingles(graph: &CodeGraph) -> Vec<SimilarToEdge> {
+    let profiles = build_profiles(graph);
+    let mut edge_counts: HashMap<&str, usize> = HashMap::new();
+    let mut edges = Vec::new();
+
+    for i in 0..profiles.len() {
+        for j in (i + 1)..profiles.len() {
+            let a = &profiles[i];
+            let b = &profiles[j];
+            if a.ext != b.ext {
+                continue;
+            }
+            if !has_budget(&edge_counts, a.id, SIMILAR_TO_MAX_EDGES_PER_NODE)
+                || !has_budget(&edge_counts, b.id, SIMILAR_TO_MAX_EDGES_PER_NODE)
+            {
+                continue;
+            }
+            let (Some(a_shingles), Some(b_shingles)) = (a.body_shingles, b.body_shingles) else {
+                continue;
+            };
+            let j_score = jaccard(a_shingles, b_shingles);
+            if j_score < SIMILAR_TO_THRESHOLD {
+                continue;
+            }
+            let (source_id, target_id) = order_pair(a.id, b.id);
+            let same_file = !a.rel_path.is_empty() && a.rel_path == b.rel_path;
+            edges.push(SimilarToEdge {
+                source_id,
+                target_id,
+                mode: SimilarityMode::BodyShingle,
                 jaccard: j_score,
                 same_file,
             });
@@ -407,8 +524,8 @@ pub fn similar_to(graph: &CodeGraph) -> Vec<SimilarToEdge> {
 }
 
 /// Compute every `SEMANTICALLY_RELATED` edge over `graph`'s callable
-/// symbols, skipping any pair the (reduced) name-token Jaccard signal
-/// alone already clears [`SIMILAR_TO_THRESHOLD`] for -- the same
+/// symbols, skipping any pair whose persisted MinHash signatures
+/// already clear [`SIMILAR_TO_THRESHOLD`] -- the same
 /// early-exit rule as the baseline's `cbm_sem_combined_score`
 /// (`semantic.c:1607-1618`), adapted to this module's substitute
 /// fingerprint signal so the two edge kinds still partition rather than
@@ -431,19 +548,21 @@ pub fn semantically_related(graph: &CodeGraph) -> Vec<SemanticallyRelatedEdge> {
             {
                 continue;
             }
-
-            let name_jaccard = jaccard(&a.name_tokens, &b.name_tokens);
-            if name_jaccard >= SIMILAR_TO_THRESHOLD {
-                // Already SIMILAR_TO-covered; see baseline early-exit
-                // rule cited in this function's doc comment.
-                continue;
-            }
-
             let callee_overlap = jaccard(
                 &a.callees.iter().map(|s| s.to_string()).collect(),
                 &b.callees.iter().map(|s| s.to_string()).collect(),
             );
             let complexity_score = complexity_similarity(a.metrics, b.metrics);
+
+            let fp_jaccard = match (a.fingerprint, b.fingerprint) {
+                (Some(a_fp), Some(b_fp)) => minhash_jaccard(&a_fp, &b_fp),
+                _ => 0.0,
+            };
+            if fp_jaccard >= SIMILAR_TO_THRESHOLD {
+                continue;
+            }
+
+            let name_jaccard = jaccard(&a.name_tokens, &b.name_tokens);
 
             let mut score = WEIGHT_NAME_TOKENS * name_jaccard
                 + WEIGHT_SHARED_CALLEES * callee_overlap
@@ -468,6 +587,28 @@ pub fn semantically_related(graph: &CodeGraph) -> Vec<SemanticallyRelatedEdge> {
         }
     }
     edges
+}
+
+fn decode_minhash_hex(hex: &str, k: usize) -> Option<MinHashSignature> {
+    if k != MINHASH_K || hex.len() != MINHASH_K * 8 {
+        return None;
+    }
+    let mut values = [0u32; MINHASH_K];
+    for (idx, chunk) in hex.as_bytes().chunks_exact(8).enumerate() {
+        let raw = std::str::from_utf8(chunk).ok()?;
+        values[idx] = u32::from_str_radix(raw, 16).ok()?;
+    }
+    Some(MinHashSignature { values })
+}
+
+fn minhash_jaccard(a: &MinHashSignature, b: &MinHashSignature) -> f64 {
+    let matches = a
+        .values
+        .iter()
+        .zip(b.values.iter())
+        .filter(|(lhs, rhs)| lhs == rhs)
+        .count();
+    matches as f64 / MINHASH_K as f64
 }
 
 /// Order two ids as `(min, max)` by string comparison -- this module's

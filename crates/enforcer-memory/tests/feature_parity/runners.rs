@@ -9935,15 +9935,17 @@ mod tests {
     use crate::feature_parity::queryset::QaRow;
     use crate::feature_parity::BoxError;
 
-    type TestResult = Result<(), BoxError>;
+    type TestResult<T = ()> = Result<T, BoxError>;
+
+    fn only_result(results: &[RowResult]) -> TestResult<&RowResult> {
+        match results {
+            [result] => Ok(result),
+            _ => Err(std::io::Error::other("expected exactly one row result").into()),
+        }
+    }
 
     fn sample_row(id: &str, category: &str, query: &str) -> QaRow {
-        QaRow {
-            id: id.to_string(),
-            category: category.to_string(),
-            query: query.to_string(),
-            expectation: "test expectation".to_string(),
-        }
+        sample_row_with_expectation(id, category, query, "test expectation")
     }
 
     fn sample_row_with_expectation(
@@ -9989,9 +9991,9 @@ mod tests {
         );
         let fixtures = super::super::build_fixtures()?;
         let results = run_all(&[row], &fixtures);
-        assert_eq!(results.len(), 1);
-        assert!(!results[0].is_unrunnable());
-        assert_eq!(results[0].verdict, "pass");
+        let result = only_result(&results)?;
+        assert!(!result.is_unrunnable());
+        assert_eq!(result.verdict, "pass");
         Ok(())
     }
 
@@ -10005,10 +10007,10 @@ mod tests {
         );
         let fixtures = super::super::build_fixtures()?;
         let results = run_all(&[row], &fixtures);
-        assert_eq!(results.len(), 1);
-        assert!(results[0].is_unrunnable());
+        let result = only_result(&results)?;
+        assert!(result.is_unrunnable());
         assert_eq!(
-            results[0].verdict,
+            result.verdict,
             "unrunnable: no wired runner for category Architecture"
         );
         Ok(())
@@ -10024,9 +10026,9 @@ mod tests {
         );
         let fixtures = super::super::build_fixtures()?;
         let results = run_all(&[row], &fixtures);
-        assert_eq!(results.len(), 1);
-        assert!(!results[0].is_unrunnable());
-        assert_eq!(results[0].verdict, "pass");
+        let result = only_result(&results)?;
+        assert!(!result.is_unrunnable());
+        assert_eq!(result.verdict, "pass");
         Ok(())
     }
 
@@ -10040,9 +10042,9 @@ mod tests {
         );
         let fixtures = super::super::build_fixtures()?;
         let results = run_all(&[row], &fixtures);
-        assert_eq!(results.len(), 1);
-        assert!(!results[0].is_unrunnable());
-        assert_eq!(results[0].verdict, "pass");
+        let result = only_result(&results)?;
+        assert!(!result.is_unrunnable());
+        assert_eq!(result.verdict, "pass");
         Ok(())
     }
 
@@ -11889,16 +11891,16 @@ mod tests {
         let fixtures = super::super::build_fixtures()?;
         let row = sample_row("QA-097", "Learning", "Prove reranker improved ranking.");
         let results = run_all(&[row], &fixtures);
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].verdict, "pass");
-        let Some(lift) = results[0].reranker_lift else {
+        let result = only_result(&results)?;
+        assert_eq!(result.verdict, "pass");
+        let Some(lift) = result.reranker_lift else {
             return Err("QA-097 must report reranker lift".into());
         };
         assert!(
             lift >= 0.05,
             "QA-097 reranker lift must meet the semantic-row threshold, got {lift}"
         );
-        assert!(results[0]
+        assert!(result
             .source_refs
             .iter()
             .any(|source| source == "proof/memory/x06-reranker.json"));
@@ -11976,10 +11978,10 @@ mod tests {
         );
         let fixtures = super::super::build_fixtures()?;
         let results = run_all(&[row], &fixtures);
-        assert_eq!(results.len(), 1);
-        assert!(results[0].is_unrunnable());
+        let result = only_result(&results)?;
+        assert!(result.is_unrunnable());
         assert_eq!(
-            results[0].verdict,
+            result.verdict,
             "unrunnable: no wired runner for category Federation"
         );
         Ok(())

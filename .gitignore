@@ -8,6 +8,10 @@ build/
 .DS_Store
 *.log
 .enforce/
+!crates/enforcer-memory/tests/fixtures/memory/feature_parity/repo/.enforce/
+crates/enforcer-memory/tests/fixtures/memory/feature_parity/repo/.enforce/*
+!crates/enforcer-memory/tests/fixtures/memory/feature_parity/repo/.enforce/proofs/
+!crates/enforcer-memory/tests/fixtures/memory/feature_parity/repo/.enforce/proofs/**
 .ocentra-enforcer/
 .ledger/
 db/

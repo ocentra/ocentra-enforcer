@@ -5,8 +5,14 @@
 //! example remains as a thin wrapper so other crates/projects can call
 //! the same env-driven harness logic directly.
 
+#[path = "runtime_probe_error.rs"]
+mod runtime_probe_error;
+
+/// Typed failure surface returned when a runtime probe cannot emit its proof.
+pub use runtime_probe_error::RuntimeProbeError;
+
 #[cfg(not(feature = "real-models"))]
-pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
+pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
     use std::io::Write as _;
 
     let proof = crate::model_runtime::default_zero_network_proof();
@@ -16,7 +22,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[cfg(feature = "real-models")]
-pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
+pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
     use std::io::Write as _;
     use std::path::{Path, PathBuf};
     use std::time::Duration;
@@ -387,7 +393,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
     fn write_proof(
         proof_out: &Path,
         proof: &RuntimeProbeProof,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<(), RuntimeProbeError> {
         if let Some(parent) = proof_out.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -402,11 +408,11 @@ pub fn write_runtime_probe_stdout() -> Result<(), Box<dyn std::error::Error>> {
     fn preserve_linked_proof_artifacts(
         proof_out: &Path,
         proof_text: String,
-    ) -> Result<String, Box<dyn std::error::Error>> {
+    ) -> Result<String, RuntimeProbeError> {
         let existing = match std::fs::read_to_string(proof_out) {
             Ok(existing) => existing,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(proof_text),
-            Err(error) => return Err(Box::new(error)),
+            Err(error) => return Err(error.into()),
         };
         let existing_value: serde_json::Value = serde_json::from_str(&existing)?;
         let Some(linked) = existing_value.get("linkedProofArtifacts").cloned() else {

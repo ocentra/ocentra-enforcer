@@ -37,6 +37,7 @@ use crate::code_graph::{CodeGraph, CodeNode};
 pub struct LabelCount {
     pub label: String,
     pub count: usize,
+    pub properties: Vec<String>,
 }
 
 /// One edge type's presence in the graph: the edge type name and how
@@ -45,6 +46,7 @@ pub struct LabelCount {
 pub struct EdgeTypeCount {
     pub edge_type: String,
     pub count: usize,
+    pub properties: Vec<String>,
 }
 
 /// The full schema summary: every node label and edge type present,
@@ -106,19 +108,56 @@ pub fn node_label(node: &CodeNode) -> &'static str {
 /// static vocabulary of possible labels.
 pub fn get_graph_schema(graph: &CodeGraph) -> GraphSchema {
     let mut label_counts: BTreeMap<&'static str, usize> = BTreeMap::new();
+    let mut label_properties: BTreeMap<&'static str, Vec<String>> = BTreeMap::new();
     for node in graph.nodes() {
-        *label_counts.entry(node_label(node)).or_insert(0) += 1;
+        let label = node_label(node);
+        *label_counts.entry(label).or_insert(0) += 1;
+        if let Some(properties) = node_schema_properties(node) {
+            let entry = label_properties.entry(label).or_default();
+            for property in properties {
+                if !entry.iter().any(|existing| existing == property) {
+                    entry.push((*property).to_owned());
+                }
+            }
+            entry.sort();
+        }
     }
 
     let mut edge_counts: BTreeMap<&'static str, usize> = BTreeMap::new();
+    let mut edge_properties: BTreeMap<&'static str, Vec<String>> = BTreeMap::new();
     if !graph.imports().is_empty() {
         edge_counts.insert("Imports", graph.imports().len());
+        edge_properties.insert(
+            "Imports",
+            vec![
+                "from_file_id".to_owned(),
+                "module_path".to_owned(),
+                "line".to_owned(),
+            ],
+        );
     }
     if !graph.calls().is_empty() {
         edge_counts.insert("Calls", graph.calls().len());
+        edge_properties.insert(
+            "Calls",
+            vec![
+                "from_file_id".to_owned(),
+                "callee".to_owned(),
+                "line".to_owned(),
+            ],
+        );
     }
     if !graph.routes().is_empty() {
         edge_counts.insert("Route", graph.routes().len());
+        edge_properties.insert(
+            "Route",
+            vec![
+                "from_file_id".to_owned(),
+                "method".to_owned(),
+                "path".to_owned(),
+                "line".to_owned(),
+            ],
+        );
     }
     if !graph.inherits().is_empty() {
         edge_counts.insert("INHERITS", graph.inherits().len());
@@ -141,6 +180,7 @@ pub fn get_graph_schema(graph: &CodeGraph) -> GraphSchema {
         .map(|(label, count)| LabelCount {
             label: label.to_owned(),
             count,
+            properties: label_properties.remove(label).unwrap_or_default(),
         })
         .collect();
     // Descending by count (baseline parity, see module docs); ties
@@ -153,6 +193,7 @@ pub fn get_graph_schema(graph: &CodeGraph) -> GraphSchema {
         .map(|(edge_type, count)| EdgeTypeCount {
             edge_type: edge_type.to_owned(),
             count,
+            properties: edge_properties.remove(edge_type).unwrap_or_default(),
         })
         .collect();
     edge_types.sort_by(|a, b| {
@@ -178,17 +219,70 @@ pub fn get_graph_schema_with_similarity(
     similar_to_edges: &[crate::similarity::SimilarToEdge],
     semantically_related_edges: &[crate::similarity::SemanticallyRelatedEdge],
 ) -> GraphSchema {
+    get_graph_schema_with_similarity_modes(graph, similar_to_edges, &[], semantically_related_edges)
+}
+
+pub fn get_graph_schema_with_similarity_modes(
+    graph: &CodeGraph,
+    baseline_similar_to_edges: &[crate::similarity::SimilarToEdge],
+    rust_identifier_similar_to_edges: &[crate::similarity::SimilarToEdge],
+    semantically_related_edges: &[crate::similarity::SemanticallyRelatedEdge],
+) -> GraphSchema {
     let mut schema = get_graph_schema(graph);
-    if !similar_to_edges.is_empty() {
+    let baseline_minhash_count = baseline_similar_to_edges
+        .iter()
+        .filter(|edge| edge.mode == crate::similarity::SimilarityMode::MinHashFingerprint)
+        .count();
+    let body_shingle_count = baseline_similar_to_edges
+        .iter()
+        .filter(|edge| edge.mode == crate::similarity::SimilarityMode::BodyShingle)
+        .count();
+    if baseline_minhash_count > 0 {
         schema.edge_types.push(EdgeTypeCount {
             edge_type: "SIMILAR_TO".to_owned(),
-            count: similar_to_edges.len(),
+            count: baseline_minhash_count,
+            properties: vec![
+                "source_id".to_owned(),
+                "target_id".to_owned(),
+                "jaccard".to_owned(),
+                "same_file".to_owned(),
+            ],
+        });
+    }
+    if body_shingle_count > 0 {
+        schema.edge_types.push(EdgeTypeCount {
+            edge_type: "BODY_SHINGLE_SIMILAR_TO".to_owned(),
+            count: body_shingle_count,
+            properties: vec![
+                "source_id".to_owned(),
+                "target_id".to_owned(),
+                "jaccard".to_owned(),
+                "same_file".to_owned(),
+            ],
+        });
+    }
+    if !rust_identifier_similar_to_edges.is_empty() {
+        schema.edge_types.push(EdgeTypeCount {
+            edge_type: "RUST_IDENTIFIER_SIMILAR_TO".to_owned(),
+            count: rust_identifier_similar_to_edges.len(),
+            properties: vec![
+                "source_id".to_owned(),
+                "target_id".to_owned(),
+                "jaccard".to_owned(),
+                "same_file".to_owned(),
+            ],
         });
     }
     if !semantically_related_edges.is_empty() {
         schema.edge_types.push(EdgeTypeCount {
             edge_type: "SEMANTICALLY_RELATED".to_owned(),
             count: semantically_related_edges.len(),
+            properties: vec![
+                "source_id".to_owned(),
+                "target_id".to_owned(),
+                "score".to_owned(),
+                "same_file".to_owned(),
+            ],
         });
     }
     schema.edge_types.sort_by(|a, b| {
@@ -197,4 +291,18 @@ pub fn get_graph_schema_with_similarity(
             .then_with(|| a.edge_type.cmp(&b.edge_type))
     });
     schema
+}
+
+fn node_schema_properties(node: &CodeNode) -> Option<&'static [&'static str]> {
+    match node {
+        CodeNode::Function(sym)
+        | CodeNode::Method(sym)
+        | CodeNode::Test(sym)
+        | CodeNode::Lambda(sym)
+            if sym.source_body_fingerprint.is_some() =>
+        {
+            Some(&["fp", "k"])
+        }
+        _ => None,
+    }
 }

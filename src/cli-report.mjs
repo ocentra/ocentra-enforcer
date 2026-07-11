@@ -6,6 +6,7 @@ export function decorateRuleDocs(report, { rulesById, ruleDocFor }) {
     report[key] = normalizeFindingCollection(report[key], { rulesById, ruleDocFor });
   }
   enforceReportCompleteness(report, completenessFailures);
+  report.bySeverity = countActiveFindingsBySeverity(report);
   return report;
 }
 
@@ -48,8 +49,39 @@ function normalizeReportFinding(finding, { rulesById, ruleDocFor }) {
 
 function normalizeFindingCollection(findings, context) {
   if (!Array.isArray(findings)) return findings;
-  return sortFindings(
-    findings.map((finding) => normalizeReportFinding(finding, context)),
+  const seen = new Set();
+  const unique = [];
+  for (const finding of findings.map((item) => normalizeReportFinding(item, context))) {
+    const fingerprint = findingFingerprint(finding);
+    if (seen.has(fingerprint)) continue;
+    seen.add(fingerprint);
+    unique.push(finding);
+  }
+  return sortFindings(unique);
+}
+
+function findingFingerprint(finding) {
+  return [
+    finding.ruleId,
+    finding.severity,
+    finding.title,
+    finding.detail,
+    finding.file,
+    finding.line,
+    finding.snippet,
+    finding.source,
+    finding.doc,
+  ].map((value) => value ?? "").join("\u001f");
+}
+
+function countActiveFindingsBySeverity(report) {
+  return [...(report.violations ?? []), ...(report.warnings ?? [])].reduce(
+    (counts, finding) => {
+      const severity = String(finding.severity ?? "error");
+      counts[severity] = Number(counts[severity] ?? 0) + 1;
+      return counts;
+    },
+    {},
   );
 }
 
@@ -80,10 +112,6 @@ function enforceReportCompleteness(report, bad) {
     ...(report.violations ?? []),
     reportFinding,
   ]);
-  report.bySeverity = {
-    ...(report.bySeverity ?? {}),
-    error: Number(report.bySeverity?.error ?? 0) + 1,
-  };
 }
 
 function isCompleteFinding(finding) {

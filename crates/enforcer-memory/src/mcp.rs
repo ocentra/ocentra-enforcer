@@ -288,9 +288,11 @@ fn tool_input_schema(name: &str) -> Value {
             "type": "object",
             "required": ["repoPath"],
             "properties": {
-                "repoPath": { "type": "string", "description": "Absolute path to the repository root." },
+                "repoPath": { "type": "string", "description": "Absolute path to the repository root. Baseline wire alias: repo_path." },
+                "repo_path": { "type": "string", "description": "Baseline wire alias for repoPath." },
                 "mode": { "type": "string", "enum": ["full", "moderate", "fast", "cross-repo-intelligence"], "default": "full", "description": "\"cross-repo-intelligence\" short-circuits before any indexing pipeline (baseline §9.2): matches this project's outbound HTTP call sites against target_projects' declared routes. See crate::cross_repo for the exact heuristic." },
-                "targetProjects": { "type": "array", "items": { "type": "string" }, "description": "Required only for mode=\"cross-repo-intelligence\": project ids (resolved via storesDir) or, if storesDir is omitted, literal repo paths to match against. [\"*\"] means every project storesDir knows about." },
+                "targetProjects": { "type": "array", "items": { "type": "string" }, "description": "Required only for mode=\"cross-repo-intelligence\": project ids (resolved via storesDir) or, if storesDir is omitted, literal repo paths to match against. [\"*\"] means every project storesDir knows about. Baseline wire alias: target_projects." },
+                "target_projects": { "type": "array", "items": { "type": "string" }, "description": "Baseline wire alias for targetProjects in cross-repo-intelligence mode." },
                 "storesDir": { "type": "string", "description": "Optional Store registry root. In cross-repo-intelligence mode this resolves targetProjects ids. In plain index mode it primes a fresh Store-backed operational graph projection for repoPath; append/refresh into an already-populated graph-event log is rejected until delete/reset graph-event semantics are implemented." },
                 "name": { "type": "string", "description": "cross-repo-intelligence only: the current project's own name as reported in the response's \"project\" field; defaults to repoPath if omitted." }
             }
@@ -772,7 +774,7 @@ fn handle_index_repository(args: &Value) -> Value {
         return handle_cross_repo_mode(args);
     }
 
-    let repo_path = match require_str(args, "repoPath") {
+    let repo_path = match require_string_alias(args, &["repoPath", "repo_path"]) {
         Ok(value) => value,
         Err(err) => return err,
     };
@@ -946,11 +948,12 @@ fn opaque_store_timestamp_now() -> String {
 // ---------------------------------------------------------------------
 
 fn handle_cross_repo_mode(args: &Value) -> Value {
-    let repo_path = match require_str(args, "repoPath") {
+    let repo_path = match require_string_alias(args, &["repoPath", "repo_path"]) {
         Ok(value) => value,
         Err(err) => return err,
     };
-    let Some(target_projects) = args.get("targetProjects").and_then(Value::as_array) else {
+    let Some(target_projects) = get_array_alias(args, &["targetProjects", "target_projects"])
+    else {
         return tool_error(
             "index_repository",
             "target_projects is required for cross-repo-intelligence mode. Use [\"*\"] for all projects. Run list_projects to see available.",
@@ -1058,15 +1061,38 @@ fn handle_cross_repo_mode(args: &Value) -> Value {
         "mode": "cross-repo-intelligence",
         "project": report.project,
         "projects_scanned": report.projects_scanned,
-        "cross_http_calls": report.cross_http_calls.len(),
+        "cross_http_calls": report.baseline_cross_http_call_count(),
+        "cross_literal_url_calls": report.literal_url_cross_http_call_count(),
         "cross_async_calls": report.cross_async_calls,
         "cross_channel": report.cross_channel,
         "cross_grpc_calls": report.cross_grpc_calls,
         "cross_graphql_calls": report.cross_graphql_calls,
         "cross_trpc_calls": report.cross_trpc_calls,
-        "total_cross_edges": report.total_cross_edges(),
+        "total_cross_edges": report.baseline_cross_http_call_count()
+            + report.cross_async_calls
+            + report.cross_channel
+            + report.cross_grpc_calls
+            + report.cross_graphql_calls
+            + report.cross_trpc_calls,
+        "total_cross_edges_including_extensions": report.total_cross_edges(),
         "elapsed_ms": elapsed_ms,
     })
+}
+
+fn require_string_alias<'a>(args: &'a Value, keys: &[&str]) -> Result<&'a str, Value> {
+    keys.iter()
+        .find_map(|key| args.get(*key).and_then(Value::as_str))
+        .ok_or_else(|| {
+            tool_error(
+                "index_repository",
+                format!("missing required field {:?}", keys[0]),
+            )
+        })
+}
+
+fn get_array_alias<'a>(args: &'a Value, keys: &[&str]) -> Option<&'a Vec<Value>> {
+    keys.iter()
+        .find_map(|key| args.get(*key).and_then(Value::as_array))
 }
 
 // ---------------------------------------------------------------------

@@ -3,45 +3,55 @@
 //! Baseline binding: `docs/plans/enforcer-selfhost-plan/refs/
 //! x06-baseline-tool-schemas.md` §9.2/§9.5. The baseline's
 //! `index_repository(mode="cross-repo-intelligence")` never re-indexes
-//! anything; it matches already-indexed projects' Routes/Channels
-//! against each other to create `CROSS_HTTP_CALLS`/`CROSS_ASYNC_CALLS`/
-//! `CROSS_CHANNEL`/`CROSS_GRPC_CALLS`/`CROSS_GRAPHQL_CALLS`/
-//! `CROSS_TRPC_CALLS` edges, and returns a fixed-shape response with a
-//! typed count per protocol plus `total_cross_edges`/`elapsed_ms`.
+//! anything; it matches already-indexed projects' Routes/Channels and
+//! service-call route nodes against each other to create
+//! `CROSS_HTTP_CALLS`/`CROSS_ASYNC_CALLS`/`CROSS_CHANNEL`/
+//! `CROSS_GRPC_CALLS`/`CROSS_GRAPHQL_CALLS`/`CROSS_TRPC_CALLS` edges,
+//! and returns a fixed-shape response with a typed count per protocol
+//! plus `total_cross_edges`/`elapsed_ms`.
 //!
 //! This module is the library-layer analog: given one project's
 //! [`crate::code_graph::CodeGraph`] (`current`) and a set of named
-//! target projects' graphs, it matches `current`'s outbound-HTTP-call
-//! sites against each target's declared [`crate::code_graph::RouteEdge`]s
-//! to produce [`CrossHttpCallEdge`]s, and reports zero counts (never an
-//! omitted field, never an error) for every other protocol this crate
-//! does not yet detect. Wiring into the MCP `index_repository` handler's
-//! `mode="cross-repo-intelligence"` branch is [`crate::mcp`]'s job (a
-//! shared file this lane only touches minimally); this module owns the
-//! matching algorithm and its typed result.
+//! target projects' graphs, it matches HTTP route/call sites plus
+//! async, channel, gRPC, GraphQL, and tRPC protocol call sites to
+//! produce typed cross-repo evidence. Wiring into the MCP
+//! `index_repository` handler's `mode="cross-repo-intelligence"` branch
+//! is [`crate::mcp`]'s job; this module owns the matching algorithm and
+//! its typed result.
 //!
 //! # Matching heuristic -- documented honestly
 //!
-//! `CROSS_HTTP_CALLS` is the only edge kind this module currently
-//! detects a real match for:
+//! `CROSS_HTTP_CALLS` has three evidence modes:
 //!
 //! 1. **Target side (declared routes)**: every [`RouteEdge`] already
 //!    extracted by [`crate::code_graph`]'s language extractors (Axum/
 //!    Actix/Express/FastAPI-style route macros/decorators) -- `method`
 //!    (upper-cased) + `path` (as written, e.g. `/widgets/:id`).
-//! 2. **Current side (outbound call sites)**: every
+//! 2. **Current side (baseline-compatible outbound call sites)**: every
 //!    [`crate::code_graph::CallEdge`] whose `callee` text matches a
 //!    fixed, best-effort allow-list of HTTP-client-shaped callees
-//!    ([`is_http_client_callee`] -- `fetch`, `axios.*`, `http.get`/
+//!    ([`is_http_client_callee`] -- `axios.*`, `http.get`/
 //!    `http.post`/etc., `requests.*`, `reqwest::*`/`reqwest.*`,
 //!    `httpClient.*`/`httpclient.*`), combined with a URL/path literal
 //!    found in [`CallEdge::arg_texts`] ([`extract_url_literal`] -- the
 //!    first string-literal-shaped argument, `"..."`/`'...'`/`` `...` ``,
 //!    with a leading `http://`/`https://` scheme stripped if present).
-//! 3. A match fires when the current side's extracted path **equals**
-//!    the target route's `path`, ignoring a single trailing slash, AND
-//!    (if the callee text itself encodes an HTTP verb, e.g. `axios.get`/
-//!    `requests.post`/`http.put`) that verb equals the route's method.
+//!    These emit [`CrossHttpMatchKind::HttpClient`].
+//! 3. **Current side (Rust extension)**: a bare `fetch("...")` literal
+//!    call uses the same path matcher but is reported separately as
+//!    [`CrossHttpMatchKind::LiteralUrl`] because the installed baseline
+//!    does not classify bare `fetch` as an HTTP-client library.
+//! 4. **Current side (route declarations)**: a current-project
+//!    [`RouteEdge`] can also match a target [`RouteEdge`] by method/path,
+//!    reported as [`CrossHttpMatchKind::RouteDeclaration`].
+//! 5. A match fires when the current side's extracted path normalizes to
+//!    the target route's `path` (full `http(s)://host/path?query#frag`
+//!    literals collapse to just the concrete path, a single trailing
+//!    slash is ignored), or when that concrete client path matches a
+//!    templated target route segment-by-segment (`/widgets/42` ->
+//!    `/widgets/:id`, `/widgets/{id}`), AND (if the callee text itself
+//!    encodes an HTTP verb, e.g. `axios.get`/`requests.post`/`http.put`)
+//!    that verb equals the route's method.
 //!    A callee with no derivable verb (bare `fetch("...")`) matches any
 //!    method on that path -- `fetch` alone carries no verb information
 //!    syntactically; a second positional/options argument would carry
@@ -50,23 +60,18 @@
 //!
 //! **What this heuristic does NOT do** (honest limitations, not silent
 //! gaps):
-//! - No path *parameter* matching (`/widgets/:id` vs a call site's
-//!   `/widgets/42`) -- only byte-equal paths (modulo the one trailing
-//!   slash) match. A parameterized route is invisible to a call site
-//!   built from a literal id.
 //! - No query-string, host, or base-URL-prefix reasoning -- the current
 //!   side's extracted "path" is whatever literal text follows the
-//!   scheme+host (or the whole literal, if it has no scheme), verbatim.
+//!   scheme+host (or the whole literal, if it has no scheme), minus any
+//!   query/fragment suffix.
 //! - No cross-file/variable resolution of the URL argument -- only a
 //!   call site whose argument is a literal string is considered; a URL
 //!   built via string concatenation or a variable is invisible.
-//! - `CROSS_ASYNC_CALLS`/`CROSS_CHANNEL`/`CROSS_GRPC_CALLS`/
-//!   `CROSS_GRAPHQL_CALLS`/`CROSS_TRPC_CALLS` have no detector at all in
-//!   this crate yet (no message-queue/channel/gRPC/GraphQL/tRPC
-//!   extraction exists upstream to match against) -- [`CrossRepoReport`]
-//!   always reports these as `0`, per the workpack's "emit zeros...
-//!   rather than omitting fields" instruction, not as an error or an
-//!   omitted key.
+//! - Async/channel/gRPC/GraphQL/tRPC matching uses client/server or
+//!   producer/consumer operation keys rather than exact baseline SQLite
+//!   Route node ids. The detector is deliberately string-literal based:
+//!   it never invents a topic, service/method, GraphQL operation, or
+//!   tRPC procedure when the call edge did not record one.
 
 use std::collections::BTreeMap;
 
@@ -83,6 +88,41 @@ pub struct CrossHttpCallEdge {
     pub target_project: String,
     pub method: String,
     pub path: String,
+    pub via: CrossHttpMatchKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CrossHttpMatchKind {
+    RouteDeclaration,
+    HttpClient,
+    LiteralUrl,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CrossChannelEdge {
+    pub source_project: String,
+    pub source_file_id: String,
+    pub source_line: usize,
+    pub target_project: String,
+    pub topic: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CrossRepoProtocol {
+    Async,
+    Grpc,
+    Graphql,
+    Trpc,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CrossProtocolEdge {
+    pub source_project: String,
+    pub source_file_id: String,
+    pub source_line: usize,
+    pub target_project: String,
+    pub protocol: CrossRepoProtocol,
+    pub key: String,
 }
 
 /// The typed result of [`match_cross_repo`], mirroring the baseline's
@@ -96,24 +136,42 @@ pub struct CrossRepoReport {
     pub project: String,
     pub projects_scanned: usize,
     pub cross_http_calls: Vec<CrossHttpCallEdge>,
-    /// Always `0` today -- no async-messaging extraction exists
-    /// upstream to detect a match against. See module docs.
+    pub cross_channel_links: Vec<CrossChannelEdge>,
+    pub cross_async_links: Vec<CrossProtocolEdge>,
+    pub cross_grpc_links: Vec<CrossProtocolEdge>,
+    pub cross_graphql_links: Vec<CrossProtocolEdge>,
+    pub cross_trpc_links: Vec<CrossProtocolEdge>,
+    /// Count of matched async-message links. Extracted from broker-
+    /// shaped producer/consumer call sites such as Pub/Sub, SNS/SQS,
+    /// Kafka, NATS, RabbitMQ, MQTT, EventBridge, Cloud Tasks, and Dapr.
     pub cross_async_calls: usize,
-    /// Always `0` today -- no pub/sub channel extraction exists
-    /// upstream. See module docs.
+    /// Count of matched publish/subscribe topic links. Extracted from
+    /// channel-shaped call sites such as `publish("topic")` and
+    /// `subscribe("topic")`; zero when no such evidence exists.
     pub cross_channel: usize,
-    /// Always `0` today -- no gRPC extraction exists upstream. See
-    /// module docs.
+    /// Count of matched gRPC client/server method links.
     pub cross_grpc_calls: usize,
-    /// Always `0` today -- no GraphQL extraction exists upstream. See
-    /// module docs.
+    /// Count of matched GraphQL client/server operation links.
     pub cross_graphql_calls: usize,
-    /// Always `0` today -- no tRPC extraction exists upstream. See
-    /// module docs.
+    /// Count of matched tRPC client/server procedure links.
     pub cross_trpc_calls: usize,
 }
 
 impl CrossRepoReport {
+    pub fn baseline_cross_http_call_count(&self) -> usize {
+        self.cross_http_calls
+            .iter()
+            .filter(|edge| edge.via != CrossHttpMatchKind::LiteralUrl)
+            .count()
+    }
+
+    pub fn literal_url_cross_http_call_count(&self) -> usize {
+        self.cross_http_calls
+            .iter()
+            .filter(|edge| edge.via == CrossHttpMatchKind::LiteralUrl)
+            .count()
+    }
+
     /// `total_cross_edges` in the baseline's response shape -- the sum
     /// of every typed count, matching §9.5's "the sum of the six typed
     /// counts" note exactly (`cross_http_calls.len()` stands in for the
@@ -159,18 +217,46 @@ pub fn match_cross_repo(
     };
 
     let call_sites = outbound_http_call_sites(current);
+    let current_routes = current.routes();
+    let current_channels = channel_sites(current);
+    let current_async = async_sites(current);
+    let current_grpc = grpc_sites(current);
+    let current_graphql = graphql_sites(current);
+    let current_trpc = trpc_sites(current);
 
     for (target_name, target_graph) in targets {
         for route in target_graph.routes() {
             let route_method = route.method.to_uppercase();
-            let route_path = trim_trailing_slash(&route.path);
+            let route_path = normalize_http_path(&route.path);
+            let route_accepts_any_method = route_method.is_empty() || route_method == "ANY";
+
+            for current_route in current_routes {
+                if normalize_http_path(&current_route.path) != route_path {
+                    continue;
+                }
+                if !route_accepts_any_method
+                    && !current_route.method.is_empty()
+                    && current_route.method.to_uppercase() != route_method
+                {
+                    continue;
+                }
+                report.cross_http_calls.push(CrossHttpCallEdge {
+                    source_project: current_project.to_owned(),
+                    source_file_id: current_route.from_file_id.clone(),
+                    source_line: current_route.line,
+                    target_project: target_name.clone(),
+                    method: route_method.clone(),
+                    path: route.path.clone(),
+                    via: CrossHttpMatchKind::RouteDeclaration,
+                });
+            }
 
             for site in &call_sites {
-                if trim_trailing_slash(&site.path) != route_path {
+                if !http_path_matches_route(&site.path, &route_path) {
                     continue;
                 }
                 if let Some(verb) = &site.verb {
-                    if verb.to_uppercase() != route_method {
+                    if !route_accepts_any_method && verb.to_uppercase() != route_method {
                         continue;
                     }
                 }
@@ -181,11 +267,62 @@ pub fn match_cross_repo(
                     target_project: target_name.clone(),
                     method: route_method.clone(),
                     path: route.path.clone(),
+                    via: site.via,
                 });
             }
         }
+
+        let target_channels = channel_sites(target_graph);
+        for source in &current_channels {
+            for target in &target_channels {
+                if source.topic != target.topic || source.direction == target.direction {
+                    continue;
+                }
+                report.cross_channel_links.push(CrossChannelEdge {
+                    source_project: current_project.to_owned(),
+                    source_file_id: source.from_file_id.clone(),
+                    source_line: source.line,
+                    target_project: target_name.clone(),
+                    topic: source.topic.clone(),
+                });
+            }
+        }
+
+        report.cross_async_links.extend(match_protocol_sites(
+            current_project,
+            target_name,
+            CrossRepoProtocol::Async,
+            &current_async,
+            &async_sites(target_graph),
+        ));
+        report.cross_grpc_links.extend(match_protocol_sites(
+            current_project,
+            target_name,
+            CrossRepoProtocol::Grpc,
+            &current_grpc,
+            &grpc_sites(target_graph),
+        ));
+        report.cross_graphql_links.extend(match_protocol_sites(
+            current_project,
+            target_name,
+            CrossRepoProtocol::Graphql,
+            &current_graphql,
+            &graphql_sites(target_graph),
+        ));
+        report.cross_trpc_links.extend(match_protocol_sites(
+            current_project,
+            target_name,
+            CrossRepoProtocol::Trpc,
+            &current_trpc,
+            &trpc_sites(target_graph),
+        ));
     }
 
+    report.cross_channel = report.cross_channel_links.len();
+    report.cross_async_calls = report.cross_async_links.len();
+    report.cross_grpc_calls = report.cross_grpc_links.len();
+    report.cross_graphql_calls = report.cross_graphql_links.len();
+    report.cross_trpc_calls = report.cross_trpc_links.len();
     report
 }
 
@@ -201,6 +338,33 @@ struct HttpCallSite {
     /// on a path-equal route.
     verb: Option<String>,
     path: String,
+    via: CrossHttpMatchKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ChannelDirection {
+    Publish,
+    Subscribe,
+}
+
+struct ChannelSite {
+    from_file_id: String,
+    line: usize,
+    direction: ChannelDirection,
+    topic: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ProtocolDirection {
+    Source,
+    Target,
+}
+
+struct ProtocolSite {
+    from_file_id: String,
+    line: usize,
+    direction: ProtocolDirection,
+    key: String,
 }
 
 fn outbound_http_call_sites(graph: &CodeGraph) -> Vec<HttpCallSite> {
@@ -221,9 +385,323 @@ fn outbound_http_call_sites(graph: &CodeGraph) -> Vec<HttpCallSite> {
             line: call.line,
             verb: http_verb_from_callee(&call.callee),
             path,
+            via: http_match_kind_from_callee(&call.callee),
         });
     }
     sites
+}
+
+fn channel_sites(graph: &CodeGraph) -> Vec<ChannelSite> {
+    let mut sites = Vec::new();
+    for call in graph.calls() {
+        if is_async_broker_callee(&call.callee) {
+            continue;
+        }
+        let Some(direction) = channel_direction_from_callee(&call.callee) else {
+            continue;
+        };
+        let Some(topic) = first_literal_arg(&call.arg_texts) else {
+            continue;
+        };
+        sites.push(ChannelSite {
+            from_file_id: call.from_file_id.clone(),
+            line: call.line,
+            direction,
+            topic,
+        });
+    }
+    sites
+}
+
+fn channel_direction_from_callee(callee: &str) -> Option<ChannelDirection> {
+    let lower = callee.to_ascii_lowercase();
+    let suffix = lower.rsplit(['.', ':']).next().unwrap_or(lower.as_str());
+    match suffix {
+        "publish" | "send" | "emit" | "produce" => Some(ChannelDirection::Publish),
+        "subscribe" | "on" | "consume" | "listen" => Some(ChannelDirection::Subscribe),
+        _ => None,
+    }
+}
+
+fn async_sites(graph: &CodeGraph) -> Vec<ProtocolSite> {
+    let mut sites = Vec::new();
+    for call in graph.calls() {
+        let Some(direction) = async_direction_from_callee(&call.callee) else {
+            continue;
+        };
+        let Some(key) = first_literal_arg(&call.arg_texts) else {
+            continue;
+        };
+        sites.push(ProtocolSite {
+            from_file_id: call.from_file_id.clone(),
+            line: call.line,
+            direction,
+            key,
+        });
+    }
+    sites
+}
+
+fn async_direction_from_callee(callee: &str) -> Option<ProtocolDirection> {
+    let lower = callee.to_ascii_lowercase();
+    if !is_async_broker_callee_lower(&lower) {
+        return None;
+    }
+    let suffix = lower.rsplit(['.', ':']).next().unwrap_or(lower.as_str());
+    match suffix {
+        "publish" | "send" | "enqueue" | "produce" | "dispatch" | "sendmessage"
+        | "send_message" => Some(ProtocolDirection::Source),
+        "subscribe" | "consume" | "receive" | "listen" | "process" | "handle" | "onmessage"
+        | "on_message" => Some(ProtocolDirection::Target),
+        _ => None,
+    }
+}
+
+fn is_async_broker_callee(callee: &str) -> bool {
+    is_async_broker_callee_lower(&callee.to_ascii_lowercase())
+}
+
+fn is_async_broker_callee_lower(lower: &str) -> bool {
+    contains_any(
+        lower,
+        &[
+            "pubsub",
+            "cloudtasks",
+            "cloud_tasks",
+            "sqs",
+            "sns",
+            "kafka",
+            "rabbitmq",
+            "nats",
+            "mqtt",
+            "servicebus",
+            "eventbridge",
+            "dapr",
+        ],
+    )
+}
+
+fn grpc_sites(graph: &CodeGraph) -> Vec<ProtocolSite> {
+    let mut sites = Vec::new();
+    for call in graph.calls() {
+        if let Some(key) = grpc_target_key(&call.callee, &call.arg_texts) {
+            sites.push(ProtocolSite {
+                from_file_id: call.from_file_id.clone(),
+                line: call.line,
+                direction: ProtocolDirection::Target,
+                key,
+            });
+            continue;
+        }
+        if let Some(key) = grpc_source_key(&call.callee) {
+            sites.push(ProtocolSite {
+                from_file_id: call.from_file_id.clone(),
+                line: call.line,
+                direction: ProtocolDirection::Source,
+                key,
+            });
+        }
+    }
+    sites
+}
+
+fn grpc_target_key(callee: &str, args: &[String]) -> Option<String> {
+    let lower = callee.to_ascii_lowercase();
+    if !lower.contains("grpc") && !contains_any(&lower, &["addservice", "registerservice"]) {
+        return None;
+    }
+    if !contains_any(
+        &lower,
+        &[
+            "addservice",
+            "registerservice",
+            "register",
+            "handler",
+            "serve",
+        ],
+    ) {
+        return None;
+    }
+    first_literal_arg(args).and_then(|key| if key.contains('/') { Some(key) } else { None })
+}
+
+fn grpc_source_key(callee: &str) -> Option<String> {
+    let last_dot = callee.rfind('.')?;
+    let method = &callee[last_dot + 1..];
+    if method.is_empty() {
+        return None;
+    }
+    let mut service = callee[..last_dot].to_owned();
+    for prefix in ["pb.New", "pb.", "New"] {
+        if let Some(stripped) = service.strip_prefix(prefix) {
+            service = stripped.to_owned();
+            break;
+        }
+    }
+    let suffixes = [
+        "BlockingStub",
+        "FutureStub",
+        "AsyncStub",
+        "AsyncClient",
+        "Servicer",
+        "Client",
+        "Stub",
+        "Grpc",
+    ];
+    let mut recognized = false;
+    for suffix in suffixes {
+        if service.len() > suffix.len() && service.ends_with(suffix) {
+            let keep = service.len() - suffix.len();
+            service.truncate(keep);
+            recognized = true;
+            break;
+        }
+    }
+    if recognized && !service.is_empty() {
+        Some(format!("{service}/{method}"))
+    } else {
+        None
+    }
+}
+
+fn graphql_sites(graph: &CodeGraph) -> Vec<ProtocolSite> {
+    let mut sites = Vec::new();
+    for call in graph.calls() {
+        let lower = call.callee.to_ascii_lowercase();
+        if !contains_any(&lower, &["graphql", "gql", "apollo", "urql"]) {
+            continue;
+        }
+        let Some(key) = call
+            .arg_texts
+            .iter()
+            .find_map(|arg| strip_quotes(arg.trim()).map(graphql_operation_name))
+        else {
+            continue;
+        };
+        let direction = if contains_any(
+            &lower,
+            &[
+                "resolver", "field", "schema", "typedef", "server", "handler",
+            ],
+        ) {
+            ProtocolDirection::Target
+        } else {
+            ProtocolDirection::Source
+        };
+        sites.push(ProtocolSite {
+            from_file_id: call.from_file_id.clone(),
+            line: call.line,
+            direction,
+            key,
+        });
+    }
+    sites
+}
+
+fn graphql_operation_name(text: &str) -> String {
+    let trimmed = text.trim();
+    let rest = trimmed
+        .strip_prefix("query ")
+        .or_else(|| trimmed.strip_prefix("mutation "))
+        .or_else(|| trimmed.strip_prefix("subscription "))
+        .unwrap_or(trimmed)
+        .trim_start();
+    let name: String = rest
+        .chars()
+        .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
+        .collect();
+    if name.is_empty() {
+        rest.to_owned()
+    } else {
+        name
+    }
+}
+
+fn trpc_sites(graph: &CodeGraph) -> Vec<ProtocolSite> {
+    let mut sites = Vec::new();
+    for call in graph.calls() {
+        let lower = call.callee.to_ascii_lowercase();
+        if !lower.contains("trpc") && !contains_any(&lower, &["router.query", "router.mutation"]) {
+            continue;
+        }
+        if contains_any(
+            &lower,
+            &["router.query", "router.mutation", "router.procedure"],
+        ) {
+            if let Some(key) = first_literal_arg(&call.arg_texts) {
+                sites.push(ProtocolSite {
+                    from_file_id: call.from_file_id.clone(),
+                    line: call.line,
+                    direction: ProtocolDirection::Target,
+                    key,
+                });
+            }
+            continue;
+        }
+        if let Some(key) = trpc_procedure_from_callee(&call.callee) {
+            sites.push(ProtocolSite {
+                from_file_id: call.from_file_id.clone(),
+                line: call.line,
+                direction: ProtocolDirection::Source,
+                key,
+            });
+        }
+    }
+    sites
+}
+
+fn trpc_procedure_from_callee(callee: &str) -> Option<String> {
+    let mut proc = callee.to_owned();
+    for suffix in [
+        ".query",
+        ".mutate",
+        ".subscribe",
+        ".useQuery",
+        ".useMutation",
+    ] {
+        if let Some(stripped) = proc.strip_suffix(suffix) {
+            proc = stripped.to_owned();
+            break;
+        }
+    }
+    let proc = proc.strip_prefix("trpc.").unwrap_or(&proc);
+    if proc.is_empty() || proc == callee {
+        None
+    } else {
+        Some(proc.to_owned())
+    }
+}
+
+fn match_protocol_sites(
+    current_project: &str,
+    target_project: &str,
+    protocol: CrossRepoProtocol,
+    current: &[ProtocolSite],
+    target: &[ProtocolSite],
+) -> Vec<CrossProtocolEdge> {
+    let mut edges = Vec::new();
+    for source in current
+        .iter()
+        .filter(|site| site.direction == ProtocolDirection::Source)
+    {
+        for sink in target
+            .iter()
+            .filter(|site| site.direction == ProtocolDirection::Target)
+        {
+            if source.key != sink.key {
+                continue;
+            }
+            edges.push(CrossProtocolEdge {
+                source_project: current_project.to_owned(),
+                source_file_id: source.from_file_id.clone(),
+                source_line: source.line,
+                target_project: target_project.to_owned(),
+                protocol,
+                key: source.key.clone(),
+            });
+        }
+    }
+    edges
 }
 
 /// Fixed, best-effort allow-list of HTTP-client-shaped callee text --
@@ -239,6 +717,14 @@ fn is_http_client_callee(callee: &str) -> bool {
         || lower.starts_with("reqwest::")
         || lower.starts_with("reqwest.")
         || lower.starts_with("httpclient.")
+}
+
+fn http_match_kind_from_callee(callee: &str) -> CrossHttpMatchKind {
+    if callee.eq_ignore_ascii_case("fetch") {
+        CrossHttpMatchKind::LiteralUrl
+    } else {
+        CrossHttpMatchKind::HttpClient
+    }
 }
 
 /// The HTTP verb a callee's own text encodes, if any (`axios.get` ->
@@ -272,7 +758,16 @@ fn extract_url_literal(arg: &str) -> Option<String> {
         // honest miss, not a guess.
         return None;
     }
-    Some(strip_scheme_and_host(inner))
+    Some(normalize_http_path(inner))
+}
+
+fn first_literal_arg(args: &[String]) -> Option<String> {
+    args.iter()
+        .find_map(|arg| strip_quotes(arg.trim()).map(str::to_owned))
+}
+
+fn contains_any(haystack: &str, needles: &[&str]) -> bool {
+    needles.iter().any(|needle| haystack.contains(needle))
 }
 
 fn strip_quotes(text: &str) -> Option<&str> {
@@ -300,9 +795,54 @@ fn strip_scheme_and_host(literal: &str) -> String {
     literal.to_owned()
 }
 
-fn trim_trailing_slash(path: &str) -> &str {
+fn normalize_http_path(raw: &str) -> String {
+    let stripped = strip_scheme_and_host(raw.trim());
+    let without_suffix = stripped.split(['?', '#']).next().unwrap_or_default().trim();
+    let with_leading_slash = if without_suffix.is_empty() {
+        "/".to_owned()
+    } else if without_suffix.starts_with('/') {
+        without_suffix.to_owned()
+    } else {
+        format!("/{without_suffix}")
+    };
+    trim_trailing_slash_owned(with_leading_slash)
+}
+
+fn http_path_matches_route(concrete_path: &str, route_path: &str) -> bool {
+    let concrete = normalize_http_path(concrete_path);
+    let route = normalize_http_path(route_path);
+    if concrete == route {
+        return true;
+    }
+    let concrete_segments: Vec<&str> = concrete
+        .trim_start_matches('/')
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .collect();
+    let route_segments: Vec<&str> = route
+        .trim_start_matches('/')
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .collect();
+    if concrete_segments.len() != route_segments.len() {
+        return false;
+    }
+    concrete_segments
+        .iter()
+        .zip(route_segments.iter())
+        .all(|(concrete_segment, route_segment)| {
+            route_segment == concrete_segment || is_route_template_segment(route_segment)
+        })
+}
+
+fn is_route_template_segment(segment: &str) -> bool {
+    (segment.starts_with(':') && segment.len() > 1)
+        || (segment.starts_with('{') && segment.ends_with('}') && segment.len() > 2)
+}
+
+fn trim_trailing_slash_owned(path: String) -> String {
     if path.len() > 1 {
-        path.strip_suffix('/').unwrap_or(path)
+        path.trim_end_matches('/').to_owned()
     } else {
         path
     }

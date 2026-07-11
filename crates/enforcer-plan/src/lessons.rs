@@ -955,41 +955,46 @@ struct SeedRow {
 /// shard). Skips the header row and the `|---|---|...` separator row.
 /// Tolerant of blank lines between rows (the seed corpus inserts blank
 /// lines between some rows for readability).
-fn parse_seed_rows(markdown: &str) -> Vec<SeedRow> {
-    let mut rows = Vec::new();
-    for line in markdown.lines() {
-        let trimmed = line.trim();
-        if !trimmed.starts_with('|') {
-            continue;
-        }
-        let cells: Vec<&str> = trimmed
-            .trim_start_matches('|')
-            .trim_end_matches('|')
-            .split('|')
-            .map(str::trim)
-            .collect();
-        if cells.len() < 6 {
-            continue;
-        }
-        if cells[0] == "id" {
-            continue; // header row
-        }
-        if cells[0].chars().all(|c| c == '-' || c == ':') {
-            continue; // separator row
-        }
-        if !cells[0].starts_with('L') {
-            continue; // not a lesson row (defensive)
-        }
-        rows.push(SeedRow {
-            id: cells[0].to_owned(),
-            date: cells[1].to_owned(),
-            observed: cells[2].to_owned(),
-            lesson: cells[3].to_owned(),
-            landed_at: cells[4].to_owned(),
-            ships_via: cells[5].to_owned(),
-        });
+fn parse_seed_row(line: &str) -> Option<SeedRow> {
+    let trimmed = line.trim();
+    if !trimmed.starts_with('|') {
+        return None;
     }
-    rows
+
+    let mut cells = trimmed
+        .trim_start_matches('|')
+        .trim_end_matches('|')
+        .split('|')
+        .map(str::trim);
+    let id = cells.next()?;
+    if id == "id"
+        || id
+            .chars()
+            .all(|character| character == '-' || character == ':')
+    {
+        return None;
+    }
+    if !id.starts_with('L') {
+        return None;
+    }
+
+    let date = cells.next()?;
+    let observed = cells.next()?;
+    let lesson = cells.next()?;
+    let landed_at = cells.next()?;
+    let ships_via = cells.next()?;
+    Some(SeedRow {
+        id: id.to_owned(),
+        date: date.to_owned(),
+        observed: observed.to_owned(),
+        lesson: lesson.to_owned(),
+        landed_at: landed_at.to_owned(),
+        ships_via: ships_via.to_owned(),
+    })
+}
+
+fn parse_seed_rows(markdown: &str) -> Vec<SeedRow> {
+    markdown.lines().filter_map(parse_seed_row).collect()
 }
 
 /// Map a seed row's `ships-via` free text to zero or more [`LessonRoute`]s

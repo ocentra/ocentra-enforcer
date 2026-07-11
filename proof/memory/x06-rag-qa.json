@@ -1324,10 +1324,10 @@
       "category": "Retrieval",
       "query": "Find all PENDING proof rows.",
       "expectedIds": [
-        "proof:pending-rows:68"
+        "proof:pending-rows:69"
       ],
       "actualIds": [
-        "proof:pending-rows:68"
+        "proof:pending-rows:69"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -1550,17 +1550,17 @@
       "query": "Summarize last 20 commits for this module.",
       "expectedIds": [
         "module:enforcer-memory-src:last-20-commits:20",
-        "commit:b25a699b2284",
-        "commit:a1b4c0a7268c",
-        "commit:f518af8abf22",
-        "commit:0c21464bc311"
+        "commit:5161cfc547d5",
+        "commit:40ce6c9ab886",
+        "commit:a56d35819519",
+        "commit:b25a699b2284"
       ],
       "actualIds": [
         "module:enforcer-memory-src:last-20-commits:20",
-        "commit:b25a699b2284",
-        "commit:a1b4c0a7268c",
-        "commit:f518af8abf22",
-        "commit:0c21464bc311"
+        "commit:5161cfc547d5",
+        "commit:40ce6c9ab886",
+        "commit:a56d35819519",
+        "commit:b25a699b2284"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -1568,6 +1568,9 @@
       "sourceRefs": [
         "crates/enforcer-memory/src",
         "git:log:-20:crates/enforcer-memory/src",
+        "commit-summary:5161cfc547d5:feat(x06): G3 stage 4 — Kotlin Spring-mapping route detection",
+        "commit-summary:40ce6c9ab886:feat(x06): G3 stage 3 — real decorator/annotation extraction for 7 languages",
+        "commit-summary:a56d35819519:feat(x06): G3 stage 1 — generic INHERITS fallback + real Solidity fix",
         "commit-summary:b25a699b2284:Merge remote-tracking branch 'origin/rust-build' into rust-build",
         "commit-summary:a1b4c0a7268c:test(memory): expose runtime workload admission proof",
         "commit-summary:f518af8abf22:test(memory): reject absolute llama gguf paths",
@@ -1584,10 +1587,7 @@
         "commit-summary:08c15fa3e668:feat(memory): gate ort provider acceleration by probe",
         "commit-summary:db076adde461:feat(memory): stamp ort worker runtime proof",
         "commit-summary:d79b49b91a58:feat(memory): derive runtime proof from contracts",
-        "commit-summary:d81f52ab9d46:feat(memory): add owned ort worker command seam",
-        "commit-summary:ae704036b00c:test(memory): satisfy x06 policy gates",
-        "commit-summary:e8965207d026:test(memory): add GGUF lifecycle contract",
-        "commit-summary:3175bf552688:test(memory): add ORT lifecycle contract"
+        "commit-summary:d81f52ab9d46:feat(memory): add owned ort worker command seam"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -1597,14 +1597,14 @@
       "category": "Retrieval",
       "query": "Find files with highest churn.",
       "expectedIds": [
-        "churn:proof/memory/x06-rag-qa.json:74",
+        "churn:proof/memory/x06-rag-qa.json:75",
         "churn:Cargo.lock:72",
         "churn:proof/memory/x06-feature-parity.json:69",
         "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:65",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:48"
       ],
       "actualIds": [
-        "churn:proof/memory/x06-rag-qa.json:74",
+        "churn:proof/memory/x06-rag-qa.json:75",
         "churn:Cargo.lock:72",
         "churn:proof/memory/x06-feature-parity.json:69",
         "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:65",
@@ -2169,15 +2169,15 @@
         "crates/enforcer-memory/src/hf_cache.rs:346::select_x06_chat_model_for_hardware",
         "crates/enforcer-memory/src/hf_cache.rs:378::q4-chat-fallback",
         "crates/enforcer-memory/src/hf_cache.rs:382::no-probe-chat-fallback",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:223::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:282::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:217::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:276::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
       ],
       "actualIds": [
         "crates/enforcer-memory/src/hf_cache.rs:346::select_x06_chat_model_for_hardware",
         "crates/enforcer-memory/src/hf_cache.rs:378::q4-chat-fallback",
         "crates/enforcer-memory/src/hf_cache.rs:382::no-probe-chat-fallback",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:223::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
-        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:282::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:217::chat_model_selector_prefers_q4_model_that_fits_detected_hardware",
+        "crates/enforcer-memory/tests/model_runtime_real_contract.rs:276::chat_model_selector_retains_ornith_as_dense_fallback_candidate"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -2513,13 +2513,13 @@
         "core-result-users:enforcer-core:7",
         "core-result-users:enforcer-harness:8",
         "core-result-users:enforcer-mcp:1",
-        "core-result-users:enforcer-proof:5"
+        "core-result-users:enforcer-proof:6"
       ],
       "actualIds": [
         "core-result-users:enforcer-core:7",
         "core-result-users:enforcer-harness:8",
         "core-result-users:enforcer-mcp:1",
-        "core-result-users:enforcer-proof:5"
+        "core-result-users:enforcer-proof:6"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -2546,6 +2546,7 @@
         "crates/enforcer-proof/src/harness.rs",
         "crates/enforcer-proof/src/journal.rs",
         "crates/enforcer-proof/src/legacy_import.rs",
+        "crates/enforcer-proof/src/read_model.rs",
         "crates/enforcer-proof/tests/proof_end_to_end.rs",
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
       ],
@@ -2870,6 +2871,8 @@
         "crates/enforcer-literal-scan/src/lexer.rs",
         "crates/enforcer-literal-scan/src/lib.rs",
         "crates/enforcer-literal-scan/src/risk-heuristics.rs",
+        "crates/enforcer-memory/src/code_graph.rs",
+        "crates/enforcer-memory/src/languages/generic.rs",
         "crates/enforcer-memory/src/ort_runtime.rs",
         "crates/enforcer-memory/src/search/mod.rs",
         "docs/plans/enforcer-selfhost-plan/MEMORY_RETRIEVAL_QA_BENCHMARKS.md"
@@ -3290,7 +3293,7 @@
       "sourceRefs": [
         "crates/enforcer-memory/src/architecture.rs",
         "crates/enforcer-proof/src",
-        "bounded sample: 6 Rust files"
+        "bounded sample: 7 Rust files"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -3937,6 +3940,7 @@
         "crates/enforcer-proof/src/harness.rs",
         "crates/enforcer-proof/src/journal.rs",
         "crates/enforcer-proof/src/legacy_import.rs",
+        "crates/enforcer-proof/src/read_model.rs",
         "crates/enforcer-rules/src/loader.rs",
         "crates/enforcer-rules/src/registry.rs",
         "crates/enforcer-rules/src/rules/plan.rs",
@@ -3966,6 +3970,7 @@
         "crates/enforcer-security/src/rules/signing.rs",
         "crates/enforcer-security/src/rules/threat_test_mapping.rs",
         "crates/enforcer-security/src/rules/time.rs",
+        "crates/enforcer-ui/frontend/src-tauri/src/main.rs",
         "crates/enforcer-ui/src/explorer/mod.rs",
         "crates/enforcer-ui/src/hub/mod.rs",
         "crates/enforcer-ui/src/payload.rs",
@@ -4028,6 +4033,8 @@
         "crates/enforcer-literal-scan/src/lexer.rs",
         "crates/enforcer-literal-scan/src/lib.rs",
         "crates/enforcer-literal-scan/src/risk-heuristics.rs",
+        "crates/enforcer-memory/src/code_graph.rs",
+        "crates/enforcer-memory/src/languages/generic.rs",
         "crates/enforcer-memory/src/ort_runtime.rs",
         "crates/enforcer-memory/src/search/mod.rs",
         "docs/ENFORCED_CHECKS.md",
@@ -4100,6 +4107,8 @@
         "crates/enforcer-config/src/resolve.rs",
         "crates/enforcer-config/src/shape.rs",
         "crates/enforcer-coordination/src/api.rs",
+        "crates/enforcer-coordination/src/domain.rs",
+        "crates/enforcer-coordination/src/events/mod.rs",
         "crates/enforcer-coordination/src/sync/stream.rs",
         "crates/enforcer-core/src/error.rs",
         "crates/enforcer-core/src/ndjson_writer.rs",
@@ -4165,12 +4174,15 @@
         "crates/enforcer-proof/src/envelope.rs",
         "crates/enforcer-proof/src/journal.rs",
         "crates/enforcer-proof/src/legacy_import.rs",
+        "crates/enforcer-proof/src/read_model.rs",
         "crates/enforcer-rules/src/loader.rs",
         "crates/enforcer-rules/src/version_drift.rs",
+        "crates/enforcer-rules/src/waiver.rs",
         "crates/enforcer-scan/src/coverage.rs",
         "crates/enforcer-scan/src/modes.rs",
         "crates/enforcer-scan/src/outcome.rs",
         "crates/enforcer-scan/src/rules/baseline_ratchet.rs",
+        "crates/enforcer-security/src/activation.rs",
         "crates/enforcer-security/src/rules/economic_invariants.rs",
         "crates/enforcer-security/src/rules/threat_test_mapping.rs",
         "crates/enforcer-ui/src/settings/write.rs",
