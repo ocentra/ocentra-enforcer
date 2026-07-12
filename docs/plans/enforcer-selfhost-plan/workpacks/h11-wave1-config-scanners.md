@@ -76,6 +76,23 @@ config/manifest input, proven by a fixture corpus.
   Cross-resource/absence checks (missing `aws_s3_bucket_public_access_block`,
   versioning) are deferred — they over-flag.
 
+- [x] **`CYBER-K8S-RBAC.1`** (`k8s_rbac.rs`) — Kubernetes RBAC privilege escalation: a
+  Role/ClusterRole rule granting wildcard `verbs`/`resources`/`apiGroups`, a
+  ClusterRoleBinding to `cluster-admin`, or get/list/watch on `secrets`. YAML/JSON
+  (serde_yaml). Harvested from `implementing-rbac-hardening-for-kubernetes`.
+- [x] **`CYBER-GCP.1`** (`cloud_gcp.rs`) — GCP Terraform: public IAM member
+  (`allUsers`/`allAuthenticatedUsers`), open `google_compute_firewall` (`0.0.0.0/0`),
+  publicly-exposed `google_sql_database_instance`. Reuses the HCL block parser.
+- [x] **`CYBER-AUTH-JWT.1`** (`auth_jwt.rs`) — JWT verify accepting the `none` algorithm, or a
+  hardcoded <16-char HMAC secret. Source line-scan.
+- [x] **`CYBER-CORS.1`** (`web_cors.rs`) — `Access-Control-Allow-Origin: *`/`null` combined with
+  `Access-Control-Allow-Credentials: true`. Source scan.
+- [x] **`CYBER-TLS.1`** (`net_tls.rs`) — enabling a legacy TLS/SSL version (SSLv2/SSLv3/TLSv1.0/
+  TLSv1.1) in server config/source, word-boundary-guarded against TLSv1.2/1.3.
+
+All five authored by small-model agents from their vendor skills + a template, then integrated
+and verified by the main loop (compile + clippy + fmt + corpus). Each has a labeled corpus.
+
 ## Deferred (documented, not hand-waved)
 
 - Namespace-level Pod Security Admission labels

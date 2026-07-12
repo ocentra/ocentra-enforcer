@@ -53,7 +53,7 @@ fn cyberskills_rule_scaffold_parity_is_clean() -> Result<(), Box<dyn std::error:
     let registry: RuleRegistry = load_registry_from_files(&[catalog_path.as_path()])?;
     assert_eq!(
         registry.len(),
-        16,
+        21,
         "expected the h11 + Wave-1 cyberskills rule records"
     );
 
@@ -64,8 +64,8 @@ fn cyberskills_rule_scaffold_parity_is_clean() -> Result<(), Box<dyn std::error:
     validators.push(Box::new(SkillFrontmatterValidValidator::new()?));
     assert_eq!(
         validators.len(),
-        16,
-        "expected 15 source-pattern validators + 1 frontmatter linter"
+        21,
+        "expected 20 source-pattern validators + 1 frontmatter linter"
     );
 
     let lookup = CyberskillsLookup { validators };

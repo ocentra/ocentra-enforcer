@@ -254,5 +254,85 @@
         },
         "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
         "tags": ["cyberskills", "wave1", "cloud", "aws", "iac", "terraform"]
+    },
+    {
+        "ruleId": "CYBER-K8S-RBAC.1",
+        "version": 1,
+        "title": "Kubernetes RBAC must not grant wildcard permissions or bind cluster-admin",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::k8s_rbac::K8sRbacValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/k8s.rbac-privilege-escalation/bad/wildcard.yaml",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/k8s.rbac-privilege-escalation/good/scoped.yaml"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "k8s", "rbac", "manifest"]
+    },
+    {
+        "ruleId": "CYBER-GCP.1",
+        "version": 1,
+        "title": "GCP Terraform resources must not be publicly exposed (public IAM member, open firewall, public Cloud SQL)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::cloud_gcp::GcpResourceHardeningValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.gcp.resource-hardening/bad/public.tf",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.gcp.resource-hardening/good/hardened.tf"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "cloud", "gcp", "iac", "terraform"]
+    },
+    {
+        "ruleId": "CYBER-AUTH-JWT.1",
+        "version": 1,
+        "title": "JWT verification must not accept the none algorithm or a hardcoded weak secret",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::auth_jwt::JwtSecurityValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/auth.jwt-insecure/bad/none_alg.js",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/auth.jwt-insecure/good/verified.js"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "auth", "jwt"]
+    },
+    {
+        "ruleId": "CYBER-CORS.1",
+        "version": 1,
+        "title": "CORS must not combine a wildcard/null Access-Control-Allow-Origin with credentials",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::web_cors::CorsMisconfigValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.cors-misconfig/bad/wildcard_creds.txt",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.cors-misconfig/good/scoped.txt"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "cors"]
+    },
+    {
+        "ruleId": "CYBER-TLS.1",
+        "version": 1,
+        "title": "TLS/SSL config must not enable a legacy protocol version (SSLv2/SSLv3/TLSv1.0/TLSv1.1)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::net_tls::TlsLegacyVersionValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/net.tls-legacy/bad/legacy.conf",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/net.tls-legacy/good/modern.conf"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "net", "tls"]
     }
 ]

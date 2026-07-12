@@ -13,13 +13,18 @@
 //! they are deferred to the optional `h12` adapter pack. No CLI subprocess
 //! is introduced anywhere in this module.
 
+pub mod auth_jwt;
 pub mod cloud_aws;
 pub mod cloud_azure;
+pub mod cloud_gcp;
 pub mod dependency_confusion;
 pub mod dockerfile_hardening;
 pub mod iac_terraform;
 pub mod k8s_pod_security;
+pub mod k8s_rbac;
+pub mod net_tls;
 pub mod provider_credentials;
 pub mod registry;
 pub mod waf_sqli;
+pub mod web_cors;
 pub mod web_headers;

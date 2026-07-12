@@ -9,19 +9,24 @@
 use enforcer_core::error::DecodeError;
 use enforcer_validator::validator::Validator;
 
+use super::auth_jwt::JwtSecurityValidator;
 use super::cloud_aws::AwsResourceHardeningValidator;
 use super::cloud_azure::{
     AzureStorageMinTls12Validator, AzureStoragePublicBlobValidator,
     AzureStorageRequireHttpsValidator,
 };
+use super::cloud_gcp::GcpResourceHardeningValidator;
 use super::dependency_confusion::DependencyConfusionClaimableValidator;
 use super::dockerfile_hardening::DockerfileHardeningValidator;
 use super::iac_terraform::{
     IamNoWildcardActionValidator, S3EncryptionRequiredValidator, SgNoPublicSshIngressValidator,
 };
 use super::k8s_pod_security::K8sPodSecurityValidator;
+use super::k8s_rbac::K8sRbacValidator;
+use super::net_tls::TlsLegacyVersionValidator;
 use super::provider_credentials::ProviderCredentialValidator;
 use super::waf_sqli::WafSqliSignatureValidator;
+use super::web_cors::CorsMisconfigValidator;
 use super::web_headers::{
     CookieSecureHttponlySamesiteValidator, CspMissingValidator, HstsMissingOrWeakValidator,
 };
@@ -100,6 +105,26 @@ pub fn build_all() -> Result<Vec<RegistryRow>, DecodeError> {
             rule_id: "CYBER-AWS.1",
             validator: Box::new(AwsResourceHardeningValidator::new()?),
         },
+        RegistryRow {
+            rule_id: "CYBER-K8S-RBAC.1",
+            validator: Box::new(K8sRbacValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-GCP.1",
+            validator: Box::new(GcpResourceHardeningValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-AUTH-JWT.1",
+            validator: Box::new(JwtSecurityValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-CORS.1",
+            validator: Box::new(CorsMisconfigValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-TLS.1",
+            validator: Box::new(TlsLegacyVersionValidator::new()?),
+        },
     ])
 }
 
@@ -110,7 +135,7 @@ mod tests {
     #[test]
     fn registry_builds_cleanly() -> Result<(), Box<dyn std::error::Error>> {
         let rows = build_all()?;
-        assert_eq!(rows.len(), 15);
+        assert_eq!(rows.len(), 20);
         let ids: Vec<&str> = rows.iter().map(|row| row.rule_id).collect();
         for expected in [
             "CYBER-IAC-S3-SSE.1",
@@ -128,6 +153,11 @@ mod tests {
             "CYBER-DOCKER.1",
             "CYBER-SECRET.1",
             "CYBER-AWS.1",
+            "CYBER-K8S-RBAC.1",
+            "CYBER-GCP.1",
+            "CYBER-AUTH-JWT.1",
+            "CYBER-CORS.1",
+            "CYBER-TLS.1",
         ] {
             assert!(
                 ids.contains(&expected),

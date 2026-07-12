@@ -1,0 +1,107 @@
+[
+  {
+    "name": "check-1-clusterrole-wildcard-verbs-and-resources",
+    "input": "apiVersion: rbac.authorization.k8s.io/v1\nkind: ClusterRole\nmetadata:\n  name: super-admin\nrules:\n- apiGroups: [\"*\"]\n  resources: [\"*\"]\n  verbs: [\"*\"]",
+    "expect": "flag",
+    "branch": "wildcard-verbs-and-resources",
+    "reason": "verbs and resources are both wildcard: Critical (Severity::Error)"
+  },
+  {
+    "name": "check-1-role-wildcard-verbs-only",
+    "input": "apiVersion: rbac.authorization.k8s.io/v1\nkind: Role\nmetadata:\n  name: partial-wild\n  namespace: default\nrules:\n- apiGroups: [\"\"]\n  resources: [\"pods\"]\n  verbs: [\"*\"]",
+    "expect": "flag",
+    "branch": "wildcard-verbs-only",
+    "reason": "wildcard verbs alone still flags, at Warning severity (not both wildcard)"
+  },
+  {
+    "name": "check-1-role-wildcard-resources-only",
+    "input": "apiVersion: rbac.authorization.k8s.io/v1\nkind: Role\nmetadata:\n  name: partial-wild-res\n  namespace: default\nrules:\n- apiGroups: [\"\"]\n  resources: [\"*\"]\n  verbs: [\"get\"]",
+    "expect": "flag",
+    "branch": "wildcard-resources-only",
+    "reason": "wildcard resources alone still flags, at Warning severity"
+  },
+  {
+    "name": "check-1-role-wildcard-apigroups-only",
+    "input": "apiVersion: rbac.authorization.k8s.io/v1\nkind: Role\nmetadata:\n  name: partial-wild-apigroup\n  namespace: default\nrules:\n- apiGroups: [\"*\"]\n  resources: [\"deployments\"]\n  verbs: [\"get\"]",
+    "expect": "flag",
+    "branch": "wildcard-apigroups-only",
+    "reason": "wildcard apiGroups alone still flags, at Warning severity"
+  },
+  {
+    "name": "check-1-clean-scoped-role",
+    "input": "apiVersion: rbac.authorization.k8s.io/v1\nkind: Role\nmetadata:\n  name: pod-reader\n  namespace: default\nrules:\n- apiGroups: [\"\"]\n  resources: [\"pods\"]\n  verbs: [\"get\", \"list\"]",
+    "expect": "clean",
+    "branch": "wildcard-verbs-and-resources",
+    "reason": "fully scoped verbs/resources/apiGroups, no wildcard anywhere"
+  },
+  {
+    "name": "check-2-clusterrolebinding-cluster-admin",
+    "input": "apiVersion: rbac.authorization.k8s.io/v1\nkind: ClusterRoleBinding\nmetadata:\n  name: everyone-admin\nroleRef:\n  apiGroup: rbac.authorization.k8s.io\n  kind: ClusterRole\n  name: cluster-admin\nsubjects:\n- kind: ServiceAccount\n  name: default\n  namespace: default",
+    "expect": "flag",
+    "branch": "cluster-admin-binding",
+    "reason": "roleRef.name is cluster-admin: Critical (Severity::Error)"
+  },
+  {
+    "name": "check-2-clean-clusterrolebinding-scoped-role",
+    "input": "apiVersion: rbac.authorization.k8s.io/v1\nkind: ClusterRoleBinding\nmetadata:\n  name: viewers\nroleRef:\n  apiGroup: rbac.authorization.k8s.io\n  kind: ClusterRole\n  name: view\nsubjects:\n- kind: Group\n  name: developers\n  apiGroup: rbac.authorization.k8s.io",
+    "expect": "clean",
+    "branch": "cluster-admin-binding",
+    "reason": "roleRef.name is the built-in `view` role, not cluster-admin"
+  },
+  {
+    "name": "check-2-clean-rolebinding-cluster-admin-name-wrong-kind",
+    "input": "apiVersion: rbac.authorization.k8s.io/v1\nkind: RoleBinding\nmetadata:\n  name: scoped\n  namespace: default\nroleRef:\n  apiGroup: rbac.authorization.k8s.io\n  kind: Role\n  name: cluster-admin\nsubjects:\n- kind: User\n  name: alice",
+    "expect": "clean",
+    "branch": "cluster-admin-binding",
+    "reason": "check-2 is scoped to ClusterRoleBinding kind only; RoleBinding is out of scope for this check"
+  },
+  {
+    "name": "check-3-clusterrole-secrets-get-list-watch",
+    "input": "apiVersion: rbac.authorization.k8s.io/v1\nkind: ClusterRole\nmetadata:\n  name: secret-reader\nrules:\n- apiGroups: [\"\"]\n  resources: [\"secrets\"]\n  verbs: [\"get\", \"list\", \"watch\"]",
+    "expect": "flag",
+    "branch": "secrets-read-access",
+    "reason": "get/list/watch on secrets: High (Severity::Error)"
+  },
+  {
+    "name": "check-3-role-secrets-get-only",
+    "input": "apiVersion: rbac.authorization.k8s.io/v1\nkind: Role\nmetadata:\n  name: secret-getter\n  namespace: default\nrules:\n- apiGroups: [\"\"]\n  resources: [\"secrets\"]\n  verbs: [\"get\"]",
+    "expect": "flag",
+    "branch": "secrets-read-access",
+    "reason": "get alone on secrets already grants read access to secret contents"
+  },
+  {
+    "name": "check-3-clean-secrets-create-only",
+    "input": "apiVersion: rbac.authorization.k8s.io/v1\nkind: Role\nmetadata:\n  name: secret-writer\n  namespace: default\nrules:\n- apiGroups: [\"\"]\n  resources: [\"secrets\"]\n  verbs: [\"create\"]",
+    "expect": "clean",
+    "branch": "secrets-read-access",
+    "reason": "create is not a read verb (get/list/watch/*) so no secrets-read finding"
+  },
+  {
+    "name": "check-3-clean-other-resource-get",
+    "input": "apiVersion: rbac.authorization.k8s.io/v1\nkind: Role\nmetadata:\n  name: configmap-reader\n  namespace: default\nrules:\n- apiGroups: [\"\"]\n  resources: [\"configmaps\"]\n  verbs: [\"get\", \"list\", \"watch\"]",
+    "expect": "clean",
+    "branch": "secrets-read-access",
+    "reason": "read verbs on configmaps, not secrets, so no secrets-read finding"
+  },
+  {
+    "name": "out-of-scope-kind-configmap",
+    "input": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: app-config\ndata:\n  key: value",
+    "expect": "clean",
+    "branch": "out-of-scope-kind",
+    "reason": "ConfigMap is not an RBAC kind (Role/ClusterRole/RoleBinding/ClusterRoleBinding), so it is out of scope"
+  },
+  {
+    "name": "out-of-scope-missing-kind",
+    "input": "apiVersion: rbac.authorization.k8s.io/v1\nmetadata:\n  name: no-kind\nrules:\n- apiGroups: [\"*\"]\n  resources: [\"*\"]\n  verbs: [\"*\"]",
+    "expect": "clean",
+    "branch": "out-of-scope-kind",
+    "reason": "document has no `kind` field, so it cannot be recognized as an in-scope RBAC manifest"
+  },
+  {
+    "name": "clean-rolebinding-no-rules-no-roleref-issue",
+    "input": "apiVersion: rbac.authorization.k8s.io/v1\nkind: RoleBinding\nmetadata:\n  name: bind-view\n  namespace: default\nroleRef:\n  apiGroup: rbac.authorization.k8s.io\n  kind: Role\n  name: view\nsubjects:\n- kind: User\n  name: bob",
+    "expect": "clean",
+    "branch": "cluster-admin-binding",
+    "reason": "RoleBinding to a scoped Role named `view`, no rules block to inspect and not a ClusterRoleBinding"
+  }
+]

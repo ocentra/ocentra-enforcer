@@ -1,0 +1,121 @@
+[
+  {
+    "name": "iam_member_allusers",
+    "input": "resource \"google_storage_bucket_iam_member\" \"example\" {\n  bucket = \"my-bucket\"\n  role   = \"roles/storage.objectViewer\"\n  member = \"allUsers\"\n}",
+    "expect": "flag",
+    "branch": "public-iam-member",
+    "reason": "storage bucket IAM member granted to allUsers"
+  },
+  {
+    "name": "iam_member_allauthenticatedusers",
+    "input": "resource \"google_project_iam_member\" \"example\" {\n  project = \"my-project\"\n  role    = \"roles/viewer\"\n  member  = \"allAuthenticatedUsers\"\n}",
+    "expect": "flag",
+    "branch": "public-iam-member",
+    "reason": "project IAM member granted to allAuthenticatedUsers"
+  },
+  {
+    "name": "iam_binding_members_list_allusers",
+    "input": "resource \"google_project_iam_binding\" \"example\" {\n  project = \"my-project\"\n  role    = \"roles/viewer\"\n  members = [\"allUsers\"]\n}",
+    "expect": "flag",
+    "branch": "public-iam-member",
+    "reason": "project IAM binding members list contains allUsers"
+  },
+  {
+    "name": "iam_binding_members_list_allauthenticatedusers",
+    "input": "resource \"google_storage_bucket_iam_binding\" \"example\" {\n  bucket  = \"my-bucket\"\n  role    = \"roles/storage.objectViewer\"\n  members = [\"user:alice@example.com\", \"allAuthenticatedUsers\"]\n}",
+    "expect": "flag",
+    "branch": "public-iam-member",
+    "reason": "storage bucket IAM binding members list contains allAuthenticatedUsers alongside a scoped user"
+  },
+  {
+    "name": "sql_ipv4_enabled_true",
+    "input": "resource \"google_sql_database_instance\" \"example\" {\n  name = \"mydb\"\n\n  settings {\n    ip_configuration {\n      ipv4_enabled = true\n    }\n  }\n}",
+    "expect": "flag",
+    "branch": "sql-public-ip",
+    "reason": "Cloud SQL instance with ipv4_enabled = true"
+  },
+  {
+    "name": "sql_authorized_network_public",
+    "input": "resource \"google_sql_database_instance\" \"example\" {\n  name = \"mydb\"\n\n  settings {\n    ip_configuration {\n      ipv4_enabled = false\n\n      authorized_networks {\n        name  = \"any\"\n        value = \"0.0.0.0/0\"\n      }\n    }\n  }\n}",
+    "expect": "flag",
+    "branch": "sql-public-ip",
+    "reason": "Cloud SQL instance with authorized_networks value 0.0.0.0/0 even though ipv4_enabled = false"
+  },
+  {
+    "name": "firewall_public_source_ranges",
+    "input": "resource \"google_compute_firewall\" \"example\" {\n  name    = \"allow-all\"\n  network = \"default\"\n\n  allow {\n    protocol = \"tcp\"\n    ports    = [\"22\"]\n  }\n\n  source_ranges = [\"0.0.0.0/0\"]\n}",
+    "expect": "flag",
+    "branch": "firewall-public-ingress",
+    "reason": "firewall rule with source_ranges containing 0.0.0.0/0"
+  },
+  {
+    "name": "iam_member_scoped_group",
+    "input": "resource \"google_storage_bucket_iam_member\" \"example\" {\n  bucket = \"my-bucket\"\n  role   = \"roles/storage.objectViewer\"\n  member = \"group:data-team@example.com\"\n}",
+    "expect": "clean",
+    "branch": "public-iam-member",
+    "reason": "IAM member scoped to a group is acceptable"
+  },
+  {
+    "name": "iam_member_lookalike_email_not_exact_match",
+    "input": "resource \"google_project_iam_member\" \"example\" {\n  project = \"my-project\"\n  role    = \"roles/viewer\"\n  member  = \"user:allUsersGroup@example.com\"\n}",
+    "expect": "clean",
+    "branch": "public-iam-member",
+    "reason": "member value merely contains the substring allUsers but is not the exact allUsers identity"
+  },
+  {
+    "name": "iam_binding_members_list_domain_lookalike",
+    "input": "resource \"google_project_iam_binding\" \"example\" {\n  project = \"my-project\"\n  role    = \"roles/viewer\"\n  members = [\"domain:allUsers.example.com\"]\n}",
+    "expect": "clean",
+    "branch": "public-iam-member",
+    "reason": "members list entry contains allUsers as a substring of a domain, not the exact allUsers list member"
+  },
+  {
+    "name": "iam_binding_scoped_members",
+    "input": "resource \"google_project_iam_binding\" \"example\" {\n  project = \"my-project\"\n  role    = \"roles/viewer\"\n  members = [\"user:alice@example.com\", \"serviceAccount:svc@my-project.iam.gserviceaccount.com\"]\n}",
+    "expect": "clean",
+    "branch": "public-iam-member",
+    "reason": "IAM binding members list with only scoped principals"
+  },
+  {
+    "name": "sql_private_ip_restricted_network",
+    "input": "resource \"google_sql_database_instance\" \"example\" {\n  name = \"mydb\"\n\n  settings {\n    ip_configuration {\n      ipv4_enabled = false\n\n      authorized_networks {\n        name  = \"office\"\n        value = \"203.0.113.0/24\"\n      }\n    }\n  }\n}",
+    "expect": "clean",
+    "branch": "sql-public-ip",
+    "reason": "Cloud SQL instance with public IP disabled and a restricted authorized network"
+  },
+  {
+    "name": "sql_no_ip_configuration_block",
+    "input": "resource \"google_sql_database_instance\" \"example\" {\n  name = \"mydb\"\n\n  settings {\n    tier = \"db-custom-2-7680\"\n  }\n}",
+    "expect": "clean",
+    "branch": "sql-public-ip",
+    "reason": "Cloud SQL instance with no ip_configuration block at all defaults to private"
+  },
+  {
+    "name": "firewall_restricted_source_ranges",
+    "input": "resource \"google_compute_firewall\" \"example\" {\n  name    = \"allow-internal\"\n  network = \"default\"\n\n  allow {\n    protocol = \"tcp\"\n    ports    = [\"443\"]\n  }\n\n  source_ranges = [\"10.0.0.0/8\"]\n}",
+    "expect": "clean",
+    "branch": "firewall-public-ingress",
+    "reason": "firewall rule restricted to an internal CIDR range"
+  },
+  {
+    "name": "firewall_egress_public_destination_not_flagged",
+    "input": "resource \"google_compute_firewall\" \"example\" {\n  name      = \"deny-egress\"\n  network   = \"default\"\n  direction = \"EGRESS\"\n\n  deny {\n    protocol = \"all\"\n  }\n\n  destination_ranges = [\"0.0.0.0/0\"]\n}",
+    "expect": "clean",
+    "branch": "firewall-public-ingress",
+    "reason": "an egress rule's destination_ranges of 0.0.0.0/0 is not a public source_ranges ingress exposure"
+  },
+  {
+    "name": "google_storage_bucket_not_iam_resource",
+    "input": "resource \"google_storage_bucket\" \"example\" {\n  name          = \"my-bucket\"\n  location      = \"US\"\n  force_destroy = true\n}",
+    "expect": "clean",
+    "branch": "non-iam-non-sql-non-firewall",
+    "reason": "plain storage bucket resource (no IAM member/binding) is not validated"
+  },
+  {
+    "name": "aws_resource_not_gcp",
+    "input": "resource \"aws_s3_bucket\" \"example\" {\n  bucket = \"my-bucket\"\n  acl    = \"public-read\"\n}",
+    "expect": "clean",
+    "branch": "non-iam-non-sql-non-firewall",
+    "reason": "non-GCP resource (AWS) is not validated by this rule"
+  }
+]

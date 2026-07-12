@@ -18,18 +18,23 @@ use std::path::PathBuf;
 
 use enforcer_domain::findings::ScanScope;
 use enforcer_domain::paths::RelPath;
+use enforcer_lang_security::rules::cyberskills::auth_jwt::JwtSecurityValidator;
 use enforcer_lang_security::rules::cyberskills::cloud_aws::AwsResourceHardeningValidator;
 use enforcer_lang_security::rules::cyberskills::cloud_azure::{
     AzureStorageMinTls12Validator, AzureStoragePublicBlobValidator,
     AzureStorageRequireHttpsValidator,
 };
+use enforcer_lang_security::rules::cyberskills::cloud_gcp::GcpResourceHardeningValidator;
 use enforcer_lang_security::rules::cyberskills::dependency_confusion::DependencyConfusionClaimableValidator;
 use enforcer_lang_security::rules::cyberskills::dockerfile_hardening::DockerfileHardeningValidator;
 use enforcer_lang_security::rules::cyberskills::iac_terraform::{
     IamNoWildcardActionValidator, S3EncryptionRequiredValidator, SgNoPublicSshIngressValidator,
 };
 use enforcer_lang_security::rules::cyberskills::k8s_pod_security::K8sPodSecurityValidator;
+use enforcer_lang_security::rules::cyberskills::k8s_rbac::K8sRbacValidator;
+use enforcer_lang_security::rules::cyberskills::net_tls::TlsLegacyVersionValidator;
 use enforcer_lang_security::rules::cyberskills::waf_sqli::WafSqliSignatureValidator;
+use enforcer_lang_security::rules::cyberskills::web_cors::CorsMisconfigValidator;
 use enforcer_lang_security::rules::cyberskills::web_headers::{
     CookieSecureHttponlySamesiteValidator, CspMissingValidator, HstsMissingOrWeakValidator,
 };
@@ -127,6 +132,36 @@ fn corpus_iac_terraform() -> Result<(), Box<dyn std::error::Error>> {
 fn corpus_cloud_aws() -> Result<(), Box<dyn std::error::Error>> {
     let family: Vec<Box<dyn Validator>> = vec![Box::new(AwsResourceHardeningValidator::new()?)];
     assert_family("cloud_aws.json", "main.tf", &family)
+}
+
+#[test]
+fn corpus_cloud_gcp() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(GcpResourceHardeningValidator::new()?)];
+    assert_family("cloud_gcp.json", "main.tf", &family)
+}
+
+#[test]
+fn corpus_k8s_rbac() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(K8sRbacValidator::new()?)];
+    assert_family("k8s_rbac.json", "rbac.yaml", &family)
+}
+
+#[test]
+fn corpus_auth_jwt() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(JwtSecurityValidator::new()?)];
+    assert_family("auth_jwt.json", "auth.js", &family)
+}
+
+#[test]
+fn corpus_web_cors() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(CorsMisconfigValidator::new()?)];
+    assert_family("web_cors.json", "cors.txt", &family)
+}
+
+#[test]
+fn corpus_net_tls() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(TlsLegacyVersionValidator::new()?)];
+    assert_family("net_tls.json", "tls.conf", &family)
 }
 
 #[test]

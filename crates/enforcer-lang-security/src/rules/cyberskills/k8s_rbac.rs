@@ -1,0 +1,212 @@
+//! `CYBER-K8S-RBAC.1` (T1) — Wave-1 cyberskills: Kubernetes RBAC
+//! privilege-escalation hardening, a native Rust reimplementation of the
+//! inline manifest predicates harvested 1:1 from
+//! `vendor/anthropic-cybersecurity-skills/skills/{auditing-kubernetes-rbac-privilege-escalation,
+//! implementing-rbac-hardening-for-kubernetes}/scripts/agent.py`.
+//!
+//! `auditing-kubernetes-rbac-privilege-escalation`'s `agent.py` is a
+//! `kubectl auth can-i` / `kubectl get clusterrolebindings` CLI wrapper
+//! against a *live* cluster — no CLI subprocess is introduced here.
+//! `implementing-rbac-hardening-for-kubernetes`'s `agent.py`, however, also
+//! shells out to `kubectl get ... -o json` but its `audit_cluster_roles`
+//! and `audit_cluster_role_bindings` functions embed the actual manifest
+//! predicates inline (wildcard verbs/resources, secrets read access,
+//! `roleRef.name == "cluster-admin"`); those predicates are ported here
+//! 1:1 against a manifest parsed directly from source instead of from a
+//! `kubectl get -o json` dump, so the check runs offline on a YAML/JSON
+//! manifest without ever invoking `kubectl`.
+//!
+//! It parses an RBAC manifest (YAML or JSON — JSON is a YAML subset, so one
+//! `serde_yaml` pass deserializes both) and, for `Role` / `ClusterRole` /
+//! `RoleBinding` / `ClusterRoleBinding` kinds, emits one `Finding` per
+//! violated check. Any other `kind` (or a document with no recognized
+//! kind) is out of scope and yields no findings.
+
+use enforcer_core::error::DecodeError;
+use enforcer_domain::findings::Finding;
+use enforcer_domain::ids::RuleId;
+use enforcer_domain::severity::Severity;
+use enforcer_validator::validator::{ValidationInput, Validator};
+
+/// RBAC kinds this rule inspects. A manifest of any other `kind` (or a
+/// non-manifest document) is not this rule's concern.
+const RBAC_KINDS: &[&str] = &["Role", "ClusterRole", "RoleBinding", "ClusterRoleBinding"];
+
+/// Verbs that grant read access to secret contents when paired with the
+/// `secrets` resource — per the vendor's `dangerous_verbs`/secrets-access
+/// check (`get`/`list`/`watch`, or a wildcard).
+const SECRET_READ_VERBS: &[&str] = &["get", "list", "watch", "*"];
+
+#[derive(Debug, Default, serde::Deserialize)]
+struct Manifest {
+    #[serde(default)]
+    kind: Option<String>,
+    #[serde(default)]
+    rules: Vec<PolicyRule>,
+    #[serde(default, rename = "roleRef")]
+    role_ref: Option<RoleRef>,
+}
+
+#[derive(Debug, Default, serde::Deserialize)]
+struct PolicyRule {
+    #[serde(default)]
+    verbs: Vec<String>,
+    #[serde(default)]
+    resources: Vec<String>,
+    #[serde(default, rename = "apiGroups")]
+    api_groups: Vec<String>,
+}
+
+#[derive(Debug, Default, serde::Deserialize)]
+struct RoleRef {
+    #[serde(default)]
+    kind: Option<String>,
+    #[serde(default)]
+    name: Option<String>,
+}
+
+/// `CYBER-K8S-RBAC.1` — RBAC privilege-escalation hardening manifest gate.
+pub struct K8sRbacValidator {
+    rule_id: RuleId,
+}
+
+impl K8sRbacValidator {
+    pub fn new() -> Result<Self, DecodeError> {
+        Ok(Self {
+            rule_id: "CYBER-K8S-RBAC.1".parse()?,
+        })
+    }
+
+    fn finding(&self, input: &ValidationInput<'_>, severity: Severity, detail: String) -> Finding {
+        Finding {
+            rule_id: self.rule_id.clone(),
+            severity,
+            title: "Kubernetes RBAC manifest grants excessive privilege".to_owned(),
+            detail,
+            file: input.file.clone(),
+            line: 1,
+            snippet: None,
+        }
+    }
+}
+
+fn has(list: &[String], value: &str) -> bool {
+    list.iter().any(|v| v == value)
+}
+
+fn any_matches(list: &[String], candidates: &[&str]) -> bool {
+    list.iter()
+        .any(|v| candidates.iter().any(|c| v.eq_ignore_ascii_case(c)))
+}
+
+impl Validator for K8sRbacValidator {
+    fn rule_id(&self) -> &RuleId {
+        &self.rule_id
+    }
+
+    fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
+        let Ok(manifest) = serde_yaml::from_str::<Manifest>(input.source) else {
+            return Vec::new();
+        };
+        let Some(kind) = manifest.kind.as_deref() else {
+            return Vec::new();
+        };
+        if !RBAC_KINDS.contains(&kind) {
+            return Vec::new();
+        }
+
+        let mut findings = Vec::new();
+
+        // Role/ClusterRole `rules:` checks — wildcard grants and secrets
+        // read access.
+        if kind == "Role" || kind == "ClusterRole" {
+            for rule in &manifest.rules {
+                let wildcard_verbs = has(&rule.verbs, "*");
+                let wildcard_resources = has(&rule.resources, "*");
+                let wildcard_api_groups = has(&rule.api_groups, "*");
+
+                if wildcard_verbs || wildcard_resources || wildcard_api_groups {
+                    let severity = if wildcard_verbs && wildcard_resources {
+                        Severity::Error
+                    } else {
+                        Severity::Warning
+                    };
+                    findings.push(self.finding(
+                        &input,
+                        severity,
+                        format!(
+                            "{kind} rule grants a wildcard permission (verbs: {:?}, resources: \
+                             {:?}, apiGroups: {:?}). Fix: replace `*` with the specific verbs, \
+                             resources, and apiGroups actually required.",
+                            rule.verbs, rule.resources, rule.api_groups
+                        ),
+                    ));
+                }
+
+                let reads_secrets = any_matches(&rule.resources, &["secrets", "*"])
+                    && any_matches(&rule.verbs, SECRET_READ_VERBS);
+                if reads_secrets {
+                    findings.push(self.finding(
+                        &input,
+                        Severity::Error,
+                        format!(
+                            "{kind} rule grants read access to `secrets` (verbs: {:?}). Fix: \
+                             scope this rule to the specific secret names required, or remove \
+                             `secrets` from `resources`.",
+                            rule.verbs
+                        ),
+                    ));
+                }
+            }
+        }
+
+        // ClusterRoleBinding `roleRef` check — a binding to `cluster-admin`
+        // grants full cluster privilege to its subjects. `roleRef.kind` for
+        // a ClusterRoleBinding is conventionally `ClusterRole`; treat a
+        // missing `kind` the same way rather than requiring it verbatim.
+        if kind == "ClusterRoleBinding" {
+            let binds_cluster_admin = manifest.role_ref.as_ref().is_some_and(|role_ref| {
+                role_ref.name.as_deref() == Some("cluster-admin")
+                    && matches!(role_ref.kind.as_deref(), None | Some("ClusterRole"))
+            });
+            if binds_cluster_admin {
+                findings.push(
+                    self.finding(
+                        &input,
+                        Severity::Error,
+                        "ClusterRoleBinding binds subjects to `cluster-admin` (full cluster \
+                     privilege). Fix: bind to a narrowly scoped ClusterRole or Role instead."
+                            .to_owned(),
+                    ),
+                );
+            }
+        }
+
+        findings
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use enforcer_validator::harness::run_fixture_parity;
+
+    use super::K8sRbacValidator;
+
+    fn manifest_dir() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    }
+
+    #[test]
+    fn cyberskills_k8s_rbac() -> Result<(), Box<dyn std::error::Error>> {
+        let validator = K8sRbacValidator::new()?;
+        run_fixture_parity(
+            &validator,
+            &manifest_dir(),
+            "tests/fixtures/cyberskills/k8s.rbac-privilege-escalation/bad/wildcard.yaml",
+            "tests/fixtures/cyberskills/k8s.rbac-privilege-escalation/good/scoped.yaml",
+        )?;
+        Ok(())
+    }
+}
