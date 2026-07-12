@@ -69,6 +69,50 @@ function isTestFunctionSignature(lines, index) {
   return false;
 }
 
+function inlineTestLineMask(lines) {
+  const testLines = Array(lines.length).fill(false);
+  let pendingTestFunction = false;
+  let pendingTestModule = false;
+  let activeTestDepth = null;
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (activeTestDepth !== null) {
+      testLines[index] = true;
+      activeTestDepth += braceDelta(line);
+      if (activeTestDepth <= 0) activeTestDepth = null;
+      continue;
+    }
+    if (/^\s*#\[cfg\(test\)\]/u.test(line)) {
+      testLines[index] = true;
+      pendingTestModule = true;
+      continue;
+    }
+    if (/^\s*#\[(?:test|tokio::test|async_std::test)\b/u.test(line)) {
+      testLines[index] = true;
+      pendingTestFunction = true;
+      continue;
+    }
+    if (pendingTestModule) {
+      testLines[index] = true;
+      if (/\bmod\s+[A-Za-z_][A-Za-z0-9_]*\b/u.test(line)) {
+        const depth = braceDelta(line);
+        if (depth > 0) activeTestDepth = depth;
+        pendingTestModule = false;
+      }
+      continue;
+    }
+    if (pendingTestFunction) {
+      testLines[index] = true;
+      if (/\bfn\s+[A-Za-z_][A-Za-z0-9_]*\b/u.test(line)) {
+        const depth = braceDelta(line);
+        if (depth > 0) activeTestDepth = depth;
+        pendingTestFunction = false;
+      }
+    }
+  }
+  return testLines;
+}
+
 function scanRustFile(root, filePath, config) {
   const rel = normalizeRel(root, filePath);
   const violations = [];
@@ -77,6 +121,7 @@ function scanRustFile(root, filePath, config) {
   const originalLines = source.split(/\r?\n/u);
   const maskedLines = masked.split(/\r?\n/u);
   const isTestSource = isTestFile(rel, config);
+  const inlineTestLines = inlineTestLineMask(originalLines);
   const isBoundary = isBoundaryModulePath(rel, config);
   const isStringOwner = isRawStringOwner(rel, config);
   const isPrimitiveOwner = isDomainPrimitiveOwner(rel, config);
@@ -117,6 +162,7 @@ function scanRustFile(root, filePath, config) {
   maskedLines.forEach((line, idx) => {
     const lineNo = idx + 1;
     const originalLine = originalLines[idx] ?? line;
+    const isTestCode = isTestSource || inlineTestLines[idx];
 
     if (
       /^\s*#!?\s*\[\s*(?:allow|expect)\s*\(/u.test(line) ||
@@ -541,7 +587,7 @@ function scanRustFile(root, filePath, config) {
     }
 
     if (
-      !isTestSource &&
+      !isTestCode &&
       !isTestFunctionSignature(originalLines, idx) &&
       !isBoundary &&
       /\banyhow::Result\b|\bBox\s*<\s*dyn\s+(?:std::error::Error|Error)\b/u.test(
@@ -560,7 +606,7 @@ function scanRustFile(root, filePath, config) {
     }
 
     if (
-      !isTestSource &&
+      !isTestCode &&
       /\.clone\s*\(/u.test(line) &&
       !contextHas(originalLines, idx, "CLONE-JUSTIFICATION:", 4)
     ) {
@@ -576,7 +622,7 @@ function scanRustFile(root, filePath, config) {
     }
 
     if (
-      !isTestSource &&
+      !isTestCode &&
       /\.(?:to_string|to_owned)\s*\(/u.test(line) &&
       !contextHas(originalLines, idx, "ALLOC-JUSTIFICATION:", 4)
     ) {
@@ -592,7 +638,7 @@ function scanRustFile(root, filePath, config) {
     }
 
     if (
-      !isTestSource &&
+      !isTestCode &&
       /\b[A-Za-z_][A-Za-z0-9_\.]*\s*\[[^\]\n]+\]/u.test(line) &&
       !/\b(?:vec|format|println|assert|assert_eq|assert_ne)!\s*\[/u.test(line) &&
       !/\bfor\s+[A-Za-z_][A-Za-z0-9_]*\s+in\s+\[/u.test(line) &&
@@ -610,7 +656,7 @@ function scanRustFile(root, filePath, config) {
     }
 
     if (
-      !isTestSource &&
+      !isTestCode &&
       /\s+as\s+(?:u8|u16|u32|u64|u128|usize|i8|i16|i32|i64|i128|isize|f32|f64)\b/u.test(
         line,
       ) &&
@@ -1154,6 +1200,7 @@ function scanRustFile(root, filePath, config) {
 
     if (
       enforceRuntimeStrings &&
+      !isTestCode &&
       hasStringLiteral(originalLine) &&
       !config.runtimeStringLineAllowRegexps.some((pattern) =>
         pattern.test(originalLine),
@@ -1273,7 +1320,7 @@ function scanRustFile(root, filePath, config) {
       );
     }
 
-    if (enforceSerializedDomainFields) {
+    if (enforceSerializedDomainFields && !isTestCode) {
       if (trackedSerdeStructDepth === 0) {
         if (
           /^\s*#\[derive\([^#\]]*\b(?:Serialize|Deserialize)\b[^#\]]*\)\]/u.test(
