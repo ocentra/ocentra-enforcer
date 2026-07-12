@@ -2,6 +2,7 @@
 name = "enforcer-core"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Shared foundation crate for the Ocentra Enforcer workspace: Result/Error, tracing setup, exit codes, two-layer redaction, append-only NDJSON sink, pure SHA-256 hash-chain, and Windows-first path/time/env helpers."
@@ -14,9 +15,10 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 sha2 = { workspace = true }
-# regex is not in [workspace.dependencies] (a01-owned root manifest); declared
-# here directly to avoid an unclaimed root edit. Centralize in a later a01 pass.
-regex = "1"
+# `regex` powers the core redaction matcher. It is intentionally direct because
+# the root workspace manifest is owned by a separate integration packet; pin the
+# resolved compatible release so this crate's build remains reproducible.
+regex = "=1.12.4"
 
 [dev-dependencies]
 # Dev-only: enforcer-domain (arc-02) depends on enforcer-core, so this edge
