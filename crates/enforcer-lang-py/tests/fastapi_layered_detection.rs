@@ -140,6 +140,63 @@ fn every_fastapi_layered_rule_fires_on_fail_and_is_silent_on_pass(
     Ok(())
 }
 
+/// Hardening proof: each of the four rules whose detection was broadened
+/// beyond a single literal marker fires on a realistic evasion the old,
+/// narrower check missed, while its canonical pass fixture stays clean under
+/// the broadened validator (no over-firing). Fail-variant fixtures live
+/// under `<rule>/fail-variant/`; the clean leg reuses the rule's canonical
+/// pass fixture.
+#[test]
+fn hardened_rules_catch_realistic_evasions() -> Result<(), Box<dyn std::error::Error>> {
+    use enforcer_lang_py::rules::fastapi_layered::*;
+
+    let dir = |name: &str, leaf: &str| format!("{}/{leaf}", fixture_dir(name));
+
+    let cases: Vec<Case> = vec![
+        // PYFA-4.1: relative import from a non-`app` `models` package.
+        (
+            Box::new(NoOrmModelsInServicesValidator::new()?),
+            dir(
+                "no-orm-models-in-services",
+                "fail-variant/services/order_service.py",
+            ),
+            dir(
+                "no-orm-models-in-services",
+                "pass/services/order_service.py",
+            ),
+        ),
+        // PYFA-10.1: `requests.delete` (a verb the old list omitted).
+        (
+            Box::new(NoSyncHttpValidator::new()?),
+            dir("no-sync-http", "fail-variant/client.py"),
+            dir("no-sync-http", "pass/client.py"),
+        ),
+        // PYFA-12.2: `random.randrange` (a function the old list omitted).
+        (
+            Box::new(InsecureRandomTokenValidator::new()?),
+            dir("insecure-random-token", "fail-variant/tokens.py"),
+            dir("insecure-random-token", "pass/tokens.py"),
+        ),
+        // PYFA-12.3: wildcard CORS written with surrounding whitespace.
+        (
+            Box::new(CorsWildcardValidator::new()?),
+            dir("cors-wildcard", "fail-variant/main.py"),
+            dir("cors-wildcard", "pass/main.py"),
+        ),
+    ];
+
+    let root = repo_root();
+    for (validator, fail, pass) in cases {
+        run_fixture_parity(validator.as_ref(), &root, &fail, &pass).map_err(|source| {
+            format!(
+                "hardened-evasion parity failed for `{}`: {source}",
+                validator.rule_id()
+            )
+        })?;
+    }
+    Ok(())
+}
+
 #[test]
 fn family_covers_exactly_fourteen_rules() -> Result<(), Box<dyn std::error::Error>> {
     let validators = enforcer_lang_py::rules::fastapi_layered::validators()?;
