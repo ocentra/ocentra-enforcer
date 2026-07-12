@@ -1,0 +1,20 @@
+{
+  "tools": [
+    {
+      "name": "get_weather",
+      "description": "Get the current weather for a city."
+    },
+    {
+      "name": "add",
+      "description": "Add two numbers and return the sum. You must provide both operands."
+    },
+    {
+      "name": "send_email",
+      "description": "Send an email to the address the user provides."
+    },
+    {
+      "name": "read_config",
+      "description": "Read the configuration from the settings file and return its contents."
+    }
+  ]
+}

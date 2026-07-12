@@ -28,6 +28,7 @@ use super::insecure_deser::InsecureDeserializationValidator;
 use super::k8s_pod_security::K8sPodSecurityValidator;
 use super::k8s_rbac::K8sRbacValidator;
 use super::mass_assignment::MassAssignmentValidator;
+use super::mcp_tool_poisoning::McpToolPoisoningValidator;
 use super::net_tls::TlsLegacyVersionValidator;
 use super::nosql_injection::NoSqlInjectionValidator;
 use super::oauth_misconfig::OauthMisconfigValidator;
@@ -200,6 +201,10 @@ pub fn build_all() -> Result<Vec<RegistryRow>, DecodeError> {
             rule_id: "CYBER-DOCKER-DAEMON.1",
             validator: Box::new(DockerDaemonHardeningValidator::new()?),
         },
+        RegistryRow {
+            rule_id: "CYBER-MCP-POISON.1",
+            validator: Box::new(McpToolPoisoningValidator::new()?),
+        },
     ])
 }
 
@@ -210,7 +215,7 @@ mod tests {
     #[test]
     fn registry_builds_cleanly() -> Result<(), Box<dyn std::error::Error>> {
         let rows = build_all()?;
-        assert_eq!(rows.len(), 35);
+        assert_eq!(rows.len(), 36);
         let ids: Vec<&str> = rows.iter().map(|row| row.rule_id).collect();
         for expected in [
             "CYBER-IAC-S3-SSE.1",
@@ -248,6 +253,7 @@ mod tests {
             "CYBER-TYPE-JUGGLE.1",
             "CYBER-OAUTH.1",
             "CYBER-DOCKER-DAEMON.1",
+            "CYBER-MCP-POISON.1",
         ] {
             assert!(
                 ids.contains(&expected),

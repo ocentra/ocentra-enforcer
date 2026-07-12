@@ -27,6 +27,7 @@ pub mod insecure_deser;
 pub mod k8s_pod_security;
 pub mod k8s_rbac;
 pub mod mass_assignment;
+pub mod mcp_tool_poisoning;
 pub mod net_tls;
 pub mod nosql_injection;
 pub mod oauth_misconfig;

@@ -37,6 +37,7 @@ use enforcer_lang_security::rules::cyberskills::insecure_deser::InsecureDeserial
 use enforcer_lang_security::rules::cyberskills::k8s_pod_security::K8sPodSecurityValidator;
 use enforcer_lang_security::rules::cyberskills::k8s_rbac::K8sRbacValidator;
 use enforcer_lang_security::rules::cyberskills::mass_assignment::MassAssignmentValidator;
+use enforcer_lang_security::rules::cyberskills::mcp_tool_poisoning::McpToolPoisoningValidator;
 use enforcer_lang_security::rules::cyberskills::net_tls::TlsLegacyVersionValidator;
 use enforcer_lang_security::rules::cyberskills::nosql_injection::NoSqlInjectionValidator;
 use enforcer_lang_security::rules::cyberskills::oauth_misconfig::OauthMisconfigValidator;
@@ -379,6 +380,12 @@ fn corpus_oauth_misconfig() -> Result<(), Box<dyn std::error::Error>> {
 fn corpus_docker_daemon() -> Result<(), Box<dyn std::error::Error>> {
     let family: Vec<Box<dyn Validator>> = vec![Box::new(DockerDaemonHardeningValidator::new()?)];
     assert_family("docker_daemon.json", "daemon.json", &family)
+}
+
+#[test]
+fn corpus_mcp_tool_poisoning() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(McpToolPoisoningValidator::new()?)];
+    assert_family("mcp_tool_poisoning.json", "tools.json", &family)
 }
 // NOTE: the exhaustive provider-credential corpus lives in
 // provider_credentials.rs as a CODE-BUILT test (secret strings are assembled

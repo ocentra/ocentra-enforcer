@@ -574,5 +574,21 @@
         },
         "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
         "tags": ["cyberskills", "wave1", "container", "docker-daemon", "hardening"]
+    },
+    {
+        "ruleId": "CYBER-MCP-POISON.1",
+        "version": 1,
+        "title": "MCP tool metadata must not embed prompt-injection/exfiltration directives or hidden Unicode (tool poisoning)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::mcp_tool_poisoning::McpToolPoisoningValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/ai.mcp-tool-poisoning/bad/tools.json",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/ai.mcp-tool-poisoning/good/tools.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "ai", "mcp", "tool-poisoning", "supplychain"]
     }
 ]
