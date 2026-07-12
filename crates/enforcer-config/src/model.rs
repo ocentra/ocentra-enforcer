@@ -303,6 +303,11 @@ pub struct EffectiveConfig {
     /// File globs ignored repo-wide.
     #[serde(default)]
     pub ignore_file_globs: Vec<Glob>,
+    /// Human-readable statement of which layer owns raw transport primitives.
+    /// This is project policy consumed by scanner-facing configuration, so an
+    /// omitted value in a reusable profile resolves to an empty note.
+    #[serde(default)]
+    pub boundary_owner_note: String,
 }
 
 #[cfg(test)]
