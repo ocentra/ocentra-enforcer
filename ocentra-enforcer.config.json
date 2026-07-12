@@ -16,6 +16,8 @@
     "crates/enforcer-scan/tests/**",
     "crates/enforcer-memory/src/languages/**",
     "crates/enforcer-memory/src/code_graph.rs",
+    "crates/enforcer-memory/src/schema.rs",
+    "crates/enforcer-memory/src/model_observations.rs",
     "crates/enforcer-memory/src/hf_cache.rs",
     "crates/enforcer-memory/src/llama_cpp.rs",
     "crates/enforcer-memory/src/local_runtime.rs",
@@ -25,9 +27,11 @@
     "crates/enforcer-memory/src/runtime_probe.rs",
     "crates/enforcer-ui/**",
     "crates/enforcer-install/src/adapters/**",
-    "crates/enforcer-harness/src/**"
+    "crates/enforcer-harness/src/**",
+    "crates/enforcer-literal-scan/src/models.rs",
+    "crates/enforcer-proof/src/harness.rs"
   ],
-  "boundaryOwnerNote": "The domain crate owns serialized primitives; CLI, scan orchestration, tests, language analysis, model integrations, UI, install adapters, and tool harnesses own transport and parser primitives.",
+  "boundaryOwnerNote": "The domain crate owns serialized primitives; CLI, scan orchestration, tests, language analysis, model integrations, persistence wire schemas, UI, install adapters, literal scanning, and tool/proof harnesses own transport and parser primitives.",
   "requireCargoDeny": false,
   "requireCargoAudit": false,
   "runCargoDoc": false,
