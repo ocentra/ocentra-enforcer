@@ -638,12 +638,21 @@ test('erased test-harness errors are not treated as application-domain errors', 
 pub fn production() -> Result<(), Box<dyn std::error::Error>> { Ok(()) }
 
 #[test]
-fn fixture() -> Result<(), Box<dyn std::error::Error>> { Ok(()) }
+fn fixture() -> Result<(), Box<dyn std::error::Error>> {
+    let value = "fixture".to_string();
+    let copied = value.clone();
+    assert_eq!(copied, "fixture");
+    Ok(())
+}
 `,
   });
   const result = runGateArgs(project, ['scan', '--json', '--files', 'src/lib.rs']);
   const report = JSON.parse(result.stdout);
-  const erasedErrors = report.violations.filter((violation) => violation.ruleId === 'RR-4.4');
-  assert.equal(erasedErrors.length, 1, result.stdout);
-  assert.equal(erasedErrors[0].file, 'src/lib.rs');
+  const productionOnlyRules = new Set(['RR-4.4', 'RR-5.1', 'RR-5.2']);
+  const productionOnlyFindings = report.violations.filter((violation) =>
+    productionOnlyRules.has(violation.ruleId),
+  );
+  assert.equal(productionOnlyFindings.length, 1, result.stdout);
+  assert.equal(productionOnlyFindings[0].ruleId, 'RR-4.4');
+  assert.equal(productionOnlyFindings[0].file, 'src/lib.rs');
 });
