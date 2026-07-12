@@ -10,6 +10,7 @@ export function isRawTypeBoundary(rel, config) {
 
 export function isBoundaryModulePath(rel, config) {
   return (
+    isTestFile(rel, config) ||
     isRawTypeBoundary(rel, config) ||
     /(?:^|\/)(?:boundary|boundaries|serde|transport|adapter|adapters)(?:\/|\.|-)/iu.test(
       rel,
