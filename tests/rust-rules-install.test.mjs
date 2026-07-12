@@ -656,3 +656,33 @@ fn fixture() -> Result<(), Box<dyn std::error::Error>> {
   assert.equal(productionOnlyFindings[0].ruleId, 'RR-4.4');
   assert.equal(productionOnlyFindings[0].file, 'src/lib.rs');
 });
+
+test('clone and allocation policy applies to core code but not an owned transport boundary', () => {
+  const project = makeProject({
+    'rust-rules.config.json': JSON.stringify({
+      requireCargoDeny: false,
+      rustRoots: ['src'],
+      rawTypeBoundaryGlobs: ['src/transport.rs'],
+      boundaryOwnerNote: 'Transport owns wire-format strings and graph-record allocation.',
+    }),
+    'src/core.rs': `
+pub fn core() {
+    let value = "core".to_string();
+    let _copied = value.clone();
+}
+`,
+    'src/transport.rs': `
+pub fn encode() {
+    let value = "wire".to_string();
+    let _copied = value.clone();
+}
+`,
+  });
+  const result = runGateArgs(project, ['scan', '--json', '--files', 'src/core.rs', 'src/transport.rs']);
+  const report = JSON.parse(result.stdout);
+  const findings = report.violations.filter((violation) =>
+    new Set(['RR-5.1', 'RR-5.2']).has(violation.ruleId),
+  );
+  assert.equal(findings.length, 2, result.stdout);
+  assert.equal(findings.every((violation) => violation.file === 'src/core.rs'), true);
+});

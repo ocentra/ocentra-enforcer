@@ -607,6 +607,7 @@ function scanRustFile(root, filePath, config) {
 
     if (
       !isTestCode &&
+      !isBoundary &&
       /\.clone\s*\(/u.test(line) &&
       !contextHas(originalLines, idx, "CLONE-JUSTIFICATION:", 4)
     ) {
@@ -623,6 +624,7 @@ function scanRustFile(root, filePath, config) {
 
     if (
       !isTestCode &&
+      !isBoundary &&
       /\.(?:to_string|to_owned)\s*\(/u.test(line) &&
       !contextHas(originalLines, idx, "ALLOC-JUSTIFICATION:", 4)
     ) {
