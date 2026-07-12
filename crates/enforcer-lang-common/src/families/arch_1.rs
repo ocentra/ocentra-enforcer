@@ -1,12 +1,16 @@
-//! Common-family prefix `ARCH-1` (15 rules).
-//! Validator id(s) dispatched per `checks.mjs`: common/architecture.
+//! Common-family prefix `ARCH-1` (16 rules).
+//! Validator id(s) dispatched per `checks.mjs`: common/architecture
+//! (`ARCH-1.1`-`ARCH-1.15`) plus `common/ui-logic-coupling-scan`
+//! (`ARCH-1.16`, its own dedicated legacy tool per `rules/rules.json`).
 //! Ported as pattern-marker detectors (see `crate::pattern::PatternValidator`) — each
 //! rule fires on its own literal marker; fail/pass fixtures live under
 //! `fixtures/arch-1/<rule-id>/{fail,pass}.txt`.
 
+use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::Validator;
 
+use crate::pattern::PatternValidator;
 use crate::registry::reg;
 
 /// Build every `ARCH-1` validator.
@@ -117,5 +121,35 @@ pub fn validators() -> Vec<Box<dyn Validator>> {
         Severity::Error,
         "ENFORCER_ARCH_1_15_MARKER",
     );
+    // ARCH-1.16 is registered directly (not via `reg`) because it needs
+    // several fail markers, and `reg`'s signature only takes one. Unlike its
+    // siblings above (synthetic `ENFORCER_ARCH_1_*_MARKER` placeholders),
+    // these markers are literal substrings lifted from the legacy
+    // `src/ui-logic-coupling-scan.mjs` scanner's
+    // `DEFAULT_BUSINESS_LOGIC_IMPORT_PATTERNS` / `DEFAULT_EVENT_SOURCE_IMPORT_PATTERNS`
+    // regexes (`/\/services\//i`, `/\/lib\/api(["'/]|$)/i`, `/\/api\/client/i`,
+    // `/\bapi-client\b/i`, `/\/lib\/ws(["'/]|$)/i`, `/\/lib\/socket/i`,
+    // `/\/realtime/i`) — the closest a line/substring detector can get to
+    // "a presentation file imports a business-logic or event-source module
+    // directly" without the original's import-parsing + presentation-path
+    // classification (see the module doc for why: this engine is a literal
+    // substring scan, not an AST parser, matching the ported `.mjs`'s own
+    // "mechanical, signal-based" caveat).
+    if let Ok(id) = "ARCH-1.16".parse::<RuleId>() {
+        v.push(Box::new(PatternValidator::new(
+            id,
+            "Presentation/UI cannot call business logic directly",
+            Severity::Error,
+            [
+                "/services/",
+                "/lib/api",
+                "/api/client",
+                "api-client",
+                "/lib/ws",
+                "/lib/socket",
+                "/realtime",
+            ],
+        )));
+    }
     v
 }

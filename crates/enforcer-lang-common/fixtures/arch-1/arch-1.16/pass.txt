@@ -1,0 +1,10 @@
+// Fixture for ARCH-1.16: Presentation/UI cannot call business logic directly
+// Clean source — the component goes through a hook/composable boundary
+// instead of importing a business-logic/API or event-source module directly.
+// No occurrence of the ARCH-1.16 markers below.
+import { useWidgets } from "../hooks/useWidgets";
+
+function WidgetsPage() {
+    const widgets = useWidgets();
+    return widgets;
+}
