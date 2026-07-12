@@ -39,6 +39,9 @@ fn activation_rejects_an_unknown_profile() {
         reason: "test".to_owned(),
     };
 
-    let error = write_project_activation(&root, &activation).expect_err("unknown profile fails");
+    let error = match write_project_activation(&root, &activation) {
+        Ok(()) => String::new(),
+        Err(error) => error,
+    };
     assert_eq!(error, "unsupported security profile: unknown");
 }

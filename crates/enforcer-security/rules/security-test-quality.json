@@ -1,0 +1,177 @@
+[
+    {
+        "ruleId": "SEC-TEST-ASSERTS-REJECTION.1",
+        "version": 1,
+        "title": "Security test asserts success only, never rejection (T1, §7.2/§8.4.1)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::security_test_quality::AssertsRejectionValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/security_test_quality/asserts_success_only/bad/success_only.test.ts",
+            "pass": "crates/enforcer-security/tests/fixtures/security_test_quality/asserts_success_only/good/rejects.test.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h04-security-test-quality-banned-patterns.md#asserts-success-only",
+        "tags": ["security", "test-quality", "track-h", "banned-pattern", "required-presence"],
+        "params": {
+            "banned": "asserts-success-only",
+            "requiredPresence": "asserts-rejection"
+        }
+    },
+    {
+        "ruleId": "SEC-TEST-MOCKS-MONEY-LOGIC.1",
+        "version": 1,
+        "title": "Security test mocks the money logic under test (T1, §7.2/§8.4.1)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::security_test_quality::MocksForMoneyLogicValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/security_test_quality/mocks_for_money_logic/bad/mock_money.test.ts",
+            "pass": "crates/enforcer-security/tests/fixtures/security_test_quality/mocks_for_money_logic/good/real_money.test.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h04-security-test-quality-banned-patterns.md#mocks-for-money-logic",
+        "tags": ["security", "test-quality", "track-h", "banned-pattern"],
+        "params": {
+            "banned": "mocks-for-money-logic"
+        }
+    },
+    {
+        "ruleId": "SEC-TEST-REPRODUCIBLE-SEED.1",
+        "version": 1,
+        "title": "Non-deterministic fuzz test with no logged seed (T1, §7.2/§8.4.1)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::security_test_quality::ReproducibleSeedValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/security_test_quality/reproducible_seed/bad/no_seed.test.ts",
+            "pass": "crates/enforcer-security/tests/fixtures/security_test_quality/reproducible_seed/good/seeded.test.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h04-security-test-quality-banned-patterns.md#non-deterministic-fuzz",
+        "tags": ["security", "test-quality", "track-h", "banned-pattern", "required-presence"],
+        "params": {
+            "banned": "non-deterministic-fuzz",
+            "requiredPresence": "reproducible-seed"
+        }
+    },
+    {
+        "ruleId": "SEC-TEST-GLOBAL-MUTATION.1",
+        "version": 1,
+        "title": "Shared mutable state mutated across test cases (T1, §7.2/§8.4.1)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::security_test_quality::GlobalMutationValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/security_test_quality/global_mutation/bad/shared_state.test.ts",
+            "pass": "crates/enforcer-security/tests/fixtures/security_test_quality/global_mutation/good/isolated.test.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h04-security-test-quality-banned-patterns.md#global-mutation",
+        "tags": ["security", "test-quality", "track-h", "banned-pattern"],
+        "params": {
+            "banned": "order-dependent, global-mutation"
+        }
+    },
+    {
+        "ruleId": "SEC-TEST-PASS-IF-DELETED.1",
+        "version": 1,
+        "title": "Test would still pass if the protected logic were deleted (T1, §7.2/§8.4.1)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::security_test_quality::PassIfDeletedValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/security_test_quality/pass_if_deleted/bad/pass_if_deleted.test.ts",
+            "pass": "crates/enforcer-security/tests/fixtures/security_test_quality/pass_if_deleted/good/asserts_real_outcome.test.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h04-security-test-quality-banned-patterns.md#pass-if-logic-deleted",
+        "tags": ["security", "test-quality", "track-h", "banned-pattern"],
+        "params": {
+            "banned": "pass-if-logic-deleted"
+        }
+    },
+    {
+        "ruleId": "SEC-TEST-NO-CRASH-ONLY.1",
+        "version": 1,
+        "title": "Test relies only on the call not crashing (T1, §7.2/§8.4.1)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::security_test_quality::NoCrashOnlyValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/security_test_quality/no_crash_only/bad/no_crash_only.test.ts",
+            "pass": "crates/enforcer-security/tests/fixtures/security_test_quality/no_crash_only/good/asserts_specific_error.test.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h04-security-test-quality-banned-patterns.md#rely-on-no-crash",
+        "tags": ["security", "test-quality", "track-h", "banned-pattern"],
+        "params": {
+            "banned": "rely-on-no-crash"
+        }
+    },
+    {
+        "ruleId": "SEC-TEST-SNAPSHOT-ONLY.1",
+        "version": 1,
+        "title": "Test relies solely on an approved snapshot (T1, §7.2/§8.4.1)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::security_test_quality::SnapshotOnlyValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/security_test_quality/snapshot_only/bad/snapshot_only.test.ts",
+            "pass": "crates/enforcer-security/tests/fixtures/security_test_quality/snapshot_only/good/explicit_assertions.test.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h04-security-test-quality-banned-patterns.md#snapshot-only",
+        "tags": ["security", "test-quality", "track-h", "banned-pattern"],
+        "params": {
+            "banned": "snapshot-only"
+        }
+    },
+    {
+        "ruleId": "SEC-TEST-THREAT-QUALITY-SCORE.1",
+        "version": 1,
+        "title": "Security test threat/invariant/failure-mode quality score (T2, §7.1/§8.4.2)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::security_test_quality::ThreatQualityScoreValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/security_test_quality/threat_mapping/bad/unmapped.test.ts",
+            "pass": "crates/enforcer-security/tests/fixtures/security_test_quality/threat_mapping/good/mapped.test.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h04-security-test-quality-banned-patterns.md#no-threat-mapping",
+        "tags": ["security", "test-quality", "track-h", "scored"],
+        "params": {
+            "scored": ["no-threat-mapping", "no-invariant-assertion", "exact-failure-mode"],
+            "threshold": 50
+        }
+    },
+    {
+        "ruleId": "SEC-TEST-PROTECTION-REMOVED-HEURISTIC.1",
+        "version": 1,
+        "title": "No evidence this test fails if the protection is removed (T2, §7.1/§8.4.2)",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::security_test_quality::ProtectionRemovedHeuristicValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/security_test_quality/protection_removed/bad/no_mutation_marker.test.ts",
+            "pass": "crates/enforcer-security/tests/fixtures/security_test_quality/protection_removed/good/mutation_marker_present.test.ts"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h04-security-test-quality-banned-patterns.md#fails-if-protection-removed",
+        "tags": ["security", "test-quality", "track-h", "scored", "mutation-heuristic"],
+        "params": {
+            "scored": ["fails-if-protection-removed"],
+            "threshold": 50
+        }
+    }
+]
