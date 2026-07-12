@@ -2,6 +2,7 @@
 name = "enforcer-lang-ts"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Per-family Validator implementations for the TypeScript/JavaScript rule family (TS-1..TS-8, 73 rules): source-scan, test-scan, import-boundaries, toolchain, eslint-json, tests, and the TS slice of the shared generic-scanner engine. Built on enforcer-validator's Validator trait and run_fixture_parity harness."
@@ -10,11 +11,17 @@ publish = false
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: TypeScript validators produce the shared core
+# finding contracts and preserve branded domain rule and severity values.
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: This language adapter implements the common
+# validator trait used by the deterministic fixture/parity harness.
 enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 
 [dev-dependencies]
+# DEPENDENCY-JUSTIFICATION: Fixture parity tests use the real mechanization
+# harness and rule catalog, without test doubles or production coupling.
 enforcer-mechanization = { path = "../enforcer-mechanization", version = "0.1.0" }
 enforcer-rules = { path = "../enforcer-rules", version = "0.1.0" }
 
