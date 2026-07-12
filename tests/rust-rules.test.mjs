@@ -281,11 +281,16 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.75"
 
+[[bin]]
+name = "consumer"
+path = "src/main.rs"
+
 [dependencies]
 member = { path = "../member", version = "0.1.0" }
 outside = { path = "../outside", version = "0.1.0" }
 `,
     'crates/consumer/src/lib.rs': 'pub struct ConsumerId;\n',
+    'crates/consumer/src/main.rs': 'fn main() {}\n',
   });
   const result = runGate(project);
   assert.notEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);

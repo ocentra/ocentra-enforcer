@@ -290,6 +290,7 @@ function scanCargoManifest(root, manifest, config, violations) {
     }
     if (
       !config.allowPathDependencies &&
+      inDependencySection &&
       /\bpath\s*=/u.test(line) &&
       !isWorkspaceMemberPathDependency({
         currentSection,
