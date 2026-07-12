@@ -995,7 +995,13 @@ function scanRustFile(root, filePath, config) {
       }
     }
 
-    if (/\.await\b/u.test(line) && /\b(?:MutexGuard|RwLock.*Guard|\.lock\s*\(\s*\)|\.write\s*\(\s*\)|\.read\s*\(\s*\))/u.test(line)) {
+    const awaitsLockAcquisition =
+      /\.(?:lock|write|read)\s*\(\s*\)\.await\b/u.test(line);
+    if (
+      /\.await\b/u.test(line) &&
+      !awaitsLockAcquisition &&
+      /\b(?:MutexGuard|RwLock.*Guard|\.lock\s*\(\s*\)|\.write\s*\(\s*\)|\.read\s*\(\s*\))/u.test(line)
+    ) {
       addViolation(
         violations,
         root,

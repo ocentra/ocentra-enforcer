@@ -519,3 +519,24 @@ criterion = "0.5.1"
     assert.equal(typeof violation.snippet, 'string');
   }
 });
+
+test('awaiting a Tokio lock acquisition is not reported as awaiting while holding a guard', () => {
+  const project = makeProject({
+    'rust-rules.config.json': JSON.stringify({
+      requireCargoDeny: false,
+      rustRoots: ['src'],
+    }),
+    'src/lib.rs': `
+pub async fn increment(lock: tokio::sync::Mutex<u8>) {
+    *lock.lock().await += 1;
+}
+`,
+  });
+  const result = runGateArgs(project, ['scan', '--json', '--files', 'src/lib.rs']);
+  const report = JSON.parse(result.stdout);
+  assert.equal(
+    report.violations.some((violation) => violation.ruleId === 'RR-8.17'),
+    false,
+    result.stdout,
+  );
+});
