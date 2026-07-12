@@ -540,3 +540,21 @@ pub async fn increment(lock: tokio::sync::Mutex<u8>) {
     result.stdout,
   );
 });
+
+test('Rust slice type declarations are not reported as unchecked indexing', () => {
+  const project = makeProject({
+    'rust-rules.config.json': JSON.stringify({
+      requireCargoDeny: false,
+      rustRoots: ['src'],
+    }),
+    'src/lib.rs': `
+pub fn values<'a>() -> &'a [u8] { &[] }
+pub fn first(values: Vec<u8>) -> u8 { values[0] }
+`,
+  });
+  const result = runGateArgs(project, ['scan', '--json', '--files', 'src/lib.rs']);
+  const report = JSON.parse(result.stdout);
+  const indexing = report.violations.filter((violation) => violation.ruleId === 'RR-5.3');
+  assert.equal(indexing.length, 1, result.stdout);
+  assert.match(indexing[0].source, /values\[0\]/u);
+});
