@@ -26,12 +26,12 @@ export function applyProofEvidenceRules({
     const lineNo = firstLineMatching(originalLines, /\b(?:BUGFIX|FIXES|bugfix|fixes)\b/u);
     addViolation(violations, root, filePath, lineNo, "RR-12.19", "bugfix marker lacks REGRESSION-TEST evidence.", originalLines[lineNo - 1] ?? null);
   }
-  if (!isTestSource && /\b(?:normalize|parse)[A-Za-z0-9_]*\s*\(/u.test(masked) && !/\b(?:proptest|quickcheck|PROPERTY-TEST:)/u.test(source)) {
-    const lineNo = firstLineMatching(originalLines, /\b(?:normalize|parse)[A-Za-z0-9_]*\s*\(/u);
+  if (!isTestSource && /^\s*pub\s+fn\s+(?:normalize|parse)[A-Za-z0-9_]*\s*\(/mu.test(masked) && !/\b(?:proptest|quickcheck|PROPERTY-TEST:)/u.test(source)) {
+    const lineNo = firstLineMatching(originalLines, /^\s*pub\s+fn\s+(?:normalize|parse)[A-Za-z0-9_]*\s*\(/u);
     addViolation(violations, root, filePath, lineNo, "RR-12.27", "normalizer/parser lacks property-test evidence.", originalLines[lineNo - 1] ?? null);
   }
-  if (/\b(?:binary|packet|frame|network)\b/iu.test(source) && /\bparse[A-Za-z0-9_]*\s*\(/u.test(masked) && !/\b(?:fuzz|cargo fuzz|FUZZ-TARGET:)/iu.test(source)) {
-    const lineNo = firstLineMatching(originalLines, /\bparse[A-Za-z0-9_]*\s*\(/u);
+  if (/\b(?:binary|packet|frame|network)\b/iu.test(source) && /^\s*pub\s+fn\s+parse[A-Za-z0-9_]*\s*\(/mu.test(masked) && !/\b(?:fuzz|cargo fuzz|FUZZ-TARGET:)/iu.test(source)) {
+    const lineNo = firstLineMatching(originalLines, /^\s*pub\s+fn\s+parse[A-Za-z0-9_]*\s*\(/u);
     addViolation(violations, root, filePath, lineNo, "RR-12.28", "binary/network parser lacks fuzz target evidence.", originalLines[lineNo - 1] ?? null);
   }
   if (/\b(?:tokio::spawn|select!|unbounded_channel|mpsc::channel|async\s+fn)\b/u.test(masked) && !/\b(?:shutdown|cancellation|CANCELLATION-TEST:|SHUTDOWN-TEST:)\b/iu.test(source)) {

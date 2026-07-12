@@ -254,6 +254,25 @@ test('Cargo wildcard dependency fails with RR-9.1', () => {
   expectFailure(project, 'RR-9.1');
 });
 
+test('private test parse helpers do not require property or fuzz evidence', () => {
+  const project = makeProject({
+    'src/lib.rs': `
+#[cfg(test)]
+mod tests {
+    fn parse_fixture(input: &str) -> &str { input }
+
+    #[test]
+    fn parses_a_fixture() {
+        assert_eq!(parse_fixture("frame"), "frame");
+    }
+}
+`,
+  });
+  const result = runGate(project);
+  const output = `${result.stdout}\n${result.stderr}`;
+  assert.doesNotMatch(output, /RR-12\.(?:27|28)/u, output);
+});
+
 test('Cargo workspace-member paths are allowed while arbitrary local paths fail', () => {
   const project = makeProject({
     'Cargo.toml': `
