@@ -273,6 +273,36 @@ mod tests {
     }
 
     #[test]
+    fn workspace_scan_rejects_an_external_cargo_path_dependency(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write_file(
+            temp.path(),
+            "Cargo.toml",
+            "[workspace]\nmembers = [\"crates/core\", \"crates/app\"]\n\n[workspace.dependencies]\ncore = { path = \"crates/core\" }\n",
+        )?;
+        write_file(
+            temp.path(),
+            "crates/core/Cargo.toml",
+            "[package]\nname = \"core\"\nversion = \"0.1.0\"\n",
+        )?;
+        write_file(
+            temp.path(),
+            "crates/app/Cargo.toml",
+            "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n[dependencies]\ncore = { path = \"../core\" }\noutside = { path = \"../outside\" }\n",
+        )?;
+        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
+        let resolved = resolve(&ScopeRequest::All, &root)?;
+        let files = walk(temp.path(), &IgnoreRules::default())?;
+        let validators = build_family_validators()?;
+        let report = run(&resolved, &files, &validators);
+        assert!(report.findings.iter().any(|finding| {
+            finding.rule_id.as_str() == "RR-9.3" && finding.file.as_str() == "crates/app/Cargo.toml"
+        }));
+        Ok(())
+    }
+
+    #[test]
     fn pass_fixture_produces_empty_report() -> Result<(), Box<dyn std::error::Error>> {
         let temp = tempfile::tempdir()?;
         write_file(temp.path(), "src/lib.rs", "fn good() -> i32 { 42 }")?;
