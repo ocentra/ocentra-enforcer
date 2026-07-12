@@ -36,7 +36,14 @@
 //! Once f04 lands, callers thread its real signal into this same
 //! parameter; this module's contract does not change.
 
+use enforcer_domain::severity::Tier;
 use enforcer_rules::registry::RuleRecord;
+
+/// The self-contained served-HTML view (no external assets): the concrete
+/// human-browsable surface g01 mounts under the `"explorer"` slug. Kept in
+/// its own submodule so this module's data model stays render-agnostic —
+/// the payload is the contract, HTML is one projection of it.
+pub mod html;
 
 /// Whether the caller is a human-invoked UI surface or a silent inline
 /// agent run. Mirrors the seam [`crate::serve`] documents for f04: until
@@ -59,6 +66,87 @@ pub enum CompletenessFlag {
     MissingDocAnchor,
     /// One or both of `fixtures.fail`/`fixtures.pass` is empty/whitespace.
     MissingFixtures,
+}
+
+/// The doctrine-vs-hard-enforcement axis, projected from the typed
+/// [`enforcer_domain::severity::Tier`]. This is NOT a second source of
+/// truth: it is a pure function of `record.tier`
+/// ([`EnforcementKind::from_tier`]), so the explorer's "is this a hard
+/// gate or advisory doctrine?" answer can never drift from the tier the
+/// rule record actually carries. The tier enum's own doctrine (see
+/// [`Tier`]) is: T1 typed/compile-time, T2 scored scan, T3 review-assist.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+pub enum EnforcementKind {
+    /// `T1`: typed / compile-time HARD gate — a violation cannot compile
+    /// or cannot merge. Hard enforcement.
+    HardGate,
+    /// `T2`: scored scan — mechanically enforced, but via scoring rather
+    /// than a compile error. Hard enforcement (mechanical).
+    ScoredScan,
+    /// `T3`: review-assist — DOCTRINE/advisory. Guides human review; it is
+    /// not a mechanical block.
+    Doctrine,
+}
+
+impl EnforcementKind {
+    /// Project the typed tier onto the enforcement axis. The single place
+    /// tier maps to doctrine-vs-hard — a pure, total function.
+    #[must_use]
+    pub fn from_tier(tier: Tier) -> Self {
+        match tier {
+            Tier::T1 => Self::HardGate,
+            Tier::T2 => Self::ScoredScan,
+            Tier::T3 => Self::Doctrine,
+        }
+    }
+
+    /// `true` when a violation is mechanically enforced (T1 hard gate or
+    /// T2 scored scan), `false` when the rule is advisory doctrine (T3).
+    #[must_use]
+    pub fn is_hard_enforcement(self) -> bool {
+        matches!(self, Self::HardGate | Self::ScoredScan)
+    }
+
+    /// Human label for the doctrine-vs-hard axis: `"hard enforcement"` or
+    /// `"doctrine (advisory)"`. Computed HERE (Rust owns the data) so the
+    /// TS/HTML presentation never re-derives it.
+    #[must_use]
+    pub fn axis_label(self) -> &'static str {
+        if self.is_hard_enforcement() {
+            "hard enforcement"
+        } else {
+            "doctrine (advisory)"
+        }
+    }
+
+    /// Human label for the specific kind, spelling out what a violation
+    /// does at this tier.
+    #[must_use]
+    pub fn kind_label(self) -> &'static str {
+        match self {
+            Self::HardGate => "Hard gate (compile / merge block)",
+            Self::ScoredScan => "Scored scan (mechanical)",
+            Self::Doctrine => "Doctrine (review-assist, advisory)",
+        }
+    }
+}
+
+/// The detail + proof links for one rule, so a human can click straight
+/// from a browse row to the canonical doc and to the exact fixtures that
+/// prove the validator's behavior. Every field is a repo-relative path (or
+/// url fragment) taken VERBATIM from the typed record — the explorer never
+/// invents a link target, and an empty field means the record itself
+/// carries none (surfaced via [`RuleEntry::flags`], never as a dead link).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+pub struct EntryLinks {
+    /// Detail: the human-canonical doc anchor (`record.doc_anchor`).
+    pub detail: String,
+    /// Proof: the fail-fixture the rule MUST trip on (`fixtures.fail`).
+    pub proof_fail: String,
+    /// Proof: the pass-fixture the rule MUST NOT trip on (`fixtures.pass`).
+    pub proof_pass: String,
 }
 
 /// The AI-dense projection of one rule: the ultra-dense summary the AI
@@ -105,12 +193,26 @@ pub struct RuleEntry {
     /// Framework/language mapping: the validator's owning crate, e.g.
     /// `"enforcer-lang-rust"`.
     pub framework: String,
+    /// Doctrine-vs-hard-enforcement, projected from `tier` via
+    /// [`EnforcementKind::from_tier`] — never a second hand-maintained
+    /// field.
+    pub enforcement: EnforcementKind,
+    /// Human one-liner for the doctrine-vs-hard axis (from
+    /// [`EnforcementKind::axis_label`]), shipped as wire data so the
+    /// TS/HTML presentation displays rather than re-derives it.
+    pub enforcement_label: String,
+    /// Primary rule-family category: the first of `record.tags`, or the
+    /// empty string when the record carries no tags. An honest projection
+    /// of the typed `tags`, not an invented taxonomy.
+    pub category: String,
     /// Free-form tags carried by the record.
     pub tags: Vec<String>,
     /// The human-verbose projection.
     pub verbose: VerboseForm,
     /// The AI-dense projection.
     pub dense: DenseForm,
+    /// Detail + proof links, taken verbatim from the typed record.
+    pub links: EntryLinks,
     /// Empty when the record is complete; otherwise one entry per gap
     /// found. Non-empty flags mean this entry is rendered as INCOMPLETE,
     /// never as a silently-blank row.
@@ -170,11 +272,19 @@ pub fn render_rule(record: &RuleRecord) -> RuleEntry {
         .and_then(|v| v.as_str().map(str::to_owned))
         .unwrap_or_default();
 
+    let enforcement = EnforcementKind::from_tier(record.tier);
+
     let verbose = VerboseForm {
         title: record.title.clone(),
         why_it_matters: format!(
-            "Enforced at tier {tier} by {}; a violation blocks the {} mechanical gate.",
-            record.validator.crate_name, record.rule_id
+            "{} — enforced by {} at tier {tier}; {}.",
+            enforcement.kind_label(),
+            record.validator.crate_name,
+            if enforcement.is_hard_enforcement() {
+                "a violation blocks the mechanical gate"
+            } else {
+                "a violation is surfaced for human review, not mechanically blocked"
+            }
         ),
         fail_example: record.fixtures.fail.clone(),
         pass_example: record.fixtures.pass.clone(),
@@ -183,19 +293,36 @@ pub fn render_rule(record: &RuleRecord) -> RuleEntry {
 
     let dense = DenseForm {
         summary: format!(
-            "{} | {tier} | {}::{}",
-            record.rule_id, record.validator.crate_name, record.validator.path
+            "{} | {tier} {} | {}::{}",
+            record.rule_id,
+            if enforcement.is_hard_enforcement() {
+                "hard"
+            } else {
+                "doctrine"
+            },
+            record.validator.crate_name,
+            record.validator.path
         ),
         fixtures: format!("{} -> {}", record.fixtures.fail, record.fixtures.pass),
+    };
+
+    let links = EntryLinks {
+        detail: record.doc_anchor.clone(),
+        proof_fail: record.fixtures.fail.clone(),
+        proof_pass: record.fixtures.pass.clone(),
     };
 
     RuleEntry {
         rule_id: record.rule_id.to_string(),
         tier,
         framework: record.validator.crate_name.clone(),
+        enforcement,
+        enforcement_label: enforcement.axis_label().to_owned(),
+        category: record.tags.first().cloned().unwrap_or_default(),
         tags: record.tags.clone(),
         verbose,
         dense,
+        links,
         flags,
     }
 }
@@ -293,7 +420,7 @@ pub fn render_explorer(
 mod tests {
     use super::{
         render_explorer, render_rule, render_rules, render_skill_dir, render_skills,
-        split_skill_forms, CompletenessFlag, RunMode,
+        split_skill_forms, CompletenessFlag, EnforcementKind, ExplorerPayload, RunMode,
     };
     use enforcer_domain::severity::Tier;
     use enforcer_rules::registry::{FixtureRef, RuleRecord, RuleRegistry, ValidatorRef};
@@ -504,5 +631,125 @@ mod tests {
         assert!(crate::serve::VIEW_MOUNTS
             .iter()
             .any(|mount| mount.slug == "explorer"));
+    }
+
+    /// PASS fixture: the explorer renders ACTUAL rule ids straight from the
+    /// STRUCTURED record — proven against the real, committed
+    /// `no-reexports.json` catalog file (not a synthetic in-test fixture),
+    /// so this test fails the moment the render pipeline stops reading the
+    /// typed record or the real catalog's shape drifts.
+    #[test]
+    fn reads_real_committed_catalog_with_actual_rule_ids() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../enforcer-rules/rules/no-reexports.json");
+        let raw = std::fs::read_to_string(&path)?;
+        let records = enforcer_rules::loader::parse_catalog(&raw, &path.display().to_string())?;
+        let registry = RuleRegistry::from_records(records)?;
+        let entries = render_rules(&registry);
+
+        let entry = entries
+            .iter()
+            .find(|entry| entry.rule_id == "T1-NOREEXPORT.1")
+            .ok_or("expected T1-NOREEXPORT.1 in the real no-reexports.json catalog")?;
+        assert_eq!(entry.tier, "T1");
+        assert_eq!(entry.enforcement, EnforcementKind::HardGate);
+        assert!(entry.enforcement.is_hard_enforcement());
+        assert!(!entry.links.detail.is_empty());
+        assert!(!entry.links.proof_fail.is_empty());
+        Ok(())
+    }
+
+    /// PASS fixture: the frontend types are DERIVED via `ts_rs`, never
+    /// hand-written — exporting [`ExplorerPayload`]'s full dependency graph
+    /// produces every wire type this module's contract promises the
+    /// frontend, including the nested [`EnforcementKind`]/[`EntryLinks`].
+    #[test]
+    fn explorer_payload_types_export_via_ts_rs() -> Result<(), Box<dyn std::error::Error>> {
+        use ts_rs::TS;
+
+        let dir = tempfile::tempdir()?;
+        ExplorerPayload::export_all_to(dir.path())?;
+        for file in [
+            "RuleEntry.ts",
+            "EnforcementKind.ts",
+            "EntryLinks.ts",
+            "ExplorerPayload.ts",
+        ] {
+            assert!(
+                dir.path().join(file).is_file(),
+                "expected ts_rs to export {file}"
+            );
+        }
+        Ok(())
+    }
+
+    /// End-to-end proof over the REAL committed rule catalog
+    /// (`crates/enforcer-rules/rules/*.json`, not a synthetic fixture):
+    /// every catalog file is loaded and rendered through this module's
+    /// actual pipeline, and — only when `ENFORCER_EMIT_PROOF` is set — the
+    /// resulting payload/HTML is written to `proof/ui/` as this pack's
+    /// proof artifact. Without the env var every assertion below still
+    /// runs; nothing is written, so a plain `cargo test` stays pure.
+    #[test]
+    fn emits_g08_explorer_proof_over_real_catalog() -> Result<(), Box<dyn std::error::Error>> {
+        let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let repo_root = manifest_dir.join("../..");
+        let rules_dir = repo_root.join("crates/enforcer-rules/rules");
+
+        let mut catalog_files: Vec<std::path::PathBuf> = std::fs::read_dir(&rules_dir)?
+            .filter_map(Result::ok)
+            .map(|dir_entry| dir_entry.path())
+            .filter(|path| path.extension().and_then(|ext| ext.to_str()) == Some("json"))
+            .collect();
+        catalog_files.sort();
+
+        // Cross-file duplicate ids are deduped (first file wins, in sorted
+        // order) rather than failing the build — this proof is over the
+        // WHOLE catalog, and a duplicate elsewhere must not hide the rest.
+        let mut by_id: std::collections::BTreeMap<String, RuleRecord> =
+            std::collections::BTreeMap::new();
+        for path in &catalog_files {
+            let raw = std::fs::read_to_string(path)?;
+            let records = enforcer_rules::loader::parse_catalog(&raw, &path.display().to_string())?;
+            for record in records {
+                by_id.entry(record.rule_id.to_string()).or_insert(record);
+            }
+        }
+
+        let registry = RuleRegistry::from_records(by_id.into_values().collect())?;
+        let skills_root = repo_root.join("skills");
+        let payload = render_explorer(RunMode::Human, &registry, &skills_root);
+
+        assert!(
+            payload.rules.len() > 20,
+            "expected >20 real rules, got {}",
+            payload.rules.len()
+        );
+        for entry in &payload.rules {
+            assert!(!entry.rule_id.is_empty(), "rule_id must never render blank");
+            assert!(!entry.tier.is_empty(), "tier must never render blank");
+            // Complete (no flags) or explicitly flagged — never a THIRD,
+            // silently-blank state: a flagged entry still carries a
+            // non-blank human title, so a gap is visibly incomplete, not
+            // an empty row.
+            if !entry.flags.is_empty() {
+                assert!(!entry.verbose.title.is_empty());
+            }
+        }
+
+        let html = crate::explorer::html::render_explorer_html(&payload);
+
+        if std::env::var("ENFORCER_EMIT_PROOF").is_ok() {
+            let proof_dir = repo_root.join("proof/ui");
+            std::fs::create_dir_all(&proof_dir)?;
+            std::fs::write(
+                proof_dir.join("g08-explorer.json"),
+                serde_json::to_string_pretty(&payload)?,
+            )?;
+            std::fs::write(proof_dir.join("g08-explorer.html"), html)?;
+        }
+
+        Ok(())
     }
 }
