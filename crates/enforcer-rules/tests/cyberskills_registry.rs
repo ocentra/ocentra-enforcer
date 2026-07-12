@@ -24,12 +24,12 @@ fn cyberskills_catalog_loads_and_every_record_resolves() -> Result<(), Box<dyn s
     let records = parse_catalog(CYBERSKILLS_JSON, "rules/cyberskills.json")?;
     assert_eq!(
         records.len(),
-        13,
-        "expected 12 h11 + 1 Wave-1 cyberskills rule records"
+        14,
+        "expected 12 h11 + 2 Wave-1 cyberskills rule records"
     );
 
     let registry = load_registry_from_records(records)?;
-    assert_eq!(registry.len(), 13);
+    assert_eq!(registry.len(), 14);
 
     let expected_ids = [
         "CYBER-FRONTMATTER.1",
@@ -45,6 +45,7 @@ fn cyberskills_catalog_loads_and_every_record_resolves() -> Result<(), Box<dyn s
         "CYBER-DEPCONFUSION.1",
         "CYBER-WAF-SQLI.1",
         "CYBER-K8S-POD.1",
+        "CYBER-DOCKER.1",
     ];
 
     let root = repo_root()?;

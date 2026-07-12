@@ -23,6 +23,7 @@ use enforcer_lang_security::rules::cyberskills::cloud_azure::{
     AzureStorageRequireHttpsValidator,
 };
 use enforcer_lang_security::rules::cyberskills::dependency_confusion::DependencyConfusionClaimableValidator;
+use enforcer_lang_security::rules::cyberskills::dockerfile_hardening::DockerfileHardeningValidator;
 use enforcer_lang_security::rules::cyberskills::iac_terraform::{
     IamNoWildcardActionValidator, S3EncryptionRequiredValidator, SgNoPublicSshIngressValidator,
 };
@@ -225,4 +226,10 @@ fn corpus_waf_sqli() -> Result<(), Box<dyn std::error::Error>> {
 fn corpus_k8s_pod_security() -> Result<(), Box<dyn std::error::Error>> {
     let family: Vec<Box<dyn Validator>> = vec![Box::new(K8sPodSecurityValidator::new()?)];
     assert_family("k8s_pod.json", "workload.yaml", &family)
+}
+
+#[test]
+fn corpus_dockerfile_hardening() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(DockerfileHardeningValidator::new()?)];
+    assert_family("dockerfile.json", "Dockerfile", &family)
 }

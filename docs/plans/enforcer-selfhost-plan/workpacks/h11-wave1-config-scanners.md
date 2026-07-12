@@ -24,6 +24,21 @@ config/manifest input, proven by a fixture corpus.
   `drop: ["ALL"]` (must be present), and `hostPort`. Proven by a labeled
   YAML/JSON manifest corpus (`tests/cyberskills_corpus.rs`).
 
+- [x] **`CYBER-DOCKER.1` — Dockerfile hardening**
+  (`rules/cyberskills/dockerfile_hardening.rs`). Harvested from the vendored
+  `hardening-docker-containers-for-production`,
+  `performing-container-image-hardening`, and
+  `implementing-container-image-minimal-base-with-distroless` skills. A line-scan
+  (multistage-`AS`-alias aware, `\`-continuation aware) over Dockerfile text
+  emitting a `Finding` per violated deterministic security check: unpinned /
+  `:latest` base image, running as root (no `USER` or final `USER root`/`0`),
+  `curl|wget ... | sh` remote-exec pipe, hardcoded secret in `ENV`/`ARG`, `ADD`
+  of a remote URL, and `apt-get install` without `--no-install-recommends`.
+  Proven by a 32-case labeled Dockerfile corpus. Heuristic / image-inspection
+  checks (minimal-base choice, multistage split, setuid stripping,
+  package-manager removal, HEALTHCHECK) are intentionally NOT emitted (they
+  would over-flag) and are follow-ups.
+
 ## Deferred (documented, not hand-waved)
 
 - Namespace-level Pod Security Admission labels

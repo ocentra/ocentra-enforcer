@@ -206,5 +206,21 @@
         },
         "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
         "tags": ["cyberskills", "wave1", "k8s", "pod-security", "manifest"]
+    },
+    {
+        "ruleId": "CYBER-DOCKER.1",
+        "version": 1,
+        "title": "Dockerfile must meet image-hardening checks (no latest/untagged base, non-root, no curl|bash, no hardcoded secret, no ADD remote URL)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::dockerfile_hardening::DockerfileHardeningValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/container.dockerfile-hardening/bad/Dockerfile",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/container.dockerfile-hardening/good/Dockerfile"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "container", "dockerfile", "hardening"]
     }
 ]

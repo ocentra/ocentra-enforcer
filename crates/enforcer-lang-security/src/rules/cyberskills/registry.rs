@@ -14,6 +14,7 @@ use super::cloud_azure::{
     AzureStorageRequireHttpsValidator,
 };
 use super::dependency_confusion::DependencyConfusionClaimableValidator;
+use super::dockerfile_hardening::DockerfileHardeningValidator;
 use super::iac_terraform::{
     IamNoWildcardActionValidator, S3EncryptionRequiredValidator, SgNoPublicSshIngressValidator,
 };
@@ -85,6 +86,10 @@ pub fn build_all() -> Result<Vec<RegistryRow>, DecodeError> {
             rule_id: "CYBER-K8S-POD.1",
             validator: Box::new(K8sPodSecurityValidator::new()?),
         },
+        RegistryRow {
+            rule_id: "CYBER-DOCKER.1",
+            validator: Box::new(DockerfileHardeningValidator::new()?),
+        },
     ])
 }
 
@@ -95,7 +100,7 @@ mod tests {
     #[test]
     fn registry_builds_cleanly() -> Result<(), Box<dyn std::error::Error>> {
         let rows = build_all()?;
-        assert_eq!(rows.len(), 12);
+        assert_eq!(rows.len(), 13);
         let ids: Vec<&str> = rows.iter().map(|row| row.rule_id).collect();
         for expected in [
             "CYBER-IAC-S3-SSE.1",
@@ -110,6 +115,7 @@ mod tests {
             "CYBER-DEPCONFUSION.1",
             "CYBER-WAF-SQLI.1",
             "CYBER-K8S-POD.1",
+            "CYBER-DOCKER.1",
         ] {
             assert!(
                 ids.contains(&expected),

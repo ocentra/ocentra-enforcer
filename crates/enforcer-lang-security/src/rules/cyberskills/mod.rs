@@ -15,6 +15,7 @@
 
 pub mod cloud_azure;
 pub mod dependency_confusion;
+pub mod dockerfile_hardening;
 pub mod iac_terraform;
 pub mod k8s_pod_security;
 pub mod registry;
