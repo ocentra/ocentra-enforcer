@@ -40,3 +40,9 @@ Clean `cargo clippy` / `cargo fmt --check` (obey `[workspace.lints]`).
 
 ## Parallel Ownership Notes
 Owns the new `crates/enforcer-scan/src/ignore/` sub-dir + its `tests/ignore_defaults.rs` + `tests/fixtures/ignore_defaults/**`, and the `crates/enforcer-ui/src/skipped/` view — all disjoint by file. Deps arc-15 (walk skeleton exposes the ignore-provider seam this pack fills, dep-sequenced), a09 (reuses its `Outcome`/`SkipReason` model rather than defining a parallel one — coordinate `mod`/`pub use` in `enforcer-scan/src/lib.rs`, additive), arc-03 (per-project `ignoreFileGlobs`), and g02/g01 (the report surface this view mounts beside). Disjoint from a09 (validator-stage coverage) which it EXTENDS to the walk stage, and from g02 `src/report/` (violation matrix) which shows what we DID scan while this shows what we did NOT. Orthogonal to `p01` (profiles) and `p03` (AST). `owns disjoint? = Y` (the `enforcer-scan/src/lib.rs` `mod` line is an additive coordination point with arc-15/a09, not a claimed file).
+
+> **Live evidence (2026-07-12):** workspace-mode and files-mode scans disagree on coverage —
+> `crates/enforcer-ui/src/memory_explorer/mod.rs` produced 0 findings in the workspace sweep but
+> 216 in files-scope on identical content (verified HEAD-vs-working both 224 incl. manifest).
+> p02's skip-inventory must make scope-dependent coverage differences visible, and the two modes
+> must converge on the same per-file rule application.
