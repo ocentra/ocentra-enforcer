@@ -1,0 +1,261 @@
+[
+  {
+    "name": "php_post_password_loose_eq",
+    "input": "if ($_POST['password'] == $stored) { return true; }",
+    "expect": "flag",
+    "branch": "request_input.loose_eq",
+    "reason": "Loose == against $_POST lets password=0 or password=true bypass a non-empty stored password."
+  },
+  {
+    "name": "php_get_role_loose_ne",
+    "input": "if ($_GET['role'] != 'guest') { grant_admin(); }",
+    "expect": "flag",
+    "branch": "request_input.loose_ne",
+    "reason": "Loose != against $_GET can be tricked by type coercion, e.g. an array or boolean role value."
+  },
+  {
+    "name": "php_request_token_loose_eq",
+    "input": "if ($_REQUEST['token'] == $expectedToken) { authorize(); }",
+    "expect": "flag",
+    "branch": "request_input.loose_eq",
+    "reason": "$_REQUEST is attacker-controlled the same way as $_GET/$_POST; loose == is bypassable."
+  },
+  {
+    "name": "php_cookie_session_loose_eq",
+    "input": "if ($_COOKIE['session_valid'] == 1) { resume_session(); }",
+    "expect": "flag",
+    "branch": "request_input.loose_eq",
+    "reason": "A cookie value compared loosely to 1 can be satisfied by \"1abc\" or true."
+  },
+  {
+    "name": "php_get_id_numeric_juggle",
+    "input": "if ($_GET['id'] == $targetId) { return true; }",
+    "expect": "flag",
+    "branch": "request_input.loose_eq",
+    "reason": "PHP's \"1abc\" == 1 numeric-string coercion lets a crafted id bypass the check."
+  },
+  {
+    "name": "php_post_role_boolean_juggle",
+    "input": "if ($_POST['role'] == true) { grant_access(); }",
+    "expect": "flag",
+    "branch": "request_input.loose_eq",
+    "reason": "true == any non-empty string in PHP, so any non-empty role value grants access."
+  },
+  {
+    "name": "php_post_token_null_juggle",
+    "input": "if ($_POST['token'] == null) { skip_validation(); }",
+    "expect": "flag",
+    "branch": "request_input.loose_eq",
+    "reason": "NULL-coercion via == lets an unexpected token value skip validation entirely."
+  },
+  {
+    "name": "strcmp_eq_zero_loose_request",
+    "input": "if (strcmp($_POST['pin'], $secret) == 0) { return true; }",
+    "expect": "flag",
+    "branch": "strcmp.loose_eq",
+    "reason": "strcmp() returns NULL on array input; NULL == 0 is TRUE, bypassing the PIN check."
+  },
+  {
+    "name": "strcmp_eq_zero_generic_vars",
+    "input": "if (strcmp($input, $reference) == 0) { $match = true; }",
+    "expect": "flag",
+    "branch": "strcmp.loose_eq",
+    "reason": "strcmp(...) == 0 is vulnerable regardless of variable naming; array input yields NULL == 0."
+  },
+  {
+    "name": "strcmp_ne_zero_loose",
+    "input": "if (strcmp($submitted, $reference) != 0) { deny_access(); }",
+    "expect": "flag",
+    "branch": "strcmp.loose_ne",
+    "reason": "If strcmp() returns NULL (array input), NULL != 0 is FALSE, so deny_access() is skipped."
+  },
+  {
+    "name": "bang_strcmp_bare",
+    "input": "if (!strcmp($a, $b)) { return true; }",
+    "expect": "flag",
+    "branch": "strcmp.bang",
+    "reason": "!strcmp(...) treats a NULL (array-input) return as truthy, granting a false match."
+  },
+  {
+    "name": "bang_strcmp_spaced",
+    "input": "if (! strcmp($username, $expectedUser)) { return true; }",
+    "expect": "flag",
+    "branch": "strcmp.bang",
+    "reason": "Whitespace between ! and strcmp( is still the bare-negated strcmp() bypass."
+  },
+  {
+    "name": "in_array_get_non_strict",
+    "input": "if (in_array($_GET['code'], $validCodes)) { return true; }",
+    "expect": "flag",
+    "branch": "in_array.non_strict",
+    "reason": "in_array() without strict mode loosely compares, letting a magic-hash-shaped string match."
+  },
+  {
+    "name": "in_array_post_non_strict",
+    "input": "if (in_array($_POST['role'], $allowedRoles)) { grant_access(); }",
+    "expect": "flag",
+    "branch": "in_array.non_strict",
+    "reason": "Missing strict third argument means role comparison uses loose == semantics."
+  },
+  {
+    "name": "in_array_cookie_non_strict",
+    "input": "if (in_array($_COOKIE['pin'], $validPins)) { return true; }",
+    "expect": "flag",
+    "branch": "in_array.non_strict",
+    "reason": "A cookie-sourced needle checked with non-strict in_array() is loosely compared."
+  },
+  {
+    "name": "md5_loose_eq",
+    "input": "if (md5($_POST['secret']) == $hash) { return true; }",
+    "expect": "flag",
+    "branch": "magic_hash.md5",
+    "reason": "md5(...) == is vulnerable to \"0e...\" magic-hash collisions."
+  },
+  {
+    "name": "sha1_loose_eq",
+    "input": "if (sha1($_GET['data']) == $digest) { return true; }",
+    "expect": "flag",
+    "branch": "magic_hash.sha1",
+    "reason": "sha1(...) == is vulnerable to \"0e...\" magic-hash collisions the same way as md5."
+  },
+  {
+    "name": "md5_reversed_loose_eq",
+    "input": "if ($storedHash == md5($_REQUEST['input'])) { return true; }",
+    "expect": "flag",
+    "branch": "magic_hash.md5_reversed",
+    "reason": "The magic-hash collision applies regardless of operand order in the == comparison."
+  },
+  {
+    "name": "sha1_reversed_loose_ne",
+    "input": "if ($digest != sha1($_COOKIE['nonce'])) { deny_access(); }",
+    "expect": "flag",
+    "branch": "magic_hash.sha1_reversed",
+    "reason": "A loose != against a sha1() result is exploitable the same way as a loose ==."
+  },
+  {
+    "name": "two_hash_vars_loose_eq",
+    "input": "if ($computedHash == $expectedHash) { return true; }",
+    "expect": "flag",
+    "branch": "magic_hash.two_hash_vars_eq",
+    "reason": "Two hash-looking values compared with loose == still permit a magic-hash collision."
+  },
+  {
+    "name": "two_hash_vars_loose_ne",
+    "input": "if ($storedApiHash != $suppliedApiHash) { deny_access(); }",
+    "expect": "flag",
+    "branch": "magic_hash.two_hash_vars_ne",
+    "reason": "Loose != between two hash values is exploitable the same way as loose ==."
+  },
+  {
+    "name": "strict_eq_post",
+    "input": "if ($_POST['password'] === $stored) { return true; }",
+    "expect": "clean",
+    "branch": "request_input.strict_eq",
+    "reason": "=== requires identical type and value; PHP performs no coercion, so no bypass is possible."
+  },
+  {
+    "name": "strict_ne_get",
+    "input": "if ($_GET['token'] !== $expected) { return false; }",
+    "expect": "clean",
+    "branch": "request_input.strict_ne",
+    "reason": "!== is the strict not-identical operator and does not type-juggle."
+  },
+  {
+    "name": "strcmp_strict_eq_zero",
+    "input": "if (strcmp($_POST['pin'], $secret) === 0) { return true; }",
+    "expect": "clean",
+    "branch": "strcmp.strict_eq",
+    "reason": "=== 0 distinguishes strcmp()'s integer 0 return from a NULL failure return."
+  },
+  {
+    "name": "strcmp_strict_ne_zero",
+    "input": "if (strcmp($submitted, $reference) !== 0) { deny_access(); }",
+    "expect": "clean",
+    "branch": "strcmp.strict_ne",
+    "reason": "!== 0 correctly treats a NULL return as not-identical-to-zero, so deny_access() still runs."
+  },
+  {
+    "name": "in_array_strict_third_arg",
+    "input": "if (in_array($_GET['code'], $validCodes, true)) { return true; }",
+    "expect": "clean",
+    "branch": "in_array.strict",
+    "reason": "The strict third argument `true` forces type-and-value comparison, no loose bypass."
+  },
+  {
+    "name": "hash_equals_clean",
+    "input": "if (hash_equals($expectedHash, $computedHash)) { return true; }",
+    "expect": "clean",
+    "branch": "magic_hash.hash_equals",
+    "reason": "hash_equals() is timing-safe and never performs a loose == comparison."
+  },
+  {
+    "name": "md5_strict_eq",
+    "input": "if (md5($_POST['secret']) === $hash) { return true; }",
+    "expect": "clean",
+    "branch": "magic_hash.md5_strict",
+    "reason": "=== requires an exact string match, so a \"0e...\" magic-hash collision cannot forge a match."
+  },
+  {
+    "name": "sha1_strict_eq",
+    "input": "if (sha1($_GET['data']) === $digest) { return true; }",
+    "expect": "clean",
+    "branch": "magic_hash.sha1_strict",
+    "reason": "=== requires an exact string match, so a \"0e...\" magic-hash collision cannot forge a match."
+  },
+  {
+    "name": "two_hash_vars_strict_eq",
+    "input": "if ($computedHash === $expectedHash) { return true; }",
+    "expect": "clean",
+    "branch": "magic_hash.two_hash_vars_strict",
+    "reason": "Two hash-looking values compared with === cannot be forged by a magic-hash collision."
+  },
+  {
+    "name": "numeric_constants_loose_eq_no_input",
+    "input": "if ($count == 5) { return true; }",
+    "expect": "clean",
+    "branch": "no_request_input.numeric",
+    "reason": "No PHP request-input superglobal is present, so there is no attacker-controlled operand."
+  },
+  {
+    "name": "string_constants_loose_eq_no_input",
+    "input": "if ($status == 'active') { return true; }",
+    "expect": "clean",
+    "branch": "no_request_input.string_constant",
+    "reason": "Comparing a local variable to a fixed string literal with no request input is not attacker-influenced."
+  },
+  {
+    "name": "bang_operator_unrelated",
+    "input": "if (!empty($_POST['username'])) { return true; }",
+    "expect": "clean",
+    "branch": "false_positive_guard.bang_not_strcmp",
+    "reason": "! prefixes empty(), not strcmp(); this is not the bare-negated strcmp() bypass."
+  },
+  {
+    "name": "single_hash_var_no_comparison",
+    "input": "$hashedPassword = bcrypt($password);",
+    "expect": "clean",
+    "branch": "false_positive_guard.single_hash_var",
+    "reason": "A single hash-named variable in an assignment (not a comparison) cannot trigger the two-hash loose-compare check, and there is no md5()/sha1() call site."
+  },
+  {
+    "name": "prose_comment_mentions_concept",
+    "input": "// Historical note: this file used to rely on PHP loose comparison for auth.",
+    "expect": "clean",
+    "branch": "false_positive_guard.prose",
+    "reason": "Bare prose describing the vulnerability class, with no request-input token or comparison operator present, must not be flagged."
+  },
+  {
+    "name": "password_verify_clean",
+    "input": "if (password_verify($_POST['password'], $stored)) { return true; }",
+    "expect": "clean",
+    "branch": "false_positive_guard.password_verify",
+    "reason": "password_verify() is a single function call with no ==/!= operator on the line."
+  },
+  {
+    "name": "assignment_not_comparison",
+    "input": "$submittedToken = $_POST['token'];",
+    "expect": "clean",
+    "branch": "false_positive_guard.assignment",
+    "reason": "A single = assignment is not a comparison; $_POST co-occurring with a lone = must not be flagged."
+  }
+]

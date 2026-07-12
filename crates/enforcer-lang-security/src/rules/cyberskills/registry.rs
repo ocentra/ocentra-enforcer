@@ -18,6 +18,7 @@ use super::cloud_azure::{
 use super::cloud_gcp::GcpResourceHardeningValidator;
 use super::cmd_injection::CommandInjectionValidator;
 use super::dependency_confusion::DependencyConfusionClaimableValidator;
+use super::docker_daemon::DockerDaemonHardeningValidator;
 use super::dockerfile_hardening::DockerfileHardeningValidator;
 use super::github_actions::GithubActionsSecurityValidator;
 use super::iac_terraform::{
@@ -26,14 +27,17 @@ use super::iac_terraform::{
 use super::insecure_deser::InsecureDeserializationValidator;
 use super::k8s_pod_security::K8sPodSecurityValidator;
 use super::k8s_rbac::K8sRbacValidator;
+use super::mass_assignment::MassAssignmentValidator;
 use super::net_tls::TlsLegacyVersionValidator;
 use super::nosql_injection::NoSqlInjectionValidator;
+use super::oauth_misconfig::OauthMisconfigValidator;
 use super::path_traversal::PathTraversalValidator;
 use super::proto_pollution::PrototypePollutionValidator;
 use super::provider_credentials::ProviderCredentialValidator;
 use super::sqli_source::SqlInjectionSourceValidator;
 use super::ssti::TemplateInjectionValidator;
 use super::tls_verify::TlsVerificationDisabledValidator;
+use super::type_juggle::TypeJugglingValidator;
 use super::waf_sqli::WafSqliSignatureValidator;
 use super::weak_crypto::WeakCryptoValidator;
 use super::web_cors::CorsMisconfigValidator;
@@ -180,6 +184,22 @@ pub fn build_all() -> Result<Vec<RegistryRow>, DecodeError> {
             rule_id: "CYBER-GHA.1",
             validator: Box::new(GithubActionsSecurityValidator::new()?),
         },
+        RegistryRow {
+            rule_id: "CYBER-MASS-ASSIGN.1",
+            validator: Box::new(MassAssignmentValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-TYPE-JUGGLE.1",
+            validator: Box::new(TypeJugglingValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-OAUTH.1",
+            validator: Box::new(OauthMisconfigValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-DOCKER-DAEMON.1",
+            validator: Box::new(DockerDaemonHardeningValidator::new()?),
+        },
     ])
 }
 
@@ -190,7 +210,7 @@ mod tests {
     #[test]
     fn registry_builds_cleanly() -> Result<(), Box<dyn std::error::Error>> {
         let rows = build_all()?;
-        assert_eq!(rows.len(), 31);
+        assert_eq!(rows.len(), 35);
         let ids: Vec<&str> = rows.iter().map(|row| row.rule_id).collect();
         for expected in [
             "CYBER-IAC-S3-SSE.1",
@@ -224,6 +244,10 @@ mod tests {
             "CYBER-NOSQL-INJECT.1",
             "CYBER-PROTO-POLLUTION.1",
             "CYBER-GHA.1",
+            "CYBER-MASS-ASSIGN.1",
+            "CYBER-TYPE-JUGGLE.1",
+            "CYBER-OAUTH.1",
+            "CYBER-DOCKER-DAEMON.1",
         ] {
             assert!(
                 ids.contains(&expected),

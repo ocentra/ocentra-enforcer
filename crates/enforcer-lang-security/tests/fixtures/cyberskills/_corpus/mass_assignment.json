@@ -1,0 +1,233 @@
+[
+  {
+    "name": "python_model_construct_json",
+    "input": "user = User(**request.json)",
+    "expect": "flag",
+    "branch": "python_model_construct.json",
+    "reason": "Model constructor bound directly from **request.json unpacks every request key with no allowlist."
+  },
+  {
+    "name": "python_model_construct_get_json",
+    "input": "order = Order(**request.get_json())",
+    "expect": "flag",
+    "branch": "python_model_construct.get_json",
+    "reason": "Model constructor bound directly from **request.get_json() unpacks every request key with no allowlist."
+  },
+  {
+    "name": "python_model_construct_form",
+    "input": "profile = Profile(**request.form)",
+    "expect": "flag",
+    "branch": "python_model_construct.form",
+    "reason": "Model constructor bound directly from **request.form unpacks every request key with no allowlist."
+  },
+  {
+    "name": "python_model_construct_post_django",
+    "input": "account = Account(**request.POST)",
+    "expect": "flag",
+    "branch": "python_model_construct.post",
+    "reason": "Django request.POST bound wholesale via double-splat with no allowlist."
+  },
+  {
+    "name": "python_model_construct_data_drf",
+    "input": "widget = Widget(**request.data)",
+    "expect": "flag",
+    "branch": "python_model_construct.data",
+    "reason": "DRF request.data bound wholesale via double-splat with no allowlist."
+  },
+  {
+    "name": "python_update_call_json",
+    "input": "user.update(**request.json)",
+    "expect": "flag",
+    "branch": "python_update_call.json",
+    "reason": ".update(**request.json) binds the whole request body onto the model with no allowlist."
+  },
+  {
+    "name": "python_update_call_data",
+    "input": "account.update(**request.data)",
+    "expect": "flag",
+    "branch": "python_update_call.data",
+    "reason": ".update(**request.data) binds the whole DRF request body with no allowlist."
+  },
+  {
+    "name": "python_setattr_loop_request_json",
+    "input": "for key, value in request.json.items():\n    setattr(order, key, value)",
+    "expect": "flag",
+    "branch": "python_setattr_loop.json",
+    "reason": "setattr() inside a bare for-loop statement that destructures every key/value out of request.json.items() with no allowlist."
+  },
+  {
+    "name": "python_setattr_loop_request_post",
+    "input": "for field, val in request.POST.items():\n    setattr(account, field, val)",
+    "expect": "flag",
+    "branch": "python_setattr_loop.post",
+    "reason": "setattr() inside a bare for-loop statement that destructures every key/value out of request.POST.items() with no allowlist."
+  },
+  {
+    "name": "js_new_model_body",
+    "input": "const user = new User(req.body);",
+    "expect": "flag",
+    "branch": "js_new_model.body",
+    "reason": "new User(req.body) binds the whole request body into the model constructor with no allowlist."
+  },
+  {
+    "name": "js_object_assign_body",
+    "input": "Object.assign(model, req.body);",
+    "expect": "flag",
+    "branch": "js_object_assign.body",
+    "reason": "Object.assign(model, req.body) copies every request key onto the model with no allowlist."
+  },
+  {
+    "name": "js_model_set_body",
+    "input": "model.set(req.body);",
+    "expect": "flag",
+    "branch": "js_model_set.body",
+    "reason": "model.set(req.body) binds the whole request object onto the model with no allowlist."
+  },
+  {
+    "name": "js_model_create_body",
+    "input": "User.create(req.body);",
+    "expect": "flag",
+    "branch": "js_model_create.body",
+    "reason": "User.create(req.body) persists the whole request object with no allowlist."
+  },
+  {
+    "name": "js_model_update_query",
+    "input": "User.update(req.query);",
+    "expect": "flag",
+    "branch": "js_model_update.query",
+    "reason": "User.update(req.query) writes the whole request object with no allowlist."
+  },
+  {
+    "name": "js_find_by_id_and_update",
+    "input": "User.findByIdAndUpdate(id, req.body);",
+    "expect": "flag",
+    "branch": "js_find_by_id_and_update.body",
+    "reason": "findByIdAndUpdate(id, req.body) writes the whole request object with no allowlist."
+  },
+  {
+    "name": "js_find_by_id_and_update_with_options",
+    "input": "User.findByIdAndUpdate(id, req.body, { new: true });",
+    "expect": "flag",
+    "branch": "js_find_by_id_and_update.body_with_options",
+    "reason": "A trailing options object after req.body does not change that the whole request body is bound with no allowlist."
+  },
+  {
+    "name": "ruby_model_new_params",
+    "input": "user = User.new(params)",
+    "expect": "flag",
+    "branch": "ruby_model_new.params",
+    "reason": "User.new(params) binds raw, unpermitted Rails params with no allowlist."
+  },
+  {
+    "name": "ruby_update_params",
+    "input": "@user.update(params)",
+    "expect": "flag",
+    "branch": "ruby_update.params",
+    "reason": "@user.update(params) binds raw, unpermitted Rails params with no allowlist."
+  },
+  {
+    "name": "ruby_update_attributes_params",
+    "input": "@user.update_attributes(params)",
+    "expect": "flag",
+    "branch": "ruby_update_attributes.params",
+    "reason": "@user.update_attributes(params) binds raw, unpermitted Rails params with no allowlist."
+  },
+  {
+    "name": "clean_python_explicit_fields_construct",
+    "input": "user = User(name=request.json[\"name\"], email=request.json[\"email\"])",
+    "expect": "clean",
+    "branch": "clean.python_explicit_construct",
+    "reason": "Explicit per-field keyword construction is not a double-splat whole-object bind."
+  },
+  {
+    "name": "clean_python_explicit_fields_update",
+    "input": "user.update(name=request.json[\"name\"])",
+    "expect": "clean",
+    "branch": "clean.python_explicit_update",
+    "reason": "Explicit per-field keyword update is not a double-splat whole-object bind."
+  },
+  {
+    "name": "clean_python_single_field_access",
+    "input": "user.name = request.json[\"name\"]",
+    "expect": "clean",
+    "branch": "clean.python_single_field",
+    "reason": "A single-field property access/assignment is not a whole-object bind."
+  },
+  {
+    "name": "clean_python_setattr_filtered_var",
+    "input": "for key, value in filtered_updates.items():\n    setattr(obj, key, value)",
+    "expect": "clean",
+    "branch": "clean.python_setattr_filtered_var",
+    "reason": "The loop iterates over a pre-filtered dict variable, not a raw whole-request accessor, so no allowlist bypass exists."
+  },
+  {
+    "name": "clean_python_setattr_dict_comprehension_filtered",
+    "input": "safe = {k: v for k, v in request.json.items() if k in ALLOWED_FIELDS}\nfor key, value in safe.items():\n    setattr(obj, key, value)",
+    "expect": "clean",
+    "branch": "clean.python_setattr_comprehension_filtered",
+    "reason": "The request.json.items() iteration is embedded inside a filtered dict comprehension (not a bare for-loop statement), and the actual setattr loop below it iterates only over the pre-filtered dict."
+  },
+  {
+    "name": "clean_js_object_assign_explicit",
+    "input": "Object.assign(model, { name: req.body.name });",
+    "expect": "clean",
+    "branch": "clean.js_object_assign_explicit",
+    "reason": "An inline object literal picking one named field is an explicit allowlist, not a bare whole-object second argument."
+  },
+  {
+    "name": "clean_js_single_field_access",
+    "input": "const name = req.body.name;",
+    "expect": "clean",
+    "branch": "clean.js_single_field",
+    "reason": "Single-field property access on req.body is not a whole-object bind into a model."
+  },
+  {
+    "name": "clean_js_lodash_pick",
+    "input": "const safe = _.pick(req.body, [\"name\", \"email\"]);",
+    "expect": "clean",
+    "branch": "clean.js_lodash_pick",
+    "reason": "_.pick with an explicit field list is the canonical allowlist pattern, not a whole-object bind sink."
+  },
+  {
+    "name": "clean_js_new_model_explicit",
+    "input": "const user = new User({ name: req.body.name, email: req.body.email });",
+    "expect": "clean",
+    "branch": "clean.js_new_model_explicit",
+    "reason": "An inline object literal picking named fields is an explicit allowlist, not a bare req.body argument."
+  },
+  {
+    "name": "clean_js_model_create_explicit",
+    "input": "User.create({ name: req.body.name });",
+    "expect": "clean",
+    "branch": "clean.js_model_create_explicit",
+    "reason": "An inline object literal picking one named field is an explicit allowlist, not a bare req.body argument."
+  },
+  {
+    "name": "clean_ruby_permit",
+    "input": "permitted = params.require(:user).permit(:name, :email)",
+    "expect": "clean",
+    "branch": "clean.ruby_permit",
+    "reason": "params.require(...).permit(...) is Rails' strong_parameters allowlist, the canonical fix, not a raw params bind."
+  },
+  {
+    "name": "clean_ruby_update_with_permitted_var",
+    "input": "@user.update(user_params)",
+    "expect": "clean",
+    "branch": "clean.ruby_update_permitted_var",
+    "reason": "user_params names the already-permitted result of strong_parameters, not the raw params hash."
+  },
+  {
+    "name": "clean_ruby_new_with_permitted_var",
+    "input": "User.new(user_params)",
+    "expect": "clean",
+    "branch": "clean.ruby_new_permitted_var",
+    "reason": "user_params names the already-permitted result of strong_parameters, not the raw params hash."
+  },
+  {
+    "name": "clean_prose_comment_mentions_mass_assignment",
+    "input": "# Remember: never bind the whole request body directly onto a model without an explicit field allowlist.",
+    "expect": "clean",
+    "branch": "clean.prose",
+    "reason": "Prose discussing mass assignment in a comment contains no actual call-site syntax and must not be flagged."
+  }
+]

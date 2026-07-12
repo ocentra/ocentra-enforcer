@@ -1,0 +1,212 @@
+[
+  {
+    "name": "implicit_bare_query_string",
+    "input": "GET /oauth/authorize?response_type=token&client_id=abc&redirect_uri=https://app.example.com/cb&state=xyz",
+    "expect": "flag",
+    "branch": "implicit.bare",
+    "reason": "response_type=token is the deprecated implicit grant flow; the access token returns in the URL fragment."
+  },
+  {
+    "name": "implicit_json_key_value",
+    "input": "  \"response_type\":\"token\",",
+    "expect": "flag",
+    "branch": "implicit.json",
+    "reason": "JSON-style response_type key set to the literal value token."
+  },
+  {
+    "name": "implicit_camelcase_single_quote",
+    "input": "  responseType: 'token',",
+    "expect": "flag",
+    "branch": "implicit.camelcase",
+    "reason": "camelCase responseType set to 'token' is the same implicit-flow misconfiguration."
+  },
+  {
+    "name": "implicit_yaml_bare",
+    "input": "response_type: token",
+    "expect": "flag",
+    "branch": "implicit.yaml",
+    "reason": "Unquoted YAML/config-style response_type: token is still the implicit grant."
+  },
+  {
+    "name": "implicit_spaced_equals_quoted",
+    "input": "response_type = 'token'",
+    "expect": "flag",
+    "branch": "implicit.spaced_quote",
+    "reason": "Whitespace around = and a single-quoted token value is still the implicit flow."
+  },
+  {
+    "name": "wildcard_bare_star",
+    "input": "redirect_uri=*",
+    "expect": "flag",
+    "branch": "wildcard.bare_star",
+    "reason": "A bare * redirect_uri accepts any callback URL whatsoever."
+  },
+  {
+    "name": "wildcard_json_star",
+    "input": "  \"redirect_uri\":\"*\"",
+    "expect": "flag",
+    "branch": "wildcard.json_star",
+    "reason": "JSON redirect_uri set to the literal wildcard string."
+  },
+  {
+    "name": "wildcard_scheme_subdomain",
+    "input": "  redirectUri: 'https://*.acme-app.example.com/callback',",
+    "expect": "flag",
+    "branch": "wildcard.scheme_star",
+    "reason": "A subdomain wildcard lets an attacker who takes over any acme-app.example.com subdomain receive the OAuth response (SKILL.md Scenario 1)."
+  },
+  {
+    "name": "wildcard_plural_key_string_value",
+    "input": "  redirect_uris: \"https://*.example.com/callback\",",
+    "expect": "flag",
+    "branch": "wildcard.plural_key_string",
+    "reason": "The plural redirect_uris spelling with a subdomain-wildcard string value is the same misconfiguration."
+  },
+  {
+    "name": "wildcard_path_suffix_star",
+    "input": "redirect_uri = \"https://app.example.com/*\";",
+    "expect": "flag",
+    "branch": "wildcard.path_suffix_star",
+    "reason": "A trailing wildcard path lets any path under the host receive the OAuth callback."
+  },
+  {
+    "name": "usercontrolled_query_dot_redirect",
+    "input": "const redirect_uri = req.query.redirect;",
+    "expect": "flag",
+    "branch": "usercontrolled.query_dot_redirect",
+    "reason": "redirect_uri is assigned directly from an Express query parameter chosen by the caller."
+  },
+  {
+    "name": "usercontrolled_flask_args_get",
+    "input": "redirect_target = request.args.get(\"redirect_uri\")",
+    "expect": "flag",
+    "branch": "usercontrolled.flask_args_get",
+    "reason": "Flask request.args.get(\"redirect_uri\") pulls the redirect straight from the querystring."
+  },
+  {
+    "name": "usercontrolled_body_dot_redirect_uri",
+    "input": "redirect_uri = req.body.redirect_uri;",
+    "expect": "flag",
+    "branch": "usercontrolled.body_dot_redirect_uri",
+    "reason": "redirect_uri is taken directly from the parsed request body."
+  },
+  {
+    "name": "usercontrolled_camel_params",
+    "input": "const redirectUri = req.params.redirect;",
+    "expect": "flag",
+    "branch": "usercontrolled.camel_params",
+    "reason": "camelCase redirectUri assigned from req.params is still user-controlled input."
+  },
+  {
+    "name": "usercontrolled_django_get_style",
+    "input": "redirect_uri = request.GET.get('redirect_uri')",
+    "expect": "flag",
+    "branch": "usercontrolled.django_get_style",
+    "reason": "Django-style request.GET.get('redirect_uri') reads the redirect target from the querystring."
+  },
+  {
+    "name": "usercontrolled_direct_expression_in_redirect_call",
+    "input": "res.redirect(req.query.redirect_uri);",
+    "expect": "flag",
+    "branch": "usercontrolled.direct_expression",
+    "reason": "The OAuth callback redirects straight to a caller-supplied query parameter with no allowlist check (open redirect)."
+  },
+  {
+    "name": "clean_code_flow_bare_with_pkce",
+    "input": "response_type=code&client_id=abc&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&state=xyz123&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256",
+    "expect": "clean",
+    "branch": "clean.code_flow_bare",
+    "reason": "Authorization-code flow with PKCE and a URL-encoded exact redirect_uri; no token, wildcard, or request-sourced redirect."
+  },
+  {
+    "name": "clean_code_flow_json",
+    "input": "  \"response_type\": \"code\",",
+    "expect": "clean",
+    "branch": "clean.code_flow_json",
+    "reason": "response_type=code is the recommended authorization-code flow, not the implicit flow."
+  },
+  {
+    "name": "clean_code_flow_camelcase",
+    "input": "  responseType: 'code',",
+    "expect": "clean",
+    "branch": "clean.code_flow_camel",
+    "reason": "camelCase responseType set to code is still the safe authorization-code flow."
+  },
+  {
+    "name": "clean_id_token_out_of_scope",
+    "input": "response_type=id_token",
+    "expect": "clean",
+    "branch": "clean.id_token_out_of_scope",
+    "reason": "id_token is a distinct OIDC value from the bare implicit-flow token shape this rule targets; left clean to avoid over-broad matching."
+  },
+  {
+    "name": "clean_hybrid_flow_space_separated",
+    "input": "response_type=code token",
+    "expect": "clean",
+    "branch": "clean.hybrid_flow",
+    "reason": "The hybrid flow value 'code token' does not match the bare response_type=token shape and is out of scope for this narrow rule."
+  },
+  {
+    "name": "clean_exact_redirect_literal",
+    "input": "redirect_uri = \"https://app.example.com/callback\";",
+    "expect": "clean",
+    "branch": "clean.exact_redirect_literal",
+    "reason": "An exact-match allowlisted literal redirect_uri with no wildcard and no request-derived value."
+  },
+  {
+    "name": "clean_redirect_from_env_var",
+    "input": "redirect_uri = process.env.OAUTH_REDIRECT_URI;",
+    "expect": "clean",
+    "branch": "clean.redirect_from_env_var",
+    "reason": "Sourced from a deployment environment variable, not from request input, and contains no wildcard."
+  },
+  {
+    "name": "clean_redirect_from_config_constant",
+    "input": "redirect_uri = config.oauth.redirectUri;",
+    "expect": "clean",
+    "branch": "clean.redirect_from_config_constant",
+    "reason": "Sourced from a static config object, not from req/request, and contains no wildcard."
+  },
+  {
+    "name": "clean_redirect_uris_array_exact_match",
+    "input": "  \"redirect_uris\": [\"https://app.example.com/callback\", \"https://staging.example.com/callback\"],",
+    "expect": "clean",
+    "branch": "clean.redirect_uris_array_exact_match",
+    "reason": "An allowlist array of exact-match literals with no wildcard glob in either entry."
+  },
+  {
+    "name": "clean_session_get_not_request_input",
+    "input": "const redirectUri = session.get('redirect_uri');",
+    "expect": "clean",
+    "branch": "clean.session_get_not_request_input",
+    "reason": "session.get reads a previously validated, server-side stored value, not raw request input."
+  },
+  {
+    "name": "clean_unrelated_query_param",
+    "input": "const next = request.args.get('next');",
+    "expect": "clean",
+    "branch": "clean.unrelated_query_param",
+    "reason": "The querystring key read here is 'next', unrelated to redirect_uri/redirect."
+  },
+  {
+    "name": "clean_function_call_not_request",
+    "input": "redirect_uri = getRedirectUri();",
+    "expect": "clean",
+    "branch": "clean.function_call_not_request",
+    "reason": "The value comes from a local helper function, not directly from request input, and has no wildcard."
+  },
+  {
+    "name": "clean_comment_mentioning_wildcard",
+    "input": "// NOTE: wildcard (*) origins are blocked by the API gateway",
+    "expect": "clean",
+    "branch": "clean.comment_mentioning_wildcard",
+    "reason": "Prose mentioning wildcard has no response_type or redirect_uri key at all."
+  },
+  {
+    "name": "clean_pkce_code_verifier_line",
+    "input": "const codeVerifier = crypto.randomBytes(32).toString('base64url');",
+    "expect": "clean",
+    "branch": "clean.pkce_code_verifier_line",
+    "reason": "PKCE code_verifier generation is unrelated to any of the three flagged shapes."
+  }
+]

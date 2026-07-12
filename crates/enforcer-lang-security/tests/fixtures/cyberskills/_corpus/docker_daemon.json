@@ -1,0 +1,212 @@
+[
+  {
+    "name": "insecure-registries: single entry",
+    "input": "{\"insecure-registries\":[\"registry.internal.example.com:5000\"]}",
+    "expect": "flag",
+    "branch": "insecure-registries",
+    "reason": "non-empty insecure-registries list allows plaintext HTTP image pulls"
+  },
+  {
+    "name": "insecure-registries: multiple entries",
+    "input": "{\"insecure-registries\":[\"10.0.0.5:5000\",\"registry.local:5000\"]}",
+    "expect": "flag",
+    "branch": "insecure-registries",
+    "reason": "multiple insecure registries configured"
+  },
+  {
+    "name": "insecure-registries: clean empty array",
+    "input": "{\"insecure-registries\":[]}",
+    "expect": "clean",
+    "branch": "insecure-registries",
+    "reason": "empty insecure-registries list is a no-op"
+  },
+  {
+    "name": "insecure-registries: clean absent",
+    "input": "{\"icc\":false}",
+    "expect": "clean",
+    "branch": "insecure-registries",
+    "reason": "insecure-registries key is absent"
+  },
+  {
+    "name": "icc: flag true",
+    "input": "{\"icc\":true}",
+    "expect": "flag",
+    "branch": "icc",
+    "reason": "icc true leaves inter-container communication enabled"
+  },
+  {
+    "name": "icc: clean false",
+    "input": "{\"icc\":false}",
+    "expect": "clean",
+    "branch": "icc",
+    "reason": "icc false is the hardened value"
+  },
+  {
+    "name": "icc: clean absent",
+    "input": "{\"no-new-privileges\":true}",
+    "expect": "clean",
+    "branch": "icc",
+    "reason": "icc key is absent"
+  },
+  {
+    "name": "no-new-privileges: flag false",
+    "input": "{\"no-new-privileges\":false}",
+    "expect": "flag",
+    "branch": "no-new-privileges",
+    "reason": "no-new-privileges false does not block privilege escalation"
+  },
+  {
+    "name": "no-new-privileges: clean true",
+    "input": "{\"no-new-privileges\":true}",
+    "expect": "clean",
+    "branch": "no-new-privileges",
+    "reason": "no-new-privileges true is the hardened value"
+  },
+  {
+    "name": "no-new-privileges: clean absent",
+    "input": "{\"icc\":false}",
+    "expect": "clean",
+    "branch": "no-new-privileges",
+    "reason": "absent no-new-privileges key is not flagged (avoid false positives on older configs)"
+  },
+  {
+    "name": "userns-remap: flag empty string",
+    "input": "{\"userns-remap\":\"\"}",
+    "expect": "flag",
+    "branch": "userns-remap",
+    "reason": "empty userns-remap value disables user namespace isolation"
+  },
+  {
+    "name": "userns-remap: flag none",
+    "input": "{\"userns-remap\":\"none\"}",
+    "expect": "flag",
+    "branch": "userns-remap",
+    "reason": "userns-remap set to \"none\" disables user namespace isolation"
+  },
+  {
+    "name": "userns-remap: clean default",
+    "input": "{\"userns-remap\":\"default\"}",
+    "expect": "clean",
+    "branch": "userns-remap",
+    "reason": "userns-remap default is the hardened value"
+  },
+  {
+    "name": "userns-remap: clean absent",
+    "input": "{\"icc\":false}",
+    "expect": "clean",
+    "branch": "userns-remap",
+    "reason": "absent userns-remap key is not flagged by this rule"
+  },
+  {
+    "name": "experimental: flag true",
+    "input": "{\"experimental\":true}",
+    "expect": "flag",
+    "branch": "experimental",
+    "reason": "experimental true enables unsupported/unstable daemon features"
+  },
+  {
+    "name": "experimental: clean false",
+    "input": "{\"experimental\":false}",
+    "expect": "clean",
+    "branch": "experimental",
+    "reason": "experimental false is the hardened value"
+  },
+  {
+    "name": "experimental: clean absent",
+    "input": "{\"icc\":false}",
+    "expect": "clean",
+    "branch": "experimental",
+    "reason": "experimental key is absent"
+  },
+  {
+    "name": "live-restore: flag false",
+    "input": "{\"live-restore\":false}",
+    "expect": "flag",
+    "branch": "live-restore",
+    "reason": "live-restore false kills containers on daemon restart/upgrade"
+  },
+  {
+    "name": "live-restore: clean true",
+    "input": "{\"live-restore\":true}",
+    "expect": "clean",
+    "branch": "live-restore",
+    "reason": "live-restore true is the hardened value"
+  },
+  {
+    "name": "live-restore: clean absent",
+    "input": "{\"icc\":false}",
+    "expect": "clean",
+    "branch": "live-restore",
+    "reason": "live-restore key is absent"
+  },
+  {
+    "name": "tls: flag tls false only",
+    "input": "{\"tls\":false,\"tlsverify\":true}",
+    "expect": "flag",
+    "branch": "tls",
+    "reason": "tls false leaves the remote API socket unauthenticated"
+  },
+  {
+    "name": "tls: flag tlsverify false only",
+    "input": "{\"tls\":true,\"tlsverify\":false}",
+    "expect": "flag",
+    "branch": "tls",
+    "reason": "tlsverify false leaves the remote API socket unauthenticated even with tls set"
+  },
+  {
+    "name": "tls: flag both false",
+    "input": "{\"tls\":false,\"tlsverify\":false}",
+    "expect": "flag",
+    "branch": "tls",
+    "reason": "both tls and tlsverify disabled leaves the remote API fully unauthenticated"
+  },
+  {
+    "name": "tls: clean both true",
+    "input": "{\"tls\":true,\"tlsverify\":true,\"tlscacert\":\"/etc/docker/tls/ca.pem\"}",
+    "expect": "clean",
+    "branch": "tls",
+    "reason": "tls and tlsverify both true is the hardened configuration"
+  },
+  {
+    "name": "tls: clean absent",
+    "input": "{\"icc\":false}",
+    "expect": "clean",
+    "branch": "tls",
+    "reason": "tls/tlsverify keys are absent (local unix socket only)"
+  },
+  {
+    "name": "combined: clean empty object",
+    "input": "{}",
+    "expect": "clean",
+    "branch": "combined",
+    "reason": "empty daemon.json has no insecure settings to flag"
+  },
+  {
+    "name": "combined: clean fully hardened",
+    "input": "{\"icc\":false,\"userns-remap\":\"default\",\"no-new-privileges\":true,\"log-driver\":\"json-file\",\"storage-driver\":\"overlay2\",\"live-restore\":true,\"userland-proxy\":false,\"experimental\":false,\"tls\":true,\"tlsverify\":true,\"tlscacert\":\"/etc/docker/tls/ca.pem\",\"tlscert\":\"/etc/docker/tls/server-cert.pem\",\"tlskey\":\"/etc/docker/tls/server-key.pem\"}",
+    "expect": "clean",
+    "branch": "combined",
+    "reason": "CIS-hardened daemon.json trips no checks"
+  },
+  {
+    "name": "combined: flag fully insecure",
+    "input": "{\"icc\":true,\"userns-remap\":\"\",\"no-new-privileges\":false,\"insecure-registries\":[\"registry.internal.example.com:5000\"],\"experimental\":true,\"live-restore\":false,\"tls\":false,\"tlsverify\":false}",
+    "expect": "flag",
+    "branch": "combined",
+    "reason": "every insecure setting present at once"
+  },
+  {
+    "name": "non-object input: clean malformed json",
+    "input": "not valid json at all",
+    "expect": "clean",
+    "branch": "combined",
+    "reason": "input that does not parse as JSON is out of scope for this rule"
+  },
+  {
+    "name": "non-object input: clean json array",
+    "input": "[\"icc\",true]",
+    "expect": "clean",
+    "branch": "combined",
+    "reason": "a JSON array (not an object) is not a daemon.json document"
+  }
+]

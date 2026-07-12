@@ -510,5 +510,69 @@
         },
         "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
         "tags": ["cyberskills", "wave1", "ci", "github-actions", "supplychain"]
+    },
+    {
+        "ruleId": "CYBER-MASS-ASSIGN.1",
+        "version": 1,
+        "title": "Source must not bind a whole untrusted request object into a model without a field allowlist (mass assignment)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::mass_assignment::MassAssignmentValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.mass-assignment/bad/vuln.py",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.mass-assignment/good/safe.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "mass-assignment", "sast"]
+    },
+    {
+        "ruleId": "CYBER-TYPE-JUGGLE.1",
+        "version": 1,
+        "title": "PHP must not use loose comparison / non-strict helpers on attacker-influenced input (type juggling)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::type_juggle::TypeJugglingValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.type-juggling/bad/vuln.php",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.type-juggling/good/safe.php"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "type-juggling", "php", "sast"]
+    },
+    {
+        "ruleId": "CYBER-OAUTH.1",
+        "version": 1,
+        "title": "OAuth client must not use implicit flow, wildcard redirect_uri, or a user-controlled redirect_uri",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::oauth_misconfig::OauthMisconfigValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.oauth-misconfig/bad/vuln.js",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.oauth-misconfig/good/safe.js"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "oauth", "sast"]
+    },
+    {
+        "ruleId": "CYBER-DOCKER-DAEMON.1",
+        "version": 1,
+        "title": "Docker daemon.json must be hardened (no insecure-registries, icc off, no-new-privileges, userns-remap, tls)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::docker_daemon::DockerDaemonHardeningValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/container.docker-daemon/bad/daemon.json",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/container.docker-daemon/good/daemon.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "container", "docker-daemon", "hardening"]
     }
 ]

@@ -27,6 +27,7 @@ use enforcer_lang_security::rules::cyberskills::cloud_azure::{
 use enforcer_lang_security::rules::cyberskills::cloud_gcp::GcpResourceHardeningValidator;
 use enforcer_lang_security::rules::cyberskills::cmd_injection::CommandInjectionValidator;
 use enforcer_lang_security::rules::cyberskills::dependency_confusion::DependencyConfusionClaimableValidator;
+use enforcer_lang_security::rules::cyberskills::docker_daemon::DockerDaemonHardeningValidator;
 use enforcer_lang_security::rules::cyberskills::dockerfile_hardening::DockerfileHardeningValidator;
 use enforcer_lang_security::rules::cyberskills::github_actions::GithubActionsSecurityValidator;
 use enforcer_lang_security::rules::cyberskills::iac_terraform::{
@@ -35,13 +36,16 @@ use enforcer_lang_security::rules::cyberskills::iac_terraform::{
 use enforcer_lang_security::rules::cyberskills::insecure_deser::InsecureDeserializationValidator;
 use enforcer_lang_security::rules::cyberskills::k8s_pod_security::K8sPodSecurityValidator;
 use enforcer_lang_security::rules::cyberskills::k8s_rbac::K8sRbacValidator;
+use enforcer_lang_security::rules::cyberskills::mass_assignment::MassAssignmentValidator;
 use enforcer_lang_security::rules::cyberskills::net_tls::TlsLegacyVersionValidator;
 use enforcer_lang_security::rules::cyberskills::nosql_injection::NoSqlInjectionValidator;
+use enforcer_lang_security::rules::cyberskills::oauth_misconfig::OauthMisconfigValidator;
 use enforcer_lang_security::rules::cyberskills::path_traversal::PathTraversalValidator;
 use enforcer_lang_security::rules::cyberskills::proto_pollution::PrototypePollutionValidator;
 use enforcer_lang_security::rules::cyberskills::sqli_source::SqlInjectionSourceValidator;
 use enforcer_lang_security::rules::cyberskills::ssti::TemplateInjectionValidator;
 use enforcer_lang_security::rules::cyberskills::tls_verify::TlsVerificationDisabledValidator;
+use enforcer_lang_security::rules::cyberskills::type_juggle::TypeJugglingValidator;
 use enforcer_lang_security::rules::cyberskills::waf_sqli::WafSqliSignatureValidator;
 use enforcer_lang_security::rules::cyberskills::weak_crypto::WeakCryptoValidator;
 use enforcer_lang_security::rules::cyberskills::web_cors::CorsMisconfigValidator;
@@ -351,6 +355,30 @@ fn corpus_proto_pollution() -> Result<(), Box<dyn std::error::Error>> {
 fn corpus_github_actions() -> Result<(), Box<dyn std::error::Error>> {
     let family: Vec<Box<dyn Validator>> = vec![Box::new(GithubActionsSecurityValidator::new()?)];
     assert_family("github_actions.json", "workflow.yml", &family)
+}
+
+#[test]
+fn corpus_mass_assignment() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(MassAssignmentValidator::new()?)];
+    assert_family("mass_assignment.json", "app.py", &family)
+}
+
+#[test]
+fn corpus_type_juggle() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(TypeJugglingValidator::new()?)];
+    assert_family("type_juggle.json", "app.php", &family)
+}
+
+#[test]
+fn corpus_oauth_misconfig() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(OauthMisconfigValidator::new()?)];
+    assert_family("oauth_misconfig.json", "app.js", &family)
+}
+
+#[test]
+fn corpus_docker_daemon() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(DockerDaemonHardeningValidator::new()?)];
+    assert_family("docker_daemon.json", "daemon.json", &family)
 }
 // NOTE: the exhaustive provider-credential corpus lives in
 // provider_credentials.rs as a CODE-BUILT test (secret strings are assembled
