@@ -31,7 +31,7 @@ use enforcer_core::telemetry::{default_run_telemetry_path, RunTelemetrySink};
 use enforcer_domain::run_record::{ExitStatus, FindingCounts, RunRecord, RunRecordParams};
 use enforcer_scan::scope::{resolve, ScopeRequest};
 
-use crate::lifecycle::oracle::{
+use oracle::{
     check_oracle, current_repo_root, fix_oracle, implement_oracle, plan_oracle, resolve_files,
     review_oracle, PhaseVerdict, ReviewArgs,
 };
@@ -76,7 +76,7 @@ pub struct CheckScope {
 /// resolvers [`oracle::review_oracle`] consults. See
 /// [`oracle::ReviewArgs`] for the field contract; this wrapper only adds
 /// the `claim_id` default so callers do not have to invent one.
-pub struct ReviewRequest<'a> {
+pub struct ReviewGateInput<'a> {
     pub proof_ids: Vec<String>,
     pub current_git: enforcer_proof::envelope::GitState,
     pub latest_run: &'a dyn Fn(&str) -> Option<enforcer_proof::envelope::ProofRun>,
@@ -84,6 +84,9 @@ pub struct ReviewRequest<'a> {
     pub artifact_exists: &'a dyn Fn(&str) -> bool,
     pub required_path_exists: &'a dyn Fn(&str) -> bool,
 }
+
+/// Backward-compatible name for the review gate's typed input.
+pub type ReviewRequest<'a> = ReviewGateInput<'a>;
 
 /// One phase run's outcome: the verdict plus the exit code it maps to.
 /// Kept as a pair (not just the `ExitCode`) so callers/tests can inspect
@@ -280,7 +283,7 @@ mod tests {
     fn check_phase_routes_to_the_real_validator_registry() {
         // A nonexistent path scope resolves to zero files -- an empty file
         // set is trivially clean, proving `check` actually calls the
-        // engine (not a stub) rather than unconditionally failing closed
+        // engine (not a bypass) rather than unconditionally failing closed
         // like plan/implement/fix above.
         let scope = CheckScope {
             paths: vec![std::path::PathBuf::from(

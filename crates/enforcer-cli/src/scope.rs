@@ -7,8 +7,6 @@
 //! `--base`/`--head`), which is a usage error, not a silent
 //! "scan nothing".
 
-use enforcer_scan::scope::ScopeRequest;
-
 use crate::cli::ScopeArgs;
 
 /// Map already-clap-validated [`ScopeArgs`] to a [`ScopeRequest`].
@@ -16,9 +14,9 @@ use crate::cli::ScopeArgs;
 /// # Errors
 /// Returns a usage-error message when none of the three scope modes was
 /// supplied (empty paths, no `--all`, no `--base`/`--head`).
-pub fn resolve_request(args: &ScopeArgs) -> Result<ScopeRequest, String> {
+pub fn resolve_request(args: &ScopeArgs) -> Result<enforcer_scan::scope::ScopeRequest, String> {
     if let (Some(base), Some(head)) = (&args.base, &args.head) {
-        return Ok(ScopeRequest::Diff {
+        return Ok(enforcer_scan::scope::ScopeRequest::Diff {
             base: base
                 .parse()
                 .map_err(|e: enforcer_core::error::DecodeError| e.to_string())?,
@@ -28,10 +26,10 @@ pub fn resolve_request(args: &ScopeArgs) -> Result<ScopeRequest, String> {
         });
     }
     if args.all {
-        return Ok(ScopeRequest::All);
+        return Ok(enforcer_scan::scope::ScopeRequest::All);
     }
     if !args.paths.is_empty() {
-        return Ok(ScopeRequest::Paths(args.paths.clone()));
+        return Ok(enforcer_scan::scope::ScopeRequest::Paths(args.paths.clone()));
     }
     Err("no scope given: pass <paths...>, --all, or --base <sha> --head <sha>".to_owned())
 }
@@ -40,7 +38,6 @@ pub fn resolve_request(args: &ScopeArgs) -> Result<ScopeRequest, String> {
 mod tests {
     use super::resolve_request;
     use crate::cli::ScopeArgs;
-    use enforcer_scan::scope::ScopeRequest;
     use std::path::PathBuf;
 
     fn args(paths: Vec<PathBuf>, all: bool, base: Option<&str>, head: Option<&str>) -> ScopeArgs {
@@ -55,14 +52,14 @@ mod tests {
     #[test]
     fn paths_mode_maps_through() -> Result<(), Box<dyn std::error::Error>> {
         let request = resolve_request(&args(vec![PathBuf::from("src/lib.rs")], false, None, None))?;
-        assert!(matches!(request, ScopeRequest::Paths(p) if p.len() == 1));
+        assert!(matches!(request, enforcer_scan::scope::ScopeRequest::Paths(p) if p.len() == 1));
         Ok(())
     }
 
     #[test]
     fn all_mode_maps_through() -> Result<(), Box<dyn std::error::Error>> {
         let request = resolve_request(&args(vec![], true, None, None))?;
-        assert!(matches!(request, ScopeRequest::All));
+        assert!(matches!(request, enforcer_scan::scope::ScopeRequest::All));
         Ok(())
     }
 
@@ -70,7 +67,7 @@ mod tests {
     fn diff_mode_maps_through() -> Result<(), Box<dyn std::error::Error>> {
         let request = resolve_request(&args(vec![], false, Some("main"), Some("HEAD")))?;
         match request {
-            ScopeRequest::Diff { base, head } => {
+            enforcer_scan::scope::ScopeRequest::Diff { base, head } => {
                 assert_eq!(base.as_str(), "main");
                 assert_eq!(head.as_str(), "HEAD");
             }
