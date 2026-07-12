@@ -1,20 +1,15 @@
-import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
 import { normalizeWaiverToday } from "./packaged-waiver-date.mjs";
+import { decodePackagedWaiverDocument } from "./decoder-packaged-waivers.mjs";
 import {
   normalizeExactWaiverPath,
   validatePackagedWaiver,
 } from "./packaged-waiver-record.mjs";
 
 export function loadPackagedWaiverRegistry(registryPath, registryRules, options = {}) {
-  let document;
-  try {
-    document = JSON.parse(fs.readFileSync(registryPath, "utf8"));
-  } catch (error) {
-    throw new Error(`Cannot load packaged waiver registry ${registryPath}: ${error.message}`);
-  }
+  const document = decodePackagedWaiverDocument(registryPath);
   if (!document || typeof document !== "object" || !Array.isArray(document.waivers)) {
     throw new Error(`Packaged waiver registry ${registryPath} must contain a waivers array.`);
   }

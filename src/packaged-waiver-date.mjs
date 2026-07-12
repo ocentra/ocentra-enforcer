@@ -1,5 +1,14 @@
 export function normalizeWaiverToday(value) {
-  if (value == null) return new Date().toISOString().slice(0, 10);
+  if (value == null) {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts();
+    const byType = new Map(parts.map((part) => [part.type, part.value]));
+    return `${byType.get("year")}-${byType.get("month")}-${byType.get("day")}`;
+  }
   return normalizeWaiverDate(value, "today");
 }
 
@@ -12,9 +21,12 @@ export function normalizeWaiverDate(value, label) {
 }
 
 function isRealCalendarDay(date) {
-  const parsed = new Date(`${date}T00:00:00.000Z`);
-  return !Number.isNaN(parsed.getTime())
-    && parsed.getUTCFullYear() === Number(date.slice(0, 4))
-    && parsed.getUTCMonth() + 1 === Number(date.slice(5, 7))
-    && parsed.getUTCDate() === Number(date.slice(8, 10));
+  const [year, month, day] = date.split("-").map(Number);
+  if (month < 1 || month > 12 || day < 1) return false;
+  const daysInMonth = [
+    31,
+    year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28,
+    31, 30, 31, 30, 31, 31, 30, 31, 30, 31,
+  ];
+  return day <= daysInMonth[month - 1];
 }
