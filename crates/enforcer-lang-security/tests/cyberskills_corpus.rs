@@ -26,6 +26,7 @@ use enforcer_lang_security::rules::cyberskills::dependency_confusion::Dependency
 use enforcer_lang_security::rules::cyberskills::iac_terraform::{
     IamNoWildcardActionValidator, S3EncryptionRequiredValidator, SgNoPublicSshIngressValidator,
 };
+use enforcer_lang_security::rules::cyberskills::k8s_pod_security::K8sPodSecurityValidator;
 use enforcer_lang_security::rules::cyberskills::waf_sqli::WafSqliSignatureValidator;
 use enforcer_lang_security::rules::cyberskills::web_headers::{
     CookieSecureHttponlySamesiteValidator, CspMissingValidator, HstsMissingOrWeakValidator,
@@ -218,4 +219,10 @@ fn corpus_dependency_confusion() -> Result<(), Box<dyn std::error::Error>> {
 fn corpus_waf_sqli() -> Result<(), Box<dyn std::error::Error>> {
     let family: Vec<Box<dyn Validator>> = vec![Box::new(WafSqliSignatureValidator::new()?)];
     assert_family("waf_sqli.json", "access.log", &family)
+}
+
+#[test]
+fn corpus_k8s_pod_security() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(K8sPodSecurityValidator::new()?)];
+    assert_family("k8s_pod.json", "workload.yaml", &family)
 }

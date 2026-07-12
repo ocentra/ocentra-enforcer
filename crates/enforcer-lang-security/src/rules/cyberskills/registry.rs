@@ -17,6 +17,7 @@ use super::dependency_confusion::DependencyConfusionClaimableValidator;
 use super::iac_terraform::{
     IamNoWildcardActionValidator, S3EncryptionRequiredValidator, SgNoPublicSshIngressValidator,
 };
+use super::k8s_pod_security::K8sPodSecurityValidator;
 use super::waf_sqli::WafSqliSignatureValidator;
 use super::web_headers::{
     CookieSecureHttponlySamesiteValidator, CspMissingValidator, HstsMissingOrWeakValidator,
@@ -80,6 +81,10 @@ pub fn build_all() -> Result<Vec<RegistryRow>, DecodeError> {
             rule_id: "CYBER-WAF-SQLI.1",
             validator: Box::new(WafSqliSignatureValidator::new()?),
         },
+        RegistryRow {
+            rule_id: "CYBER-K8S-POD.1",
+            validator: Box::new(K8sPodSecurityValidator::new()?),
+        },
     ])
 }
 
@@ -90,7 +95,7 @@ mod tests {
     #[test]
     fn registry_builds_cleanly() -> Result<(), Box<dyn std::error::Error>> {
         let rows = build_all()?;
-        assert_eq!(rows.len(), 11);
+        assert_eq!(rows.len(), 12);
         let ids: Vec<&str> = rows.iter().map(|row| row.rule_id).collect();
         for expected in [
             "CYBER-IAC-S3-SSE.1",
@@ -104,6 +109,7 @@ mod tests {
             "CYBER-COOKIE-SECURE.1",
             "CYBER-DEPCONFUSION.1",
             "CYBER-WAF-SQLI.1",
+            "CYBER-K8S-POD.1",
         ] {
             assert!(
                 ids.contains(&expected),

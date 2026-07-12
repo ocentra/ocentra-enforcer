@@ -190,5 +190,21 @@
         },
         "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-cyberskills-corpus-to-rust-rules.md#Requirement Checklist",
         "tags": ["cyberskills", "h11", "waf", "sqli", "scored"]
+    },
+    {
+        "ruleId": "CYBER-K8S-POD.1",
+        "version": 1,
+        "title": "Kubernetes workload pod spec must meet pod-security-standards (restricted) hardening",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::k8s_pod_security::K8sPodSecurityValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/k8s.pod.security-hardening/bad/privileged.yaml",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/k8s.pod.security-hardening/good/hardened.yaml"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "k8s", "pod-security", "manifest"]
     }
 ]

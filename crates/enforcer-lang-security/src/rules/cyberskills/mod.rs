@@ -16,6 +16,7 @@
 pub mod cloud_azure;
 pub mod dependency_confusion;
 pub mod iac_terraform;
+pub mod k8s_pod_security;
 pub mod registry;
 pub mod waf_sqli;
 pub mod web_headers;

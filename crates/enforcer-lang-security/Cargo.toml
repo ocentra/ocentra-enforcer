@@ -10,6 +10,10 @@ publish = false
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
+# Kubernetes manifests are YAML; JSON is a YAML subset, so one parser
+# deserializes both `kubectl -o json` output and raw `*.yaml` manifests for
+# the cyberskills k8s pod-security rules (see rules/cyberskills/k8s_pod_security.rs).
+serde_yaml = "0.9"
 regex = "1"
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
