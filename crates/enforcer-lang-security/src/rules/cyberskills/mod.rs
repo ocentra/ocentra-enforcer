@@ -44,3 +44,4 @@ pub mod weak_crypto;
 pub mod web_cors;
 pub mod web_headers;
 pub mod web_ssrf;
+pub mod websocket_security;

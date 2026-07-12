@@ -590,5 +590,21 @@
         },
         "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
         "tags": ["cyberskills", "wave1", "ai", "mcp", "tool-poisoning", "supplychain"]
+    },
+    {
+        "ruleId": "CYBER-WEBSOCKET.1",
+        "version": 1,
+        "title": "WebSocket server must validate the handshake Origin (no wildcard CORS / unconditional verifyClient) — CSWSH",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::websocket_security::WebSocketSecurityValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.websocket-security/bad/vuln.js",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.websocket-security/good/safe.js"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "websocket", "cswsh", "sast"]
     }
 ]

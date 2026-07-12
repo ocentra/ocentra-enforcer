@@ -1,0 +1,198 @@
+[
+  {
+    "name": "cors_wildcard_double_quote_same_line",
+    "input": "const io = new Server(httpServer, {\n  cors: { origin: \"*\", methods: [\"GET\", \"POST\"] }\n});",
+    "expect": "flag",
+    "branch": "cors-wildcard",
+    "reason": "socket.io cors.origin set to a bare double-quoted wildcard on one line"
+  },
+  {
+    "name": "cors_wildcard_single_quote_compact_ioCall",
+    "input": "io(server, { cors: { origin: '*' } });",
+    "expect": "flag",
+    "branch": "cors-wildcard",
+    "reason": "socket.io cors.origin set to a bare single-quoted wildcard, compact io() one-liner"
+  },
+  {
+    "name": "cors_origin_true_same_line",
+    "input": "const server = socketIo(http, { cors: { origin: true } });",
+    "expect": "flag",
+    "branch": "cors-origin-true",
+    "reason": "cors.origin: true reflects the request Origin header unconditionally, same as a wildcard"
+  },
+  {
+    "name": "cors_wildcard_split_across_lines",
+    "input": "const io = new Server(httpServer, {\n  cors: {\n    origin: '*',\n    methods: ['GET', 'POST'],\n  },\n});",
+    "expect": "flag",
+    "branch": "cors-wildcard",
+    "reason": "cors and origin keys on separate lines, the common real-world socket.io formatting"
+  },
+  {
+    "name": "cors_wildcard_new_server_with_connection_handler",
+    "input": "const io = new Server(httpServer, { cors: { origin: '*' } });\nio.on('connection', (socket) => { socket.emit('ready'); });",
+    "expect": "flag",
+    "branch": "cors-wildcard",
+    "reason": "permissive cors.origin on a new Server(...) construction with a realistic connection handler"
+  },
+  {
+    "name": "origins_v2_function_call_wildcard",
+    "input": "const legacyIo = require('socket.io')(httpServer);\nlegacyIo.origins('*:*');",
+    "expect": "flag",
+    "branch": "origins-v2-wildcard",
+    "reason": "socket.io v2 .origins('*:*') function-call form accepts every origin and every port"
+  },
+  {
+    "name": "origins_v2_property_wildcard",
+    "input": "const legacyOptions = {\n  origins: '*:*',\n};",
+    "expect": "flag",
+    "branch": "origins-v2-wildcard",
+    "reason": "socket.io v2 origins property set to the wildcard '*:*'"
+  },
+  {
+    "name": "check_origin_false",
+    "input": "const wss = new WebSocket.Server({ port: 8080, checkOrigin: false });",
+    "expect": "flag",
+    "branch": "check-origin-false",
+    "reason": "checkOrigin: false explicitly disables WebSocket Origin validation"
+  },
+  {
+    "name": "verify_client_false",
+    "input": "const wss = new WebSocket.Server({ port: 8080, verifyClient: false });",
+    "expect": "flag",
+    "branch": "verify-client-false",
+    "reason": "verifyClient: false disables the handshake's client-verification hook entirely"
+  },
+  {
+    "name": "verify_client_arrow_no_args_true",
+    "input": "const wss = new WebSocket.Server({\n  port: 8080,\n  verifyClient: () => true,\n});",
+    "expect": "flag",
+    "branch": "verify-client-arrow-true",
+    "reason": "verifyClient: () => true accepts every handshake regardless of Origin"
+  },
+  {
+    "name": "verify_client_arrow_cb_true",
+    "input": "const wss = new WebSocket.Server({\n  port: 8080,\n  verifyClient: (info, cb) => cb(true),\n});",
+    "expect": "flag",
+    "branch": "verify-client-cb-true",
+    "reason": "verifyClient arrow unconditionally calls cb(true), never inspecting info.origin"
+  },
+  {
+    "name": "verify_client_function_block_true_multiline",
+    "input": "const wss = new WebSocket.Server({\n  port: 8080,\n  verifyClient: function (info, cb) {\n    cb(true);\n  },\n});",
+    "expect": "flag",
+    "branch": "verify-client-function-true",
+    "reason": "verifyClient function body unconditionally calls cb(true) with no origin check"
+  },
+  {
+    "name": "verify_client_function_block_compact",
+    "input": "const wss = new WebSocket.Server({ verifyClient: function(info, cb){ cb(true) } });",
+    "expect": "flag",
+    "branch": "verify-client-function-true",
+    "reason": "compact single-line verifyClient function body still unconditionally calls cb(true)"
+  },
+  {
+    "name": "verify_client_function_block_no_semicolon_multiline",
+    "input": "const wss = new WebSocket.Server({\n  verifyClient: function (info, cb) {\n    cb(true)\n  }\n});",
+    "expect": "flag",
+    "branch": "verify-client-function-true",
+    "reason": "verifyClient function body calls cb(true) with no trailing semicolon and no origin check"
+  },
+  {
+    "name": "multiple_insecure_shapes_same_file",
+    "input": "const io = new Server(httpServer, { cors: { origin: '*' } });\nconst wss = new WebSocket.Server({ port: 8080, verifyClient: (info, cb) => cb(true) });",
+    "expect": "flag",
+    "branch": "cors-wildcard",
+    "reason": "file combines a wildcard socket.io CORS origin and a permissive ws verifyClient"
+  },
+  {
+    "name": "cors_allowlisted_string_clean",
+    "input": "const io = new Server(httpServer, { cors: { origin: 'https://app.example.com' } });",
+    "expect": "clean",
+    "branch": "cors-allowlisted-clean",
+    "reason": "cors.origin is a single explicit trusted origin, not a wildcard"
+  },
+  {
+    "name": "cors_allowlisted_array_clean",
+    "input": "const io = new Server(httpServer, {\n  cors: {\n    origin: ['https://a.example.com', 'https://b.example.com'],\n  },\n});",
+    "expect": "clean",
+    "branch": "cors-allowlist-array-clean",
+    "reason": "cors.origin is an explicit array allowlist of trusted origins, not a bare wildcard"
+  },
+  {
+    "name": "origins_v2_real_host_clean",
+    "input": "const legacyOptions = {\n  origins: 'https://app.example.com:443',\n};",
+    "expect": "clean",
+    "branch": "origins-real-host-clean",
+    "reason": "origins property names a real scoped host:port, not the '*:*' wildcard"
+  },
+  {
+    "name": "verify_client_checks_info_origin_clean",
+    "input": "const wss = new WebSocket.Server({\n  port: 8080,\n  verifyClient: (info, cb) => {\n    if (ALLOWED.includes(info.origin)) {\n      cb(true);\n    } else {\n      cb(false);\n    }\n  },\n});",
+    "expect": "clean",
+    "branch": "verify-client-checks-origin-clean",
+    "reason": "verifyClient inspects info.origin against an allowlist before ever calling cb(true)"
+  },
+  {
+    "name": "verify_client_checks_headers_origin_clean",
+    "input": "const wss = new WebSocket.Server({\n  verifyClient: function (info, cb) {\n    const origin = info.req.headers.origin;\n    if (isAllowedOrigin(origin)) {\n      cb(true);\n    } else {\n      cb(false);\n    }\n  },\n});",
+    "expect": "clean",
+    "branch": "verify-client-checks-origin-clean",
+    "reason": "verifyClient reads info.req.headers.origin and only calls cb(true) after a real allowlist check"
+  },
+  {
+    "name": "plain_ws_server_no_verify_client_clean",
+    "input": "const wss = new WebSocket.Server({ port: 8080 });\nwss.on('connection', (ws) => ws.on('message', (m) => ws.send(m)));",
+    "expect": "clean",
+    "branch": "no-verify-client-key-clean",
+    "reason": "bare WebSocket.Server with no verifyClient/checkOrigin key at all is not flagged (mere absence)"
+  },
+  {
+    "name": "client_side_new_websocket_clean",
+    "input": "const ws = new WebSocket('wss://api.example.com/feed');\nws.onopen = () => ws.send('hello');",
+    "expect": "clean",
+    "branch": "client-side-clean",
+    "reason": "client-side WebSocket connection is not server configuration and is out of this rule's scope"
+  },
+  {
+    "name": "cors_subdomain_glob_not_bare_wildcard_clean",
+    "input": "const io = new Server(httpServer, { cors: { origin: '*.example.com' } });",
+    "expect": "clean",
+    "branch": "subdomain-glob-clean",
+    "reason": "'*.example.com' is a subdomain glob value, not a literal bare wildcard origin"
+  },
+  {
+    "name": "check_origin_true_clean",
+    "input": "const wss = new WebSocket.Server({ port: 8080, checkOrigin: true });",
+    "expect": "clean",
+    "branch": "check-origin-true-clean",
+    "reason": "checkOrigin explicitly enabled (true) is the secure setting, not a misconfiguration"
+  },
+  {
+    "name": "comment_mentions_verify_client_no_code_clean",
+    "input": "// TODO: add a verifyClient origin allowlist check before shipping this to prod\nconst wss = new WebSocket.Server({ port: 8080 });",
+    "expect": "clean",
+    "branch": "prose-mention-clean",
+    "reason": "mentioning verifyClient in a comment with no actual permissive assignment must not flag"
+  },
+  {
+    "name": "cors_methods_only_no_origin_key_clean",
+    "input": "const io = new Server(httpServer, { cors: { methods: ['GET', 'POST'], credentials: true } });",
+    "expect": "clean",
+    "branch": "cors-no-origin-key-clean",
+    "reason": "cors block has no origin key at all, so there is nothing wildcard/true to flag"
+  },
+  {
+    "name": "verify_client_named_variable_not_bare_true_clean",
+    "input": "const wss = new WebSocket.Server({\n  verifyClient: (info, cb) => {\n    const allowed = isTrustedOrigin(info.origin);\n    cb(allowed);\n  },\n});",
+    "expect": "clean",
+    "branch": "verify-client-checks-origin-clean",
+    "reason": "verifyClient calls cb with a computed boolean from a real origin check, never a bare unconditional true"
+  },
+  {
+    "name": "prose_mentions_cswsh_no_code_clean",
+    "input": "// Cross-site WebSocket hijacking (CSWSH) is prevented by validating Origin on every handshake.\nfunction noop() {}",
+    "expect": "clean",
+    "branch": "prose-mention-clean",
+    "reason": "prose discussing CSWSH prevention with no actual server configuration present"
+  }
+]

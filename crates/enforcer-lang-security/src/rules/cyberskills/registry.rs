@@ -46,6 +46,7 @@ use super::web_headers::{
     CookieSecureHttponlySamesiteValidator, CspMissingValidator, HstsMissingOrWeakValidator,
 };
 use super::web_ssrf::SsrfMetadataValidator;
+use super::websocket_security::WebSocketSecurityValidator;
 
 /// One registry row: the rule id this row proves, paired with the
 /// constructed [`Validator`] trait object.
@@ -205,6 +206,10 @@ pub fn build_all() -> Result<Vec<RegistryRow>, DecodeError> {
             rule_id: "CYBER-MCP-POISON.1",
             validator: Box::new(McpToolPoisoningValidator::new()?),
         },
+        RegistryRow {
+            rule_id: "CYBER-WEBSOCKET.1",
+            validator: Box::new(WebSocketSecurityValidator::new()?),
+        },
     ])
 }
 
@@ -215,7 +220,7 @@ mod tests {
     #[test]
     fn registry_builds_cleanly() -> Result<(), Box<dyn std::error::Error>> {
         let rows = build_all()?;
-        assert_eq!(rows.len(), 36);
+        assert_eq!(rows.len(), 37);
         let ids: Vec<&str> = rows.iter().map(|row| row.rule_id).collect();
         for expected in [
             "CYBER-IAC-S3-SSE.1",
@@ -254,6 +259,7 @@ mod tests {
             "CYBER-OAUTH.1",
             "CYBER-DOCKER-DAEMON.1",
             "CYBER-MCP-POISON.1",
+            "CYBER-WEBSOCKET.1",
         ] {
             assert!(
                 ids.contains(&expected),

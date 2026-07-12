@@ -54,6 +54,7 @@ use enforcer_lang_security::rules::cyberskills::web_headers::{
     CookieSecureHttponlySamesiteValidator, CspMissingValidator, HstsMissingOrWeakValidator,
 };
 use enforcer_lang_security::rules::cyberskills::web_ssrf::SsrfMetadataValidator;
+use enforcer_lang_security::rules::cyberskills::websocket_security::WebSocketSecurityValidator;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
 #[derive(serde::Deserialize)]
@@ -386,6 +387,12 @@ fn corpus_docker_daemon() -> Result<(), Box<dyn std::error::Error>> {
 fn corpus_mcp_tool_poisoning() -> Result<(), Box<dyn std::error::Error>> {
     let family: Vec<Box<dyn Validator>> = vec![Box::new(McpToolPoisoningValidator::new()?)];
     assert_family("mcp_tool_poisoning.json", "tools.json", &family)
+}
+
+#[test]
+fn corpus_websocket_security() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(WebSocketSecurityValidator::new()?)];
+    assert_family("websocket_security.json", "server.js", &family)
 }
 // NOTE: the exhaustive provider-credential corpus lives in
 // provider_credentials.rs as a CODE-BUILT test (secret strings are assembled
