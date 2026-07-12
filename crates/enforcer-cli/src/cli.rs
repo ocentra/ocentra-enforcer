@@ -29,6 +29,7 @@ use clap::{ArgGroup, Args, Parser, Subcommand};
 
 use crate::advise::AdviseTarget;
 use crate::architecture::ArchitectureLanguage;
+use crate::onboard::OnboardArgs;
 use crate::verify::VerifyMode;
 
 /// The `enforcer` binary's top-level grammar.
@@ -101,6 +102,11 @@ pub enum Command {
         #[command(subcommand)]
         action: ArchitectureAction,
     },
+    /// f02 ratchet-first onboarding: create `.enforce/`, write (or
+    /// preserve) the project profile, capture a baseline over every
+    /// current violation, and register the project. Explicit and
+    /// re-runnable (idempotent) -- see `enforcer_scan::onboard`.
+    Onboard(OnboardArgs),
 }
 
 /// `architecture check --language <lang> --scope <files|diff|all>`.

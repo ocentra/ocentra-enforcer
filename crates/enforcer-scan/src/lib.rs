@@ -51,6 +51,7 @@
 pub mod coverage;
 pub mod engine;
 pub mod modes;
+pub mod onboard;
 pub mod outcome;
 pub mod router;
 pub mod rules;

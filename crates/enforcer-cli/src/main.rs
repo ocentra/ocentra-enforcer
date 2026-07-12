@@ -12,6 +12,7 @@ use std::process::ExitCode as ProcessExitCode;
 use clap::Parser;
 use enforcer_cli::cli::{ArchitectureAction, Cli, Command};
 use enforcer_cli::commands;
+use enforcer_cli::onboard;
 use enforcer_cli::output;
 use enforcer_core::exit_codes::ExitCode;
 
@@ -24,8 +25,14 @@ fn main() -> ProcessExitCode {
 }
 
 fn to_process_exit_code(exit: ExitCode) -> ProcessExitCode {
-    #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
-    ProcessExitCode::from(exit.code() as u8)
+    let code = match exit {
+        ExitCode::Success => 0,
+        ExitCode::Violations => 1,
+        ExitCode::UsageError => 2,
+        ExitCode::ConfigError => 78,
+        ExitCode::InternalError => 70,
+    };
+    ProcessExitCode::from(code)
 }
 
 fn run() -> ExitCode {
@@ -97,15 +104,16 @@ fn dispatch(command: &Command) -> ExitCode {
         Command::Architecture { action } => match action {
             ArchitectureAction::Check(_) => commands::run_architecture(action),
         },
+        Command::Onboard(args) => onboard::run_onboard(args),
     }
 }
 
 #[cfg(feature = "full")]
 fn run_serve() -> ExitCode {
-    let cli_path = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.to_str().map(str::to_owned))
-        .unwrap_or_else(|| "enforcer".to_owned());
+    let cli_path = match std::env::current_exe() {
+        Ok(path) => path.to_string_lossy().into_owned(),
+        Err(_) => String::from("enforcer"),
+    };
     let ctx = enforcer_mcp::sink::default_dispatch_context(cli_path);
     match enforcer_mcp::sink::run_stdio_server(&ctx) {
         Ok(()) => ExitCode::Success,
@@ -133,8 +141,12 @@ fn run_serve() -> ExitCode {
 #[cfg(feature = "full")]
 fn run_serve_ui(args: &enforcer_cli::cli::ServeArgs) -> ExitCode {
     let request = enforcer_ui::serve::BindRequest {
+        // CLONE-JUSTIFICATION: the UI bind request owns data passed to the
+        // server after the borrowed clap arguments go out of scope.
         host: args.host.clone(),
         port: args.port,
+        // CLONE-JUSTIFICATION: the optional token follows the same owned
+        // request boundary as the host string above.
         token: args.token.clone(),
     };
     match enforcer_ui::serve::run(&request, || false) {
