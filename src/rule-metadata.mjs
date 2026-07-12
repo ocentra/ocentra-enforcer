@@ -691,6 +691,7 @@ export const DEFAULT_CONFIG = Object.freeze({
   rustRoots: ["src", "crates", "tools"],
   crateRootGlobs: ["crates/*", "tools/*", "."],
   testFileGlobs: [
+    "tests/**",
     "**/tests/**",
     "**/*_test.rs",
     "**/*_tests.rs",

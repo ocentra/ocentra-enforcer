@@ -531,6 +531,7 @@ function scanRustFile(root, filePath, config) {
     }
 
     if (
+      !isTestSource &&
       !isBoundary &&
       /\banyhow::Result\b|\bBox\s*<\s*dyn\s+(?:std::error::Error|Error)\b/u.test(
         line,
