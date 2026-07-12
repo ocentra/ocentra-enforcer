@@ -13,6 +13,7 @@
 //! they are deferred to the optional `h12` adapter pack. No CLI subprocess
 //! is introduced anywhere in this module.
 
+pub mod cloud_aws;
 pub mod cloud_azure;
 pub mod dependency_confusion;
 pub mod dockerfile_hardening;

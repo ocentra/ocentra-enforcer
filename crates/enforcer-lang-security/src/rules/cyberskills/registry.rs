@@ -9,6 +9,7 @@
 use enforcer_core::error::DecodeError;
 use enforcer_validator::validator::Validator;
 
+use super::cloud_aws::AwsResourceHardeningValidator;
 use super::cloud_azure::{
     AzureStorageMinTls12Validator, AzureStoragePublicBlobValidator,
     AzureStorageRequireHttpsValidator,
@@ -95,6 +96,10 @@ pub fn build_all() -> Result<Vec<RegistryRow>, DecodeError> {
             rule_id: "CYBER-SECRET.1",
             validator: Box::new(ProviderCredentialValidator::new()?),
         },
+        RegistryRow {
+            rule_id: "CYBER-AWS.1",
+            validator: Box::new(AwsResourceHardeningValidator::new()?),
+        },
     ])
 }
 
@@ -105,7 +110,7 @@ mod tests {
     #[test]
     fn registry_builds_cleanly() -> Result<(), Box<dyn std::error::Error>> {
         let rows = build_all()?;
-        assert_eq!(rows.len(), 14);
+        assert_eq!(rows.len(), 15);
         let ids: Vec<&str> = rows.iter().map(|row| row.rule_id).collect();
         for expected in [
             "CYBER-IAC-S3-SSE.1",
@@ -122,6 +127,7 @@ mod tests {
             "CYBER-K8S-POD.1",
             "CYBER-DOCKER.1",
             "CYBER-SECRET.1",
+            "CYBER-AWS.1",
         ] {
             assert!(
                 ids.contains(&expected),

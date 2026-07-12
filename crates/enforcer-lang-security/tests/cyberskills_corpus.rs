@@ -18,6 +18,7 @@ use std::path::PathBuf;
 
 use enforcer_domain::findings::ScanScope;
 use enforcer_domain::paths::RelPath;
+use enforcer_lang_security::rules::cyberskills::cloud_aws::AwsResourceHardeningValidator;
 use enforcer_lang_security::rules::cyberskills::cloud_azure::{
     AzureStorageMinTls12Validator, AzureStoragePublicBlobValidator,
     AzureStorageRequireHttpsValidator,
@@ -120,6 +121,12 @@ fn corpus_iac_terraform() -> Result<(), Box<dyn std::error::Error>> {
         Box::new(SgNoPublicSshIngressValidator::new()?),
     ];
     assert_family("iac_terraform.json", "main.tf", &family)
+}
+
+#[test]
+fn corpus_cloud_aws() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(AwsResourceHardeningValidator::new()?)];
+    assert_family("cloud_aws.json", "main.tf", &family)
 }
 
 #[test]

@@ -238,5 +238,21 @@
         },
         "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
         "tags": ["cyberskills", "wave1", "secret", "credentials", "gitleaks"]
+    },
+    {
+        "ruleId": "CYBER-AWS.1",
+        "version": 1,
+        "title": "AWS Terraform resources must be hardened (no public S3 ACL, no publicly-accessible RDS, encrypted EBS, no public ingress to sensitive ports)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::cloud_aws::AwsResourceHardeningValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.aws.resource-hardening/bad/public.tf",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/cloud.aws.resource-hardening/good/hardened.tf"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "cloud", "aws", "iac", "terraform"]
     }
 ]

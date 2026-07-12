@@ -61,6 +61,21 @@ config/manifest input, proven by a fixture corpus.
   hex, UUID, base64 without aws-context, email, short/placeholder keys). The
   on-disk oracle fixture uses AWS's allowlisted documented example key.
 
+- [x] **`CYBER-AWS.1` — AWS Terraform resource hardening**
+  (`rules/cyberskills/cloud_aws.rs`). Harvested from the vendored
+  `auditing-aws-s3-bucket-permissions`,
+  `remediating-s3-bucket-misconfiguration`, and `securing-aws-iam-permissions`
+  skills; reuses `iac_terraform`'s HCL block parser. Per-resource checks over
+  `.tf`: public S3 ACL (`acl = "public-read"`/`"public-read-write"`),
+  `aws_db_instance.publicly_accessible = true`, `aws_ebs_volume` not
+  `encrypted = true`, and `aws_security_group`/`_rule` ingress from
+  `0.0.0.0/0` reaching a sensitive non-SSH port (RDP/MySQL/PostgreSQL/Redis/
+  MongoDB/MSSQL/Elasticsearch/Telnet) or a wide-open range. Proven by a
+  28-case HCL corpus (per-check hits + the FP cases: private ACL, restricted
+  CIDR, egress, HTTP/HTTPS ports, SSH-only, absent attrs, non-AWS resources).
+  Cross-resource/absence checks (missing `aws_s3_bucket_public_access_block`,
+  versioning) are deferred — they over-flag.
+
 ## Deferred (documented, not hand-waved)
 
 - Namespace-level Pod Security Admission labels

@@ -1,0 +1,198 @@
+[
+  {
+    "name": "s3_bucket_public_read",
+    "input": "resource \"aws_s3_bucket\" \"example\" {\n  bucket = \"my-bucket\"\n  acl    = \"public-read\"\n}",
+    "expect": "flag",
+    "branch": "s3-public-acl",
+    "reason": "S3 bucket with public-read ACL"
+  },
+  {
+    "name": "s3_bucket_public_read_write",
+    "input": "resource \"aws_s3_bucket\" \"example\" {\n  bucket = \"my-bucket\"\n  acl    = \"public-read-write\"\n}",
+    "expect": "flag",
+    "branch": "s3-public-acl",
+    "reason": "S3 bucket with public-read-write ACL"
+  },
+  {
+    "name": "s3_bucket_acl_public_read",
+    "input": "resource \"aws_s3_bucket_acl\" \"example\" {\n  bucket = aws_s3_bucket.example.id\n  acl    = \"public-read\"\n}",
+    "expect": "flag",
+    "branch": "s3-public-acl",
+    "reason": "S3 bucket ACL resource with public-read"
+  },
+  {
+    "name": "rds_publicly_accessible_true",
+    "input": "resource \"aws_db_instance\" \"example\" {\n  identifier = \"mydb\"\n  publicly_accessible = true\n}",
+    "expect": "flag",
+    "branch": "rds-public",
+    "reason": "RDS instance with publicly_accessible = true"
+  },
+  {
+    "name": "ebs_encrypted_false",
+    "input": "resource \"aws_ebs_volume\" \"example\" {\n  availability_zone = \"us-west-2a\"\n  size              = 40\n  encrypted         = false\n}",
+    "expect": "flag",
+    "branch": "ebs-unencrypted",
+    "reason": "EBS volume with encrypted = false"
+  },
+  {
+    "name": "ebs_no_encrypted_attribute",
+    "input": "resource \"aws_ebs_volume\" \"example\" {\n  availability_zone = \"us-west-2a\"\n  size              = 40\n}",
+    "expect": "flag",
+    "branch": "ebs-unencrypted",
+    "reason": "EBS volume with no encrypted attribute"
+  },
+  {
+    "name": "sg_rdp_open",
+    "input": "resource \"aws_security_group\" \"example\" {\n  ingress {\n    from_port   = 3389\n    to_port     = 3389\n    protocol    = \"tcp\"\n    cidr_blocks = [\"0.0.0.0/0\"]\n  }\n}",
+    "expect": "flag",
+    "branch": "sg-open-sensitive-port",
+    "reason": "Security group with RDP (3389) open to 0.0.0.0/0"
+  },
+  {
+    "name": "sg_mysql_open",
+    "input": "resource \"aws_security_group\" \"example\" {\n  ingress {\n    from_port   = 3306\n    to_port     = 3306\n    protocol    = \"tcp\"\n    cidr_blocks = [\"0.0.0.0/0\"]\n  }\n}",
+    "expect": "flag",
+    "branch": "sg-open-sensitive-port",
+    "reason": "Security group with MySQL (3306) open to 0.0.0.0/0"
+  },
+  {
+    "name": "sg_postgres_open",
+    "input": "resource \"aws_security_group\" \"example\" {\n  ingress {\n    from_port   = 5432\n    to_port     = 5432\n    protocol    = \"tcp\"\n    cidr_blocks = [\"0.0.0.0/0\"]\n  }\n}",
+    "expect": "flag",
+    "branch": "sg-open-sensitive-port",
+    "reason": "Security group with PostgreSQL (5432) open to 0.0.0.0/0"
+  },
+  {
+    "name": "sg_wide_open_range",
+    "input": "resource \"aws_security_group\" \"example\" {\n  ingress {\n    from_port   = 0\n    to_port     = 65535\n    protocol    = \"tcp\"\n    cidr_blocks = [\"0.0.0.0/0\"]\n  }\n}",
+    "expect": "flag",
+    "branch": "sg-open-sensitive-port",
+    "reason": "Security group with all ports (0-65535) open to 0.0.0.0/0"
+  },
+  {
+    "name": "sg_rule_redis_open",
+    "input": "resource \"aws_security_group_rule\" \"example\" {\n  type              = \"ingress\"\n  from_port         = 6379\n  to_port           = 6379\n  protocol          = \"tcp\"\n  cidr_blocks       = [\"0.0.0.0/0\"]\n  security_group_id = aws_security_group.example.id\n}",
+    "expect": "flag",
+    "branch": "sg-open-sensitive-port",
+    "reason": "Security group rule with Redis (6379) open to 0.0.0.0/0"
+  },
+  {
+    "name": "sg_mongodb_open",
+    "input": "resource \"aws_security_group\" \"example\" {\n  ingress {\n    from_port   = 27017\n    to_port     = 27017\n    protocol    = \"tcp\"\n    cidr_blocks = [\"0.0.0.0/0\"]\n  }\n}",
+    "expect": "flag",
+    "branch": "sg-open-sensitive-port",
+    "reason": "Security group with MongoDB (27017) open to 0.0.0.0/0"
+  },
+  {
+    "name": "sg_mssql_open",
+    "input": "resource \"aws_security_group\" \"example\" {\n  ingress {\n    from_port   = 1433\n    to_port     = 1433\n    protocol    = \"tcp\"\n    cidr_blocks = [\"0.0.0.0/0\"]\n  }\n}",
+    "expect": "flag",
+    "branch": "sg-open-sensitive-port",
+    "reason": "Security group with MSSQL (1433) open to 0.0.0.0/0"
+  },
+  {
+    "name": "sg_elasticsearch_open",
+    "input": "resource \"aws_security_group\" \"example\" {\n  ingress {\n    from_port   = 9200\n    to_port     = 9200\n    protocol    = \"tcp\"\n    cidr_blocks = [\"0.0.0.0/0\"]\n  }\n}",
+    "expect": "flag",
+    "branch": "sg-open-sensitive-port",
+    "reason": "Security group with Elasticsearch (9200) open to 0.0.0.0/0"
+  },
+  {
+    "name": "sg_telnet_open",
+    "input": "resource \"aws_security_group\" \"example\" {\n  ingress {\n    from_port   = 23\n    to_port     = 23\n    protocol    = \"tcp\"\n    cidr_blocks = [\"0.0.0.0/0\"]\n  }\n}",
+    "expect": "flag",
+    "branch": "sg-open-sensitive-port",
+    "reason": "Security group with Telnet (23) open to 0.0.0.0/0"
+  },
+  {
+    "name": "s3_bucket_private",
+    "input": "resource \"aws_s3_bucket\" \"example\" {\n  bucket = \"my-bucket\"\n  acl    = \"private\"\n}",
+    "expect": "clean",
+    "branch": "s3-public-acl",
+    "reason": "S3 bucket with private ACL is acceptable"
+  },
+  {
+    "name": "rds_not_publicly_accessible",
+    "input": "resource \"aws_db_instance\" \"example\" {\n  identifier = \"mydb\"\n  publicly_accessible = false\n}",
+    "expect": "clean",
+    "branch": "rds-public",
+    "reason": "RDS instance with publicly_accessible = false"
+  },
+  {
+    "name": "rds_no_publicly_accessible_attribute",
+    "input": "resource \"aws_db_instance\" \"example\" {\n  identifier = \"mydb\"\n  allocated_storage = 20\n}",
+    "expect": "clean",
+    "branch": "rds-public",
+    "reason": "RDS instance without publicly_accessible attribute defaults to private"
+  },
+  {
+    "name": "ebs_encrypted_true",
+    "input": "resource \"aws_ebs_volume\" \"example\" {\n  availability_zone = \"us-west-2a\"\n  size              = 40\n  encrypted         = true\n}",
+    "expect": "clean",
+    "branch": "ebs-unencrypted",
+    "reason": "EBS volume with encrypted = true"
+  },
+  {
+    "name": "sg_https_open",
+    "input": "resource \"aws_security_group\" \"example\" {\n  ingress {\n    from_port   = 443\n    to_port     = 443\n    protocol    = \"tcp\"\n    cidr_blocks = [\"0.0.0.0/0\"]\n  }\n}",
+    "expect": "clean",
+    "branch": "sg-open-sensitive-port",
+    "reason": "HTTPS (443) is not a sensitive port"
+  },
+  {
+    "name": "sg_http_open",
+    "input": "resource \"aws_security_group\" \"example\" {\n  ingress {\n    from_port   = 80\n    to_port     = 80\n    protocol    = \"tcp\"\n    cidr_blocks = [\"0.0.0.0/0\"]\n  }\n}",
+    "expect": "clean",
+    "branch": "sg-open-sensitive-port",
+    "reason": "HTTP (80) is not a sensitive port"
+  },
+  {
+    "name": "sg_mysql_restricted_cidr",
+    "input": "resource \"aws_security_group\" \"example\" {\n  ingress {\n    from_port   = 3306\n    to_port     = 3306\n    protocol    = \"tcp\"\n    cidr_blocks = [\"10.0.0.0/8\"]\n  }\n}",
+    "expect": "clean",
+    "branch": "sg-open-sensitive-port",
+    "reason": "MySQL (3306) with restricted CIDR (private range)"
+  },
+  {
+    "name": "sg_egress_mysql_public",
+    "input": "resource \"aws_security_group\" \"example\" {\n  egress {\n    from_port   = 3306\n    to_port     = 3306\n    protocol    = \"tcp\"\n    cidr_blocks = [\"0.0.0.0/0\"]\n  }\n}",
+    "expect": "clean",
+    "branch": "sg-open-sensitive-port",
+    "reason": "Egress rules are not checked by this validator"
+  },
+  {
+    "name": "sg_ssh_only_public",
+    "input": "resource \"aws_security_group\" \"example\" {\n  ingress {\n    from_port   = 22\n    to_port     = 22\n    protocol    = \"tcp\"\n    cidr_blocks = [\"0.0.0.0/0\"]\n  }\n}",
+    "expect": "clean",
+    "branch": "sg-open-sensitive-port",
+    "reason": "SSH (22) is handled by a separate rule, not this one"
+  },
+  {
+    "name": "google_storage_bucket",
+    "input": "resource \"google_storage_bucket\" \"example\" {\n  name          = \"my-bucket\"\n  location      = \"US\"\n  force_destroy = true\n}",
+    "expect": "clean",
+    "branch": "non-aws",
+    "reason": "Non-AWS resource (Google Cloud) is not validated"
+  },
+  {
+    "name": "azurerm_storage_account",
+    "input": "resource \"azurerm_storage_account\" \"example\" {\n  name                     = \"examplesa\"\n  account_tier             = \"Standard\"\n  account_replication_type = \"GRS\"\n}",
+    "expect": "clean",
+    "branch": "non-aws",
+    "reason": "Non-AWS resource (Azure) is not validated"
+  },
+  {
+    "name": "sg_rule_telnet_restricted",
+    "input": "resource \"aws_security_group_rule\" \"example\" {\n  type              = \"ingress\"\n  from_port         = 23\n  to_port           = 23\n  protocol          = \"tcp\"\n  cidr_blocks       = [\"10.0.0.0/8\"]\n  security_group_id = aws_security_group.example.id\n}",
+    "expect": "clean",
+    "branch": "sg-open-sensitive-port",
+    "reason": "Telnet (23) with restricted CIDR is acceptable"
+  },
+  {
+    "name": "sg_rule_egress_elasticsearch",
+    "input": "resource \"aws_security_group_rule\" \"example\" {\n  type              = \"egress\"\n  from_port         = 9200\n  to_port           = 9200\n  protocol          = \"tcp\"\n  cidr_blocks       = [\"0.0.0.0/0\"]\n  security_group_id = aws_security_group.example.id\n}",
+    "expect": "clean",
+    "branch": "sg-open-sensitive-port",
+    "reason": "Egress rules are not checked by this validator"
+  }
+]

@@ -31,14 +31,14 @@ use regex::Regex;
 /// Split `source` into `resource "<type>" "<name>" { ... }` blocks (brace
 /// depth-aware, so a nested block inside a resource does not truncate it
 /// early). Only top-level `resource` blocks are collected.
-struct ResourceBlock<'a> {
-    resource_type: &'a str,
-    name: &'a str,
-    body: &'a str,
-    line: u32,
+pub(crate) struct ResourceBlock<'a> {
+    pub(crate) resource_type: &'a str,
+    pub(crate) name: &'a str,
+    pub(crate) body: &'a str,
+    pub(crate) line: u32,
 }
 
-fn resource_blocks(source: &str) -> Vec<ResourceBlock<'_>> {
+pub(crate) fn resource_blocks(source: &str) -> Vec<ResourceBlock<'_>> {
     let Ok(header) = Regex::new(r#"resource\s+"([A-Za-z0-9_]+)"\s+"([A-Za-z0-9_-]+)"\s*\{"#) else {
         return Vec::new();
     };
@@ -280,7 +280,7 @@ impl SgNoPublicSshIngressValidator {
 
 /// Extract an integer HCL attribute (`name = 22` or `name = "22"`) from
 /// `body`, if present.
-fn int_attr(body: &str, name: &str) -> Option<i64> {
+pub(crate) fn int_attr(body: &str, name: &str) -> Option<i64> {
     let pattern = Regex::new(&format!(r#"(?i){name}\s*=\s*"?(-?\d+)"?"#)).ok()?;
     pattern
         .captures(body)
@@ -288,7 +288,7 @@ fn int_attr(body: &str, name: &str) -> Option<i64> {
         .and_then(|m| m.as_str().parse().ok())
 }
 
-fn allows_public_cidr(body: &str) -> bool {
+pub(crate) fn allows_public_cidr(body: &str) -> bool {
     body.contains("0.0.0.0/0")
 }
 
@@ -296,7 +296,7 @@ fn allows_public_cidr(body: &str) -> bool {
 /// (case-insensitive), e.g. `type = "ingress"`. Used to honor the vendor
 /// Rego's explicit `resource.type == "ingress"` predicate so an `egress`
 /// rule to `0.0.0.0/0` on port 22 is NOT flagged.
-fn string_attr_eq(body: &str, name: &str, value: &str) -> bool {
+pub(crate) fn string_attr_eq(body: &str, name: &str, value: &str) -> bool {
     let Ok(pattern) = Regex::new(&format!(r#"(?i)\b{name}\s*=\s*"([^"]*)""#)) else {
         return false;
     };
@@ -362,7 +362,7 @@ impl Validator for SgNoPublicSshIngressValidator {
     }
 }
 
-fn ingress_subblocks(body: &str) -> Vec<&str> {
+pub(crate) fn ingress_subblocks(body: &str) -> Vec<&str> {
     let Ok(header) = Regex::new(r"ingress\s*\{") else {
         return Vec::new();
     };
