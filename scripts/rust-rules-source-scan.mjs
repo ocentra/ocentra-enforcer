@@ -59,6 +59,16 @@ const { FIELD_RE, PUBLIC_FIELD_RE, PUBLIC_SERDE_STRUCT_RE } =
 // "RR-14.20" "RR-14.21" "RR-14.23" "RR-14.24" "RR-14.25" "RR-14.26" "RR-14.28"
 // "RR-8.30"
 
+function isTestFunctionSignature(lines, index) {
+  for (let cursor = index - 1; cursor >= 0 && cursor >= index - 4; cursor -= 1) {
+    if (/^\s*#\[(?:test|tokio::test|async_std::test)\b/u.test(lines[cursor])) {
+      return true;
+    }
+    if (/^\s*(?:pub\s+)?(?:async\s+)?fn\b/u.test(lines[cursor])) break;
+  }
+  return false;
+}
+
 function scanRustFile(root, filePath, config) {
   const rel = normalizeRel(root, filePath);
   const violations = [];
@@ -532,6 +542,7 @@ function scanRustFile(root, filePath, config) {
 
     if (
       !isTestSource &&
+      !isTestFunctionSignature(originalLines, idx) &&
       !isBoundary &&
       /\banyhow::Result\b|\bBox\s*<\s*dyn\s+(?:std::error::Error|Error)\b/u.test(
         line,
