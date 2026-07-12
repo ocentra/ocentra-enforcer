@@ -69,3 +69,10 @@ Rationale: stand up the Rust Cargo workspace (A) so everything else builds on th
 ## Claiming discipline
 
 Pick exactly one row. Confirm its dep rows are DONE in `WORKPACK_INDEX.md`. Confirm its `owns:` set does not intersect any lane already claimed (`PLAN_EXECUTION_BLUEPRINT.md` -> parallel model). Claim the lane, guard the scope, read only that workpack, produce proof, **commit+push a checkpoint to the lane branch** (EXECUTION_MODEL §2e — no local undo; a step isn't done until its bytes are on the remote), close out. Then return here for the next frontier.
+
+**Frontier X addendum (2026-07-12):** `x08` cross-harness-worklog — owner feature request sparked by a
+real practitioner post ("I am running four AI tools in parallel… The tooling multiplied. The tracking
+did not."). The enforcer is the one chokepoint every installed harness passes through, so the ledger
+(lanes/claims/mail/presence) + d04 telemetry + proof records already contain the unified work trail;
+x08 adds the read-model + `enforcer worklog` CLI/MCP/UI surfaces that answer "what did I work on,
+where, with which tool" — no new write paths.

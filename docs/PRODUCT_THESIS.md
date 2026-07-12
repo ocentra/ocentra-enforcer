@@ -59,6 +59,11 @@ or produce an audit chain.
 - **Shadow-parity MCP** = run Rust MCP beside .mjs, mirror calls, diff outputs (arc-05 harness
   pattern) until the deprecation checklist empties itself.
 - **Honest UI** = Tauri workspaces driven by real run/ledger/proof records, never mock constants.
+- **Cross-harness worklog (x08)** = the ledger+telemetry+proof records already capture every
+  session, scan, claim, and proof across ALL installed harnesses; a read-model + `enforcer worklog`
+  surface answers "what did I work on, where, with which AI tool" — the unified trail multi-tool
+  practitioners are publicly asking for ("the tooling multiplied, the tracking did not"). Adoption
+  wedge: install for the worklog, stay for the gates.
 - **Ratchet-first onboarding (f02)** = ten minutes from install to a green gate on any repo.
 - **Explainable findings** = data_flow-backed "why this is a violation" traces.
 

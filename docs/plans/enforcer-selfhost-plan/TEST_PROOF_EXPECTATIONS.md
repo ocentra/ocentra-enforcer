@@ -311,6 +311,14 @@ Owner-requested gap-fillers. `p01` parameterizes the universal boundary doctrine
 | p02 | P4 self-enforce green (T1) + P1 unit + P3 UI | `cargo test -p enforcer-scan --test ignore_defaults` (`scan-ignore-defaults-honesty`) + `cargo test -p enforcer-ui` (`report-skipped-surface`) + `xtask dogfood` self-scan skip inventory | `proof/scan/p02-ignore-defaults.txt` | fixture tree with `node_modules/`+`dist/`+product `src/` -> defaults skip the noise (each recorded in the inventory with its reason) and scan only `src/`; a per-project override re-including `dist/` raises the ran-count; a bare `vendor` default matches nested `a/b/vendor/**` not only root (anchoring regression); self-scan on THIS repo out-of-the-box yields product-only findings AND a nonzero skip inventory with reasons (hollow zero-ran still hard-fails per a09); `report-skipped-surface` renders inventory rows and suppresses all output under f04 silent mode, no external asset fetched | PENDING |
 | p03 | P1 unit (T1) + d01 parity (feature-gated) | `cargo test -p enforcer-lang-ts --features ast` (`ast-backed-rule-parity`) + default-build green + d01 `rule-scaffold-parity` over migrated ruleIds | `proof/rules/p03-ast-backed.txt` | true `as`/non-null assertion in real code -> AST validator flags (fail case trips); `" as "` inside a string literal / a comment -> AST validator stays clean while the regex baseline would fire (false-positive-reduction fixture, asserted by comparing both paths on the same input); each migrated `ruleId` resolves to validator export + doc anchor + both fixtures under the SAME `RuleId` (arc-07 count-parity unaffected) or parity fails closed; the default (feature `ast` OFF) build has no `enforcer-memory` edge (cargo-metadata/grep assertion) while `--features ast` pulls it in | PENDING |
 
+### Track X addendum - x08 cross-harness worklog
+
+The unified "what did I work on, where, with which AI tool" trail: a read-model folding arc-16 ledger events + d04 run records + arc-17 proof claims into per-day/project/harness timelines (CLI `enforcer worklog`, MCP tool, g01-mounted UI view). Read-only; tamper-evident via source record hash-chain refs.
+
+| Workpack | Proof tier(s) | Named test / oracle | Artifact path | Seeded-violation case | Status |
+|----------|--------------|---------------------|---------------|-----------------------|--------|
+| x08 | P3 unit+integration (T1 read-model) | `cargo test -p enforcer-coordination` worklog suite + enforcer-cli golden `worklog --json` over the synthetic multi-harness fixture day | `proof/coordination/x08-worklog.txt` | tampered hash-chain ref / missing source -> coverage line reports the gap and the affected entries are flagged, never silently dropped; unknown harness identity renders as explicit `unknown`, never a default | PENDING |
+
 ---
 
 ## 5. Closing checklist (per workpack, before DONE)
