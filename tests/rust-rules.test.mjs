@@ -254,6 +254,47 @@ test('Cargo wildcard dependency fails with RR-9.1', () => {
   expectFailure(project, 'RR-9.1');
 });
 
+test('Cargo workspace-member paths are allowed while arbitrary local paths fail', () => {
+  const project = makeProject({
+    'Cargo.toml': `
+[workspace]
+members = ["crates/member", "crates/consumer"]
+
+[workspace.package]
+rust-version = "1.75"
+
+[workspace.dependencies]
+member = { path = "crates/member", version = "0.1.0" }
+`,
+    'crates/member/Cargo.toml': `
+[package]
+name = "member"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+`,
+    'crates/member/src/lib.rs': 'pub struct MemberId;\n',
+    'crates/consumer/Cargo.toml': `
+[package]
+name = "consumer"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+
+[dependencies]
+member = { path = "../member", version = "0.1.0" }
+outside = { path = "../outside", version = "0.1.0" }
+`,
+    'crates/consumer/src/lib.rs': 'pub struct ConsumerId;\n',
+  });
+  const result = runGate(project);
+  assert.notEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  const output = `${result.stdout}\n${result.stderr}`;
+  assert.match(output, /RR-9\.3/u, output);
+  assert.match(output, /outside/u, output);
+  assert.doesNotMatch(output, /member.*Path dependency found/u, output);
+});
+
 test('Cargo loose versions, copyleft licenses, stale lockfiles, and build dependencies fail scanner', () => {
   const project = makeProject({
     'src/lib.rs': 'pub struct UserId;\n',

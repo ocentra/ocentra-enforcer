@@ -288,7 +288,15 @@ function scanCargoManifest(root, manifest, config, violations) {
         line,
       );
     }
-    if (!config.allowPathDependencies && /\bpath\s*=/u.test(line)) {
+    if (
+      !config.allowPathDependencies &&
+      /\bpath\s*=/u.test(line) &&
+      !isWorkspaceMemberPathDependency({
+        currentSection,
+        dependencyName,
+        workspacePackageNames,
+      })
+    ) {
       addViolation(
         violations,
         root,
@@ -381,6 +389,20 @@ function dependencyRequirementFromManifestLine(line) {
     line.match(/=\s*"([^"]+)"/u)?.[1] ??
     line.match(/\bversion\s*=\s*"([^"]+)"/u)?.[1] ??
     null
+  );
+}
+
+function isWorkspaceMemberPathDependency({
+  currentSection,
+  dependencyName,
+  workspacePackageNames,
+}) {
+  return (
+    /^(?:workspace\.)?(?:dependencies|dev-dependencies|build-dependencies|target\..+\.dependencies)(?:\.|$)/u.test(
+      currentSection,
+    ) &&
+    dependencyName !== null &&
+    workspacePackageNames.has(dependencyName)
   );
 }
 

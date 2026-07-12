@@ -711,7 +711,7 @@ function scanRustFile(root, filePath, config) {
       ) &&
       (RAW_STRING_TYPE_RE.test(line) || RAW_PRIMITIVE_TYPE_RE.test(line))
     ) {
-      if (/^\s*pub(?:\([^)]*\))?\s+/u.test(line)) {
+      if (!isBoundary && /^\s*pub(?:\([^)]*\))?\s+/u.test(line)) {
         addViolation(
           violations,
           root,
