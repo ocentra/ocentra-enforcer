@@ -81,6 +81,27 @@ function nearestCargoManifest(root, filePath) {
   }
 }
 
+function workspaceDependencyJustifications(root) {
+  const manifest = path.join(root, "Cargo.toml");
+  if (!fs.existsSync(manifest)) return new Map();
+  const lines = fs.readFileSync(manifest, "utf8").split(/\r?\n/u);
+  const justified = new Map();
+  let currentSection = "";
+  lines.forEach((line, idx) => {
+    const sectionMatch = line.match(/^\s*\[([^\]]+)\]\s*$/u);
+    if (sectionMatch) currentSection = sectionMatch[1];
+    if (currentSection !== "workspace.dependencies") return;
+    const dependencyName = dependencyNameFromManifestLine(line);
+    if (dependencyName) {
+      justified.set(
+        dependencyName,
+        contextHas(lines, idx, "DEPENDENCY-JUSTIFICATION:", 4),
+      );
+    }
+  });
+  return justified;
+}
+
 function scanCargoManifest(root, manifest, config, violations) {
   const cargoText = fs.readFileSync(manifest, "utf8");
   const packageBlock = cargoText.match(
@@ -123,6 +144,7 @@ function scanCargoManifest(root, manifest, config, violations) {
   const dependencyRequirementsByName = new Map();
   const currentPackageName = packageNameFromManifest(manifest);
   const workspacePackageNames = workspacePackageNamesFromManifests(root, config);
+  const workspaceDependencyJustification = workspaceDependencyJustifications(root);
   lines.forEach((line, idx) => {
     const lineNo = idx + 1;
     const sectionMatch = line.match(/^\s*\[([^\]]+)\]\s*$/u);
@@ -171,7 +193,14 @@ function scanCargoManifest(root, manifest, config, violations) {
           line,
         );
       }
-      if (!contextHas(lines, idx, "DEPENDENCY-JUSTIFICATION:", 4)) {
+      const inheritsWorkspaceDependency = /\bworkspace\s*=\s*true\b/u.test(line);
+      const hasCanonicalWorkspaceJustification =
+        inheritsWorkspaceDependency &&
+        workspaceDependencyJustification.get(dependencyName) === true;
+      if (
+        !hasCanonicalWorkspaceJustification &&
+        !contextHas(lines, idx, "DEPENDENCY-JUSTIFICATION:", 4)
+      ) {
         addViolation(
           violations,
           root,
