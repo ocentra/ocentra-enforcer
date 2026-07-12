@@ -69,6 +69,7 @@
 //! modules directly, e.g. `enforcer_mcp::sink::run_stdio_server`.
 
 pub mod aliases;
+pub mod fingerprint;
 pub mod gate;
 pub mod name;
 pub mod registry;
