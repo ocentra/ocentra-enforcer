@@ -2,9 +2,13 @@
 
 This is the settings-as-doc source of truth for this repo's OWN `main` branch
 protection. `crates/enforcer-install/src/ci/branch_protection.rs`'s emitter
-applies this configuration (via `gh api`) and its verifier checks the live
-GitHub state against it, failing closed if protection is missing or
-bypassable. Do not hand-edit GitHub's branch-protection settings without
+models the `gh api` configuration and its verifier checks a live GitHub
+read-back against it, failing closed if protection is missing or bypassable.
+`verify_and_report()` emits the stable, serializable installer/CI report:
+the expected and observed contexts, an all-or-nothing attestation, its
+process-compatible exit code, and every failed expectation by stable code.
+The verifier itself does not mutate GitHub settings. Do not hand-edit
+GitHub's branch-protection settings without
 updating this file first — the verifier treats this file's described state
 as ground truth, not whatever happens to be configured in the GitHub UI.
 
