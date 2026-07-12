@@ -1,0 +1,205 @@
+[
+  {
+    "name": "js_where_template_literal_interp",
+    "input": "db.collection(\"logs\").find({ $where: `this.description.indexOf(\"${term}\") !== -1` });",
+    "expect": "flag",
+    "branch": "where_template_interp",
+    "reason": "$where given a JS template literal with ${term} interpolation executes attacker-influenced server-side JavaScript."
+  },
+  {
+    "name": "js_where_string_concat",
+    "input": "db.collection(\"users\").find({ $where: \"this.username == \" + username });",
+    "expect": "flag",
+    "branch": "where_string_concat",
+    "reason": "$where built by concatenating a string literal with a variable is the same server-side JS injection as template interpolation."
+  },
+  {
+    "name": "pymongo_where_fstring",
+    "input": "results = collection.find({\"$where\": f\"this.username == '{username}'\"})",
+    "expect": "flag",
+    "branch": "pymongo_where_fstring",
+    "reason": "pymongo $where given a Python f-string interpolates untrusted data into server-side JavaScript."
+  },
+  {
+    "name": "pymongo_where_concat",
+    "input": "results = collection.find({\"$where\": \"this.username == \" + username})",
+    "expect": "flag",
+    "branch": "pymongo_where_concat",
+    "reason": "pymongo $where built via string concatenation with a variable is the same server-side JS injection."
+  },
+  {
+    "name": "js_raw_req_body_findone",
+    "input": "db.collection(\"users\").findOne(req.body, callback);",
+    "expect": "flag",
+    "branch": "raw_request_direct_js",
+    "reason": "Passing the whole req.body into findOne() lets an attacker send {\"username\":{\"$ne\":\"\"}} to bypass the intended match."
+  },
+  {
+    "name": "js_raw_req_query_find",
+    "input": "db.collection(\"users\").find(req.query).toArray(cb);",
+    "expect": "flag",
+    "branch": "raw_request_direct_js",
+    "reason": "Passing the whole req.query into find() lets an attacker inject MongoDB operators via query-string bracket syntax."
+  },
+  {
+    "name": "js_raw_req_params_find",
+    "input": "db.collection(\"orders\").find(req.params);",
+    "expect": "flag",
+    "branch": "raw_request_direct_js",
+    "reason": "Passing the whole req.params into find() is the same raw-object operator-injection shape as req.body/req.query."
+  },
+  {
+    "name": "pymongo_raw_request_json",
+    "input": "users = collection.find(request.json)",
+    "expect": "flag",
+    "branch": "raw_request_direct_py",
+    "reason": "Passing request.json directly into pymongo's find() lets an attacker submit an operator object in place of any field."
+  },
+  {
+    "name": "pymongo_raw_request_get_json",
+    "input": "user = collection.find_one(request.get_json())",
+    "expect": "flag",
+    "branch": "raw_request_direct_py",
+    "reason": "request.get_json() passed straight into find_one() is the same raw-object operator-injection shape."
+  },
+  {
+    "name": "js_property_no_cast_username",
+    "input": "db.collection(\"users\").find({ username: req.body.username });",
+    "expect": "flag",
+    "branch": "bare_property_request_value",
+    "reason": "An un-cast req.body.username filter value lets an attacker send {\"username\":{\"$gt\":\"\"}} as JSON to match any user."
+  },
+  {
+    "name": "js_property_no_cast_params",
+    "input": "db.collection(\"orders\").find({ orderId: req.params.id });",
+    "expect": "flag",
+    "branch": "bare_property_request_value",
+    "reason": "An un-cast req.params.id filter value carries the same operator-injection risk as an un-cast req.body property."
+  },
+  {
+    "name": "js_regex_bare_request_body",
+    "input": "db.collection(\"users\").find({ password: { $regex: req.body.pattern } });",
+    "expect": "flag",
+    "branch": "regex_bare_request_value",
+    "reason": "$regex given a bare req.body property enables boolean/blind character-by-character extraction (SKILL.md Steps 3-4)."
+  },
+  {
+    "name": "js_regex_bare_request_query",
+    "input": "db.collection(\"users\").find({ username: { $regex: req.query.search } });",
+    "expect": "flag",
+    "branch": "regex_bare_request_value",
+    "reason": "$regex given a bare req.query property is the same blind-extraction primitive as req.body."
+  },
+  {
+    "name": "js_json_parse_query_filter",
+    "input": "const filter = JSON.parse(req.query.filter); db.collection(\"reports\").find(filter);",
+    "expect": "flag",
+    "branch": "json_parse_req",
+    "reason": "JSON.parse(req.query.filter) deserializes raw request text into an arbitrary query object, bypassing normal body-parser typing."
+  },
+  {
+    "name": "js_json_parse_body_filter",
+    "input": "const q = JSON.parse(req.body.q);",
+    "expect": "flag",
+    "branch": "json_parse_req",
+    "reason": "JSON.parse(req.body.q) is the same raw-request-to-query-object primitive as JSON.parse(req.query...)."
+  },
+  {
+    "name": "clean_string_cast_property",
+    "input": "db.collection(\"users\").find({ username: String(req.body.username) });",
+    "expect": "clean",
+    "branch": "clean_cast_guard",
+    "reason": "An explicit String() cast forces the value to a primitive, closing off the {\"$gt\": \"\"}-shaped operator-injection payload."
+  },
+  {
+    "name": "clean_parseint_eq_property",
+    "input": "db.collection(\"users\").find({ age: { $eq: parseInt(req.query.age, 10) } });",
+    "expect": "clean",
+    "branch": "clean_eq_cast",
+    "reason": "$eq given a parseInt()-cast value is validated/typed, not a bare request property."
+  },
+  {
+    "name": "clean_number_eq_property",
+    "input": "db.collection(\"users\").find({ age: { $eq: Number(req.query.age) } });",
+    "expect": "clean",
+    "branch": "clean_eq_cast",
+    "reason": "$eq given a Number()-cast value is validated/typed, not a bare request property."
+  },
+  {
+    "name": "clean_static_where",
+    "input": "db.collection(\"logs\").find({ $where: \"this.active == true\" });",
+    "expect": "clean",
+    "branch": "clean_static_where",
+    "reason": "A $where that is a fully static string literal with no variable has nothing for an attacker to influence."
+  },
+  {
+    "name": "clean_static_regex",
+    "input": "db.collection(\"users\").find({ status: { $regex: \"^active-\" } });",
+    "expect": "clean",
+    "branch": "clean_static_regex",
+    "reason": "A $regex given a fully static, allowlisted pattern is not derived from request data."
+  },
+  {
+    "name": "clean_objectid_cast",
+    "input": "user = collection.find_one({\"user_id\": ObjectId(request.args.get(\"id\"))})",
+    "expect": "clean",
+    "branch": "clean_typed_validated",
+    "reason": "ObjectId(...) validates and casts the request value; request.args is never passed as the whole query filter."
+  },
+  {
+    "name": "clean_parseint_standalone",
+    "input": "const id = parseInt(req.query.id, 10);",
+    "expect": "clean",
+    "branch": "clean_no_query_context",
+    "reason": "The cast happens outside any query-filter call; this line alone builds no MongoDB query."
+  },
+  {
+    "name": "clean_string_cast_standalone",
+    "input": "const username = String(req.body.username);",
+    "expect": "clean",
+    "branch": "clean_no_query_context",
+    "reason": "A standalone cast assignment builds no MongoDB query on this line."
+  },
+  {
+    "name": "clean_shorthand_local_var",
+    "input": "db.collection(\"users\").find({ role });",
+    "expect": "clean",
+    "branch": "clean_shorthand_local_var",
+    "reason": "Object shorthand referencing an already-validated local variable carries no colon-delimited request expression to flag."
+  },
+  {
+    "name": "clean_mongoose_schema_cast",
+    "input": "User.find({ email: String(req.body.email) }).select(\"-password\").exec();",
+    "expect": "clean",
+    "branch": "clean_mongoose_schema_cast",
+    "reason": "A mongoose-style call whose filter value is still explicitly cast closes off the operator-injection payload."
+  },
+  {
+    "name": "clean_regex_local_var",
+    "input": "db.collection(\"logs\").find({ description: { $regex: sanitizedTerm } });",
+    "expect": "clean",
+    "branch": "clean_regex_local_var",
+    "reason": "$regex given an already-sanitized local variable (not a bare req.* token) is not the unsanitized-input shape this rule targets."
+  },
+  {
+    "name": "clean_json_parse_local_file",
+    "input": "const filter = JSON.parse(fs.readFileSync(\"filter.json\", \"utf8\"));",
+    "expect": "clean",
+    "branch": "clean_json_parse_local",
+    "reason": "JSON.parse() of a local file, not of req.body/req.query/req.params, does not deserialize attacker-controlled text into a query."
+  },
+  {
+    "name": "clean_prose_comment_mentions_where",
+    "input": "# Historical note: migrated away from a raw $where clause to indexed queries.",
+    "expect": "clean",
+    "branch": "clean_prose",
+    "reason": "Bare prose mentioning $where with no colon-delimited string/f-string/concatenation must not be flagged."
+  },
+  {
+    "name": "clean_static_filter_no_request_data",
+    "input": "db.collection(\"config\").find({ active: true, tier: \"gold\" });",
+    "expect": "clean",
+    "branch": "clean_static_filter",
+    "reason": "A fully static filter with no request-derived values at all has no injectable surface."
+  }
+]

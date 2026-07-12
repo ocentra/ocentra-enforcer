@@ -28,6 +28,7 @@ use enforcer_lang_security::rules::cyberskills::cloud_gcp::GcpResourceHardeningV
 use enforcer_lang_security::rules::cyberskills::cmd_injection::CommandInjectionValidator;
 use enforcer_lang_security::rules::cyberskills::dependency_confusion::DependencyConfusionClaimableValidator;
 use enforcer_lang_security::rules::cyberskills::dockerfile_hardening::DockerfileHardeningValidator;
+use enforcer_lang_security::rules::cyberskills::github_actions::GithubActionsSecurityValidator;
 use enforcer_lang_security::rules::cyberskills::iac_terraform::{
     IamNoWildcardActionValidator, S3EncryptionRequiredValidator, SgNoPublicSshIngressValidator,
 };
@@ -35,7 +36,11 @@ use enforcer_lang_security::rules::cyberskills::insecure_deser::InsecureDeserial
 use enforcer_lang_security::rules::cyberskills::k8s_pod_security::K8sPodSecurityValidator;
 use enforcer_lang_security::rules::cyberskills::k8s_rbac::K8sRbacValidator;
 use enforcer_lang_security::rules::cyberskills::net_tls::TlsLegacyVersionValidator;
+use enforcer_lang_security::rules::cyberskills::nosql_injection::NoSqlInjectionValidator;
 use enforcer_lang_security::rules::cyberskills::path_traversal::PathTraversalValidator;
+use enforcer_lang_security::rules::cyberskills::proto_pollution::PrototypePollutionValidator;
+use enforcer_lang_security::rules::cyberskills::sqli_source::SqlInjectionSourceValidator;
+use enforcer_lang_security::rules::cyberskills::ssti::TemplateInjectionValidator;
 use enforcer_lang_security::rules::cyberskills::tls_verify::TlsVerificationDisabledValidator;
 use enforcer_lang_security::rules::cyberskills::waf_sqli::WafSqliSignatureValidator;
 use enforcer_lang_security::rules::cyberskills::weak_crypto::WeakCryptoValidator;
@@ -316,6 +321,36 @@ fn corpus_k8s_pod_security() -> Result<(), Box<dyn std::error::Error>> {
 fn corpus_dockerfile_hardening() -> Result<(), Box<dyn std::error::Error>> {
     let family: Vec<Box<dyn Validator>> = vec![Box::new(DockerfileHardeningValidator::new()?)];
     assert_family("dockerfile.json", "Dockerfile", &family)
+}
+
+#[test]
+fn corpus_sqli_source() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(SqlInjectionSourceValidator::new()?)];
+    assert_family("sqli_source.json", "app.py", &family)
+}
+
+#[test]
+fn corpus_ssti() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(TemplateInjectionValidator::new()?)];
+    assert_family("ssti.json", "app.py", &family)
+}
+
+#[test]
+fn corpus_nosql_injection() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(NoSqlInjectionValidator::new()?)];
+    assert_family("nosql_injection.json", "app.js", &family)
+}
+
+#[test]
+fn corpus_proto_pollution() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(PrototypePollutionValidator::new()?)];
+    assert_family("proto_pollution.json", "app.js", &family)
+}
+
+#[test]
+fn corpus_github_actions() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(GithubActionsSecurityValidator::new()?)];
+    assert_family("github_actions.json", "workflow.yml", &family)
 }
 // NOTE: the exhaustive provider-credential corpus lives in
 // provider_credentials.rs as a CODE-BUILT test (secret strings are assembled

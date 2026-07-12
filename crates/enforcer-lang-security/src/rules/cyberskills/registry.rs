@@ -19,6 +19,7 @@ use super::cloud_gcp::GcpResourceHardeningValidator;
 use super::cmd_injection::CommandInjectionValidator;
 use super::dependency_confusion::DependencyConfusionClaimableValidator;
 use super::dockerfile_hardening::DockerfileHardeningValidator;
+use super::github_actions::GithubActionsSecurityValidator;
 use super::iac_terraform::{
     IamNoWildcardActionValidator, S3EncryptionRequiredValidator, SgNoPublicSshIngressValidator,
 };
@@ -26,8 +27,12 @@ use super::insecure_deser::InsecureDeserializationValidator;
 use super::k8s_pod_security::K8sPodSecurityValidator;
 use super::k8s_rbac::K8sRbacValidator;
 use super::net_tls::TlsLegacyVersionValidator;
+use super::nosql_injection::NoSqlInjectionValidator;
 use super::path_traversal::PathTraversalValidator;
+use super::proto_pollution::PrototypePollutionValidator;
 use super::provider_credentials::ProviderCredentialValidator;
+use super::sqli_source::SqlInjectionSourceValidator;
+use super::ssti::TemplateInjectionValidator;
 use super::tls_verify::TlsVerificationDisabledValidator;
 use super::waf_sqli::WafSqliSignatureValidator;
 use super::weak_crypto::WeakCryptoValidator;
@@ -155,6 +160,26 @@ pub fn build_all() -> Result<Vec<RegistryRow>, DecodeError> {
             rule_id: "CYBER-TLS-VERIFY.1",
             validator: Box::new(TlsVerificationDisabledValidator::new()?),
         },
+        RegistryRow {
+            rule_id: "CYBER-SQLI-SOURCE.1",
+            validator: Box::new(SqlInjectionSourceValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-SSTI.1",
+            validator: Box::new(TemplateInjectionValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-NOSQL-INJECT.1",
+            validator: Box::new(NoSqlInjectionValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-PROTO-POLLUTION.1",
+            validator: Box::new(PrototypePollutionValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-GHA.1",
+            validator: Box::new(GithubActionsSecurityValidator::new()?),
+        },
     ])
 }
 
@@ -165,7 +190,7 @@ mod tests {
     #[test]
     fn registry_builds_cleanly() -> Result<(), Box<dyn std::error::Error>> {
         let rows = build_all()?;
-        assert_eq!(rows.len(), 26);
+        assert_eq!(rows.len(), 31);
         let ids: Vec<&str> = rows.iter().map(|row| row.rule_id).collect();
         for expected in [
             "CYBER-IAC-S3-SSE.1",
@@ -194,6 +219,11 @@ mod tests {
             "CYBER-DESERIALIZE.1",
             "CYBER-WEAK-CRYPTO.1",
             "CYBER-TLS-VERIFY.1",
+            "CYBER-SQLI-SOURCE.1",
+            "CYBER-SSTI.1",
+            "CYBER-NOSQL-INJECT.1",
+            "CYBER-PROTO-POLLUTION.1",
+            "CYBER-GHA.1",
         ] {
             assert!(
                 ids.contains(&expected),

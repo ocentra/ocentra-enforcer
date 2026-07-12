@@ -1,0 +1,198 @@
+[
+  {
+    "name": "python_render_template_string_fstring",
+    "input": "return render_template_string(f\"<h1>Hello {name}!</h1>\")",
+    "expect": "flag",
+    "branch": "render_template_string.fstring",
+    "reason": "Template text is an f-string built from the `name` variable."
+  },
+  {
+    "name": "python_render_template_string_concat",
+    "input": "return render_template_string(\"<p>\" + message + \"</p>\")",
+    "expect": "flag",
+    "branch": "render_template_string.concat",
+    "reason": "Template text is built via `+` concatenation with `message`."
+  },
+  {
+    "name": "python_render_template_string_format_method",
+    "input": "return render_template_string(\"<h2>{}</h2>\".format(subject))",
+    "expect": "flag",
+    "branch": "render_template_string.format_method",
+    "reason": "Template text is built via `str.format()`."
+  },
+  {
+    "name": "python_render_template_string_percent",
+    "input": "return render_template_string(\"<h3>%s</h3>\" % title)",
+    "expect": "flag",
+    "branch": "render_template_string.percent",
+    "reason": "Template text is built via %-formatting."
+  },
+  {
+    "name": "python_render_template_string_percent_tuple",
+    "input": "return render_template_string(\"<h3>%s - %s</h3>\" % (title, subtitle))",
+    "expect": "flag",
+    "branch": "render_template_string.percent_tuple",
+    "reason": "Template text is built via %-formatting with a tuple of variables."
+  },
+  {
+    "name": "python_jinja2_template_fstring_render",
+    "input": "return Template(f\"Dear customer, {body_var}\").render(user=body_var)",
+    "expect": "flag",
+    "branch": "template_render.fstring",
+    "reason": "jinja2 Template constructed from an f-string, rendered on the same line."
+  },
+  {
+    "name": "python_jinja2_template_concat_render",
+    "input": "return Template(\"<p>\" + user_bio + \"</p>\").render()",
+    "expect": "flag",
+    "branch": "template_render.concat",
+    "reason": "Template constructed via concatenation with `user_bio`, rendered inline."
+  },
+  {
+    "name": "python_jinja2_template_bare_variable_render",
+    "input": "return Template(raw_template).render()",
+    "expect": "flag",
+    "branch": "template_render.bare_variable",
+    "reason": "Template constructed directly from a bare, unquoted variable."
+  },
+  {
+    "name": "python_mako_template_concat_render",
+    "input": "return MakoTemplate(\"<p>\" + user_input + \"</p>\").render()",
+    "expect": "flag",
+    "branch": "template_render.mako_concat",
+    "reason": "mako Template (aliased MakoTemplate) constructed via concatenation, rendered inline."
+  },
+  {
+    "name": "python_mako_template_fstring_render",
+    "input": "return MakoTemplate(f\"<p>{user_input}</p>\").render()",
+    "expect": "flag",
+    "branch": "template_render.mako_fstring",
+    "reason": "mako Template constructed from an f-string, rendered inline."
+  },
+  {
+    "name": "js_new_function_concat",
+    "input": "const fn = new Function('return ' + userCode + ';');",
+    "expect": "flag",
+    "branch": "new_function.concat",
+    "reason": "Function constructor code text built via concatenation with `userCode`."
+  },
+  {
+    "name": "js_new_function_template_literal_interp",
+    "input": "const fn = new Function(`return ${userCode};`);",
+    "expect": "flag",
+    "branch": "new_function.template_literal",
+    "reason": "Function constructor code text is a backtick template literal containing `${...}` interpolation."
+  },
+  {
+    "name": "js_handlebars_compile_template_literal_interp",
+    "input": "const tpl = Handlebars.compile(`<div>${userBio}</div>`);",
+    "expect": "flag",
+    "branch": "compile.template_literal",
+    "reason": "template-engine .compile() fed a backtick template literal containing `${...}` interpolation."
+  },
+  {
+    "name": "js_custom_template_class_interp_render",
+    "input": "return new Template(`<h1>${title}</h1>`).render(data);",
+    "expect": "flag",
+    "branch": "template_render.js_template_literal",
+    "reason": "JS Template class constructed from a backtick literal with `${...}` interpolation, rendered inline."
+  },
+  {
+    "name": "clean_render_template_file_kwargs",
+    "input": "return render_template(\"index.html\", name=name)",
+    "expect": "clean",
+    "branch": "render_template.file_kwargs",
+    "reason": "Named template FILE; user data passed as a render kwarg, handled by the engine's escaping."
+  },
+  {
+    "name": "clean_render_template_file_multi_kwargs",
+    "input": "return render_template(\"dashboard.html\", user=user, active=True)",
+    "expect": "clean",
+    "branch": "render_template.file_multi_kwargs",
+    "reason": "Named template FILE with multiple kwargs; no template text is built from a variable."
+  },
+  {
+    "name": "clean_render_template_string_static",
+    "input": "return render_template_string(\"<h1>Hello</h1>\")",
+    "expect": "clean",
+    "branch": "render_template_string.static",
+    "reason": "Fully static literal template text with no interpolation."
+  },
+  {
+    "name": "clean_render_template_string_static_percent_sign",
+    "input": "return render_template_string(\"Save 20% today\")",
+    "expect": "clean",
+    "branch": "render_template_string.static_percent_sign",
+    "reason": "Static literal template text that happens to contain a bare `%` character, not a %-format operator."
+  },
+  {
+    "name": "clean_template_static_render_kwargs",
+    "input": "return Template(\"Dear customer, {{ body }}\").render(body=body_var)",
+    "expect": "clean",
+    "branch": "template_render.static_kwargs",
+    "reason": "Static template text; user data passed only as a render() kwarg."
+  },
+  {
+    "name": "clean_plain_fstring_not_a_render",
+    "input": "return f\"Hello {name}, welcome back!\"",
+    "expect": "clean",
+    "branch": "not_a_render.fstring",
+    "reason": "An ordinary f-string never passed to a template-rendering sink."
+  },
+  {
+    "name": "clean_plain_string_concat_not_a_render",
+    "input": "full_name = first + \" \" + last",
+    "expect": "clean",
+    "branch": "not_a_render.concat",
+    "reason": "String concatenation not passed to any template-rendering sink."
+  },
+  {
+    "name": "clean_js_compile_bare_variable",
+    "input": "const tpl = Handlebars.compile(templateSource);",
+    "expect": "clean",
+    "branch": "compile.bare_variable_no_literal",
+    "reason": "The .compile() argument is a bare variable, not a backtick template literal with interpolation, so the narrower compile-sink predicate does not match."
+  },
+  {
+    "name": "clean_js_compile_static_string",
+    "input": "const tpl = Handlebars.compile(\"<div>static</div>\");",
+    "expect": "clean",
+    "branch": "compile.static_string",
+    "reason": ".compile() fed a fully static double-quoted string, not a backtick template literal."
+  },
+  {
+    "name": "clean_js_new_function_static",
+    "input": "const fn = new Function('return 42;');",
+    "expect": "clean",
+    "branch": "new_function.static",
+    "reason": "Function constructor code text is a fully static literal with no interpolation or concatenation."
+  },
+  {
+    "name": "clean_js_template_class_static_render",
+    "input": "return new Template(\"<h1>Static Title</h1>\").render(data);",
+    "expect": "clean",
+    "branch": "template_render.js_static",
+    "reason": "JS Template class constructed from a fully static double-quoted string, not a template literal or f-string."
+  },
+  {
+    "name": "clean_comment_mentions_render_template_string",
+    "input": "# Historical note: this handler used to call render_template_string with raw request input.",
+    "expect": "clean",
+    "branch": "render_template_string.prose",
+    "reason": "Prose comment mentioning the sink name with no following '(' is not an actual call site."
+  },
+  {
+    "name": "clean_identifier_containing_template_substring",
+    "input": "helper = MyTemplateHelper(config).render_defaults()",
+    "expect": "clean",
+    "branch": "template_render.false_positive_guard",
+    "reason": "An identifier merely containing \"Template\" (MyTemplateHelper) with unrelated suffix text between it and the call parenthesis, plus a `.render_defaults(` call rather than `.render(`, must not match the Template(...).render( sink pattern."
+  },
+  {
+    "name": "clean_mako_import_statement_not_a_call",
+    "input": "from mako.template import Template as MakoTemplate",
+    "expect": "clean",
+    "branch": "template_render.import_statement",
+    "reason": "An import statement naming Template is not a constructor call followed by .render(."
+  }
+]

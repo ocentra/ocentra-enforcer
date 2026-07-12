@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+
+permissions: write-all
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup node
+        uses: actions/setup-node@main
+        with:
+          node-version: 18
+
+      - name: Greet PR author
+        run: echo "Thanks for the PR titled ${{ github.event.pull_request.title }}"
+
+      - name: Dump issue body
+        run: |
+          echo "${{ github.event.issue.body }}"

@@ -430,5 +430,85 @@
         },
         "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
         "tags": ["cyberskills", "wave1", "net", "tls", "sast"]
+    },
+    {
+        "ruleId": "CYBER-SQLI-SOURCE.1",
+        "version": 1,
+        "title": "Source must not build a SQL query by string construction from a variable (SQL injection)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::sqli_source::SqlInjectionSourceValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.sql-injection-source/bad/vuln.py",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.sql-injection-source/good/safe.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "sql-injection", "sast"]
+    },
+    {
+        "ruleId": "CYBER-SSTI.1",
+        "version": 1,
+        "title": "Source must not build template text from a variable (server-side template injection)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::ssti::TemplateInjectionValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.template-injection/bad/vuln.py",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.template-injection/good/safe.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "ssti", "sast"]
+    },
+    {
+        "ruleId": "CYBER-NOSQL-INJECT.1",
+        "version": 1,
+        "title": "Source must not pass unsanitized request input into a NoSQL query operator/$where/$regex",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::nosql_injection::NoSqlInjectionValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.nosql-injection/bad/vuln.js",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.nosql-injection/good/safe.js"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "nosql-injection", "sast"]
+    },
+    {
+        "ruleId": "CYBER-PROTO-POLLUTION.1",
+        "version": 1,
+        "title": "JavaScript must not write to __proto__/constructor/prototype or deep-merge untrusted input without a key denylist",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::proto_pollution::PrototypePollutionValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.prototype-pollution/bad/vuln.js",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.prototype-pollution/good/safe.js"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "prototype-pollution", "sast"]
+    },
+    {
+        "ruleId": "CYBER-GHA.1",
+        "version": 1,
+        "title": "GitHub Actions workflow must not use write-all perms, unpinned actions, run-step script injection, or pull_request_target with untrusted checkout",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::github_actions::GithubActionsSecurityValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/ci.github-actions/bad/workflow.yml",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/ci.github-actions/good/workflow.yml"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "ci", "github-actions", "supplychain"]
     }
 ]
