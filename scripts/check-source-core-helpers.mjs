@@ -233,11 +233,14 @@ function buildReport({ root, config, checkName, findings, scope = null }) {
 }
 
 function collectPolicyFiles(root, config, policy, scope = { mode: "all" }) {
+  const extensions = new Set(policy.extensions ?? []);
   return collectFiles(
     root,
     scopeEntries(root, scope, config),
     config,
-    (file) => isUnderRoots(normalizeRel(root, file), policy.roots ?? []),
+    (file) =>
+      extensions.has(path.extname(file).toLowerCase()) &&
+      isUnderRoots(normalizeRel(root, file), policy.roots ?? []),
   );
 }
 

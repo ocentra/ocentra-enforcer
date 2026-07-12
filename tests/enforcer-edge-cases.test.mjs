@@ -83,6 +83,41 @@ test("source-shape path and glob overrides relax only matching files", () => {
   assert.match(parsed.violations[0].detail, /exports/u);
 });
 
+test("explicit source scopes still honor ignored build directories", () => {
+  const project = makeProject({
+    "ocentra-enforcer.config.json": JSON.stringify({
+      profileName: "ignore-edge",
+      ignoreDirs: ["dist"],
+      sourceShapePolicies: [
+        {
+          roots: ["apps"],
+          extensions: [".ts"],
+          kind: "typescript",
+          maxExports: 1,
+          maxLines: 10,
+          maxFunctionLines: 20,
+        },
+      ],
+    }),
+    "apps/portal/src/main.ts": "export const ready = true;\n",
+    "apps/portal/dist/bundle.ts":
+      "export const first = true;\nexport const second = true;\n",
+    "apps/portal/public/asset.png":
+      "if (asset) {}\nif (asset) {}\nif (asset) {}\nif (asset) {}\nif (asset) {}\nif (asset) {}\nif (asset) {}\nif (asset) {}\nif (asset) {}\nif (asset) {}\nif (asset) {}\nif (asset) {}\nif (asset) {}\n",
+  });
+
+  const result = run(project, [
+    "check",
+    "source-shape",
+    "--json",
+    "--files",
+    "apps/portal",
+  ]);
+
+  assert.equal(result.status, 0, result.stdout || result.stderr);
+  assert.deepEqual(report(result).violations, []);
+});
+
 test("strict required-tests rejects deepest empty placeholder trees once", () => {
   const project = makeProject({
     "packages/app/package.json": JSON.stringify({ name: "@edge/app" }),
