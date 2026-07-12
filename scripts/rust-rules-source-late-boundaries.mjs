@@ -7,6 +7,7 @@ export function applyBoundaryTransportRules({
   filePath,
   violations,
   isBoundary,
+  isConfigurationBoundary,
 }) {
   for (const match of source.matchAll(/^\s*pub\s+struct\s+(?<name>[A-Z][A-Za-z0-9_]*(?:Dto|DTO|Request|Response|Envelope))\b/gmu)) {
     const name = match.groups?.name ?? "";
@@ -24,7 +25,7 @@ export function applyBoundaryTransportRules({
   for (const match of source.matchAll(/^\s*pub\s+struct\s+(?<name>[A-Z][A-Za-z0-9_]*)\b/gmu)) {
     const name = match.groups?.name ?? "";
     const lineNo = lineNumberAtIndex(source, match.index ?? 0);
-    if (isBoundary && /\b(?:Serialize|Deserialize)\b/u.test(source.slice(Math.max(0, match.index - 200), match.index)) && !/(?:Dto|DTO|Request|Response|Envelope)$/u.test(name)) {
+    if (isBoundary && !isConfigurationBoundary && /\b(?:Serialize|Deserialize)\b/u.test(source.slice(Math.max(0, match.index - 200), match.index)) && !/(?:Dto|DTO|Request|Response|Envelope)$/u.test(name)) {
       addViolation(violations, root, filePath, lineNo, "RR-14.21", `boundary serde struct ${name} lacks DTO/request/response suffix.`, originalLines[lineNo - 1] ?? null);
     }
     if (/\b(?:Config|Input|Options|Settings)\b/u.test(name) && /\bDeserialize\b/u.test(source.slice(Math.max(0, match.index - 200), match.index)) && !/deny_unknown_fields/u.test(source.slice(Math.max(0, match.index - 260), match.index))) {
@@ -33,7 +34,7 @@ export function applyBoundaryTransportRules({
   }
   for (const match of source.matchAll(/(?<attrs>(?:^\s*#\[[^\]]+\]\s*\r?\n)*)^\s*pub\s+enum\s+(?<name>[A-Z][A-Za-z0-9_]*)\b/gmu)) {
     const attrs = match.groups?.attrs ?? "";
-    if (/\b(?:Serialize|Deserialize)\b/u.test(attrs) && !/\bserde\s*\(\s*tag\s*=/u.test(attrs) && !/SERDE-TAG-JUSTIFICATION:/u.test(attrs)) {
+    if (!isConfigurationBoundary && /\b(?:Serialize|Deserialize)\b/u.test(attrs) && !/\bserde\s*\(\s*tag\s*=/u.test(attrs) && !/SERDE-TAG-JUSTIFICATION:/u.test(attrs)) {
       const lineNo = lineNumberAtIndex(source, match.index ?? 0);
       addViolation(violations, root, filePath, lineNo, "RR-14.24", `public serde enum ${match.groups?.name ?? "enum"} lacks tag or justification.`, originalLines[lineNo - 1] ?? null);
     }

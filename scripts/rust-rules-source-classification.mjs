@@ -18,6 +18,10 @@ export function isBoundaryModulePath(rel, config) {
   );
 }
 
+export function isConfigurationBoundaryModulePath(rel) {
+  return /(?:^|\/)[^/]*(?:config|configuration|settings)[^/]*(?:\/|$)/iu.test(rel);
+}
+
 export function isRawStringOwner(rel, config) {
   return matchesAnyGlob(rel, config.rawStringOwnerGlobs);
 }

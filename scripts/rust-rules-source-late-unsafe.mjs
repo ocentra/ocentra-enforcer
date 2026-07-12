@@ -7,7 +7,9 @@ export function applyUnsafeEvidenceRules({
   filePath,
   violations,
 }) {
-  const unsafeLine = originalLines.findIndex((line) => /\bunsafe\b/u.test(line));
+  const unsafeLine = originalLines.findIndex(
+    (line) => !/^\s*(?:\/\/|\/\*|\*)/u.test(line) && /\bunsafe\b/u.test(line),
+  );
   if (unsafeLine >= 0 && !/\bMIRI-PROOF:/u.test(source)) {
     addViolation(violations, root, filePath, unsafeLine + 1, "RR-3.30", "unsafe source lacks MIRI-PROOF evidence.", originalLines[unsafeLine]);
     addViolation(violations, root, filePath, unsafeLine + 1, "RR-12.30", "unsafe module lacks MIRI-PROOF evidence.", originalLines[unsafeLine]);
@@ -23,7 +25,9 @@ export function applyNewtypeConstructorRules({
   root,
   filePath,
   violations,
+  isConfigurationBoundary,
 }) {
+  if (isConfigurationBoundary) return;
   for (const match of source.matchAll(/pub\s+struct\s+(?<name>[A-Z][A-Za-z0-9_]*)\s*\(\s*(?:pub\s+)?(?<inner>String|&\s*str|str|u8|u16|u32|u64|usize|i8|i16|i32|i64|isize|bool)[^)]*\)\s*;/gu)) {
     const typeName = match.groups?.name ?? "";
     if (!new RegExp(`impl\\s+${escapeRegExp(typeName)}[\\s\\S]*?\\b(?:try_new|parse)\\s*\\(`, "u").test(source)) {

@@ -353,13 +353,30 @@ function hasLargeRepeatedBlock(lines) {
 function firstDuplicateFunctionName(lines) {
   const seen = new Map();
   const pattern = /^\s*(?:export\s+|pub\s+)?(?:async\s+)?(?:function|fn|def)\s+([A-Za-z_]\w*)\b/u;
+  let braceDepth = 0;
+  const implDepths = [];
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index] ?? "";
+    const insideRustImpl = implDepths.length > 0;
     const match = line.match(pattern);
-    if (!match) continue;
-    const name = match[1];
-    if (seen.has(name)) return { name, line: index + 1, source: line };
-    seen.set(name, index + 1);
+    if (match && !insideRustImpl) {
+      const name = match[1];
+      if (seen.has(name)) return { name, line: index + 1, source: line };
+      seen.set(name, index + 1);
+    }
+    const lineBraceDelta =
+      (line.match(/\{/gu) ?? []).length - (line.match(/\}/gu) ?? []).length;
+    braceDepth += lineBraceDelta;
+    if (
+      /^\s*impl(?:\s|<)/u.test(line) &&
+      /\{/u.test(line) &&
+      lineBraceDelta > 0
+    ) {
+      implDepths.push(braceDepth);
+    }
+    while (implDepths.length > 0 && braceDepth < implDepths.at(-1)) {
+      implDepths.pop();
+    }
   }
   return null;
 }
