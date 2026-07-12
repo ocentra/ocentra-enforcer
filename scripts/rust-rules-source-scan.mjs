@@ -33,6 +33,7 @@ import {
   isTestFile,
   isRawTypeBoundary,
   isBoundaryModulePath,
+  isConfigurationBoundaryModulePath,
   isRawStringOwner,
   isDomainPrimitiveOwner,
   isRuntimeStringOwner,
@@ -123,6 +124,7 @@ function scanRustFile(root, filePath, config) {
   const isTestSource = isTestFile(rel, config);
   const inlineTestLines = inlineTestLineMask(originalLines);
   const isBoundary = isBoundaryModulePath(rel, config);
+  const isConfigurationBoundary = isConfigurationBoundaryModulePath(rel);
   const isStringOwner = isRawStringOwner(rel, config);
   const isPrimitiveOwner = isDomainPrimitiveOwner(rel, config);
   const enforceRuntimeStrings =
@@ -132,6 +134,7 @@ function scanRustFile(root, filePath, config) {
   const enforceSerializedDomainFields =
     config.enforceSerializedPublicDomainPrimitives &&
     !isTestSource &&
+    !isConfigurationBoundary &&
     !isSerializedDomainOwner(rel, config);
   const fileName = path.basename(filePath);
   const badModuleFileNames = new Set([
@@ -705,6 +708,7 @@ function scanRustFile(root, filePath, config) {
     }
 
     if (
+      !isConfigurationBoundary &&
       /^\s*pub\s+struct\s+[A-Z][A-Za-z0-9_]*\s*\(\s*pub\s+/u.test(line) &&
       (RAW_STRING_TYPE_RE.test(line) || RAW_PRIMITIVE_TYPE_RE.test(line))
     ) {
@@ -912,6 +916,7 @@ function scanRustFile(root, filePath, config) {
       /^\s*pub\s+struct\s+[A-Z][A-Za-z0-9_]*\s*\([^)]*(?:String|str|bool|u8|u16|u32|u64|u128|usize|i8|i16|i32|i64|i128|isize|f32|f64)/u.test(
         line,
       ) &&
+      !isConfigurationBoundary &&
       !contextHas(originalLines, idx, "BRAND-INVARIANT:", 6)
     ) {
       addViolation(
@@ -1246,7 +1251,7 @@ function scanRustFile(root, filePath, config) {
       );
     }
 
-    if (/^\s*#\[serde\([^#\]]*\bdefault\b[^#\]]*\)\]/u.test(line) && !contextHas(originalLines, idx, "DEFAULT-JUSTIFICATION:", 4)) {
+    if (!isConfigurationBoundary && /^\s*#\[serde\([^#\]]*\bdefault\b[^#\]]*\)\]/u.test(line) && !contextHas(originalLines, idx, "DEFAULT-JUSTIFICATION:", 4)) {
       addViolation(
         violations,
         root,
@@ -1258,7 +1263,7 @@ function scanRustFile(root, filePath, config) {
       );
     }
 
-    if (/^\s*#\[serde\([^#\]]*\bflatten\b[^#\]]*\)\]/u.test(line) && !contextHas(originalLines, idx, "FLATTEN-JUSTIFICATION:", 4)) {
+    if (!isConfigurationBoundary && /^\s*#\[serde\([^#\]]*\bflatten\b[^#\]]*\)\]/u.test(line) && !contextHas(originalLines, idx, "FLATTEN-JUSTIFICATION:", 4)) {
       addViolation(
         violations,
         root,
@@ -1520,6 +1525,7 @@ function scanRustFile(root, filePath, config) {
     filePath,
     violations,
     isBoundary,
+    isConfigurationBoundary,
     isStringOwner,
     isPrimitiveOwner,
   });
@@ -1532,6 +1538,7 @@ function scanRustFile(root, filePath, config) {
     filePath,
     violations,
     isBoundary,
+    isConfigurationBoundary,
     isTestSource,
   });
 

@@ -124,6 +124,7 @@ function scanCargoManifest(root, manifest, config, violations) {
   if (
     packageBlock &&
     !/(^|\n)\s*rust-version\s*=\s*"[^"]+"/u.test(packageBlock[1]) &&
+    !/(^|\n)\s*rust-version\.workspace\s*=\s*true\b/u.test(packageBlock[1]) &&
     !/(^|\n)\s*rust-version\s*=\s*"[^"]+"/u.test(
       workspacePackageBlock?.[1] ?? "",
     )
