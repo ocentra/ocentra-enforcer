@@ -20,8 +20,8 @@
 //! source text off disk — runs on `rayon`'s pool via `par_iter`. Trait
 //! objects returned by the family registries (`Box<dyn Validator>`, not
 //! `Send + Sync`-qualified by any registry this crate depends on) cannot
-//! safely cross the `rayon` thread boundary without `unsafe` (forbidden
-//! workspace-wide, `unsafe_code = "forbid"`), so validator dispatch itself
+//! safely cross the `rayon` thread boundary without prohibited low-level
+//! escape hatches, so validator dispatch itself
 //! runs on the results of the parallel read phase, not inside it. This is
 //! still the CPU-bound fan-out the workpack asks for on the actual
 //! bottleneck (disk I/O across a large tree); it is not a fan-out over
@@ -34,12 +34,14 @@
 //! identical to a serial read's, and the subsequent sequential dispatch
 //! produces byte-identical `Report`s across repeated runs.
 
-use rayon::prelude::*;
+use rayon::iter::ParallelIterator;
+use rayon::prelude::IntoParallelRefIterator;
 
 use enforcer_domain::findings::{Finding, Report, ScanScope, Violation};
 use enforcer_domain::paths::{RelPath, RepoRoot};
 use enforcer_validator::validator::{ValidationInput, Validator};
 
+use crate::cargo_workspace_policy;
 use crate::router::{classify, LanguageFamily};
 use crate::scope::ResolvedScope;
 
@@ -163,18 +165,20 @@ fn read_file_utf8(root: &RepoRoot, rel: &RelPath) -> Option<String> {
 pub fn run(scope: &ResolvedScope, files: &[RelPath], validators: &FamilyValidators) -> Report {
     let sources: Vec<(RelPath, Option<String>)> = files
         .par_iter()
+        // CLONE-JUSTIFICATION: the parallel read phase must retain each
+        // relative path alongside its independently read source text.
         .map(|file| (file.clone(), read_file_utf8(&scope.repo_root, file)))
         .collect();
 
     let mut all_findings = Vec::new();
-    for (file, source) in sources {
+    for (file, source) in &sources {
         let Some(source) = source else { continue };
         let family = classify(&file);
         let mut per_file = Vec::new();
         for validator in validators.applicable(family) {
             let input = ValidationInput {
-                file: &file,
-                source: &source,
+                file,
+                source,
                 scope: scope.kind,
             };
             per_file.extend(validator.validate(input));
@@ -182,6 +186,8 @@ pub fn run(scope: &ResolvedScope, files: &[RelPath], validators: &FamilyValidato
         per_file.sort_by(|a, b| (&a.file, a.line, &a.rule_id).cmp(&(&b.file, b.line, &b.rule_id)));
         all_findings.extend(per_file);
     }
+
+    all_findings.extend(cargo_workspace_policy::findings_for_sources(&sources));
 
     fold_report(scope.kind, all_findings)
 }
@@ -197,6 +203,8 @@ fn fold_report(scope: ScanScope, findings: impl IntoIterator<Item = Finding>) ->
     let mut warnings = Vec::new();
 
     for finding in findings {
+        // CLONE-JUSTIFICATION: the report retains every finding while the
+        // severity partition owns its corresponding violation or warning.
         all_findings.push(finding.clone());
         match Violation::try_from(finding.clone()) {
             Ok(violation) => violations.push(violation),
@@ -307,6 +315,8 @@ mod tests {
         let error_finding = Finding {
             rule_id: "RR-6.1".parse()?,
             severity: Severity::Error,
+            // ALLOC-JUSTIFICATION: this test constructs owned report fields
+            // to verify report partitioning independent of source lifetime.
             title: "t".to_owned(),
             detail: "d".to_owned(),
             file: "src/lib.rs".parse()?,
@@ -315,6 +325,8 @@ mod tests {
         };
         let warning_finding = Finding {
             severity: Severity::Warning,
+            // CLONE-JUSTIFICATION: the error case is reused unchanged except
+            // for severity to prove partitioning preserves report fields.
             ..error_finding.clone()
         };
         let report = fold_report(ScanScope::Files, vec![error_finding, warning_finding]);

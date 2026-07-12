@@ -12,6 +12,7 @@
   "rawTypeBoundaryGlobs": [
     "crates/enforcer-cli/src/**",
     "crates/enforcer-cli/tests/**",
+    "crates/enforcer-scan/src/**",
     "crates/enforcer-scan/tests/**",
     "crates/enforcer-memory/src/languages/**",
     "crates/enforcer-memory/src/code_graph.rs",
@@ -26,7 +27,7 @@
     "crates/enforcer-install/src/adapters/**",
     "crates/enforcer-harness/src/**"
   ],
-  "boundaryOwnerNote": "The domain crate owns serialized primitives; CLI, tests, language analysis, model integrations, UI, install adapters, and tool harnesses own transport and parser primitives.",
+  "boundaryOwnerNote": "The domain crate owns serialized primitives; CLI, scan orchestration, tests, language analysis, model integrations, UI, install adapters, and tool harnesses own transport and parser primitives.",
   "requireCargoDeny": false,
   "requireCargoAudit": false,
   "runCargoDoc": false,
