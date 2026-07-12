@@ -9,7 +9,9 @@
 //! Windows-first path/time/env helpers. Also owns the d05 context-budget
 //! ratchet primitive ([`context_budget`]) — a generic measured-surface vs.
 //! committed-baseline gate with no knowledge of what surface is measured
-//! (`enforcer-mcp::tool_surface` is its one caller today).
+//! (`enforcer-mcp::tool_surface` is its one caller today) — and the f04
+//! [`run_context`] silent-vs-human `RunContext` resolution point + UI/server
+//! gate.
 //!
 //! VENDORING ATTRIBUTION (arc-01 / EXECUTION_MODEL §2) — RECONCILED
 //! 2026-07-05: the `redaction`, `ndjson_writer`, `hash_chain`, and
@@ -45,5 +47,6 @@ pub mod hash_chain;
 pub mod ndjson_writer;
 pub mod platform;
 pub mod redaction;
+pub mod run_context;
 pub mod telemetry;
 pub mod tracing_setup;
