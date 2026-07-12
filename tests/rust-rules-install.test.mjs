@@ -627,3 +627,23 @@ reqwest = { version = "0.12", default-features = false, optional = true }
     result.stdout,
   );
 });
+
+test('erased test-harness errors are not treated as application-domain errors', () => {
+  const project = makeProject({
+    'rust-rules.config.json': JSON.stringify({
+      requireCargoDeny: false,
+      rustRoots: ['src', 'tests'],
+    }),
+    'src/lib.rs': `
+pub fn production() -> Result<(), Box<dyn std::error::Error>> { Ok(()) }
+`,
+    'tests/integration.rs': `
+fn fixture() -> Result<(), Box<dyn std::error::Error>> { Ok(()) }
+`,
+  });
+  const result = runGateArgs(project, ['scan', '--json', '--files', 'src/lib.rs', 'tests/integration.rs']);
+  const report = JSON.parse(result.stdout);
+  const erasedErrors = report.violations.filter((violation) => violation.ruleId === 'RR-4.4');
+  assert.equal(erasedErrors.length, 1, result.stdout);
+  assert.equal(erasedErrors[0].file, 'src/lib.rs');
+});
