@@ -2,6 +2,7 @@
 name = "enforcer-lang-iac"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Per-family Validator implementations for the infrastructure-as-code rule family (IAC-1.1..8): Terraform, CloudFormation, and Kubernetes-manifest config-shape checks. Built on enforcer-validator's Validator trait and run_fixture_parity harness."
@@ -10,8 +11,12 @@ publish = false
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: IaC validators produce the shared typed findings and
+# rule/severity values consumed by the routed scan report.
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: This crate implements the shared validator trait for
+# Terraform, CloudFormation, and Kubernetes fixture parity.
 enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 
 [lints]
