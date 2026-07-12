@@ -2,6 +2,7 @@
 name = "enforcer-lang-k8s"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "arc-12: the per-family Validator crate for Kubernetes manifests (K8S-1..K8S-4): pod security-context, RBAC, resource-limit, and host-namespace/network shapes. Built on enforcer-validator's Validator trait + run_fixture_parity harness, reusing enforcer-lang-common's shared generic-scanner PatternValidator engine (arc-09) rather than duplicating it."
@@ -10,8 +11,12 @@ publish = false
 [dependencies]
 serde = { workspace = true }
 serde_json = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: Kubernetes family validators share the core
+# finding/error contracts and the domain rule/severity vocabulary.
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: this crate implements the validator interface and
+# reuses the common pattern engine for deterministic fixture parity.
 enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 enforcer-lang-common = { path = "../enforcer-lang-common", version = "0.1.0" }
 

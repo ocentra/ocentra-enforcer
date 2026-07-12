@@ -6,7 +6,9 @@
 //! `language == "k8s"` rows yet (arc-12 introduces the family).
 
 use enforcer_core::error::DecodeError;
+use enforcer_domain::ids::RuleId;
 use enforcer_validator::validator::Validator;
+use std::fmt;
 
 use super::spec::SPECS;
 
@@ -14,9 +16,19 @@ use super::spec::SPECS;
 /// paired with the constructed [`Validator`] trait object.
 pub struct RegistryRow {
     /// The rule id this row proves, e.g. `K8S-1.1`.
-    pub rule_id: &'static str,
+    pub rule_id: RuleId,
     /// The constructed validator for this rule.
     pub validator: Box<dyn Validator>,
+}
+
+impl fmt::Debug for RegistryRow {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("RegistryRow")
+            .field("rule_id", &self.rule_id)
+            .field("validator", &"<validator>")
+            .finish()
+    }
 }
 
 /// Build every K8S-family row. Fails closed (propagates the first
@@ -24,9 +36,12 @@ pub struct RegistryRow {
 pub fn build_all() -> Result<Vec<RegistryRow>, DecodeError> {
     let mut rows = Vec::with_capacity(SPECS.len());
     for spec in SPECS {
+        let validator = spec.build()?;
         rows.push(RegistryRow {
-            rule_id: spec.rule_id,
-            validator: Box::new(spec.build()?),
+            // CLONE-JUSTIFICATION: the registry exposes a stable owned ID
+            // while the validator must retain its own ID for findings.
+            rule_id: validator.rule_id().clone(),
+            validator: Box::new(validator),
         });
     }
     Ok(rows)

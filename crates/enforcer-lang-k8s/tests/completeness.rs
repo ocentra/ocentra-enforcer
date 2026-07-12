@@ -9,13 +9,17 @@
 
 use std::collections::BTreeSet;
 
+use enforcer_domain::ids::RuleId;
 use enforcer_lang_k8s::rules::registry::build_all;
 use enforcer_lang_k8s::rules::spec::SPECS;
 
 #[test]
 fn registry_covers_every_k8s_spec_with_no_orphans_and_no_duplicates(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let spec_ids: BTreeSet<&str> = SPECS.iter().map(|spec| spec.rule_id).collect();
+    let spec_ids: BTreeSet<RuleId> = SPECS
+        .iter()
+        .map(|spec| spec.rule_id())
+        .collect::<Result<_, _>>()?;
     assert_eq!(
         spec_ids.len(),
         10,
@@ -27,13 +31,13 @@ fn registry_covers_every_k8s_spec_with_no_orphans_and_no_duplicates(
     let mut seen = BTreeSet::new();
     for row in &rows {
         assert!(
-            seen.insert(row.rule_id),
+            seen.insert(row.rule_id.clone()),
             "duplicate registry row for rule id `{}`",
             row.rule_id
         );
     }
 
-    let registry_ids: BTreeSet<&str> = rows.iter().map(|row| row.rule_id).collect();
+    let registry_ids: BTreeSet<RuleId> = rows.iter().map(|row| row.rule_id.clone()).collect();
 
     let orphan_spec_ids: Vec<_> = spec_ids.difference(&registry_ids).collect();
     assert!(
