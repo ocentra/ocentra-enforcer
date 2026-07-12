@@ -15,7 +15,7 @@ serde_json = { workspace = true }
 rayon = { workspace = true }
 sha2 = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: TypeScript declarations mirror scan-facing typed records at the UI boundary.
-ts-rs = "10.1.0"
+ts-rs = { workspace = true }
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 enforcer-config = { path = "../enforcer-config", version = "0.1.0" }

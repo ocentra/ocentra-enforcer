@@ -30,10 +30,7 @@ enforcer-rules = { path = "../enforcer-rules", version = "0.1.0" }
 # `enforcer_coordination::ledger::active_claims`) -- never raw ledger-file
 # parsing of its own.
 enforcer-coordination = { path = "../enforcer-coordination", version = "0.1.0" }
-# ts-rs is not in [workspace.dependencies] (a01-owned root manifest);
-# declared here directly, same rationale as enforcer-domain's own
-# unclaimed-root-edit avoidance note.
-ts-rs = "10"
+ts-rs = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"
