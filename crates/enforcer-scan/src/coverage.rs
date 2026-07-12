@@ -16,7 +16,7 @@ use crate::outcome::{Outcome, SkipReason};
 use enforcer_domain::paths::RelPath;
 
 /// One target's recorded outcome, keyed by the repo-relative path it
-/// applies to. This is the unit [`Coverage::from_outcomes`] folds.
+/// applies to. This is the unit [`CoverageDto::from_outcomes`] folds.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TargetOutcome {
     /// The file/target this outcome describes.
@@ -25,15 +25,58 @@ pub struct TargetOutcome {
     pub outcome: Outcome,
 }
 
+/// One skip in the scan-domain accounting model. This is deliberately
+/// separate from [`SkipRecordDto`], the serialized report boundary shape.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SkipRecord {
+    /// The file/target that was skipped.
+    pub file: RelPath,
+    /// Why the scan could not run this target.
+    pub reason: SkipReason,
+}
+
 /// One skip, surfaced in a report so a partial (or hollow) scan is
 /// visible rather than silently absorbed into an empty findings list.
+/// ROUNDTRIP-TEST: `coverage_roundtrip_through_json` proves this wire shape
+/// survives serialization and conversion back into scan-domain coverage.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
-pub struct SkipRecord {
+pub struct SkipRecordDto {
     /// The file/target that was skipped.
     pub file: RelPath,
     /// Why. Never empty — see [`crate::outcome::SkipReason`].
     pub reason: SkipReason,
+}
+
+impl SkipRecord {
+    /// Convert scan-domain skip accounting into its report wire DTO.
+    pub fn into_dto(self) -> SkipRecordDto {
+        SkipRecordDto {
+            file: self.file,
+            reason: self.reason,
+        }
+    }
+}
+
+impl SkipRecordDto {
+    /// Convert an already-deserialized report DTO into scan-domain accounting.
+    pub fn into_domain(self) -> SkipRecord {
+        SkipRecord {
+            file: self.file,
+            reason: self.reason,
+        }
+    }
+}
+
+/// Aggregated ran/skipped accounting used by the scan domain.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Coverage {
+    /// Number of targets that ran at least the dispatch.
+    pub ran_count: usize,
+    /// Number of targets skipped with an explicit reason.
+    pub skipped_count: usize,
+    /// Domain skip records retained for coverage enforcement.
+    pub skips: Vec<SkipRecord>,
 }
 
 /// Aggregated ran/skipped accounting for one scan run.
@@ -41,9 +84,11 @@ pub struct SkipRecord {
 /// Construct via [`Coverage::from_outcomes`]; the two counters and the
 /// skip list are always internally consistent with the outcomes folded
 /// in (no field is independently mutable after construction).
+/// ROUNDTRIP-TEST: `coverage_roundtrip_through_json` proves this wire shape
+/// converts back to the exact scan-domain coverage accounting.
 #[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
-pub struct Coverage {
+pub struct CoverageDto {
     /// Number of targets that actually ran at least the dispatch (i.e.
     /// produced `Outcome::Ran`).
     pub ran_count: usize,
@@ -52,7 +97,29 @@ pub struct Coverage {
     /// The skip records themselves (file + non-empty reason), so a
     /// hollow or partial scan is visible in the serialized report, not
     /// just a bare count.
-    pub skips: Vec<SkipRecord>,
+    pub skips: Vec<SkipRecordDto>,
+}
+
+impl Coverage {
+    /// Convert scan-domain coverage into its serialized report DTO.
+    pub fn into_dto(self) -> CoverageDto {
+        CoverageDto {
+            ran_count: self.ran_count,
+            skipped_count: self.skipped_count,
+            skips: self.skips.into_iter().map(SkipRecord::into_dto).collect(),
+        }
+    }
+}
+
+impl CoverageDto {
+    /// Convert a report DTO into scan-domain coverage accounting.
+    pub fn into_domain(self) -> Coverage {
+        Coverage {
+            ran_count: self.ran_count,
+            skipped_count: self.skipped_count,
+            skips: self.skips.into_iter().map(SkipRecordDto::into_domain).collect(),
+        }
+    }
 }
 
 impl Coverage {
@@ -75,7 +142,7 @@ impl Coverage {
     /// handed to the engine must appear in this total exactly once — a
     /// target that is neither ran nor skipped is the silent-skip bug
     /// this module exists to prevent, and by construction cannot arise
-    /// from [`Coverage::from_outcomes`] since every [`Outcome`] variant
+    /// from [`CoverageDto::from_outcomes`] since every [`Outcome`] variant
     /// is folded into one counter or the other.
     pub fn total(&self) -> usize {
         self.ran_count + self.skipped_count
@@ -107,7 +174,7 @@ impl Coverage {
 
 #[cfg(test)]
 mod tests {
-    use super::{Coverage, TargetOutcome};
+    use super::{Coverage, CoverageDto, TargetOutcome};
     use crate::outcome::Outcome;
     use enforcer_domain::paths::RelPath;
 
@@ -122,7 +189,14 @@ mod tests {
     fn empty_outcomes_yield_zero_and_fail_gate() {
         let coverage = Coverage::from_outcomes(std::iter::empty());
         assert_eq!(coverage.total(), 0);
-        assert!(coverage.require_nonzero_ran().is_err());
+        let error = coverage
+            .require_nonzero_ran()
+            .expect_err("an empty scan must fail the anti-silent-skip gate");
+        assert_eq!(error.path, "coverage.ran_count");
+        assert_eq!(
+            error.reason,
+            "scan ran zero checks (skipped 0) — a scan that checks nothing is not a clean pass; this is a hard failure (anti-silent-skip)"
+        );
     }
 
     #[test]
@@ -135,9 +209,13 @@ mod tests {
         assert_eq!(coverage.ran_count, 0);
         assert_eq!(coverage.skipped_count, 2);
         assert_eq!(coverage.total(), 2);
-        assert!(
-            coverage.require_nonzero_ran().is_err(),
-            "all-skipped scan must hard-fail: this is the hollow self-scan"
+        let error = coverage
+            .require_nonzero_ran()
+            .expect_err("all-skipped scan must hard-fail: this is the hollow self-scan");
+        assert_eq!(error.path, "coverage.ran_count");
+        assert_eq!(
+            error.reason,
+            "scan ran zero checks (skipped 2) — a scan that checks nothing is not a clean pass; this is a hard failure (anti-silent-skip)"
         );
         Ok(())
     }
@@ -152,7 +230,7 @@ mod tests {
         let coverage = Coverage::from_outcomes(outcomes);
         assert_eq!(coverage.ran_count, 1);
         assert_eq!(coverage.skipped_count, 1);
-        assert!(coverage.require_nonzero_ran().is_ok());
+        coverage.require_nonzero_ran()?;
         assert_eq!(coverage.skips.len(), 1);
         assert_eq!(coverage.skips[0].reason.as_str(), "unmatched extension");
         Ok(())
@@ -167,8 +245,8 @@ mod tests {
         let coverage = Coverage::from_outcomes(outcomes);
         assert_eq!(coverage.ran_count, 2);
         assert_eq!(coverage.skipped_count, 0);
-        assert!(coverage.require_nonzero_ran().is_ok());
-        assert!(coverage.skips.is_empty());
+        coverage.require_nonzero_ran()?;
+        assert_eq!(coverage.skips, Vec::new());
         Ok(())
     }
 
@@ -176,23 +254,23 @@ mod tests {
     fn coverage_wire_form_is_camel_case() -> Result<(), Box<dyn std::error::Error>> {
         let outcomes = vec![target("src/a.rs", Outcome::skipped("empty selection")?)?];
         let coverage = Coverage::from_outcomes(outcomes);
-        let wire = serde_json::to_value(&coverage)?;
-        assert!(wire.get("ranCount").is_some());
-        assert!(wire.get("skippedCount").is_some());
-        assert!(wire.get("ran_count").is_none());
+        let wire = serde_json::to_value(coverage.into_dto())?;
+        assert_eq!(wire["ranCount"], 0);
+        assert_eq!(wire["skippedCount"], 1);
+        assert_eq!(wire.get("ran_count"), None);
         Ok(())
     }
 
     #[test]
-    fn coverage_round_trips_through_json() -> Result<(), Box<dyn std::error::Error>> {
+    fn coverage_roundtrip_through_json() -> Result<(), Box<dyn std::error::Error>> {
         let outcomes = vec![
             target("src/a.rs", Outcome::ran(2))?,
             target("src/b.rs", Outcome::skipped("missing tool")?)?,
         ];
         let coverage = Coverage::from_outcomes(outcomes);
-        let wire = serde_json::to_string(&coverage)?;
-        let back: Coverage = serde_json::from_str(&wire)?;
-        assert_eq!(back, coverage);
+        let wire = serde_json::to_string(&coverage.clone().into_dto())?;
+        let back: CoverageDto = serde_json::from_str(&wire)?;
+        assert_eq!(back.into_domain(), coverage);
         Ok(())
     }
 }

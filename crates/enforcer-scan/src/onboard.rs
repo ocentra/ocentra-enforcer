@@ -32,7 +32,7 @@
 //!   "capture", not the "check", step; d02's own gate is what ratchets it
 //!   down/up on later runs).
 //! - [`REGISTRATION_FILE`] (`.enforce/project.json`): a small,
-//!   deterministic [`ProjectRegistration`] identifying the project by
+//!   deterministic [`ProjectRegistrationDto`] identifying the project by
 //!   [`project_id`], so later commands can confirm a repo is known. This
 //!   module only ever serializes the registration; the decode side belongs
 //!   to consumer boundary modules (per the "deserialize at the boundary"
@@ -80,7 +80,7 @@ pub const PROJECT_CONFIG_FILE: &str = "config";
 pub const BASELINE_FILE: &str = "baseline.json";
 /// The project registration file name under `.enforce/`.
 pub const REGISTRATION_FILE: &str = "project.json";
-/// Schema version of [`ProjectRegistration`]'s on-disk wire form.
+/// Schema version of [`ProjectRegistrationDto`]'s on-disk wire form.
 pub const REGISTRATION_VERSION: u32 = 1;
 
 /// Derive the deterministic project id for `repo_root`: the SHA-256 digest
@@ -103,7 +103,7 @@ pub fn project_id(repo_root: &RepoRoot) -> Sha256 {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 #[doc = "Registration record; see the serialization note above."]
-pub struct ProjectRegistration {
+pub struct ProjectRegistrationDto {
     /// Schema version; see [`REGISTRATION_VERSION`].
     // BRAND-INVARIANT: a plain schema-version counter, always minted from
     // `REGISTRATION_VERSION` by `register_project` (the only constructor
@@ -268,7 +268,7 @@ fn register_project(
     repo_root: &RepoRoot,
     registration_path: &Path,
 ) -> Result<Sha256, OnboardError> {
-    let registration = ProjectRegistration {
+    let registration = ProjectRegistrationDto {
         version: REGISTRATION_VERSION,
         project_id: project_id(repo_root),
         // CLONE-JUSTIFICATION: the registration record owns its branded

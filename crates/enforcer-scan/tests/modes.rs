@@ -270,3 +270,22 @@ fn each_named_mode_resolves_to_its_expected_scope_and_tier_shape(
 
     Ok(())
 }
+
+#[test]
+fn scan_mode_and_request_round_trip_through_the_external_wire_contract(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mode = ScanMode::Quick;
+    let mode_wire = serde_json::to_string(&mode)?;
+    assert_eq!(mode_wire, r#"{"kind":"quick"}"#);
+    assert_eq!(serde_json::from_str::<ScanMode>(&mode_wire)?, mode);
+
+    let request = ScanRequest {
+        mode: ScanMode::Scoped,
+        scope: Some("crates/enforcer-scan".to_owned()),
+        base: None,
+        head: None,
+    };
+    let request_wire = serde_json::to_string(&request)?;
+    assert_eq!(serde_json::from_str::<ScanRequest>(&request_wire)?, request);
+    Ok(())
+}

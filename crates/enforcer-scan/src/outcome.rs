@@ -19,9 +19,22 @@ use enforcer_core::error::DecodeError;
 /// in a report (which would be indistinguishable from a silent skip).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, ts_rs::TS)]
 #[serde(try_from = "String", into = "String")]
+/// BRAND-INVARIANT: the inner text is trimmed-checked non-empty, so every
+/// skipped outcome carries an actionable reason rather than a silent blank.
 pub struct SkipReason(String);
 
 impl SkipReason {
+    /// Construct a non-empty skip reason at the boundary.
+    pub fn try_new(value: String) -> Result<Self, DecodeError> {
+        if value.trim().is_empty() {
+            return Err(DecodeError::new(
+                "skip_reason",
+                "a skip reason must not be empty - a skip with no reason is a silent skip",
+            ));
+        }
+        Ok(Self(value))
+    }
+
     /// Borrow the reason text.
     pub fn as_str(&self) -> &str {
         &self.0
@@ -32,14 +45,7 @@ impl TryFrom<String> for SkipReason {
     type Error = DecodeError;
 
     fn try_from(value: String) -> Result<Self, DecodeError> {
-        if value.trim().is_empty() {
-            Err(DecodeError::new(
-                "skip_reason",
-                "a skip reason must not be empty — a skip with no reason is a silent skip",
-            ))
-        } else {
-            Ok(Self(value))
-        }
+        Self::try_new(value)
     }
 }
 
@@ -69,11 +75,7 @@ impl std::fmt::Display for SkipReason {
 /// resolve to exactly one of these — there is no code path that drops a
 /// target without recording either `Ran` or `Skipped`.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ts_rs::TS)]
-#[serde(
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase",
-    tag = "kind"
-)]
+#[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum Outcome {
     /// The target was dispatched to at least a router decision and
     /// validators actually ran against it (`validator_count` may be zero

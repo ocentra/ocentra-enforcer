@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 /// classifier): this enum is f05's own, richer detection surface, driven by
 /// the full arc-13 ~65-language registry plus manifest sniffing, not just a
 /// 6-way extension match.
+#[doc = "SERDE-TAG-JUSTIFICATION: detected languages are closed camelCase tokens carried in `RoutePlanDto.languages`; adding a tag would change that stable array contract without adding discrimination beyond the enum value itself."]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum DetectedLanguage {

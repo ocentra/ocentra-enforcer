@@ -6,10 +6,10 @@
 //! violation.
 //!
 //! d02 builds three layers on top of arc-15's in-memory
-//! [`ratchet`]/[`Baseline`]/[`BaselineKey`] core (which stays exactly as
+//! [`ratchet`]/[`Baseline`]/[`BaselineLocation`] core (which stays exactly as
 //! arc-15 landed it — see the skeleton note preserved on those items):
 //!
-//! - [`BaselineRecord`]: the versioned `serde` wire form of a [`Baseline`],
+//! - [`BaselineRecordDto`]: the versioned `serde` wire form of a [`Baseline`],
 //!   carrying a [`Sha256`] integrity hash over its own entry payload so a
 //!   hand-edited or corrupted baseline file is detected rather than
 //!   silently trusted.
@@ -36,7 +36,7 @@ use enforcer_domain::ids::RuleId;
 use enforcer_domain::paths::RelPath;
 use enforcer_domain::severity::Severity;
 
-/// Schema version of [`BaselineRecord`]'s on-disk wire form. Bump on any
+/// Schema version of [`BaselineRecordDto`]'s on-disk wire form. Bump on any
 /// breaking change to the record shape so an old baseline file fails to
 /// load loudly instead of silently misinterpreting.
 pub const BASELINE_RECORD_VERSION: u32 = 1;
@@ -46,7 +46,7 @@ pub const BASELINE_RECORD_VERSION: u32 = 1;
 /// message/detail text — a rule's wording changing should not invalidate
 /// the baseline entry for the same occurrence.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct BaselineKey {
+pub struct BaselineLocation {
     /// The rule that fired.
     pub rule_id: RuleId,
     /// The file the violation was recorded against.
@@ -55,7 +55,7 @@ pub struct BaselineKey {
     pub line: u32,
 }
 
-impl BaselineKey {
+impl BaselineLocation {
     /// Derive the baseline key for a violation.
     pub fn for_violation(violation: &Violation) -> Self {
         let finding = violation.finding();
@@ -67,20 +67,24 @@ impl BaselineKey {
     }
 }
 
+/// Backwards-compatible name for the internal baseline-location value.
+#[deprecated(note = "use BaselineLocation")]
+pub type BaselineKey = BaselineLocation;
+
 /// A recorded baseline: the set of violation occurrences accepted as
 /// "already known" as of the last ratchet. Ordered (`BTreeSet`) so two
 /// baselines with the same members always compare/serialize identically —
 /// this is part of the idempotency contract the parent crate leans on.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Baseline {
-    known: BTreeSet<BaselineKey>,
+    known: BTreeSet<BaselineLocation>,
 }
 
 impl Baseline {
     /// Build a baseline from an explicit set of known keys (e.g. loaded
     /// from a recorded baseline file — the load/persist boundary is a
     /// separate concern this module does not own).
-    pub fn from_known(known: impl IntoIterator<Item = BaselineKey>) -> Self {
+    pub fn from_known(known: impl IntoIterator<Item = BaselineLocation>) -> Self {
         Self {
             known: known.into_iter().collect(),
         }
@@ -133,10 +137,10 @@ impl RatchetOutcome {
 /// justify.
 pub fn ratchet(prior: &Baseline, current_violations: &[Violation]) -> RatchetOutcome {
     let mut new_violations = Vec::new();
-    let mut still_present: BTreeSet<BaselineKey> = BTreeSet::new();
+    let mut still_present: BTreeSet<BaselineLocation> = BTreeSet::new();
 
     for violation in current_violations {
-        let key = BaselineKey::for_violation(violation);
+        let key = BaselineLocation::for_violation(violation);
         if prior.known.contains(&key) {
             still_present.insert(key);
         } else {
@@ -154,12 +158,14 @@ pub fn ratchet(prior: &Baseline, current_violations: &[Violation]) -> RatchetOut
 }
 
 /// One entry in the persisted baseline record's wire form. Mirrors
-/// [`BaselineKey`] field-for-field, but as an explicit `serde` DTO —
-/// [`BaselineKey`] itself stays internal/unserialized so the in-memory
+/// [`BaselineLocation`] field-for-field, but as an explicit `serde` DTO —
+/// [`BaselineLocation`] itself stays internal/unserialized so the in-memory
 /// core (arc-15's contract) is not coupled to the wire shape.
+/// ROUNDTRIP-TEST: `tests/baseline_ratchet.rs::clean_baseline_write_round_trips_via_persisted_record`
+/// proves the persisted DTO survives a write/load cycle.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BaselineEntry {
+pub struct BaselineEntryDto {
     /// The rule that fired.
     pub rule_id: RuleId,
     /// The file the violation was recorded against.
@@ -168,8 +174,8 @@ pub struct BaselineEntry {
     pub line: u32,
 }
 
-impl From<&BaselineKey> for BaselineEntry {
-    fn from(key: &BaselineKey) -> Self {
+impl From<&BaselineLocation> for BaselineEntryDto {
+    fn from(key: &BaselineLocation) -> Self {
         Self {
             rule_id: key.rule_id.clone(),
             file: key.file.clone(),
@@ -178,8 +184,10 @@ impl From<&BaselineKey> for BaselineEntry {
     }
 }
 
-impl From<BaselineEntry> for BaselineKey {
-    fn from(entry: BaselineEntry) -> Self {
+/// NEGATIVE-CONVERSION-TEST: `tests/baseline_ratchet.rs::tampered_baseline_file_fails_to_load`
+/// rejects an invalid persisted DTO before it can become a [`BaselineLocation`].
+impl From<BaselineEntryDto> for BaselineLocation {
+    fn from(entry: BaselineEntryDto) -> Self {
         Self {
             rule_id: entry.rule_id,
             file: entry.file,
@@ -192,25 +200,31 @@ impl From<BaselineEntry> for BaselineKey {
 /// what `enforcer check --baseline write` persists to the baseline file
 /// and what a `--baseline` run loads back.
 ///
-/// Entries are stored sorted ([`BaselineEntry`]'s derived `Ord`) so two
+/// Entries are stored sorted ([`BaselineEntryDto`]'s derived `Ord`) so two
 /// baselines with the same members always serialize byte-identically —
 /// same idempotency contract [`Baseline`] itself upholds via `BTreeSet`.
+/// ROUNDTRIP-TEST: `tests/baseline_ratchet.rs::clean_baseline_write_round_trips_via_persisted_record`
+/// verifies the full versioned record survives persistence and reload.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BaselineRecord {
+pub struct BaselineRecordDto {
     /// Schema version; see [`BASELINE_RECORD_VERSION`].
     pub version: u32,
     /// The recorded occurrences, sorted for deterministic serialization.
-    pub entries: Vec<BaselineEntry>,
+    pub entries: Vec<BaselineEntryDto>,
     /// Integrity digest over `entries`' canonical JSON payload. Computed
-    /// by [`BaselineRecord::compute_hash`]; verified on [`load_baseline`].
+    /// by [`BaselineRecordDto::compute_hash`]; verified on [`load_baseline`].
     pub integrity: Sha256,
 }
 
-impl BaselineRecord {
+/// Backwards-compatible name for the persisted baseline wire DTO.
+#[deprecated(note = "use BaselineRecordDto")]
+pub type BaselineRecord = BaselineRecordDto;
+
+impl BaselineRecordDto {
     /// Build a record from a [`Baseline`], computing its integrity hash.
     pub fn from_baseline(baseline: &Baseline) -> CoreResult<Self> {
-        let entries: Vec<BaselineEntry> = baseline.known.iter().map(BaselineEntry::from).collect();
+        let entries: Vec<BaselineEntryDto> = baseline.known.iter().map(BaselineEntryDto::from).collect();
         let integrity = Self::compute_hash(&entries)?;
         Ok(Self {
             version: BASELINE_RECORD_VERSION,
@@ -221,7 +235,7 @@ impl BaselineRecord {
 
     /// Recover the in-memory [`Baseline`] this record describes.
     pub fn to_baseline(&self) -> Baseline {
-        Baseline::from_known(self.entries.iter().cloned().map(BaselineKey::from))
+        Baseline::from_known(self.entries.iter().cloned().map(BaselineLocation::from))
     }
 
     /// Verify `integrity` matches a freshly recomputed hash over `entries`.
@@ -240,7 +254,7 @@ impl BaselineRecord {
     /// Digest the canonical JSON payload of `entries` into a branded
     /// [`Sha256`]. Entries are sorted first so key order in the caller's
     /// collection never changes the digest.
-    fn compute_hash(entries: &[BaselineEntry]) -> CoreResult<Sha256> {
+    fn compute_hash(entries: &[BaselineEntryDto]) -> CoreResult<Sha256> {
         let mut sorted = entries.to_vec();
         sorted.sort();
         let payload = serde_json::to_vec(&sorted)?;
@@ -249,11 +263,11 @@ impl BaselineRecord {
     }
 }
 
-/// Write `baseline` to `path` as a [`BaselineRecord`] (pretty JSON, one
+/// Write `baseline` to `path` as a [`BaselineRecordDto`] (pretty JSON, one
 /// record per file — this is a snapshot, not an append log). This is the
 /// `enforcer check --baseline write` persistence step.
 pub fn write_baseline(path: &Path, baseline: &Baseline) -> CoreResult<()> {
-    let record = BaselineRecord::from_baseline(baseline)?;
+    let record = BaselineRecordDto::from_baseline(baseline)?;
     if let Some(parent) = path.parent() {
         if !parent.as_os_str().is_empty() {
             std::fs::create_dir_all(parent)?;
@@ -270,7 +284,7 @@ pub fn write_baseline(path: &Path, baseline: &Baseline) -> CoreResult<()> {
 /// baseline must be written explicitly via [`write_baseline`]).
 pub fn load_baseline(path: &Path) -> CoreResult<Baseline> {
     let payload = std::fs::read(path)?;
-    let record: BaselineRecord = serde_json::from_slice(&payload)?;
+    let record: BaselineRecordDto = serde_json::from_slice(&payload)?;
     record.verify()?;
     Ok(record.to_baseline())
 }
@@ -287,7 +301,7 @@ pub struct BaselineGateOutcome {
     /// longer `error`).
     pub warnings: Vec<Finding>,
     /// The ratcheted baseline to persist for the next run (see
-    /// [`ratchet`]'s contract: shrinks on fixes, grows only to cover the
+    /// [`ratchet`]'s contract: shrinks on remediated findings, grows only to cover the
     /// violations just classified into `errors`).
     pub ratcheted_baseline: Baseline,
 }
@@ -303,7 +317,7 @@ impl BaselineGateOutcome {
 /// `enforcer-scan`'s baseline-ratchet gate: the `Report`-level mode a
 /// `--baseline` run invokes. Classifies each of `current_violations`
 /// against `prior`: in-baseline -> demoted to warning; not-in-baseline
-/// (new OR — because [`BaselineKey`] does not carry a count, tracked at
+/// (new OR — because [`BaselineLocation`] does not carry a count, tracked at
 /// the per-occurrence-line granularity the workpack's location
 /// normalization calls for — grown past what the baseline recorded) ->
 /// stays a blocking error. Delegates the set-diff itself to [`ratchet`]
@@ -319,17 +333,17 @@ impl BaselineRatchetValidator {
     /// closed on every current violation, as it must).
     pub fn gate(prior: &Baseline, current_violations: &[Violation]) -> BaselineGateOutcome {
         let outcome = ratchet(prior, current_violations);
-        let new_keys: BTreeSet<BaselineKey> = outcome
+        let new_locations: BTreeSet<BaselineLocation> = outcome
             .new_violations
             .iter()
-            .map(BaselineKey::for_violation)
+            .map(BaselineLocation::for_violation)
             .collect();
 
         let mut errors = Vec::new();
         let mut warnings = Vec::new();
         for violation in current_violations {
-            let key = BaselineKey::for_violation(violation);
-            if new_keys.contains(&key) {
+            let key = BaselineLocation::for_violation(violation);
+            if new_locations.contains(&key) {
                 errors.push(violation.clone());
             } else {
                 let mut demoted = violation.finding().clone();
@@ -348,7 +362,7 @@ impl BaselineRatchetValidator {
 
 #[cfg(test)]
 mod tests {
-    use super::{ratchet, Baseline, BaselineKey};
+    use super::{ratchet, Baseline, BaselineLocation};
     use enforcer_domain::findings::{Finding, Violation};
     use enforcer_domain::severity::Severity;
 
@@ -373,8 +387,8 @@ mod tests {
         rule_id: &str,
         file: &str,
         line: u32,
-    ) -> Result<BaselineKey, Box<dyn std::error::Error>> {
-        Ok(BaselineKey {
+    ) -> Result<BaselineLocation, Box<dyn std::error::Error>> {
+        Ok(BaselineLocation {
             rule_id: rule_id.parse()?,
             file: file.parse()?,
             line,

@@ -26,6 +26,8 @@ use enforcer_domain::paths::{RelPath, RepoRoot};
 /// "commit-ish" may be an abbreviated sha, a branch name, or `HEAD~1`,
 /// none of which are full SHA-256 hex digests).
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// BRAND-INVARIANT: the inner value is trimmed non-empty at parse time and
+/// represents exactly one git revision expression supplied by the caller.
 pub struct CommitRef(String);
 
 impl CommitRef {

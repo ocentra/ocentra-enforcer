@@ -6,7 +6,7 @@
 //! [`build_route_plan`] is the single entry point: given a walked path list
 //! and the f03 [`ResolvedProjectTie`], it runs [`super::detect`],
 //! [`super::scope`], and [`super::native_tie`] and folds their outputs into
-//! one [`RoutePlan`]. Fixtures assert on the emitted plan, never on side
+//! one [`RoutePlanDto`]. Fixtures assert on the emitted plan, never on side
 //! effects — this module performs no I/O of its own beyond what the caller
 //! already walked.
 
@@ -17,13 +17,14 @@ use enforcer_domain::paths::RelPath;
 use serde::{Deserialize, Serialize};
 
 use super::detect::{detect_languages, DetectedLanguage};
-use super::native_tie::{native_tools_for, NativeToolRoute};
+use super::native_tie::{native_tools_for, NativeToolRouteDto};
 use super::scope::{narrow, RouteScope};
 
 /// The enforcer rule pack a detected language routes to. One variant per
 /// landed `enforcer-lang-*` family crate (arc-06..12), plus the always-on
 /// literal-scan universal floor (arc-13). Deliberately does not
 /// reimplement any pack — this is a selection key only.
+#[doc = "SERDE-TAG-JUSTIFICATION: `RulePack` is a closed string-token set in the route-plan wire format. A tagged enum would alter that stable array shape; its containing `RoutePlanDto` supplies the object boundary and field name."]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum RulePack {
@@ -75,6 +76,9 @@ fn rule_packs_for(language: DetectedLanguage) -> Vec<RulePack> {
     }
 }
 
+/// ROUNDTRIP-TEST: `tests/router.rs::route_plan_is_data_driven_and_round_trips_through_json`
+/// proves the complete DTO, including all nested route DTOs, round-trips.
+///
 /// The full, serializable route plan: what scope it applies to, which
 /// languages were detected inside that scope, which enforcer rule packs
 /// each of those routes to, and which native tools (per f03's tie config)
@@ -83,7 +87,7 @@ fn rule_packs_for(language: DetectedLanguage) -> Vec<RulePack> {
 /// tool.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RoutePlan {
+pub struct RoutePlanDto {
     /// The scope this plan was narrowed to (default: whole repo).
     pub scope: RoutePlanScope,
     /// Every language detected within `scope`, in stable sorted order.
@@ -93,18 +97,18 @@ pub struct RoutePlan {
     /// stable sorted order; never duplicated.
     pub rule_packs: Vec<RulePack>,
     /// The native tools selected to run per f03's tie config, one entry per
-    /// detected language that has a mapped [`super::native_tie::NativeToolRoute`].
+    /// detected language that has a mapped [`super::native_tie::NativeToolRouteDto`].
     /// In stable sorted order.
-    pub native_tools: Vec<NativeToolRoute>,
+    pub native_tools: Vec<NativeToolRouteDto>,
 }
 
 /// The wire-serializable projection of [`RouteScope`] carried on
-/// [`RoutePlan`]. `RouteScope` itself is not `Serialize`/`Deserialize` (it
+/// [`RoutePlanDto`]. `RouteScope` itself is not `Serialize`/`Deserialize` (it
 /// borrows no data requiring that), but consumers reading a persisted or
 /// MCP-transmitted plan need a flat, self-describing shape — this mirrors
 /// [`RouteScope`]'s variants one-to-one.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", tag = "kind", content = "root")]
+#[serde(tag = "kind", content = "root", rename_all = "camelCase")]
 pub enum RoutePlanScope {
     /// Whole repository.
     Repo,
@@ -136,7 +140,7 @@ impl From<&RouteScope> for RoutePlanScope {
     }
 }
 
-/// Build the [`RoutePlan`] for a walked, repo-relative path list, narrowed
+/// Build the [`RoutePlanDto`] for a walked, repo-relative path list, narrowed
 /// to `scope`, with native tools attached per `tie` (f03's resolved
 /// `.enforce/config` view).
 ///
@@ -146,7 +150,7 @@ impl From<&RouteScope> for RoutePlanScope {
 /// 2. detect languages within the narrowed set
 ///    ([`super::detect::detect_languages`]).
 /// 3. route each detected language to its [`RulePack`]s and, per `tie`, its
-///    [`NativeToolRoute`] ([`super::native_tie::native_tools_for`]).
+///    [`NativeToolRouteDto`] ([`super::native_tie::native_tools_for`]).
 ///
 /// An empty or fully-unknown narrowed set yields an honest empty plan
 /// (`languages`/`rule_packs`/`native_tools` all empty) — never a false
@@ -155,7 +159,7 @@ pub fn build_route_plan(
     paths: &[RelPath],
     scope: &RouteScope,
     tie: &ResolvedProjectTie,
-) -> RoutePlan {
+) -> RoutePlanDto {
     let narrowed = narrow(paths, scope);
     let narrowed_paths: Vec<RelPath> = narrowed.into_iter().cloned().collect();
     let languages_set = detect_languages(&narrowed_paths);
@@ -173,14 +177,14 @@ pub fn build_route_plan(
         rule_packs.insert(RulePack::SecurityAudit);
     }
 
-    let mut native_tools: Vec<NativeToolRoute> = Vec::new();
+    let mut native_tools: Vec<NativeToolRouteDto> = Vec::new();
     for language in &languages {
         native_tools.extend(native_tools_for(*language, tie));
     }
     native_tools.sort_by_key(|route| route.tool);
     native_tools.dedup_by_key(|route| route.tool);
 
-    RoutePlan {
+    RoutePlanDto {
         scope: RoutePlanScope::from(scope),
         languages,
         rule_packs: rule_packs.into_iter().collect(),

@@ -4,7 +4,7 @@
 //! through [`enforcer_scan::walk::walk`], [`enforcer_scan::router::detect`],
 //! [`enforcer_scan::router::scope`], and
 //! [`enforcer_scan::router::plan::build_route_plan`], asserting the emitted
-//! [`enforcer_scan::router::plan::RoutePlan`] matches what each fixture's
+//! [`enforcer_scan::router::plan::RoutePlanDto`] matches what each fixture's
 //! name promises. Fixtures assert on the emitted plan, never on side
 //! effects (T1 deterministic, no network, no native-tool invocation).
 
@@ -12,7 +12,7 @@ use enforcer_config::project_tie::{
     load_project_tie, EnforcerScope, NativeMode, NativeTool, ResolvedProjectTie,
 };
 use enforcer_scan::router::detect::DetectedLanguage;
-use enforcer_scan::router::plan::{build_route_plan, RoutePlan, RoutePlanScope, RulePack};
+use enforcer_scan::router::plan::{build_route_plan, RoutePlanDto, RoutePlanScope, RulePack};
 use enforcer_scan::router::scope::RouteScope;
 use enforcer_scan::walk::{walk, IgnoreRules};
 use std::collections::BTreeSet;
@@ -61,22 +61,27 @@ fn mixed_repo_routes_rust_and_ts_packs_and_native_tools() -> Result<(), Box<dyn 
     let tie = tie_for(&root)?;
     let plan = build_route_plan(&paths, &RouteScope::Repo, &tie);
 
-    assert!(
-        plan.languages.contains(&DetectedLanguage::Rust),
-        "fail-guard: rust must be detected when Cargo.toml is present"
+    assert_eq!(
+        plan.languages,
+        vec![DetectedLanguage::Rust, DetectedLanguage::TypeScript],
+        "mixed manifests must detect exactly Rust and TypeScript"
     );
-    assert!(
-        plan.languages.contains(&DetectedLanguage::TypeScript),
-        "fail-guard: ts must be detected when package.json is present, never dropped"
+    assert_eq!(
+        plan.rule_packs,
+        vec![
+            RulePack::Rust,
+            RulePack::TypeScript,
+            RulePack::Security,
+            RulePack::LiteralScanFloor,
+            RulePack::SecurityAudit,
+        ],
+        "mixed repositories must route both language packs plus the cross-cutting packs"
     );
-    assert!(plan.rule_packs.contains(&RulePack::Rust));
-    assert!(plan.rule_packs.contains(&RulePack::TypeScript));
-    assert!(plan.rule_packs.contains(&RulePack::LiteralScanFloor));
-    assert!(plan
-        .native_tools
-        .iter()
-        .any(|r| r.tool == NativeTool::Cargo));
-    assert!(plan.native_tools.iter().any(|r| r.tool == NativeTool::Tsc));
+    assert_eq!(
+        plan.native_tools.iter().map(|route| route.tool).collect::<Vec<_>>(),
+        vec![NativeTool::Cargo, NativeTool::Tsc],
+        "mixed repositories must attach the native tool for each detected language"
+    );
     Ok(())
 }
 
@@ -89,7 +94,16 @@ fn rust_only_repo_routes_rust_only_never_leaks_other_packs(
     let plan = build_route_plan(&paths, &RouteScope::Repo, &tie);
 
     assert_eq!(plan.languages, vec![DetectedLanguage::Rust]);
-    assert!(plan.rule_packs.contains(&RulePack::Rust));
+    assert_eq!(
+        plan.rule_packs,
+        vec![
+            RulePack::Rust,
+            RulePack::Security,
+            RulePack::LiteralScanFloor,
+            RulePack::SecurityAudit,
+        ],
+        "a Rust-only repository must route its language pack plus cross-cutting packs"
+    );
     assert!(
         !plan.rule_packs.contains(&RulePack::TypeScript),
         "fail-guard: a rust-only repo must never route to the ts pack"
@@ -111,7 +125,16 @@ fn python_only_folder_routes_python_only() -> Result<(), Box<dyn std::error::Err
     let plan = build_route_plan(&paths, &RouteScope::Repo, &tie);
 
     assert_eq!(plan.languages, vec![DetectedLanguage::Python]);
-    assert!(plan.rule_packs.contains(&RulePack::Python));
+    assert_eq!(
+        plan.rule_packs,
+        vec![
+            RulePack::Python,
+            RulePack::Security,
+            RulePack::LiteralScanFloor,
+            RulePack::SecurityAudit,
+        ],
+        "a Python-only folder must route its language pack plus cross-cutting packs"
+    );
     assert!(
         !plan.rule_packs.contains(&RulePack::Rust),
         "fail-guard: python-only folder must not leak the rust pack"
@@ -213,10 +236,10 @@ fn route_plan_is_data_driven_and_round_trips_through_json() -> Result<(), Box<dy
 
     // Core contract: serialize -> deserialize is the identity on a plan.
     let json = serde_json::to_string(&plan)?;
-    let restored: RoutePlan = serde_json::from_str(&json)?;
+    let restored: RoutePlanDto = serde_json::from_str(&json)?;
     assert_eq!(
         plan, restored,
-        "a RoutePlan must survive a serde_json round-trip byte-for-byte-equivalently"
+        "a RoutePlanDto must survive a serde_json round-trip byte-for-byte-equivalently"
     );
 
     // Wire-shape contract the Tauri UI depends on: a flat, self-describing
@@ -301,7 +324,7 @@ fn every_router_fixture_case_is_declared_and_proven() -> Result<(), Box<dyn std:
         let tie = tie_for(&root)?;
         let plan = build_route_plan(&paths, &RouteScope::Repo, &tie);
         let json = serde_json::to_string(&plan).map_err(|e| format!("{case}: serialize: {e}"))?;
-        let restored: RoutePlan =
+        let restored: RoutePlanDto =
             serde_json::from_str(&json).map_err(|e| format!("{case}: deserialize: {e}"))?;
         assert_eq!(
             plan, restored,

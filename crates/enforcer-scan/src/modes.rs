@@ -34,7 +34,7 @@ use crate::scope::{CommitRef, ScopeRequest};
 /// caller *intent*; [`ScanRequest::resolve`] turns it into a concrete
 /// [`crate::scope::ScopeRequest`] + [`TierFilter`] pair.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum ScanMode {
     /// Fast, most-common T1 subset over the resolved scope.
     Quick,
@@ -187,6 +187,8 @@ impl TierFilter {
 /// `serde`-deserializable so the MCP tool / CLI (neither owned here) can
 /// decode a caller payload straight into this shape and call
 /// [`ScanRequest::resolve`] at the boundary.
+///
+/// ROUNDTRIP-TEST: `tests/modes.rs::scan_mode_and_request_round_trip_through_the_external_wire_contract`
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScanRequest {
@@ -195,14 +197,18 @@ pub struct ScanRequest {
     /// For `scoped`/`plan-scan`: the crate/folder/plan-dir to restrict to.
     /// Repo-relative or absolute; normalized during [`ScanRequest::resolve`].
     /// Ignored (must be absent) for `full`/`repo`/`workspace`/`diff`.
+    // SERDE-DEFAULT-JUSTIFICATION: omission means no caller-selected scope;
+    // resolution deliberately substitutes only the caller's current scope.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scope: Option<String>,
     /// For `diff`: the older commit-ish endpoint. Required iff `mode` is
     /// `diff`.
+    // SERDE-DEFAULT-JUSTIFICATION: diff mode rejects a missing endpoint.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub base: Option<String>,
     /// For `diff`: the newer commit-ish endpoint. Required iff `mode` is
     /// `diff`.
+    // SERDE-DEFAULT-JUSTIFICATION: diff mode rejects a missing endpoint.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub head: Option<String>,
 }
@@ -223,8 +229,9 @@ impl Default for ScanRequest {
 
 /// A [`ScanRequest`] resolved against a repository root into the concrete
 /// inputs [`crate::engine::run`] and [`crate::walk::walk`] consume.
+/// This is an internal execution plan, not a serialized request payload.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ResolvedScanRequest {
+pub struct ResolvedScanPlan {
     /// The mode this resolution was computed for.
     pub mode: ScanMode,
     /// The tri-modal scope request feeding [`crate::scope::resolve`].
@@ -247,7 +254,7 @@ impl ScanRequest {
         &self,
         repo_root: &RepoRoot,
         cwd_scope: &RelPath,
-    ) -> Result<ResolvedScanRequest, ScanModeError> {
+    ) -> Result<ResolvedScanPlan, ScanModeError> {
         self.reject_unexpected_diff_range()?;
         let (scope_request, tier_filter) = match self.mode {
             ScanMode::Quick => (
@@ -267,7 +274,7 @@ impl ScanRequest {
                 tier_only(&[Tier::T1]),
             ),
         };
-        Ok(ResolvedScanRequest {
+        Ok(ResolvedScanPlan {
             mode: self.mode,
             scope_request,
             tier_filter,
