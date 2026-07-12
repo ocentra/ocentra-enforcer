@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/*"]
+members = ["crates/*", "xtask"]
 
 [workspace.package]
 version = "0.1.0"
@@ -10,6 +10,18 @@ license = "MIT"
 repository = "https://github.com/ocentra/enforcer.git"
 
 [workspace.dependencies]
+# In-workspace crates are linked once here so member manifests (e.g.
+# xtask) reference them via `workspace = true` without repeating path
+# metadata per manifest.
+enforcer-core = { path = "crates/enforcer-core", version = "0.1.0" }
+enforcer-domain = { path = "crates/enforcer-domain", version = "0.1.0" }
+enforcer-config = { path = "crates/enforcer-config", version = "0.1.0" }
+enforcer-scan = { path = "crates/enforcer-scan", version = "0.1.0" }
+enforcer-rules = { path = "crates/enforcer-rules", version = "0.1.0" }
+enforcer-validator = { path = "crates/enforcer-validator", version = "0.1.0" }
+enforcer-proof = { path = "crates/enforcer-proof", version = "0.1.0" }
+enforcer-literal-scan = { path = "crates/enforcer-literal-scan", version = "0.1.0" }
+enforcer-plan = { path = "crates/enforcer-plan", version = "0.1.0" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "1"

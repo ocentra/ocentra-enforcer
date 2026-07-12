@@ -1,0 +1,4 @@
+# Ownership: the xtask crate is owned by the self-enforcement workpacks.
+# a10 (real-self-enforcement-and-ci) owns src/dogfood.rs + its boundary.
+# z01 (dogfood-proof-gate) owns src/dogfood_gate.rs + its boundary.
+# Plan: docs/plans/enforcer-selfhost-plan/workpacks/

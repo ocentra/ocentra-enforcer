@@ -6028,6 +6028,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "xtask"
+version = "0.1.0"
+dependencies = [
+ "enforcer-config",
+ "enforcer-core",
+ "enforcer-domain",
+ "enforcer-literal-scan",
+ "enforcer-plan",
+ "enforcer-proof",
+ "enforcer-rules",
+ "enforcer-scan",
+ "enforcer-validator",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "yoke"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
