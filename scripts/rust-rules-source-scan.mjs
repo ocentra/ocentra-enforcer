@@ -583,7 +583,8 @@ function scanRustFile(root, filePath, config) {
       !isTestSource &&
       /\b[A-Za-z_][A-Za-z0-9_\.]*\s*\[[^\]\n]+\]/u.test(line) &&
       !/\b(?:vec|format|println|assert|assert_eq|assert_ne)!\s*\[/u.test(line) &&
-      !/\bfor\s+[A-Za-z_][A-Za-z0-9_]*\s+in\s+\[/u.test(line)
+      !/\bfor\s+[A-Za-z_][A-Za-z0-9_]*\s+in\s+\[/u.test(line) &&
+      !/&(?:'[A-Za-z_][A-Za-z0-9_]*\s*)?\[\s*[A-Za-z_][A-Za-z0-9_<>:,\s]*\]/u.test(line)
     ) {
       addViolation(
         violations,
