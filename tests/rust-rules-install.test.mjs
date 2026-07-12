@@ -558,3 +558,43 @@ pub fn first(values: Vec<u8>) -> u8 { values[0] }
   assert.equal(indexing.length, 1, result.stdout);
   assert.match(indexing[0].source, /values\[0\]/u);
 });
+
+test('workspace dependency users inherit the root dependency justification', () => {
+  const project = makeProject({
+    'rust-rules.config.json': JSON.stringify({
+      requireCargoDeny: false,
+      rustRoots: ['src', 'crates'],
+    }),
+    'crates/member/Cargo.toml': `
+[package]
+name = "member"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+
+[dependencies]
+serde = { workspace = true }
+`,
+    'crates/member/src/lib.rs': 'pub struct Member;\n',
+  });
+  fs.appendFileSync(
+    path.join(project, 'Cargo.toml'),
+    `
+
+[workspace]
+members = ["crates/member"]
+
+[workspace.dependencies]
+# DEPENDENCY-JUSTIFICATION: shared serialization contract for workspace records.
+serde = { version = "1.0.228", features = ["derive"] }
+`,
+    'utf8',
+  );
+  const result = runGateArgs(project, ['scan', '--json', '--files', 'crates/member/Cargo.toml']);
+  const report = JSON.parse(result.stdout);
+  assert.equal(
+    report.violations.some((violation) => violation.ruleId === 'RR-9.18'),
+    false,
+    result.stdout,
+  );
+});
