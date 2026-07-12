@@ -549,6 +549,7 @@ test('Rust slice type declarations are not reported as unchecked indexing', () =
     }),
     'src/lib.rs': `
 pub fn values<'a>() -> &'a [u8] { &[] }
+pub fn names() -> &'static [&'static str] { &[] }
 pub fn first(values: Vec<u8>) -> u8 { values[0] }
 `,
   });
