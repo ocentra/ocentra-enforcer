@@ -2,6 +2,7 @@
 name = "enforcer-lang-py"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "arc-08: the Python-family Validator crate. Implements every language==\"python\" rule from rules/rules.json (61 rules across PY-1..PY-6) against the enforcer-validator Validator trait, proven via the arc-05 fixture/parity harness."
@@ -9,11 +10,17 @@ publish = false
 
 [dependencies]
 serde_json = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: Python validators emit the shared core finding
+# contracts and preserve branded domain rule/severity values.
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: This language adapter implements the common
+# validator trait used by the deterministic fixture/parity harness.
 enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 
 [dev-dependencies]
+# DEPENDENCY-JUSTIFICATION: Fixture parity tests use the real mechanization
+# harness and rule catalog, without test doubles or production coupling.
 enforcer-mechanization = { path = "../enforcer-mechanization", version = "0.1.0" }
 enforcer-rules = { path = "../enforcer-rules", version = "0.1.0" }
 
