@@ -13,26 +13,47 @@ repository = "https://github.com/ocentra/enforcer.git"
 # In-workspace crates are linked once here so member manifests (e.g.
 # xtask) reference them via `workspace = true` without repeating path
 # metadata per manifest.
+# DEPENDENCY-JUSTIFICATION: shared typed execution primitives for every command and adapter.
 enforcer-core = { path = "crates/enforcer-core", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: canonical domain records and branded policy values.
 enforcer-domain = { path = "crates/enforcer-domain", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: typed configuration resolution for CLI and scan entrypoints.
 enforcer-config = { path = "crates/enforcer-config", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: shared multi-language scan engine.
 enforcer-scan = { path = "crates/enforcer-scan", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: rule metadata and policy evaluation.
 enforcer-rules = { path = "crates/enforcer-rules", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: validator traits and finding contract.
 enforcer-validator = { path = "crates/enforcer-validator", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: durable proof records and verification artifacts.
 enforcer-proof = { path = "crates/enforcer-proof", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: literal-risk analysis used by language scanners.
 enforcer-literal-scan = { path = "crates/enforcer-literal-scan", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: typed plans and orchestration contracts.
 enforcer-plan = { path = "crates/enforcer-plan", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: serialization derives for workspace-owned contracts.
 serde = { version = "1.0.228", features = ["derive"] }
+# DEPENDENCY-JUSTIFICATION: JSON transport at CLI, MCP, and proof boundaries.
 serde_json = "1.0.145"
+# DEPENDENCY-JUSTIFICATION: typed Rust error implementations.
 thiserror = "1"
+# DEPENDENCY-JUSTIFICATION: application-boundary error propagation in CLI adapters.
 anyhow = "1"
+# DEPENDENCY-JUSTIFICATION: structured internal diagnostics.
 tracing = "0.1"
+# DEPENDENCY-JUSTIFICATION: configured diagnostic subscriber for CLI/server runtimes.
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+# DEPENDENCY-JUSTIFICATION: typed command-line argument parsing.
 clap = { version = "4", features = ["derive"] }
+# DEPENDENCY-JUSTIFICATION: bounded parallel scan work.
 rayon = "1"
+# DEPENDENCY-JUSTIFICATION: content hashing for artifacts, integrity, and findings.
 sha2 = "0.10.9"
+# DEPENDENCY-JUSTIFICATION: async CLI and MCP runtime primitives.
 tokio = { version = "1.48.0", features = ["rt-multi-thread", "macros"] }
+# DEPENDENCY-JUSTIFICATION: structured TOML edits for configuration workflows.
 toml_edit = "0.22"
+# DEPENDENCY-JUSTIFICATION: TypeScript declarations at the desktop UI boundary.
 ts-rs = "10.1.0"
 
 [workspace.lints.rust]
