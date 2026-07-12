@@ -44,6 +44,23 @@ pub enum PublicReexportPolicy {
     Allow,
 }
 
+/// Project policy for tests declared inside production source files.
+///
+/// `Forbid` keeps validation ownership visible under organized test roots;
+/// `Warn` reports the placement without failing a run; `Allow` adopts the
+/// in-file unit-test convention deliberately.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum InlineTestPolicy {
+    /// Inline tests fail the test-placement rule.
+    #[default]
+    Forbid,
+    /// Inline tests produce a non-blocking advisory.
+    Warn,
+    /// Inline tests are permitted.
+    Allow,
+}
+
 /// A crate name as it appears in `Cargo.toml` `[dependencies]` /
 /// `[package] name`. Not validated beyond non-empty: crate name syntax is
 /// cargo's concern, not ours.
@@ -222,6 +239,9 @@ pub struct RustScanScope {
     /// budgets).
     #[serde(default)]
     pub test_file_globs: Vec<Glob>,
+    /// Whether in-file unit tests are forbidden, advisory-only, or allowed.
+    #[serde(default)]
+    pub inline_test_policy: InlineTestPolicy,
     /// Whether cargo-aware checks run on the whole file scope.
     #[serde(default)]
     pub cargo_on_file_scope: bool,
@@ -287,7 +307,7 @@ pub struct EffectiveConfig {
 
 #[cfg(test)]
 mod tests {
-    use super::Platform;
+    use super::{InlineTestPolicy, Platform, RustScanScope};
 
     #[test]
     fn platform_all_returns_three_platforms_in_stable_order() {
@@ -302,6 +322,24 @@ mod tests {
         assert_eq!(serde_json::to_string(&Platform::Windows)?, "\"windows\"");
         let parsed: Platform = serde_json::from_str("\"linux\"")?;
         assert_eq!(parsed, Platform::Linux);
+        Ok(())
+    }
+
+    #[test]
+    fn inline_test_policy_defaults_to_forbid_and_accepts_each_mode(
+    ) -> Result<(), serde_json::Error> {
+        let default_scope: RustScanScope = serde_json::from_str("{}")?;
+        assert_eq!(default_scope.inline_test_policy, InlineTestPolicy::Forbid);
+        for (wire, expected) in [
+            ("\"forbid\"", InlineTestPolicy::Forbid),
+            ("\"warn\"", InlineTestPolicy::Warn),
+            ("\"allow\"", InlineTestPolicy::Allow),
+        ] {
+            let scope: RustScanScope = serde_json::from_str(&format!(
+                "{{\"inlineTestPolicy\":{wire}}}"
+            ))?;
+            assert_eq!(scope.inline_test_policy, expected);
+        }
         Ok(())
     }
 }
