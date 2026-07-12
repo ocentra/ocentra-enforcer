@@ -39,6 +39,28 @@ config/manifest input, proven by a fixture corpus.
   package-manager removal, HEALTHCHECK) are intentionally NOT emitted (they
   would over-flag) and are follow-ups.
 
+- [x] **`CYBER-SECRET.1` — hardcoded provider credentials**
+  (`rules/cyberskills/provider_credentials.rs`). Harvested from the inline
+  secret-pattern tables in the vendored `implementing-api-key-security-controls`,
+  `testing-for-sensitive-data-exposure`,
+  `detecting-aws-credential-exposure-with-trufflehog`, and sibling skills. A
+  gitleaks-style high-confidence provider ruleset over source lines: AWS
+  `AKIA`/`ASIA` access keys + context-gated 40-char secret, GitHub
+  `gh[pousr]_`, Stripe `sk_live_`/`rk_live_`, Google `AIza`, Slack `xox…`, npm
+  `npm_`, PEM private-key blocks, and JWTs (Warning). Additive to `SEC-1.1`
+  (which covers `key = "…"` assignments); catches the bare provider-key
+  literals `SEC-1.1` misses. Deliberately EXCLUDES low-precision generic
+  patterns (bare 40-char base64, 32-hex, bearer, email/SSN/PII) — FP magnets
+  that would erode a prevention gate. Matched secrets are redacted in the
+  finding snippet. Proven by a CODE-BUILT corpus in the module test
+  (`provider_credential_corpus_code_built`): every provider-secret input is
+  assembled from a prefix + filler at runtime so no real-secret-shaped
+  literal is committed (GitHub push protection would correctly block that —
+  the very leak this rule prevents). Flag cases per provider (incl.
+  in-comment) + the FP cases a gate must not trip (env refs, MD5/git-sha
+  hex, UUID, base64 without aws-context, email, short/placeholder keys). The
+  on-disk oracle fixture uses AWS's allowlisted documented example key.
+
 ## Deferred (documented, not hand-waved)
 
 - Namespace-level Pod Security Admission labels

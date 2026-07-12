@@ -233,3 +233,7 @@ fn corpus_dockerfile_hardening() -> Result<(), Box<dyn std::error::Error>> {
     let family: Vec<Box<dyn Validator>> = vec![Box::new(DockerfileHardeningValidator::new()?)];
     assert_family("dockerfile.json", "Dockerfile", &family)
 }
+// NOTE: the exhaustive provider-credential corpus lives in
+// provider_credentials.rs as a CODE-BUILT test (secret strings are assembled
+// from parts at runtime) so no real-secret-shaped literal is ever committed —
+// otherwise GitHub push protection (correctly) blocks the fixture.

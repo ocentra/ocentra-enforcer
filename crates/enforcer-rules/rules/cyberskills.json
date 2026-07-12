@@ -222,5 +222,21 @@
         },
         "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
         "tags": ["cyberskills", "wave1", "container", "dockerfile", "hardening"]
+    },
+    {
+        "ruleId": "CYBER-SECRET.1",
+        "version": 1,
+        "title": "Source must not contain hardcoded provider credentials (AWS/GitHub/Stripe/Google/Slack/npm keys, PEM private keys)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::provider_credentials::ProviderCredentialValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/secret.provider-credential/bad/leaked.env",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/secret.provider-credential/good/clean.rs"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "secret", "credentials", "gitleaks"]
     }
 ]

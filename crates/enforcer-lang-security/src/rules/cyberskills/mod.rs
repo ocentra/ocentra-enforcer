@@ -18,6 +18,7 @@ pub mod dependency_confusion;
 pub mod dockerfile_hardening;
 pub mod iac_terraform;
 pub mod k8s_pod_security;
+pub mod provider_credentials;
 pub mod registry;
 pub mod waf_sqli;
 pub mod web_headers;
