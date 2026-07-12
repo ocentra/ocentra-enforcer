@@ -9,6 +9,7 @@
     "crates/enforcer-domain/src/**",
     "crates/enforcer-lang-rust/src/rules/**"
   ],
+  "boundaryOwnerNote": "The domain crate owns serialized primitives; Rust language rules own syntax-level raw string handling.",
   "requireCargoDeny": false,
   "requireCargoAudit": false,
   "runCargoDoc": false,
