@@ -2,6 +2,7 @@
 name = "enforcer-domain"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Single-source schema crate for the Ocentra Enforcer workspace: branded newtypes + versioned serde records. Owns DTO SHAPE, not behavior."
@@ -10,6 +11,7 @@ publish = false
 [dependencies]
 serde = { workspace = true }
 sha2 = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: shared typed DecodeError and validation primitives.
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 ts-rs = { workspace = true }
 
