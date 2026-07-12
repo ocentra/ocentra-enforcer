@@ -366,7 +366,7 @@ tokio = { workspace = true, features = ["sync", "time", "test-util"] }
 # `[workspace.dependencies]` since no other crate in this workspace needs
 # it yet; scoped here per this crate's existing pattern of crate-local
 # deps (git2 and tree-sitter are declared the same way).
-regex = "1"
+regex = "=1.12.4"
 # X06.7 MCP/CLI surface: reuses the arc-21 enforcer-mcp skeleton's pure
 # I/O-free transport module (dual Content-Length/NDJSON framing +
 # JSON-RPC message types) rather than re-implementing framing here --

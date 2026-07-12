@@ -11,7 +11,7 @@ publish = false
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-regex = "1"
+regex = "=1.12.4"
 syn = { version = "2", features = ["full", "extra-traits", "visit"] }
 proc-macro2 = { version = "1", features = ["span-locations"] }
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
