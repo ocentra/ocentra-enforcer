@@ -23,21 +23,40 @@ pub enum VerifyMode {
     Parent,
 }
 
+/// A rejected verify profile at the CLI boundary.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum VerifyModeError {
+    /// The supplied mode is not one of the named verify profiles.
+    UnknownMode { raw: String },
+}
+
+impl std::fmt::Display for VerifyModeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::UnknownMode { raw } => write!(f, "Unknown verify mode: {raw}"),
+        }
+    }
+}
+
+impl std::error::Error for VerifyModeError {}
+
 impl VerifyMode {
     /// All four values, in declaration order (used by tests/help text).
     pub const ALL: [VerifyMode; 4] = [Self::Fast, Self::Local, Self::Ci, Self::Parent];
 }
 
 impl FromStr for VerifyMode {
-    type Err = String;
+    type Err = VerifyModeError;
 
-    fn from_str(raw: &str) -> Result<Self, String> {
+    fn from_str(raw: &str) -> Result<Self, Self::Err> {
         match raw.trim() {
             "" | "local" => Ok(Self::Local),
             "fast" => Ok(Self::Fast),
             "ci" => Ok(Self::Ci),
             "parent" => Ok(Self::Parent),
-            other => Err(format!("Unknown verify mode: {other}")),
+            other => Err(VerifyModeError::UnknownMode {
+                raw: other.to_owned(),
+            }),
         }
     }
 }
@@ -105,7 +124,7 @@ mod tests {
     fn unknown_value_is_a_hard_parse_error() -> Result<(), Box<dyn std::error::Error>> {
         match VerifyMode::from_str("bogus") {
             Err(err) => {
-                assert_eq!(err, "Unknown verify mode: bogus");
+                assert_eq!(err.to_string(), "Unknown verify mode: bogus");
                 Ok(())
             }
             Ok(_) => Err("expected an error for an unknown verify mode".into()),

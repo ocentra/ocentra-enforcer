@@ -24,14 +24,33 @@ pub enum ArchitectureLanguage {
     TypeScript,
 }
 
-impl FromStr for ArchitectureLanguage {
-    type Err = String;
+/// A rejected architecture language at the CLI boundary.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ArchitectureLanguageError {
+    /// The supplied language has no architecture-policy implementation.
+    UnknownLanguage { raw: String },
+}
 
-    fn from_str(raw: &str) -> Result<Self, String> {
+impl std::fmt::Display for ArchitectureLanguageError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::UnknownLanguage { raw } => write!(f, "Unknown architecture language: {raw}"),
+        }
+    }
+}
+
+impl std::error::Error for ArchitectureLanguageError {}
+
+impl FromStr for ArchitectureLanguage {
+    type Err = ArchitectureLanguageError;
+
+    fn from_str(raw: &str) -> Result<Self, Self::Err> {
         match raw {
             "rust" => Ok(Self::Rust),
             "typescript" | "ts" => Ok(Self::TypeScript),
-            other => Err(format!("Unknown architecture language: {other}")),
+            other => Err(ArchitectureLanguageError::UnknownLanguage {
+                raw: other.to_owned(),
+            }),
         }
     }
 }

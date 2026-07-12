@@ -13,15 +13,34 @@ pub enum AdviseTarget {
     Literals,
 }
 
-impl FromStr for AdviseTarget {
-    type Err = String;
+/// A rejected `advise` target at the CLI boundary.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AdviseTargetError {
+    /// The input did not name the only supported target, `literals`.
+    UnsupportedTarget { raw: String },
+}
 
-    fn from_str(raw: &str) -> Result<Self, String> {
+impl std::fmt::Display for AdviseTargetError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::UnsupportedTarget { raw } => {
+                write!(f, "advise currently supports only literals (got `{raw}`)")
+            }
+        }
+    }
+}
+
+impl std::error::Error for AdviseTargetError {}
+
+impl FromStr for AdviseTarget {
+    type Err = AdviseTargetError;
+
+    fn from_str(raw: &str) -> Result<Self, Self::Err> {
         match raw {
             "literals" => Ok(Self::Literals),
-            other => Err(format!(
-                "advise currently supports only literals (got `{other}`)"
-            )),
+            other => Err(AdviseTargetError::UnsupportedTarget {
+                raw: other.to_owned(),
+            }),
         }
     }
 }
