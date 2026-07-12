@@ -636,12 +636,12 @@ test('erased test-harness errors are not treated as application-domain errors', 
     }),
     'src/lib.rs': `
 pub fn production() -> Result<(), Box<dyn std::error::Error>> { Ok(()) }
-`,
-    'tests/integration.rs': `
+
+#[test]
 fn fixture() -> Result<(), Box<dyn std::error::Error>> { Ok(()) }
 `,
   });
-  const result = runGateArgs(project, ['scan', '--json', '--files', 'src/lib.rs', 'tests/integration.rs']);
+  const result = runGateArgs(project, ['scan', '--json', '--files', 'src/lib.rs']);
   const report = JSON.parse(result.stdout);
   const erasedErrors = report.violations.filter((violation) => violation.ruleId === 'RR-4.4');
   assert.equal(erasedErrors.length, 1, result.stdout);
