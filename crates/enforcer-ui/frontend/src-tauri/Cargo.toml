@@ -20,6 +20,11 @@ serde_json = "1.0"
 tauri = { version = "2.11.5", features = [] }
 enforcer-memory = { path = "../../../enforcer-memory" }
 enforcer-ui = { path = "../../../enforcer-ui" }
+# DEPENDENCY-JUSTIFICATION: the g03 desktop waiver command parses branded
+# RuleId values (enforcer-domain) and validates/persists the strict waiver
+# registry shape (enforcer-rules) instead of shelling to the Node bridge.
+enforcer-domain = { path = "../../../enforcer-domain" }
+enforcer-rules = { path = "../../../enforcer-rules" }
 enforcer-coordination = { path = "../../../enforcer-coordination" }
 enforcer-config = { path = "../../../enforcer-config" }
 enforcer-proof = { path = "../../../enforcer-proof" }

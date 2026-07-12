@@ -1348,11 +1348,13 @@ version = "0.1.0"
 dependencies = [
  "enforcer-config",
  "enforcer-coordination",
+ "enforcer-domain",
  "enforcer-harness",
  "enforcer-install",
  "enforcer-literal-scan",
  "enforcer-memory",
  "enforcer-proof",
+ "enforcer-rules",
  "enforcer-security",
  "enforcer-ui",
  "globset",

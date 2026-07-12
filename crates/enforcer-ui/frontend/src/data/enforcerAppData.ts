@@ -20,54 +20,9 @@ export function summarizeLanguages(languages: readonly string[], limit = 3): str
   return remaining > 0 ? `${visible.join(" / ")} +${remaining}` : visible.join(" / ");
 }
 
-// Bundled roots seed the desktop inventory. User registrations are persisted locally.
-// Live inspection replaces branch and language labels when each root is reachable.
-export const appData = {
-  projects: [
-    {
-      id: "x06-desktop-fixture",
-      name: "X06 Desktop Fixture",
-      root: "E:/ocentra-enforcer-rust-build/crates/enforcer-memory/tests/fixtures/memory/feature_parity/repo",
-      repoKey: "x06-desktop-fixture",
-      kind: "external",
-      branch: "fixture",
-      worktree: "controlled",
-      indexed: "missing",
-      detectedLanguages: ["rust"],
-    },
-    {
-      id: "enforcer",
-      name: "Ocentra Enforcer",
-      root: "E:/ocentra-enforcer-rust-build",
-      repoKey: "ocentra-enforcer",
-      kind: "worktree",
-      mainRoot: "E:/ocentra-enforcer",
-      branch: "rust-build",
-      worktree: "primary",
-      indexed: "missing",
-      detectedLanguages: ["rust", "typescript"],
-    },
-    {
-      id: "parent",
-      name: "Ocentra Parent",
-      root: "E:/OcentraParent",
-      repoKey: "ocentra-parent",
-      kind: "main",
-      branch: "main",
-      worktree: "prod",
-      indexed: "stale",
-      detectedLanguages: ["typescript", "rust", "python"],
-    },
-    {
-      id: "games",
-      name: "Ocentra Games",
-      root: "E:/ocentra-games",
-      repoKey: "ocentra-games",
-      kind: "main",
-      branch: "dev",
-      worktree: "user-owned",
-      indexed: "missing",
-      detectedLanguages: ["typescript"],
-    },
-  ] satisfies Project[],
+// The shipped desktop inventory starts EMPTY: every connected project comes
+// from the desktop-local registry (user registration or Git worktree
+// discovery), never from roots or statuses invented at build time.
+export const appData: { projects: Project[] } = {
+  projects: [],
 };

@@ -166,7 +166,7 @@ export function App(): ReactElement {
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("scope");
   const [projects, setProjects] = useState<Project[]>(appData.projects);
   const [projectRegistryError, setProjectRegistryError] = useState("");
-  const [selectedProjectId, setSelectedProjectId] = useState(appData.projects[0].id);
+  const [selectedProjectId, setSelectedProjectId] = useState(appData.projects[0]?.id ?? "");
   const [selectedFindingId, setSelectedFindingId] = useState("");
   const [ruleFocusId, setRuleFocusId] = useState<string>();
   const [nativeShell, setNativeShell] = useState("browser-preview");
@@ -180,7 +180,7 @@ export function App(): ReactElement {
   const [securityProfile, setSecurityProfile] = useState<SecurityProfilePayload>();
   const [securityProfileLoading, setSecurityProfileLoading] = useState(false);
   const [securityProfileError, setSecurityProfileError] = useState("");
-  const [graph, setGraph] = useState<ProjectGraph>(() => unavailableGraph(appData.projects[0]));
+  const [graph, setGraph] = useState<ProjectGraph>();
   const [graphLoading, setGraphLoading] = useState(false);
   const [memorySummary, setMemorySummary] = useState<MemorySummaryPayload>();
   const [memorySummaryLoading, setMemorySummaryLoading] = useState(false);
@@ -228,7 +228,7 @@ export function App(): ReactElement {
   const [ruleCatalogLoading, setRuleCatalogLoading] = useState(true);
   const [ruleCatalogError, setRuleCatalogError] = useState("");
   const [projectRuleCoverage, setProjectRuleCoverage] = useState<ProjectRuleCoverage>();
-  const assuranceRoot = projects.find((project) => project.id === selectedProjectId)?.root ?? appData.projects[0].root;
+  const assuranceRoot = projects.find((project) => project.id === selectedProjectId)?.root ?? "";
 
   useEffect(() => {
     invokeDesktop<{ shell: string; binding_mode?: string; bindingMode?: string }>("desktop_status")
@@ -243,7 +243,7 @@ export function App(): ReactElement {
   }, []);
 
   useEffect(() => {
-    if (workspace !== "assurance") return;
+    if (workspace !== "assurance" || !assuranceRoot) return;
     let cancelled = false;
     setSecurityProfileLoading(true);
     setSecurityProfileError("");
@@ -255,11 +255,13 @@ export function App(): ReactElement {
   }, [assuranceRoot, workspace]);
 
   async function activateSecurityProfile(request: { sourceSpec: string; owner: string; reason: string }) {
+    if (!selectedProject) return;
     const profile = await invokeDesktop<SecurityProfilePayload>("activate_security_profile", { root: selectedProject.root, request });
     setSecurityProfile(profile);
   }
 
   async function loadGraphSourceSnippet(node: GraphNode) {
+    if (!selectedProject) throw new Error("No project is selected.");
     return invokeDesktop<GraphSourceSnippet>("load_graph_source_snippet", {
       root: selectedProject.root,
       path: node.path,
@@ -343,6 +345,12 @@ export function App(): ReactElement {
   );
 
   useEffect(() => {
+    if (!selectedProject) {
+      setScanTargets([]);
+      setScanTargetsLoading(false);
+      setScanTargetsError("");
+      return;
+    }
     let cancelled = false;
     setScanTargetsLoading(true);
     setScanTargetsError("");
@@ -359,15 +367,19 @@ export function App(): ReactElement {
       })
       .finally(() => { if (!cancelled) setScanTargetsLoading(false); });
     return () => { cancelled = true; };
-  }, [selectedProject.root]);
+  }, [selectedProject?.root]);
 
   useEffect(() => {
+    if (!selectedProject) {
+      setProjectRuleCoverage(undefined);
+      return;
+    }
     let cancelled = false;
     invokeDesktop<ProjectRuleCoverage>("load_project_rule_coverage", { root: selectedProject.root })
       .then((payload) => { if (!cancelled) setProjectRuleCoverage(payload); })
       .catch(() => { if (!cancelled) setProjectRuleCoverage(undefined); });
     return () => { cancelled = true; };
-  }, [selectedProject.root]);
+  }, [selectedProject?.root]);
   const projectOverrides = useMemo(() => {
     const persisted: RuleOverride[] = (projectSettings?.ruleToggles ?? []).map((toggle) => ({
       ruleId: toggle.ruleId,
@@ -375,13 +387,14 @@ export function App(): ReactElement {
       severity: isRuleSeverity(toggle.severity) ? toggle.severity : undefined,
       waiver: toggle.waiverOwner && toggle.waiverReason ? { owner: toggle.waiverOwner, reason: toggle.waiverReason } : undefined,
     }));
-    const staged = overridesByProject[selectedProject.id] ?? [];
+    const staged = selectedProject ? overridesByProject[selectedProject.id] ?? [] : [];
     return [...persisted.filter((override) => !staged.some((item) => item.ruleId === override.ruleId)), ...staged];
-  }, [overridesByProject, projectSettings, selectedProject.id]);
-  const report = reportsByProject[selectedProject.id] ?? emptyReport;
-  const findings = useMemo(() => displayFindings(report, selectedProject.repoKey), [report, selectedProject.repoKey]);
+  }, [overridesByProject, projectSettings, selectedProject]);
+  const report = (selectedProject ? reportsByProject[selectedProject.id] : undefined) ?? emptyReport;
+  const findings = useMemo(() => displayFindings(report, selectedProject?.repoKey ?? ""), [report, selectedProject?.repoKey]);
   const selectedFinding = findings.find((finding) => finding.id === selectedFindingId) ?? findings[0];
   useEffect(() => {
+    if (!selectedProject) return;
     let cancelled = false;
     setScanState("idle");
     setScanError("");
@@ -395,17 +408,19 @@ export function App(): ReactElement {
         if (!cancelled) setScanError(`Cached scan report unavailable: ${String(error)}`);
       });
     return () => { cancelled = true; };
-  }, [selectedProject.id, selectedProject.root]);
+  }, [selectedProject?.id, selectedProject?.root]);
 
   useEffect(() => {
+    if (!selectedProject) return;
     let cancelled = false;
     invokeDesktop<DesktopScanHistoryEntry[]>("load_desktop_scan_history", { root: selectedProject.root })
       .then((history) => { if (!cancelled) setScanHistoryByProject((current) => ({ ...current, [selectedProject.id]: history })); })
       .catch(() => { if (!cancelled) setScanHistoryByProject((current) => ({ ...current, [selectedProject.id]: [] })); });
     return () => { cancelled = true; };
-  }, [selectedProject.id, selectedProject.root]);
+  }, [selectedProject?.id, selectedProject?.root]);
 
   useEffect(() => {
+    if (!selectedProject) return;
     let cancelled = false;
     invokeDesktop<{ available: boolean }>("memory_index_status", { root: selectedProject.root })
       .then(({ available }) => {
@@ -416,10 +431,10 @@ export function App(): ReactElement {
         if (!cancelled) setProjects((current) => current.map((project) => project.id === selectedProject.id ? { ...project, indexed: "missing" } : project));
       });
     return () => { cancelled = true; };
-  }, [selectedProject.id, selectedProject.root]);
+  }, [selectedProject?.id, selectedProject?.root]);
 
   useEffect(() => {
-    if (workspace !== "memory") return;
+    if (workspace !== "memory" || !selectedProject) return;
     let cancelled = false;
     setGraphLoading(true);
     invokeDesktop<NativeGraphPayload>("load_graph", { root: selectedProject.root, focus: graphFocus })
@@ -448,6 +463,7 @@ export function App(): ReactElement {
   }, [workspace]);
 
   useEffect(() => {
+    if (!selectedProject) return;
     let cancelled = false;
     setProjectSettingsLoading(true);
     setProjectSettingsError("");
@@ -456,9 +472,10 @@ export function App(): ReactElement {
       .catch((error) => { if (!cancelled) setProjectSettingsError(`Project configuration unavailable: ${String(error)}`); })
       .finally(() => { if (!cancelled) setProjectSettingsLoading(false); });
     return () => { cancelled = true; };
-  }, [selectedProject.root]);
+  }, [selectedProject?.root]);
 
   useEffect(() => {
+    if (!selectedProject) return;
     let cancelled = false;
     setScanScopeSettingsLoading(true);
     setScanScopeSettingsError("");
@@ -467,7 +484,7 @@ export function App(): ReactElement {
       .catch((error) => { if (!cancelled) setScanScopeSettingsError(`Scan policy unavailable: ${String(error)}`); })
       .finally(() => { if (!cancelled) setScanScopeSettingsLoading(false); });
     return () => { cancelled = true; };
-  }, [selectedProject.root]);
+  }, [selectedProject?.root]);
 
   async function refreshHarnessDiscovery() {
     setHarnessDiscoveryLoading(true);
@@ -489,10 +506,10 @@ export function App(): ReactElement {
   useEffect(() => {
     if (workspace !== "runs") return;
     void refreshHarnessRuns();
-  }, [selectedProject.root, workspace]);
+  }, [selectedProject?.root, workspace]);
 
   useEffect(() => {
-    if (workspace !== "proofs" && workspace !== "setup") return;
+    if ((workspace !== "proofs" && workspace !== "setup") || !selectedProject) return;
     let cancelled = false;
     setProofArtifactsLoading(true);
     setProofArtifactsError("");
@@ -508,10 +525,10 @@ export function App(): ReactElement {
       .catch((error) => { if (!cancelled) setProofArtifactsError(String(error)); })
       .finally(() => { if (!cancelled) setProofArtifactsLoading(false); });
     return () => { cancelled = true; };
-  }, [selectedProject.root, workspace]);
+  }, [selectedProject?.root, workspace]);
 
   useEffect(() => {
-    if (workspace !== "memory") return;
+    if (workspace !== "memory" || !selectedProject) return;
     let cancelled = false;
     setMemorySummaryLoading(true);
     invokeDesktop<MemorySummaryPayload>("load_memory_summary", { root: selectedProject.root })
@@ -522,12 +539,14 @@ export function App(): ReactElement {
   }, [memoryRevision, selectedProject, workspace]);
 
   async function createMemoryIndex() {
+    if (!selectedProject) return;
     await invokeDesktop("create_memory_index", { root: selectedProject.root });
     setProjects((current) => current.map((project) => project.id === selectedProject.id ? { ...project, indexed: "ready" } : project));
     setMemoryRevision((current) => current + 1);
   }
 
   async function runScan(target?: DesktopScanTarget) {
+    if (!selectedProject) return;
     setScanState("running");
     setScanError("");
     try {
@@ -544,6 +563,7 @@ export function App(): ReactElement {
 
 
   async function runProjectAnalysis() {
+    if (!selectedProject) return;
     setAnalysisLoading(true);
     setAnalysisError("");
     try {
@@ -558,6 +578,7 @@ export function App(): ReactElement {
   }
 
   async function refreshHarnessRuns() {
+    if (!selectedProject) return;
     setHarnessRunsLoading(true);
     setHarnessRunsError("");
     setHarnessRunDetail(undefined);
@@ -573,6 +594,7 @@ export function App(): ReactElement {
   }
 
   async function selectHarnessRun(runId: string) {
+    if (!selectedProject) return;
     setSelectedHarnessRunId(runId);
     setHarnessRunsError("");
     try {
@@ -584,6 +606,7 @@ export function App(): ReactElement {
   }
 
   async function loadScanRun(runId: string) {
+    if (!selectedProject) return;
     setScanError("");
     try {
       const report = await invokeDesktop<EnforcerReport>("load_desktop_scan_run", { root: selectedProject.root, runId });
@@ -596,6 +619,7 @@ export function App(): ReactElement {
   }
 
   async function runMemorySearch(query: string) {
+    if (!selectedProject) return;
     setMemorySearchLoading(true);
     setMemorySearchError("");
     try {
@@ -610,9 +634,10 @@ export function App(): ReactElement {
 
   useEffect(() => {
     setSelectedFindingId(findings[0]?.id ?? "");
-  }, [selectedProject.id, findings]);
+  }, [selectedProject?.id, findings]);
 
   async function updateProjectOverride(override: RuleOverride) {
+    if (!selectedProject) return;
     const settings = await invokeDesktop<ProjectSettingsPayload>("write_rule_override", {
       root: selectedProject.root,
       request: {
@@ -636,6 +661,7 @@ export function App(): ReactElement {
   }
 
   async function discoverProjectWorktrees() {
+    if (!selectedProject) return;
     const discovery = await invokeDesktop<ProjectDiscoveryPayload>("discover_desktop_project_worktrees", { root: selectedProject.root });
     setProjects((current) => mergeProjects(current, discovery.projects));
   }
@@ -658,6 +684,7 @@ export function App(): ReactElement {
   }
 
   async function writeScanScopeSettings(request: Pick<ScanScopeSettingsPayload, "profileName" | "ignoreDirs" | "ignoreFileGlobs">) {
+    if (!selectedProject) return;
     const updated = await invokeDesktop<ScanScopeSettingsPayload>("write_scan_scope_settings", { root: selectedProject.root, request });
     setScanScopeSettings(updated);
   }
@@ -668,6 +695,35 @@ export function App(): ReactElement {
       setHubView(hubView);
     }
     setWorkspace(target.workspace);
+  }
+
+  if (!selectedProject) {
+    // Nothing is registered yet: the only honest surfaces are the project
+    // registry (register/discover) and the global engine/hub views.
+    return (
+      <AppShell active={workspace} onNavigate={setWorkspace} nativeShell={nativeShell} bindingMode={bindingMode}>
+        <main className="app-grid task-only">
+          {workspace === "engine" ? (
+            <EngineWorkspace capabilities={engineCapabilities} loading={engineCapabilitiesLoading} error={engineCapabilitiesError} workpackIndex={workpackIndex} workpackIndexLoading={workpackIndexLoading} workpackIndexError={workpackIndexError} onNavigate={navigateEngineCapability} />
+          ) : workspace === "hub" ? (
+            <HubWorkspace hub={hub} loading={hubLoading} error={hubError} handoff={hubFindingHandoff} initialView={hubView} harnessDiscovery={harnessDiscovery} harnessDiscoveryLoading={harnessDiscoveryLoading} harnessDiscoveryError={harnessDiscoveryError} onRefreshHarnesses={refreshHarnessDiscovery} onSendMessage={sendHubMessage} onAcknowledgeMessage={acknowledgeHubMessage} onCreateClaim={createHubClaim} onClearHandoff={() => setHubFindingHandoff(undefined)} />
+          ) : (
+            <ProjectsWorkspace
+              projects={projects}
+              registryError={projectRegistryError}
+              onAddProject={registerProject}
+              onPreviewProjectRegistration={previewProjectRegistration}
+              onDiscoverProjectWorktrees={discoverProjectWorktrees}
+              selectedProjectId={selectedProjectId}
+              onOpenProject={(id) => {
+                setSelectedProjectId(id);
+                setWorkspace("overview");
+              }}
+            />
+          )}
+        </main>
+      </AppShell>
+    );
   }
 
   return (
@@ -748,7 +804,7 @@ export function App(): ReactElement {
         ) : workspace === "assurance" ? (
           <AssuranceWorkspace project={selectedProject} profile={securityProfile} loading={securityProfileLoading} error={securityProfileError} onActivate={activateSecurityProfile} />
         ) : workspace === "memory" ? (
-          <MemoryExplorerWorkspace graph={graph} graphLoading={graphLoading} summary={memorySummary} summaryLoading={memorySummaryLoading} search={memorySearch} searchLoading={memorySearchLoading} searchError={memorySearchError} onSearch={runMemorySearch} onLoadSourceSnippet={loadGraphSourceSnippet} onOpenIndex={() => { setSettingsTab("index"); setWorkspace("settings"); }} onRefreshGraph={() => setMemoryRevision((current) => current + 1)} onFocusGraph={setGraphFocus} onClearGraphFocus={() => setGraphFocus(undefined)} />
+          <MemoryExplorerWorkspace graph={graph ?? unavailableGraph(selectedProject)} graphLoading={graphLoading} summary={memorySummary} summaryLoading={memorySummaryLoading} search={memorySearch} searchLoading={memorySearchLoading} searchError={memorySearchError} onSearch={runMemorySearch} onLoadSourceSnippet={loadGraphSourceSnippet} onOpenIndex={() => { setSettingsTab("index"); setWorkspace("settings"); }} onRefreshGraph={() => setMemoryRevision((current) => current + 1)} onFocusGraph={setGraphFocus} onClearGraphFocus={() => setGraphFocus(undefined)} />
         ) : workspace === "hub" ? (
           <HubWorkspace hub={hub} loading={hubLoading} error={hubError} handoff={hubFindingHandoff} initialView={hubView} harnessDiscovery={harnessDiscovery} harnessDiscoveryLoading={harnessDiscoveryLoading} harnessDiscoveryError={harnessDiscoveryError} onRefreshHarnesses={refreshHarnessDiscovery} onSendMessage={sendHubMessage} onAcknowledgeMessage={acknowledgeHubMessage} onCreateClaim={createHubClaim} onClearHandoff={() => setHubFindingHandoff(undefined)} />
         ) : workspace === "proofs" ? (

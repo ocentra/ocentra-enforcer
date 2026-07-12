@@ -8,7 +8,7 @@ use enforcer_memory::store::{manifest::write_index_manifest, sqlite::Operational
 use serde::Serialize;
 
 use crate::project_registry::memory_index_available;
-use crate::{desktop_workspace_root, store_timestamp, walk_repo_files};
+use crate::{resolve_pack_root, store_timestamp, walk_repo_files};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -264,7 +264,7 @@ pub(crate) fn load_memory_summary(
     Ok(enforcer_ui::memory_explorer::render_memory_explorer(
         enforcer_ui::memory_explorer::RunMode::Human,
         &selected_project_root,
-        &desktop_workspace_root(),
+        &resolve_pack_root()?,
     ))
 }
 

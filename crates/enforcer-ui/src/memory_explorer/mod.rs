@@ -596,23 +596,25 @@ mod tests {
     use super::{render_memory_explorer, EvidenceKind, RunMode};
 
     #[test]
-    fn missing_store_degrades_without_fake_graph() {
-        let root = tempfile::tempdir().expect("temp root");
+    fn missing_store_degrades_without_fake_graph() -> Result<(), Box<dyn std::error::Error>> {
+        let root = tempfile::tempdir()?;
         let payload = render_memory_explorer(RunMode::Human, root.path(), root.path());
         assert!(!payload.project_graph.available);
         assert_eq!(payload.project_graph.nodes, 0);
         assert_eq!(payload.project_graph.status, "degraded-empty");
         assert!(!payload.retrieval.available);
         assert!(payload.parity.rows.is_empty());
+        Ok(())
     }
 
     #[test]
-    fn silent_mode_suppresses_payload() {
-        let root = tempfile::tempdir().expect("temp root");
+    fn silent_mode_suppresses_payload() -> Result<(), Box<dyn std::error::Error>> {
+        let root = tempfile::tempdir()?;
         let payload = render_memory_explorer(RunMode::Silent, root.path(), root.path());
         assert_eq!(payload.provenance.scope, "silent");
         assert_eq!(payload.project_graph.status, "silent");
         assert!(payload.learning.lessons.is_empty());
+        Ok(())
     }
 
     #[test]
