@@ -12,9 +12,10 @@
   "rawTypeBoundaryGlobs": [
     "crates/enforcer-cli/src/**",
     "crates/enforcer-cli/tests/**",
-    "crates/enforcer-scan/tests/**"
+    "crates/enforcer-scan/tests/**",
+    "crates/enforcer-memory/src/languages/**"
   ],
-  "boundaryOwnerNote": "The domain crate owns serialized primitives; Rust language rules own syntax-level raw string handling.",
+  "boundaryOwnerNote": "The domain crate owns serialized primitives; CLI, tests, and language-analysis adapters own transport and parser primitives.",
   "requireCargoDeny": false,
   "requireCargoAudit": false,
   "runCargoDoc": false,
