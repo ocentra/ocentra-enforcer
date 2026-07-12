@@ -1,12 +1,8 @@
-//! The ONE sanctioned print-sink module in this crate.
+//! The ONE sanctioned stdout/stderr transport module in this crate.
 //!
 //! Every stdout/stderr write anywhere in `enforcer-cli` funnels through
-//! here. Every other module in this crate obeys the workspace
-//! `[lints]` deny wall (`clippy::print_stdout`/`clippy::print_stderr`
-//! denied); this module carries the scoped, documented
-//! `#![allow(clippy::print_stdout, clippy::print_stderr)]` that makes it
-//! the sole exception, matching `enforcer-mcp::sink`'s identical posture
-//! on the MCP side.
+//! here. It writes through explicit `std::io::Write` boundaries, matching
+//! `enforcer-mcp::sink`; no other CLI module owns process output.
 //!
 //! Renders an `enforcer_domain::findings::Report` to stdout with a terse
 //! `Fix:` hint per finding ([`crate::fix_hints::fix_hint`]). There is NO
@@ -14,12 +10,26 @@
 //! report rendered here is always the complete report the engine
 //! produced.
 
-#![allow(clippy::print_stdout, clippy::print_stderr)]
-
 use enforcer_domain::findings::{Finding, Report};
 use enforcer_domain::severity::Severity;
+use std::io::{self, Write};
 
 use crate::fix_hints::fix_hint;
+
+fn write_line(mut output: impl Write, message: &str) -> io::Result<()> {
+    output.write_all(message.as_bytes())?;
+    output.write_all(b"\n")
+}
+
+fn emit_stdout(message: &str) {
+    let stdout = io::stdout();
+    let _ = write_line(stdout.lock(), message);
+}
+
+fn emit_stderr(message: &str) {
+    let stderr = io::stderr();
+    let _ = write_line(stderr.lock(), message);
+}
 
 fn severity_label(severity: Severity) -> &'static str {
     match severity {
@@ -45,33 +55,33 @@ fn render_finding(finding: &Finding) -> String {
 /// finding (violations, warnings, waived) with its `Fix:` hint.
 pub fn print_report(report: &Report) {
     if report.ok {
-        println!(
+        emit_stdout(&format!(
             "enforcer: no violations ({} finding(s) total).",
             report.findings.len()
-        );
+        ));
     } else {
-        println!(
+        emit_stdout(&format!(
             "enforcer: {} violation(s), {} warning(s), {} waived.",
             report.violations.len(),
             report.warnings.len(),
             report.waived.len()
-        );
+        ));
     }
     for violation in &report.violations {
-        println!("{}", render_finding(violation.finding()));
+        emit_stdout(&render_finding(violation.finding()));
     }
     for warning in &report.warnings {
-        println!("{}", render_finding(warning));
+        emit_stdout(&render_finding(warning));
     }
     for waived in &report.waived {
-        println!("  [waived] {}", render_finding(waived));
+        emit_stdout(&format!("  [waived] {}", render_finding(waived)));
     }
 }
 
 /// Print a usage-error message to stderr (clap parse failures that this
 /// crate itself detects post-parse, e.g. "no scope given").
 pub fn print_usage_error(message: &str) {
-    eprintln!("enforcer: usage error: {message}");
+    emit_stderr(&format!("enforcer: usage error: {message}"));
 }
 
 /// Print an internal-error message to stderr -- reserved for failures
@@ -80,12 +90,12 @@ pub fn print_usage_error(message: &str) {
 /// [`print_usage_error`]/[`print_report`] so `grep`ing this module shows
 /// the three message classes never collapse into one generic path.
 pub fn print_internal_error(message: &str) {
-    eprintln!("enforcer: internal error: {message}");
+    emit_stderr(&format!("enforcer: internal error: {message}"));
 }
 
 /// Print a config-load error to stderr.
 pub fn print_config_error(message: &str) {
-    eprintln!("enforcer: config error: {message}");
+    emit_stderr(&format!("enforcer: config error: {message}"));
 }
 
 /// Render a literal-scan [`enforcer_literal_scan::ScanReport`] to stdout.
@@ -93,29 +103,29 @@ pub fn print_config_error(message: &str) {
 /// exactly one place that ever calls `print!`/`println!`/`eprintln!`.
 pub fn print_literal_scan_report(report: &enforcer_literal_scan::ScanReport) {
     if report.ok {
-        println!(
+        emit_stdout(&format!(
             "enforcer advise literals: clean ({} literal(s) scanned).",
             report.summary.literals_found
-        );
+        ));
         return;
     }
-    println!(
+    emit_stdout(&format!(
         "enforcer advise literals: {} hard finding(s), {} literal risk(s).",
         report.hard_findings.len(),
         report.literal_risks.len()
-    );
+    ));
     for finding in report
         .hard_findings
         .iter()
         .chain(report.literal_risks.iter())
     {
-        println!("  {finding:?}");
+        emit_stdout(&format!("  {finding:?}"));
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::render_finding;
+    use super::{render_finding, write_line};
     use enforcer_domain::findings::Finding;
     use enforcer_domain::severity::Severity;
 
@@ -133,6 +143,14 @@ mod tests {
         let rendered = render_finding(&finding);
         assert!(rendered.contains("Fix:"));
         assert!(rendered.contains("RR-6.1"));
+        Ok(())
+    }
+
+    #[test]
+    fn writer_transport_adds_one_line_terminator() -> Result<(), Box<dyn std::error::Error>> {
+        let mut output = Vec::new();
+        write_line(&mut output, "enforcer: output boundary")?;
+        assert_eq!(output, b"enforcer: output boundary\n");
         Ok(())
     }
 }
