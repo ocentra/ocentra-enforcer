@@ -5,6 +5,10 @@
 //! single entry point for "every validator I own"; the count-parity test
 //! (`tests/parity.rs`) asserts its length plus rule-id set against
 //! `rules/rules.json` minus the SEC-2 family delegated to arc-10.
+//!
+//! `families::arch_1` contributes 16 rows (not 15) as of `ARCH-1.16`
+//! (`Presentation/UI cannot call business logic directly`), bringing the
+//! family-module total to 249 and the grand total (with `PORT-1.1`) to 250.
 
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
@@ -89,10 +93,11 @@ mod tests {
 
     #[test]
     fn all_returns_the_expected_total_validator_count() {
-        // 248 PatternValidator rows (29 families) + 1 PORT-1.1 = 249, the
-        // count-parity target (269 language==common rules minus the 20
-        // SEC-2 rows delegated to arc-10 per the workpack's SEC-2 decision).
-        assert_eq!(all(DeclaredScope::Undeclared).len(), 249);
+        // 249 PatternValidator rows (29 families, incl. ARCH-1.16) + 1
+        // PORT-1.1 = 250, the count-parity target (270 language==common
+        // rules minus the 20 SEC-2 rows delegated to arc-10 per the
+        // workpack's SEC-2 decision).
+        assert_eq!(all(DeclaredScope::Undeclared).len(), 250);
     }
 
     #[test]
@@ -104,6 +109,6 @@ mod tests {
             let id = validator.rule_id().to_string();
             assert!(seen.insert(id.clone()), "duplicate ruleId `{id}`");
         }
-        assert_eq!(seen.len(), 249);
+        assert_eq!(seen.len(), 250);
     }
 }

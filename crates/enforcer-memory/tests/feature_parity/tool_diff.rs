@@ -47,6 +47,7 @@ use enforcer_memory::code_graph::{CodeGraph, CodeNode, Manifest};
 use enforcer_memory::code_search::{self, SearchMode, SearchQuery};
 use enforcer_memory::cross_repo::{match_cross_repo, CrossHttpMatchKind};
 use enforcer_memory::graph_schema;
+use enforcer_memory::parsers;
 use enforcer_memory::projects;
 use enforcer_memory::resolution::{self, ResolutionConfidence};
 use enforcer_memory::search::search_graph::{search_graph, SearchGraphSpec};
@@ -2138,52 +2139,968 @@ fn compare_resolution_trace(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     }
 }
 
+/// How a [`MULTI_LANG_FIXTURES`] entry's `expected` string is checked
+/// on the candidate side -- language-parity wave G3 stage 5. Most
+/// onboarded languages have a real named function/class the generic
+/// engine surfaces as a [`SymbolRef`], but several Tier-0 formats
+/// genuinely don't (data/config/markup with no "named symbol" concept
+/// at all -- JSON, YAML, a `.gitignore`, ...), so this widens the
+/// comparison beyond symbol-name matching rather than forcing every
+/// language into a shape that doesn't fit it.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum FixtureCheckKind {
+    /// A named def (`ParsedFile::symbols`) -- the original, most
+    /// precise check.
+    SymbolName,
+    /// An import path (`ParsedFile::imports`).
+    ImportPath,
+    /// A call callee (`ParsedFile::calls`).
+    CallCallee,
+    /// No named-symbol concept applies to this language/format at all
+    /// (config/markup/data) -- falls back to the fixture's own
+    /// filename, which both sides trivially recognize once the file is
+    /// indexed at all, so a miss here means the language wasn't
+    /// recognized/indexed, not that one specific name diverged.
+    Filename,
+}
+
 /// The multi-language fixture set this row indexes on both sides: one
-/// real file per wave-B language from the repo's own committed fixtures
-/// (READ at run time, never inlined copies that could drift), plus the
-/// Rust `lib.rs` the primary fixture already uses. Each entry carries
-/// one expected symbol name unique to that language's file, so a miss
-/// is attributable to a specific language.
-const MULTI_LANG_FIXTURES: &[(&str, &str, &str)] = &[
+/// real file per onboarded language from the repo's own committed
+/// fixtures (READ at run time, never inlined copies that could drift),
+/// plus the Rust `lib.rs` the primary fixture already uses. Each entry
+/// carries one expected fact unique to that language's file (kind
+/// depends on [`FixtureCheckKind`]), so a miss is attributable to a
+/// specific language. The first 8 rows are wave-B's original hand-picked
+/// set (unchanged); everything after was harvested mechanically from
+/// each language's own `tests/unit_languages_*.rs` fixture-reading test
+/// for language-parity wave G3 stage 5 (full parity re-verification) --
+/// see that wave's closeout doc for the harvesting method and the
+/// handful of manual fills (languages whose own tests never read a
+/// committed fixture file at all).
+const MULTI_LANG_FIXTURES: &[(&str, &str, &str, FixtureCheckKind)] = &[
     (
         "crates/enforcer-memory/tests/fixtures/memory/lang_go/widget.go",
         "widget.go",
         "NewWidget",
+        FixtureCheckKind::SymbolName,
     ),
     (
         "crates/enforcer-memory/tests/fixtures/memory/lang_java/Widget.java",
         "Widget.java",
         "Shape",
+        FixtureCheckKind::SymbolName,
     ),
     (
         "crates/enforcer-memory/tests/fixtures/memory/lang_c/widget.c",
         "widget.c",
         "widget_new",
+        FixtureCheckKind::SymbolName,
     ),
     (
         "crates/enforcer-memory/tests/fixtures/memory/lang_cpp/widget.cpp",
         "widget.cpp",
         "DerivedWidget",
+        FixtureCheckKind::SymbolName,
     ),
     (
         "crates/enforcer-memory/tests/fixtures/memory/lang_csharp/Widget.cs",
         "Widget.cs",
         "LoadWidgetSettings",
+        FixtureCheckKind::SymbolName,
     ),
     (
         "crates/enforcer-memory/tests/fixtures/memory/lang_php/Widget.php",
         "Widget.php",
         "loadWidgetSettings",
+        FixtureCheckKind::SymbolName,
     ),
     (
         "crates/enforcer-memory/tests/fixtures/memory/code_graph/app.py",
         "app.py",
         "list_widgets",
+        FixtureCheckKind::SymbolName,
     ),
     (
         "crates/enforcer-memory/tests/fixtures/memory/code_graph/server.ts",
         "server.ts",
         "listWidgets",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_ada/widget.adb",
+        "widget.adb",
+        "Widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_agda/Widget.agda",
+        "Widget.agda",
+        "greet",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_apex/Widget.cls",
+        "Widget.cls",
+        "Widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_assembly/sample.s",
+        "sample.s",
+        "main",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_astro/Sample.astro",
+        "Sample.astro",
+        "Sample.astro",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_awk/widget.awk",
+        "widget.awk",
+        "greet",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_bash/widget.sh",
+        "widget.sh",
+        "greet",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_beancount/sample.beancount",
+        "sample.beancount",
+        "other.beancount",
+        FixtureCheckKind::ImportPath,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_bibtex/sample.bib",
+        "sample.bib",
+        "sample.bib",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_bicep/storage.bicep",
+        "storage.bicep",
+        "storageAccount",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_bitbake/example.bb",
+        "example.bb",
+        "do_compile",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_blade/sample.blade.php",
+        "sample.blade.php",
+        "sample.blade.php",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_cairo/counter.cairo",
+        "counter.cairo",
+        "Counter",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_capnp/person.capnp",
+        "person.capnp",
+        "Person",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_cfml/UserComponent.cfm",
+        "UserComponent.cfm",
+        "getUser",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_cfscript/UserService.cfc",
+        "UserService.cfc",
+        "getUser",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_clojure/widget.clj",
+        "widget.clj",
+        "Widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_cmake/CMakeLists.cmake",
+        "CMakeLists.cmake",
+        "greet",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_cobol/widget.cbl",
+        "widget.cbl",
+        "WIDGET",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_commonlisp/widget.lisp",
+        "widget.lisp",
+        "helper",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_crystal/widget.cr",
+        "widget.cr",
+        "Widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_css/sample.css",
+        "sample.css",
+        "foo.css",
+        FixtureCheckKind::ImportPath,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_csv/sample.csv",
+        "sample.csv",
+        "sample.csv",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_cuda/widget.cu",
+        "widget.cu",
+        "addKernel",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_d/widget.d",
+        "widget.d",
+        "Animal",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_dart/widget.dart",
+        "widget.dart",
+        "Widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_devicetree/board.dts",
+        "board.dts",
+        "board-common.dtsi",
+        FixtureCheckKind::ImportPath,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_diff/sample.diff",
+        "sample.diff",
+        "diff",
+        FixtureCheckKind::CallCallee,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_dockerfile/Dockerfile",
+        "Dockerfile",
+        "Dockerfile",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_dotenv/sample.env",
+        "sample.env",
+        "sample.env",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_elixir/widget.ex",
+        "widget.ex",
+        "Widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_elm/Widget.elm",
+        "Widget.elm",
+        "area",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_emacslisp/utils.el",
+        "utils.el",
+        "add-numbers",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_erlang/widget.erl",
+        "widget.erl",
+        "helper",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_fennel/widget.fnl",
+        "widget.fnl",
+        "helper",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_fish/widget.fish",
+        "widget.fish",
+        "greet",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_form/widget.frm",
+        "widget.frm",
+        "greet",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_fortran/widget.f90",
+        "widget.f90",
+        "area",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_fsharp/Widget.fs",
+        "Widget.fs",
+        "Widgets",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_func/counter.fc",
+        "counter.fc",
+        "add",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_gdscript/widget.gd",
+        "widget.gd",
+        "Widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_gitattributes/sample.gitattributes",
+        "sample.gitattributes",
+        "sample.gitattributes",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_gitignore/.gitignore",
+        ".gitignore",
+        ".gitignore",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_gleam/widget.gleam",
+        "widget.gleam",
+        "Shape",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_glsl/widget.glsl",
+        "widget.glsl",
+        "Widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_gn/BUILD.gn",
+        "BUILD.gn",
+        "//build/config.gni",
+        FixtureCheckKind::ImportPath,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_gomod/go.mod",
+        "go.mod",
+        "github.com/bar/baz",
+        FixtureCheckKind::ImportPath,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_gotemplate/main.gotmpl",
+        "main.gotmpl",
+        "footer",
+        FixtureCheckKind::CallCallee,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_graphql/schema.graphql",
+        "schema.graphql",
+        "Query",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_groovy/widget.groovy",
+        "widget.groovy",
+        "Widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_hare/widget.ha",
+        "widget.ha",
+        "add",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_haskell/widget.hs",
+        "widget.hs",
+        "Shape",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_hcl/sample.tf",
+        "sample.tf",
+        "variable.region",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_hlsl/widget.hlsl",
+        "widget.hlsl",
+        "add",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_html/page.html",
+        "page.html",
+        "page.html",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_hyprlang/hyprland.conf",
+        "hyprland.conf",
+        "hyprland.conf",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_ini/settings.ini",
+        "settings.ini",
+        "section",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_ispc/widget.ispc",
+        "widget.ispc",
+        "add",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_janet/script.janet",
+        "script.janet",
+        "script.janet",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_jinja2/template.jinja2",
+        "template.jinja2",
+        "template.jinja2",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_jsdoc/comment.jsdoc",
+        "comment.jsdoc",
+        "comment.jsdoc",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_json/config.json",
+        "config.json",
+        "config.json",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_json5/sample.json5",
+        "sample.json5",
+        "sample.json5",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_jsonnet/config.jsonnet",
+        "config.jsonnet",
+        "greeting",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_julia/widget.jl",
+        "widget.jl",
+        "Widgets",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_just/widget.just",
+        "widget.just",
+        "build",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_kconfig/Kconfig.widget",
+        "Kconfig.widget",
+        "WIDGET",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_kdl/sample.kdl",
+        "sample.kdl",
+        "sample.kdl",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_kotlin/widget.kt",
+        "widget.kt",
+        "Widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_lean/widget.lean",
+        "widget.lean",
+        "helper",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_linkerscript/sample.ld",
+        "sample.ld",
+        "ASSERT",
+        FixtureCheckKind::CallCallee,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_liquid/sample.liquid",
+        "sample.liquid",
+        "header.liquid",
+        FixtureCheckKind::ImportPath,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_llvmir/example.ll",
+        "example.ll",
+        "main",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_lua/widget.lua",
+        "widget.lua",
+        "Widget.new",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_luau/widget.luau",
+        "widget.luau",
+        "helper",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_magma/widget.magma",
+        "widget.magma",
+        "add",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_makefile/widget.mk",
+        "widget.mk",
+        "widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_markdown/sample.md",
+        "sample.md",
+        "sample.md",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_matlab/widget.m",
+        "widget.m",
+        "Widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_mermaid/sample.mmd",
+        "sample.mmd",
+        "sample.mmd",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_meson/widget.meson",
+        "widget.meson",
+        "project",
+        FixtureCheckKind::CallCallee,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_move/counter.move",
+        "counter.move",
+        "Counter",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_nasm/widget.nasm",
+        "widget.nasm",
+        "_start",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_nickel/config.ncl",
+        "config.ncl",
+        "add",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_nix/sample.nix",
+        "sample.nix",
+        "addOne",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_objc/Widget.m",
+        "Widget.m",
+        "Widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_ocaml/widget.ml",
+        "widget.ml",
+        "shape",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_odin/widget.odin",
+        "widget.odin",
+        "Dog",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_pascal/widget.pas",
+        "widget.pas",
+        "TDog.Bark",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_perl/widget.pl",
+        "widget.pl",
+        "new",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_pine/strategy.pine",
+        "strategy.pine",
+        "myFunc",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_pkl/sample.pkl",
+        "sample.pkl",
+        "Person",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_po/sample.po",
+        "sample.po",
+        "sample.po",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_pony/widget.pony",
+        "widget.pony",
+        "Animal",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_powershell/widget.ps1",
+        "widget.ps1",
+        "Animal",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_prisma/sample.prisma",
+        "sample.prisma",
+        "User",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_properties/sample.properties",
+        "sample.properties",
+        "sample.properties",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_protobuf/sample.proto",
+        "sample.proto",
+        "Foo",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_puppet/widget.pp",
+        "widget.pp",
+        "widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_purescript/widget.purs",
+        "widget.purs",
+        "add",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_qml/Widget.qml",
+        "Widget.qml",
+        "increment",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_r/widget.r",
+        "widget.r",
+        "helper",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_racket/widget.rkt",
+        "widget.rkt",
+        "greet",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_regex/sample.re",
+        "sample.re",
+        "sample.re",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_requirements/requirements.txt",
+        "requirements.txt",
+        "requirements.txt",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_rescript/Widget.res",
+        "Widget.res",
+        "add",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_ron/sample.ron",
+        "sample.ron",
+        "sample.ron",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_rst/sample.rst",
+        "sample.rst",
+        "sample.rst",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_ruby/widget.rb",
+        "widget.rb",
+        "Widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_scala/widget.scala",
+        "widget.scala",
+        "Widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_scheme/widget.scm",
+        "widget.scm",
+        "greet",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_scss/widget.scss",
+        "widget.scss",
+        "flex-center",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_slang/widget.slang",
+        "widget.slang",
+        "Widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_smali/Foo.smali",
+        "Foo.smali",
+        "LFoo;",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_smithy/weather.smithy",
+        "weather.smithy",
+        "Weather",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_solidity/Widget.sol",
+        "Widget.sol",
+        "Widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_soql/sample.soql",
+        "sample.soql",
+        "sample.soql",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_sosl/sample.sosl",
+        "sample.sosl",
+        "sample.sosl",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_sql/sample.sql",
+        "sample.sql",
+        "add_one",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_squirrel/widget.nut",
+        "widget.nut",
+        "Animal",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_sshconfig/config",
+        "config",
+        "config",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_starlark/widget.bzl",
+        "widget.bzl",
+        "helper",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_svelte/Sample.svelte",
+        "Sample.svelte",
+        "Sample.svelte",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_sway/widget.sw",
+        "widget.sw",
+        "Widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_swift/widget.swift",
+        "widget.swift",
+        "Widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_systemverilog/widget.sv",
+        "widget.sv",
+        "widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_tablegen/example.td",
+        "example.td",
+        "Instruction",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_tcl/widget.tcl",
+        "widget.tcl",
+        "greet",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_teal/widget.tl",
+        "widget.tl",
+        "Widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_templ/widget.templ",
+        "widget.templ",
+        "helper",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_thrift/person.thrift",
+        "person.thrift",
+        "Person",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_tlaplus/widget.tla",
+        "widget.tla",
+        "Helper",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_toml/sample.toml",
+        "sample.toml",
+        "package",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_tsx/widget.tsx",
+        "widget.tsx",
+        "Widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_typst/widget.typ",
+        "widget.typ",
+        "helper",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_verilog/widget.v",
+        "widget.v",
+        "widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_vhdl/widget.vhd",
+        "widget.vhd",
+        "widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_vimscript/widget.vim",
+        "widget.vim",
+        "Greet",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_vue/Sample.vue",
+        "Sample.vue",
+        "Sample.vue",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_wgsl/widget.wgsl",
+        "widget.wgsl",
+        "Widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_wit/host.wit",
+        "host.wit",
+        "types",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_wolfram/widget.wl",
+        "widget.wl",
+        "helper",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_xml/sample.xml",
+        "sample.xml",
+        "note",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_yaml/sample.yaml",
+        "sample.yaml",
+        "sample.yaml",
+        FixtureCheckKind::Filename,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_zig/widget.zig",
+        "widget.zig",
+        "Widget",
+        FixtureCheckKind::SymbolName,
+    ),
+    (
+        "crates/enforcer-memory/tests/fixtures/memory/lang_zsh/widget.zsh",
+        "widget.zsh",
+        "greet",
+        FixtureCheckKind::SymbolName,
     ),
 ];
 
@@ -2200,7 +3117,7 @@ fn build_multi_language_repo() -> Result<(tempfile::TempDir, String, Vec<PathBuf
     std::fs::write(&lib_dest, FIXTURE_LIB_RS)?;
     files.push(lib_dest);
 
-    for (source_rel, dest_name, _symbol) in MULTI_LANG_FIXTURES {
+    for (source_rel, dest_name, _expected, _kind) in MULTI_LANG_FIXTURES {
         let dest = dir.path().join(dest_name);
         std::fs::copy(root.join(source_rel), &dest)?;
         files.push(dest);
@@ -2227,11 +3144,65 @@ fn build_multi_language_repo() -> Result<(tempfile::TempDir, String, Vec<PathBuf
     Ok((dir, forward_slash_path, files))
 }
 
-/// Multi-language indexing: index the SAME 9-language fixture set on
-/// both sides, then require one language-unique symbol per file to be
-/// findable on each side (baseline: one `search_graph` lookup per
-/// symbol; candidate: node-name containment over the indexed
-/// [`CodeGraph`]).
+/// Whether `expected` is present in the candidate's own extraction for
+/// one fixture entry, dispatched by [`FixtureCheckKind`] -- language-
+/// parity wave G3 stage 5. `SymbolName`/`Filename` both check the
+/// already-built [`CodeGraph`]'s own node-debug string (a `Filename`
+/// entry's `expected` IS the filename, which the graph's `File` node
+/// carries regardless of language); `ImportPath`/`CallCallee` instead
+/// re-parse the fixture's own source DIRECTLY via
+/// [`parsers::parse_file`] (bypassing `CodeGraph` entirely for this
+/// check), since imports/calls are graph EDGES, not something
+/// `CodeGraph::nodes()`'s own `Debug` output reliably surfaces the way
+/// node names do.
+fn candidate_fixture_check_passes(
+    dest_name: &str,
+    expected: &str,
+    kind: FixtureCheckKind,
+    files: &[PathBuf],
+    nodes_debug: &str,
+) -> bool {
+    match kind {
+        FixtureCheckKind::SymbolName | FixtureCheckKind::Filename => {
+            nodes_debug.contains(expected)
+        }
+        FixtureCheckKind::ImportPath | FixtureCheckKind::CallCallee => {
+            let Some(file_path) = files.iter().find(|p| {
+                p.file_name()
+                    .map(|n| n.to_string_lossy() == dest_name)
+                    .unwrap_or(false)
+            }) else {
+                return false;
+            };
+            let Ok(source) = std::fs::read_to_string(file_path) else {
+                return false;
+            };
+            let language = parsers::classify(dest_name);
+            let Some(parsed) = parsers::parse_file(language, &source, dest_name) else {
+                return false;
+            };
+            match kind {
+                FixtureCheckKind::ImportPath => parsed
+                    .imports
+                    .iter()
+                    .any(|i| i.module_path.contains(expected)),
+                FixtureCheckKind::CallCallee => {
+                    parsed.calls.iter().any(|c| c.callee.contains(expected))
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+}
+
+/// Multi-language indexing: index the FULL onboarded-language fixture
+/// set (146 languages harvested from each language's own committed
+/// `tests/unit_languages_*.rs` fixture-reading test, plus the original
+/// 9-language hand-picked set) on both sides, then require one
+/// language-unique fact per file to be findable on each side (baseline:
+/// one `search_graph` lookup per fact; candidate: dispatched by
+/// [`FixtureCheckKind`] via [`candidate_fixture_check_passes`]) --
+/// language-parity wave G3 stage 5.
 fn compare_multi_language(ctx: &mut Ctx<'_>) -> ToolDiffRow {
     let tool = "index_repository(multi_language)";
 
@@ -2259,12 +3230,20 @@ fn compare_multi_language(ctx: &mut Ctx<'_>) -> ToolDiffRow {
         );
     };
 
-    let mut expected: Vec<&str> = vec!["parse_config_file"];
-    expected.extend(MULTI_LANG_FIXTURES.iter().map(|(_, _, symbol)| *symbol));
+    // `("<dest_name for candidate lookup>", "<expected fact>", kind)` --
+    // the extra leading entry is the original fixture's own `lib.rs`
+    // check, kept identical to the pre-G3-stage-5 behavior.
+    let mut expected: Vec<(&str, &str, FixtureCheckKind)> =
+        vec![("lib.rs", "parse_config_file", FixtureCheckKind::SymbolName)];
+    expected.extend(
+        MULTI_LANG_FIXTURES
+            .iter()
+            .map(|(_, dest, symbol, kind)| (*dest, *symbol, *kind)),
+    );
 
     let mut baseline_missing: Vec<String> = Vec::new();
     let mut baseline_latency_total = index_call.latency_ms;
-    for symbol in &expected {
+    for (_dest, symbol, _kind) in &expected {
         let request = format!(r#"{{"project":"{project}","query":"{symbol}"}}"#);
         let call = match ctx.driver.call("search_graph", &request) {
             Ok(call) => call,
@@ -2294,15 +3273,17 @@ fn compare_multi_language(ctx: &mut Ctx<'_>) -> ToolDiffRow {
         let nodes_debug = format!("{:?}", graph.nodes());
         Ok(expected
             .iter()
-            .filter(|symbol| !nodes_debug.contains(**symbol))
-            .map(|symbol| (*symbol).to_string())
+            .filter(|(dest, symbol, kind)| {
+                !candidate_fixture_check_passes(dest, symbol, *kind, &files, &nodes_debug)
+            })
+            .map(|(_, symbol, _)| (*symbol).to_string())
             .collect())
     })();
     let candidate_latency_ms = start.elapsed().as_secs_f64() * 1000.0;
     let (candidate_missing, candidate_error) = match candidate_outcome {
         Ok(missing) => (missing, None),
         Err(error) => (
-            expected.iter().map(|s| (*s).to_string()).collect(),
+            expected.iter().map(|(_, s, _)| (*s).to_string()).collect(),
             Some(error.to_string()),
         ),
     };
@@ -2319,9 +3300,10 @@ fn compare_multi_language(ctx: &mut Ctx<'_>) -> ToolDiffRow {
         .call("delete_project", &format!(r#"{{"project":"{project}"}}"#));
 
     let mut normalizations = common_normalizations();
-    normalizations.push(
-        "same 9-language fixture set (Rust, Go, Java, C, C++, C#, PHP, Python, TypeScript -- committed repo fixtures, copied at run time) indexed on both sides; one language-unique symbol per file must be findable per side (baseline via search_graph, candidate via node-name containment) -- per-language attribution, not total node-count equality".to_string(),
-    );
+    normalizations.push(format!(
+        "{} onboarded languages (committed repo fixtures, copied at run time) indexed on both sides; one language-unique fact per file must be findable per side (baseline via search_graph; candidate via node-debug containment for SymbolName/Filename, or a direct per-file parsers::parse_file re-parse for ImportPath/CallCallee) -- per-language attribution, not total node-count equality",
+        expected.len()
+    ));
 
     if baseline_missing.is_empty() && candidate_missing.is_empty() {
         ToolDiffRow {

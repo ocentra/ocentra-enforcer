@@ -21,7 +21,15 @@ use super::economic_invariants::{
 use super::killswitch::KillSwitchValidator;
 use super::money_critical::{MoneyCriticalAnnotatedValidator, MoneyCriticalClassifyValidator};
 use super::no_bypass::NoBypassValidator;
+use super::required_test_categories::{
+    RequiredTestCategoriesMapValidator, RequiredTestCategoriesSevenValidator,
+};
 use super::rollback::RollbackValidator;
+use super::security_test_quality::{
+    AssertsRejectionValidator, GlobalMutationValidator, MocksForMoneyLogicValidator,
+    NoCrashOnlyValidator, PassIfDeletedValidator, ProtectionRemovedHeuristicValidator,
+    ReproducibleSeedValidator, SnapshotOnlyValidator, ThreatQualityScoreValidator,
+};
 use super::signing::SigningValidator;
 use super::threat_test_mapping::{
     ThreatMapNoUnmappedValidator, ThreatMapThreatHasTestValidator, ThreatMapUnitCoverageValidator,
@@ -103,6 +111,50 @@ pub fn build_all() -> Result<Vec<RegistryRow>, DecodeError> {
             rule_id: "CYBER-FRONTMATTER.1",
             validator: Box::new(SkillFrontmatterValidValidator::new()?),
         },
+        RegistryRow {
+            rule_id: "REQ-TESTCAT-SEVEN.1",
+            validator: Box::new(RequiredTestCategoriesSevenValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "REQ-TESTCAT-MAP.1",
+            validator: Box::new(RequiredTestCategoriesMapValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "SEC-TEST-ASSERTS-REJECTION.1",
+            validator: Box::new(AssertsRejectionValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "SEC-TEST-MOCKS-MONEY-LOGIC.1",
+            validator: Box::new(MocksForMoneyLogicValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "SEC-TEST-REPRODUCIBLE-SEED.1",
+            validator: Box::new(ReproducibleSeedValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "SEC-TEST-GLOBAL-MUTATION.1",
+            validator: Box::new(GlobalMutationValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "SEC-TEST-PASS-IF-DELETED.1",
+            validator: Box::new(PassIfDeletedValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "SEC-TEST-NO-CRASH-ONLY.1",
+            validator: Box::new(NoCrashOnlyValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "SEC-TEST-SNAPSHOT-ONLY.1",
+            validator: Box::new(SnapshotOnlyValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "SEC-TEST-THREAT-QUALITY-SCORE.1",
+            validator: Box::new(ThreatQualityScoreValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "SEC-TEST-PROTECTION-REMOVED-HEURISTIC.1",
+            validator: Box::new(ProtectionRemovedHeuristicValidator::new()?),
+        },
     ];
 
     Ok(rows)
@@ -115,7 +167,7 @@ mod tests {
     #[test]
     fn registry_builds_cleanly() -> Result<(), Box<dyn std::error::Error>> {
         let rows = build_all()?;
-        assert_eq!(rows.len(), 15);
+        assert_eq!(rows.len(), 26);
         assert!(rows.iter().any(|row| row.rule_id == "H00-1.1"));
         assert!(rows
             .iter()
@@ -145,6 +197,35 @@ mod tests {
         assert!(rows.iter().any(|row| row.rule_id == "MCM-ECONOMIC.1"));
         assert!(rows.iter().any(|row| row.rule_id == "MCM-ROLLBACK.1"));
         assert!(rows.iter().any(|row| row.rule_id == "CYBER-FRONTMATTER.1"));
+        assert!(rows.iter().any(|row| row.rule_id == "REQ-TESTCAT-SEVEN.1"));
+        assert!(rows.iter().any(|row| row.rule_id == "REQ-TESTCAT-MAP.1"));
+        assert!(rows
+            .iter()
+            .any(|row| row.rule_id == "SEC-TEST-ASSERTS-REJECTION.1"));
+        assert!(rows
+            .iter()
+            .any(|row| row.rule_id == "SEC-TEST-MOCKS-MONEY-LOGIC.1"));
+        assert!(rows
+            .iter()
+            .any(|row| row.rule_id == "SEC-TEST-REPRODUCIBLE-SEED.1"));
+        assert!(rows
+            .iter()
+            .any(|row| row.rule_id == "SEC-TEST-GLOBAL-MUTATION.1"));
+        assert!(rows
+            .iter()
+            .any(|row| row.rule_id == "SEC-TEST-PASS-IF-DELETED.1"));
+        assert!(rows
+            .iter()
+            .any(|row| row.rule_id == "SEC-TEST-NO-CRASH-ONLY.1"));
+        assert!(rows
+            .iter()
+            .any(|row| row.rule_id == "SEC-TEST-SNAPSHOT-ONLY.1"));
+        assert!(rows
+            .iter()
+            .any(|row| row.rule_id == "SEC-TEST-THREAT-QUALITY-SCORE.1"));
+        assert!(rows
+            .iter()
+            .any(|row| row.rule_id == "SEC-TEST-PROTECTION-REMOVED-HEURISTIC.1"));
         Ok(())
     }
 }

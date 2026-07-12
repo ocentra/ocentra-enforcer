@@ -1,0 +1,48 @@
+[
+    {
+        "ruleId": "REQ-TESTCAT-SEVEN.1",
+        "version": 1,
+        "title": "Money-critical unit is missing required test categories (T1, §4/§8.3)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::required_test_categories::RequiredTestCategoriesSevenValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/required_test_categories/endpoint_a/bad/missing_replay_concurrency/manifest.json",
+            "pass": "crates/enforcer-security/tests/fixtures/required_test_categories/endpoint_a/good/all_seven/manifest.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h02-required-test-categories-gate.md#REQ-TESTCAT-SEVEN",
+        "tags": ["security", "money-critical", "track-h", "test-categories", "generic-value-system"],
+        "params": {
+            "requiredCategories": [
+                "negative",
+                "replay",
+                "concurrency",
+                "rollback/compensation",
+                "economic-exhaustion",
+                "time-based",
+                "signing/verification"
+            ]
+        }
+    },
+    {
+        "ruleId": "REQ-TESTCAT-MAP.1",
+        "version": 1,
+        "title": "Money-critical unit does not resolve to any test (T1, §4/§8.3)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-security",
+            "path": "rules::required_test_categories::RequiredTestCategoriesMapValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-security/tests/fixtures/required_test_categories/orphan/bad/unit_no_tests/manifest.json",
+            "pass": "crates/enforcer-security/tests/fixtures/required_test_categories/endpoint_a/good/all_seven/manifest.json"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h02-required-test-categories-gate.md#REQ-TESTCAT-MAP",
+        "tags": ["security", "money-critical", "track-h", "test-categories", "unit-resolution"],
+        "params": {
+            "doctrine": "every h01-classified unit MUST resolve to at least one test file bearing a recognized category tag"
+        }
+    }
+]

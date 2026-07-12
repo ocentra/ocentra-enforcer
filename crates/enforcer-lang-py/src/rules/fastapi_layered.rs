@@ -55,16 +55,6 @@ fn in_layer(path: &str, segment: &str) -> bool {
     path.contains(&format!("/{segment}/")) || path.starts_with(&format!("{segment}/"))
 }
 
-/// 1-based line number of the first line whose trimmed text contains
-/// `marker`, or `None` when absent.
-fn first_line_with(source: &str, marker: &str) -> Option<u32> {
-    source
-        .lines()
-        .enumerate()
-        .find(|(_, line)| line.contains(marker))
-        .map(|(idx, _)| (idx as u32).saturating_add(1))
-}
-
 /// True when any line's code (text before a `#` comment marker, if any)
 /// contains `marker` — so a bare prose comment mentioning the word does
 /// NOT count as a reference, only actual code does.
@@ -91,6 +81,31 @@ fn code_part(line: &str) -> &str {
         Some(idx) => &line[..idx],
         None => line,
     }
+}
+
+/// First 1-based line number of an import whose module path has a dotted
+/// segment exactly `models` — `from app.models import ...`,
+/// `from myproj.models.order import ...`, `from ..models import ...`,
+/// `from .models import ...`, `from models import ...`, or
+/// `import app.models` — regardless of the root package or relative-import
+/// depth. A whole-segment match (not a substring) so a package like
+/// `data_models` or a DTO import like `app.domain.order_dto` stays clean.
+fn imports_from_models_package(source: &str) -> Option<u32> {
+    source.lines().enumerate().find_map(|(idx, line)| {
+        let code = code_part(line).trim_start();
+        let module = if let Some(rest) = code.strip_prefix("from ") {
+            rest.split(" import").next().unwrap_or("")
+        } else if let Some(rest) = code.strip_prefix("import ") {
+            rest.split([' ', ',']).next().unwrap_or("")
+        } else {
+            return None;
+        };
+        if module.split('.').any(|segment| segment == "models") {
+            Some((idx as u32).saturating_add(1))
+        } else {
+            None
+        }
+    })
 }
 
 /// PYFA-1.1 (`py-fastapi-no-repo-in-routers`) — a `routers/**` module
@@ -272,7 +287,7 @@ impl Validator for NoOrmModelsInServicesValidator {
         if !in_layer(path, "services") {
             return Vec::new();
         }
-        if let Some(line) = first_code_line_with(input.source, "from app.models") {
+        if let Some(line) = imports_from_models_package(input.source) {
             return vec![finding(
                 &FindingSpec {
                     rule_id: &self.rule_id,
@@ -280,8 +295,9 @@ impl Validator for NoOrmModelsInServicesValidator {
                     title: "fastapi-layered: service imports an ORM model",
                 },
                 format!(
-                    "`{path}` imports directly from `app.models`; services must use domain \
-                     DTOs, not ORM model classes. Fix: define/use a domain DTO instead."
+                    "`{path}` imports from a `models` package (ORM model classes); services \
+                     must use domain DTOs, not ORM model classes. Fix: define/use a domain DTO \
+                     instead."
                 ),
                 &input,
                 line,
@@ -560,6 +576,12 @@ impl Validator for NoSyncHttpValidator {
             "requests.get(",
             "requests.post(",
             "requests.put(",
+            "requests.patch(",
+            "requests.delete(",
+            "requests.head(",
+            "requests.options(",
+            "requests.request(",
+            "urllib.request.urlopen(",
             "httpx.Client(",
         ] {
             if let Some(line) = first_code_line_with(input.source, marker) {
@@ -719,7 +741,15 @@ impl Validator for InsecureRandomTokenValidator {
         if !mentions_token {
             return Vec::new();
         }
-        for marker in ["random.choice(", "random.randint(", "random.random("] {
+        for marker in [
+            "random.choice(",
+            "random.randint(",
+            "random.random(",
+            "random.randrange(",
+            "random.getrandbits(",
+            "random.sample(",
+            "random.uniform(",
+        ] {
             if let Some(line) = first_code_line_with(input.source, marker) {
                 return vec![finding(
                     &FindingSpec {
@@ -763,8 +793,16 @@ impl Validator for CorsWildcardValidator {
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
         let path = input.file.as_str();
-        for marker in ["allow_origins=[\"*\"]", "allow_origins=['*']"] {
-            if let Some(line) = first_line_with(input.source, marker) {
+        // Normalize away all whitespace on each code line so
+        // `allow_origins = [ "*" ]` reads the same as `allow_origins=["*"]`.
+        for (idx, line) in input.source.lines().enumerate() {
+            let normalized: String = code_part(line)
+                .chars()
+                .filter(|c| !c.is_whitespace())
+                .collect();
+            if normalized.contains("allow_origins=[\"*\"]")
+                || normalized.contains("allow_origins=['*']")
+            {
                 return vec![finding(
                     &FindingSpec {
                         rule_id: &self.rule_id,
@@ -777,7 +815,7 @@ impl Validator for CorsWildcardValidator {
                          allowed origins."
                     ),
                     &input,
-                    line,
+                    (idx as u32).saturating_add(1),
                 )];
             }
         }

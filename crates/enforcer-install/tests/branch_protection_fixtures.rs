@@ -11,8 +11,8 @@
 //! `tests/fixtures/branch_protection/**`, which c10 does not own.
 
 use enforcer_install::ci::branch_protection::{
-    emit_payload, resolve_contexts, DesiredProtection, GhApiPayload, LiveProtectionState, Verdict,
-    WorkflowJob,
+    emit_payload, resolve_contexts, verify_and_report, BranchProtectionReport, DesiredProtection,
+    GhApiPayload, LiveProtectionState, Verdict, WorkflowJob,
 };
 use std::path::{Path, PathBuf};
 
@@ -23,6 +23,11 @@ fn fixture_path(name: &str) -> PathBuf {
 }
 
 fn load_live(name: &str) -> Result<LiveProtectionState, Box<dyn std::error::Error>> {
+    let raw = std::fs::read_to_string(fixture_path(name))?;
+    Ok(serde_json::from_str(&raw)?)
+}
+
+fn load_report(name: &str) -> Result<BranchProtectionReport, Box<dyn std::error::Error>> {
     let raw = std::fs::read_to_string(fixture_path(name))?;
     Ok(serde_json::from_str(&raw)?)
 }
@@ -64,6 +69,17 @@ fn pass_fixture_attests_protection() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn pass_fixture_emits_the_pinned_installer_ci_report() -> Result<(), Box<dyn std::error::Error>> {
+    let live = load_live("pass.json")?;
+    let report = verify_and_report(&desired(), &live);
+    assert_eq!(report, load_report("pass_report.golden.json")?);
+    let json = serde_json::to_string(&report)?;
+    let round_tripped: BranchProtectionReport = serde_json::from_str(&json)?;
+    assert_eq!(round_tripped, report);
+    Ok(())
+}
+
+#[test]
 fn fail_fixture_no_required_checks_refuses_non_zero() -> Result<(), Box<dyn std::error::Error>> {
     let live = load_live("fail_no_required_checks.json")?;
     let verdict = enforcer_install::ci::branch_protection::verify(&desired(), &live);
@@ -87,6 +103,24 @@ fn fail_fixture_bypassable_refuses_non_zero() -> Result<(), Box<dyn std::error::
         }
         Verdict::Attested => Err("bypassable fail fixture must not attest".into()),
     }
+}
+
+#[test]
+fn bypassable_fixture_reports_every_refusal_with_stable_codes(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let live = load_live("fail_bypassable.json")?;
+    let report = verify_and_report(&desired(), &live);
+    assert!(!report.attested);
+    assert!(report.exit_code > 0);
+    assert_eq!(
+        report
+            .refusals
+            .iter()
+            .map(|refusal| refusal.code.as_str())
+            .collect::<Vec<_>>(),
+        vec!["admin_override_allowed", "force_push_allowed"]
+    );
+    Ok(())
 }
 
 #[test]

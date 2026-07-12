@@ -8,7 +8,7 @@ use enforcer_memory::store::{manifest::write_index_manifest, sqlite::Operational
 use serde::Serialize;
 
 use crate::project_registry::memory_index_available;
-use crate::{desktop_workspace_root, store_timestamp, walk_repo_files};
+use crate::{resolve_pack_root, store_timestamp, walk_repo_files};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -118,7 +118,7 @@ pub(crate) struct MemorySummaryPayload {
 pub(crate) fn search_memory_graph(
     root: String,
     query: String,
-) -> Result<GraphSearchPayload, String> {
+) -> Result<enforcer_ui::memory_explorer::GraphSearchPayload, String> {
     let root_path = PathBuf::from(&root);
     if !root_path.is_dir() {
         return Err(format!("project root is not a directory: {root}"));
@@ -139,25 +139,28 @@ pub(crate) fn search_memory_graph(
     let result = search_graph(
         &graph,
         &SearchGraphSpec {
-            query: Some(query),
+            query: Some(query.clone()),
             limit: Some(32),
             ..Default::default()
         },
     )
     .map_err(|error| format!("memory graph search failed: {error}"))?;
-    Ok(GraphSearchPayload {
+    Ok(enforcer_ui::memory_explorer::GraphSearchPayload {
         total: result.total,
         has_more: result.has_more,
+        query,
+        project_scope: root,
         results: result
             .results
             .into_iter()
-            .map(|hit| GraphSearchHitPayload {
+            .map(|hit| enforcer_ui::memory_explorer::GraphSearchHitPayload {
                 node_id: hit.node_id,
                 name: hit.name,
                 qualified_name: hit.qualified_name,
                 label: hit.label.to_owned(),
                 file_path: hit.file_path,
-                rank: hit.rank,
+                evidence_kind: enforcer_ui::memory_explorer::EvidenceKind::CodeGraph,
+                rank: hit.rank.map(|rank| format!("{rank:.4}")),
             })
             .collect(),
     })
@@ -251,57 +254,18 @@ fn create_memory_index_sync(root: String) -> Result<IndexProjectPayload, String>
 }
 
 #[tauri::command]
-pub(crate) fn load_memory_summary(root: String) -> Result<MemorySummaryPayload, String> {
+pub(crate) fn load_memory_summary(
+    root: String,
+) -> Result<enforcer_ui::memory_explorer::MemoryExplorerPayload, String> {
     let selected_project_root = PathBuf::from(&root);
     if !selected_project_root.is_dir() {
         return Err(format!("project root is not a directory: {root}"));
     }
-    let proof_root = desktop_workspace_root().join("proof").join("memory");
-    let retrieval_path = proof_root.join("x06-rag-qa.json");
-    let learning_path = proof_root.join("x06-learning-curve.json");
-    let models_path = proof_root.join("x06-models.json");
-    let parity_path = proof_root.join("x06-kg-parity.json");
-    let generated_at_unix_secs =
-        latest_modified_unix_secs(&[&retrieval_path, &learning_path, &models_path, &parity_path]);
-    let retrieval = read_json(&retrieval_path);
-    let learning = read_json(&learning_path);
-    let models = read_json(&models_path);
-    let parity = read_json(&parity_path);
-
-    Ok(MemorySummaryPayload {
-        provenance: MemoryEvidenceProvenance {
-            scope: "engine-proof",
-            selected_project_root: selected_project_root.display().to_string(),
-            artifact_root: proof_root.display().to_string(),
-            generated_at_unix_secs,
-        },
-        retrieval: RetrievalSummary {
-            available: retrieval.is_some(),
-            status: string_field(retrieval.as_ref(), "status"),
-            rows_total: number_field(retrieval.as_ref(), "rowsTotal"),
-            rows_green: number_field(retrieval.as_ref(), "rowsGreen"),
-            rows_degraded: number_field(retrieval.as_ref(), "rowsGreenDegraded"),
-        },
-        learning: LearningSummary {
-            available: learning.is_some(),
-            status: string_field(learning.as_ref(), "status"),
-            lessons: array_len(learning.as_ref(), "dogfoodLessons"),
-            blockers: array_len(learning.as_ref(), "blockers"),
-            follow_ups: array_len(learning.as_ref(), "followUps"),
-        },
-        models: ModelSummary {
-            available: models.is_some(),
-            runtime_mode: string_field(models.as_ref(), "runtimeMode"),
-            allow_network: models
-                .as_ref()
-                .and_then(|value| value.get("allowNetwork"))
-                .and_then(serde_json::Value::as_bool)
-                .unwrap_or(false),
-            cache_root: string_field(models.as_ref(), "cacheRoot"),
-            observations: array_len(models.as_ref(), "observations"),
-        },
-        parity: parity_summary(parity.as_ref()),
-    })
+    Ok(enforcer_ui::memory_explorer::render_memory_explorer(
+        enforcer_ui::memory_explorer::RunMode::Human,
+        &selected_project_root,
+        &resolve_pack_root()?,
+    ))
 }
 
 fn latest_modified_unix_secs(paths: &[&Path]) -> Option<u64> {

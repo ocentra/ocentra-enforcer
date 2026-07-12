@@ -111,10 +111,10 @@ fn count_parity_against_rules_json_language_common_minus_sec2(
     );
     assert_eq!(
         expected.len(),
-        249,
-        "expected 269 - 20 SEC-2 = 249 common rules"
+        250,
+        "expected 270 - 20 SEC-2 = 250 common rules"
     );
-    assert_eq!(registered.len(), 249);
+    assert_eq!(registered.len(), 250);
     Ok(())
 }
 

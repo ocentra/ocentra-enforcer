@@ -12,9 +12,10 @@ use enforcer_config::project_tie::{
     load_project_tie, EnforcerScope, NativeMode, NativeTool, ResolvedProjectTie,
 };
 use enforcer_scan::router::detect::DetectedLanguage;
-use enforcer_scan::router::plan::{build_route_plan, RoutePlanScope, RulePack};
+use enforcer_scan::router::plan::{build_route_plan, RoutePlan, RoutePlanScope, RulePack};
 use enforcer_scan::router::scope::RouteScope;
 use enforcer_scan::walk::{walk, IgnoreRules};
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 fn fixture_root(case: &str) -> PathBuf {
@@ -190,5 +191,122 @@ fn f03_tie_override_is_honored_on_the_route_plan() -> Result<(), Box<dyn std::er
         .ok_or("expected a cargo native tool route in the plan")?;
     assert_eq!(cargo_route.tie.mode, NativeMode::Override);
     assert_eq!(cargo_route.tie.scope, EnforcerScope::Scoped);
+    Ok(())
+}
+
+/// The requirement-checklist calls the emitted ROUTE PLAN "the tested
+/// surface" and a "serializable `serde` struct", and the workpack mandates
+/// keeping it data-driven for the Tauri UI. That contract is only real if
+/// the plan actually survives the JSON hop the UI (and the check/scan/run
+/// MCP tools) read it over. This proves the full plan round-trips through
+/// `serde_json` unchanged AND that the wire shape is the self-describing,
+/// camelCase form a TS consumer expects — a `kind`-tagged scope and
+/// camelCase language/pack ids (`typeScript`, `literalScanFloor`), never
+/// Rust enum debug names.
+#[test]
+fn route_plan_is_data_driven_and_round_trips_through_json() -> Result<(), Box<dyn std::error::Error>>
+{
+    let root = fixture_root("mixed_rust_ts");
+    let paths = walked_paths(&root)?;
+    let tie = tie_for(&root)?;
+    let plan = build_route_plan(&paths, &RouteScope::Repo, &tie);
+
+    // Core contract: serialize -> deserialize is the identity on a plan.
+    let json = serde_json::to_string(&plan)?;
+    let restored: RoutePlan = serde_json::from_str(&json)?;
+    assert_eq!(
+        plan, restored,
+        "a RoutePlan must survive a serde_json round-trip byte-for-byte-equivalently"
+    );
+
+    // Wire-shape contract the Tauri UI depends on: a flat, self-describing
+    // JSON object with a discriminated scope and camelCase id tokens.
+    let value: serde_json::Value = serde_json::from_str(&json)?;
+    assert_eq!(
+        value["scope"]["kind"], "repo",
+        "scope must serialize as a `kind`-tagged discriminated union for the UI"
+    );
+    let rule_packs = value["rulePacks"]
+        .as_array()
+        .ok_or("`rulePacks` must serialize as a JSON array")?;
+    assert!(
+        rule_packs.iter().any(|p| p == "typeScript"),
+        "rule-pack ids must be camelCase tokens (`typeScript`), got {rule_packs:?}"
+    );
+    assert!(
+        rule_packs.iter().any(|p| p == "literalScanFloor"),
+        "the universal floor id must serialize as `literalScanFloor`, got {rule_packs:?}"
+    );
+    let languages = value["languages"]
+        .as_array()
+        .ok_or("`languages` must serialize as a JSON array")?;
+    assert!(
+        languages.iter().any(|l| l == "typeScript"),
+        "detected-language ids must be camelCase tokens, got {languages:?}"
+    );
+    let native_tools = value["nativeTools"]
+        .as_array()
+        .ok_or("`nativeTools` must serialize as a JSON array")?;
+    assert!(
+        native_tools
+            .iter()
+            .any(|t| t["tool"] == "cargo" && t["tie"]["mode"].is_string()),
+        "each native-tool entry must carry its tool id plus a resolved tie, got {native_tools:?}"
+    );
+    Ok(())
+}
+
+/// Parity over the router's route-plan case ids (the Rust-native analog of
+/// d01's reverse-orphan sweep, scoped to f05's owned surface): every case
+/// this suite declares must have exactly one on-disk fixture directory, and
+/// every on-disk fixture directory must be a declared case. A fixture added
+/// without a driving test (an orphan route-plan id) — or a case whose
+/// fixture was deleted (a dangling one) — fails closed here instead of going
+/// silently unproven. Each declared case is then driven end-to-end
+/// (detect -> scope -> plan -> JSON round-trip) so the id -> fixture -> plan
+/// chain is proven intact for all of them, not just the ones with a bespoke
+/// assertion above.
+#[test]
+fn every_router_fixture_case_is_declared_and_proven() -> Result<(), Box<dyn std::error::Error>> {
+    // The canonical registry of route-plan cases this suite proves. Each
+    // name is a subdirectory of `tests/fixtures/router/` exercised by a
+    // detection test in this file.
+    const DECLARED_CASES: &[&str] = &[
+        "mixed_rust_ts",
+        "rust_only",
+        "python_only",
+        "crate_scope",
+        "unknown_only",
+        "tie_override",
+    ];
+
+    let fixtures_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/router");
+    let on_disk: BTreeSet<String> = std::fs::read_dir(&fixtures_dir)?
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.file_type().map(|t| t.is_dir()).unwrap_or(false))
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .collect();
+    let declared: BTreeSet<String> = DECLARED_CASES.iter().map(|c| (*c).to_owned()).collect();
+    assert_eq!(
+        on_disk, declared,
+        "route-plan fixture cases must be in parity with the declared set — a dir present \
+         on disk but not declared is an orphan fixture; a declared case with no dir is dangling"
+    );
+
+    // Forward chain: every declared id resolves to a fixture that produces a
+    // real, serializable plan.
+    for case in DECLARED_CASES {
+        let root = fixture_root(case);
+        let paths = walked_paths(&root)?;
+        let tie = tie_for(&root)?;
+        let plan = build_route_plan(&paths, &RouteScope::Repo, &tie);
+        let json = serde_json::to_string(&plan).map_err(|e| format!("{case}: serialize: {e}"))?;
+        let restored: RoutePlan =
+            serde_json::from_str(&json).map_err(|e| format!("{case}: deserialize: {e}"))?;
+        assert_eq!(
+            plan, restored,
+            "case `{case}`: plan must round-trip unchanged"
+        );
+    }
     Ok(())
 }

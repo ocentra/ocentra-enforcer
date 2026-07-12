@@ -82,6 +82,8 @@ pub mod security;
 /// see [`explorer`] for the dual-audience render contract.
 pub mod explorer;
 
+pub mod memory_explorer;
+
 /// Renders `enforcer-domain::findings::Report` into the UI data model at
 /// the Rust boundary (arc-24-owned; the seam every Track G pack renders
 /// through). Frontend types are DERIVED from this module + `enforcer-

@@ -1,0 +1,17 @@
+{
+  "moneyCriticalUnits": ["endpoint_a"],
+  "units": [
+    {
+      "unit": "endpoint_a",
+      "tests": {
+        "negative": ["neg_endpoint_a_rejects_invalid_amount"],
+        "replay": [],
+        "concurrency": [],
+        "rollback": ["rollback_endpoint_a_compensates_on_failure"],
+        "economic_exhaustion": ["econ_endpoint_a_rejects_pool_exhaustion"],
+        "time_based": ["time_endpoint_a_expires_after_window"],
+        "signing": ["sign_endpoint_a_verifies_signature"]
+      }
+    }
+  ]
+}

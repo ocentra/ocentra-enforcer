@@ -8,8 +8,8 @@
 //! owned by `enforcer-lang-security` (arc-10) per the workpack's explicit
 //! SEC-2 decision — arc-10 depends on this crate only for the shared
 //! `generic-scanner` engine ([`pattern`]), not for SEC-2's rule bodies.
-//! This crate's count-parity set is therefore 249 of the 269
-//! `language==common` rules (269 − 20 SEC-2).
+//! This crate's count-parity set is therefore 250 of the 270
+//! `language==common` rules (270 − 20 SEC-2).
 //!
 //! Rule families covered (see [`families`] for the full per-prefix list,
 //! and the workpack's "Rule inventory (per-prefix)" table for the

@@ -15,11 +15,12 @@ test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 
      Running tests\fastapi_layered_detection.rs (target\debug\deps\fastapi_layered_detection-*.exe)
 
-running 2 tests
+running 3 tests
 test family_covers_exactly_fourteen_rules ... ok
 test every_fastapi_layered_rule_fires_on_fail_and_is_silent_on_pass ... ok
+test hardened_rules_catch_realistic_evasions ... ok
 
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 
      Running tests\fastapi_layered_parity.rs (target\debug\deps\fastapi_layered_parity-*.exe)
 
@@ -128,6 +129,15 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
                                        tests/fastapi_layered_detection.rs::family_covers_exactly_fourteen_rules
                                        (registers exactly 14 validators: PYFA-1.1 .. PYFA-11.1 layering/
                                        DI + PYFA-12.1 .. PYFA-12.3 security)
+                                       tests/fastapi_layered_detection.rs::hardened_rules_catch_realistic_evasions
+                                       (the four rules whose detection was broadened beyond a single
+                                       literal marker -- PYFA-4.1 non-`app` / relative `models` import,
+                                       PYFA-10.1 `requests.delete` and other omitted verbs, PYFA-12.2
+                                       `random.randrange` and other omitted fns, PYFA-12.3 whitespace
+                                       around a wildcard CORS origin -- each fires on a realistic
+                                       evasion the old narrow check MISSED, while its canonical pass
+                                       fixture stays clean under the broadened validator; fail-variant
+                                       fixtures under `<rule>/fail-variant/`)
 - python-fastapi-family-parity     -> tests/fastapi_layered_parity.rs::
                                        every_fastapi_layered_rule_passes_the_d01_five_way_parity_sweep
                                        (every py-fastapi-* ruleId in
@@ -168,11 +178,52 @@ this pack's own code -- same pre-existing warning class noted in proof/rules/e01
 - 14 new RuleRecords in crates/enforcer-rules/rules/fastapi-layered.json
   (disjoint from the 61-count language==python catalog and from the
   249-count lang-common families registry)
-- 28 new fixture files (14 fail + 14 pass) under
-  crates/enforcer-lang-py/tests/fixtures/fastapi_layered/**
-- 2 new test files: tests/fastapi_layered_detection.rs (2 tests),
-  tests/fastapi_layered_parity.rs (4 tests)
+- 32 fixture files under crates/enforcer-lang-py/tests/fixtures/fastapi_layered/**
+  (14 canonical fail + 14 canonical pass + 4 hardening fail-variant fixtures
+  for PYFA-4.1 / PYFA-10.1 / PYFA-12.2 / PYFA-12.3)
+- 2 test files: tests/fastapi_layered_detection.rs (3 tests, incl. the new
+  hardened_rules_catch_realistic_evasions), tests/fastapi_layered_parity.rs
+  (4 tests)
 - Existing enforcer-lang-py 61-count registry-coverage test
   (registry_coverage::every_python_rule_id_has_a_registered_validator)
   untouched and still green -- this pack's ids do not appear in
   rules/rules.json's language==python set.
+
+=== HARDENING PASS (2026-07-11) — missing rule BEHAVIOR filled in ===
+The 14 PYFA-* rules were already present and green; this pass closed
+false-negative gaps where a rule claimed to detect a class of anti-pattern
+but only matched one literal spelling, so realistic FastAPI code slipped
+through. No new rule ids, records, fixtures-in-catalog, or doc anchors were
+added (5-way parity unchanged); only Validator detection breadth and proof
+fixtures were extended, all within pack-owned paths.
+- PYFA-4.1 no-orm-models-in-services: was hardcoded to `from app.models`;
+  now flags any import whose module path has a whole `models` segment
+  (`from myproj.models`, `from ..models`, `from .models`, `import x.models`),
+  while `data_models` / `app.domain.order_dto` stay clean.
+- PYFA-10.1 no-sync-http: added the omitted verbs requests.patch/delete/head/
+  options/request and urllib.request.urlopen alongside get/post/put and the
+  sync httpx.Client.
+- PYFA-12.2 insecure-random-token: added random.randrange/getrandbits/sample/
+  uniform alongside choice/randint/random. (random.shuffle was deliberately
+  NOT added: it returns None / shuffles in place -- a weak token-minting
+  signal -- and the literal `random.shuffle(` contains the substring `.sh`,
+  which self-collides with the enforcer's own PORT-1.1 Linux `.sh` script
+  marker when it dogfoods this crate's source.)
+- PYFA-12.3 cors-wildcard: now whitespace-normalized and #-comment-aware, so
+  `allow_origins = [ "*" ]` is caught, not only the exact `allow_origins=["*"]`.
+
+=== KNOWN BLOCKER (honest disclosure — NOT owned by this pack) ===
+The 14 PYFA-* validators are reachable ONLY via their own cargo tests
+(detection + parity) and the fastapi-layered.json catalog; they are NOT wired
+into the runtime scan path. `enforcer-scan/src/engine.rs::build_family_validators`
+collects `enforcer_lang_py::all_validators()` (the 61 rules.json-backed PY-*
+validators), which by design (lib.rs:25-30) excludes rules::fastapi_layered.
+This is the IDENTICAL posture of sibling families d16 (fsm.json /
+enforcer_lang_common::rules::fsm) and d22 (size-shape.json /
+size_shape) — none of the "NEW-mechanism" JSON-catalog families are dispatched
+at runtime yet; the engine does not load JSON catalogs at all. Wiring these
+families into the scan engine is a shared concern owned by the Validator
+registration root (arc-08 crate skeleton) + the scan dispatcher (arc-14/f05),
+which this workpack is explicitly forbidden from touching. Reported, not
+fixed. No PYFA rule can block a real `enforcer scan`/`enforcer check` until
+that shared wiring lands.

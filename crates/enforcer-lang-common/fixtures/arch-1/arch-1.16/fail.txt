@@ -1,0 +1,5 @@
+// Fixture for ARCH-1.16: Presentation/UI cannot call business logic directly
+// Ported from legacy validator id `common/ui-logic-coupling-scan` (see rules/rules.json doc: rules/common/architecture.md#covered-rules).
+// A presentation component importing a business-logic module directly
+// (bypassing a hook/composable boundary) trips the rule. This line trips it:
+import { fetchWidgets } from "../services/widgets";

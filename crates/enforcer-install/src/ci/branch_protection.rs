@@ -250,6 +250,80 @@ pub enum RefusalReason {
     RedCheckMergeEligible,
 }
 
+impl RefusalReason {
+    /// Stable machine-readable code for CI and installer consumers. The
+    /// descriptive text in [`Self::message`] may evolve, but this code is
+    /// the reporting contract callers can key automation on.
+    #[must_use]
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::NoRequiredChecks => "no_required_checks",
+            Self::MissingRequiredContext { .. } => "missing_required_context",
+            Self::AdminOverrideAllowed => "admin_override_allowed",
+            Self::ForcePushAllowed => "force_push_allowed",
+            Self::DeletionAllowed => "deletion_allowed",
+            Self::NotRequiredUpToDate => "not_required_up_to_date",
+            Self::PullRequestNotRequired => "pull_request_not_required",
+            Self::RedCheckMergeEligible => "red_check_merge_eligible",
+        }
+    }
+
+    /// Human-readable detail for CI logs and installer reports.
+    #[must_use]
+    pub fn message(&self) -> String {
+        match self {
+            Self::NoRequiredChecks => "main has no required status checks".to_owned(),
+            Self::MissingRequiredContext { missing } => {
+                format!("main is missing required status check: {missing}")
+            }
+            Self::AdminOverrideAllowed => {
+                "main allows administrators to override required checks".to_owned()
+            }
+            Self::ForcePushAllowed => "main allows force pushes".to_owned(),
+            Self::DeletionAllowed => "main allows deletion".to_owned(),
+            Self::NotRequiredUpToDate => {
+                "main does not require branches to be up to date before merge".to_owned()
+            }
+            Self::PullRequestNotRequired => {
+                "main does not require pull requests before merge".to_owned()
+            }
+            Self::RedCheckMergeEligible => {
+                "required checks are red or pending while the merge remains eligible".to_owned()
+            }
+        }
+    }
+}
+
+/// One failed expectation in the serializable installer/CI report.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReportedRefusal {
+    /// Stable code for machines and CI annotations.
+    pub code: String,
+    /// Concrete explanation for a human reading the CI log.
+    pub message: String,
+}
+
+/// Stable report of the protection verification contract for `main`.
+///
+/// This is deliberately separate from [`Verdict`]: callers can serialize it
+/// directly into a CI artifact without parsing Rust debug output, while the
+/// in-process verdict remains convenient for gates that need an exit code.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BranchProtectionReport {
+    /// The only protected branch this workpack evaluates.
+    pub branch: String,
+    /// Contexts the installer expects this repository to require.
+    pub expected_contexts: Vec<String>,
+    /// Contexts observed in the captured or live protection response.
+    pub observed_contexts: Vec<String>,
+    /// `true` only when every protection expectation is satisfied.
+    pub attested: bool,
+    /// Process-compatible status: zero iff [`Self::attested`] is `true`.
+    pub exit_code: i32,
+    /// Every unmet expectation, in deterministic verifier order.
+    pub refusals: Vec<ReportedRefusal>,
+}
+
 /// The verifier's verdict: either it attests protection is in place and
 /// non-bypassable, or it refuses — fail-closed, naming every gap found (not
 /// just the first one), so one fixture run surfaces the complete list of
@@ -345,6 +419,40 @@ pub fn verify(desired: &DesiredProtection, live: &LiveProtectionState) -> Verdic
         Verdict::Attested
     } else {
         Verdict::Refused(reasons)
+    }
+}
+
+/// Verify `main` and return the stable report consumed by installer and CI
+/// callers. This function performs no network or GitHub mutation; callers may
+/// pass a `gh api` read-back or a captured fixture as [`LiveProtectionState`].
+#[must_use]
+pub fn verify_and_report(
+    desired: &DesiredProtection,
+    live: &LiveProtectionState,
+) -> BranchProtectionReport {
+    let verdict = verify(desired, live);
+    let refusals = match &verdict {
+        Verdict::Attested => Vec::new(),
+        Verdict::Refused(reasons) => reasons
+            .iter()
+            .map(|reason| ReportedRefusal {
+                code: reason.code().to_owned(),
+                message: reason.message(),
+            })
+            .collect(),
+    };
+    let observed_contexts = live
+        .required_status_checks
+        .as_ref()
+        .map_or_else(Vec::new, |checks| checks.contexts.clone());
+
+    BranchProtectionReport {
+        branch: "main".to_owned(),
+        expected_contexts: desired.required_contexts(),
+        observed_contexts,
+        attested: verdict.is_attested(),
+        exit_code: verdict.exit_code(),
+        refusals,
     }
 }
 

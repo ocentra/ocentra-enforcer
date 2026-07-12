@@ -1,0 +1,3886 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "ruleId": "AI-1.1",
+      "file": "crates/enforcer-lang-common/src/families/ai_1.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "ARCH-1.1",
+      "file": "crates/enforcer-lang-common/src/families/arch_1.rs",
+      "line": 24
+    },
+    {
+      "ruleId": "ARCH-1.10",
+      "file": "crates/enforcer-lang-common/src/families/arch_1.rs",
+      "line": 87
+    },
+    {
+      "ruleId": "ARCH-1.11",
+      "file": "crates/enforcer-lang-common/src/families/arch_1.rs",
+      "line": 94
+    },
+    {
+      "ruleId": "ARCH-1.12",
+      "file": "crates/enforcer-lang-common/src/families/arch_1.rs",
+      "line": 101
+    },
+    {
+      "ruleId": "ARCH-1.13",
+      "file": "crates/enforcer-lang-common/src/families/arch_1.rs",
+      "line": 108
+    },
+    {
+      "ruleId": "ARCH-1.14",
+      "file": "crates/enforcer-lang-common/src/families/arch_1.rs",
+      "line": 115
+    },
+    {
+      "ruleId": "ARCH-1.15",
+      "file": "crates/enforcer-lang-common/src/families/arch_1.rs",
+      "line": 122
+    },
+    {
+      "ruleId": "ARCH-1.16",
+      "file": "crates/enforcer-lang-cfml/src/rules/arch.rs",
+      "line": 2
+    },
+    {
+      "ruleId": "ARCH-1.16",
+      "file": "crates/enforcer-lang-common/src/families/arch_1.rs",
+      "line": 131
+    },
+    {
+      "ruleId": "ARCH-1.16",
+      "file": "crates/enforcer-lang-common/src/rules/size_shape.rs",
+      "line": 906
+    },
+    {
+      "ruleId": "ARCH-1.16",
+      "file": "crates/enforcer-lang-common/src/rules/test_quality.rs",
+      "line": 88
+    },
+    {
+      "ruleId": "ARCH-1.16",
+      "file": "crates/enforcer-lang-py/tests/fastapi_layered_detection.rs",
+      "line": 44
+    },
+    {
+      "ruleId": "ARCH-1.16",
+      "file": "crates/enforcer-lang-ts/src/rules/frontend_react.rs",
+      "line": 446
+    },
+    {
+      "ruleId": "ARCH-1.16",
+      "file": "crates/enforcer-rules/rules/fastapi-layered.json",
+      "line": 31
+    },
+    {
+      "ruleId": "ARCH-1.16",
+      "file": "crates/enforcer-rules/rules/frontend-react.json",
+      "line": 95
+    },
+    {
+      "ruleId": "ARCH-1.16",
+      "file": "crates/enforcer-rules/rules/size-shape.json",
+      "line": 154
+    },
+    {
+      "ruleId": "ARCH-1.16",
+      "file": "crates/enforcer-rules/rules/test-quality.json",
+      "line": 12
+    },
+    {
+      "ruleId": "ARCH-1.2",
+      "file": "crates/enforcer-lang-common/src/families/arch_1.rs",
+      "line": 31
+    },
+    {
+      "ruleId": "ARCH-1.3",
+      "file": "crates/enforcer-lang-common/src/families/arch_1.rs",
+      "line": 38
+    },
+    {
+      "ruleId": "ARCH-1.4",
+      "file": "crates/enforcer-lang-common/src/families/arch_1.rs",
+      "line": 45
+    },
+    {
+      "ruleId": "ARCH-1.5",
+      "file": "crates/enforcer-lang-common/src/families/arch_1.rs",
+      "line": 52
+    },
+    {
+      "ruleId": "ARCH-1.6",
+      "file": "crates/enforcer-lang-common/src/families/arch_1.rs",
+      "line": 59
+    },
+    {
+      "ruleId": "ARCH-1.7",
+      "file": "crates/enforcer-lang-common/src/families/arch_1.rs",
+      "line": 66
+    },
+    {
+      "ruleId": "ARCH-1.8",
+      "file": "crates/enforcer-lang-common/src/families/arch_1.rs",
+      "line": 73
+    },
+    {
+      "ruleId": "ARCH-1.9",
+      "file": "crates/enforcer-lang-common/src/families/arch_1.rs",
+      "line": 80
+    },
+    {
+      "ruleId": "BOUND-1.1",
+      "file": "crates/enforcer-lang-common/src/families/bound_1.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "BOUND-1.10",
+      "file": "crates/enforcer-lang-common/src/families/bound_1.rs",
+      "line": 83
+    },
+    {
+      "ruleId": "BOUND-1.2",
+      "file": "crates/enforcer-lang-common/src/families/bound_1.rs",
+      "line": 27
+    },
+    {
+      "ruleId": "BOUND-1.3",
+      "file": "crates/enforcer-lang-common/src/families/bound_1.rs",
+      "line": 34
+    },
+    {
+      "ruleId": "BOUND-1.4",
+      "file": "crates/enforcer-lang-common/src/families/bound_1.rs",
+      "line": 41
+    },
+    {
+      "ruleId": "BOUND-1.5",
+      "file": "crates/enforcer-lang-common/src/families/bound_1.rs",
+      "line": 48
+    },
+    {
+      "ruleId": "BOUND-1.6",
+      "file": "crates/enforcer-lang-common/src/families/bound_1.rs",
+      "line": 55
+    },
+    {
+      "ruleId": "BOUND-1.7",
+      "file": "crates/enforcer-lang-common/src/families/bound_1.rs",
+      "line": 62
+    },
+    {
+      "ruleId": "BOUND-1.8",
+      "file": "crates/enforcer-lang-common/src/families/bound_1.rs",
+      "line": 69
+    },
+    {
+      "ruleId": "BOUND-1.9",
+      "file": "crates/enforcer-lang-common/src/families/bound_1.rs",
+      "line": 76
+    },
+    {
+      "ruleId": "CFG-1.1",
+      "file": "crates/enforcer-lang-common/src/families/cfg_1.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "CFG-1.10",
+      "file": "crates/enforcer-lang-common/src/families/cfg_1.rs",
+      "line": 83
+    },
+    {
+      "ruleId": "CFG-1.11",
+      "file": "crates/enforcer-lang-common/src/families/cfg_1.rs",
+      "line": 90
+    },
+    {
+      "ruleId": "CFG-1.12",
+      "file": "crates/enforcer-lang-common/src/families/cfg_1.rs",
+      "line": 97
+    },
+    {
+      "ruleId": "CFG-1.2",
+      "file": "crates/enforcer-lang-common/src/families/cfg_1.rs",
+      "line": 27
+    },
+    {
+      "ruleId": "CFG-1.3",
+      "file": "crates/enforcer-lang-common/src/families/cfg_1.rs",
+      "line": 34
+    },
+    {
+      "ruleId": "CFG-1.4",
+      "file": "crates/enforcer-lang-common/src/families/cfg_1.rs",
+      "line": 41
+    },
+    {
+      "ruleId": "CFG-1.5",
+      "file": "crates/enforcer-lang-common/src/families/cfg_1.rs",
+      "line": 48
+    },
+    {
+      "ruleId": "CFG-1.6",
+      "file": "crates/enforcer-lang-common/src/families/cfg_1.rs",
+      "line": 55
+    },
+    {
+      "ruleId": "CFG-1.7",
+      "file": "crates/enforcer-lang-common/src/families/cfg_1.rs",
+      "line": 62
+    },
+    {
+      "ruleId": "CFG-1.8",
+      "file": "crates/enforcer-lang-common/src/families/cfg_1.rs",
+      "line": 69
+    },
+    {
+      "ruleId": "CFG-1.9",
+      "file": "crates/enforcer-lang-common/src/families/cfg_1.rs",
+      "line": 76
+    },
+    {
+      "ruleId": "CI-1.1",
+      "file": "crates/enforcer-lang-common/src/families/ci_1.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "CI-1.10",
+      "file": "crates/enforcer-lang-common/src/families/ci_1.rs",
+      "line": 83
+    },
+    {
+      "ruleId": "CI-1.11",
+      "file": "crates/enforcer-lang-common/src/families/ci_1.rs",
+      "line": 90
+    },
+    {
+      "ruleId": "CI-1.12",
+      "file": "crates/enforcer-lang-common/src/families/ci_1.rs",
+      "line": 97
+    },
+    {
+      "ruleId": "CI-1.13",
+      "file": "crates/enforcer-lang-common/src/families/ci_1.rs",
+      "line": 104
+    },
+    {
+      "ruleId": "CI-1.14",
+      "file": "crates/enforcer-lang-common/src/families/ci_1.rs",
+      "line": 111
+    },
+    {
+      "ruleId": "CI-1.15",
+      "file": "crates/enforcer-lang-common/src/families/ci_1.rs",
+      "line": 118
+    },
+    {
+      "ruleId": "CI-1.16",
+      "file": "crates/enforcer-lang-common/src/families/ci_1.rs",
+      "line": 125
+    },
+    {
+      "ruleId": "CI-1.17",
+      "file": "crates/enforcer-lang-common/src/families/ci_1.rs",
+      "line": 132
+    },
+    {
+      "ruleId": "CI-1.18",
+      "file": "crates/enforcer-lang-common/src/families/ci_1.rs",
+      "line": 139
+    },
+    {
+      "ruleId": "CI-1.19",
+      "file": "crates/enforcer-lang-common/src/families/ci_1.rs",
+      "line": 146
+    },
+    {
+      "ruleId": "CI-1.2",
+      "file": "crates/enforcer-lang-common/src/families/ci_1.rs",
+      "line": 27
+    },
+    {
+      "ruleId": "CI-1.20",
+      "file": "crates/enforcer-lang-common/src/families/ci_1.rs",
+      "line": 153
+    },
+    {
+      "ruleId": "CI-1.21",
+      "file": "crates/enforcer-lang-common/src/families/ci_1.rs",
+      "line": 160
+    },
+    {
+      "ruleId": "CI-1.3",
+      "file": "crates/enforcer-lang-common/src/families/ci_1.rs",
+      "line": 34
+    },
+    {
+      "ruleId": "CI-1.4",
+      "file": "crates/enforcer-lang-common/src/families/ci_1.rs",
+      "line": 41
+    },
+    {
+      "ruleId": "CI-1.5",
+      "file": "crates/enforcer-lang-common/src/families/ci_1.rs",
+      "line": 48
+    },
+    {
+      "ruleId": "CI-1.6",
+      "file": "crates/enforcer-lang-common/src/families/ci_1.rs",
+      "line": 55
+    },
+    {
+      "ruleId": "CI-1.7",
+      "file": "crates/enforcer-lang-common/src/families/ci_1.rs",
+      "line": 62
+    },
+    {
+      "ruleId": "CI-1.8",
+      "file": "crates/enforcer-lang-common/src/families/ci_1.rs",
+      "line": 69
+    },
+    {
+      "ruleId": "CI-1.9",
+      "file": "crates/enforcer-lang-common/src/families/ci_1.rs",
+      "line": 76
+    },
+    {
+      "ruleId": "CONTRACT-1.1",
+      "file": "crates/enforcer-lang-common/src/families/contract_1.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "DEP-1.1",
+      "file": "crates/enforcer-lang-common/src/families/dep_1.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "DEP-1.2",
+      "file": "crates/enforcer-lang-common/src/families/dep_1.rs",
+      "line": 27
+    },
+    {
+      "ruleId": "DOCENF-1.1",
+      "file": "crates/enforcer-lang-common/src/families/docenf_1.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "DOCENF-1.10",
+      "file": "crates/enforcer-lang-common/src/families/docenf_1.rs",
+      "line": 83
+    },
+    {
+      "ruleId": "DOCENF-1.2",
+      "file": "crates/enforcer-lang-common/src/families/docenf_1.rs",
+      "line": 27
+    },
+    {
+      "ruleId": "DOCENF-1.3",
+      "file": "crates/enforcer-lang-common/src/families/docenf_1.rs",
+      "line": 34
+    },
+    {
+      "ruleId": "DOCENF-1.4",
+      "file": "crates/enforcer-lang-common/src/families/docenf_1.rs",
+      "line": 41
+    },
+    {
+      "ruleId": "DOCENF-1.5",
+      "file": "crates/enforcer-lang-common/src/families/docenf_1.rs",
+      "line": 48
+    },
+    {
+      "ruleId": "DOCENF-1.6",
+      "file": "crates/enforcer-lang-common/src/families/docenf_1.rs",
+      "line": 55
+    },
+    {
+      "ruleId": "DOCENF-1.7",
+      "file": "crates/enforcer-lang-common/src/families/docenf_1.rs",
+      "line": 62
+    },
+    {
+      "ruleId": "DOCENF-1.8",
+      "file": "crates/enforcer-lang-common/src/families/docenf_1.rs",
+      "line": 69
+    },
+    {
+      "ruleId": "DOCENF-1.9",
+      "file": "crates/enforcer-lang-common/src/families/docenf_1.rs",
+      "line": 76
+    },
+    {
+      "ruleId": "ENF-1.1",
+      "file": "crates/enforcer-lang-common/src/families/enf_1.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "ENF-1.10",
+      "file": "crates/enforcer-lang-common/src/families/enf_1.rs",
+      "line": 83
+    },
+    {
+      "ruleId": "ENF-1.11",
+      "file": "crates/enforcer-lang-common/src/families/enf_1.rs",
+      "line": 90
+    },
+    {
+      "ruleId": "ENF-1.12",
+      "file": "crates/enforcer-lang-common/src/families/enf_1.rs",
+      "line": 97
+    },
+    {
+      "ruleId": "ENF-1.13",
+      "file": "crates/enforcer-lang-common/src/families/enf_1.rs",
+      "line": 104
+    },
+    {
+      "ruleId": "ENF-1.14",
+      "file": "crates/enforcer-lang-common/src/families/enf_1.rs",
+      "line": 111
+    },
+    {
+      "ruleId": "ENF-1.15",
+      "file": "crates/enforcer-lang-common/src/families/enf_1.rs",
+      "line": 118
+    },
+    {
+      "ruleId": "ENF-1.2",
+      "file": "crates/enforcer-lang-common/src/families/enf_1.rs",
+      "line": 27
+    },
+    {
+      "ruleId": "ENF-1.3",
+      "file": "crates/enforcer-lang-common/src/families/enf_1.rs",
+      "line": 34
+    },
+    {
+      "ruleId": "ENF-1.4",
+      "file": "crates/enforcer-lang-common/src/families/enf_1.rs",
+      "line": 41
+    },
+    {
+      "ruleId": "ENF-1.5",
+      "file": "crates/enforcer-lang-common/src/families/enf_1.rs",
+      "line": 48
+    },
+    {
+      "ruleId": "ENF-1.6",
+      "file": "crates/enforcer-lang-common/src/families/enf_1.rs",
+      "line": 55
+    },
+    {
+      "ruleId": "ENF-1.7",
+      "file": "crates/enforcer-lang-common/src/families/enf_1.rs",
+      "line": 62
+    },
+    {
+      "ruleId": "ENF-1.8",
+      "file": "crates/enforcer-lang-common/src/families/enf_1.rs",
+      "line": 69
+    },
+    {
+      "ruleId": "ENF-1.9",
+      "file": "crates/enforcer-lang-common/src/families/enf_1.rs",
+      "line": 76
+    },
+    {
+      "ruleId": "ENF-2.1",
+      "file": "crates/enforcer-lang-common/src/families/enf_2.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "GEN-1.1",
+      "file": "crates/enforcer-lang-common/src/families/gen_1.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "GEN-1.2",
+      "file": "crates/enforcer-lang-common/src/families/gen_1.rs",
+      "line": 27
+    },
+    {
+      "ruleId": "GEN-2.1",
+      "file": "crates/enforcer-lang-common/src/families/gen_2.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "GEN-2.10",
+      "file": "crates/enforcer-lang-common/src/families/gen_2.rs",
+      "line": 83
+    },
+    {
+      "ruleId": "GEN-2.2",
+      "file": "crates/enforcer-lang-common/src/families/gen_2.rs",
+      "line": 27
+    },
+    {
+      "ruleId": "GEN-2.3",
+      "file": "crates/enforcer-lang-common/src/families/gen_2.rs",
+      "line": 34
+    },
+    {
+      "ruleId": "GEN-2.4",
+      "file": "crates/enforcer-lang-common/src/families/gen_2.rs",
+      "line": 41
+    },
+    {
+      "ruleId": "GEN-2.5",
+      "file": "crates/enforcer-lang-common/src/families/gen_2.rs",
+      "line": 48
+    },
+    {
+      "ruleId": "GEN-2.6",
+      "file": "crates/enforcer-lang-common/src/families/gen_2.rs",
+      "line": 55
+    },
+    {
+      "ruleId": "GEN-2.7",
+      "file": "crates/enforcer-lang-common/src/families/gen_2.rs",
+      "line": 62
+    },
+    {
+      "ruleId": "GEN-2.8",
+      "file": "crates/enforcer-lang-common/src/families/gen_2.rs",
+      "line": 69
+    },
+    {
+      "ruleId": "GEN-2.9",
+      "file": "crates/enforcer-lang-common/src/families/gen_2.rs",
+      "line": 76
+    },
+    {
+      "ruleId": "HAR-1.1",
+      "file": "crates/enforcer-lang-common/src/families/har_1.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "HAR-2.1",
+      "file": "crates/enforcer-lang-common/src/families/har_2.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "HAR-2.10",
+      "file": "crates/enforcer-lang-common/src/families/har_2.rs",
+      "line": 83
+    },
+    {
+      "ruleId": "HAR-2.11",
+      "file": "crates/enforcer-lang-common/src/families/har_2.rs",
+      "line": 90
+    },
+    {
+      "ruleId": "HAR-2.12",
+      "file": "crates/enforcer-lang-common/src/families/har_2.rs",
+      "line": 97
+    },
+    {
+      "ruleId": "HAR-2.13",
+      "file": "crates/enforcer-lang-common/src/families/har_2.rs",
+      "line": 104
+    },
+    {
+      "ruleId": "HAR-2.14",
+      "file": "crates/enforcer-lang-common/src/families/har_2.rs",
+      "line": 111
+    },
+    {
+      "ruleId": "HAR-2.15",
+      "file": "crates/enforcer-lang-common/src/families/har_2.rs",
+      "line": 118
+    },
+    {
+      "ruleId": "HAR-2.2",
+      "file": "crates/enforcer-lang-common/src/families/har_2.rs",
+      "line": 27
+    },
+    {
+      "ruleId": "HAR-2.3",
+      "file": "crates/enforcer-lang-common/src/families/har_2.rs",
+      "line": 34
+    },
+    {
+      "ruleId": "HAR-2.4",
+      "file": "crates/enforcer-lang-common/src/families/har_2.rs",
+      "line": 41
+    },
+    {
+      "ruleId": "HAR-2.5",
+      "file": "crates/enforcer-lang-common/src/families/har_2.rs",
+      "line": 48
+    },
+    {
+      "ruleId": "HAR-2.6",
+      "file": "crates/enforcer-lang-common/src/families/har_2.rs",
+      "line": 55
+    },
+    {
+      "ruleId": "HAR-2.7",
+      "file": "crates/enforcer-lang-common/src/families/har_2.rs",
+      "line": 62
+    },
+    {
+      "ruleId": "HAR-2.8",
+      "file": "crates/enforcer-lang-common/src/families/har_2.rs",
+      "line": 69
+    },
+    {
+      "ruleId": "HAR-2.9",
+      "file": "crates/enforcer-lang-common/src/families/har_2.rs",
+      "line": 76
+    },
+    {
+      "ruleId": "IAC-1.1",
+      "file": "crates/enforcer-rules/rules/cyberskills.json",
+      "line": 21
+    },
+    {
+      "ruleId": "IAC-1.2",
+      "file": "crates/enforcer-rules/rules/cyberskills.json",
+      "line": 53
+    },
+    {
+      "ruleId": "MCP-1.1",
+      "file": "crates/enforcer-lang-common/src/families/mcp_1.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "MCP-1.10",
+      "file": "crates/enforcer-lang-common/src/families/mcp_1.rs",
+      "line": 83
+    },
+    {
+      "ruleId": "MCP-1.11",
+      "file": "crates/enforcer-lang-common/src/families/mcp_1.rs",
+      "line": 90
+    },
+    {
+      "ruleId": "MCP-1.12",
+      "file": "crates/enforcer-lang-common/src/families/mcp_1.rs",
+      "line": 97
+    },
+    {
+      "ruleId": "MCP-1.2",
+      "file": "crates/enforcer-lang-common/src/families/mcp_1.rs",
+      "line": 27
+    },
+    {
+      "ruleId": "MCP-1.3",
+      "file": "crates/enforcer-lang-common/src/families/mcp_1.rs",
+      "line": 34
+    },
+    {
+      "ruleId": "MCP-1.4",
+      "file": "crates/enforcer-lang-common/src/families/mcp_1.rs",
+      "line": 41
+    },
+    {
+      "ruleId": "MCP-1.5",
+      "file": "crates/enforcer-lang-common/src/families/mcp_1.rs",
+      "line": 48
+    },
+    {
+      "ruleId": "MCP-1.6",
+      "file": "crates/enforcer-lang-common/src/families/mcp_1.rs",
+      "line": 55
+    },
+    {
+      "ruleId": "MCP-1.7",
+      "file": "crates/enforcer-lang-common/src/families/mcp_1.rs",
+      "line": 62
+    },
+    {
+      "ruleId": "MCP-1.8",
+      "file": "crates/enforcer-lang-common/src/families/mcp_1.rs",
+      "line": 69
+    },
+    {
+      "ruleId": "MCP-1.9",
+      "file": "crates/enforcer-lang-common/src/families/mcp_1.rs",
+      "line": 76
+    },
+    {
+      "ruleId": "NPM-1.1",
+      "file": "crates/enforcer-lang-common/src/families/npm_1.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "NPM-1.10",
+      "file": "crates/enforcer-lang-common/src/families/npm_1.rs",
+      "line": 83
+    },
+    {
+      "ruleId": "NPM-1.11",
+      "file": "crates/enforcer-lang-common/src/families/npm_1.rs",
+      "line": 90
+    },
+    {
+      "ruleId": "NPM-1.12",
+      "file": "crates/enforcer-lang-common/src/families/npm_1.rs",
+      "line": 97
+    },
+    {
+      "ruleId": "NPM-1.13",
+      "file": "crates/enforcer-lang-common/src/families/npm_1.rs",
+      "line": 104
+    },
+    {
+      "ruleId": "NPM-1.14",
+      "file": "crates/enforcer-lang-common/src/families/npm_1.rs",
+      "line": 111
+    },
+    {
+      "ruleId": "NPM-1.15",
+      "file": "crates/enforcer-lang-common/src/families/npm_1.rs",
+      "line": 118
+    },
+    {
+      "ruleId": "NPM-1.2",
+      "file": "crates/enforcer-lang-common/src/families/npm_1.rs",
+      "line": 27
+    },
+    {
+      "ruleId": "NPM-1.3",
+      "file": "crates/enforcer-lang-common/src/families/npm_1.rs",
+      "line": 34
+    },
+    {
+      "ruleId": "NPM-1.4",
+      "file": "crates/enforcer-lang-common/src/families/npm_1.rs",
+      "line": 41
+    },
+    {
+      "ruleId": "NPM-1.5",
+      "file": "crates/enforcer-lang-common/src/families/npm_1.rs",
+      "line": 48
+    },
+    {
+      "ruleId": "NPM-1.6",
+      "file": "crates/enforcer-lang-common/src/families/npm_1.rs",
+      "line": 55
+    },
+    {
+      "ruleId": "NPM-1.7",
+      "file": "crates/enforcer-lang-common/src/families/npm_1.rs",
+      "line": 62
+    },
+    {
+      "ruleId": "NPM-1.8",
+      "file": "crates/enforcer-lang-common/src/families/npm_1.rs",
+      "line": 69
+    },
+    {
+      "ruleId": "NPM-1.9",
+      "file": "crates/enforcer-lang-common/src/families/npm_1.rs",
+      "line": 76
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-config/src/lib.rs",
+      "line": 152
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-events/src/bus.rs",
+      "line": 200
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-events/src/bus/journaling.rs",
+      "line": 40
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-events/src/bus/lifecycle.rs",
+      "line": 19
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-events/tests/journal_replay/replay.rs",
+      "line": 109
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-events/tests/unit/clock_manual.rs",
+      "line": 60
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-events/tests/unit/production_shutdown.rs",
+      "line": 18
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-harness/adapters/cyberskills/README.md",
+      "line": 30
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-harness/src/adapters/cyberskills/mod.rs",
+      "line": 31
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-install/examples/gen_ci_artifacts.rs",
+      "line": 2
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-install/src/ci/github_action.rs",
+      "line": 131
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-install/src/ci/installer_scripts.rs",
+      "line": 1
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-install/src/ci/mod.rs",
+      "line": 3
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-install/src/ci/release_pipeline.rs",
+      "line": 92
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-install/src/emitters/git_hooks.rs",
+      "line": 9
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-install/src/lib.rs",
+      "line": 28
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-install/tests/ci_fixtures.rs",
+      "line": 3
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-lang-common/src/pattern.rs",
+      "line": 28
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-lang-common/src/port_platform.rs",
+      "line": 56
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-lang-py/src/generic_scanner_slice.rs",
+      "line": 43
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-literal-scan/src/risk_heuristics_secret.rs",
+      "line": 193
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-memory/src/diagnostics.rs",
+      "line": 171
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-memory/src/hf_cache.rs",
+      "line": 865
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-memory/src/languages/generic.rs",
+      "line": 7192
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-memory/src/languages/spec.rs",
+      "line": 2105
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-memory/src/mcp.rs",
+      "line": 1694
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-memory/src/model_cache.rs",
+      "line": 71
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-memory/src/parsers/mod.rs",
+      "line": 275
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-memory/src/runtime_probe.rs",
+      "line": 575
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-memory/src/weaver/mod.rs",
+      "line": 330
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-memory/tests/feature_parity/runners.rs",
+      "line": 1318
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-memory/tests/feature_parity/tool_diff.rs",
+      "line": 2266
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-memory/tests/model_runtime_real_contract.rs",
+      "line": 457
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-memory/tests/parity_read_tools.rs",
+      "line": 105
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-memory/tests/unit_diagnostics.rs",
+      "line": 30
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-memory/tests/unit_languages_bash.rs",
+      "line": 127
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-memory/tests/unit_languages_julia.rs",
+      "line": 147
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-memory/tests/unit_languages_powershell.rs",
+      "line": 165
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-memory/tests/unit_search_stack.rs",
+      "line": 598
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-memory/tests/unit_snippet.rs",
+      "line": 67
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-memory/tests/unit_weaver.rs",
+      "line": 48
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-memory/tests/weaver_enrichment.rs",
+      "line": 141
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-plan/src/lessons.rs",
+      "line": 1065
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-proof/src/legacy_import.rs",
+      "line": 335
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-security/src/rules/economic_invariants.rs",
+      "line": 267
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-security/tests/economic_invariants_parity.rs",
+      "line": 33
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-ui/frontend/src-tauri/src/main.rs",
+      "line": 2471
+    },
+    {
+      "ruleId": "PORT-1.1",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 236
+    },
+    {
+      "ruleId": "PROOF-1.1",
+      "file": "crates/enforcer-lang-common/src/families/proof_1.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "PROOF-1.10",
+      "file": "crates/enforcer-lang-common/src/families/proof_1.rs",
+      "line": 83
+    },
+    {
+      "ruleId": "PROOF-1.11",
+      "file": "crates/enforcer-lang-common/src/families/proof_1.rs",
+      "line": 90
+    },
+    {
+      "ruleId": "PROOF-1.12",
+      "file": "crates/enforcer-lang-common/src/families/proof_1.rs",
+      "line": 97
+    },
+    {
+      "ruleId": "PROOF-1.13",
+      "file": "crates/enforcer-lang-common/src/families/proof_1.rs",
+      "line": 104
+    },
+    {
+      "ruleId": "PROOF-1.14",
+      "file": "crates/enforcer-lang-common/src/families/proof_1.rs",
+      "line": 111
+    },
+    {
+      "ruleId": "PROOF-1.15",
+      "file": "crates/enforcer-lang-common/src/families/proof_1.rs",
+      "line": 118
+    },
+    {
+      "ruleId": "PROOF-1.2",
+      "file": "crates/enforcer-lang-common/src/families/proof_1.rs",
+      "line": 27
+    },
+    {
+      "ruleId": "PROOF-1.3",
+      "file": "crates/enforcer-lang-common/src/families/proof_1.rs",
+      "line": 34
+    },
+    {
+      "ruleId": "PROOF-1.4",
+      "file": "crates/enforcer-lang-common/src/families/proof_1.rs",
+      "line": 41
+    },
+    {
+      "ruleId": "PROOF-1.5",
+      "file": "crates/enforcer-lang-common/src/families/proof_1.rs",
+      "line": 48
+    },
+    {
+      "ruleId": "PROOF-1.6",
+      "file": "crates/enforcer-lang-common/src/families/proof_1.rs",
+      "line": 55
+    },
+    {
+      "ruleId": "PROOF-1.7",
+      "file": "crates/enforcer-lang-common/src/families/proof_1.rs",
+      "line": 62
+    },
+    {
+      "ruleId": "PROOF-1.8",
+      "file": "crates/enforcer-lang-common/src/families/proof_1.rs",
+      "line": 69
+    },
+    {
+      "ruleId": "PROOF-1.9",
+      "file": "crates/enforcer-lang-common/src/families/proof_1.rs",
+      "line": 76
+    },
+    {
+      "ruleId": "REPO-1.1",
+      "file": "crates/enforcer-lang-common/src/families/repo_1.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "REPO-1.10",
+      "file": "crates/enforcer-lang-common/src/families/repo_1.rs",
+      "line": 83
+    },
+    {
+      "ruleId": "REPO-1.11",
+      "file": "crates/enforcer-lang-common/src/families/repo_1.rs",
+      "line": 90
+    },
+    {
+      "ruleId": "REPO-1.12",
+      "file": "crates/enforcer-lang-common/src/families/repo_1.rs",
+      "line": 97
+    },
+    {
+      "ruleId": "REPO-1.13",
+      "file": "crates/enforcer-lang-common/src/families/repo_1.rs",
+      "line": 104
+    },
+    {
+      "ruleId": "REPO-1.14",
+      "file": "crates/enforcer-lang-common/src/families/repo_1.rs",
+      "line": 111
+    },
+    {
+      "ruleId": "REPO-1.15",
+      "file": "crates/enforcer-lang-common/src/families/repo_1.rs",
+      "line": 118
+    },
+    {
+      "ruleId": "REPO-1.2",
+      "file": "crates/enforcer-lang-common/src/families/repo_1.rs",
+      "line": 27
+    },
+    {
+      "ruleId": "REPO-1.3",
+      "file": "crates/enforcer-lang-common/src/families/repo_1.rs",
+      "line": 34
+    },
+    {
+      "ruleId": "REPO-1.4",
+      "file": "crates/enforcer-lang-common/src/families/repo_1.rs",
+      "line": 41
+    },
+    {
+      "ruleId": "REPO-1.5",
+      "file": "crates/enforcer-lang-common/src/families/repo_1.rs",
+      "line": 48
+    },
+    {
+      "ruleId": "REPO-1.6",
+      "file": "crates/enforcer-lang-common/src/families/repo_1.rs",
+      "line": 55
+    },
+    {
+      "ruleId": "REPO-1.7",
+      "file": "crates/enforcer-lang-common/src/families/repo_1.rs",
+      "line": 62
+    },
+    {
+      "ruleId": "REPO-1.8",
+      "file": "crates/enforcer-lang-common/src/families/repo_1.rs",
+      "line": 69
+    },
+    {
+      "ruleId": "REPO-1.9",
+      "file": "crates/enforcer-lang-common/src/families/repo_1.rs",
+      "line": 76
+    },
+    {
+      "ruleId": "SBOM-1.1",
+      "file": "crates/enforcer-lang-common/src/families/sbom_1.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "SCAN-1.1",
+      "file": "crates/enforcer-lang-common/src/families/scan_1.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "SCAN-1.10",
+      "file": "crates/enforcer-lang-common/src/families/scan_1.rs",
+      "line": 83
+    },
+    {
+      "ruleId": "SCAN-1.11",
+      "file": "crates/enforcer-lang-common/src/families/scan_1.rs",
+      "line": 90
+    },
+    {
+      "ruleId": "SCAN-1.12",
+      "file": "crates/enforcer-lang-common/src/families/scan_1.rs",
+      "line": 97
+    },
+    {
+      "ruleId": "SCAN-1.13",
+      "file": "crates/enforcer-lang-common/src/families/scan_1.rs",
+      "line": 104
+    },
+    {
+      "ruleId": "SCAN-1.14",
+      "file": "crates/enforcer-lang-common/src/families/scan_1.rs",
+      "line": 111
+    },
+    {
+      "ruleId": "SCAN-1.15",
+      "file": "crates/enforcer-lang-common/src/families/scan_1.rs",
+      "line": 118
+    },
+    {
+      "ruleId": "SCAN-1.16",
+      "file": "crates/enforcer-lang-common/src/families/scan_1.rs",
+      "line": 125
+    },
+    {
+      "ruleId": "SCAN-1.17",
+      "file": "crates/enforcer-lang-common/src/families/scan_1.rs",
+      "line": 132
+    },
+    {
+      "ruleId": "SCAN-1.18",
+      "file": "crates/enforcer-lang-common/src/families/scan_1.rs",
+      "line": 139
+    },
+    {
+      "ruleId": "SCAN-1.19",
+      "file": "crates/enforcer-lang-common/src/families/scan_1.rs",
+      "line": 146
+    },
+    {
+      "ruleId": "SCAN-1.2",
+      "file": "crates/enforcer-lang-common/src/families/scan_1.rs",
+      "line": 27
+    },
+    {
+      "ruleId": "SCAN-1.20",
+      "file": "crates/enforcer-lang-common/src/families/scan_1.rs",
+      "line": 153
+    },
+    {
+      "ruleId": "SCAN-1.3",
+      "file": "crates/enforcer-lang-common/src/families/scan_1.rs",
+      "line": 34
+    },
+    {
+      "ruleId": "SCAN-1.4",
+      "file": "crates/enforcer-lang-common/src/families/scan_1.rs",
+      "line": 41
+    },
+    {
+      "ruleId": "SCAN-1.5",
+      "file": "crates/enforcer-lang-common/src/families/scan_1.rs",
+      "line": 48
+    },
+    {
+      "ruleId": "SCAN-1.6",
+      "file": "crates/enforcer-lang-common/src/families/scan_1.rs",
+      "line": 55
+    },
+    {
+      "ruleId": "SCAN-1.7",
+      "file": "crates/enforcer-lang-common/src/families/scan_1.rs",
+      "line": 62
+    },
+    {
+      "ruleId": "SCAN-1.8",
+      "file": "crates/enforcer-lang-common/src/families/scan_1.rs",
+      "line": 69
+    },
+    {
+      "ruleId": "SCAN-1.9",
+      "file": "crates/enforcer-lang-common/src/families/scan_1.rs",
+      "line": 76
+    },
+    {
+      "ruleId": "SCAN-2.1",
+      "file": "crates/enforcer-lang-common/src/families/scan_2.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "SCAN-2.10",
+      "file": "crates/enforcer-lang-common/src/families/scan_2.rs",
+      "line": 83
+    },
+    {
+      "ruleId": "SCAN-2.2",
+      "file": "crates/enforcer-lang-common/src/families/scan_2.rs",
+      "line": 27
+    },
+    {
+      "ruleId": "SCAN-2.3",
+      "file": "crates/enforcer-lang-common/src/families/scan_2.rs",
+      "line": 34
+    },
+    {
+      "ruleId": "SCAN-2.4",
+      "file": "crates/enforcer-lang-common/src/families/scan_2.rs",
+      "line": 41
+    },
+    {
+      "ruleId": "SCAN-2.5",
+      "file": "crates/enforcer-lang-common/src/families/scan_2.rs",
+      "line": 48
+    },
+    {
+      "ruleId": "SCAN-2.6",
+      "file": "crates/enforcer-lang-common/src/families/scan_2.rs",
+      "line": 55
+    },
+    {
+      "ruleId": "SCAN-2.7",
+      "file": "crates/enforcer-lang-common/src/families/scan_2.rs",
+      "line": 62
+    },
+    {
+      "ruleId": "SCAN-2.8",
+      "file": "crates/enforcer-lang-common/src/families/scan_2.rs",
+      "line": 69
+    },
+    {
+      "ruleId": "SCAN-2.9",
+      "file": "crates/enforcer-lang-common/src/families/scan_2.rs",
+      "line": 76
+    },
+    {
+      "ruleId": "SEC-1.1",
+      "file": "crates/enforcer-lang-common/src/families/sec_1.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "SEC-1.1",
+      "file": "crates/enforcer-lang-security/src/rules/secret_scan.rs",
+      "line": 179
+    },
+    {
+      "ruleId": "SEC-1.1",
+      "file": "crates/enforcer-lang-security/src/rules/spec.rs",
+      "line": 172
+    },
+    {
+      "ruleId": "SEC-1.1",
+      "file": "crates/enforcer-literal-scan/src/risk_heuristics_secret.rs",
+      "line": 390
+    },
+    {
+      "ruleId": "SEC-1.1",
+      "file": "crates/enforcer-literal-scan/src/risk_heuristics_secret.rs",
+      "line": 428
+    },
+    {
+      "ruleId": "SEC-1.1",
+      "file": "crates/enforcer-memory/tests/unit_redaction.rs",
+      "line": 42
+    },
+    {
+      "ruleId": "SEC-1.1",
+      "file": "crates/enforcer-memory/tests/unit_redaction.rs",
+      "line": 44
+    },
+    {
+      "ruleId": "SEC-1.1",
+      "file": "crates/enforcer-memory/tests/unit_redaction.rs",
+      "line": 82
+    },
+    {
+      "ruleId": "SEC-1.2",
+      "file": "crates/enforcer-lang-common/src/families/sec_1.rs",
+      "line": 27
+    },
+    {
+      "ruleId": "SEC-2.1",
+      "file": "crates/enforcer-literal-scan/src/risk_heuristics_secret.rs",
+      "line": 368
+    },
+    {
+      "ruleId": "SEC-2.1",
+      "file": "crates/enforcer-literal-scan/src/risk_heuristics_secret.rs",
+      "line": 381
+    },
+    {
+      "ruleId": "SEC-2.1",
+      "file": "crates/enforcer-memory/tests/unit_redaction.rs",
+      "line": 43
+    },
+    {
+      "ruleId": "SEC-2.1",
+      "file": "crates/enforcer-proof/src/envelope.rs",
+      "line": 472
+    },
+    {
+      "ruleId": "SEC-2.1",
+      "file": "crates/enforcer-proof/src/envelope.rs",
+      "line": 480
+    },
+    {
+      "ruleId": "SEC-2.10",
+      "file": "crates/enforcer-literal-scan/src/risk_heuristics_secret.rs",
+      "line": 428
+    },
+    {
+      "ruleId": "SEC-2.11",
+      "file": "crates/enforcer-lang-security/src/rules/spec.rs",
+      "line": 172
+    },
+    {
+      "ruleId": "SEC-2.11",
+      "file": "crates/enforcer-literal-scan/src/risk_heuristics_secret.rs",
+      "line": 428
+    },
+    {
+      "ruleId": "SEC-2.11",
+      "file": "crates/enforcer-memory/tests/unit_redaction.rs",
+      "line": 44
+    },
+    {
+      "ruleId": "SEC-2.12",
+      "file": "crates/enforcer-lang-security/src/rules/spec.rs",
+      "line": 172
+    },
+    {
+      "ruleId": "SEC-2.12",
+      "file": "crates/enforcer-literal-scan/src/risk_heuristics_secret.rs",
+      "line": 428
+    },
+    {
+      "ruleId": "SEC-2.12",
+      "file": "crates/enforcer-memory/tests/unit_redaction.rs",
+      "line": 44
+    },
+    {
+      "ruleId": "SEC-2.13",
+      "file": "crates/enforcer-lang-security/src/rules/spec.rs",
+      "line": 172
+    },
+    {
+      "ruleId": "SEC-2.13",
+      "file": "crates/enforcer-literal-scan/src/risk_heuristics_secret.rs",
+      "line": 428
+    },
+    {
+      "ruleId": "SEC-2.13",
+      "file": "crates/enforcer-memory/tests/unit_redaction.rs",
+      "line": 44
+    },
+    {
+      "ruleId": "SEC-2.14",
+      "file": "crates/enforcer-lang-security/src/rules/spec.rs",
+      "line": 172
+    },
+    {
+      "ruleId": "SEC-2.14",
+      "file": "crates/enforcer-literal-scan/src/risk_heuristics_secret.rs",
+      "line": 428
+    },
+    {
+      "ruleId": "SEC-2.14",
+      "file": "crates/enforcer-memory/tests/unit_redaction.rs",
+      "line": 44
+    },
+    {
+      "ruleId": "SEC-2.15",
+      "file": "crates/enforcer-lang-security/src/rules/spec.rs",
+      "line": 172
+    },
+    {
+      "ruleId": "SEC-2.15",
+      "file": "crates/enforcer-literal-scan/src/risk_heuristics_secret.rs",
+      "line": 428
+    },
+    {
+      "ruleId": "SEC-2.15",
+      "file": "crates/enforcer-memory/tests/unit_redaction.rs",
+      "line": 44
+    },
+    {
+      "ruleId": "SEC-2.18",
+      "file": "crates/enforcer-lang-security/src/rules/generic_scanner.rs",
+      "line": 272
+    },
+    {
+      "ruleId": "SEC-2.2",
+      "file": "crates/enforcer-core/src/redaction.rs",
+      "line": 185
+    },
+    {
+      "ruleId": "SEC-2.2",
+      "file": "crates/enforcer-core/src/redaction.rs",
+      "line": 195
+    },
+    {
+      "ruleId": "SEC-2.2",
+      "file": "crates/enforcer-harness/src/config.rs",
+      "line": 136
+    },
+    {
+      "ruleId": "SEC-2.2",
+      "file": "crates/enforcer-harness/src/config.rs",
+      "line": 137
+    },
+    {
+      "ruleId": "SEC-2.2",
+      "file": "crates/enforcer-harness/src/query.rs",
+      "line": 414
+    },
+    {
+      "ruleId": "SEC-2.2",
+      "file": "crates/enforcer-harness/src/query.rs",
+      "line": 433
+    },
+    {
+      "ruleId": "SEC-2.2",
+      "file": "crates/enforcer-literal-scan/src/risk_heuristics_secret.rs",
+      "line": 375
+    },
+    {
+      "ruleId": "SEC-2.2",
+      "file": "crates/enforcer-proof/src/envelope.rs",
+      "line": 501
+    },
+    {
+      "ruleId": "SEC-2.2",
+      "file": "crates/enforcer-proof/src/envelope.rs",
+      "line": 505
+    },
+    {
+      "ruleId": "SEC-2.2",
+      "file": "crates/enforcer-ui/frontend/src-tauri/src/main.rs",
+      "line": 2575
+    },
+    {
+      "ruleId": "SEC-2.2",
+      "file": "crates/enforcer-ui/frontend/src-tauri/src/main.rs",
+      "line": 2600
+    },
+    {
+      "ruleId": "SEC-2.7",
+      "file": "crates/enforcer-literal-scan/src/risk_heuristics_secret.rs",
+      "line": 396
+    },
+    {
+      "ruleId": "SEC-2.7",
+      "file": "crates/enforcer-memory/tests/unit_redaction.rs",
+      "line": 45
+    },
+    {
+      "ruleId": "SRC-1.1",
+      "file": "crates/enforcer-lang-common/src/families/src_1.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "SRC-1.2",
+      "file": "crates/enforcer-lang-common/src/families/src_1.rs",
+      "line": 27
+    },
+    {
+      "ruleId": "SRC-2.1",
+      "file": "crates/enforcer-lang-common/src/families/src_2.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "SRC-2.10",
+      "file": "crates/enforcer-lang-common/src/families/src_2.rs",
+      "line": 83
+    },
+    {
+      "ruleId": "SRC-2.11",
+      "file": "crates/enforcer-lang-common/src/families/src_2.rs",
+      "line": 90
+    },
+    {
+      "ruleId": "SRC-2.12",
+      "file": "crates/enforcer-lang-common/src/families/src_2.rs",
+      "line": 97
+    },
+    {
+      "ruleId": "SRC-2.13",
+      "file": "crates/enforcer-lang-common/src/families/src_2.rs",
+      "line": 104
+    },
+    {
+      "ruleId": "SRC-2.14",
+      "file": "crates/enforcer-lang-common/src/families/src_2.rs",
+      "line": 111
+    },
+    {
+      "ruleId": "SRC-2.15",
+      "file": "crates/enforcer-lang-common/src/families/src_2.rs",
+      "line": 118
+    },
+    {
+      "ruleId": "SRC-2.2",
+      "file": "crates/enforcer-lang-common/src/families/src_2.rs",
+      "line": 27
+    },
+    {
+      "ruleId": "SRC-2.3",
+      "file": "crates/enforcer-lang-common/src/families/src_2.rs",
+      "line": 34
+    },
+    {
+      "ruleId": "SRC-2.4",
+      "file": "crates/enforcer-lang-common/src/families/src_2.rs",
+      "line": 41
+    },
+    {
+      "ruleId": "SRC-2.5",
+      "file": "crates/enforcer-lang-common/src/families/src_2.rs",
+      "line": 48
+    },
+    {
+      "ruleId": "SRC-2.6",
+      "file": "crates/enforcer-lang-common/src/families/src_2.rs",
+      "line": 55
+    },
+    {
+      "ruleId": "SRC-2.7",
+      "file": "crates/enforcer-lang-common/src/families/src_2.rs",
+      "line": 62
+    },
+    {
+      "ruleId": "SRC-2.8",
+      "file": "crates/enforcer-lang-common/src/families/src_2.rs",
+      "line": 69
+    },
+    {
+      "ruleId": "SRC-2.9",
+      "file": "crates/enforcer-lang-common/src/families/src_2.rs",
+      "line": 76
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-config/src/lib.rs",
+      "line": 36
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-config/src/lib.rs",
+      "line": 37
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-config/src/lib.rs",
+      "line": 38
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-config/src/lib.rs",
+      "line": 39
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-coordination/src/lib.rs",
+      "line": 71
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-coordination/src/lib.rs",
+      "line": 72
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/discovery-ignore.rs",
+      "line": 1
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/discovery-ignore.rs",
+      "line": 2
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/discovery-ignore.rs",
+      "line": 3
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/discovery-ignore.rs",
+      "line": 4
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/discovery-ignore.rs",
+      "line": 5
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/discovery-ignore.rs",
+      "line": 8
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/discovery-ignore.rs",
+      "line": 9
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/languages.rs",
+      "line": 1
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/languages.rs",
+      "line": 2
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/languages.rs",
+      "line": 3
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/lexer-c-like.rs",
+      "line": 1
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/lexer-c-like.rs",
+      "line": 2
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/lexer-c-like.rs",
+      "line": 3
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/lexer-c-like.rs",
+      "line": 4
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/lexer-c-like.rs",
+      "line": 5
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/lexer-python.rs",
+      "line": 1
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/lexer-rust.rs",
+      "line": 1
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/lexer.rs",
+      "line": 5
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/lib.rs",
+      "line": 155
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/lib.rs",
+      "line": 156
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/lib.rs",
+      "line": 157
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/lib.rs",
+      "line": 161
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/lib.rs",
+      "line": 163
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/lib.rs",
+      "line": 164
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/lib.rs",
+      "line": 165
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/lib.rs",
+      "line": 166
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/risk-heuristics.rs",
+      "line": 1
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/risk-heuristics.rs",
+      "line": 4
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-literal-scan/src/risk-heuristics.rs",
+      "line": 9
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-memory/src/code_graph.rs",
+      "line": 39
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-memory/src/languages/generic.rs",
+      "line": 50
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-memory/src/languages/generic.rs",
+      "line": 51
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-memory/src/languages/generic.rs",
+      "line": 52
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-memory/src/ort_runtime.rs",
+      "line": 533
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-memory/src/runtime_probe.rs",
+      "line": 11
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-memory/src/search/mod.rs",
+      "line": 33
+    },
+    {
+      "ruleId": "T1-NOREEXPORT.1",
+      "file": "crates/enforcer-memory/src/search/mod.rs",
+      "line": 34
+    },
+    {
+      "ruleId": "T1-RUSTERR.1",
+      "file": "crates/enforcer-harness/src/parsers.rs",
+      "line": 440
+    },
+    {
+      "ruleId": "T1-RUSTERR.1",
+      "file": "crates/enforcer-harness/src/parsers.rs",
+      "line": 459
+    },
+    {
+      "ruleId": "T1-RUSTERR.1",
+      "file": "crates/enforcer-lang-security/src/rules/secret_scan.rs",
+      "line": 39
+    },
+    {
+      "ruleId": "T1-RUSTERR.1",
+      "file": "crates/enforcer-lang-security/src/rules/secret_scan.rs",
+      "line": 41
+    },
+    {
+      "ruleId": "T1-RUSTERR.1",
+      "file": "crates/enforcer-lang-security/src/rules/spec.rs",
+      "line": 128
+    },
+    {
+      "ruleId": "T1-RUSTERR.1",
+      "file": "crates/enforcer-literal-scan/src/lib_tests.rs",
+      "line": 138
+    },
+    {
+      "ruleId": "T1-RUSTERR.1",
+      "file": "crates/enforcer-literal-scan/src/lib_tests.rs",
+      "line": 143
+    },
+    {
+      "ruleId": "T1-RUSTERR.1",
+      "file": "crates/enforcer-literal-scan/tests/integration.rs",
+      "line": 224
+    },
+    {
+      "ruleId": "T1-RUSTERR.1",
+      "file": "crates/enforcer-literal-scan/tests/integration.rs",
+      "line": 229
+    },
+    {
+      "ruleId": "T1-RUSTERR.1",
+      "file": "crates/enforcer-mechanization/src/feedback.rs",
+      "line": 138
+    },
+    {
+      "ruleId": "T1-RUSTERR.1",
+      "file": "crates/enforcer-mechanization/src/parity.rs",
+      "line": 260
+    },
+    {
+      "ruleId": "T1-RUSTERR.1",
+      "file": "crates/enforcer-plan/tests/test_templates.rs",
+      "line": 25
+    },
+    {
+      "ruleId": "T1-RUSTERR.1",
+      "file": "crates/enforcer-ui/frontend/src-tauri/src/main.rs",
+      "line": 1328
+    },
+    {
+      "ruleId": "T1-RUSTERR.1",
+      "file": "crates/enforcer-ui/frontend/src-tauri/src/main.rs",
+      "line": 1339
+    },
+    {
+      "ruleId": "T1-RUSTERR.1",
+      "file": "crates/enforcer-ui/frontend/src-tauri/src/main.rs",
+      "line": 1346
+    },
+    {
+      "ruleId": "T1-RUSTERR.1",
+      "file": "crates/enforcer-ui/frontend/src-tauri/src/main.rs",
+      "line": 3601
+    },
+    {
+      "ruleId": "TEST-1.1",
+      "file": "crates/enforcer-lang-common/src/families/test_1.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "TEST-1.2",
+      "file": "crates/enforcer-lang-common/src/families/test_1.rs",
+      "line": 27
+    },
+    {
+      "ruleId": "TEST-1.3",
+      "file": "crates/enforcer-lang-common/src/families/test_1.rs",
+      "line": 34
+    },
+    {
+      "ruleId": "TEST-2.1",
+      "file": "crates/enforcer-lang-common/src/families/test_2.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "TEST-2.2",
+      "file": "crates/enforcer-lang-common/src/families/test_2.rs",
+      "line": 27
+    },
+    {
+      "ruleId": "TS-1.3",
+      "file": "crates/enforcer-ui/frontend/src/bindings/RelPath.ts",
+      "line": 9
+    },
+    {
+      "ruleId": "TS-1.3",
+      "file": "crates/enforcer-ui/frontend/src/bindings/RuleId.ts",
+      "line": 6
+    },
+    {
+      "ruleId": "TS-1.3",
+      "file": "crates/enforcer-ui/frontend/src/components/RunsWorkspace.tsx",
+      "line": 5
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-literal-scan/integration/ocentra-literal-scan.mjs",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/bindings/Finding.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/bindings/RelPath.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/bindings/Report.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/bindings/RuleId.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/bindings/ScanScope.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/bindings/Severity.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/bindings/UiFindingRow.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/bindings/UiReportPayload.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/bindings/Violation.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/components/AnalysisWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/components/AppShell.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/components/AssuranceWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/components/CommandBar.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/components/DoctrineWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/components/EngineWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/components/FindingsWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/components/GraphWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/components/HubWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/components/MemoryExplorerWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectOverviewWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSettingsWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSetupWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectsWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/components/ProofWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/components/RuleCatalogWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/components/RunsWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/data/desktopClient.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/data/enforcerAppData.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/data/graphAdapter.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/data/reportAdapter.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/data/ruleCatalog.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/main.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/src/vite-env.d.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/frontend/vite.config.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.1",
+      "file": "crates/enforcer-ui/tests/memory_explorer/browser-proof.mjs",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-literal-scan/integration/ocentra-literal-scan.mjs",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/bindings/Finding.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/bindings/RelPath.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/bindings/Report.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/bindings/RuleId.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/bindings/ScanScope.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/bindings/Severity.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/bindings/UiFindingRow.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/bindings/UiReportPayload.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/bindings/Violation.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/components/AnalysisWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/components/AppShell.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/components/AssuranceWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/components/CommandBar.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/components/DoctrineWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/components/EngineWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/components/FindingsWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/components/GraphWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/components/HubWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/components/MemoryExplorerWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectOverviewWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSettingsWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSetupWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectsWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/components/ProofWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/components/RuleCatalogWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/components/RunsWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/data/desktopClient.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/data/enforcerAppData.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/data/graphAdapter.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/data/reportAdapter.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/data/ruleCatalog.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/main.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/src/vite-env.d.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/frontend/vite.config.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-5.2",
+      "file": "crates/enforcer-ui/tests/memory_explorer/browser-proof.mjs",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-6.1",
+      "file": "crates/enforcer-ui/frontend/src/components/HubWorkspace.tsx",
+      "line": 163
+    },
+    {
+      "ruleId": "TS-6.10",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 60
+    },
+    {
+      "ruleId": "TS-6.10",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 69
+    },
+    {
+      "ruleId": "TS-6.10",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 189
+    },
+    {
+      "ruleId": "TS-6.10",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 190
+    },
+    {
+      "ruleId": "TS-6.10",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 197
+    },
+    {
+      "ruleId": "TS-6.10",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 226
+    },
+    {
+      "ruleId": "TS-6.10",
+      "file": "crates/enforcer-ui/frontend/src/components/AnalysisWorkspace.tsx",
+      "line": 35
+    },
+    {
+      "ruleId": "TS-6.10",
+      "file": "crates/enforcer-ui/frontend/src/components/EngineWorkspace.tsx",
+      "line": 28
+    },
+    {
+      "ruleId": "TS-6.10",
+      "file": "crates/enforcer-ui/frontend/src/components/EngineWorkspace.tsx",
+      "line": 47
+    },
+    {
+      "ruleId": "TS-6.11",
+      "file": "crates/enforcer-ui/frontend/src/components/FindingsWorkspace.tsx",
+      "line": 120
+    },
+    {
+      "ruleId": "TS-6.11",
+      "file": "crates/enforcer-ui/frontend/src/components/HubWorkspace.tsx",
+      "line": 163
+    },
+    {
+      "ruleId": "TS-6.11",
+      "file": "crates/enforcer-ui/frontend/src/data/graphAdapter.ts",
+      "line": 78
+    },
+    {
+      "ruleId": "TS-6.11",
+      "file": "crates/enforcer-ui/frontend/src/data/graphAdapter.ts",
+      "line": 85
+    },
+    {
+      "ruleId": "TS-6.11",
+      "file": "crates/enforcer-ui/frontend/src/data/ruleCatalog.ts",
+      "line": 72
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 26
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 27
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 30
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 31
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 42
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 51
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 53
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 63
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 67
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 69
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 71
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 99
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/components/AnalysisWorkspace.tsx",
+      "line": 20
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/components/AssuranceWorkspace.tsx",
+      "line": 5
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/components/DoctrineWorkspace.tsx",
+      "line": 14
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/components/DoctrineWorkspace.tsx",
+      "line": 15
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/components/EngineWorkspace.tsx",
+      "line": 14
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/components/EngineWorkspace.tsx",
+      "line": 62
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/components/EngineWorkspace.tsx",
+      "line": 130
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/components/FindingsWorkspace.tsx",
+      "line": 7
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/components/FindingsWorkspace.tsx",
+      "line": 10
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/components/HubWorkspace.tsx",
+      "line": 7
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/components/HubWorkspace.tsx",
+      "line": 8
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/components/HubWorkspace.tsx",
+      "line": 11
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/components/HubWorkspace.tsx",
+      "line": 12
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/components/MemoryExplorerWorkspace.tsx",
+      "line": 12
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/components/MemoryExplorerWorkspace.tsx",
+      "line": 13
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSettingsWorkspace.tsx",
+      "line": 12
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSettingsWorkspace.tsx",
+      "line": 15
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSetupWorkspace.tsx",
+      "line": 41
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSetupWorkspace.tsx",
+      "line": 42
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/components/ProofWorkspace.tsx",
+      "line": 10
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/components/RunsWorkspace.tsx",
+      "line": 12
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/data/enforcerAppData.ts",
+      "line": 12
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/data/enforcerAppData.ts",
+      "line": 15
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/data/ruleCatalog.ts",
+      "line": 13
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/data/ruleCatalog.ts",
+      "line": 14
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/data/ruleCatalog.ts",
+      "line": 15
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/data/ruleCatalog.ts",
+      "line": 33
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/data/ruleCatalog.ts",
+      "line": 34
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/data/ruleCatalog.ts",
+      "line": 39
+    },
+    {
+      "ruleId": "TS-6.12",
+      "file": "crates/enforcer-ui/frontend/src/data/ruleCatalog.ts",
+      "line": 44
+    },
+    {
+      "ruleId": "TS-6.13",
+      "file": "crates/enforcer-ui/frontend/vite.config.ts",
+      "line": 4
+    },
+    {
+      "ruleId": "TS-6.19",
+      "file": "crates/enforcer-literal-scan/integration/ocentra-literal-scan.mjs",
+      "line": 17
+    },
+    {
+      "ruleId": "TS-6.20",
+      "file": "crates/enforcer-ui/frontend/src/components/MemoryExplorerWorkspace.tsx",
+      "line": 69
+    },
+    {
+      "ruleId": "TS-6.26",
+      "file": "crates/enforcer-ui/frontend/src/components/EngineWorkspace.tsx",
+      "line": 133
+    },
+    {
+      "ruleId": "TS-6.26",
+      "file": "crates/enforcer-ui/frontend/src/components/GraphWorkspace.tsx",
+      "line": 212
+    },
+    {
+      "ruleId": "TS-6.26",
+      "file": "crates/enforcer-ui/tests/memory_explorer/browser-proof.mjs",
+      "line": 31
+    },
+    {
+      "ruleId": "TS-6.27",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 159
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 26
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 27
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 28
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 29
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 30
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 36
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 40
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 41
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 44
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 48
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 49
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 50
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 51
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 69
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 78
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 79
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 80
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 98
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 99
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 100
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 101
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 234
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 548
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/AnalysisWorkspace.tsx",
+      "line": 10
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/AnalysisWorkspace.tsx",
+      "line": 11
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/AnalysisWorkspace.tsx",
+      "line": 12
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/AnalysisWorkspace.tsx",
+      "line": 22
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/AnalysisWorkspace.tsx",
+      "line": 56
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/AnalysisWorkspace.tsx",
+      "line": 75
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/AnalysisWorkspace.tsx",
+      "line": 77
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/AssuranceWorkspace.tsx",
+      "line": 8
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/DoctrineWorkspace.tsx",
+      "line": 20
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/DoctrineWorkspace.tsx",
+      "line": 25
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/EngineWorkspace.tsx",
+      "line": 13
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/EngineWorkspace.tsx",
+      "line": 20
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/EngineWorkspace.tsx",
+      "line": 53
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/EngineWorkspace.tsx",
+      "line": 111
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/EngineWorkspace.tsx",
+      "line": 130
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/FindingsWorkspace.tsx",
+      "line": 7
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/FindingsWorkspace.tsx",
+      "line": 10
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/HubWorkspace.tsx",
+      "line": 7
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/HubWorkspace.tsx",
+      "line": 8
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/HubWorkspace.tsx",
+      "line": 9
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/HubWorkspace.tsx",
+      "line": 10
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/HubWorkspace.tsx",
+      "line": 11
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/HubWorkspace.tsx",
+      "line": 28
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/HubWorkspace.tsx",
+      "line": 42
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/HubWorkspace.tsx",
+      "line": 124
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/HubWorkspace.tsx",
+      "line": 125
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/HubWorkspace.tsx",
+      "line": 127
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/HubWorkspace.tsx",
+      "line": 163
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/MemoryExplorerWorkspace.tsx",
+      "line": 12
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/MemoryExplorerWorkspace.tsx",
+      "line": 30
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/MemoryExplorerWorkspace.tsx",
+      "line": 32
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/MemoryExplorerWorkspace.tsx",
+      "line": 54
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/MemoryExplorerWorkspace.tsx",
+      "line": 63
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectOverviewWorkspace.tsx",
+      "line": 21
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectOverviewWorkspace.tsx",
+      "line": 22
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectOverviewWorkspace.tsx",
+      "line": 31
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSettingsWorkspace.tsx",
+      "line": 9
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSettingsWorkspace.tsx",
+      "line": 13
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSetupWorkspace.tsx",
+      "line": 25
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSetupWorkspace.tsx",
+      "line": 27
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSetupWorkspace.tsx",
+      "line": 28
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSetupWorkspace.tsx",
+      "line": 64
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSetupWorkspace.tsx",
+      "line": 67
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSetupWorkspace.tsx",
+      "line": 70
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSetupWorkspace.tsx",
+      "line": 73
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSetupWorkspace.tsx",
+      "line": 196
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectsWorkspace.tsx",
+      "line": 74
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectsWorkspace.tsx",
+      "line": 79
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/ProofWorkspace.tsx",
+      "line": 7
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/ProofWorkspace.tsx",
+      "line": 8
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/ProofWorkspace.tsx",
+      "line": 9
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/ProofWorkspace.tsx",
+      "line": 10
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/ProofWorkspace.tsx",
+      "line": 19
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/RuleCatalogWorkspace.tsx",
+      "line": 39
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/RuleCatalogWorkspace.tsx",
+      "line": 41
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/RuleCatalogWorkspace.tsx",
+      "line": 198
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/RunsWorkspace.tsx",
+      "line": 11
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/RunsWorkspace.tsx",
+      "line": 29
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/RunsWorkspace.tsx",
+      "line": 36
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/RunsWorkspace.tsx",
+      "line": 59
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/RunsWorkspace.tsx",
+      "line": 61
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/RunsWorkspace.tsx",
+      "line": 66
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/RunsWorkspace.tsx",
+      "line": 68
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/RunsWorkspace.tsx",
+      "line": 69
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/RunsWorkspace.tsx",
+      "line": 160
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/components/RunsWorkspace.tsx",
+      "line": 209
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/desktopClient.ts",
+      "line": 4
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/enforcerAppData.ts",
+      "line": 7
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/enforcerAppData.ts",
+      "line": 11
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/graphAdapter.ts",
+      "line": 28
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/graphAdapter.ts",
+      "line": 42
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/graphAdapter.ts",
+      "line": 43
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/graphAdapter.ts",
+      "line": 55
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/graphAdapter.ts",
+      "line": 56
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/graphAdapter.ts",
+      "line": 59
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/graphAdapter.ts",
+      "line": 137
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/reportAdapter.ts",
+      "line": 5
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/reportAdapter.ts",
+      "line": 6
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/reportAdapter.ts",
+      "line": 7
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/reportAdapter.ts",
+      "line": 8
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/reportAdapter.ts",
+      "line": 9
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/reportAdapter.ts",
+      "line": 10
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/reportAdapter.ts",
+      "line": 17
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/reportAdapter.ts",
+      "line": 18
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/reportAdapter.ts",
+      "line": 19
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/reportAdapter.ts",
+      "line": 20
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/reportAdapter.ts",
+      "line": 21
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/reportAdapter.ts",
+      "line": 30
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/ruleCatalog.ts",
+      "line": 8
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/ruleCatalog.ts",
+      "line": 9
+    },
+    {
+      "ruleId": "TS-6.28",
+      "file": "crates/enforcer-ui/frontend/src/data/ruleCatalog.ts",
+      "line": 49
+    },
+    {
+      "ruleId": "TS-6.29",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 197
+    },
+    {
+      "ruleId": "TS-6.29",
+      "file": "crates/enforcer-ui/frontend/src/components/EngineWorkspace.tsx",
+      "line": 48
+    },
+    {
+      "ruleId": "TS-6.3",
+      "file": "crates/enforcer-ui/frontend/src/components/AnalysisWorkspace.tsx",
+      "line": 142
+    },
+    {
+      "ruleId": "TS-6.3",
+      "file": "crates/enforcer-ui/frontend/src/components/AnalysisWorkspace.tsx",
+      "line": 163
+    },
+    {
+      "ruleId": "TS-6.3",
+      "file": "crates/enforcer-ui/frontend/src/components/DoctrineWorkspace.tsx",
+      "line": 30
+    },
+    {
+      "ruleId": "TS-6.3",
+      "file": "crates/enforcer-ui/frontend/src/components/EngineWorkspace.tsx",
+      "line": 103
+    },
+    {
+      "ruleId": "TS-6.3",
+      "file": "crates/enforcer-ui/frontend/src/components/EngineWorkspace.tsx",
+      "line": 141
+    },
+    {
+      "ruleId": "TS-6.3",
+      "file": "crates/enforcer-ui/frontend/src/components/EngineWorkspace.tsx",
+      "line": 149
+    },
+    {
+      "ruleId": "TS-6.3",
+      "file": "crates/enforcer-ui/frontend/src/components/FindingsWorkspace.tsx",
+      "line": 31
+    },
+    {
+      "ruleId": "TS-6.3",
+      "file": "crates/enforcer-ui/frontend/src/components/FindingsWorkspace.tsx",
+      "line": 96
+    },
+    {
+      "ruleId": "TS-6.3",
+      "file": "crates/enforcer-ui/frontend/src/components/FindingsWorkspace.tsx",
+      "line": 114
+    },
+    {
+      "ruleId": "TS-6.3",
+      "file": "crates/enforcer-ui/frontend/src/components/HubWorkspace.tsx",
+      "line": 125
+    },
+    {
+      "ruleId": "TS-6.3",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectOverviewWorkspace.tsx",
+      "line": 52
+    },
+    {
+      "ruleId": "TS-6.3",
+      "file": "crates/enforcer-ui/frontend/src/components/ProofWorkspace.tsx",
+      "line": 48
+    },
+    {
+      "ruleId": "TS-6.3",
+      "file": "crates/enforcer-ui/frontend/src/components/RuleCatalogWorkspace.tsx",
+      "line": 213
+    },
+    {
+      "ruleId": "TS-6.32",
+      "file": "crates/enforcer-ui/tests/memory_explorer/browser-proof.mjs",
+      "line": 10
+    },
+    {
+      "ruleId": "TS-6.33",
+      "file": "crates/enforcer-literal-scan/integration/ocentra-literal-scan.mjs",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-6.35",
+      "file": "crates/enforcer-ui/frontend/src/data/graphAdapter.ts",
+      "line": 76
+    },
+    {
+      "ruleId": "TS-6.39",
+      "file": "crates/enforcer-literal-scan/integration/ocentra-literal-scan.mjs",
+      "line": 15
+    },
+    {
+      "ruleId": "TS-6.39",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 247
+    },
+    {
+      "ruleId": "TS-6.39",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 273
+    },
+    {
+      "ruleId": "TS-6.39",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 282
+    },
+    {
+      "ruleId": "TS-6.39",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 297
+    },
+    {
+      "ruleId": "TS-6.39",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 306
+    },
+    {
+      "ruleId": "TS-6.39",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 320
+    },
+    {
+      "ruleId": "TS-6.39",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 354
+    },
+    {
+      "ruleId": "TS-6.39",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 377
+    },
+    {
+      "ruleId": "TS-6.39",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 398
+    },
+    {
+      "ruleId": "TS-6.39",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 415
+    },
+    {
+      "ruleId": "TS-6.39",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 424
+    },
+    {
+      "ruleId": "TS-6.39",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 438
+    },
+    {
+      "ruleId": "TS-6.39",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 455
+    },
+    {
+      "ruleId": "TS-6.39",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 467
+    },
+    {
+      "ruleId": "TS-6.39",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 479
+    },
+    {
+      "ruleId": "TS-6.39",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 513
+    },
+    {
+      "ruleId": "TS-6.39",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 532
+    },
+    {
+      "ruleId": "TS-6.39",
+      "file": "crates/enforcer-ui/frontend/src/components/GraphWorkspace.tsx",
+      "line": 75
+    },
+    {
+      "ruleId": "TS-6.39",
+      "file": "crates/enforcer-ui/frontend/src/data/graphAdapter.ts",
+      "line": 67
+    },
+    {
+      "ruleId": "TS-6.39",
+      "file": "crates/enforcer-ui/frontend/src/data/graphAdapter.ts",
+      "line": 68
+    },
+    {
+      "ruleId": "TS-6.5",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSetupWorkspace.tsx",
+      "line": 165
+    },
+    {
+      "ruleId": "TS-6.5",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSetupWorkspace.tsx",
+      "line": 198
+    },
+    {
+      "ruleId": "TS-6.7",
+      "file": "crates/enforcer-ui/frontend/src/bindings/RuleId.ts",
+      "line": 6
+    },
+    {
+      "ruleId": "TS-6.8",
+      "file": "crates/enforcer-ui/frontend/src/components/FindingsWorkspace.tsx",
+      "line": 117
+    },
+    {
+      "ruleId": "TS-6.8",
+      "file": "crates/enforcer-ui/frontend/src/data/ruleCatalog.ts",
+      "line": 72
+    },
+    {
+      "ruleId": "TS-6.9",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 36
+    },
+    {
+      "ruleId": "TS-6.9",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSettingsWorkspace.tsx",
+      "line": 9
+    },
+    {
+      "ruleId": "TS-6.9",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSetupWorkspace.tsx",
+      "line": 34
+    },
+    {
+      "ruleId": "TS-6.9",
+      "file": "crates/enforcer-ui/frontend/src/data/ruleCatalog.ts",
+      "line": 7
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-literal-scan/integration/ocentra-literal-scan.mjs",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/bindings/Finding.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/bindings/RelPath.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/bindings/Report.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/bindings/RuleId.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/bindings/ScanScope.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/bindings/Severity.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/bindings/UiFindingRow.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/bindings/UiReportPayload.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/bindings/Violation.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/components/AnalysisWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/components/AppShell.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/components/AssuranceWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/components/CommandBar.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/components/DoctrineWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/components/EngineWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/components/FindingsWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/components/GraphWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/components/HubWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/components/MemoryExplorerWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectOverviewWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSettingsWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSetupWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectsWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/components/ProofWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/components/RuleCatalogWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/components/RunsWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/data/desktopClient.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/data/enforcerAppData.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/data/graphAdapter.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/data/reportAdapter.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/data/ruleCatalog.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/main.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/src/vite-env.d.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/frontend/vite.config.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.12",
+      "file": "crates/enforcer-ui/tests/memory_explorer/browser-proof.mjs",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-literal-scan/integration/ocentra-literal-scan.mjs",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/App.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/bindings/Finding.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/bindings/RelPath.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/bindings/Report.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/bindings/RuleId.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/bindings/ScanScope.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/bindings/Severity.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/bindings/UiFindingRow.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/bindings/UiReportPayload.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/bindings/Violation.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/components/AnalysisWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/components/AppShell.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/components/AssuranceWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/components/CommandBar.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/components/DoctrineWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/components/EngineWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/components/FindingsWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/components/GraphWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/components/HubWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/components/MemoryExplorerWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectOverviewWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSettingsWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectSetupWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/components/ProjectsWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/components/ProofWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/components/RuleCatalogWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/components/RunsWorkspace.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/data/desktopClient.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/data/enforcerAppData.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/data/graphAdapter.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/data/reportAdapter.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/data/ruleCatalog.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/main.tsx",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/src/vite-env.d.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/frontend/vite.config.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "TS-7.13",
+      "file": "crates/enforcer-ui/tests/memory_explorer/browser-proof.mjs",
+      "line": 1
+    },
+    {
+      "ruleId": "WAIVER-1.1",
+      "file": "crates/enforcer-lang-common/src/families/waiver_1.rs",
+      "line": 20
+    },
+    {
+      "ruleId": "WAIVER-1.10",
+      "file": "crates/enforcer-lang-common/src/families/waiver_1.rs",
+      "line": 83
+    },
+    {
+      "ruleId": "WAIVER-1.2",
+      "file": "crates/enforcer-lang-common/src/families/waiver_1.rs",
+      "line": 27
+    },
+    {
+      "ruleId": "WAIVER-1.3",
+      "file": "crates/enforcer-lang-common/src/families/waiver_1.rs",
+      "line": 34
+    },
+    {
+      "ruleId": "WAIVER-1.4",
+      "file": "crates/enforcer-lang-common/src/families/waiver_1.rs",
+      "line": 41
+    },
+    {
+      "ruleId": "WAIVER-1.5",
+      "file": "crates/enforcer-lang-common/src/families/waiver_1.rs",
+      "line": 48
+    },
+    {
+      "ruleId": "WAIVER-1.6",
+      "file": "crates/enforcer-lang-common/src/families/waiver_1.rs",
+      "line": 55
+    },
+    {
+      "ruleId": "WAIVER-1.7",
+      "file": "crates/enforcer-lang-common/src/families/waiver_1.rs",
+      "line": 62
+    },
+    {
+      "ruleId": "WAIVER-1.8",
+      "file": "crates/enforcer-lang-common/src/families/waiver_1.rs",
+      "line": 69
+    },
+    {
+      "ruleId": "WAIVER-1.9",
+      "file": "crates/enforcer-lang-common/src/families/waiver_1.rs",
+      "line": 76
+    }
+  ],
+  "integrity": "sha256:e8f92138674a45709fbfd4a5523cc8675e64be4ca219cc06a9c30dc614897719"
+}
