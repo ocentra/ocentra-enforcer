@@ -2,7 +2,7 @@ use std::io::{self, Write};
 
 use enforcer_events::compatibility::EventCompatibilityMatrix;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> io::Result<()> {
     let matrix = EventCompatibilityMatrix::ocentra_games_lineage();
     io::stdout()
         .lock()
