@@ -598,3 +598,32 @@ serde = { version = "1.0.228", features = ["derive"] }
     result.stdout,
   );
 });
+
+test('a substantive contiguous Cargo comment is dependency justification', () => {
+  const project = makeProject({
+    'rust-rules.config.json': JSON.stringify({
+      requireCargoDeny: false,
+      rustRoots: ['src'],
+    }),
+    'Cargo.toml': `
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+
+[dependencies]
+# This client performs the optional local model download and JSON protocol
+# boundary, so it is deliberately opt-in rather than part of the default build.
+reqwest = { version = "0.12", default-features = false, optional = true }
+`,
+    'src/lib.rs': 'pub struct Fixture;\n',
+  });
+  const result = runGateArgs(project, ['scan', '--json', '--files', 'Cargo.toml']);
+  const report = JSON.parse(result.stdout);
+  assert.equal(
+    report.violations.some((violation) => violation.ruleId === 'RR-9.18'),
+    false,
+    result.stdout,
+  );
+});
