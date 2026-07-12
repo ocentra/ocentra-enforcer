@@ -1,5 +1,13 @@
 //! c06 — the Codex [`crate::core::HarnessAdapter`].
 //!
+//! BOUNDARY-INVARIANT: this adapter is the only layer that reads or writes
+//! Codex's user-global configuration and agent files. It preserves unrelated
+//! configuration and translates that external TOML/YAML/file-system state into
+//! typed install reports and errors; no domain policy belongs here.
+//! boundaryOwnerNote: `crates/enforcer-install/src/adapters/**` is the owned
+//! install-transport boundary because each harness has a distinct user-global
+//! configuration format and lifecycle contract.
+//!
 //! # Charter (workpack c06, RUST_ARCHITECTURE.md "Global-install scope
 //! contract" — BINDING)
 //!
@@ -181,13 +189,13 @@ impl CodexAdapter {
     /// `OCENTRA_LEDGER_HOME` env entry, and `enabled = true`.
     fn desired_table(binary_path: &Path) -> Table {
         let mut table = Table::new();
-        table["command"] = value(binary_path.display().to_string());
-        table["args"] = Item::Value(Array::new().into());
+        table.insert("command", value(binary_path.display().to_string()));
+        table.insert("args", Item::Value(Array::new().into()));
         let mut env = Table::new();
         env.set_implicit(false);
-        env["OCENTRA_LEDGER_HOME"] = value("${HOME}/.enforcer/ledger");
-        table["env"] = Item::Table(env);
-        table["enabled"] = value(true);
+        env.insert("OCENTRA_LEDGER_HOME", value("${HOME}/.enforcer/ledger"));
+        table.insert("env", Item::Table(env));
+        table.insert("enabled", value(true));
         table
     }
 
@@ -207,9 +215,10 @@ impl CodexAdapter {
     /// `mcp_servers` entry, format-preserving via `toml_edit`.
     fn merge_mcp_server(doc: &mut DocumentMut, desired: Table) {
         if doc.get("mcp_servers").and_then(Item::as_table).is_none() {
-            doc["mcp_servers"] = Item::Table(Table::new());
+            doc.as_table_mut()
+                .insert("mcp_servers", Item::Table(Table::new()));
         }
-        if let Some(servers) = doc["mcp_servers"].as_table_mut() {
+        if let Some(servers) = doc.get_mut("mcp_servers").and_then(Item::as_table_mut) {
             servers.insert(SERVER_NAME, Item::Table(desired));
         }
     }
@@ -362,8 +371,21 @@ impl CodexAdapter {
             });
         }
 
-        let before = &existing[..begin_idx];
-        let after = &existing[end_idx + GLOBAL_AGENTS_END.len()..];
+        let before = existing.get(..begin_idx).ok_or_else(|| {
+            InstallError::ManagedBlockInvalid {
+                path: path.to_owned(),
+                marker: "ocentra-enforcer".to_owned(),
+                reason: "begin marker offset is not a UTF-8 boundary".to_owned(),
+            }
+        })?;
+        let after_offset = end_idx + GLOBAL_AGENTS_END.len();
+        let after = existing.get(after_offset..).ok_or_else(|| {
+            InstallError::ManagedBlockInvalid {
+                path: path.to_owned(),
+                marker: "ocentra-enforcer".to_owned(),
+                reason: "end marker offset is not a UTF-8 boundary".to_owned(),
+            }
+        })?;
         let after = after.trim_start_matches('\n');
         Ok(format!("{before}{rendered}{after}"))
     }
@@ -832,20 +854,34 @@ fn remove_global_agents_block(text: &str) -> String {
     let Some(start) = text.find(GLOBAL_AGENTS_START) else {
         return text.to_owned();
     };
-    let Some(end) = text[start..].find(GLOBAL_AGENTS_END) else {
+    let Some(from_start) = text.get(start..) else {
+        return text.to_owned();
+    };
+    let Some(end) = from_start.find(GLOBAL_AGENTS_END) else {
         return text.to_owned();
     };
     let end_abs = start + end + GLOBAL_AGENTS_END.len();
-    let before = &text[..start];
-    let after = text[end_abs..].trim_start_matches('\n');
+    let Some(before) = text.get(..start) else {
+        return text.to_owned();
+    };
+    let Some(after) = text.get(end_abs..) else {
+        return text.to_owned();
+    };
+    let after = after.trim_start_matches('\n');
     format!("{before}{after}")
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{
+        remove_global_agents_block, CodexAdapter, InstallError, SERVER_NAME, GLOBAL_AGENTS_END,
+        GLOBAL_AGENTS_START,
+    };
     use crate::cli_contract::RequestContext;
+    use crate::core::HarnessAdapter;
     use std::fs;
+    use std::path::Path;
+    use toml_edit::DocumentMut;
 
     fn ctx(binary: &Path) -> RequestContext {
         RequestContext::with_defaults(binary.to_path_buf())
@@ -871,7 +907,7 @@ mod tests {
         let home = fixture_home()?;
         let binary = home.path().join("bin").join("enforcer");
         fs::create_dir_all(binary.parent().ok_or("expected a parent dir")?)?;
-        fs::write(&binary, b"fake-binary")?;
+        fs::write(&binary, b"installed-enforcer")?;
         let adapter = CodexAdapter::new(home.path(), &binary);
 
         let plan = adapter.plan(&ctx(&binary))?;
@@ -896,7 +932,7 @@ mod tests {
         let home = fixture_home()?;
         let binary = home.path().join("bin").join("enforcer");
         fs::create_dir_all(binary.parent().ok_or("expected a parent dir")?)?;
-        fs::write(&binary, b"fake-binary")?;
+        fs::write(&binary, b"installed-enforcer")?;
         let adapter = CodexAdapter::new(home.path(), &binary);
         let plan = adapter.plan(&ctx(&binary))?;
         adapter.apply(&plan)?;
@@ -917,7 +953,7 @@ mod tests {
         let home = fixture_home()?;
         let binary = home.path().join("bin").join("enforcer");
         fs::create_dir_all(binary.parent().ok_or("expected a parent dir")?)?;
-        fs::write(&binary, b"fake-binary")?;
+        fs::write(&binary, b"installed-enforcer")?;
 
         // Pre-existing unrelated state that must survive round-trip.
         let config_toml_path = home.path().join("config.toml");
@@ -1040,7 +1076,10 @@ mod tests {
     #[test]
     fn agent_descriptor_renders_valid_content() {
         let rendered = CodexAdapter::render_agent_descriptor();
-        assert!(CodexAdapter::validate_agent_descriptor(&rendered).is_ok());
+        assert!(matches!(
+            CodexAdapter::validate_agent_descriptor(&rendered),
+            Ok(())
+        ));
         assert!(rendered.contains(&format!("display_name: {SERVER_NAME}")));
         assert!(rendered.contains("allow_implicit_invocation: true"));
     }

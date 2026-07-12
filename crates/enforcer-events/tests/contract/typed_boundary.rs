@@ -2,7 +2,7 @@ use super::support::{
     metadata, subscriber, test_event, TestEvent, TestText, OTHER_EVENT_TYPE, OTHER_SUBSCRIBER,
     OTHER_TARGET, TEST_LABEL, TEST_SUBSCRIBER, TEST_TARGET,
 };
-use enforcer_events::bus::EventBus;
+use enforcer_events::bus::{EventBus, ShutdownMode};
 use enforcer_events::envelope::{EventEnvelope, EventPriority};
 use enforcer_events::error::EventingError;
 use enforcer_events::ids::{CausationId, EventNamespace, EventType, RecordedAt, SchemaVersion};
@@ -98,6 +98,26 @@ async fn target_handler_filter_prevents_wrong_handler_delivery(
 }
 
 #[tokio::test]
+async fn shutdown_cancels_future_event_delivery(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let bus = EventBus::new();
+
+    let report = bus.shutdown(ShutdownMode::Drain).await?;
+    let publish_after_shutdown = bus
+        .publish(
+            test_event(&TestText(TEST_LABEL.to_owned()))?,
+            metadata(&TestText(TEST_TARGET.to_owned()))?,
+        )
+        .await;
+
+    assert_eq!(report.mode, ShutdownMode::Drain);
+    assert!(!report.already_shutdown);
+    assert_eq!(report.queued_event_count, 0);
+    assert_eq!(publish_after_shutdown, Err(EventingError::BusShutdown));
+    Ok(())
+}
+
+#[tokio::test]
 async fn concurrent_dispatch_records_handler_dead_letter_without_losing_journal(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
@@ -163,16 +183,32 @@ async fn duplicate_subscriber_ids_are_rejected(
 #[test]
 fn eventing_newtypes_reject_empty_values_and_zero_versions(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    assert!(EventType::parse("").is_err());
-    assert!(EventType::parse(".leading").is_err());
-    assert!(EventType::parse("trailing.").is_err());
-    assert!(EventType::parse("empty..segment").is_err());
+    assert_eq!(
+        EventType::parse(""),
+        Err(EventingError::EmptyValue {
+            field: "event_type"
+        })
+    );
+    for invalid_taxonomy in [".leading", "trailing.", "empty..segment"] {
+        assert_eq!(
+            EventType::parse(invalid_taxonomy),
+            Err(EventingError::InvalidValue {
+                field: "event_type",
+                value: invalid_taxonomy.to_string(),
+            })
+        );
+    }
     assert_eq!(
         EventType::parse("eventing/slash-taxonomy/observed")?.as_str(),
         "eventing/slash-taxonomy/observed"
     );
-    assert!(RecordedAt::parse(" ").is_err());
-    assert!(SchemaVersion::new(0).is_err());
+    assert_eq!(
+        RecordedAt::parse(" "),
+        Err(EventingError::EmptyValue {
+            field: "recorded_at"
+        })
+    );
+    assert_eq!(SchemaVersion::new(0), Err(EventingError::InvalidVersion));
     Ok(())
 }
 
