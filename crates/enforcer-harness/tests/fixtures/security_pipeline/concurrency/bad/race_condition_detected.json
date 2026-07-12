@@ -1,0 +1,15 @@
+{
+  "tool": "k6",
+  "toolPresent": true,
+  "outcome": "ran",
+  "ran": 200,
+  "findings": [
+    {
+      "ruleId": "k6.race-condition",
+      "severity": "High",
+      "file": "src/wallet.rs",
+      "line": 88,
+      "message": "concurrent withdrawals under load double-spent the balance check"
+    }
+  ]
+}

@@ -43,4 +43,5 @@ pub mod legacy;
 pub mod parsers;
 pub mod query;
 pub mod retention;
+pub mod security_pipeline;
 pub mod storage;

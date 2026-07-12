@@ -1,0 +1,15 @@
+{
+  "tool": "k6",
+  "toolPresent": true,
+  "outcome": "ran",
+  "ran": 200,
+  "findings": [
+    {
+      "ruleId": "k6.latency-warning",
+      "severity": "Low",
+      "file": "src/wallet.rs",
+      "line": 12,
+      "message": "p99 latency slightly elevated under load"
+    }
+  ]
+}

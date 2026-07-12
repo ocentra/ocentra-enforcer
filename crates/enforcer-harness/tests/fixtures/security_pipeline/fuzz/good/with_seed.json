@@ -1,0 +1,13 @@
+{
+  "tool": "proptest",
+  "toolPresent": true,
+  "outcome": "ran",
+  "ran": 128,
+  "failures": [
+    {
+      "property": "prop_never_negative",
+      "seed": "12345",
+      "counterexample": "x = -1"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "tool": "otel-collector",
+  "toolPresent": true,
+  "outcome": "ran",
+  "ran": 1,
+  "events": [
+    {
+      "eventId": "auth-failure",
+      "moneyCritical": false,
+      "hasSecurityLog": true,
+      "correlationId": "corr-456",
+      "isSecurityEvent": true,
+      "sampledDropped": false
+    }
+  ]
+}
