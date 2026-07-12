@@ -70,6 +70,14 @@ pub fn run_scoped_check(scope_args: &ScopeArgs) -> ExitCode {
             return ExitCode::InternalError;
         }
     };
+    let config_path = Path::new(root.as_str()).join("ocentra-enforcer.config.json");
+    let config = match enforcer_config::load_project_config_with_env(&config_path) {
+        Ok(config) => config,
+        Err(err) => {
+            output::print_config_error(&err.to_string());
+            return ExitCode::ConfigError;
+        }
+    };
     let resolved = match enforcer_scan::scope::resolve(&request, &root) {
         Ok(resolved) => resolved,
         Err(err) => {
@@ -91,7 +99,12 @@ pub fn run_scoped_check(scope_args: &ScopeArgs) -> ExitCode {
             return ExitCode::InternalError;
         }
     };
-    let report = engine::run(&resolved, &files, &validators);
+    let report = engine::run_with_inline_test_policy(
+        &resolved,
+        &files,
+        &validators,
+        config.rust_scan_scope.inline_test_policy,
+    );
     output::print_report(&report);
     if report.ok {
         ExitCode::Success
@@ -173,7 +186,9 @@ mod tests {
     use super::current_repo_root;
 
     #[test]
-    fn current_repo_root_resolves_in_a_real_process() {
-        assert!(current_repo_root().is_ok());
+    fn current_repo_root_resolves_in_a_real_process() -> Result<(), std::io::Error> {
+        let root = current_repo_root().map_err(std::io::Error::other)?;
+        assert!(!root.as_str().is_empty());
+        Ok(())
     }
 }

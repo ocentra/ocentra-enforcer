@@ -4,8 +4,11 @@
 //! is found and routed to the right family; the pass fixture's clean tree
 //! produces an empty report.
 
+use enforcer_config::model::InlineTestPolicy;
+use enforcer_domain::findings::{Finding, Report};
 use enforcer_domain::paths::RepoRoot;
-use enforcer_scan::engine::{build_family_validators, run};
+use enforcer_domain::severity::Severity;
+use enforcer_scan::engine::{build_family_validators, run, run_with_inline_test_policy};
 use enforcer_scan::scope::{resolve, ScopeRequest};
 use enforcer_scan::walk::{walk, IgnoreRules};
 
@@ -13,6 +16,14 @@ fn fixture_root(name: &str) -> std::path::PathBuf {
     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures")
         .join(name)
+}
+
+fn inline_test_findings(report: &Report) -> Vec<&Finding> {
+    report
+        .findings
+        .iter()
+        .filter(|finding| finding.rule_id.as_str() == "TEST-2.2")
+        .collect()
 }
 
 #[test]
@@ -79,6 +90,45 @@ fn parallel_and_serial_walk_over_the_same_fixture_agree() -> Result<(), Box<dyn 
     assert_eq!(
         run_one, run_two,
         "repeated runs over the same scope must be byte-identical (idempotency guard)"
+    );
+    Ok(())
+}
+
+#[test]
+fn inline_test_policy_is_configurable_and_external_tests_are_exempt(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let root_path = fixture_root("inline_test_policy");
+    let root: RepoRoot = root_path.to_string_lossy().parse()?;
+    let resolved = resolve(&ScopeRequest::All, &root)?;
+    let files = walk(&root_path, &IgnoreRules::default())?;
+    let validators = build_family_validators()?;
+
+    let forbid =
+        run_with_inline_test_policy(&resolved, &files, &validators, InlineTestPolicy::Forbid);
+    let warn = run_with_inline_test_policy(&resolved, &files, &validators, InlineTestPolicy::Warn);
+    let allow =
+        run_with_inline_test_policy(&resolved, &files, &validators, InlineTestPolicy::Allow);
+
+    let forbid_findings = inline_test_findings(&forbid);
+    assert_eq!(forbid_findings.len(), 1);
+    assert_eq!(forbid_findings[0].severity, Severity::Error);
+    assert!(!forbid.ok, "forbid must make inline tests blocking");
+    assert_eq!(forbid_findings[0].file.as_str(), "src/lib.rs");
+
+    let warn_findings = inline_test_findings(&warn);
+    assert_eq!(warn_findings.len(), 1);
+    assert_eq!(warn_findings[0].severity, Severity::Warning);
+    assert!(warn.ok, "warn must remain advisory-only");
+
+    assert!(
+        inline_test_findings(&allow).is_empty(),
+        "allow must emit no TEST-2.2 finding"
+    );
+    assert!(
+        forbid_findings
+            .iter()
+            .all(|finding| !finding.file.as_str().starts_with("tests/")),
+        "tests/ files are organized external tests and must never be reported"
     );
     Ok(())
 }

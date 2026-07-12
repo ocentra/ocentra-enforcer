@@ -48,6 +48,24 @@ fn write_fail_fixture(root: &std::path::Path) -> std::io::Result<()> {
     )
 }
 
+fn write_inline_test_fixture(root: &std::path::Path) -> std::io::Result<()> {
+    let dir = root.join("src");
+    std::fs::create_dir_all(&dir)?;
+    std::fs::write(
+        dir.join("lib.rs"),
+        "pub fn answer() -> i32 { 42 }\n\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn answer_is_stable() {\n        assert_eq!(super::answer(), 42);\n    }\n}\n",
+    )
+}
+
+fn write_inline_test_policy(root: &std::path::Path, policy: &str) -> std::io::Result<()> {
+    std::fs::write(
+        root.join("ocentra-enforcer.config.json"),
+        format!(
+            "{{\n  \"schemaVersion\": 2,\n  \"profileName\": \"default\",\n  \"inlineTestPolicy\": \"{policy}\"\n}}\n"
+        ),
+    )
+}
+
 fn run_check(
     root: &std::path::Path,
     extra_args: &[&str],
@@ -77,6 +95,35 @@ fn fail_fixture_paths_mode_exits_non_zero_with_violations_class(
         status.code(),
         Some(1),
         "a rule violation must exit with the Violations class (1), not a generic non-zero"
+    );
+    Ok(())
+}
+
+#[test]
+fn inline_test_policy_flows_from_project_config_to_the_real_cli_binary(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    write_inline_test_fixture(temp.path())?;
+
+    let default_status = run_check(temp.path(), &["src/lib.rs"])?;
+    assert_eq!(
+        default_status.code(),
+        Some(1),
+        "the default inlineTestPolicy must forbid inline tests"
+    );
+
+    write_inline_test_policy(temp.path(), "warn")?;
+    let warning_status = run_check(temp.path(), &["src/lib.rs"])?;
+    assert!(
+        warning_status.success(),
+        "warn must render an advisory without turning the CLI verdict into a failure"
+    );
+
+    write_inline_test_policy(temp.path(), "allow")?;
+    let allow_status = run_check(temp.path(), &["src/lib.rs"])?;
+    assert!(
+        allow_status.success(),
+        "allow must emit no blocking placement finding"
     );
     Ok(())
 }

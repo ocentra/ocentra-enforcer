@@ -37,8 +37,10 @@
 use rayon::iter::ParallelIterator;
 use rayon::prelude::IntoParallelRefIterator;
 
+use enforcer_config::model::InlineTestPolicy;
 use enforcer_domain::findings::{Finding, Report, ScanScope, Violation};
 use enforcer_domain::paths::{RelPath, RepoRoot};
+use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
 use crate::cargo_workspace_policy;
@@ -163,6 +165,19 @@ fn read_file_utf8(root: &RepoRoot, rel: &RelPath) -> Option<String> {
 /// byte-identical `Report` across repeated runs) without requiring
 /// `Box<dyn Validator>` to cross the `rayon` thread boundary.
 pub fn run(scope: &ResolvedScope, files: &[RelPath], validators: &FamilyValidators) -> Report {
+    run_with_inline_test_policy(scope, files, validators, InlineTestPolicy::Forbid)
+}
+
+/// Run the engine with the resolved policy for unit tests declared in source
+/// modules. [`InlineTestPolicy::Forbid`] makes the placement blocking,
+/// [`InlineTestPolicy::Warn`] keeps it visible without failing the scan, and
+/// [`InlineTestPolicy::Allow`] intentionally emits nothing.
+pub fn run_with_inline_test_policy(
+    scope: &ResolvedScope,
+    files: &[RelPath],
+    validators: &FamilyValidators,
+    inline_test_policy: InlineTestPolicy,
+) -> Report {
     let sources: Vec<(RelPath, Option<String>)> = files
         .par_iter()
         // CLONE-JUSTIFICATION: the parallel read phase must retain each
@@ -173,7 +188,7 @@ pub fn run(scope: &ResolvedScope, files: &[RelPath], validators: &FamilyValidato
     let mut all_findings = Vec::new();
     for (file, source) in &sources {
         let Some(source) = source else { continue };
-        let family = classify(&file);
+        let family = classify(file);
         let mut per_file = Vec::new();
         for validator in validators.applicable(family) {
             let input = ValidationInput {
@@ -188,8 +203,54 @@ pub fn run(scope: &ResolvedScope, files: &[RelPath], validators: &FamilyValidato
     }
 
     all_findings.extend(cargo_workspace_policy::findings_for_sources(&sources));
+    all_findings.extend(inline_test_findings(&sources, inline_test_policy));
 
     fold_report(scope.kind, all_findings)
+}
+
+fn inline_test_findings(
+    sources: &[(RelPath, Option<String>)],
+    policy: InlineTestPolicy,
+) -> Vec<Finding> {
+    let severity = match policy {
+        InlineTestPolicy::Forbid => Severity::Error,
+        InlineTestPolicy::Warn => Severity::Warning,
+        InlineTestPolicy::Allow => return Vec::new(),
+    };
+    let rule_id: enforcer_domain::ids::RuleId = match "TEST-2.2".parse() {
+        Ok(rule_id) => rule_id,
+        Err(_) => return Vec::new(),
+    };
+    let mut findings = Vec::new();
+    for (file, source) in sources {
+        if !is_rust_production_source(file) {
+            continue;
+        }
+        let Some(source) = source else { continue };
+        let Some((line_index, line)) = source.lines().enumerate().find(|(_, line)| {
+            let trimmed = line.trim_start();
+            trimmed.starts_with("#[cfg(test)]") || trimmed.starts_with("#[test]")
+        }) else {
+            continue;
+        };
+        findings.push(Finding {
+            rule_id: rule_id.clone(),
+            severity,
+            title: "inline Rust test in production source".to_owned(),
+            detail: "move this test into the crate's tests/ directory, or configure inlineTestPolicy to warn or allow deliberately".to_owned(),
+            file: file.clone(),
+            line: u32::try_from(line_index + 1).unwrap_or(u32::MAX),
+            snippet: Some(line.to_owned()),
+        });
+    }
+    findings
+}
+
+fn is_rust_production_source(file: &RelPath) -> bool {
+    file.as_str().ends_with(".rs")
+        && !file.as_str().split('/').any(|segment| segment == "tests")
+        && !file.as_str().ends_with("_test.rs")
+        && !file.as_str().ends_with("_tests.rs")
 }
 
 /// Fold a flat findings stream into a [`Report`]: partitions into

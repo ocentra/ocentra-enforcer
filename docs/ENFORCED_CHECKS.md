@@ -63,7 +63,7 @@ is backed by a native Rust `Validator`, not a TypeScript/Node scanner.
 | Secrets | Inline secret-like assignments and staged secret leaks. |
 | Generated artifacts | Generated markers or tracked output/proof artifacts in source scope. |
 | Test doubles | Mock/fake/stub/spy vocabulary and common packages by default. |
-| Required tests | Source workspaces without organized tests, empty `.gitkeep`-only test trees in strict mode, and inline tests in production source. |
+| Required tests | Source workspaces without organized tests, empty `.gitkeep`-only test trees in strict mode, and inline tests in production source. Rust's `inlineTestPolicy` is explicit: `forbid` (default, error), `warn` (advisory), or `allow`. External `tests/` files are never inline-test findings. |
 | Single-source contracts | Copied values that should be imported, generated, or derived from the owner contract. |
 | Portability | Unguarded platform-specific script commands. |
 | Package determinism | Missing `package-lock.json`, missing exact `packageManager`, unbounded Node engines, and loose npm dependency ranges such as `^`, `~`, `*`, `latest`, `git:`, or `file:`. |
