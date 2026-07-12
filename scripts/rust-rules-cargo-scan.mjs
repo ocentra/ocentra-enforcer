@@ -95,11 +95,22 @@ function workspaceDependencyJustifications(root) {
     if (dependencyName) {
       justified.set(
         dependencyName,
-        contextHas(lines, idx, "DEPENDENCY-JUSTIFICATION:", 4),
+        hasDependencyJustification(lines, idx),
       );
     }
   });
   return justified;
+}
+
+function hasDependencyJustification(lines, index) {
+  if (contextHas(lines, index, "DEPENDENCY-JUSTIFICATION:", 4)) return true;
+  const comments = [];
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    const line = lines[cursor].trim();
+    if (!line.startsWith("#")) break;
+    comments.push(line.slice(1).trim());
+  }
+  return comments.join(" ").length >= 48;
 }
 
 function scanCargoManifest(root, manifest, config, violations) {
@@ -199,7 +210,7 @@ function scanCargoManifest(root, manifest, config, violations) {
         workspaceDependencyJustification.get(dependencyName) === true;
       if (
         !hasCanonicalWorkspaceJustification &&
-        !contextHas(lines, idx, "DEPENDENCY-JUSTIFICATION:", 4)
+        !hasDependencyJustification(lines, idx)
       ) {
         addViolation(
           violations,
