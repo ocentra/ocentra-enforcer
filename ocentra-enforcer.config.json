@@ -13,9 +13,12 @@
     "crates/enforcer-cli/src/**",
     "crates/enforcer-cli/tests/**",
     "crates/enforcer-scan/tests/**",
-    "crates/enforcer-memory/src/languages/**"
+    "crates/enforcer-memory/src/languages/**",
+    "crates/enforcer-ui/**",
+    "crates/enforcer-install/src/adapters/**",
+    "crates/enforcer-harness/src/**"
   ],
-  "boundaryOwnerNote": "The domain crate owns serialized primitives; CLI, tests, and language-analysis adapters own transport and parser primitives.",
+  "boundaryOwnerNote": "The domain crate owns serialized primitives; CLI, tests, language analysis, UI, install adapters, and tool harnesses own transport and parser primitives.",
   "requireCargoDeny": false,
   "requireCargoAudit": false,
   "runCargoDoc": false,
