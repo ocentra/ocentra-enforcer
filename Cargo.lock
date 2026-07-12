@@ -1110,6 +1110,7 @@ dependencies = [
  "enforcer-mcp",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "thiserror 1.0.69",
  "toml_edit 0.22.27",

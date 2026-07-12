@@ -2,17 +2,22 @@
 name = "enforcer-install"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "arc-23 multi-harness installer SKELETON: harness-neutral install/uninstall/update/doctor core, the HarnessAdapter trait (plan/apply/verify), report types, managed-block/backup helpers, the CLI contract seam (--scope user|project, default user/global, --dry-run), and the platform binary distribution/download path. Hosts the Track C per-harness adapters (c01-c09) and the x03 legacy-name migration, which own specific files under this crate -- disjoint by file, sequenced after this skeleton."
 publish = false
 
 [dependencies]
+# DEPENDENCY-JUSTIFICATION: audited SHA-256 verifies downloaded release assets fail-closed.
+sha2 = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 toml_edit = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: shared installation orchestration and diagnostics.
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: typed installation and distribution values.
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 # c07 deviation (owns: is Cargo.toml-silent, but the workpack binds the
 # generic adapter to the x01 MCP server-name const as the single source of
@@ -22,7 +27,8 @@ enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 enforcer-mcp = { path = "../enforcer-mcp", version = "0.1.0" }
 
 [dev-dependencies]
-tempfile = "3"
+# DEPENDENCY-JUSTIFICATION: isolated filesystem fixtures for installer integration tests.
+tempfile = "3.27.0"
 # c04 (`src/hooks/pretooluse.rs`) integration tests shell out to the REAL
 # built `enforcer` binary via Cargo's `CARGO_BIN_EXE_enforcer`, which Cargo
 # only sets when the bin's owning crate is a dependency of this crate's own
