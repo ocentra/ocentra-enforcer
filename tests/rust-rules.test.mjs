@@ -300,7 +300,7 @@ outside = { path = "../outside", version = "0.1.0" }
   assert.doesNotMatch(output, /member.*Path dependency found/u, output);
 });
 
-test('Cargo loose versions, copyleft licenses, stale lockfiles, and build dependencies fail scanner', () => {
+test('Cargo loose versions, copyleft licenses, and build dependencies fail scanner', () => {
   const project = makeProject({
     'src/lib.rs': 'pub struct UserId;\n',
   });
@@ -309,13 +309,7 @@ test('Cargo loose versions, copyleft licenses, stale lockfiles, and build depend
     '\nlicense = "AGPL-3.0"\n[dependencies]\nserde = ">=1"\n[build-dependencies]\ncc = "1.0.0"\n',
     'utf8',
   );
-  const manifest = path.join(project, 'Cargo.toml');
-  const lockfile = path.join(project, 'Cargo.lock');
-  const oldTime = new Date(Date.now() - 60_000);
-  fs.utimesSync(lockfile, oldTime, oldTime);
-  const newTime = new Date();
-  fs.utimesSync(manifest, newTime, newTime);
-  expectFailures(project, ['RR-9.16', 'RR-9.22', 'RR-9.25', 'RR-9.30']);
+  expectFailures(project, ['RR-9.16', 'RR-9.22', 'RR-9.30']);
 });
 
 test('file scope scans only requested Rust file', () => {

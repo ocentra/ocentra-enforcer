@@ -117,22 +117,6 @@ function scanCargoManifest(root, manifest, config, violations) {
     );
   }
 
-  const lockPath = path.join(root, "Cargo.lock");
-  if (fs.existsSync(lockPath)) {
-    const manifestMtime = fs.statSync(manifest).mtimeMs;
-    const lockMtime = fs.statSync(lockPath).mtimeMs;
-    if (manifestMtime > lockMtime + 1000) {
-      addViolation(
-        violations,
-        root,
-        lockPath,
-        1,
-        "RR-9.25",
-        "Cargo.toml is newer than Cargo.lock.",
-      );
-    }
-  }
-
   const lines = cargoText.split(/\r?\n/u);
   let currentSection = "";
   const dependencyNamesBySection = new Map();
@@ -696,7 +680,7 @@ function runCargoGates(root, config, scope) {
         "cargoClippy",
         true,
         "cargo",
-        ["clippy", ...packageArgs, "--all-targets", "--all-features", "--", "-D", "warnings"],
+        ["clippy", "--locked", ...packageArgs, "--all-targets", "--all-features", "--", "-D", "warnings"],
         "RR-10.2",
       ),
     );
@@ -704,7 +688,7 @@ function runCargoGates(root, config, scope) {
 
   const cargoTestPolicy = cargoToolPolicies[2];
   if (cargoTestPolicy.enabled) {
-    const testArgs = ["test", ...packageArgs, "--all-features"];
+    const testArgs = ["test", "--locked", ...packageArgs, "--all-features"];
     if (config.cargoTestThreads !== null) {
       testArgs.push("--", `--test-threads=${config.cargoTestThreads}`);
     }
@@ -730,7 +714,7 @@ function runCargoGates(root, config, scope) {
         "cargoDoc",
         config.runCargoDoc,
         "cargo",
-        ["doc", ...packageArgs, "--all-features", "--no-deps"],
+        ["doc", "--locked", ...packageArgs, "--all-features", "--no-deps"],
         "RR-10.4",
         {
           RUSTDOCFLAGS:
