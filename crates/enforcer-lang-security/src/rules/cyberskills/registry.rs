@@ -16,20 +16,26 @@ use super::cloud_azure::{
     AzureStorageRequireHttpsValidator,
 };
 use super::cloud_gcp::GcpResourceHardeningValidator;
+use super::cmd_injection::CommandInjectionValidator;
 use super::dependency_confusion::DependencyConfusionClaimableValidator;
 use super::dockerfile_hardening::DockerfileHardeningValidator;
 use super::iac_terraform::{
     IamNoWildcardActionValidator, S3EncryptionRequiredValidator, SgNoPublicSshIngressValidator,
 };
+use super::insecure_deser::InsecureDeserializationValidator;
 use super::k8s_pod_security::K8sPodSecurityValidator;
 use super::k8s_rbac::K8sRbacValidator;
 use super::net_tls::TlsLegacyVersionValidator;
+use super::path_traversal::PathTraversalValidator;
 use super::provider_credentials::ProviderCredentialValidator;
+use super::tls_verify::TlsVerificationDisabledValidator;
 use super::waf_sqli::WafSqliSignatureValidator;
+use super::weak_crypto::WeakCryptoValidator;
 use super::web_cors::CorsMisconfigValidator;
 use super::web_headers::{
     CookieSecureHttponlySamesiteValidator, CspMissingValidator, HstsMissingOrWeakValidator,
 };
+use super::web_ssrf::SsrfMetadataValidator;
 
 /// One registry row: the rule id this row proves, paired with the
 /// constructed [`Validator`] trait object.
@@ -125,6 +131,30 @@ pub fn build_all() -> Result<Vec<RegistryRow>, DecodeError> {
             rule_id: "CYBER-TLS.1",
             validator: Box::new(TlsLegacyVersionValidator::new()?),
         },
+        RegistryRow {
+            rule_id: "CYBER-SSRF.1",
+            validator: Box::new(SsrfMetadataValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-CMD-INJECT.1",
+            validator: Box::new(CommandInjectionValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-PATH-TRAVERSAL.1",
+            validator: Box::new(PathTraversalValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-DESERIALIZE.1",
+            validator: Box::new(InsecureDeserializationValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-WEAK-CRYPTO.1",
+            validator: Box::new(WeakCryptoValidator::new()?),
+        },
+        RegistryRow {
+            rule_id: "CYBER-TLS-VERIFY.1",
+            validator: Box::new(TlsVerificationDisabledValidator::new()?),
+        },
     ])
 }
 
@@ -135,7 +165,7 @@ mod tests {
     #[test]
     fn registry_builds_cleanly() -> Result<(), Box<dyn std::error::Error>> {
         let rows = build_all()?;
-        assert_eq!(rows.len(), 20);
+        assert_eq!(rows.len(), 26);
         let ids: Vec<&str> = rows.iter().map(|row| row.rule_id).collect();
         for expected in [
             "CYBER-IAC-S3-SSE.1",
@@ -158,6 +188,12 @@ mod tests {
             "CYBER-AUTH-JWT.1",
             "CYBER-CORS.1",
             "CYBER-TLS.1",
+            "CYBER-SSRF.1",
+            "CYBER-CMD-INJECT.1",
+            "CYBER-PATH-TRAVERSAL.1",
+            "CYBER-DESERIALIZE.1",
+            "CYBER-WEAK-CRYPTO.1",
+            "CYBER-TLS-VERIFY.1",
         ] {
             assert!(
                 ids.contains(&expected),

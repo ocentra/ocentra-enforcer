@@ -1,0 +1,142 @@
+[
+  {
+    "name": "open_literal_relative",
+    "input": "data = open(base_dir + \"../../etc/passwd\", \"r\").read()",
+    "expect": "flag",
+    "branch": "traversal_literal",
+    "reason": "open() sink fed a literal ../ traversal sequence on the same line"
+  },
+  {
+    "name": "open_literal_backslash",
+    "input": "handle = open(base_dir + \"..\\\\..\\\\config\\\\secrets.ini\")",
+    "expect": "flag",
+    "branch": "traversal_literal",
+    "reason": "open() sink fed a literal ..\\ Windows-style traversal sequence"
+  },
+  {
+    "name": "readfile_literal_encoded",
+    "input": "fs.readFile(base + \"..%2f..%2f..%2fetc%2fpasswd\", callback)",
+    "expect": "flag",
+    "branch": "traversal_literal",
+    "reason": "readFile() sink fed a URL-encoded ..%2f traversal sequence"
+  },
+  {
+    "name": "sendfile_literal_relative",
+    "input": "res.sendFile(\"../../../etc/shadow\")",
+    "expect": "flag",
+    "branch": "traversal_literal",
+    "reason": "sendFile() sink fed a literal ../ traversal sequence"
+  },
+  {
+    "name": "fopen_literal_relative",
+    "input": "$handle = fopen($base . \"../../../etc/passwd\", \"r\");",
+    "expect": "flag",
+    "branch": "traversal_literal",
+    "reason": "PHP fopen() sink fed a literal ../ traversal sequence"
+  },
+  {
+    "name": "file_literal_relative_java",
+    "input": "File f = new File(baseDir + \"../../../etc/passwd\");",
+    "expect": "flag",
+    "branch": "traversal_literal",
+    "reason": "Java new File() sink fed a literal ../ traversal sequence"
+  },
+  {
+    "name": "open_request_args",
+    "input": "return open(base + request.args.get(\"file\")).read()",
+    "expect": "flag",
+    "branch": "request_variable",
+    "reason": "open() sink argument built from request.args (request-derived variable)"
+  },
+  {
+    "name": "sendfile_req_params",
+    "input": "res.sendFile(req.params.x)",
+    "expect": "flag",
+    "branch": "request_variable",
+    "reason": "sendFile() sink argument is req.params.x (request-derived variable)"
+  },
+  {
+    "name": "readfile_req_query",
+    "input": "fs.readFile(req.query.path, callback)",
+    "expect": "flag",
+    "branch": "request_variable",
+    "reason": "readFile() sink argument is req.query.path (request-derived variable)"
+  },
+  {
+    "name": "fopen_php_get_filename_key",
+    "input": "$fh = fopen($base . $_GET['filename'], \"r\");",
+    "expect": "flag",
+    "branch": "request_variable",
+    "reason": "fopen() sink argument references a filename key from superglobal input"
+  },
+  {
+    "name": "file_java_user_input",
+    "input": "File f = new File(baseDir, userInput);",
+    "expect": "flag",
+    "branch": "request_variable",
+    "reason": "new File() sink second argument is userInput (request-derived variable name)"
+  },
+  {
+    "name": "open_bare_user_path_variable",
+    "input": "with open(user_path) as handle:",
+    "expect": "flag",
+    "branch": "request_variable",
+    "reason": "open() sink argument is a bare variable whose name contains 'user'"
+  },
+  {
+    "name": "clean_open_static_literal",
+    "input": "with open(\"/srv/uploads/readme.txt\") as handle:",
+    "expect": "clean",
+    "branch": "clean",
+    "reason": "open() sink fed a fixed literal path with no traversal sequence or request-derived variable"
+  },
+  {
+    "name": "clean_open_unrelated_variable",
+    "input": "with open(config_path) as handle:",
+    "expect": "clean",
+    "branch": "clean",
+    "reason": "open() sink argument variable name does not match any request-derived keyword"
+  },
+  {
+    "name": "clean_sendfile_static_asset",
+    "input": "return send_file(STATIC_DIR + \"/logo.png\")",
+    "expect": "clean",
+    "branch": "clean",
+    "reason": "send_file() sink fed a fixed static asset name, no traversal or request-derived variable"
+  },
+  {
+    "name": "clean_open_safe_join_allowlist",
+    "input": "return open(safe_join(BASE_DIR, allowed_name))",
+    "expect": "clean",
+    "branch": "clean",
+    "reason": "open() sink argument comes from an allowlist-checked safe_join helper, not a raw request variable"
+  },
+  {
+    "name": "clean_single_dot_not_traversal",
+    "input": "data = open(base_dir + \"./config.json\").read()",
+    "expect": "clean",
+    "branch": "clean",
+    "reason": "single './' is not a parent-directory traversal sequence and no request-derived variable is present"
+  },
+  {
+    "name": "clean_profile_word_not_file_sink",
+    "input": "return build_profile(user_settings)",
+    "expect": "clean",
+    "branch": "clean",
+    "reason": "'profile(' does not contain the sink token 'file(' at a word boundary, so no sink is matched"
+  },
+  {
+    "name": "clean_request_word_no_sink_call",
+    "input": "value = request.args.get(\"id\")",
+    "expect": "clean",
+    "branch": "clean",
+    "reason": "line references a request-derived variable but never reaches a file-op sink"
+  },
+  {
+    "name": "clean_comment_no_paren_sink",
+    "input": "# request-derived paths must be canonicalized before being opened",
+    "expect": "clean",
+    "branch": "clean",
+    "reason": "mentions 'request' and 'opened' but neither is an actual sink call (no 'open(' token), so the sink regex never matches"
+  }
+]

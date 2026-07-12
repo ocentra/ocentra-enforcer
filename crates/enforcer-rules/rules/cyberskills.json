@@ -334,5 +334,101 @@
         },
         "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
         "tags": ["cyberskills", "wave1", "net", "tls"]
+    },
+    {
+        "ruleId": "CYBER-SSRF.1",
+        "version": 1,
+        "title": "Source must not access a cloud instance metadata endpoint (SSRF / credential theft)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::web_ssrf::SsrfMetadataValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.ssrf-metadata/bad/metadata.py",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.ssrf-metadata/good/safe.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "ssrf", "sast"]
+    },
+    {
+        "ruleId": "CYBER-CMD-INJECT.1",
+        "version": 1,
+        "title": "Source must not pass a non-literal command to a shell/exec sink (command injection)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::cmd_injection::CommandInjectionValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.command-injection/bad/inject.py",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.command-injection/good/safe.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "command-injection", "sast"]
+    },
+    {
+        "ruleId": "CYBER-PATH-TRAVERSAL.1",
+        "version": 1,
+        "title": "File operations must not use a traversal sequence or unsanitized request-derived path",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::path_traversal::PathTraversalValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.path-traversal/bad/traverse.py",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.path-traversal/good/safe.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "path-traversal", "sast"]
+    },
+    {
+        "ruleId": "CYBER-DESERIALIZE.1",
+        "version": 1,
+        "title": "Source must not use an insecure deserialization sink (pickle/yaml.load/Marshal/readObject/unserialize)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::insecure_deser::InsecureDeserializationValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.insecure-deserialization/bad/deser.py",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.insecure-deserialization/good/safe.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "web", "deserialization", "sast"]
+    },
+    {
+        "ruleId": "CYBER-WEAK-CRYPTO.1",
+        "version": 1,
+        "title": "Source must not use a weak/broken crypto primitive (MD5/SHA1/DES/RC4/ECB)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::weak_crypto::WeakCryptoValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/crypto.weak-algorithm/bad/weak.py",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/crypto.weak-algorithm/good/strong.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "crypto", "sast"]
+    },
+    {
+        "ruleId": "CYBER-TLS-VERIFY.1",
+        "version": 1,
+        "title": "Source must not disable TLS certificate/host verification (MITM enabler)",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::tls_verify::TlsVerificationDisabledValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/net.tls-verify-disabled/bad/insecure.py",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/net.tls-verify-disabled/good/secure.py"
+        },
+        "docAnchor": "docs/plans/enforcer-selfhost-plan/workpacks/h11-wave1-config-scanners.md#Requirement Checklist",
+        "tags": ["cyberskills", "wave1", "net", "tls", "sast"]
     }
 ]

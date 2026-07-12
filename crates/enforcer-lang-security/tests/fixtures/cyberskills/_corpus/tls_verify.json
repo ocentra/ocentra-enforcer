@@ -1,0 +1,198 @@
+[
+  {
+    "name": "python_requests_verify_false",
+    "input": "resp = requests.get(url, verify=False)",
+    "expect": "flag",
+    "branch": "python-requests-verify",
+    "reason": "requests call with certificate verification explicitly disabled"
+  },
+  {
+    "name": "python_requests_verify_false_session",
+    "input": "session.verify = False",
+    "expect": "flag",
+    "branch": "python-requests-verify",
+    "reason": "requests Session object with verification disabled"
+  },
+  {
+    "name": "python_requests_verify_true_clean",
+    "input": "resp = requests.get(url, verify=True)",
+    "expect": "clean",
+    "branch": "python-requests-verify-near-miss",
+    "reason": "verification explicitly left on"
+  },
+  {
+    "name": "python_requests_verify_ca_bundle_clean",
+    "input": "resp = requests.get(url, verify='/etc/ssl/certs/ca-bundle.pem')",
+    "expect": "clean",
+    "branch": "python-requests-verify-near-miss",
+    "reason": "verify set to a CA bundle path, not False; verification still runs"
+  },
+  {
+    "name": "python_unverified_context",
+    "input": "ctx = ssl._create_unverified_context()",
+    "expect": "flag",
+    "branch": "python-ssl-unverified-context",
+    "reason": "ssl._create_unverified_context() disables both cert and hostname checks"
+  },
+  {
+    "name": "python_default_context_clean",
+    "input": "ctx = ssl.create_default_context()",
+    "expect": "clean",
+    "branch": "python-ssl-unverified-context-near-miss",
+    "reason": "create_default_context is the hardened, verifying constructor"
+  },
+  {
+    "name": "python_check_hostname_false",
+    "input": "ctx.check_hostname = False",
+    "expect": "flag",
+    "branch": "python-check-hostname",
+    "reason": "hostname checking explicitly disabled on the SSL context"
+  },
+  {
+    "name": "python_check_hostname_true_clean",
+    "input": "ctx.check_hostname = True",
+    "expect": "clean",
+    "branch": "python-check-hostname-near-miss",
+    "reason": "hostname checking explicitly left on"
+  },
+  {
+    "name": "python_cert_none",
+    "input": "ctx.verify_mode = ssl.CERT_NONE",
+    "expect": "flag",
+    "branch": "python-cert-none",
+    "reason": "CERT_NONE disables certificate validation entirely"
+  },
+  {
+    "name": "python_cert_required_clean",
+    "input": "ctx.verify_mode = ssl.CERT_REQUIRED",
+    "expect": "clean",
+    "branch": "python-cert-none-near-miss",
+    "reason": "CERT_REQUIRED is the hardened, verifying mode"
+  },
+  {
+    "name": "node_reject_unauthorized_false",
+    "input": "const options = { hostname: host, rejectUnauthorized: false };",
+    "expect": "flag",
+    "branch": "node-reject-unauthorized",
+    "reason": "https/tls request options disable peer certificate verification"
+  },
+  {
+    "name": "node_reject_unauthorized_true_clean",
+    "input": "const options = { hostname: host, rejectUnauthorized: true };",
+    "expect": "clean",
+    "branch": "node-reject-unauthorized-near-miss",
+    "reason": "verification explicitly left on"
+  },
+  {
+    "name": "node_env_disable_quoted",
+    "input": "process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';",
+    "expect": "flag",
+    "branch": "node-env-var",
+    "reason": "process-wide env-var escape hatch disables TLS verification for the whole process"
+  },
+  {
+    "name": "node_env_disable_shell",
+    "input": "NODE_TLS_REJECT_UNAUTHORIZED=0 node server.js",
+    "expect": "flag",
+    "branch": "node-env-var",
+    "reason": "same env-var escape hatch set inline on the shell invocation"
+  },
+  {
+    "name": "node_env_enabled_clean",
+    "input": "process.env.NODE_TLS_REJECT_UNAUTHORIZED = '1';",
+    "expect": "clean",
+    "branch": "node-env-var-near-miss",
+    "reason": "value 1 is the secure default (reject unauthorized certs), not disabled"
+  },
+  {
+    "name": "go_insecure_skip_verify_true",
+    "input": "tlsConfig := &tls.Config{InsecureSkipVerify: true}",
+    "expect": "flag",
+    "branch": "go-insecure-skip-verify",
+    "reason": "crypto/tls client config skips certificate verification"
+  },
+  {
+    "name": "go_insecure_skip_verify_false_clean",
+    "input": "tlsConfig := &tls.Config{InsecureSkipVerify: false}",
+    "expect": "clean",
+    "branch": "go-insecure-skip-verify-near-miss",
+    "reason": "verification explicitly left on"
+  },
+  {
+    "name": "php_curlopt_verifypeer_call_zero",
+    "input": "curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);",
+    "expect": "flag",
+    "branch": "php-curlopt-verifypeer",
+    "reason": "curl_setopt call disables peer certificate verification"
+  },
+  {
+    "name": "php_curlopt_verifypeer_array_zero",
+    "input": "$opts = [CURLOPT_SSL_VERIFYPEER => 0];",
+    "expect": "flag",
+    "branch": "php-curlopt-verifypeer",
+    "reason": "curl options array disables peer certificate verification"
+  },
+  {
+    "name": "php_curlopt_verifypeer_call_true_clean",
+    "input": "curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);",
+    "expect": "clean",
+    "branch": "php-curlopt-verifypeer-near-miss",
+    "reason": "verification explicitly left on"
+  },
+  {
+    "name": "shell_curl_dash_k",
+    "input": "curl -k https://internal-api.example.com/health",
+    "expect": "flag",
+    "branch": "shell-curl-k",
+    "reason": "curl -k disables TLS certificate verification for the request"
+  },
+  {
+    "name": "shell_curl_insecure_long",
+    "input": "curl --insecure https://internal-api.example.com/health",
+    "expect": "flag",
+    "branch": "shell-curl-insecure",
+    "reason": "curl --insecure is the long form of -k"
+  },
+  {
+    "name": "shell_curl_no_flag_clean",
+    "input": "curl https://internal-api.example.com/health",
+    "expect": "clean",
+    "branch": "shell-curl-near-miss",
+    "reason": "plain curl invocation performs normal certificate verification"
+  },
+  {
+    "name": "shell_curl_unrelated_flags_clean",
+    "input": "curl -sSL https://internal-api.example.com/health",
+    "expect": "clean",
+    "branch": "shell-curl-near-miss",
+    "reason": "-sSL carries no 'k' insecure flag"
+  },
+  {
+    "name": "shell_curl_config_flag_capital_k_clean",
+    "input": "curl -K curlrc.txt https://internal-api.example.com/health",
+    "expect": "clean",
+    "branch": "shell-curl-near-miss",
+    "reason": "-K (capital) is curl's unrelated --config flag, not -k/--insecure, and must not be confused with it"
+  },
+  {
+    "name": "benign_variable_name_verify_ssl_clean",
+    "input": "verify_ssl = False",
+    "expect": "clean",
+    "branch": "unrelated-near-miss",
+    "reason": "identifier verify_ssl is not the bare verify= keyword the requests library uses"
+  },
+  {
+    "name": "benign_prose_insecure_word_clean",
+    "input": "This configuration used to be insecure but has since been hardened",
+    "expect": "clean",
+    "branch": "unrelated",
+    "reason": "prose mentioning 'insecure' with no curl invocation or code sink on the line"
+  },
+  {
+    "name": "benign_unrelated_config_clean",
+    "input": "server_name example.com;",
+    "expect": "clean",
+    "branch": "unrelated",
+    "reason": "no TLS-verification-disabling token present"
+  }
+]

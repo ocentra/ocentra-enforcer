@@ -25,19 +25,25 @@ use enforcer_lang_security::rules::cyberskills::cloud_azure::{
     AzureStorageRequireHttpsValidator,
 };
 use enforcer_lang_security::rules::cyberskills::cloud_gcp::GcpResourceHardeningValidator;
+use enforcer_lang_security::rules::cyberskills::cmd_injection::CommandInjectionValidator;
 use enforcer_lang_security::rules::cyberskills::dependency_confusion::DependencyConfusionClaimableValidator;
 use enforcer_lang_security::rules::cyberskills::dockerfile_hardening::DockerfileHardeningValidator;
 use enforcer_lang_security::rules::cyberskills::iac_terraform::{
     IamNoWildcardActionValidator, S3EncryptionRequiredValidator, SgNoPublicSshIngressValidator,
 };
+use enforcer_lang_security::rules::cyberskills::insecure_deser::InsecureDeserializationValidator;
 use enforcer_lang_security::rules::cyberskills::k8s_pod_security::K8sPodSecurityValidator;
 use enforcer_lang_security::rules::cyberskills::k8s_rbac::K8sRbacValidator;
 use enforcer_lang_security::rules::cyberskills::net_tls::TlsLegacyVersionValidator;
+use enforcer_lang_security::rules::cyberskills::path_traversal::PathTraversalValidator;
+use enforcer_lang_security::rules::cyberskills::tls_verify::TlsVerificationDisabledValidator;
 use enforcer_lang_security::rules::cyberskills::waf_sqli::WafSqliSignatureValidator;
+use enforcer_lang_security::rules::cyberskills::weak_crypto::WeakCryptoValidator;
 use enforcer_lang_security::rules::cyberskills::web_cors::CorsMisconfigValidator;
 use enforcer_lang_security::rules::cyberskills::web_headers::{
     CookieSecureHttponlySamesiteValidator, CspMissingValidator, HstsMissingOrWeakValidator,
 };
+use enforcer_lang_security::rules::cyberskills::web_ssrf::SsrfMetadataValidator;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
 #[derive(serde::Deserialize)]
@@ -162,6 +168,42 @@ fn corpus_web_cors() -> Result<(), Box<dyn std::error::Error>> {
 fn corpus_net_tls() -> Result<(), Box<dyn std::error::Error>> {
     let family: Vec<Box<dyn Validator>> = vec![Box::new(TlsLegacyVersionValidator::new()?)];
     assert_family("net_tls.json", "tls.conf", &family)
+}
+
+#[test]
+fn corpus_web_ssrf() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(SsrfMetadataValidator::new()?)];
+    assert_family("web_ssrf.json", "app.py", &family)
+}
+
+#[test]
+fn corpus_cmd_injection() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(CommandInjectionValidator::new()?)];
+    assert_family("cmd_injection.json", "app.py", &family)
+}
+
+#[test]
+fn corpus_path_traversal() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(PathTraversalValidator::new()?)];
+    assert_family("path_traversal.json", "app.py", &family)
+}
+
+#[test]
+fn corpus_insecure_deser() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(InsecureDeserializationValidator::new()?)];
+    assert_family("insecure_deser.json", "app.py", &family)
+}
+
+#[test]
+fn corpus_weak_crypto() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(WeakCryptoValidator::new()?)];
+    assert_family("weak_crypto.json", "app.py", &family)
+}
+
+#[test]
+fn corpus_tls_verify() -> Result<(), Box<dyn std::error::Error>> {
+    let family: Vec<Box<dyn Validator>> = vec![Box::new(TlsVerificationDisabledValidator::new()?)];
+    assert_family("tls_verify.json", "app.py", &family)
 }
 
 #[test]

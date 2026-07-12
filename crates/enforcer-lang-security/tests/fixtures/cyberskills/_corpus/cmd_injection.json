@@ -1,0 +1,149 @@
+[
+  {
+    "name": "subprocess-shell-true: concatenated command",
+    "input": "subprocess.run(\"ping -c 1 \" + host, shell=True)",
+    "expect": "flag",
+    "branch": "subprocess-shell-true",
+    "reason": "shell=True is unconditionally flagged"
+  },
+  {
+    "name": "subprocess-shell-true: literal command is still risky",
+    "input": "subprocess.call(\"ls -la\", shell=True)",
+    "expect": "flag",
+    "branch": "subprocess-shell-true",
+    "reason": "ANY shell=True is flagged even with a fully static command string"
+  },
+  {
+    "name": "subprocess-shell-true: clean, no shell keyword",
+    "input": "subprocess.run([\"ls\", \"-la\"])",
+    "expect": "clean",
+    "branch": "subprocess-shell-true",
+    "reason": "argv list form, shell keyword absent entirely"
+  },
+  {
+    "name": "subprocess-shell-true: clean, shell explicitly disabled",
+    "input": "subprocess.run([\"ls\", \"-la\"], shell=False)",
+    "expect": "clean",
+    "branch": "subprocess-shell-true",
+    "reason": "shell=False is not shell=True"
+  },
+  {
+    "name": "os-system: string concatenation",
+    "input": "os.system(\"rm -rf \" + target_dir)",
+    "expect": "flag",
+    "branch": "os-system-dynamic",
+    "reason": "concatenated, attacker-influenceable command"
+  },
+  {
+    "name": "os-system: f-string interpolation",
+    "input": "os.system(f\"grep {pattern} file.log\")",
+    "expect": "flag",
+    "branch": "os-system-dynamic",
+    "reason": "f-string prefix marks a non-literal command"
+  },
+  {
+    "name": "os-system: bare variable",
+    "input": "os.system(cmd)",
+    "expect": "flag",
+    "branch": "os-system-dynamic",
+    "reason": "bare variable, no string literal at all"
+  },
+  {
+    "name": "os-system: clean, fully static literal",
+    "input": "os.system(\"ls -la /tmp\")",
+    "expect": "clean",
+    "branch": "os-system-dynamic",
+    "reason": "fully static string literal, never flagged"
+  },
+  {
+    "name": "node-child-process: backtick template interpolation",
+    "input": "child_process.exec(`ls ${dir}`);",
+    "expect": "flag",
+    "branch": "node-child-process-exec",
+    "reason": "${} template interpolation inside exec()"
+  },
+  {
+    "name": "node-child-process: execSync string concatenation",
+    "input": "child_process.execSync(\"rm -rf \" + target);",
+    "expect": "flag",
+    "branch": "node-child-process-exec",
+    "reason": "string concatenation inside execSync()"
+  },
+  {
+    "name": "node-child-process: clean, literal exec",
+    "input": "child_process.exec(\"ls -la\");",
+    "expect": "clean",
+    "branch": "node-child-process-exec",
+    "reason": "fully static literal command"
+  },
+  {
+    "name": "node-child-process: clean, execFile API not covered",
+    "input": "child_process.execFile(\"ls\", [\"-la\"]);",
+    "expect": "clean",
+    "branch": "node-child-process-exec",
+    "reason": "execFile does not invoke a shell and is not a matched sink"
+  },
+  {
+    "name": "eval-exec: eval of a user-controlled expression",
+    "input": "eval(user_expr)",
+    "expect": "flag",
+    "branch": "eval-exec-nonliteral",
+    "reason": "bare variable passed to eval()"
+  },
+  {
+    "name": "eval-exec: exec of a payload variable",
+    "input": "exec(payload)",
+    "expect": "flag",
+    "branch": "eval-exec-nonliteral",
+    "reason": "bare variable passed to exec()"
+  },
+  {
+    "name": "eval-exec: clean, fully static literal expression",
+    "input": "eval(\"2 * 2\")",
+    "expect": "clean",
+    "branch": "eval-exec-nonliteral",
+    "reason": "fully static literal expression, never flagged"
+  },
+  {
+    "name": "ruby-backtick: interpolated command",
+    "input": "`rm -rf #{path}`",
+    "expect": "flag",
+    "branch": "ruby-backtick-interp",
+    "reason": "backtick command substitution with #{} interpolation"
+  },
+  {
+    "name": "ruby-backtick: clean, no interpolation",
+    "input": "`ls -la`",
+    "expect": "clean",
+    "branch": "ruby-backtick-interp",
+    "reason": "backtick command with no #{} interpolation present"
+  },
+  {
+    "name": "ruby-system: interpolated filename",
+    "input": "system(\"cat #{filename}\")",
+    "expect": "flag",
+    "branch": "ruby-system-interp",
+    "reason": "#{} interpolation inside system() argument"
+  },
+  {
+    "name": "ruby-system: clean, fully static literal",
+    "input": "system(\"ls -la\")",
+    "expect": "clean",
+    "branch": "ruby-system-interp",
+    "reason": "fully static literal command"
+  },
+  {
+    "name": "java-runtime-exec: string concatenation",
+    "input": "Runtime.getRuntime().exec(\"cat \" + filename);",
+    "expect": "flag",
+    "branch": "java-runtime-exec",
+    "reason": "string concatenation inside Runtime.getRuntime().exec()"
+  },
+  {
+    "name": "java-runtime-exec: clean, fully static literal",
+    "input": "Runtime.getRuntime().exec(\"ls -la\");",
+    "expect": "clean",
+    "branch": "java-runtime-exec",
+    "reason": "fully static literal command"
+  }
+]
