@@ -548,6 +548,7 @@ function scanRustFile(root, filePath, config) {
     }
 
     if (
+      !isTestSource &&
       /\.clone\s*\(/u.test(line) &&
       !contextHas(originalLines, idx, "CLONE-JUSTIFICATION:", 4)
     ) {
@@ -563,6 +564,7 @@ function scanRustFile(root, filePath, config) {
     }
 
     if (
+      !isTestSource &&
       /\.(?:to_string|to_owned)\s*\(/u.test(line) &&
       !contextHas(originalLines, idx, "ALLOC-JUSTIFICATION:", 4)
     ) {
@@ -578,6 +580,7 @@ function scanRustFile(root, filePath, config) {
     }
 
     if (
+      !isTestSource &&
       /\b[A-Za-z_][A-Za-z0-9_\.]*\s*\[[^\]\n]+\]/u.test(line) &&
       !/\b(?:vec|format|println|assert|assert_eq|assert_ne)!\s*\[/u.test(line) &&
       !/\bfor\s+[A-Za-z_][A-Za-z0-9_]*\s+in\s+\[/u.test(line)
@@ -594,6 +597,7 @@ function scanRustFile(root, filePath, config) {
     }
 
     if (
+      !isTestSource &&
       /\s+as\s+(?:u8|u16|u32|u64|u128|usize|i8|i16|i32|i64|i128|isize|f32|f64)\b/u.test(
         line,
       ) &&

@@ -273,6 +273,25 @@ mod tests {
   assert.doesNotMatch(output, /RR-12\.(?:27|28)/u, output);
 });
 
+test('test code keeps test policy but is not held to production allocation rules', () => {
+  const project = makeProject({
+    'tests/fixture.rs': `
+#[test]
+fn exercises_a_fixture() {
+    let values = vec![String::from("one")];
+    let copied = values[0].clone();
+    let rendered = copied.to_string();
+    let narrowed = 7_u16 as u8;
+    assert_eq!(rendered, "one");
+    assert_eq!(narrowed, 7);
+}
+`,
+  });
+  const result = runGate(project);
+  const output = `${result.stdout}\n${result.stderr}`;
+  assert.doesNotMatch(output, /RR-5\.[1-4]/u, output);
+});
+
 test('Cargo workspace-member paths are allowed while arbitrary local paths fail', () => {
   const project = makeProject({
     'Cargo.toml': `
