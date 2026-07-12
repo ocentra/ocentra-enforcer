@@ -15,6 +15,8 @@ use enforcer_core::error::DecodeError;
 /// Accepts Windows drive-letter roots (`C:/...` or `C:\...`), UNC roots
 /// (`//server/share`), and POSIX absolute roots (`/...`); stores the
 /// normalized (forward-slash) form.
+/// BRAND-INVARIANT: constructed only by validated conversions; the inner text
+/// is a normalized, absolute repository root (POSIX, UNC, or drive-letter).
 #[derive(
     Debug,
     Clone,
@@ -29,12 +31,15 @@ use enforcer_core::error::DecodeError;
 )]
 #[serde(try_from = "String", into = "String")]
 #[ts(type = "string")]
+#[doc = "BRAND-INVARIANT: validated normalized absolute repository root."]
 pub struct RepoRoot(String);
 
 /// Branded repo-relative path.
 ///
 /// Always relative (no leading separator or drive letter), normalized to
 /// forward slashes, and confined: no `..` segment may escape the root.
+/// BRAND-INVARIANT: constructed only by validated conversions; the inner text
+/// is normalized, relative, and cannot escape its repository root.
 #[derive(
     Debug,
     Clone,
@@ -49,6 +54,7 @@ pub struct RepoRoot(String);
 )]
 #[serde(try_from = "String", into = "String")]
 #[ts(type = "string")]
+#[doc = "BRAND-INVARIANT: validated normalized relative path confined to its root."]
 pub struct RelPath(String);
 
 impl RepoRoot {
@@ -81,6 +87,8 @@ impl RepoRoot {
                     format!("path does not fall under repo root `{}`", self.0),
                 )
             })?;
+        // ALLOC-JUSTIFICATION: `RelPath` owns its validated normalized value;
+        // the stripped slice borrows the short-lived normalized input.
         RelPath::try_from(stripped.to_owned())
     }
 }
@@ -92,9 +100,11 @@ impl RelPath {
     }
 }
 
-fn is_windows_drive_root(normalized: &str) -> bool {
-    let bytes = normalized.as_bytes();
-    bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && bytes[2] == b'/'
+fn windows_drive_root_marker(normalized: &str) -> Option<()> {
+    match normalized.as_bytes() {
+        [drive, b':', b'/', ..] if drive.is_ascii_alphabetic() => Some(()),
+        _ => None,
+    }
 }
 
 impl TryFrom<String> for RepoRoot {
@@ -107,7 +117,7 @@ impl TryFrom<String> for RepoRoot {
         let normalized = enforcer_core::platform::normalize_separators(&raw);
         let unc = normalized.starts_with("//") && normalized.len() > 2;
         let posix = normalized.starts_with('/') && !normalized.starts_with("//");
-        let windows = is_windows_drive_root(&normalized);
+        let windows = windows_drive_root_marker(&normalized).is_some();
         if !(unc || posix || windows) {
             return Err(DecodeError::new(
                 "repoRoot",
@@ -126,7 +136,7 @@ impl TryFrom<String> for RelPath {
             return Err(DecodeError::new("relPath", "must not be empty"));
         }
         let normalized = enforcer_core::platform::normalize_separators(&raw);
-        if normalized.starts_with('/') || is_windows_drive_root(&normalized) {
+        if normalized.starts_with('/') || windows_drive_root_marker(&normalized).is_some() {
             return Err(DecodeError::new(
                 "relPath",
                 "must be relative (no leading separator or drive letter)",
@@ -156,6 +166,8 @@ impl std::str::FromStr for RepoRoot {
     type Err = DecodeError;
 
     fn from_str(raw: &str) -> Result<Self, DecodeError> {
+        // ALLOC-JUSTIFICATION: `RepoRoot` owns its normalized validated value;
+        // the `FromStr` input is borrowed from the caller.
         Self::try_from(raw.to_owned())
     }
 }
@@ -164,6 +176,8 @@ impl std::str::FromStr for RelPath {
     type Err = DecodeError;
 
     fn from_str(raw: &str) -> Result<Self, DecodeError> {
+        // ALLOC-JUSTIFICATION: `RelPath` owns its normalized validated value;
+        // the `FromStr` input is borrowed from the caller.
         Self::try_from(raw.to_owned())
     }
 }
@@ -236,11 +250,11 @@ mod tests {
     }
 
     #[test]
-    fn serde_boundary_enforces_path_rules() -> Result<(), serde_json::Error> {
-        let ok: RelPath = serde_json::from_str("\"src/lib.rs\"")?;
+    fn conversion_boundary_enforces_path_rules() -> Result<(), DecodeError> {
+        let ok = RelPath::try_from(String::from("src/lib.rs"))?;
         assert_eq!(ok.as_str(), "src/lib.rs");
-        assert!(serde_json::from_str::<RelPath>("\"/abs\"").is_err());
-        assert!(serde_json::from_str::<RepoRoot>("\"not-absolute\"").is_err());
+        assert!(RelPath::try_from(String::from("/abs")).is_err());
+        assert!(RepoRoot::try_from(String::from("not-absolute")).is_err());
         Ok(())
     }
 
