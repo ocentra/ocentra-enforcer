@@ -193,8 +193,14 @@ fn check_contexts_resolve_symbolically_never_a_hardcoded_stale_string(
         ],
     };
     let ci_yml = std::fs::read_to_string(repo_root.join(".github/workflows/ci.yml"))?;
-    assert!(ci_yml.contains("name: Rust CI"));
-    assert!(ci_yml.contains("rust-ci:"));
+    assert!(
+        ci_yml.lines().any(|line| line.trim() == "name: Rust CI"),
+        "ci.yml must declare the Rust CI workflow name exactly"
+    );
+    assert!(
+        ci_yml.lines().any(|line| line.trim() == "rust-ci:"),
+        "ci.yml must declare the rust-ci job exactly"
+    );
     for context in resolve_contexts(&rust_ci_job) {
         assert!(context.starts_with("Rust CI / rust-ci ("));
     }
@@ -206,8 +212,18 @@ fn check_contexts_resolve_symbolically_never_a_hardcoded_stale_string(
     };
     let enforcer_yml =
         std::fs::read_to_string(repo_root.join(".github/workflows/ocentra-enforcer.yml"))?;
-    assert!(enforcer_yml.contains("name: Ocentra Enforcer"));
-    assert!(enforcer_yml.contains("ocentra-enforcer:"));
+    assert!(
+        enforcer_yml
+            .lines()
+            .any(|line| line.trim() == "name: Ocentra Enforcer"),
+        "ocentra-enforcer.yml must declare the Ocentra Enforcer workflow name exactly"
+    );
+    assert!(
+        enforcer_yml
+            .lines()
+            .any(|line| line.trim() == "ocentra-enforcer:"),
+        "ocentra-enforcer.yml must declare the ocentra-enforcer job exactly"
+    );
     // This workflow has NO matrix today -- resolve_contexts must render a
     // single bare context, not a stale parenthesized-OS suffix (the exact
     // shape the legacy doc got wrong).
