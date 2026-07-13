@@ -5472,10 +5472,8 @@ fn dart_walk_function_body(
         name: Some(name),
         line: Some(line),
     };
-    for i in 0..body.child_count() {
-        if let Some(child) = body.child(i) {
-            walk(child, &ctx, out, None, fn_scope);
-        }
+    for child in syntax_children(body) {
+        walk(child, &ctx, out, None, fn_scope);
     }
 }
 
@@ -5499,10 +5497,8 @@ fn dart_walk_scoped_body(
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..class_node.child_count() {
-        if let Some(child) = class_node.child(i) {
-            walk(child, &ctx, out, name, FnScope::default());
-        }
+    for child in syntax_children(class_node) {
+        walk(child, &ctx, out, name, FnScope::default());
     }
 }
 
@@ -5552,16 +5548,14 @@ fn scala_extends_bases(class_node: Node<'_>, src: &[u8]) -> Vec<String> {
     let Some(extends_clause) = class_node.child_by_field_name("extend") else {
         return out;
     };
-    for i in 0..extends_clause.child_count() {
-        if let Some(child) = extends_clause.child(i) {
-            // `arguments` (constructor call args on the superclass,
-            // `extends Base(1, 2)`) is a named node under this same
-            // `"type"` field slot too -- not a base/mixin name, skipped
-            // alongside the unnamed `with` keyword.
-            if child.is_named() && child.kind() != "arguments" {
-                if let Ok(text) = child.utf8_text(src) {
-                    out.push(text.to_string());
-                }
+    for child in syntax_children(extends_clause) {
+        // `arguments` (constructor call args on the superclass,
+        // `extends Base(1, 2)`) is a named node under this same
+        // `"type"` field slot too -- not a base/mixin name, skipped
+        // alongside the unnamed `with` keyword.
+        if child.is_named() && child.kind() != "arguments" {
+            if let Ok(text) = child.utf8_text(src) {
+                out.push(text.to_string());
             }
         }
     }
@@ -5624,10 +5618,7 @@ fn scala_import_path(node: Node<'_>, src: &[u8]) -> Option<String> {
 /// other language's name-only convention.
 fn scala_annotations(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else {
-            continue;
-        };
+    for child in syntax_children(node) {
         if child.kind() != "annotation" {
             continue;
         }
