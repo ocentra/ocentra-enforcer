@@ -94,6 +94,10 @@ fn dist_workspace_toml_declares_every_platform_in_the_release_matrix(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let path = repo_root()?.join("dist-workspace.toml");
     let contents = std::fs::read_to_string(&path)?;
+    let document = contents.parse::<toml_edit::DocumentMut>()?;
+    let targets = document["dist"]["targets"]
+        .as_array()
+        .ok_or("dist-workspace.toml must declare dist.targets as an array")?;
     for triple in [
         "x86_64-pc-windows-msvc",
         "x86_64-apple-darwin",
@@ -103,13 +107,25 @@ fn dist_workspace_toml_declares_every_platform_in_the_release_matrix(
         "aarch64-unknown-linux-gnu",
     ] {
         assert!(
-            contents.contains(triple),
+            targets
+                .iter()
+                .any(|target| target.as_str() == Some(triple)),
             "dist-workspace.toml is missing declared target `{triple}`"
         );
     }
-    assert!(contents.contains("[dist.variants.full]"));
-    assert!(contents.contains("[dist.variants.lite]"));
-    assert!(contents.contains("[dist.smoke-test]"));
+    let variants = document["dist"]["variants"]
+        .as_table()
+        .ok_or("dist-workspace.toml must declare release variants")?;
+    assert!(variants.contains_key("full"), "full release variant is required");
+    assert!(variants.contains_key("lite"), "lite release variant is required");
+    let smoke_test = document["dist"]["smoke-test"]
+        .as_table()
+        .ok_or("dist-workspace.toml must declare a smoke-test gate")?;
+    assert_eq!(smoke_test["required"].as_bool(), Some(true));
+    assert_eq!(
+        smoke_test["fixture"].as_str(),
+        Some("crates/enforcer-install/tests/fixtures/ci/smoke")
+    );
     Ok(())
 }
 
