@@ -135,7 +135,7 @@ function scanDomainAndArchitectureRules(violations, root, filePath, rel, lines, 
   if (!isCoordinationVendorToolingPath(rel) && /(?:^|\/)(?:main|cli|bin)\.(?:ts|tsx|js|mjs|rs|py)$/iu.test(rel) && /(?:\/domain|\/core|\/infra|\/db)/iu.test(importText) && !/(?:\/app|\/application|\/boundary)/iu.test(importText)) {
     addSourceOwnershipViolation(violations, root, filePath, 1, "ARCH-1.8", "CLI/main imports outside application boundary.", rel);
   }
-  if (!enforcerToolingFile && (/(?:circular import|cycle detected|imports itself)/iu.test(text) || importsOwnModule(rel, text))) {
+  if (!enforcerToolingFile && (/(?:circular import|cycle detected|imports itself)/iu.test(importText) || importsOwnModule(rel, importText))) {
     addSourceOwnershipViolation(violations, root, filePath, 1, "ARCH-1.9", "circular import marker or self-import found.", rel);
   }
   const exportCount = countTextMatches(text, /^\s*export\s+(?:class|function|const|let|var|type|interface|enum|default|\{|\*)/gmu);
