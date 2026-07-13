@@ -27,7 +27,7 @@ is backed by a native Rust `Validator`, not a TypeScript/Node scanner.
 | Async/runtime | Untracked `tokio::spawn`, unbounded channels without `CHANNEL-JUSTIFICATION:`, blocking work, and async/runtime shape issues routed through Rust async-runtime rules. |
 | Serde and tests | Direct non-boundary `Deserialize` derives, unjustified `#[serde(untagged)]`, weak `assert!(x.is_ok())`, and weak `assert!(x.is_some())`. |
 | Dependencies | Wildcard versions, blocked dependency shapes, git/path dependency policy, cargo-audit, cargo-deny, license policy, and SBOM generation. |
-| Test organization | Rust crates need organized tests under `tests/` (TEST-2.1). Inline `#[cfg(test)] mod tests` in `src/` is the idiomatic Rust unit-test root and is allowed; the TEST-2.2 inline-test ban applies to TypeScript/JavaScript and Python source only. |
+| Test organization | Rust crates use organized external tests under `tests/` by default. `inlineTestPolicy` makes source-level `#[cfg(test)]` modules explicit: `forbid` is the default blocking policy, `warn` reports an advisory, and `allow` is an intentional exception. External `tests/` files are exempt. |
 
 ## TypeScript And JavaScript
 
