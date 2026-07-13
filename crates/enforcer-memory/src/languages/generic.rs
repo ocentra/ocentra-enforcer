@@ -5580,9 +5580,10 @@ fn scala_extends_bases(class_node: Node<'_>, src: &[u8]) -> Vec<String> {
 /// useful IMPORTS edge.
 fn scala_import_path(node: Node<'_>, src: &[u8]) -> Option<String> {
     let mut parts = Vec::new();
-    for i in 0..node.child_count() {
-        let child = node.child(i)?;
-        if node.field_name_for_child(i as u32) == Some("path") && child.is_named() {
+    let mut cursor = node.walk();
+    for (index, child) in node.children(&mut cursor).enumerate() {
+        let field_index = u32::try_from(index).ok()?;
+        if node.field_name_for_child(field_index) == Some("path") && child.is_named() {
             if let Ok(text) = child.utf8_text(src) {
                 parts.push(text.to_string());
             }
