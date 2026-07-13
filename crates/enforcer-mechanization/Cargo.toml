@@ -2,6 +2,7 @@
 name = "enforcer-mechanization"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "d01: the rule scaffolder plus the fail-closed parity oracle. Scaffolds a new enforcer-rules RuleRecord + Validator stub + fixture slots, and refuses to accept any rule that lacks a firing validator and both fixtures (reuses the enforcer-validator fixture/parity harness as the oracle)."
@@ -11,14 +12,20 @@ publish = false
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: Mechanization scaffolds typed core errors and
+# domain rule records when creating a validator packet.
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: The parity oracle invokes the reusable harness,
+# reads the rule catalog, and executes validator fixture checks.
 enforcer-harness = { path = "../enforcer-harness", version = "0.1.0" }
 enforcer-rules = { path = "../enforcer-rules", version = "0.1.0" }
 enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 
 [dev-dependencies]
-tempfile = "3"
+# DEPENDENCY-JUSTIFICATION: Scaffolder and parity tests require isolated
+# temporary repository fixtures.
+tempfile = "=3.27.0"
 
 [lints]
 workspace = true

@@ -2,6 +2,7 @@
 name = "enforcer-mcp"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "The Rust stdio MCP server (arc-21): transport (dual Content-Length/NDJSON framing) + consolidated tool registry + router that dispatches every ocentra_enforcer_*/rust_rules_* tool to the engine crates (enforcer-scan/-coordination/-proof/-harness). No business logic; typed I/O via enforcer-domain, camelCase wire casing."
@@ -12,19 +13,27 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 sha2 = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: The MCP transport converts framed wire requests
+# into the core execution contracts and typed domain command values.
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: Request routing resolves configuration, rule
+# catalogs, validation, and scan execution before returning MCP results.
 enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
 enforcer-rules = { path = "../enforcer-rules", version = "0.1.0" }
 enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 enforcer-scan = { path = "../enforcer-scan", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: The MCP registry exposes coordination, proof,
+# harness, and UI engine capabilities through its typed tool handlers.
 enforcer-coordination = { path = "../enforcer-coordination", version = "0.1.0" }
 enforcer-proof = { path = "../enforcer-proof", version = "0.1.0" }
 enforcer-harness = { path = "../enforcer-harness", version = "0.1.0" }
 enforcer-ui = { path = "../enforcer-ui", version = "0.1.0" }
 
 [dev-dependencies]
-tempfile = "3"
+# DEPENDENCY-JUSTIFICATION: MCP integration tests require isolated temporary
+# filesystems for transport and tool-request fixtures.
+tempfile = "=3.27.0"
 
 [lints]
 workspace = true
