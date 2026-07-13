@@ -17,8 +17,14 @@ thiserror = { workspace = true }
 # canonical rule and validator contracts.
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: Plan resolution reads the typed effective policy
+# before evaluating plan and workpack validation rules.
 enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: Plan findings are anchored to canonical registered
+# rule definitions rather than duplicated local identifiers.
 enforcer-rules = { path = "../enforcer-rules", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: PLAN validators implement the shared validation
+# contract consumed by scan and proof execution surfaces.
 enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 # b04 orchestrator binding drives the arc-16 hub/lane/claim/guard/closeout API
 # read-only through its public surface (Hub/CallerContext/claim_all/release/
@@ -26,6 +32,8 @@ enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 enforcer-coordination = { path = "../enforcer-coordination", version = "0.1.0" }
 
 [dev-dependencies]
+# DEPENDENCY-JUSTIFICATION: External plan tests use isolated temporary trees
+# to verify scaffold overwrite and filesystem validation behavior.
 tempfile = "=3.27.0"
 # b05's `tests/self_validate.rs` integration test asserts the
 # `commands/plan.rs` `/plan` command emitter dispatches through the real

@@ -18,6 +18,8 @@ thiserror = { workspace = true }
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 enforcer-scan = { path = "../enforcer-scan", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: Proof execution records and replays typed event
+# lifecycle evidence while preserving the workspace event contract.
 enforcer-events = { path = "../enforcer-events", version = "0.1.0" }
 
 [dev-dependencies]

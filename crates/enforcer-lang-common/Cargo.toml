@@ -17,15 +17,16 @@ thiserror = { workspace = true }
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: Common validators resolve canonical rule metadata
+# before emitting findings for shared, non-language-specific policy checks.
 enforcer-rules = { path = "../enforcer-rules", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: This crate implements the common validator trait
 # used by the scan and fixture-parity execution surfaces.
 enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 
 [dev-dependencies]
-# DEPENDENCY-JUSTIFICATION: Parity tests exercise the real core contracts and
-# deterministic mechanization harness rather than test-only stand-ins.
-enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: Parity tests exercise the deterministic
+# mechanization harness rather than test-only stand-ins.
 enforcer-mechanization = { path = "../enforcer-mechanization", version = "0.1.0" }
 
 [lints]
