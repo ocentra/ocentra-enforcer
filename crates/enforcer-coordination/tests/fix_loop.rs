@@ -110,6 +110,22 @@ impl FixGenerator for RegressingWriter {
     }
 }
 
+/// Writes bytes that cannot be decoded by the validator's text input.
+struct NonUtf8Writer;
+impl FixGenerator for NonUtf8Writer {
+    fn attempt_fix(&self, root: &Path, findings: &[Finding]) -> Result<bool> {
+        if findings.is_empty() {
+            return Ok(false);
+        }
+        fs::write(root.join("fixture.txt"), [0xff])?;
+        Ok(true)
+    }
+
+    fn name(&self) -> &str {
+        "non-utf8-writer"
+    }
+}
+
 fn manifest_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
@@ -231,6 +247,30 @@ fn a_regressing_fix_is_reverted() -> Result<()> {
     assert_eq!(report.iterations.len(), 1);
     assert!(!report.iterations[0].accepted);
     assert_eq!(fs::read_to_string(&file)?, original);
+    Ok(())
+}
+
+#[test]
+fn unreadable_candidate_is_reverted_before_validation_returns_its_error() -> Result<()> {
+    let (_dir, file) = stage_fixture("regressing.txt")?;
+    let validator = MarkerValidator {
+        rule_id: rule_id()?,
+    };
+    let original_text = fs::read_to_string(&file)?;
+    let original = original_text.as_bytes().to_vec();
+    let initial = scan(&validator, &original_text)?;
+
+    let result = run_fix_loop(
+        &file,
+        &rel_path()?,
+        initial,
+        &validator,
+        &NonUtf8Writer,
+        |_| {},
+    );
+
+    assert!(result.is_err());
+    assert_eq!(fs::read(&file)?, original);
     Ok(())
 }
 

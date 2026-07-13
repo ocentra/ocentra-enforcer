@@ -174,6 +174,8 @@ pub fn run_fix_loop(
         let findings_before = current_findings.len();
         let rule_ids_before: std::collections::BTreeSet<RuleId> = current_findings
             .iter()
+            // CLONE-JUSTIFICATION: the before-set owns rule identifiers for
+            // comparison after validation releases the current findings.
             .map(|finding| finding.rule_id.clone())
             .collect();
 
@@ -201,7 +203,15 @@ pub fn run_fix_loop(
             break;
         }
 
-        let source_after = fs::read_to_string(file_path)?;
+        let source_after = match fs::read_to_string(file_path) {
+            Ok(source) => source,
+            Err(error) => {
+                // An unreadable candidate cannot be validated, so it is
+                // rejected exactly like any other non-improving attempt.
+                snapshot.restore()?;
+                return Err(error.into());
+            }
+        };
         let rescanned = validator.validate(ValidationInput {
             file: rel_path,
             source: &source_after,
@@ -210,6 +220,8 @@ pub fn run_fix_loop(
         let findings_after = rescanned.len();
         let rule_ids_after: std::collections::BTreeSet<RuleId> = rescanned
             .iter()
+            // CLONE-JUSTIFICATION: the after-set survives independently for
+            // the new-rule comparison after the validator result is consumed.
             .map(|finding| finding.rule_id.clone())
             .collect();
         let introduced_new_rule = rule_ids_after.difference(&rule_ids_before).next().is_some();
@@ -281,6 +293,8 @@ fn emit(
     reason: IterationReason,
 ) {
     let event = FixLoopDecisionEvent {
+        // ALLOC-JUSTIFICATION: decision events are owned telemetry records,
+        // so they retain the generator identity after the generator borrow.
         generator_name: generator.name().to_owned(),
         iteration,
         findings_before,
