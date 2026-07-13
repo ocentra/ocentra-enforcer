@@ -98,3 +98,30 @@ fn completed_plan_hands_off_to_gatekeeper() -> Result<(), PlanError> {
 fn worker_reuse_cap_is_bounded() {
     assert_eq!(WORKER_REUSE_CAP, 2);
 }
+
+#[test]
+fn blocked_ownership_waits_for_retry_without_guarding_or_spawning_early() -> Result<(), PlanError> {
+    let graph = PlanGraph::from_nodes([
+        node("first", &[], &["shared.rs"]),
+        node("second", &[], &["shared.rs"]),
+    ]);
+    let mut orch = orchestrator(graph);
+
+    // The second claim is rejected by the live ownership port. That is an
+    // expected fail-closed wait state, not an attempt to guard an unclaimed
+    // lane and not a dispatch to a shared worktree.
+    orch.tick()?;
+    assert!(orch.is_dispatched("first"));
+    assert!(!orch.is_dispatched("second"));
+
+    orch.liveness_mut()
+        .set_status("first", LaneStatus::ReportedDone);
+    orch.liveness_mut().mark_verifiable("first");
+    orch.tick()?;
+    assert!(!orch.is_dispatched("second"));
+
+    // A later tick retries only after closeout released the first claim.
+    orch.tick()?;
+    assert!(orch.is_dispatched("second"));
+    Ok(())
+}

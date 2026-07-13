@@ -688,6 +688,11 @@ pub struct Orchestrator<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeS
     intents: IntentQueue,
     done: BTreeSet<String>,
     dispatched: BTreeMap<String, String>, // workpack id -> lane name
+    /// Claims that were rejected for overlap and must not be dispatched
+    /// until the intent queue reports a successful retry. Keeping this
+    /// separate from `dispatched` makes an ownership conflict a normal
+    /// fail-closed wait state rather than a fake active lane.
+    pending_dispatches: BTreeMap<String, String>, // workpack id -> lane name
     staleness_threshold_ticks: u32,
     stale_counter: BTreeMap<String, u32>,
     dispatch_count: BTreeMap<String, u32>, // L11: per-lane-identity dispatch count
@@ -703,6 +708,7 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
             intents: IntentQueue::new(),
             done: BTreeSet::new(),
             dispatched: BTreeMap::new(),
+            pending_dispatches: BTreeMap::new(),
             staleness_threshold_ticks: 3,
             stale_counter: BTreeMap::new(),
             dispatch_count: BTreeMap::new(),
@@ -750,9 +756,28 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
     ///    error (L14/L16), never a silent `Ok(())` rest state.
     pub fn tick(&mut self) -> PlanResult<TickOutcome> {
         // (1) drain + retry queued intents.
-        let _retried = self.intents.drain_retry(&mut self.port)?;
+        let retried = self.intents.drain_retry(&mut self.port)?;
+        for lane in retried {
+            let workpack = self
+                .pending_dispatches
+                .iter()
+                .find_map(|(workpack, pending_lane)| {
+                    // CLONE-JUSTIFICATION: removal below needs an owned map key
+                    // after this immutable iterator borrow has ended.
+                    (pending_lane == &lane).then(|| workpack.clone())
+                })
+                .ok_or_else(|| PlanError::GraphInvalid {
+                    reason: format!(
+                        "intent queue retried lane `{lane}` without a pending workpack dispatch"
+                    ),
+                })?;
+            self.pending_dispatches.remove(&workpack);
+            self.activate_claimed_lane(&workpack, &lane)?;
+        }
 
         // (2) liveness-check every dispatched, not-yet-done lane.
+        // CLONE-JUSTIFICATION: tick mutates orchestration state after this
+        // snapshot, so it owns a stable workpack/lane view for this pass.
         let in_flight: Vec<(String, String)> = self
             .dispatched
             .iter()
@@ -771,6 +796,8 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
                     self.respawn(workpack, lane)?;
                 }
                 Some(LaneStatus::InFlight) | None => {
+                    // CLONE-JUSTIFICATION: BTreeMap::entry needs an owned
+                    // key while `in_flight` remains borrowed for iteration.
                     let counter = self.stale_counter.entry(lane.clone()).or_insert(0);
                     *counter += 1;
                     if *counter >= self.staleness_threshold_ticks {
@@ -789,10 +816,16 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
             if matches!(self.liveness.status(lane), Some(LaneStatus::ReportedDone)) {
                 if self.liveness.verify_done_claim(lane) {
                     self.port.closeout(lane)?;
+                    // CLONE-JUSTIFICATION: the completed-set owns workpack
+                    // identities independently of this tick snapshot.
                     self.done.insert(workpack.clone());
                 } else {
                     return Err(PlanError::DoneClaimRejected {
+                        // CLONE-JUSTIFICATION: the error must retain the
+                        // offending lane after the snapshot is released.
                         lane: lane.clone(),
+                        // ALLOC-JUSTIFICATION: PlanError owns a durable
+                        // diagnostic that crosses the current tick boundary.
                         reason: "independent verification did not corroborate the done-claim \
                                  (scope diff / proof re-run mismatch) — never trust a done-claim \
                                  on faith"
@@ -812,12 +845,18 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
             .graph
             .frontier(&self.done.iter().cloned().collect())
             .into_iter()
-            .filter(|id| !self.dispatched.contains_key(id))
+            .filter(|id| {
+                !self.dispatched.contains_key(id) && !self.pending_dispatches.contains_key(id)
+            })
             .collect();
 
         for batch in pack_lanes(&self.graph, &frontier)? {
             for workpack in batch {
+                // CLONE-JUSTIFICATION: lane identity is retained as a map
+                // key while `workpack` is passed to dispatch below.
                 let lane = workpack.clone();
+                // CLONE-JUSTIFICATION: dispatch_count stores a durable
+                // per-lane reuse counter across ticks.
                 let count = self.dispatch_count.entry(lane.clone()).or_insert(0);
                 if *count >= WORKER_REUSE_CAP {
                     // L11/L11-FILL: retire this lane identity; a fresh
@@ -871,10 +910,27 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
             .graph
             .node(workpack)
             .map(|n| n.owns.clone())
-            .unwrap_or_default();
+            .ok_or_else(|| PlanError::GraphInvalid {
+                reason: format!("cannot dispatch unknown workpack `{workpack}`"),
+            })?;
+        if !self
+            .intents
+            .try_claim_or_queue(&mut self.port, lane, &owns)?
+        {
+            // ALLOC-JUSTIFICATION: pending ownership must survive this borrow
+            // and be matched against a later queue retry in a future tick.
+            self.pending_dispatches
+                .insert(workpack.to_owned(), lane.to_owned());
+            return Ok(());
+        }
+        self.activate_claimed_lane(workpack, lane)
+    }
+
+    /// A lane becomes active only after its claim has been accepted. This
+    /// prevents a blocked intent from reaching the write guard or spawning a
+    /// worker before exclusive ownership exists.
+    fn activate_claimed_lane(&mut self, workpack: &str, lane: &str) -> PlanResult<()> {
         self.worktrees.spawn(lane)?;
-        self.intents
-            .try_claim_or_queue(&mut self.port, lane, &owns)?;
         self.port.guard(lane)?;
         self.dispatched.insert(workpack.to_owned(), lane.to_owned());
         Ok(())
