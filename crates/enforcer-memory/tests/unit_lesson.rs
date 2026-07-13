@@ -22,3 +22,14 @@ fn ignores_prose_lines() {
     let rows = parse_ledger(text);
     assert!(rows.is_empty());
 }
+
+#[test]
+fn preserves_the_first_six_columns_when_a_row_has_extra_metadata() {
+    let text = "| L3 | 2026-07-04 | saw X | learned Y | commit abc | arc-16 | ignored |\n";
+
+    let rows = parse_ledger(text);
+
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].id, "L3");
+    assert_eq!(rows[0].ships_via, "arc-16");
+}

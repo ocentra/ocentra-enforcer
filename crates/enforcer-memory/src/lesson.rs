@@ -40,6 +40,8 @@ fn split_row(line: &str) -> Option<Vec<String>> {
     Some(
         inner
             .split('|')
+            // ALLOC-JUSTIFICATION: Parsed cells must outlive the borrowed ledger input
+            // because they become owned fields of the returned LessonRow values.
             .map(|cell| cell.trim().to_string())
             .collect(),
     )
@@ -70,19 +72,33 @@ pub fn parse_ledger(text: &str) -> Vec<LessonRow> {
         if is_separator_row(&cells) {
             continue;
         }
-        if cells[0].eq_ignore_ascii_case("id") {
+        if cells
+            .first()
+            .is_some_and(|first_cell| first_cell.eq_ignore_ascii_case("id"))
+        {
             continue;
         }
-        if cells[0].is_empty() {
+        if cells.first().is_some_and(String::is_empty) {
             continue;
         }
+        let mut fields = cells.into_iter();
+        let (Some(id), Some(date), Some(observed), Some(lesson), Some(landed_at), Some(ships_via)) = (
+            fields.next(),
+            fields.next(),
+            fields.next(),
+            fields.next(),
+            fields.next(),
+            fields.next(),
+        ) else {
+            continue;
+        };
         rows.push(LessonRow {
-            id: cells[0].clone(),
-            date: cells[1].clone(),
-            observed: cells[2].clone(),
-            lesson: cells[3].clone(),
-            landed_at: cells[4].clone(),
-            ships_via: cells[5].clone(),
+            id,
+            date,
+            observed,
+            lesson,
+            landed_at,
+            ships_via,
         });
     }
     rows
