@@ -3,7 +3,7 @@ use std::fmt;
 use super::EventingError;
 
 mod config;
-mod contract;
+mod contract_formatter;
 mod journal;
 mod queue;
 mod request;
@@ -23,7 +23,7 @@ pub(super) fn fmt_eventing_error(
         EventingError::PayloadDecode { .. }
         | EventingError::ContractMismatch { .. }
         | EventingError::DuplicateEventContract { .. } => {
-            contract::fmt_contract_error(error, formatter)
+            contract_formatter::fmt_contract_error(error, formatter)
         }
         EventingError::DuplicateSubscriber { .. }
         | EventingError::HandlerPanicked { .. }
