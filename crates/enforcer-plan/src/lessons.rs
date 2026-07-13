@@ -678,20 +678,34 @@ fn replace_or_append_block(existing: &str, new_block: &str, lesson_id: &str) -> 
     };
     // Find the matching close marker (same lesson id, contains "/").
     let lines: Vec<&str> = existing.lines().collect();
-    let open_idx = lines.iter().position(|l| *l == open_line).unwrap_or(0);
-    let close_idx = lines[open_idx..]
+    let Some(open_idx) = lines.iter().position(|line| *line == open_line) else {
+        return format!("{}\n\n{}", existing.trim_end(), new_block);
+    };
+    let Some(lines_from_open) = lines.get(open_idx..) else {
+        return format!("{}\n\n{}", existing.trim_end(), new_block);
+    };
+    let close_offset = lines_from_open
         .iter()
         .position(|line| line.trim_start().starts_with("<!-- /") && line.contains(&marker_needle))
-        .map(|offset| open_idx + offset);
-    let Some(close_idx) = close_idx else {
+        .and_then(|offset| open_idx.checked_add(offset));
+    let Some(close_idx) = close_offset else {
+        return format!("{}\n\n{}", existing.trim_end(), new_block);
+    };
+    let Some(after_close_start) = close_idx.checked_add(1) else {
+        return format!("{}\n\n{}", existing.trim_end(), new_block);
+    };
+    let Some(before_open) = lines.get(..open_idx) else {
+        return format!("{}\n\n{}", existing.trim_end(), new_block);
+    };
+    let Some(after_close) = lines.get(after_close_start..) else {
         return format!("{}\n\n{}", existing.trim_end(), new_block);
     };
     let mut out_lines: Vec<&str> = Vec::new();
-    out_lines.extend_from_slice(&lines[..open_idx]);
+    out_lines.extend_from_slice(before_open);
     for new_line in new_block.lines() {
         out_lines.push(new_line);
     }
-    out_lines.extend_from_slice(&lines[close_idx + 1..]);
+    out_lines.extend_from_slice(after_close);
     let mut out = out_lines.join("\n");
     out.push('\n');
     out
