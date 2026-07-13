@@ -6,7 +6,13 @@ use enforcer_install::ci::{github_action, installer_scripts, npm_wrapper};
 use std::fs;
 use std::path::Path;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[derive(Debug, thiserror::Error)]
+enum ArtifactGenerationError {
+    #[error("CI artifact generation failed: {0}")]
+    Io(#[from] std::io::Error),
+}
+
+fn main() -> Result<(), ArtifactGenerationError> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let version = "0.1.0";
 
