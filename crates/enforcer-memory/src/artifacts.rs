@@ -88,12 +88,17 @@ pub fn get_exact(
     id: &ArtifactId,
 ) -> Result<Vec<u8>, ArtifactLookupError> {
     if manifest.entry(id).is_none() {
+        // CLONE-JUSTIFICATION: the typed error owns the requested key after
+        // this borrowed manifest lookup returns.
         return Err(ArtifactLookupError::NotFound {
             id: id.clone(),
         });
     }
     manifest.get(id).map_err(|source| match source {
+        // CLONE-JUSTIFICATION: each error alternative owns an independent
+        // requested key while the public API accepts only a borrow.
         crate::error::MemoryError::Io { .. } => ArtifactLookupError::NotFound {
+            // CLONE-JUSTIFICATION: this error alternative owns the key.
             id: id.clone(),
         },
         other => ArtifactLookupError::Corrupt {
@@ -286,16 +291,22 @@ impl GraphSnapshot {
                         .symbols
                         .push(symbol_snapshot(s, GraphSymbolKindSnapshot::Constant));
                 }
+                // CLONE-JUSTIFICATION: snapshots are owned persistence values
+                // and must outlive the borrowed in-memory graph.
                 CodeNode::Tombstone(t) => snapshot.tombstones.push(GraphTombstoneSnapshot {
+                    // CLONE-JUSTIFICATION: this DTO owns its id.
                     id: t.id.clone(),
                     rel_path: t.rel_path.clone(),
                     last_commit: t.last_commit.clone(),
                     change_count: t.change_count,
+                    // CLONE-JUSTIFICATION: this DTO owns its historical ids.
                     prior_chunk_ids: t.prior_chunk_ids.clone(),
                 }),
             }
         }
         for edge in graph.imports() {
+            // CLONE-JUSTIFICATION: the persisted edge snapshot owns graph
+            // identifiers independently of the source graph.
             snapshot.imports.push(ImportEdgeSnapshot {
                 from_file_id: edge.from_file_id.clone(),
                 module_path: edge.module_path.clone(),
@@ -303,6 +314,8 @@ impl GraphSnapshot {
             });
         }
         for edge in graph.calls() {
+            // CLONE-JUSTIFICATION: the persisted edge snapshot owns graph
+            // identifiers independently of the source graph.
             snapshot.calls.push(CallEdgeSnapshot {
                 from_file_id: edge.from_file_id.clone(),
                 callee: edge.callee.clone(),
@@ -310,9 +323,12 @@ impl GraphSnapshot {
             });
         }
         for edge in graph.routes() {
+            // CLONE-JUSTIFICATION: the persisted edge snapshot owns graph
+            // identifiers independently of the source graph.
             snapshot.routes.push(RouteEdgeSnapshot {
                 from_file_id: edge.from_file_id.clone(),
                 method: edge.method.clone(),
+                // CLONE-JUSTIFICATION: the persisted route path is owned.
                 path: edge.path.clone(),
                 line: edge.line,
             });
@@ -335,10 +351,15 @@ impl GraphSnapshot {
 }
 
 fn file_snapshot(f: &crate::code_graph::FileNode, text_only: bool) -> GraphFileSnapshot {
+    // CLONE-JUSTIFICATION: a graph snapshot is an owned serialization
+    // boundary and cannot borrow fields from the live graph node.
     GraphFileSnapshot {
+        // CLONE-JUSTIFICATION: exported id is owned snapshot data.
         id: f.id.clone(),
+        // CLONE-JUSTIFICATION: exported path is owned snapshot data.
         rel_path: f.rel_path.clone(),
         text_only,
+        // CLONE-JUSTIFICATION: exported content digest is owned snapshot data.
         content_hash: f.content_hash.clone(),
         last_commit: f.last_commit.clone(),
         change_count: f.change_count,
@@ -350,15 +371,23 @@ fn symbol_snapshot(
     s: &crate::code_graph::SymbolNode,
     kind: GraphSymbolKindSnapshot,
 ) -> GraphSymbolSnapshot {
+    // CLONE-JUSTIFICATION: the snapshot owns stable wire data after the
+    // in-memory symbol graph may be mutated or dropped.
     GraphSymbolSnapshot {
         id: s.id.clone(),
         kind,
+        // CLONE-JUSTIFICATION: exported symbol name is owned snapshot data.
         name: s.name.clone(),
+        // CLONE-JUSTIFICATION: exported file id is owned snapshot data.
         file_id: s.file_id.clone(),
         line: s.line,
         source_body_fingerprint: s.source_body_fingerprint.as_ref().map(|fp| {
+            // CLONE-JUSTIFICATION: fingerprint wire values are owned by the
+            // exported snapshot, not borrowed from the live graph.
             GraphSourceBodyFingerprintSnapshot {
+                // CLONE-JUSTIFICATION: exported fingerprint hash is owned.
                 source_hash: fp.source_hash.clone(),
+                // CLONE-JUSTIFICATION: exported optional fingerprint is owned.
                 fp: fp.fp.clone(),
                 k: fp.k,
                 body_grams: fp.body_grams.iter().cloned().collect(),
@@ -449,6 +478,7 @@ pub fn export_graph_artifact(
 ) -> Result<ArtifactMetadata, GraphArtifactError> {
     let dir = artifact_dir(repo_root);
     std::fs::create_dir_all(&dir).map_err(|source| GraphArtifactError::Io {
+        // CLONE-JUSTIFICATION: the typed error must retain the failed path.
         path: dir.clone(),
         source,
     })?;
@@ -498,6 +528,7 @@ pub fn import_graph_artifact(
 
     let meta_raw =
         std::fs::read_to_string(&meta_path).map_err(|source| GraphArtifactError::Io {
+            // CLONE-JUSTIFICATION: the typed error must retain the failed path.
             path: meta_path.clone(),
             source,
         })?;
@@ -538,6 +569,7 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), GraphArtifactError> {
     );
     let tmp_path = path.with_extension(unique);
     std::fs::write(&tmp_path, bytes).map_err(|source| GraphArtifactError::Io {
+        // CLONE-JUSTIFICATION: the typed error must retain the failed temp path.
         path: tmp_path.clone(),
         source,
     })?;
