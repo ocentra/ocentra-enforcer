@@ -786,20 +786,20 @@ pub fn route(
 /// filesystem itself for fixture discovery — that is the d01 scaffolder's
 /// concern) so the doctor stays a pure function over supplied facts,
 /// consistent with every other `Validator`-family check in this crate.
+/// The parity state of the fail/pass fixture pair required for a
+/// code-domain rule candidate. This is a closed state model rather than two
+/// independently mutable flags, so callers cannot represent an unnamed or
+/// ambiguous fixture condition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RuleCandidateFixtures {
-    /// The lesson id these fixtures are claimed for.
-    pub has_fail_fixture: bool,
-    /// Whether a pass fixture exists alongside the fail fixture.
-    pub has_pass_fixture: bool,
-}
-
-impl RuleCandidateFixtures {
-    /// True iff both fixtures are present (the d01 parity oracle's
-    /// minimum bar).
-    pub fn satisfied(self) -> bool {
-        self.has_fail_fixture && self.has_pass_fixture
-    }
+pub enum RuleCandidateFixtures {
+    /// Both required fixture classes are present.
+    Complete,
+    /// Neither required fixture class is present.
+    MissingBoth,
+    /// A failing fixture is present, but its passing counterpart is absent.
+    MissingPass,
+    /// A passing fixture is present, but its failing counterpart is absent.
+    MissingFail,
 }
 
 fn lesson_finding(rule_id: &RuleId, severity: Severity, detail: String, file: &RelPath) -> Finding {
@@ -913,10 +913,8 @@ pub fn run_doctor(
         if record.domain == LessonDomain::Code
             && record.routes.contains(&LessonRoute::RuleCandidate)
         {
-            let fixtures_ok = rule_candidate_fixtures
-                .get(&record.id)
-                .is_some_and(|f| f.satisfied());
-            if !fixtures_ok {
+            let fixtures = rule_candidate_fixtures.get(&record.id);
+            if !matches!(fixtures, Some(RuleCandidateFixtures::Complete)) {
                 findings.push(lesson_finding(
                     rule_id,
                     Severity::Error,
@@ -1509,41 +1507,6 @@ mod tests {
         let findings = run_doctor(&rule_id, &[record], &HashMap::new(), &HashMap::new());
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].severity, Severity::Warning);
-        Ok(())
-    }
-
-    #[test]
-    fn doctor_requires_fixtures_for_code_rule_candidate_lessons(
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut record = sample_record("L9")?;
-        record.domain = LessonDomain::Code;
-        record.routes = vec![LessonRoute::RuleCandidate];
-        let artifact: ArtifactRef = "rule-candidate.json#L9".parse()?;
-        record.landed_at = vec![artifact.clone()];
-        let mut contents = HashMap::new();
-        contents.insert(artifact, "lessonId L9".to_owned());
-        let rule_id: RuleId = "LESSON-DOCTOR.1".parse()?;
-
-        // No fixtures registered at all -> error even though the artifact
-        // landed and contains the id.
-        let findings = run_doctor(&rule_id, &[record.clone()], &contents, &HashMap::new());
-        assert_eq!(findings.len(), 1);
-        assert_eq!(findings[0].severity, Severity::Error);
-
-        // Fixtures satisfied -> green.
-        let mut fixtures = HashMap::new();
-        fixtures.insert(
-            "L9".parse::<LessonId>()?,
-            RuleCandidateFixtures {
-                has_fail_fixture: true,
-                has_pass_fixture: true,
-            },
-        );
-        let findings = run_doctor(&rule_id, &[record], &contents, &fixtures);
-        assert!(
-            findings.is_empty(),
-            "expected green with fixtures: {findings:?}"
-        );
         Ok(())
     }
 

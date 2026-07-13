@@ -156,8 +156,10 @@ pub fn parse(input: &str) -> Result<ParsedQuery, QueryError> {
     let upper = input.to_uppercase();
     for verb in WRITE_VERBS {
         if contains_word(&upper, verb) {
-            return Err(QueryError::WriteVerbRejected {
-                verb: verb.to_string(),
+        return Err(QueryError::WriteVerbRejected {
+            // ALLOC-JUSTIFICATION: this typed error outlives the borrowed
+            // query input, so its rejected verb is retained as owned data.
+            verb: verb.to_string(),
             });
         }
     }
@@ -220,6 +222,8 @@ pub fn parse(input: &str) -> Result<ParsedQuery, QueryError> {
     if cursor.pos != tokens.len() {
         return Err(QueryError::Parse {
             pos: cursor.pos,
+            // ALLOC-JUSTIFICATION: QueryError owns its diagnostic text after
+            // parsing returns and cannot borrow the source query.
             reason: "trailing tokens after query".to_string(),
         });
     }
@@ -256,6 +260,8 @@ pub fn execute(
     if query.distinct {
         let mut seen = HashSet::new();
         rows.retain(|row| {
+            // CLONE-JUSTIFICATION: the distinct set owns a stable key while
+            // rows remain available to the caller after deduplication.
             let key: Vec<(String, String)> =
                 row.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
             seen.insert(key)
@@ -311,6 +317,10 @@ fn collect_matches(
         None => {
             for id in candidates {
                 let mut row = ResultRow::new();
+                // CLONE-JUSTIFICATION: ResultRow owns keys independently of
+                // the parsed query that supplies its variable name.
+                // ALLOC-JUSTIFICATION: ResultRow's public value contract is
+                // owned String data, independent of this borrowed node id.
                 row.insert(pattern.start_var.clone(), id.to_string());
                 rows.push(row);
             }
@@ -331,7 +341,13 @@ fn collect_matches(
                         continue;
                     }
                     let mut row = ResultRow::new();
+                    // CLONE-JUSTIFICATION: ResultRow owns keys and values
+                    // after this borrowed graph traversal has completed.
+                    // ALLOC-JUSTIFICATION: node identifiers become owned
+                    // ResultRow values that outlive the traversal borrow.
                     row.insert(pattern.start_var.clone(), start_id.to_string());
+                    // CLONE-JUSTIFICATION: ResultRow owns the endpoint name
+                    // after the borrowed traversal result is dropped.
                     row.insert(hop.end_var.clone(), r.node_id.clone());
                     rows.push(row);
                     if rows.len() > ROW_CEILING {
@@ -459,10 +475,15 @@ fn resolve_property(
     let node_id = row.get(var)?;
     let node = view.code_node(node_id)?;
     match property.to_lowercase().as_str() {
+        // CLONE-JUSTIFICATION: PropertyValue owns returned values so callers
+        // can retain query results after releasing the graph borrow.
         "id" => Some(PropertyValue::Str(node_id.clone())),
         "name" => Some(PropertyValue::Str(node_name(node))),
         "rel_path" | "relpath" | "path" => node_rel_path(node).map(PropertyValue::Str),
-        "line" => node_line(node).map(|l| PropertyValue::Int(l as i64)),
+        "line" => node_line(node).and_then(|line| match i64::try_from(line) {
+            Ok(line) => Some(PropertyValue::Int(line)),
+            Err(_) => None,
+        }),
         // X06 core parity: Tier A/B complexity properties (see
         // `docs/plans/enforcer-selfhost-plan/refs/
         // x06-baseline-tool-schemas.md` §4.5's property table and
@@ -471,29 +492,30 @@ fn resolve_property(
         // this DSL's `Literal` has no boolean variant, so a query
         // spells "is true" as `= 1` (matching every other boolean this
         // grammar exposes today, not a complexity-specific choice).
-        "complexity" => node_metrics(node).map(|m| PropertyValue::Int(m.complexity as i64)),
-        "cognitive" => node_metrics(node).map(|m| PropertyValue::Int(m.cognitive as i64)),
-        "loop_count" => node_metrics(node).map(|m| PropertyValue::Int(m.loop_count as i64)),
-        "loop_depth" => node_metrics(node).map(|m| PropertyValue::Int(m.loop_depth as i64)),
-        "param_count" => node_metrics(node).map(|m| PropertyValue::Int(m.param_count as i64)),
+        "complexity" => node_metrics(node).map(|m| PropertyValue::Int(i64::from(m.complexity))),
+        "cognitive" => node_metrics(node).map(|m| PropertyValue::Int(i64::from(m.cognitive))),
+        "loop_count" => node_metrics(node).map(|m| PropertyValue::Int(i64::from(m.loop_count))),
+        "loop_depth" => node_metrics(node).map(|m| PropertyValue::Int(i64::from(m.loop_depth))),
+        "param_count" => node_metrics(node).map(|m| PropertyValue::Int(i64::from(m.param_count))),
         "max_access_depth" => {
-            node_metrics(node).map(|m| PropertyValue::Int(m.max_access_depth as i64))
+            node_metrics(node).map(|m| PropertyValue::Int(i64::from(m.max_access_depth)))
         }
         "linear_scan_in_loop" => {
-            node_metrics(node).map(|m| PropertyValue::Int(m.linear_scan_in_loop as i64))
+            node_metrics(node).map(|m| PropertyValue::Int(i64::from(m.linear_scan_in_loop)))
         }
-        "alloc_in_loop" => node_metrics(node).map(|m| PropertyValue::Int(m.alloc_in_loop as i64)),
-        "self_recursive" => node_metrics(node).map(|m| PropertyValue::Int(m.self_recursive as i64)),
+        "alloc_in_loop" => node_metrics(node).map(|m| PropertyValue::Int(i64::from(m.alloc_in_loop))),
+        "self_recursive" => node_metrics(node)
+            .map(|m| PropertyValue::Int(if m.self_recursive { 1 } else { 0 })),
         "recursion_in_loop" => {
-            node_metrics(node).map(|m| PropertyValue::Int(m.recursion_in_loop as i64))
+            node_metrics(node).map(|m| PropertyValue::Int(if m.recursion_in_loop { 1 } else { 0 }))
         }
         "unguarded_recursion" => {
-            node_metrics(node).map(|m| PropertyValue::Int(m.unguarded_recursion as i64))
+            node_metrics(node).map(|m| PropertyValue::Int(if m.unguarded_recursion { 1 } else { 0 }))
         }
         "transitive_loop_depth" => node_transitive_metrics(node)
-            .map(|m| PropertyValue::Int(m.transitive_loop_depth as i64)),
+            .map(|m| PropertyValue::Int(i64::from(m.transitive_loop_depth))),
         "recursive" => {
-            node_transitive_metrics(node).map(|m| PropertyValue::Int(m.recursive as i64))
+            node_transitive_metrics(node).map(|m| PropertyValue::Int(if m.recursive { 1 } else { 0 }))
         }
         _ => None,
     }
@@ -526,6 +548,8 @@ fn node_transitive_metrics(
 fn node_name(node: &crate::code_graph::CodeNode) -> String {
     use crate::code_graph::CodeNode;
     match node {
+        // CLONE-JUSTIFICATION: query property values own a snapshot of graph
+        // metadata so the caller need not retain the graph borrow.
         CodeNode::File(f) | CodeNode::TextOnly(f) => f.rel_path.clone(),
         CodeNode::Function(s)
         | CodeNode::Type(s)
@@ -539,7 +563,13 @@ fn node_name(node: &crate::code_graph::CodeNode) -> String {
         | CodeNode::Module(s)
         | CodeNode::Lambda(s)
         | CodeNode::Variable(s)
-        | CodeNode::Constant(s) => s.name.clone(),
+        | CodeNode::Constant(s) => {
+            // CLONE-JUSTIFICATION: query property values own a snapshot of
+            // graph metadata after the graph borrow is released.
+            s.name.clone()
+        }
+        // CLONE-JUSTIFICATION: query property values own a snapshot of graph
+        // metadata after the graph borrow is released.
         CodeNode::Tombstone(t) => t.rel_path.clone(),
     }
 }
@@ -547,6 +577,8 @@ fn node_name(node: &crate::code_graph::CodeNode) -> String {
 fn node_rel_path(node: &crate::code_graph::CodeNode) -> Option<String> {
     use crate::code_graph::CodeNode;
     match node {
+        // CLONE-JUSTIFICATION: query property values own a snapshot of graph
+        // metadata so the caller need not retain the graph borrow.
         CodeNode::File(f) | CodeNode::TextOnly(f) => Some(f.rel_path.clone()),
         CodeNode::Tombstone(t) => Some(t.rel_path.clone()),
         _ => None,
@@ -864,7 +896,9 @@ fn tokenize(input: &str) -> Result<Vec<Token>, QueryError> {
     let chars: Vec<char> = input.chars().collect();
     let mut i = 0;
     while i < chars.len() {
-        let c = chars[i];
+        let Some(c) = chars.get(i).copied() else {
+            break;
+        };
         if c.is_whitespace() {
             i += 1;
             continue;
@@ -873,13 +907,18 @@ fn tokenize(input: &str) -> Result<Vec<Token>, QueryError> {
             let quote = c;
             let mut s = String::new();
             i += 1;
-            while i < chars.len() && chars[i] != quote {
-                s.push(chars[i]);
+            while let Some(current) = chars.get(i).copied() {
+                if current == quote {
+                    break;
+                }
+                s.push(current);
                 i += 1;
             }
             if i >= chars.len() {
                 return Err(QueryError::Parse {
                     pos: i,
+                    // ALLOC-JUSTIFICATION: QueryError owns its diagnostic
+                    // text after tokenization releases the input buffer.
                     reason: "unterminated string literal".to_string(),
                 });
             }
@@ -889,10 +928,10 @@ fn tokenize(input: &str) -> Result<Vec<Token>, QueryError> {
         }
         if c.is_ascii_digit() {
             let start = i;
-            while i < chars.len() && chars[i].is_ascii_digit() {
+            while chars.get(i).is_some_and(|current| current.is_ascii_digit()) {
                 i += 1;
             }
-            let s: String = chars[start..i].iter().collect();
+            let s: String = chars.get(start..i).into_iter().flatten().collect();
             tokens.push(Token::Int(s.parse().map_err(|_parse_err| {
                 QueryError::Parse {
                     pos: start,
@@ -903,10 +942,13 @@ fn tokenize(input: &str) -> Result<Vec<Token>, QueryError> {
         }
         if c.is_alphanumeric() || c == '_' {
             let start = i;
-            while i < chars.len() && (chars[i].is_alphanumeric() || chars[i] == '_') {
+            while chars
+                .get(i)
+                .is_some_and(|current| current.is_alphanumeric() || *current == '_')
+            {
                 i += 1;
             }
-            tokens.push(Token::Word(chars[start..i].iter().collect()));
+            tokens.push(Token::Word(chars.get(start..i).into_iter().flatten().collect()));
             continue;
         }
         // Multi-char symbols first.
@@ -916,7 +958,7 @@ fn tokenize(input: &str) -> Result<Vec<Token>, QueryError> {
             continue;
         }
         if (c == '!' || c == '<' || c == '>') && chars.get(i + 1) == Some(&'=') {
-            let s: String = chars[i..i + 2].iter().collect();
+            let s: String = chars.get(i..i + 2).into_iter().flatten().collect();
             tokens.push(Token::Sym(s));
             i += 2;
             continue;
@@ -924,11 +966,15 @@ fn tokenize(input: &str) -> Result<Vec<Token>, QueryError> {
         if c == '-' && chars.get(i + 1) == Some(&'>') {
             // Emit as two tokens so the parser's explicit `-` then `>`
             // sequence (used for both `-[...]->` arrows) stays uniform.
+            // ALLOC-JUSTIFICATION: Token owns punctuation so the parsed AST
+            // remains valid after the input buffer is released.
             tokens.push(Token::Sym("-".to_string()));
             tokens.push(Token::Sym(">".to_string()));
             i += 2;
             continue;
         }
+        // ALLOC-JUSTIFICATION: Token owns punctuation so the parsed AST
+        // remains valid after the input buffer is released.
         tokens.push(Token::Sym(c.to_string()));
         i += 1;
     }
@@ -987,16 +1033,22 @@ impl<'a> Cursor<'a> {
     fn next_token_string(&mut self) -> Result<String, QueryError> {
         match self.peek() {
             Some(Token::Word(w)) => {
+                // CLONE-JUSTIFICATION: the parsed AST owns its token text
+                // after Cursor advances beyond this borrowed token stream.
                 let w = w.clone();
                 self.advance();
                 Ok(w)
             }
             Some(Token::Int(n)) => {
+                // ALLOC-JUSTIFICATION: numeric tokens become owned AST text
+                // after Cursor advances beyond this borrowed token stream.
                 let s = n.to_string();
                 self.advance();
                 Ok(s)
             }
             Some(Token::Sym(s)) => {
+                // CLONE-JUSTIFICATION: the parsed AST owns its token text
+                // after Cursor advances beyond this borrowed token stream.
                 let s = s.clone();
                 self.advance();
                 Ok(s)
@@ -1011,6 +1063,8 @@ impl<'a> Cursor<'a> {
     fn next_literal(&mut self) -> Result<Literal, QueryError> {
         match self.peek() {
             Some(Token::Str(s)) => {
+                // CLONE-JUSTIFICATION: Literal owns its text after Cursor
+                // advances beyond this borrowed token stream.
                 let s = s.clone();
                 self.advance();
                 Ok(Literal::Str(s))

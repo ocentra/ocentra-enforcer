@@ -66,7 +66,7 @@ pub enum PlanError {
     /// call failed. Wrapped (not silently swallowed) so orchestrator
     /// callers see the coordination crate's own `Display` text.
     #[error("coordination error: {0}")]
-    Coordination(#[from] enforcer_coordination::CoordinationError),
+    Coordination(#[from] enforcer_coordination::error::CoordinationError),
 
     /// (b04, L14/L16) A `tick()` call would end with lanes still in flight
     /// and no next-wake scheduled. Ending a turn in this fragile state is a
