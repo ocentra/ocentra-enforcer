@@ -426,6 +426,8 @@ pub enum GraphArtifactError {
         #[source]
         source: std::io::Error,
     },
+    #[error("system clock is before the Unix epoch: {0}")]
+    Clock(#[source] std::time::SystemTimeError),
     /// The artifact's `.zst` file already exists at the destination --
     /// export refuses to silently overwrite an existing artifact
     /// (mirrors the baseline's O_EXCL-guarded sidecar write).
@@ -559,13 +561,14 @@ pub fn import_graph_artifact(
 /// existing destination is replaced only by the final rename, never by
 /// an in-place write).
 fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), GraphArtifactError> {
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(GraphArtifactError::Clock)?
+        .as_nanos();
     let unique = format!(
         "{}.{}.tmp",
         std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or_default()
+        timestamp
     );
     let tmp_path = path.with_extension(unique);
     std::fs::write(&tmp_path, bytes).map_err(|source| GraphArtifactError::Io {
