@@ -646,10 +646,9 @@ pub fn find_definition_node<'tree>(
                 }
             }
         }
-        for i in 0..node.child_count() {
-            if let Some(child) = node.child(i) {
-                stack.push(child);
-            }
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            stack.push(child);
         }
     }
     None
@@ -704,22 +703,21 @@ fn param_count(def_node: Node<'_>, table: &NodeKindTable) -> u32 {
         return 0;
     }
     let mut count = 0u32;
-    for i in 0..params.child_count() {
-        if let Some(child) = params.child(i) {
-            let kind = child.kind();
-            // Skip punctuation/comment tokens; every language's
-            // parameter-list grammar emits the parameter as either a
-            // single named node or an "identifier"-shaped leaf -- both
-            // are non-punctuation kinds, so filtering `(`, `)`, `,`
-            // leaves exactly the parameters.
-            if kind == "(" || kind == ")" || kind == "," || kind.is_empty() {
-                continue;
-            }
-            if child.is_extra() {
-                continue;
-            }
-            count += 1;
+    let mut cursor = params.walk();
+    for child in params.children(&mut cursor) {
+        let kind = child.kind();
+        // Skip punctuation/comment tokens; every language's
+        // parameter-list grammar emits the parameter as either a
+        // single named node or an "identifier"-shaped leaf -- both
+        // are non-punctuation kinds, so filtering `(`, `)`, `,`
+        // leaves exactly the parameters.
+        if kind == "(" || kind == ")" || kind == "," || kind.is_empty() {
+            continue;
         }
+        if child.is_extra() {
+            continue;
+        }
+        count += 1;
     }
     count
 }
@@ -752,10 +750,9 @@ fn walk_body(
     if in_nested_fn {
         // Still need to descend to find further nested boundaries, but
         // stop attributing metrics to the outer function.
-        for i in 0..node.child_count() {
-            if let Some(child) = node.child(i) {
-                walk_body(child, ctx, loop_depth, cognitive_nesting, true);
-            }
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            walk_body(child, ctx, loop_depth, cognitive_nesting, true);
         }
         return;
     }
@@ -793,16 +790,15 @@ fn walk_body(
 
     let entering_nested_fn = ctx.table.function_defs.contains(&kind);
 
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk_body(
-                child,
-                ctx,
-                child_loop_depth,
-                child_cognitive_nesting,
-                entering_nested_fn,
-            );
-        }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        walk_body(
+            child,
+            ctx,
+            child_loop_depth,
+            child_cognitive_nesting,
+            entering_nested_fn,
+        );
     }
 }
 
@@ -887,22 +883,20 @@ fn max_access_depth(node: Node<'_>, table: &NodeKindTable) -> u32 {
             // own object side (chain_depth already walked it) -- but
             // do still walk sibling/non-object children (e.g. call
             // arguments) for other chains.
-            for i in 0..current.child_count() {
-                if let Some(child) = current.child(i) {
-                    let is_object_side = current
-                        .child_by_field_name(table.member_access_object_field)
-                        .map(|o| o.id() == child.id())
-                        .unwrap_or(false);
-                    if !is_object_side {
-                        stack.push(child);
-                    }
+            let mut cursor = current.walk();
+            for child in current.children(&mut cursor) {
+                let is_object_side = current
+                    .child_by_field_name(table.member_access_object_field)
+                    .map(|o| o.id() == child.id())
+                    .unwrap_or(false);
+                if !is_object_side {
+                    stack.push(child);
                 }
             }
         } else {
-            for i in 0..current.child_count() {
-                if let Some(child) = current.child(i) {
-                    stack.push(child);
-                }
+            let mut cursor = current.walk();
+            for child in current.children(&mut cursor) {
+                stack.push(child);
             }
         }
     }
@@ -972,6 +966,7 @@ pub fn propagate_transitive_loop_depth(
         state: HashMap<String, State>,
         tld: HashMap<String, u32>,
         recursive: HashMap<String, bool>,
+        active_path: Vec<String>,
         max_depth: u32,
     }
 
@@ -984,8 +979,17 @@ pub fn propagate_transitive_loop_depth(
             State::InProgress => {
                 // Back edge -> call-graph cycle: fold into `recursive`,
                 // contribute zero additional depth from this branch
-                // (matching the baseline's tld_dfs early return).
-                ctx.recursive.insert(id.to_string(), true);
+                // (matching the baseline's tld_dfs early return). Mark
+                // every participant on the active path, not only the
+                // back-edge target: each function in a mutual-recursion
+                // cycle is recursive by definition.
+                if let Some(cycle_start) = ctx.active_path.iter().position(|entry| entry == id) {
+                    for participant in ctx.active_path.iter().skip(cycle_start) {
+                        if let Some(recursive) = ctx.recursive.get_mut(participant) {
+                            *recursive = true;
+                        }
+                    }
+                }
                 return 0;
             }
             State::Unvisited => {}
@@ -994,6 +998,7 @@ pub fn propagate_transitive_loop_depth(
             return node.loop_depth;
         }
         ctx.state.insert(id.to_string(), State::InProgress);
+        ctx.active_path.push(id.to_string());
         let mut best = 0u32;
         for callee in &node.callees {
             if callee == id {
@@ -1006,6 +1011,7 @@ pub fn propagate_transitive_loop_depth(
             }
         }
         let value = node.loop_depth + best;
+        ctx.active_path.pop();
         ctx.tld.insert(id.to_string(), value);
         ctx.state.insert(id.to_string(), State::Done);
         value
@@ -1025,6 +1031,7 @@ pub fn propagate_transitive_loop_depth(
         state,
         tld: HashMap::new(),
         recursive,
+        active_path: Vec::new(),
         max_depth: MAX_PROPAGATION_DEPTH,
     };
 

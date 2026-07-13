@@ -433,10 +433,9 @@ fn call_graph_cycle_terminates_and_flags_recursive() {
     // stack) is the primary assertion here.
     let result = complexity::propagate_transitive_loop_depth(&nodes);
     assert_eq!(result.len(), 3);
-    assert!(
-        result["a"].recursive || result["b"].recursive || result["c"].recursive,
-        "at least one node in the cycle must be flagged recursive"
-    );
+    assert!(result["a"].recursive, "cycle participant a is recursive");
+    assert!(result["b"].recursive, "cycle participant b is recursive");
+    assert!(result["c"].recursive, "cycle participant c is recursive");
 }
 
 #[test]
