@@ -20196,15 +20196,15 @@ fn capnp_positional_text(node: Node<'_>, identifier_kind: &str, src: &[u8]) -> O
 /// text (the quoted `.capnp` path Cap'n Proto's `using X = import
 /// "path.capnp";` form always carries).
 fn capnp_import_path_text(node: Node<'_>, src: &[u8]) -> Option<String> {
-    fn find_string_fragment<'a>(node: Node<'a>) -> Option<Node<'a>> {
+    fn find_capnp_string_fragment<'a>(node: Node<'a>) -> Option<Node<'a>> {
         if node.kind() == "string_fragment" {
             return Some(node);
         }
         (0..node.child_count())
             .filter_map(|i| node.child(i))
-            .find_map(find_string_fragment)
+            .find_map(find_capnp_string_fragment)
     }
-    find_string_fragment(node)
+    find_capnp_string_fragment(node)
         .and_then(|n| n.utf8_text(src).ok())
         .map(str::to_owned)
 }
@@ -22304,15 +22304,15 @@ fn thrift_positional_identifier(node: Node<'_>, src: &[u8]) -> Option<String> {
 /// An `include_statement`'s own descendant `string` -> `string_fragment`
 /// text (the quoted `.thrift` path).
 fn thrift_include_path_text(node: Node<'_>, src: &[u8]) -> Option<String> {
-    fn find_string_fragment<'a>(node: Node<'a>) -> Option<Node<'a>> {
+    fn find_thrift_string_fragment<'a>(node: Node<'a>) -> Option<Node<'a>> {
         if node.kind() == "string_fragment" {
             return Some(node);
         }
         (0..node.child_count())
             .filter_map(|i| node.child(i))
-            .find_map(find_string_fragment)
+            .find_map(find_thrift_string_fragment)
     }
-    find_string_fragment(node)
+    find_thrift_string_fragment(node)
         .and_then(|n| n.utf8_text(src).ok())
         .map(str::to_owned)
 }
@@ -22458,17 +22458,8 @@ fn wit_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
                     line,
                 });
             }
-            for i in 0..node.child_count() as u32 {
-                if node.field_name_for_child(i) != Some("methods") {
-                    continue;
-                }
-                let Some(method_node) = node.child(i as usize) else {
-                    continue;
-                };
-                for j in 0..method_node.child_count() {
-                    let Some(func_node) = method_node.child(j) else {
-                        continue;
-                    };
+            if let Some(method_node) = node.child_by_field_name("methods") {
+                for func_node in syntax_children(method_node) {
                     if func_node.kind() != "func_item" {
                         continue;
                     }

@@ -44,6 +44,7 @@ use regex::Regex;
 
 /// Whether a sink is flagged unconditionally on a bare regex match, or only
 /// when its captured argument (capture group 1) is clearly non-literal.
+#[derive(Debug)]
 enum SinkCheck {
     /// The regex match alone is sufficient (e.g. `shell=True`, or a
     /// backtick/`#{}` combo that already encodes non-literal interpolation).
@@ -53,7 +54,9 @@ enum SinkCheck {
     DynamicArgument,
 }
 
+#[derive(Debug)]
 struct SinkPattern {
+    // BRAND-INVARIANT: labels are static, trusted identifiers rendered only in this validator's finding detail.
     label: &'static str,
     regex: Regex,
     check: SinkCheck,
@@ -80,6 +83,8 @@ fn is_dynamic_argument(argument: &str, fstring_prefix: &Regex) -> bool {
 
 /// `CYBER-CMD-INJECT.1` — command-injection sink detector (T1 per-sink
 /// matcher over source lines).
+#[derive(Debug)]
+/// Validator for the `CYBER-CMD-INJECT.1` source-line sink rule.
 pub struct CommandInjectionValidator {
     rule_id: RuleId,
     sinks: Vec<SinkPattern>,
@@ -87,7 +92,9 @@ pub struct CommandInjectionValidator {
 }
 
 impl CommandInjectionValidator {
+    /// Compiles the fixed sink table and its validated rule identity.
     pub fn new() -> Result<Self, DecodeError> {
+        // ALLOC-JUSTIFICATION: DecodeError owns the regex engine's diagnostic after construction fails.
         fn compile(slug: &'static str, pattern: &str) -> Result<Regex, DecodeError> {
             Regex::new(pattern).map_err(|err| DecodeError::new(slug, err.to_string()))
         }
@@ -182,8 +189,10 @@ impl Validator for CommandInjectionValidator {
             }
 
             findings.push(Finding {
+                // CLONE-JUSTIFICATION: each emitted report owns the validator identity after validation returns.
                 rule_id: self.rule_id.clone(),
                 severity: Severity::Error,
+                // ALLOC-JUSTIFICATION: durable report records own their static presentation title.
                 title: "Command executed with a non-literal, attacker-influenceable argument"
                     .to_owned(),
                 detail: format!(
@@ -196,8 +205,10 @@ impl Validator for CommandInjectionValidator {
                      never build a shell command string from untrusted input.",
                     matched_labels.join(", ")
                 ),
+                // CLONE-JUSTIFICATION: each emitted report owns its source path after the borrowed input expires.
                 file: input.file.clone(),
                 line: line_number,
+                // ALLOC-JUSTIFICATION: the report retains the source line after the borrowed input expires.
                 snippet: Some(line.to_owned()),
             });
         }
