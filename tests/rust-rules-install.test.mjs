@@ -6,6 +6,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { spawnCli } from './cli-spawn.mjs';
+import { checkStagedRatchet } from '../scripts/precommit-ratchet.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'rust-rules.mjs');
@@ -37,6 +38,20 @@ function runGateArgs(project, args) {
   return spawnCli(process.execPath, [SCRIPT, ...args, '--root', project], {
     encoding: 'utf8',
   });
+}
+
+function git(project, args) {
+  const result = spawnSync('git', args, { cwd: project, encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  return result.stdout;
+}
+
+function commitFixture(project) {
+  git(project, ['init']);
+  git(project, ['config', 'user.email', 'fixtures@example.invalid']);
+  git(project, ['config', 'user.name', 'Fixture']);
+  git(project, ['add', '.']);
+  git(project, ['commit', '-m', 'baseline']);
 }
 
 test('doctor reports usable scope', () => {
@@ -269,6 +284,7 @@ test('adapter templates cover POSIX pre-commit, GitHub Actions, CodeQL, dependen
   const hook = fs.readFileSync(path.join(ROOT, 'adapters', 'git-hooks', 'pre-commit.sh'), 'utf8');
   assert.match(hook, /^#!\/bin\/sh/u);
   assert.doesNotMatch(hook, /\[\[|declare -a|function\s+[A-Za-z_]/u);
+  assert.match(hook, /precommit-ratchet\.mjs/u);
 
   const workflowNames = [
     'ocentra-enforcer.yml',
@@ -284,6 +300,26 @@ test('adapter templates cover POSIX pre-commit, GitHub Actions, CodeQL, dependen
   assert.match(fs.readFileSync(path.join(ROOT, 'adapters', 'github-actions', 'dependency-policy.yml'), 'utf8'), /cargo-audit/u);
   assert.match(fs.readFileSync(path.join(ROOT, 'adapters', 'github-actions', 'secret-scan.yml'), 'utf8'), /gitleaks/u);
   assert.match(fs.readFileSync(path.join(ROOT, 'adapters', 'github-actions', 'sbom.yml'), 'utf8'), /sbom-action/u);
+});
+
+test('precommit ratchet permits staged hard-finding reductions and rejects regressions', () => {
+  const project = makeProject({
+    'rust-rules.config.json': JSON.stringify({ requireCargoDeny: false }),
+    'src/lib.rs': 'fn value(input: String) { let _copy = input.clone(); }\n',
+  });
+  commitFixture(project);
+
+  fs.writeFileSync(path.join(project, 'src', 'lib.rs'), 'fn value(input: String) { let _ = input; }\n');
+  git(project, ['add', 'src/lib.rs']);
+  const reduction = checkStagedRatchet({ root: project, enforcerRoot: ROOT });
+  assert.equal(reduction.ok, true, JSON.stringify(reduction));
+
+  git(project, ['commit', '-m', 'remove clone debt']);
+  fs.writeFileSync(path.join(project, 'src', 'lib.rs'), 'fn value(input: String) { let _copy = input.clone(); }\n');
+  git(project, ['add', 'src/lib.rs']);
+  const regression = checkStagedRatchet({ root: project, enforcerRoot: ROOT });
+  assert.equal(regression.ok, false, JSON.stringify(regression));
+  assert.equal(regression.increased.length > 0, true);
 });
 
 test('expanded Rust hardening rules emit deterministic CLI JSON violations', () => {

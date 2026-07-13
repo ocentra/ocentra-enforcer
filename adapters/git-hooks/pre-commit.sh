@@ -21,7 +21,11 @@ run_enforcer() {
   fi
 }
 
-run_enforcer scan --root "$ROOT" --workspace --config "${OCENTRA_ENFORCER_CONFIG:-ocentra-enforcer.config.json}"
+if [ "$ENFORCER_MODE" = "local" ]; then
+  node "$ROOT/scripts/precommit-ratchet.mjs" "$ROOT" "$ROOT"
+else
+  run_enforcer scan --root "$ROOT" --workspace --config "${OCENTRA_ENFORCER_CONFIG:-ocentra-enforcer.config.json}"
+fi
 
 if [ "${OCENTRA_ENFORCER_LANGUAGES:-}" != "" ]; then
   run_enforcer scan --root "$ROOT" --workspace --languages "$OCENTRA_ENFORCER_LANGUAGES" --config "${OCENTRA_ENFORCER_CONFIG:-ocentra-enforcer.config.json}"
