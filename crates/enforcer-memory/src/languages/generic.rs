@@ -1146,8 +1146,8 @@ fn ts_preceding_decorators(node: Node<'_>, src: &[u8]) -> Vec<String> {
 }
 
 fn ts_decorator_name(decorator_node: Node<'_>, src: &[u8]) -> Option<String> {
-    for i in 0..decorator_node.child_count() {
-        let child = decorator_node.child(i)?;
+    let mut cursor = decorator_node.walk();
+    for child in decorator_node.children(&mut cursor) {
         match child.kind() {
             "call_expression" => {
                 let function = child.child_by_field_name("function")?;
@@ -1168,12 +1168,11 @@ fn ts_decorator_name(decorator_node: Node<'_>, src: &[u8]) -> Option<String> {
 fn ts_signature_type_refs(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
     if let Some(params) = node.child_by_field_name("parameters") {
-        for i in 0..params.child_count() {
-            if let Some(param) = params.child(i) {
-                if let Some(type_node) = param.child_by_field_name("type") {
-                    if let Ok(text) = type_node.utf8_text(src) {
-                        out.push(text.trim_start_matches(':').trim().to_string());
-                    }
+        let mut cursor = params.walk();
+        for param in params.children(&mut cursor) {
+            if let Some(type_node) = param.child_by_field_name("type") {
+                if let Ok(text) = type_node.utf8_text(src) {
+                    out.push(text.trim_start_matches(':').trim().to_string());
                 }
             }
         }
@@ -1190,8 +1189,8 @@ fn ts_signature_type_refs(node: Node<'_>, src: &[u8]) -> Vec<String> {
 /// `languages/typescript.rs`'s `named_arrow_or_const_binding`
 /// byte-for-byte.
 fn ts_named_arrow_or_const_binding(node: Node<'_>, src: &[u8]) -> Option<SymbolRef> {
-    for i in 0..node.child_count() {
-        let declarator = node.child(i)?;
+    let mut cursor = node.walk();
+    for declarator in node.children(&mut cursor) {
         if declarator.kind() != "variable_declarator" {
             continue;
         }
@@ -1411,10 +1410,9 @@ fn ts_walk_scoped_body(class_node: Node<'_>, src: &[u8], name: Option<&str>, out
         // exact same always-on gate the outer walk already uses.
         is_test_file: true,
     };
-    for i in 0..class_node.child_count() {
-        if let Some(child) = class_node.child(i) {
-            walk(child, &ctx, out, name, FnScope::default());
-        }
+    let mut cursor = class_node.walk();
+    for child in class_node.children(&mut cursor) {
+        walk(child, &ctx, out, name, FnScope::default());
     }
 }
 
@@ -1516,12 +1514,11 @@ fn py_is_test_name(name: &str) -> bool {
 fn py_base_class_names(class_node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
     if let Some(superclasses) = class_node.child_by_field_name("superclasses") {
-        for i in 0..superclasses.child_count() {
-            if let Some(child) = superclasses.child(i) {
-                if matches!(child.kind(), "identifier" | "attribute") {
-                    if let Ok(text) = child.utf8_text(src) {
-                        out.push(text.to_string());
-                    }
+        let mut cursor = superclasses.walk();
+        for child in superclasses.children(&mut cursor) {
+            if matches!(child.kind(), "identifier" | "attribute") {
+                if let Ok(text) = child.utf8_text(src) {
+                    out.push(text.to_string());
                 }
             }
         }
@@ -1540,13 +1537,14 @@ fn py_decorators_on(node: Node<'_>, src: &[u8]) -> Vec<(String, String)> {
     else {
         return out;
     };
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
         if child.kind() != "decorator" {
             continue;
         }
-        let decorator_expr = (0..child.child_count())
-            .filter_map(|j| child.child(j))
+        let mut decorator_cursor = child.walk();
+        let decorator_expr = child
+            .children(&mut decorator_cursor)
             .find(|n| n.kind() != "@");
         let Some(expr) = decorator_expr else { continue };
         let name = match expr.kind() {
@@ -1586,23 +1584,22 @@ fn py_named_lambda_binding(expr_stmt: Node<'_>, src: &[u8]) -> Option<SymbolRef>
 
 fn py_dotted_names_under(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            match child.kind() {
-                "dotted_name" => {
-                    if let Ok(text) = child.utf8_text(src) {
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        match child.kind() {
+            "dotted_name" => {
+                if let Ok(text) = child.utf8_text(src) {
+                    out.push(text.to_string());
+                }
+            }
+            "aliased_import" => {
+                if let Some(name_node) = child.child_by_field_name("name") {
+                    if let Ok(text) = name_node.utf8_text(src) {
                         out.push(text.to_string());
                     }
                 }
-                "aliased_import" => {
-                    if let Some(name_node) = child.child_by_field_name("name") {
-                        if let Ok(text) = name_node.utf8_text(src) {
-                            out.push(text.to_string());
-                        }
-                    }
-                }
-                _ => {}
             }
+            _ => {}
         }
     }
     out
@@ -1611,13 +1608,14 @@ fn py_dotted_names_under(node: Node<'_>, src: &[u8]) -> Vec<String> {
 /// Recognize Flask/FastAPI-style decorators -- mirrors
 /// `languages/python.rs`'s `route_from_decorated` byte-for-byte.
 fn py_route_from_decorated(decorated_node: Node<'_>, src: &[u8]) -> Option<RouteRef> {
-    for i in 0..decorated_node.child_count() {
-        let child = decorated_node.child(i)?;
+    let mut cursor = decorated_node.walk();
+    for child in decorated_node.children(&mut cursor) {
         if child.kind() != "decorator" {
             continue;
         }
-        let call = (0..child.child_count())
-            .filter_map(|j| child.child(j))
+        let mut decorator_cursor = child.walk();
+        let call = child
+            .children(&mut decorator_cursor)
             .find(|n| n.kind() == "call")?;
         let function = call.child_by_field_name("function")?;
         let function_text = function.utf8_text(src).unwrap_or("");
