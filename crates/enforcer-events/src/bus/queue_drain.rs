@@ -5,6 +5,7 @@ use super::{DispatchMode, EventBus, QueueDrainReport};
 mod runner;
 
 impl EventBus {
+    /// CANCELLATION-TEST: production_shutdown_drain_dispatches_queue_and_dead_letters_remaining
     pub async fn drain_queued(
         &self,
         dispatch_mode: DispatchMode,
