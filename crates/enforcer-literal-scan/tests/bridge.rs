@@ -69,7 +69,10 @@ fn advisory_findings_are_nonblocking_and_unknown_targets_skip_gracefully(
     assert!(!findings.is_empty(), "fail fixture must cross threshold");
     for finding in findings {
         assert_ne!(finding.severity, Severity::Error);
-        assert!(Violation::try_from(finding).is_err());
+        let error = Violation::try_from(finding)
+            .expect_err("advisory findings must not convert into blocking violations");
+        assert_eq!(error.path, "violation.severity");
+        assert_eq!(error.reason, "a violation must carry severity `error`");
     }
 
     let unknown_file: RelPath = "tests/fixtures/universal/fail/no-extension".parse()?;
