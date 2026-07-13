@@ -81,6 +81,31 @@ use crate::analysis::CodeAdjacency;
 use crate::code_graph::CodeGraph;
 use std::collections::{BTreeMap, BTreeSet};
 
+/// Borrowed, repository-relative path text inside the architecture domain.
+///
+/// BRAND-INVARIANT: values are always borrowed from the indexed graph or a
+/// caller-provided scope; this type keeps path interpretation at the
+/// architecture boundary instead of passing undifferentiated text between
+/// report builders.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct ArchitecturePath<'a>(&'a str);
+
+/// The optional repository-relative prefix applied uniformly to one report.
+///
+/// BRAND-INVARIANT: when present, the prefix is compared only against the
+/// slash-normalized paths held by [`ArchitecturePath`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ArchitectureScope<'a> {
+    prefix: Option<ArchitecturePath<'a>>,
+}
+
+impl ArchitectureScope<'_> {
+    fn includes(self, path: ArchitecturePath<'_>) -> bool {
+        self.prefix
+            .is_none_or(|prefix| path.0.starts_with(prefix.0))
+    }
+}
+
 /// One crate/top-level-directory section of the architecture overview.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrateSection {
@@ -108,15 +133,16 @@ pub struct ArchitectureOverview {
 /// how many top hotspot entries are retained (the workpack does not
 /// mandate a specific number; callers pick per their MCP/CLI surface).
 pub fn build_overview(graph: &CodeGraph, hotspot_limit: usize) -> ArchitectureOverview {
-    let sections = crate_sections(graph, None);
-    let language_counts = language_counts(graph, None);
+    let scope = ArchitectureScope { prefix: None };
+    let sections = crate_sections(graph, scope);
+    let language_counts = language_counts(graph, scope);
     let adjacency = CodeAdjacency::build(graph);
     let hotspots = adjacency.hotspots(hotspot_limit);
     let total_files = graph
         .file_nodes()
-        .filter(|f| path_matches(&f.rel_path, None))
+        .filter(|f| scope.includes(ArchitecturePath(&f.rel_path)))
         .count();
-    let total_symbols = symbol_count_under(graph, None);
+    let total_symbols = symbol_count_under(graph, scope);
 
     ArchitectureOverview {
         sections,
@@ -283,7 +309,11 @@ fn looks_like_test_path(rel_path: &str) -> bool {
 /// `fan_in`, capped at `limit`. Ties broken by node id for determinism
 /// (the baseline's `qsort` documents no tie-break at all -- this crate
 /// never leaves an ordering undefined).
-fn hotspot_entries(graph: &CodeGraph, prefix: Option<&str>, limit: usize) -> Vec<HotspotEntry> {
+fn hotspot_entries(
+    graph: &CodeGraph,
+    scope: ArchitectureScope<'_>,
+    limit: usize,
+) -> Vec<HotspotEntry> {
     let file_path_by_id: BTreeMap<&str, &str> = graph
         .file_nodes()
         .map(|f| (f.id.as_str(), f.rel_path.as_str()))
@@ -329,7 +359,7 @@ fn hotspot_entries(graph: &CodeGraph, prefix: Option<&str>, limit: usize) -> Vec
                 .get(s.file_id.as_str())
                 .copied()
                 .unwrap_or("");
-            if !path_matches(file_path, prefix) || looks_like_test_path(file_path) {
+            if !scope.includes(ArchitecturePath(file_path)) || looks_like_test_path(file_path) {
                 return None;
             }
             Some(HotspotEntry {
@@ -483,6 +513,11 @@ pub fn build_report(
     hotspot_limit: usize,
     max_iterations: usize,
 ) -> ArchitectureReport {
+    let scope = ArchitectureScope {
+        prefix: path_prefix
+            .filter(|prefix| !prefix.is_empty())
+            .map(ArchitecturePath),
+    };
     let wanted: BTreeSet<Aspect> = if aspects.contains(&Aspect::All) {
         [
             Aspect::Overview,
@@ -510,28 +545,28 @@ pub fn build_report(
     // most once.
     let clustering_result =
         if wanted.contains(&Aspect::Clusters) || wanted.contains(&Aspect::Layers) {
-            Some(filtered_clusters(graph, path_prefix, max_iterations))
+            Some(filtered_clusters(graph, scope, max_iterations))
         } else {
             None
         };
 
     if wanted.contains(&Aspect::Overview) {
         report.overview = Some(ArchitectureOverview {
-            sections: crate_sections(graph, path_prefix),
+            sections: crate_sections(graph, scope),
             hotspots: CodeAdjacency::build(graph).hotspots(hotspot_limit),
-            language_counts: language_counts(graph, path_prefix),
+            language_counts: language_counts(graph, scope),
             total_files: graph
                 .file_nodes()
-                .filter(|f| path_matches(&f.rel_path, path_prefix))
+                .filter(|f| scope.includes(ArchitecturePath(&f.rel_path)))
                 .count(),
-            total_symbols: symbol_count_under(graph, path_prefix),
+            total_symbols: symbol_count_under(graph, scope),
         });
     }
     if wanted.contains(&Aspect::Structure) {
-        report.structure = Some(crate_sections(graph, path_prefix));
+        report.structure = Some(crate_sections(graph, scope));
     }
     if wanted.contains(&Aspect::Dependencies) {
-        report.dependencies = Some(dependency_edges(graph, path_prefix));
+        report.dependencies = Some(dependency_edges(graph, scope));
     }
     if wanted.contains(&Aspect::Routes) {
         // Baseline-aligned cap (baseline schema doc §7.2: `routes` ->
@@ -540,34 +575,34 @@ pub fn build_report(
         // (`layer_classification`'s route-presence detection,
         // `entry_points`'s RouteHandler detection) still see every
         // route regardless of the aspect-level display cap.
-        let mut routes = route_entries(graph, path_prefix);
+        let mut routes = route_entries(graph, scope);
         routes.truncate(20);
         report.routes = Some(routes);
     }
     if wanted.contains(&Aspect::Languages) {
-        report.languages = Some(language_counts(graph, path_prefix));
+        report.languages = Some(language_counts(graph, scope));
     }
     if wanted.contains(&Aspect::Packages) {
-        report.packages = Some(package_sections(graph, path_prefix));
+        report.packages = Some(package_sections(graph, scope));
     }
     if wanted.contains(&Aspect::EntryPoints) {
-        report.entry_points = Some(entry_points(graph, path_prefix));
+        report.entry_points = Some(entry_points(graph, scope));
     }
     if wanted.contains(&Aspect::Hotspots) {
         report.hotspots = Some(CodeAdjacency::build(graph).hotspots(hotspot_limit));
-        report.hotspot_entries = Some(hotspot_entries(graph, path_prefix, hotspot_limit));
+        report.hotspot_entries = Some(hotspot_entries(graph, scope, hotspot_limit));
     }
     if wanted.contains(&Aspect::Boundaries) {
-        report.boundaries = Some(boundaries(graph, path_prefix));
+        report.boundaries = Some(boundaries(graph, scope));
     }
     if wanted.contains(&Aspect::Layers) {
         if let Some(clusters) = &clustering_result {
             report.layers = Some(layering(clusters));
         }
-        report.layer_classification = Some(layer_classification(graph, path_prefix));
+        report.layer_classification = Some(layer_classification(graph, scope));
     }
     if wanted.contains(&Aspect::FileTree) {
-        report.file_tree = Some(file_tree(graph, path_prefix));
+        report.file_tree = Some(file_tree(graph, scope));
     }
     if wanted.contains(&Aspect::Clusters) {
         if let Some(clusters) = &clustering_result {
@@ -579,19 +614,12 @@ pub fn build_report(
     report
 }
 
-fn path_matches(rel_path: &str, prefix: Option<&str>) -> bool {
-    match prefix {
-        Some(p) if !p.is_empty() => rel_path.starts_with(p),
-        _ => true,
-    }
-}
-
-fn symbol_count_under(graph: &CodeGraph, prefix: Option<&str>) -> usize {
+fn symbol_count_under(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> usize {
     graph
         .symbol_nodes()
         .filter(|s| {
             let rel_path = s.file_id.strip_prefix("file:").unwrap_or(&s.file_id);
-            path_matches(rel_path, prefix)
+            scope.includes(ArchitecturePath(rel_path))
         })
         .count()
 }
@@ -611,11 +639,11 @@ fn crate_map_key(rel_path: &str) -> String {
     }
 }
 
-fn crate_sections(graph: &CodeGraph, prefix: Option<&str>) -> Vec<CrateSection> {
+fn crate_sections(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<CrateSection> {
     let mut sections: BTreeMap<String, CrateSection> = BTreeMap::new();
 
     for file in graph.file_nodes() {
-        if !path_matches(&file.rel_path, prefix) {
+        if !scope.includes(ArchitecturePath(&file.rel_path)) {
             continue;
         }
         let crate_name = crate_map_key(&file.rel_path);
@@ -636,7 +664,7 @@ fn crate_sections(graph: &CodeGraph, prefix: Option<&str>) -> Vec<CrateSection> 
             .file_id
             .strip_prefix("file:")
             .unwrap_or(&symbol.file_id);
-        if !path_matches(rel_path, prefix) {
+        if !scope.includes(ArchitecturePath(rel_path)) {
             continue;
         }
         let crate_name = crate_map_key(rel_path);
@@ -648,10 +676,10 @@ fn crate_sections(graph: &CodeGraph, prefix: Option<&str>) -> Vec<CrateSection> 
     sections.into_values().collect()
 }
 
-fn language_counts(graph: &CodeGraph, prefix: Option<&str>) -> Vec<(String, usize)> {
+fn language_counts(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<(String, usize)> {
     let mut language_counts: BTreeMap<String, usize> = BTreeMap::new();
     for file in graph.file_nodes() {
-        if !path_matches(&file.rel_path, prefix) {
+        if !scope.includes(ArchitecturePath(&file.rel_path)) {
             continue;
         }
         *language_counts
@@ -661,7 +689,7 @@ fn language_counts(graph: &CodeGraph, prefix: Option<&str>) -> Vec<(String, usiz
     language_counts.into_iter().collect()
 }
 
-fn route_entries(graph: &CodeGraph, prefix: Option<&str>) -> Vec<RouteEntry> {
+fn route_entries(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<RouteEntry> {
     let file_path_by_id: BTreeMap<&str, &str> = graph
         .file_nodes()
         .map(|f| (f.id.as_str(), f.rel_path.as_str()))
@@ -672,7 +700,7 @@ fn route_entries(graph: &CodeGraph, prefix: Option<&str>) -> Vec<RouteEntry> {
         .filter_map(|r| {
             let declared_in = file_path_by_id.get(r.from_file_id.as_str()).copied();
             let declared_in = declared_in.unwrap_or(r.from_file_id.as_str());
-            if !path_matches(declared_in, prefix) {
+            if !scope.includes(ArchitecturePath(declared_in)) {
                 return None;
             }
             Some(RouteEntry {
@@ -707,10 +735,10 @@ fn dir_of(rel_path: &str) -> String {
     }
 }
 
-fn package_sections(graph: &CodeGraph, prefix: Option<&str>) -> Vec<PackageSection> {
+fn package_sections(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<PackageSection> {
     let manifests: Vec<&str> = graph
         .file_nodes()
-        .filter(|f| path_matches(&f.rel_path, prefix) && is_manifest_file(&f.rel_path))
+        .filter(|f| scope.includes(ArchitecturePath(&f.rel_path)) && is_manifest_file(&f.rel_path))
         .map(|f| f.rel_path.as_str())
         .collect();
 
@@ -736,7 +764,7 @@ fn package_sections(graph: &CodeGraph, prefix: Option<&str>) -> Vec<PackageSecti
         let members: Vec<String> = graph
             .file_nodes()
             .filter(|f| {
-                path_matches(&f.rel_path, prefix)
+                scope.includes(ArchitecturePath(&f.rel_path))
                     && f.rel_path != manifest
                     && is_under_dir(&f.rel_path)
             })
@@ -782,10 +810,10 @@ fn package_sections(graph: &CodeGraph, prefix: Option<&str>) -> Vec<PackageSecti
     sections
 }
 
-fn entry_points(graph: &CodeGraph, prefix: Option<&str>) -> Vec<EntryPoint> {
+fn entry_points(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<EntryPoint> {
     let mut entries: Vec<EntryPoint> = Vec::new();
     for file in graph.file_nodes() {
-        if !path_matches(&file.rel_path, prefix) {
+        if !scope.includes(ArchitecturePath(&file.rel_path)) {
             continue;
         }
         let name = file.rel_path.rsplit('/').next().unwrap_or(&file.rel_path);
@@ -808,7 +836,7 @@ fn entry_points(graph: &CodeGraph, prefix: Option<&str>) -> Vec<EntryPoint> {
     let mut route_files: BTreeSet<&str> = BTreeSet::new();
     for route in graph.routes() {
         if let Some(&rel_path) = file_path_by_id.get(route.from_file_id.as_str()) {
-            if path_matches(rel_path, prefix) {
+            if scope.includes(ArchitecturePath(rel_path)) {
                 route_files.insert(rel_path);
             }
         }
@@ -826,10 +854,10 @@ fn entry_points(graph: &CodeGraph, prefix: Option<&str>) -> Vec<EntryPoint> {
 /// Resolve every import/call edge to a (from-section, to-section) pair
 /// using the same best-effort suffix/name matching
 /// [`crate::analysis::CodeAdjacency`] documents, and tally counts.
-fn dependency_edges(graph: &CodeGraph, prefix: Option<&str>) -> Vec<DependencyEdge> {
+fn dependency_edges(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<DependencyEdge> {
     let file_paths: Vec<(&str, &str)> = graph
         .file_nodes()
-        .filter(|f| path_matches(&f.rel_path, prefix))
+        .filter(|f| scope.includes(ArchitecturePath(&f.rel_path)))
         .map(|f| (f.rel_path.as_str(), f.id.as_str()))
         .collect();
     let file_path_by_id: BTreeMap<&str, &str> = graph
@@ -851,7 +879,7 @@ fn dependency_edges(graph: &CodeGraph, prefix: Option<&str>) -> Vec<DependencyEd
         let Some(&from_path) = file_path_by_id.get(import.from_file_id.as_str()) else {
             continue;
         };
-        if !path_matches(from_path, prefix) {
+        if !scope.includes(ArchitecturePath(from_path)) {
             continue;
         }
         if let Some(to_path) = resolve_module_path(&import.module_path, &file_paths) {
@@ -867,13 +895,13 @@ fn dependency_edges(graph: &CodeGraph, prefix: Option<&str>) -> Vec<DependencyEd
         let Some(&from_path) = file_path_by_id.get(call.from_file_id.as_str()) else {
             continue;
         };
-        if !path_matches(from_path, prefix) {
+        if !scope.includes(ArchitecturePath(from_path)) {
             continue;
         }
         if let Some(to_symbol_id) = resolve_callee(&call.callee, &symbol_names) {
             if let Some(&to_file_id) = symbol_file_by_id.get(to_symbol_id) {
                 if let Some(&to_path) = file_path_by_id.get(to_file_id) {
-                    if path_matches(to_path, prefix) {
+                    if scope.includes(ArchitecturePath(to_path)) {
                         let from_section = crate_map_key(from_path);
                         let to_section = crate_map_key(to_path);
                         if from_section != to_section {
@@ -925,7 +953,7 @@ fn resolve_callee<'a>(callee: &str, symbol_names: &[(&'a str, &'a str)]) -> Opti
 /// directed, CALLS-edges only (never imports), matching the baseline's
 /// semantics rather than [`dependency_edges`]'s broader import+call
 /// mix used by [`Aspect::Dependencies`].
-fn boundaries(graph: &CodeGraph, prefix: Option<&str>) -> Vec<Boundary> {
+fn boundaries(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<Boundary> {
     let file_path_by_id: BTreeMap<&str, &str> = graph
         .file_nodes()
         .map(|f| (f.id.as_str(), f.rel_path.as_str()))
@@ -944,7 +972,7 @@ fn boundaries(graph: &CodeGraph, prefix: Option<&str>) -> Vec<Boundary> {
         let Some(&from_path) = file_path_by_id.get(call.from_file_id.as_str()) else {
             continue;
         };
-        if !path_matches(from_path, prefix) {
+        if !scope.includes(ArchitecturePath(from_path)) {
             continue;
         }
         let Some(to_symbol_id) = resolve_callee(&call.callee, &symbol_names) else {
@@ -956,7 +984,7 @@ fn boundaries(graph: &CodeGraph, prefix: Option<&str>) -> Vec<Boundary> {
         let Some(&to_path) = file_path_by_id.get(to_file_id) else {
             continue;
         };
-        if !path_matches(to_path, prefix) {
+        if !scope.includes(ArchitecturePath(to_path)) {
             continue;
         }
         let from_section = crate_map_key(from_path);
@@ -985,11 +1013,11 @@ fn boundaries(graph: &CodeGraph, prefix: Option<&str>) -> Vec<Boundary> {
 /// referencing a dropped cluster are dropped too.
 fn filtered_clusters(
     graph: &CodeGraph,
-    prefix: Option<&str>,
+    scope: ArchitectureScope<'_>,
     max_iterations: usize,
 ) -> ClusteringResult {
     let result = clustering::detect_clusters(graph, max_iterations);
-    if prefix.is_none() {
+    if scope.prefix.is_none() {
         return result;
     }
 
@@ -1009,7 +1037,7 @@ fn filtered_clusters(
                 .and_then(|file_id| file_path_by_id.get(*file_id).copied())
         });
         match rel_path {
-            Some(p) => path_matches(p, prefix),
+            Some(path) => scope.includes(ArchitecturePath(path)),
             None => false,
         }
     };
@@ -1109,11 +1137,14 @@ fn cluster_cohesion(result: &ClusteringResult) -> Vec<ClusterCohesion> {
 /// entry-surface detection. Deterministic: sections are visited in
 /// [`crate_sections`]' `BTreeMap`-derived order and every count is an
 /// exact sum, no sampling.
-fn layer_classification(graph: &CodeGraph, prefix: Option<&str>) -> Vec<LayerClassification> {
-    let sections = crate_sections(graph, prefix);
-    let cross_edges = boundaries(graph, prefix);
-    let entries = entry_points(graph, prefix);
-    let routes = route_entries(graph, prefix);
+fn layer_classification(
+    graph: &CodeGraph,
+    scope: ArchitectureScope<'_>,
+) -> Vec<LayerClassification> {
+    let sections = crate_sections(graph, scope);
+    let cross_edges = boundaries(graph, scope);
+    let entries = entry_points(graph, scope);
+    let routes = route_entries(graph, scope);
 
     let mut fan_in: BTreeMap<&str, usize> = BTreeMap::new();
     let mut fan_out: BTreeMap<&str, usize> = BTreeMap::new();
@@ -1255,7 +1286,7 @@ pub fn layering(clusters: &ClusteringResult) -> LayeringResult {
     }
 }
 
-fn file_tree(graph: &CodeGraph, prefix: Option<&str>) -> FileTree {
+fn file_tree(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> FileTree {
     // dir path -> (direct_file_count, direct_symbol_count).
     let mut direct_files: BTreeMap<String, usize> = BTreeMap::new();
     let mut direct_symbols: BTreeMap<String, usize> = BTreeMap::new();
@@ -1264,12 +1295,12 @@ fn file_tree(graph: &CodeGraph, prefix: Option<&str>) -> FileTree {
 
     let file_dir_by_id: BTreeMap<&str, String> = graph
         .file_nodes()
-        .filter(|f| path_matches(&f.rel_path, prefix))
+        .filter(|f| scope.includes(ArchitecturePath(&f.rel_path)))
         .map(|f| (f.id.as_str(), dir_of(&f.rel_path)))
         .collect();
 
     for file in graph.file_nodes() {
-        if !path_matches(&file.rel_path, prefix) {
+        if !scope.includes(ArchitecturePath(&file.rel_path)) {
             continue;
         }
         let dir = dir_of(&file.rel_path);
