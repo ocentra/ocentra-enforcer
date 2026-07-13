@@ -729,6 +729,6 @@ fn random_event_id() -> String {
         .unwrap_or_default();
     format!(
         "evt_{:032x}",
-        now.as_nanos() ^ ((std::process::id() as u128) << 32)
+        now.as_nanos() ^ (u128::from(std::process::id()) << 32)
     )
 }
