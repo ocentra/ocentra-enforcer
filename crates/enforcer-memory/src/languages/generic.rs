@@ -3853,22 +3853,17 @@ fn kotlin_delegation_bases(node: Node<'_>, src: &[u8]) -> Vec<String> {
     else {
         return out;
     };
-    for i in 0..specifiers.child_count() {
-        let Some(child) = specifiers.child(i) else {
-            continue;
-        };
+    for child in syntax_children(specifiers) {
         if child.kind() != "delegation_specifier" {
             continue;
         }
-        let Some(mut user_type) = (0..child.child_count())
-            .filter_map(|j| child.child(j))
+        let Some(mut user_type) = syntax_children(child)
             .find(|n| n.is_named())
         else {
             continue;
         };
         if user_type.kind() == "constructor_invocation" {
-            let Some(inner) = (0..user_type.child_count())
-                .filter_map(|j| user_type.child(j))
+            let Some(inner) = syntax_children(user_type)
                 .find(|n| n.is_named())
             else {
                 continue;
@@ -3876,8 +3871,7 @@ fn kotlin_delegation_bases(node: Node<'_>, src: &[u8]) -> Vec<String> {
             user_type = inner;
         }
         let name_node = if user_type.kind() == "user_type" {
-            (0..user_type.child_count())
-                .filter_map(|j| user_type.child(j))
+            syntax_children(user_type)
                 .find(|n| n.is_named())
                 .unwrap_or(user_type)
         } else {
@@ -3914,10 +3908,8 @@ fn kotlin_walk_scoped(
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..body.child_count() {
-        if let Some(child) = body.child(i) {
-            walk(child, &ctx, out, enclosing, fn_scope);
-        }
+    for child in syntax_children(body) {
+        walk(child, &ctx, out, enclosing, fn_scope);
     }
 }
 
@@ -4105,13 +4097,9 @@ fn kotlin_value_arguments_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> 
         return Vec::new();
     };
     let mut out = Vec::new();
-    for i in 0..args.child_count() {
-        if let Some(child) = args.child(i) {
-            if child.is_named() {
-                if let Ok(text) = child.utf8_text(src) {
-                    out.push(text.to_string());
-                }
-            }
+    for child in syntax_children(args).filter(|child| child.is_named()) {
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
@@ -4202,17 +4190,11 @@ fn swift_attribute_name(attribute_node: Node<'_>, src: &[u8]) -> Option<String> 
 /// declaration as a whole.
 fn swift_annotations(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else {
-            continue;
-        };
+    for child in syntax_children(node) {
         if child.kind() != "modifiers" {
             continue;
         }
-        for j in 0..child.child_count() {
-            let Some(modifier) = child.child(j) else {
-                continue;
-            };
+        for modifier in syntax_children(child) {
             if modifier.kind() == "attribute" {
                 if let Some(name) = swift_attribute_name(modifier, src) {
                     out.push(name);
@@ -4305,13 +4287,11 @@ fn swift_protocol_like(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool
 /// each `inheritance_specifier` wraps its base type directly).
 fn swift_inheritance_bases(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    for child in syntax_children(node) {
         if child.kind() != "inheritance_specifier" {
             continue;
         }
-        let Some(type_node) = (0..child.child_count())
-            .filter_map(|j| child.child(j))
+        let Some(type_node) = syntax_children(child)
             .find(|n| n.is_named())
         else {
             continue;
@@ -4344,10 +4324,8 @@ fn swift_walk_scoped(body: Node<'_>, src: &[u8], enclosing: Option<&str>, out: &
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..body.child_count() {
-        if let Some(child) = body.child(i) {
-            walk(child, &ctx, out, enclosing, FnScope::default());
-        }
+    for child in syntax_children(body) {
+        walk(child, &ctx, out, enclosing, FnScope::default());
     }
 }
 
@@ -4576,13 +4554,9 @@ fn swift_call_suffix_arg_texts(call_node: Node<'_>, suffix_kind: &str, src: &[u8
         return Vec::new();
     };
     let mut out = Vec::new();
-    for i in 0..args.child_count() {
-        if let Some(child) = args.child(i) {
-            if child.is_named() {
-                if let Ok(text) = child.utf8_text(src) {
-                    out.push(text.to_string());
-                }
-            }
+    for child in syntax_children(args).filter(|child| child.is_named()) {
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
@@ -4669,11 +4643,9 @@ fn solidity_import_directive_path(node: Node<'_>, src: &[u8]) -> Option<String> 
 /// (`using {a, b} for uint256;`) is not handled here -- best-effort,
 /// same posture as every other import-path helper in this file.
 fn solidity_using_directive_library_name(node: Node<'_>, src: &[u8]) -> Option<String> {
-    for i in 0..node.child_count() {
-        let child = node.child(i)?;
+    for child in syntax_children(node) {
         if child.kind() == "type_alias" {
-            for j in 0..child.child_count() {
-                let grandchild = child.child(j)?;
+            for grandchild in syntax_children(child) {
                 if grandchild.kind() == "identifier" {
                     return grandchild.utf8_text(src).ok().map(str::to_string);
                 }
@@ -4757,10 +4729,7 @@ fn solidity_quirk(
 /// language's heritage extraction (base *name* only, no constructor args).
 fn solidity_inheritance_specifier_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else {
-            continue;
-        };
+    for child in syntax_children(node) {
         if child.kind() != "inheritance_specifier" {
             continue;
         }
@@ -4789,10 +4758,8 @@ fn solidity_walk_scoped(node: Node<'_>, src: &[u8], name: Option<&str>, out: &mu
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, &ctx, out, name, FnScope::default());
-        }
+    for child in syntax_children(node) {
+        walk(child, &ctx, out, name, FnScope::default());
     }
 }
 
@@ -4840,10 +4807,7 @@ fn solidity_call_callee_and_receiver(
 /// children in `node-types.json`, not a named field.
 fn solidity_call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..call_node.child_count() {
-        let Some(child) = call_node.child(i) else {
-            continue;
-        };
+    for child in syntax_children(call_node) {
         if child.kind() != "call_argument" {
             continue;
         }
@@ -4925,8 +4889,7 @@ pub fn parse_solidity(source: &str) -> ParsedFile {
 /// (a bare `string` or `type` child -- `node-types.json` shows
 /// `extends_statement` has no fields at all).
 fn gdscript_extends_path(node: Node<'_>, src: &[u8]) -> Option<String> {
-    for i in 0..node.child_count() {
-        let child = node.child(i)?;
+    for child in syntax_children(node) {
         if matches!(child.kind(), "string" | "type" | "identifier") {
             let text = child.utf8_text(src).ok()?;
             return Some(text.trim_matches('"').to_string());
@@ -4950,8 +4913,7 @@ fn gdscript_class_name_extends_path(node: Node<'_>, src: &[u8]) -> Option<String
 /// situation Rust's `attribute_item`/TS's `decorator` handling already
 /// mirror via their own dedicated name helpers.
 fn gdscript_annotation_name(node: Node<'_>, src: &[u8]) -> Option<String> {
-    for i in 0..node.child_count() {
-        let child = node.child(i)?;
+    for child in syntax_children(node) {
         if child.kind() == "identifier" {
             return child.utf8_text(src).ok().map(str::to_string);
         }
@@ -5084,8 +5046,7 @@ fn gdscript_call_override(
 /// non-`arguments` named child (`node-types.json`: `call`'s `children`
 /// list is exactly one `_primary_expression`).
 fn gdscript_call_callee(node: Node<'_>, src: &[u8]) -> Option<String> {
-    for i in 0..node.child_count() {
-        let child = node.child(i)?;
+    for child in syntax_children(node) {
         if child.kind() == "arguments" {
             continue;
         }
@@ -5102,8 +5063,7 @@ fn gdscript_call_callee(node: Node<'_>, src: &[u8]) -> Option<String> {
 /// parse tree dump) -- the called method's own name is its one
 /// `identifier` child.
 fn gdscript_base_call_callee(node: Node<'_>, src: &[u8]) -> Option<String> {
-    for i in 0..node.child_count() {
-        let child = node.child(i)?;
+    for child in syntax_children(node) {
         if child.kind() == "identifier" {
             return child.utf8_text(src).ok().map(str::to_string);
         }
@@ -5266,13 +5226,9 @@ fn dart_interfaces(class_node: Node<'_>, src: &[u8]) -> Vec<String> {
     let Some(interfaces) = class_node.child_by_field_name("interfaces") else {
         return out;
     };
-    for i in 0..interfaces.child_count() {
-        if let Some(child) = interfaces.child(i) {
-            if child.is_named() {
-                if let Ok(text) = child.utf8_text(src) {
-                    out.push(text.to_string());
-                }
-            }
+    for child in syntax_children(interfaces).filter(|child| child.is_named()) {
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
@@ -5289,10 +5245,7 @@ fn dart_interfaces(class_node: Node<'_>, src: &[u8]) -> Vec<String> {
 /// matching every other language's name-only convention.
 fn dart_annotations(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else {
-            continue;
-        };
+    for child in syntax_children(node) {
         if child.kind() != "annotation" {
             continue;
         }
@@ -5317,8 +5270,7 @@ fn dart_declaration_name(node: Node<'_>, src: &[u8]) -> Option<String> {
     match signature.kind() {
         "function_signature" => child_text(signature, "name", src),
         "method_signature" => {
-            for i in 0..signature.child_count() {
-                let child = signature.child(i)?;
+            for child in syntax_children(signature) {
                 if child.kind() == "function_signature" {
                     return child_text(child, "name", src);
                 }
@@ -5359,18 +5311,13 @@ fn dart_import_specification_uri(spec: Node<'_>, src: &[u8]) -> Option<String> {
 /// [`dart_import_specification_uri`] reads an `import_specification`'s).
 fn dart_import_paths(import_or_export: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..import_or_export.child_count() {
-        let Some(wrapper) = import_or_export.child(i) else {
-            continue;
-        };
+    for wrapper in syntax_children(import_or_export) {
         match wrapper.kind() {
             "library_import" => {
-                for j in 0..wrapper.child_count() {
-                    if let Some(spec) = wrapper.child(j) {
-                        if spec.kind() == "import_specification" {
-                            if let Some(path) = dart_import_specification_uri(spec, src) {
-                                out.push(path);
-                            }
+                for spec in syntax_children(wrapper) {
+                    if spec.kind() == "import_specification" {
+                        if let Some(path) = dart_import_specification_uri(spec, src) {
+                            out.push(path);
                         }
                     }
                 }
