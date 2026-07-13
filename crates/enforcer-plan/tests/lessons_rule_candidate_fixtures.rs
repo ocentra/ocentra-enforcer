@@ -52,6 +52,9 @@ fn doctor_requires_complete_fixture_parity_for_code_rule_candidates() -> TestRes
         &contents,
         &HashMap::from([(id, RuleCandidateFixtures::Complete)]),
     );
-    assert!(findings.is_empty(), "expected green with complete parity: {findings:?}");
+    assert!(
+        findings.is_empty(),
+        "expected green with complete parity: {findings:?}"
+    );
     Ok(())
 }
