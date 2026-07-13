@@ -965,8 +965,17 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
     fn activate_claimed_lane(&mut self, workpack: &str, lane: &LaneId) -> PlanResult<()> {
         // A worktree is a real worker-side effect. Guard FIRST so a rejected
         // claim cannot create a runnable worker for an unguarded scope.
-        self.port.guard(lane.as_str())?;
-        self.worktrees.spawn(lane)?;
+        // A successful claim is not an active dispatch until both later
+        // steps succeed. Compensate either failure with closeout so a failed
+        // guard/spawn cannot strand ownership and block a future retry.
+        if let Err(activation_error) = self.port.guard(lane.as_str()) {
+            self.port.closeout(lane.as_str())?;
+            return Err(activation_error);
+        }
+        if let Err(activation_error) = self.worktrees.spawn(lane) {
+            self.port.closeout(lane.as_str())?;
+            return Err(activation_error);
+        }
         self.dispatched
             .insert(workpack.to_owned(), lane.as_str().to_owned());
         Ok(())

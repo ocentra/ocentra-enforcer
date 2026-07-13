@@ -2,8 +2,9 @@ use enforcer_plan::error::PlanError;
 use enforcer_plan::orchestrator::{
     CoordinationPort, GatekeeperHandoff, InMemoryCoordination, LaneEvent, LaneStatus,
     Orchestrator, PlanGraph, RecordingWorktreeSpawner, ScriptedLiveness, TickOutcome,
-    WorkpackNode, WORKER_REUSE_CAP,
+    WorkpackNode, WorktreeSpawner, WORKER_REUSE_CAP,
 };
+use enforcer_domain::ids::LaneId;
 
 #[derive(Default)]
 struct GuardRejectingPort {
@@ -34,6 +35,17 @@ impl CoordinationPort for GuardRejectingPort {
 
     fn events(&self) -> &[LaneEvent] {
         &self.events
+    }
+}
+
+#[derive(Default)]
+struct SpawnRejectingWorktreeSpawner;
+
+impl WorktreeSpawner for SpawnRejectingWorktreeSpawner {
+    fn spawn(&mut self, lane: &LaneId) -> Result<(), PlanError> {
+        Err(PlanError::GraphInvalid {
+            reason: format!("worktree spawn rejected `{lane}`"),
+        })
     }
 }
 
@@ -172,6 +184,32 @@ fn guard_rejection_never_spawns_a_worktree() {
     assert!(matches!(orch.tick(), Err(PlanError::GraphInvalid { .. })));
     assert!(orch.worktree_spawner().spawned.is_empty());
     assert!(!orch.is_dispatched("lane-a"));
+    assert!(matches!(
+        orch.coordination_events().last(),
+        Some(LaneEvent::ClosedOut { lane }) if lane == "lane-a"
+    ));
+}
+
+#[test]
+fn worktree_spawn_rejection_releases_the_claim() {
+    let graph = PlanGraph::from_nodes([node("lane-a", &[], &["a.rs"])]);
+    let mut orch = Orchestrator::new(
+        graph,
+        InMemoryCoordination::new(),
+        ScriptedLiveness::new(),
+        SpawnRejectingWorktreeSpawner,
+    );
+
+    assert!(matches!(orch.tick(), Err(PlanError::GraphInvalid { .. })));
+    assert!(!orch.is_dispatched("lane-a"));
+    assert!(matches!(
+        orch.coordination_events(),
+        [
+            LaneEvent::Claimed { lane, .. },
+            LaneEvent::Guarded { lane: guarded },
+            LaneEvent::ClosedOut { lane: closed },
+        ] if lane == "lane-a" && guarded == lane && closed == lane
+    ));
 }
 
 #[test]
