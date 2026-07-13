@@ -16,6 +16,7 @@ use enforcer_memory::artifacts::{get_exact, ArtifactLookupError};
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use enforcer_memory::federation::{import_bundle, RejectReason, RejectedBundle, TrustList};
 use enforcer_memory::graph::MemoryGraph;
+use enforcer_memory::ids::ArtifactId;
 use enforcer_memory::learning::{lesson_status, LessonStatus};
 use enforcer_memory::lesson::LessonRow;
 use enforcer_memory::record::{MemoryRecord, Provenance, RecordDomain, RecordKind};
@@ -95,24 +96,23 @@ fn exact_artifact_retrieval_wrong_id_and_traversal_are_all_fail_closed() -> Test
     let id = manifest.put(b"exact content", Some("a.txt"), "2026-07-05T00:00:00Z")?;
 
     // 1. Exact hit.
-    let content = get_exact(&manifest, id.as_str())?;
+    let content = get_exact(&manifest, &id)?;
     assert_eq!(content, b"exact content");
 
     // 2. Wrong (well-formed but unknown) id must fail closed, never
     // return the artifact above as a "close enough" match.
-    let wrong_id = format!("sha256:{}", "11".repeat(32));
+    let wrong_id = ArtifactId::from_digest(format!("sha256:{}", "11".repeat(32)).parse()?);
     assert!(matches!(
         get_exact(&manifest, &wrong_id),
         Err(ArtifactLookupError::NotFound { .. })
     ));
 
-    // 3. Traversal-shaped ids are rejected outright, before any
-    // filesystem access.
+    // 3. Traversal-shaped ids are rejected at the untrusted-text boundary,
+    // before they can become an ArtifactId or reach the manifest.
     for traversal in ["../../secrets", "..\\..\\secrets", "/etc/passwd"] {
-        assert!(matches!(
-            get_exact(&manifest, traversal),
-            Err(ArtifactLookupError::TraversalRejected { .. })
-        ));
+        assert!(traversal
+            .parse::<enforcer_domain::hashes::Sha256>()
+            .is_err());
     }
 
     std::fs::remove_dir_all(&root)?;
