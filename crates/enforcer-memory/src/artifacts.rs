@@ -14,10 +14,9 @@
 //!   similar/fuzzy/nearest artifact. An id that does not exist yields
 //!   [`ArtifactLookupError::NotFound`], never a "close enough"
 //!   substitute.
-//! - **traversal rejection**: any requested id shaped like a filesystem
-//!   escape attempt (`../`, backslash-form `..\`, an absolute path, or a
-//!   NUL byte) is rejected with [`ArtifactLookupError::TraversalRejected`]
-//!   before ever touching the manifest or the filesystem.
+//! - **typed lookup boundary**: this module accepts only a validated
+//!   [`ArtifactId`]. Callers must decode untrusted text at their own input
+//!   boundary before it can reach the manifest.
 //!
 //! # Persistence artifact (baseline §9.4 field parity)
 //!
@@ -69,80 +68,36 @@ pub enum ArtifactLookupError {
     /// content-address exists in the manifest. NEVER substituted with a
     /// similar artifact.
     #[error("no artifact with exact id {id:?} exists -- exact lookup never falls back to a similar artifact")]
-    NotFound { id: String },
-
-    /// The requested id is shaped like a filesystem traversal attempt
-    /// (`../`, `..\`, an absolute path, or embeds a NUL byte). Rejected
-    /// before any manifest/filesystem access.
-    #[error("rejected traversal-shaped artifact reference {raw:?}")]
-    TraversalRejected { raw: String },
+    NotFound { id: ArtifactId },
 
     /// The artifact's on-disk bytes no longer hash to the id the
     /// manifest recorded for them.
     #[error("artifact {id} failed integrity verification: {source}")]
     Corrupt {
-        id: String,
+        id: ArtifactId,
         #[source]
         source: crate::error::MemoryError,
     },
 }
 
-/// Reject any raw artifact reference that is shaped like a filesystem
-/// traversal attempt. Pure string check, no filesystem access, run
-/// BEFORE the value is used to build any path or manifest key.
-fn reject_traversal(raw: &str) -> Result<(), ArtifactLookupError> {
-    let looks_like_drive_prefix = raw.as_bytes().first().is_some_and(u8::is_ascii_alphabetic)
-        && raw.as_bytes().get(1) == Some(&b':');
-    let is_traversal = raw.contains("..")
-        || raw.starts_with('/')
-        || raw.starts_with('\\')
-        || raw.contains('\0')
-        || looks_like_drive_prefix;
-    if is_traversal {
-        return Err(ArtifactLookupError::TraversalRejected {
-            raw: raw.to_owned(),
-        });
-    }
-    Ok(())
-}
-
-/// Parse `raw` into an [`ArtifactId`] for an exact-match lookup. A
-/// malformed id is reported as [`ArtifactLookupError::NotFound`] (it can
-/// never match anything in the manifest) rather than panicking.
-fn parse_claimed_id(raw: &str) -> Result<ArtifactId, ArtifactLookupError> {
-    reject_traversal(raw)?;
-    // The decode error itself carries no information useful to a caller
-    // beyond "this string is not a well-formed digest" -- reporting it
-    // as `NotFound` (never a substitute match) is the fail-closed
-    // contract this function exists for, so the source error is
-    // deliberately not threaded through (`_decode_error`, not `_`, so
-    // clippy's `map_err_ignore` sees the discard is intentional).
-    let sha: enforcer_domain::hashes::Sha256 = raw
-        .parse()
-        .map_err(|_decode_error| ArtifactLookupError::NotFound { id: raw.to_owned() })?;
-    Ok(ArtifactId::from_digest(sha))
-}
-
-/// Exact-match artifact retrieval by content-addressed id. Returns the
-/// artifact's raw bytes on an exact hit; every other outcome (unknown
-/// id, malformed id, traversal-shaped id, corrupted blob) is a distinct
-/// typed error -- never a substituted "similar" artifact.
+/// Exact-match artifact retrieval by a validated, content-addressed id.
+/// Returns raw bytes on an exact hit; unknown ids and corrupt blobs remain
+/// distinct typed errors -- never a substituted "similar" artifact.
 pub fn get_exact(
     manifest: &ArtifactManifest,
-    raw_id: &str,
+    id: &ArtifactId,
 ) -> Result<Vec<u8>, ArtifactLookupError> {
-    let id = parse_claimed_id(raw_id)?;
-    if manifest.entry(&id).is_none() {
+    if manifest.entry(id).is_none() {
         return Err(ArtifactLookupError::NotFound {
-            id: raw_id.to_owned(),
+            id: id.clone(),
         });
     }
-    manifest.get(&id).map_err(|source| match source {
+    manifest.get(id).map_err(|source| match source {
         crate::error::MemoryError::Io { .. } => ArtifactLookupError::NotFound {
-            id: raw_id.to_owned(),
+            id: id.clone(),
         },
         other => ArtifactLookupError::Corrupt {
-            id: raw_id.to_owned(),
+            id: id.clone(),
             source: other,
         },
     })
@@ -150,12 +105,12 @@ pub fn get_exact(
 
 /// Exact-match snippet retrieval. A snippet is an artifact like any
 /// other in this manifest -- same content-address, same fail-closed
-/// exact-match contract, same traversal rejection.
+/// exact-match contract.
 pub fn get_snippet_exact(
     manifest: &ArtifactManifest,
-    raw_id: &str,
+    id: &ArtifactId,
 ) -> Result<Vec<u8>, ArtifactLookupError> {
-    get_exact(manifest, raw_id)
+    get_exact(manifest, id)
 }
 
 // ---------------------------------------------------------------------

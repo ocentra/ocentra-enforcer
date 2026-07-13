@@ -6,6 +6,7 @@ use enforcer_memory::artifacts::{
     import_graph_artifact, ArtifactLookupError, GraphSnapshot, GRAPH_ARTIFACT_META_FILENAME,
 };
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
+use enforcer_memory::ids::ArtifactId;
 use enforcer_memory::store::manifest::ArtifactManifest;
 use std::error::Error;
 use std::path::PathBuf;
@@ -58,7 +59,7 @@ fn exact_id_returns_exact_content() -> Result<(), Box<dyn Error>> {
     let mut manifest = ArtifactManifest::open(&root)?;
     let id = manifest.put(b"hello artifact", Some("a.txt"), "2026-07-05T00:00:00Z")?;
 
-    let content = get_exact(&manifest, id.as_str())?;
+    let content = get_exact(&manifest, &id)?;
     assert_eq!(content, b"hello artifact");
 
     std::fs::remove_dir_all(&root)?;
@@ -72,7 +73,8 @@ fn wrong_id_is_fail_closed_not_similar() -> Result<(), Box<dyn Error>> {
     manifest.put(b"artifact one", Some("a.txt"), "2026-07-05T00:00:00Z")?;
     manifest.put(b"artifact two", Some("b.txt"), "2026-07-05T00:00:01Z")?;
 
-    let unknown = format!("sha256:{}", "ab".repeat(32));
+    let digest = format!("sha256:{}", "ab".repeat(32)).parse()?;
+    let unknown = ArtifactId::from_digest(digest);
     let outcome = get_exact(&manifest, &unknown);
     assert!(
         matches!(outcome, Err(ArtifactLookupError::NotFound { .. })),
@@ -84,52 +86,17 @@ fn wrong_id_is_fail_closed_not_similar() -> Result<(), Box<dyn Error>> {
 }
 
 #[test]
-fn malformed_id_is_not_found_not_panic() -> Result<(), Box<dyn Error>> {
-    let root = temp_dir("malformed-id");
-    let manifest = ArtifactManifest::open(&root)?;
-    let outcome = get_exact(&manifest, "not-a-real-id");
-    assert!(matches!(outcome, Err(ArtifactLookupError::NotFound { .. })));
-    std::fs::remove_dir_all(&root)?;
-    Ok(())
-}
-
-#[test]
-fn traversal_shaped_ids_are_rejected() -> Result<(), Box<dyn Error>> {
-    let root = temp_dir("traversal");
-    let manifest = ArtifactManifest::open(&root)?;
-
-    let cases = [
-        "../../etc/passwd",
-        "..\\..\\windows\\system32",
-        "/etc/passwd",
-        "\\windows\\system32",
-        "C:\\Windows\\System32\\config",
-        "sha256:..\u{0}deadbeef",
-    ];
-    for raw in cases {
-        let outcome = get_exact(&manifest, raw);
-        assert!(
-            matches!(outcome, Err(ArtifactLookupError::TraversalRejected { .. })),
-            "expected traversal rejection for {raw:?}, got {outcome:?}"
-        );
-    }
-    std::fs::remove_dir_all(&root)?;
-    Ok(())
-}
-
-#[test]
 fn snippet_exact_shares_the_same_fail_closed_contract() -> Result<(), Box<dyn Error>> {
     let root = temp_dir("snippet");
     let mut manifest = ArtifactManifest::open(&root)?;
     let id = manifest.put(b"fn snippet() {}", Some("snip.rs"), "2026-07-05T00:00:00Z")?;
-    let content = get_snippet_exact(&manifest, id.as_str())?;
+    let content = get_snippet_exact(&manifest, &id)?;
     assert_eq!(content, b"fn snippet() {}");
 
-    let outcome = get_snippet_exact(&manifest, "../escape");
-    assert!(matches!(
-        outcome,
-        Err(ArtifactLookupError::TraversalRejected { .. })
-    ));
+    let digest = format!("sha256:{}", "ef".repeat(32)).parse()?;
+    let unknown = ArtifactId::from_digest(digest);
+    let outcome = get_snippet_exact(&manifest, &unknown);
+    assert!(matches!(outcome, Err(ArtifactLookupError::NotFound { .. })));
     std::fs::remove_dir_all(&root)?;
     Ok(())
 }
