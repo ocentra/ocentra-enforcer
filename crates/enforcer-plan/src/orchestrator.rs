@@ -326,6 +326,17 @@ pub struct LiveCoordination<'a> {
     held: HashMap<String, Vec<String>>,
 }
 
+impl std::fmt::Debug for LiveCoordination<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("LiveCoordination")
+            .field("repo_root", &self.repo_root)
+            .field("events", &self.events)
+            .field("held", &self.held)
+            .finish_non_exhaustive()
+    }
+}
+
 impl<'a> LiveCoordination<'a> {
     pub fn new(hub: &'a Hub, repo_root: std::path::PathBuf, caller: CallerContext) -> Self {
         Self {
@@ -683,6 +694,7 @@ pub enum TickOutcome {
 /// and [`LaneLivenessSource`] together through `tick()`-until-done. Generic
 /// over the port/liveness implementations so the same loop runs against a
 /// live hub or a fully in-memory fixture.
+#[derive(Debug)]
 pub struct Orchestrator<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> {
     graph: PlanGraph,
     port: P,
