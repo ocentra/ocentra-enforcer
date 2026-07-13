@@ -3132,10 +3132,11 @@ fn cpp_gtest_macro_test_name(callee: &str, declarator: Node<'_>, src: &[u8]) -> 
             _ => None,
         })
         .collect();
-    if idents.len() < 2 {
+    let mut identifier_parts = idents.into_iter();
+    let (Some(suite), Some(test_name)) = (identifier_parts.next(), identifier_parts.next()) else {
         return None;
-    }
-    Some(format!("{}.{}", idents[0], idents[1]))
+    };
+    Some(format!("{suite}.{test_name}"))
 }
 
 /// For a `field_expression`-shaped callee, the receiver text plus a
