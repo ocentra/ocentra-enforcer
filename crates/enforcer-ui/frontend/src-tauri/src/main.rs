@@ -967,6 +967,14 @@ async fn waive_packaged_finding(
 #[derive(Debug)]
 struct DesktopCommandError(String);
 
+impl std::fmt::Display for DesktopCommandError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for DesktopCommandError {}
+
 impl From<DesktopCommandError> for String {
     fn from(error: DesktopCommandError) -> Self {
         error.0
@@ -1729,12 +1737,12 @@ fn resolve_pack_root() -> Result<PackRoot, DesktopCommandError> {
     )))
 }
 
-/// Test-only infallible accessor: the source tree the tests run from always
-/// carries the pack markers, so resolution must succeed. Production code paths
-/// use [`resolve_pack_root`] and surface the error state instead.
+/// Test-only pack-root accessor. Tests preserve the same fallible resource
+/// boundary as production commands, so a missing packaged resource is returned
+/// to the test harness instead of aborting the process.
 #[cfg(test)]
-fn desktop_workspace_root() -> PackRoot {
-    resolve_pack_root().expect("packaged resources must resolve from the test build tree")
+fn desktop_workspace_root() -> Result<PackRoot, DesktopCommandError> {
+    resolve_pack_root()
 }
 
 #[tauri::command]
@@ -2341,7 +2349,7 @@ mod desktop_project_tests {
 
     #[test]
     fn scan_target_catalog_lists_real_cargo_packages() -> Result<(), Box<dyn std::error::Error>> {
-        let targets = discover_scan_targets(&desktop_workspace_root())?;
+        let targets = discover_scan_targets(&desktop_workspace_root()?)?;
         let memory = targets
             .iter()
             .find(|target| target.id == "crate:enforcer-memory")
@@ -2355,7 +2363,7 @@ mod desktop_project_tests {
     #[test]
     fn scan_target_catalog_lists_controlled_fixture_packages(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let root = desktop_workspace_root().join(
+        let root = desktop_workspace_root()?.join(
             "crates/enforcer-ui/frontend/src-tauri/tests/fixtures/desktop/cargo-workspace",
         );
         let targets = discover_scan_targets(&root)?;
@@ -2377,11 +2385,11 @@ mod desktop_project_tests {
 
     #[test]
     fn packaged_scan_fixture_excludes_other_packages() -> Result<(), Box<dyn std::error::Error>> {
-        let fixture_root = desktop_workspace_root().join(
+        let fixture_root = desktop_workspace_root()?.join(
             "crates/enforcer-ui/frontend/src-tauri/tests/fixtures/desktop/cargo-workspace",
         );
         let fixture_root = fixture_root.display().to_string();
-        let script = desktop_workspace_root()
+        let script = desktop_workspace_root()?
             .join("scripts")
             .join("ocentra-enforcer.mjs");
         let scan = |args: &[&str]| -> Result<serde_json::Value, Box<dyn std::error::Error>> {
@@ -2389,7 +2397,7 @@ mod desktop_project_tests {
                 .arg(&script)
                 .arg("scan")
                 .args(args)
-                .current_dir(desktop_workspace_root())
+                .current_dir(desktop_workspace_root()?)
                 .output()?;
             assert!(
                 !output.status.success(),
@@ -2451,7 +2459,7 @@ mod desktop_project_tests {
     #[test]
     fn project_rule_coverage_uses_rust_language_scope_and_evaluated_path_status(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let root = desktop_workspace_root()
+        let root = desktop_workspace_root()?
             .join("crates/enforcer-ui/frontend/src-tauri/tests/fixtures/desktop/cargo-workspace");
         let coverage = load_project_rule_coverage(root.display().to_string())?;
 
@@ -2532,19 +2540,21 @@ mod desktop_project_tests {
     }
 
     #[test]
-    fn workpack_index_loads_the_authoritative_plan_document() {
-        let payload = load_workpack_index().expect("authoritative workpack index loads");
+    fn workpack_index_loads_the_authoritative_plan_document(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let payload = load_workpack_index()?;
 
         assert!(payload.rows.len() >= 100);
         assert!(payload.rows.iter().any(|row| row.id == "g09"));
         assert!(payload.status_counts.contains_key("TODO"));
         assert!(payload.caveat.contains("not execution"));
+        Ok(())
     }
 
     #[test]
     fn legacy_analysis_bridge_runs_typed_reports_against_the_controlled_fixture(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let fixture = desktop_workspace_root()
+        let fixture = desktop_workspace_root()?
             .join("crates")
             .join("enforcer-memory")
             .join("tests")
@@ -3021,6 +3031,7 @@ mod desktop_project_tests {
     #[test]
     fn memory_summary_uses_engine_x06_proofs_for_a_selected_project() -> Result<(), String> {
         let selected_project = desktop_workspace_root()
+            .map_err(|error| error.to_string())?
             .join("crates/enforcer-ui/frontend/src-tauri/tests/fixtures/desktop/cargo-workspace");
         let summary = load_memory_summary(selected_project.display().to_string())?;
 
