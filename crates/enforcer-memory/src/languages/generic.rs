@@ -1752,10 +1752,9 @@ fn py_walk_scoped_body(class_node: Node<'_>, src: &[u8], name: Option<&str>, out
         // would incorrectly classify as Method instead of Test.
         is_test_file: true,
     };
-    for i in 0..class_node.child_count() {
-        if let Some(child) = class_node.child(i) {
-            walk(child, &ctx, out, name, FnScope::default());
-        }
+    let mut cursor = class_node.walk();
+    for child in class_node.children(&mut cursor) {
+        walk(child, &ctx, out, name, FnScope::default());
     }
 }
 
@@ -1802,8 +1801,8 @@ const JAVA_MAPPING_ANNOTATIONS: &[(&str, &str)] = &[
 /// `package a.b.c;` -- mirrors `languages/java.rs`'s `package_name`
 /// byte-for-byte.
 fn java_package_name(node: Node<'_>, src: &[u8]) -> Option<String> {
-    for i in 0..node.child_count() {
-        let child = node.child(i)?;
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
         if matches!(child.kind(), "scoped_identifier" | "identifier") {
             return child.utf8_text(src).ok().map(str::to_string);
         }
@@ -1815,8 +1814,9 @@ fn java_package_name(node: Node<'_>, src: &[u8]) -> Option<String> {
 /// `superclass_name` byte-for-byte.
 fn java_superclass_name(class_node: Node<'_>, src: &[u8]) -> Option<String> {
     let superclass = class_node.child_by_field_name("superclass")?;
-    let type_node = (0..superclass.child_count())
-        .filter_map(|i| superclass.child(i))
+    let mut cursor = superclass.walk();
+    let type_node = superclass
+        .children(&mut cursor)
         .find(|n| n.is_named())?;
     type_node.utf8_text(src).ok().map(str::to_string)
 }
@@ -1834,12 +1834,11 @@ fn java_super_interfaces(node: Node<'_>, src: &[u8]) -> Vec<String> {
     else {
         return out;
     };
-    for i in 0..type_list.child_count() {
-        if let Some(child) = type_list.child(i) {
-            if child.is_named() {
-                if let Ok(text) = child.utf8_text(src) {
-                    out.push(text.to_string());
-                }
+    let mut cursor = type_list.walk();
+    for child in type_list.children(&mut cursor) {
+        if child.is_named() {
+            if let Ok(text) = child.utf8_text(src) {
+                out.push(text.to_string());
             }
         }
     }
@@ -1850,25 +1849,23 @@ fn java_super_interfaces(node: Node<'_>, src: &[u8]) -> Vec<String> {
 /// `languages/java.rs`'s `extends_interfaces` byte-for-byte.
 fn java_extends_interfaces(interface_node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..interface_node.child_count() {
-        let Some(child) = interface_node.child(i) else {
-            continue;
-        };
+    let mut cursor = interface_node.walk();
+    for child in interface_node.children(&mut cursor) {
         if child.kind() != "extends_interfaces" {
             continue;
         }
-        let Some(type_list) = (0..child.child_count())
-            .filter_map(|i| child.child(i))
+        let mut child_cursor = child.walk();
+        let Some(type_list) = child
+            .children(&mut child_cursor)
             .find(|n| n.kind() == "type_list")
         else {
             continue;
         };
-        for j in 0..type_list.child_count() {
-            if let Some(entry) = type_list.child(j) {
-                if entry.is_named() {
-                    if let Ok(text) = entry.utf8_text(src) {
-                        out.push(text.to_string());
-                    }
+        let mut type_list_cursor = type_list.walk();
+        for entry in type_list.children(&mut type_list_cursor) {
+            if entry.is_named() {
+                if let Ok(text) = entry.utf8_text(src) {
+                    out.push(text.to_string());
                 }
             }
         }
@@ -1881,15 +1878,13 @@ fn java_extends_interfaces(interface_node: Node<'_>, src: &[u8]) -> Vec<String> 
 /// byte-for-byte.
 fn java_annotations(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
         if child.kind() != "modifiers" {
             continue;
         }
-        for j in 0..child.child_count() {
-            let Some(modifier) = child.child(j) else {
-                continue;
-            };
+        let mut modifier_cursor = child.walk();
+        for modifier in child.children(&mut modifier_cursor) {
             match modifier.kind() {
                 "marker_annotation" | "annotation" => {
                     if let Some(name_node) = modifier.child_by_field_name("name") {
@@ -1907,17 +1902,16 @@ fn java_annotations(node: Node<'_>, src: &[u8]) -> Vec<String> {
 
 fn java_modifier_texts(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
         if child.kind() != "modifiers" {
             continue;
         }
-        for j in 0..child.child_count() {
-            if let Some(modifier) = child.child(j) {
-                if !modifier.is_named() {
-                    if let Ok(text) = modifier.utf8_text(src) {
-                        out.push(text.to_string());
-                    }
+        let mut modifier_cursor = child.walk();
+        for modifier in child.children(&mut modifier_cursor) {
+            if !modifier.is_named() {
+                if let Ok(text) = modifier.utf8_text(src) {
+                    out.push(text.to_string());
                 }
             }
         }
@@ -1929,10 +1923,8 @@ fn java_modifier_texts(node: Node<'_>, src: &[u8]) -> Vec<String> {
 /// byte-for-byte.
 fn java_field_names(field_node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..field_node.child_count() {
-        let Some(child) = field_node.child(i) else {
-            continue;
-        };
+    let mut cursor = field_node.walk();
+    for child in field_node.children(&mut cursor) {
         if child.kind() != "variable_declarator" {
             continue;
         }
@@ -1950,13 +1942,12 @@ fn java_field_names(field_node: Node<'_>, src: &[u8]) -> Vec<String> {
 fn java_signature_type_refs(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
     if let Some(params) = node.child_by_field_name("parameters") {
-        for i in 0..params.child_count() {
-            if let Some(param) = params.child(i) {
-                if param.kind() == "formal_parameter" {
-                    if let Some(type_node) = param.child_by_field_name("type") {
-                        if let Ok(text) = type_node.utf8_text(src) {
-                            out.push(text.to_string());
-                        }
+        let mut cursor = params.walk();
+        for param in params.children(&mut cursor) {
+            if param.kind() == "formal_parameter" {
+                if let Some(type_node) = param.child_by_field_name("type") {
+                    if let Ok(text) = type_node.utf8_text(src) {
+                        out.push(text.to_string());
                     }
                 }
             }
@@ -1974,8 +1965,8 @@ fn java_signature_type_refs(node: Node<'_>, src: &[u8]) -> Vec<String> {
 /// mirrors `languages/java.rs`'s `import_path` byte-for-byte.
 fn java_import_path(node: Node<'_>, src: &[u8]) -> Option<String> {
     let mut parts = Vec::new();
-    for i in 0..node.child_count() {
-        let child = node.child(i)?;
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
         match child.kind() {
             "identifier" | "scoped_identifier" => {
                 if let Ok(text) = child.utf8_text(src) {
@@ -2055,14 +2046,13 @@ fn java_call_arg_texts(invocation_node: Node<'_>, src: &[u8]) -> Vec<String> {
         return Vec::new();
     };
     let mut out = Vec::new();
-    for i in 0..args.child_count() {
-        if let Some(child) = args.child(i) {
-            if matches!(child.kind(), "(" | ")" | ",") {
-                continue;
-            }
-            if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
-            }
+    let mut cursor = args.walk();
+    for child in args.children(&mut cursor) {
+        if matches!(child.kind(), "(" | ")" | ",") {
+            continue;
+        }
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
@@ -2092,13 +2082,13 @@ fn java_mapping_path_argument(
     method_node: Node<'_>,
     src: &[u8],
 ) -> Option<String> {
-    for i in 0..method_node.child_count() {
-        let child = method_node.child(i)?;
+    let mut cursor = method_node.walk();
+    for child in method_node.children(&mut cursor) {
         if child.kind() != "modifiers" {
             continue;
         }
-        for j in 0..child.child_count() {
-            let annotation = child.child(j)?;
+        let mut annotation_cursor = child.walk();
+        for annotation in child.children(&mut annotation_cursor) {
             if annotation.kind() != "annotation" {
                 continue;
             }
@@ -2110,8 +2100,8 @@ fn java_mapping_path_argument(
                 continue;
             }
             let args = annotation.child_by_field_name("arguments")?;
-            for k in 0..args.child_count() {
-                let arg = args.child(k)?;
+            let mut args_cursor = args.walk();
+            for arg in args.children(&mut args_cursor) {
                 match arg.kind() {
                     "string_literal" => {
                         let raw = arg.utf8_text(src).ok()?;
