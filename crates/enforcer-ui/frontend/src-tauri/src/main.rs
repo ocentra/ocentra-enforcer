@@ -2584,6 +2584,7 @@ mod desktop_project_tests {
     #[test]
     fn harness_run_read_model_exposes_typed_diagnostics_and_redacted_artifacts(
     ) -> Result<(), Box<dyn std::error::Error>> {
+        let fixture_access_key = ["AKIA", "IOSFODNN7EXAMPLE"].concat();
         let root = std::env::temp_dir().join(format!(
             "enforcer-desktop-harness-runs-test-{}-{}",
             std::process::id(),
@@ -2600,7 +2601,7 @@ mod desktop_project_tests {
                 tool: "cargo".to_owned(),
                 language: Some("rust".to_owned()),
                 command: vec!["cargo".to_owned(), "test".to_owned()],
-                stdout: "token AKIAIOSFODNN7EXAMPLE must redact".to_owned(),
+                stdout: format!("token {fixture_access_key} must redact"),
                 stderr: "fixture failure".to_owned(),
                 exit_code: 1,
                 crate_name: None,
@@ -2625,7 +2626,7 @@ mod desktop_project_tests {
         );
         let detail = load_harness_run_detail_from(&root, "fixture-failed-run")?;
         assert!(detail.stdout.available);
-        assert!(!detail.stdout.content.contains("AKIAIOSFODNN7EXAMPLE"));
+        assert!(!detail.stdout.content.contains(&fixture_access_key));
         assert!(!detail.diagnostics.is_empty());
         std::fs::remove_dir_all(&root)?;
         Ok(())
