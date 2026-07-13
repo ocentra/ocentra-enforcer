@@ -114,6 +114,27 @@ fn resume_simulation_fails_closed_over_tight_budget() -> Result<(), Box<dyn std:
 }
 
 #[test]
+fn resume_simulation_fails_closed_on_a_cyclic_next_chain() {
+    let global = TierDocument {
+        path: "global/AGENTS.md".to_owned(),
+        source: "<!-- agents-forest-tier: global -->\n<!-- agents-next-tier -->\nNEXT: project/AGENTS.md\n<!-- /agents-next-tier -->".to_owned(),
+    };
+    let project = TierDocument {
+        path: "project/AGENTS.md".to_owned(),
+        source: "<!-- agents-forest-tier: project -->\n<!-- agents-next-tier -->\nNEXT: global/AGENTS.md\n<!-- /agents-next-tier -->".to_owned(),
+    };
+    let by_path = HashMap::from([
+        (global.path.clone(), global.clone()),
+        (project.path.clone(), project),
+    ]);
+
+    assert!(matches!(
+        run_resume_simulation(&global, &by_path, 10_000),
+        ResumeSimOutcome::Broken(reason) if reason.contains("cycle")
+    ));
+}
+
+#[test]
 fn validators_hold_fixture_parity() -> Result<(), Box<dyn std::error::Error>> {
     let root = manifest_dir();
     run_fixture_parity(

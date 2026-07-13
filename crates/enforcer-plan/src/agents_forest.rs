@@ -57,7 +57,7 @@
 //! validators (b02's own module), or the capsule/index templating engine
 //! itself (b03's `templates.rs` — this module calls it, not clones it).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
@@ -582,6 +582,7 @@ pub fn run_resume_simulation(
 ) -> ResumeSimOutcome {
     let mut summed_bytes = global.source.len();
     let mut current = global;
+    let mut visited_tiers = HashSet::new();
 
     loop {
         let Some(marker) = tier_marker(&current.source) else {
@@ -590,6 +591,12 @@ pub fn run_resume_simulation(
                 current.path
             ));
         };
+        if !visited_tiers.insert((marker, current.path.as_str())) {
+            return ResumeSimOutcome::Broken(format!(
+                "resume chain cycle revisits `{marker}` tier at `{}`",
+                current.path
+            ));
+        }
         let Some(next_block) = managed_block(&current.source, "agents-next-tier") else {
             return ResumeSimOutcome::Broken(format!(
                 "tier document `{}` has no NEXT pointer block",
