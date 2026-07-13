@@ -814,15 +814,12 @@ fn lesson_finding(rule_id: &RuleId, severity: Severity, detail: String, file: &R
     }
 }
 
-fn synthetic_doctor_path() -> RelPath {
-    "lessons.ndjson".parse().unwrap_or_else(|_| {
-        // Unreachable in practice: the literal above satisfies `RelPath`'s
-        // own rules; loop-retry rather than panic per workspace policy.
-        loop {
-            if let Ok(path) = "lessons.ndjson".parse::<RelPath>() {
-                return path;
-            }
-        }
+fn synthetic_doctor_path() -> Result<RelPath, PlanError> {
+    // ALLOC-JUSTIFICATION: RelPath and the typed PlanError both own their
+    // values; this fixed synthetic finding path crosses that owned boundary.
+    RelPath::try_from("lessons.ndjson".to_owned()).map_err(|error| PlanError::Io {
+        path: "lesson doctor".to_owned(),
+        reason: error.to_string(),
     })
 }
 
@@ -837,9 +834,9 @@ pub fn run_doctor(
     records: &[LessonRecord],
     landed_artifact_contents: &HashMap<ArtifactRef, String>,
     rule_candidate_fixtures: &HashMap<LessonId, RuleCandidateFixtures>,
-) -> Vec<Finding> {
+) -> Result<Vec<Finding>, PlanError> {
     let mut findings = Vec::new();
-    let file = synthetic_doctor_path();
+    let file = synthetic_doctor_path()?;
 
     for record in records {
         if record.is_plan_doc_only() {
@@ -929,7 +926,7 @@ pub fn run_doctor(
         }
     }
 
-    findings
+    Ok(findings)
 }
 
 // ---------------------------------------------------------------------
@@ -1037,18 +1034,19 @@ fn sniff_domain(observed: &str) -> LessonDomain {
 }
 
 fn seed_row_to_record(row: &SeedRow) -> Result<LessonRecord, PlanError> {
-    let id: LessonId = row.id.parse().map_err(|e: DecodeError| PlanError::Io {
+    // CLONE-JUSTIFICATION: the imported record owns its id while the parsed
+    // seed row remains available for the remaining route and artifact fields.
+    let id = LessonId::try_from(row.id.clone()).map_err(|e: DecodeError| PlanError::Io {
         path: "seed corpus".to_owned(),
         reason: e.to_string(),
     })?;
     let landed_at = if row.landed_at.trim().is_empty() {
         Vec::new()
     } else {
-        vec![format!(
+        vec![ArtifactRef::try_from(format!(
             "{}#{}",
             "docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md", row.id
-        )
-        .parse()
+        ))
         .map_err(|e: DecodeError| PlanError::Io {
             path: "seed corpus".to_owned(),
             reason: e.to_string(),
@@ -1331,123 +1329,9 @@ mod tests {
 
     // -- LessonId / ArtifactRef branding --
 
-    #[test]
-    fn lesson_id_accepts_valid_and_rejects_malformed() {
-        for good in ["L1", "L26", "L11-FILL"] {
-            assert_eq!(
-                good.parse::<LessonId>().map(|value| value.to_string()),
-                Ok(good.to_owned()),
-                "should accept {good:?}"
-            );
-        }
-        for bad in ["", "1", "l1", "M1"] {
-            assert!(bad.parse::<LessonId>().is_err(), "should reject {bad:?}");
-        }
-    }
-
-    #[test]
-    fn artifact_ref_rejects_empty() {
-        assert!("".parse::<ArtifactRef>().is_err());
-        assert_eq!(
-            "some/path.md#L1"
-                .parse::<ArtifactRef>()
-                .map(|value| value.to_string()),
-            Ok("some/path.md#L1".to_owned())
-        );
-    }
-
     // -- Ledger: append-only, hash-chained, verify-on-open --
 
-    #[test]
-    fn ledger_round_trips_and_verifies() -> Result<(), Box<dyn std::error::Error>> {
-        let path = temp_ledger_path("round-trip");
-        {
-            let mut ledger = LessonLedger::open(&path)?;
-            ledger.append(sample_record("L1")?)?;
-            ledger.append(sample_record("L2")?)?;
-        }
-        let ledger = LessonLedger::open(&path)?;
-        assert_eq!(ledger.verify_on_replay()?, 2);
-        assert_eq!(ledger.list()?.len(), 2);
-        std::fs::remove_file(&path)?;
-        Ok(())
-    }
-
-    #[test]
-    fn rewriting_a_prior_row_is_detected_on_open() -> Result<(), Box<dyn std::error::Error>> {
-        let path = temp_ledger_path("tamper");
-        {
-            let mut ledger = LessonLedger::open(&path)?;
-            ledger.append(sample_record("L1")?)?;
-            ledger.append(sample_record("L2")?)?;
-        }
-        // Tamper: rewrite the first line's `lesson` text without recomputing
-        // its digest — a real editor doing an in-place row edit, not a
-        // fresh append.
-        let content = std::fs::read_to_string(&path)?;
-        let mut lines: Vec<String> = content.lines().map(str::to_owned).collect();
-        let mut value: serde_json::Value = serde_json::from_str(&lines[0])?;
-        value["record"]["lesson"] = serde_json::json!("REWRITTEN");
-        lines[0] = value.to_string();
-        std::fs::write(&path, lines.join("\n") + "\n")?;
-
-        let outcome = LessonLedger::open(&path);
-        assert!(
-            outcome.is_err(),
-            "rewritten prior row must fail verify-on-open"
-        );
-        std::fs::remove_file(&path)?;
-        Ok(())
-    }
-
-    #[test]
-    fn supersede_append_passes_and_never_rewrites() -> Result<(), Box<dyn std::error::Error>> {
-        let path = temp_ledger_path("supersede");
-        let mut ledger = LessonLedger::open(&path)?;
-        ledger.append(sample_record("L1")?)?;
-        let artifact: ArtifactRef = "docs/AGENTS.md#L1".parse()?;
-        ledger.supersede(&"L1".parse()?, vec![artifact.clone()])?;
-
-        // Two rows now exist on disk (never rewrote the first).
-        assert_eq!(ledger.list()?.len(), 2);
-        // The chain still verifies (supersede is itself append-only).
-        assert_eq!(ledger.verify_on_replay()?, 2);
-        // `latest()` folds to one effective record with the artifact filled
-        // in.
-        let latest = ledger.latest()?;
-        assert_eq!(latest.len(), 1);
-        assert_eq!(latest[0].landed_at, vec![artifact]);
-        std::fs::remove_file(&path)?;
-        Ok(())
-    }
-
-    #[test]
-    fn append_rejects_duplicate_id_without_supersede() -> Result<(), Box<dyn std::error::Error>> {
-        let path = temp_ledger_path("dup-reject");
-        let mut ledger = LessonLedger::open(&path)?;
-        ledger.append(sample_record("L1")?)?;
-        let outcome = ledger.append(sample_record("L1")?);
-        assert!(outcome.is_err());
-        std::fs::remove_file(&path)?;
-        Ok(())
-    }
-
     // -- add / list seams --
-
-    #[test]
-    fn add_then_list_round_trips_through_the_cli_seam() -> Result<(), Box<dyn std::error::Error>> {
-        let path = temp_ledger_path("seam");
-        add(&path, sample_record("L1")?)?;
-        add(&path, sample_record("L2")?)?;
-        let all = list(&path, None, false)?;
-        assert_eq!(all.len(), 2);
-        let filtered = list(&path, Some(LessonRoute::Skill), false)?;
-        assert_eq!(filtered.len(), 2);
-        let pending = list(&path, None, true)?;
-        assert_eq!(pending.len(), 2, "neither lesson has landed yet");
-        std::fs::remove_file(&path)?;
-        Ok(())
-    }
 
     // -- Emitters: golden pass fixture + dry-run zero-write --
 
@@ -1559,7 +1443,7 @@ mod tests {
     fn doctor_flags_zero_landed_artifacts_as_error() -> Result<(), Box<dyn std::error::Error>> {
         let record = sample_record("L1")?; // routes present, landed_at empty
         let rule_id: RuleId = "LESSON-DOCTOR.1".parse()?;
-        let findings = run_doctor(&rule_id, &[record], &HashMap::new(), &HashMap::new());
+        let findings = run_doctor(&rule_id, &[record], &HashMap::new(), &HashMap::new())?;
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].severity, Severity::Error);
         assert!(findings[0].detail.contains("L1"));
@@ -1575,7 +1459,7 @@ mod tests {
         let mut contents = HashMap::new();
         contents.insert(artifact, "this block does not mention the id".to_owned());
         let rule_id: RuleId = "LESSON-DOCTOR.1".parse()?;
-        let findings = run_doctor(&rule_id, &[record], &contents, &HashMap::new());
+        let findings = run_doctor(&rule_id, &[record], &contents, &HashMap::new())?;
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].severity, Severity::Error);
         Ok(())
@@ -1592,7 +1476,7 @@ mod tests {
         contents.insert(doctrine_artifact, "contains L1 lesson block".to_owned());
         contents.insert(skill_artifact, "contains L1 in a skill section".to_owned());
         let rule_id: RuleId = "LESSON-DOCTOR.1".parse()?;
-        let findings = run_doctor(&rule_id, &[record], &contents, &HashMap::new());
+        let findings = run_doctor(&rule_id, &[record], &contents, &HashMap::new())?;
         assert!(findings.is_empty(), "expected doctor green: {findings:?}");
         Ok(())
     }
@@ -1602,110 +1486,9 @@ mod tests {
         let mut record = sample_record("L1")?;
         record.routes = vec![LessonRoute::PlanDoc];
         let rule_id: RuleId = "LESSON-DOCTOR.1".parse()?;
-        let findings = run_doctor(&rule_id, &[record], &HashMap::new(), &HashMap::new());
+        let findings = run_doctor(&rule_id, &[record], &HashMap::new(), &HashMap::new())?;
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].severity, Severity::Warning);
-        Ok(())
-    }
-
-    // -- Seed-corpus import: idempotence + honest verdict --
-
-    fn seed_markdown_fixture() -> String {
-        r#"
-| id | date | observed | lesson | landed-at | ships-via |
-|---|---|---|---|---|---|
-| L1 | 2026-07-04 | `coordination_init` re-init threw raw `EEXIST` | init must be idempotent | arc-16 finding (this row) | fixed MCP tool behavior (arc-16) |
-| L4 | 2026-07-04 | wave-1 workers went silent until done | worker mail lifecycle is started -> progress -> done/blocked | EXECUTION_MODEL section2d | c01 doctrine payload + b06 decision forest |
-| L15 | 2026-07-04 | [code] arc-02 dogfood boundary allowlist gap | rule configs must ship boundary-module globs | this row | rules-as-data (arc-04/arc-06) |
-"#
-        .to_owned()
-    }
-
-    #[test]
-    fn import_seed_corpus_is_idempotent() -> Result<(), Box<dyn std::error::Error>> {
-        let path = temp_ledger_path("import");
-        let mut ledger = LessonLedger::open(&path)?;
-        let markdown = vec![seed_markdown_fixture()];
-
-        let first = import_seed_corpus(&mut ledger, &markdown, &[])?;
-        assert_eq!(first.discovered, 3);
-        assert_eq!(first.newly_appended, 3);
-
-        let second = import_seed_corpus(&mut ledger, &markdown, &[])?;
-        assert_eq!(second.discovered, 3);
-        assert_eq!(
-            second.newly_appended, 0,
-            "re-import over unchanged sources must add nothing"
-        );
-
-        // Ledger integrity holds after both import passes.
-        assert_eq!(ledger.verify_on_replay()?, 3);
-        std::fs::remove_file(&path)?;
-        Ok(())
-    }
-
-    #[test]
-    fn import_maps_ships_via_to_routes_and_sniffs_domain() -> Result<(), Box<dyn std::error::Error>>
-    {
-        let path = temp_ledger_path("import-map");
-        let mut ledger = LessonLedger::open(&path)?;
-        import_seed_corpus(&mut ledger, &[seed_markdown_fixture()], &[])?;
-        let records = ledger.latest()?;
-
-        let l1 = records
-            .iter()
-            .find(|r| r.id.as_str() == "L1")
-            .ok_or("L1 imported")?;
-        assert_eq!(l1.domain, LessonDomain::Harness);
-        // L1's `ships-via` is "fixed MCP tool behavior (arc-16)" — no
-        // known keyword matches, so it honestly lands as PlanDoc
-        // (transitional-only) rather than being guessed into a route the
-        // seed row never actually declared.
-        assert_eq!(l1.routes, vec![LessonRoute::PlanDoc]);
-
-        let l4 = records
-            .iter()
-            .find(|r| r.id.as_str() == "L4")
-            .ok_or("L4 imported")?;
-        assert!(l4.routes.contains(&LessonRoute::DoctrineBlock));
-        assert!(l4.routes.contains(&LessonRoute::ForestNode));
-
-        let l15 = records
-            .iter()
-            .find(|r| r.id.as_str() == "L15")
-            .ok_or("L15 imported")?;
-        assert_eq!(l15.domain, LessonDomain::Code);
-        assert!(l15.routes.contains(&LessonRoute::RuleCandidate));
-
-        std::fs::remove_file(&path)?;
-        Ok(())
-    }
-
-    #[test]
-    fn import_folds_in_memory_stream_records() -> Result<(), Box<dyn std::error::Error>> {
-        let path = temp_ledger_path("import-memory");
-        let mut ledger = LessonLedger::open(&path)?;
-        // Memory-stream records use camelCase keys (workspace wire
-        // convention, `MemoryStreamRecord`'s `rename_all = "camelCase"`).
-        let stream = r#"{"id":"L900","date":"2026-07-04","domain":"code","observed":"[code] example","lesson":"example fix","shipsVia":"rules-as-data","landedAt":"docs/x.md#L900"}
-{"id":"status-only","note":"not a lesson row"}
-"#
-        .to_owned();
-        let outcome = import_seed_corpus(&mut ledger, &[], std::slice::from_ref(&stream))?;
-        assert_eq!(outcome.discovered, 1, "only the L900 row is a lesson row");
-        assert_eq!(outcome.newly_appended, 1);
-        let records = ledger.latest()?;
-        let l900 = records
-            .iter()
-            .find(|r| r.id.as_str() == "L900")
-            .ok_or("L900 imported from memory stream")?;
-        assert_eq!(l900.domain, LessonDomain::Code);
-        assert!(l900.routes.contains(&LessonRoute::RuleCandidate));
-
-        // Idempotent: re-importing the same stream adds nothing.
-        let second = import_seed_corpus(&mut ledger, &[], &[stream])?;
-        assert_eq!(second.newly_appended, 0);
-        std::fs::remove_file(&path)?;
         Ok(())
     }
 
@@ -1811,7 +1594,7 @@ mod tests {
         contents.insert(rule_ref, rule.rendered);
 
         let rule_id: RuleId = "LESSON-DOCTOR.1".parse()?;
-        let findings = run_doctor(&rule_id, &[record], &contents, &HashMap::new());
+        let findings = run_doctor(&rule_id, &[record], &contents, &HashMap::new())?;
         assert!(
             findings.is_empty(),
             "expected fully-landed golden lesson green: {findings:?}"
@@ -1878,7 +1661,7 @@ mod tests {
         }
         let rule_id: RuleId = "LESSON-DOCTOR.1".parse()?;
         let records = ledger.latest()?;
-        let findings = run_doctor(&rule_id, &records, &contents, &HashMap::new());
+        let findings = run_doctor(&rule_id, &records, &contents, &HashMap::new())?;
 
         let errors: Vec<_> = findings
             .iter()

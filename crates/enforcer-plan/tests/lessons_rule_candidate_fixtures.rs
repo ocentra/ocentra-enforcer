@@ -27,7 +27,7 @@ fn doctor_requires_complete_fixture_parity_for_code_rule_candidates() -> TestRes
     contents.insert(artifact, "lessonId L9".to_owned());
     let rule_id: RuleId = "LESSON-DOCTOR.1".parse()?;
 
-    let findings = run_doctor(&rule_id, &[record.clone()], &contents, &HashMap::new());
+    let findings = run_doctor(&rule_id, &[record.clone()], &contents, &HashMap::new())?;
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].severity, Severity::Error);
 
@@ -41,7 +41,7 @@ fn doctor_requires_complete_fixture_parity_for_code_rule_candidates() -> TestRes
             &[record.clone()],
             &contents,
             &HashMap::from([(id.clone(), incomplete)]),
-        );
+        )?;
         assert_eq!(findings.len(), 1, "{incomplete:?} must fail closed");
         assert_eq!(findings[0].severity, Severity::Error);
     }
@@ -51,7 +51,7 @@ fn doctor_requires_complete_fixture_parity_for_code_rule_candidates() -> TestRes
         &[record],
         &contents,
         &HashMap::from([(id, RuleCandidateFixtures::Complete)]),
-    );
+    )?;
     assert!(
         findings.is_empty(),
         "expected green with complete parity: {findings:?}"
