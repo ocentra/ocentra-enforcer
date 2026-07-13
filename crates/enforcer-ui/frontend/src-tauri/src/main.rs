@@ -156,6 +156,7 @@ struct DesktopRuleCatalogRule {
     lock_level: String,
     can_disable: bool,
     can_downgrade: bool,
+    // DEFAULT-JUSTIFICATION: rule catalogs written before waivers existed omit this field; omission means not waivable.
     #[serde(default)]
     waivable: bool,
     requires_fail_fixture: bool,
@@ -370,6 +371,7 @@ struct UiLogicCouplingFinding {
     severity: String,
     source: String,
     binding: String,
+    // DEFAULT-JUSTIFICATION: older analysis artifacts predate this capability signal; absence means no primitive was observed.
     #[serde(default)]
     has_data_fetch_primitive: bool,
 }
@@ -584,10 +586,13 @@ struct DesktopScanTarget {
     description: String,
     mode: String,
     crate_name: Option<String>,
+    // DEFAULT-JUSTIFICATION: persisted scan targets without explicit paths represent non-files scopes.
     #[serde(default)]
     files: Vec<String>,
+    // DEFAULT-JUSTIFICATION: persisted scan targets without a base are not diff scopes.
     #[serde(default)]
     base: Option<String>,
+    // DEFAULT-JUSTIFICATION: persisted scan targets without a head are not diff scopes.
     #[serde(default)]
     head: Option<String>,
 }
