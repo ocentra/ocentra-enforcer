@@ -663,14 +663,19 @@ fn render(template: &str, bindings: &HashMap<String, String>) -> Result<String, 
         }
     }
     if let Some(pos) = result.find("{{") {
-        if let Some(end) = result[pos..].find("}}") {
-            // ALLOC-JUSTIFICATION: the missing token is retained in the
-            // returned diagnostic after the mutable render buffer is gone.
-            let placeholder = result[pos..pos + end + 2].to_owned();
-            return Err(PlanError::Io {
-                path: "lesson template".to_owned(),
-                reason: format!("missing placeholder: {placeholder}"),
-            });
+        if let Some(unresolved) = result.get(pos..) {
+            if let Some(end) = unresolved.find("}}") {
+                if let Some(placeholder_length) = end.checked_add(2) {
+                    if let Some(placeholder) = unresolved.get(..placeholder_length) {
+                        // ALLOC-JUSTIFICATION: the missing token is retained in the
+                        // returned diagnostic after the mutable render buffer is gone.
+                        return Err(PlanError::Io {
+                            path: "lesson template".to_owned(),
+                            reason: format!("missing placeholder: {placeholder}"),
+                        });
+                    }
+                }
+            }
         }
     }
     Ok(result)
@@ -1103,7 +1108,7 @@ fn parse_seed_rows(markdown: &str) -> Vec<SeedRow> {
     markdown.lines().filter_map(parse_seed_row).collect()
 }
 
-/// Map a seed row's `ships-via` free text to zero or more [`LessonRoute`]s
+/// Map a seed row's `ships-via` free text to zero or more `LessonRoute` values
 /// by keyword sniffing (the seed corpus's `ships-via` column is prose, not
 /// a closed vocabulary — e.g. "c01 doctrine payload (worker-protocol
 /// snippet)", "b06 decision forest", "fixed MCP tool behavior (arc-16)").
