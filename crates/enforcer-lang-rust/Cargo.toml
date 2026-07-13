@@ -2,23 +2,26 @@
 name = "enforcer-lang-rust"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Rust-family Validator implementations (arc-06 skeleton + baseline): no-reexports (pub use / pub(crate) use barrel ban, keyed to arc-04's T1-NOREEXPORT.1 rule record) and d17 rust-error-handling (unwrap/expect/panic!/todo!/unimplemented!/dbg! in first-party non-cfg(test) code), built on enforcer-validator's Validator trait and syn-AST parsing."
 publish = false
 
 [dependencies]
+# DEPENDENCY-JUSTIFICATION: Rust validators emit shared finding/error contracts
+# and implement the canonical validator trait.
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
-# syn/quote/proc-macro2 are not in [workspace.dependencies] (a01-owned root
-# manifest); declared here directly, matching the enforcer-harness
-# regex/uuid/base64 rationale. Centralize in a later a01 pass if other
-# lang-* crates need the same AST-parsing stack.
+# DEPENDENCY-JUSTIFICATION: The Rust-family rules parse first-party Rust source
+# with a syntax tree and use source spans for precise findings.
 syn = { version = "2", features = ["full", "extra-traits", "visit"] }
 proc-macro2 = { version = "1", features = ["span-locations"] }
 
 [dev-dependencies]
+# DEPENDENCY-JUSTIFICATION: Integration tests load the production rule catalog
+# to verify Rust validator registration and rule identity.
 enforcer-rules = { path = "../enforcer-rules", version = "0.1.0" }
 
 [lints]

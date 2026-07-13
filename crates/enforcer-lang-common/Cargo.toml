@@ -2,6 +2,7 @@
 name = "enforcer-lang-common"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "arc-09: the common-family Validator crate — cross-language rules (governance, manifest, docs/policy, contract-family dispatch, shared generic-scanner engine) that are not specific to any one source language. Owns count-parity for all `language==common` RuleIds except the SEC-2 family (delegated to enforcer-security/arc-10, which depends on this crate's engine only)."
@@ -11,13 +12,19 @@ publish = false
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: Common validators build findings with the shared
+# core/domain contracts and load effective policy plus registered rules.
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
 enforcer-rules = { path = "../enforcer-rules", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: This crate implements the common validator trait
+# used by the scan and fixture-parity execution surfaces.
 enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 
 [dev-dependencies]
+# DEPENDENCY-JUSTIFICATION: Parity tests exercise the real core contracts and
+# deterministic mechanization harness rather than test-only stand-ins.
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-mechanization = { path = "../enforcer-mechanization", version = "0.1.0" }
 
