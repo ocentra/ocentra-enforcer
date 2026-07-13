@@ -13,12 +13,19 @@ use std::path::{Path, PathBuf};
 
 /// The workspace root, resolved from this crate's manifest dir (two levels
 /// up: `crates/enforcer-mcp` -> workspace root).
-fn workspace_root() -> PathBuf {
+fn workspace_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-    match manifest_dir.parent().and_then(Path::parent) {
-        Some(root) => root.to_path_buf(),
-        None => unreachable!("crates/enforcer-mcp always has two parent components"),
-    }
+    manifest_dir
+        .parent()
+        .and_then(Path::parent)
+        .map(Path::to_path_buf)
+        .ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "crates/enforcer-mcp manifest path must have two parent components",
+            )
+        })
+        .map_err(Into::into)
 }
 
 /// A legacy token match: which owned file, which line, which token.
@@ -103,8 +110,8 @@ fn member_crate_manifests(root: &Path) -> Vec<PathBuf> {
 /// a grep gate over the owned shipped/config name surfaces for
 /// `ocentra[-_]enforcer` and `rust_rules` returns EMPTY.
 #[test]
-fn neutral_rename_grep_clean() {
-    let root = workspace_root();
+fn neutral_rename_grep_clean() -> Result<(), Box<dyn std::error::Error>> {
+    let root = workspace_root()?;
     let mut hits: Vec<Hit> = Vec::new();
 
     // Root Cargo.toml: [workspace.package] metadata — whole-file scope
@@ -142,6 +149,7 @@ fn neutral_rename_grep_clean() {
         hits.len(),
         report.join("\n")
     );
+    Ok(())
 }
 
 /// Fail-fixture companion: the scanner itself must actually detect a
@@ -191,7 +199,7 @@ fn neutral_rename_mcp_smoke_server_name_is_enforcer() {
 /// invert the dependency graph).
 #[test]
 fn binary_name_const_file_reads_enforcer() -> Result<(), Box<dyn std::error::Error>> {
-    let root = workspace_root();
+    let root = workspace_root()?;
     let text = std::fs::read_to_string(root.join("crates/enforcer-cli/src/name.rs"))?;
     assert!(
         text.contains("pub const BINARY_NAME: &str = \"enforcer\";"),
