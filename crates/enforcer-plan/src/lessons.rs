@@ -221,6 +221,12 @@ branded_string!(
 /// The learning thesis is DUAL-DOMAIN (`RUST_ARCHITECTURE` "The learning
 /// thesis"): orchestration/protocol lessons and coding-fault/fix-pattern
 /// lessons flow through the same loop.
+/// SERIALIZATION-DOC: this is the stable persisted vocabulary for an
+/// append-only lesson ledger. Its existing scalar representation is retained
+/// so a reader can replay historic rows without a lossy format migration.
+/// SERDE-TAG-JUSTIFICATION: this unit-only vocabulary is deliberately stored
+/// as a scalar domain name; an adjacent tag would change canonical historic
+/// ledger rows without adding information.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum LessonDomain {
@@ -233,6 +239,11 @@ pub enum LessonDomain {
 }
 
 /// One harness surface a lesson can ship through.
+/// SERIALIZATION-DOC: route names are durable ledger values. Keeping their
+/// scalar representation makes previous append-only records replayable.
+/// SERDE-TAG-JUSTIFICATION: this unit-only vocabulary is deliberately stored
+/// as a single stable route name; adding an adjacent tag would change the
+/// canonical bytes used by the existing hash chain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum LessonRoute {
@@ -270,6 +281,8 @@ impl LessonRoute {
 }
 
 /// One captured lesson. serde camelCase on the wire (workspace convention).
+/// SERIALIZATION-DOC: the append-only ledger serializes this exact public
+/// record; boundary decoding validates its branded values before persistence.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LessonRecord {
@@ -571,8 +584,9 @@ pub fn list(
 /// consumer tests without touching a real temp dir, per the workpack's
 /// "pure over injected fs (temp-dir testable)" requirement.
 pub trait EmitFs {
-    /// Read a file's content, or `None` if it does not exist.
-    fn read(&self, path: &Path) -> Option<String>;
+    /// Read a file's content. A missing file is `Ok(None)`; an unreadable
+    /// existing path is a typed error and must never be mistaken for absence.
+    fn read(&self, path: &Path) -> Result<Option<String>, PlanError>;
     /// Write a file's full content (creating parent dirs as needed).
     fn write(&mut self, path: &Path, content: &str) -> Result<(), PlanError>;
 }
@@ -582,8 +596,17 @@ pub trait EmitFs {
 pub struct RealFs;
 
 impl EmitFs for RealFs {
-    fn read(&self, path: &Path) -> Option<String> {
-        std::fs::read_to_string(path).ok()
+    fn read(&self, path: &Path) -> Result<Option<String>, PlanError> {
+        match std::fs::read_to_string(path) {
+            Ok(content) => Ok(Some(content)),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            // ALLOC-JUSTIFICATION: PlanError owns the failed boundary path
+            // and diagnostic after the operating-system error is released.
+            Err(error) => Err(PlanError::Io {
+                path: path.display().to_string(),
+                reason: error.to_string(),
+            }),
+        }
     }
 
     fn write(&mut self, path: &Path, content: &str) -> Result<(), PlanError> {
@@ -630,8 +653,10 @@ impl MemoryFs {
 }
 
 impl EmitFs for MemoryFs {
-    fn read(&self, path: &Path) -> Option<String> {
-        self.files.get(path).cloned()
+    fn read(&self, path: &Path) -> Result<Option<String>, PlanError> {
+        // CLONE-JUSTIFICATION: the injected filesystem boundary returns an
+        // owned snapshot so a caller cannot observe or mutate test storage.
+        Ok(self.files.get(path).cloned())
     }
 
     fn write(&mut self, path: &Path, content: &str) -> Result<(), PlanError> {
@@ -718,7 +743,12 @@ fn emit_route(
             wrote: false,
         });
     }
-    let existing = fs.read(target_path).unwrap_or_default();
+    let existing = match fs.read(target_path)? {
+        Some(content) => content,
+        // ALLOC-JUSTIFICATION: the empty owned buffer is required as the
+        // replacement/append accumulator when the target is genuinely absent.
+        None => String::new(),
+    };
     let merged = replace_or_append_block(&existing, &rendered, record.id.as_str());
     fs.write(target_path, &merged)?;
     Ok(EmitOutcome {

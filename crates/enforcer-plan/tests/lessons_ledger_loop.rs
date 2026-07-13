@@ -5,13 +5,13 @@
 //! outside the implementation module so observable behavior does not depend
 //! on crate-private test access.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use enforcer_plan::error::PlanError;
 use enforcer_plan::lessons::{
-    add, import_seed_corpus, list, ArtifactRef, CapturedDate, LessonDomain, LessonId, LessonLedger,
-    LessonRecord, LessonRoute,
+    add, emit_doctrine_block, import_seed_corpus, list, ArtifactRef, CapturedDate, EmitFs,
+    LessonDomain, LessonId, LessonLedger, LessonRecord, LessonRoute,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -40,6 +40,41 @@ fn sample_record(id: &str) -> TestResultRecord {
 }
 
 type TestResultRecord = Result<LessonRecord, Box<dyn std::error::Error>>;
+
+struct DeniedReadFs;
+
+impl EmitFs for DeniedReadFs {
+    fn read(&self, _: &Path) -> Result<Option<String>, PlanError> {
+        Err(PlanError::Io {
+            path: "denied.md".to_owned(),
+            reason: "permission denied".to_owned(),
+        })
+    }
+
+    fn write(&mut self, _: &Path, _: &str) -> Result<(), PlanError> {
+        Ok(())
+    }
+}
+
+#[test]
+fn emitter_fails_closed_when_an_existing_target_cannot_be_read() -> TestResult {
+    let mut fs = DeniedReadFs;
+    let error = emit_doctrine_block(
+        &mut fs,
+        &sample_record("L1")?,
+        Path::new("denied.md"),
+        false,
+    )
+    .expect_err("unreadable target must not be treated as absent");
+    match error {
+        PlanError::Io { path, reason } => {
+            assert_eq!(path, "denied.md");
+            assert_eq!(reason, "permission denied");
+        }
+        other => return Err(format!("expected I/O error, got {other}").into()),
+    }
+    Ok(())
+}
 
 #[test]
 fn lesson_id_rejects_invalid_input() {
