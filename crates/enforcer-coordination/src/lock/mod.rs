@@ -680,9 +680,11 @@ pub fn conflict_touches_paths(conflict: &Conflict, changed_paths: &[String]) -> 
 }
 
 #[cfg(test)]
-#[allow(clippy::expect_used)]
 mod tests {
-    use super::*;
+    use super::{
+        blockers_for_request, classify_claim_pair, enrich_claim, same_logical_owner, ClaimContext,
+        ConflictType, LockKind, Operation, RawClaim,
+    };
 
     fn ctx(project: &str, worktree: &str, branch: &str) -> ClaimContext {
         ClaimContext {
