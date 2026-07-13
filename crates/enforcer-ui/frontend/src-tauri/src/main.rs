@@ -1237,7 +1237,10 @@ fn validated_scan_target(
         return Ok(DesktopScanTarget {
             id: format!("files:{}", files.join(",")),
             label: if files.len() == 1 {
-                files[0].clone()
+                files
+                    .first()
+                    .cloned()
+                    .ok_or_else(|| "file scan target requires at least one project-relative path".to_owned())?
             } else {
                 format!("{} selected paths", files.len())
             },
@@ -1619,7 +1622,8 @@ fn harness_run_row(value: &serde_json::Value) -> HarnessRunRow {
         diagnostic_count: value
             .get("diagnosticCount")
             .and_then(serde_json::Value::as_u64)
-            .unwrap_or_default() as usize,
+            .and_then(|count| usize::try_from(count).ok())
+            .unwrap_or(usize::MAX),
         pinned: value
             .get("pinned")
             .and_then(serde_json::Value::as_bool)
@@ -1648,7 +1652,8 @@ fn harness_diagnostic(value: &serde_json::Value) -> HarnessDiagnosticPayload {
         line: value
             .get("line")
             .and_then(serde_json::Value::as_u64)
-            .unwrap_or_default() as usize,
+            .and_then(|line| usize::try_from(line).ok())
+            .unwrap_or(usize::MAX),
         message: string("message"),
         source: value
             .get("source")
@@ -3112,7 +3117,9 @@ fn load_graph_source_snippet(
     let target = line.saturating_sub(1).min(lines.len() - 1);
     let start = target.saturating_sub(3);
     let end = (target + 4).min(lines.len());
-    let content = lines[start..end]
+    let content = lines
+        .get(start..end)
+        .unwrap_or_default()
         .iter()
         .enumerate()
         .map(|(offset, source_line)| format!("{:>5} | {source_line}", start + offset + 1))
@@ -3362,7 +3369,7 @@ fn graph_folder_aggregates(snapshot: &GraphSnapshot) -> Vec<GraphFolderAggregate
         let Some(path) = file_paths.get(file_id) else { return };
         let parts = path.split(['/', '\\']).collect::<Vec<_>>();
         for depth in 1..parts.len() {
-            let folder = parts[..depth].join("/");
+            let folder = parts.get(..depth).unwrap_or_default().join("/");
             let entry = aggregates.entry(folder.clone()).or_insert(GraphFolderAggregatePayload { path: folder, files: 0, symbols: 0, calls: 0 });
             entry.files += files;
             entry.symbols += symbols;
