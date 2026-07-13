@@ -90,6 +90,40 @@ use std::collections::{BTreeMap, BTreeSet};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct ArchitecturePath<'a>(&'a str);
 
+/// An owned, repository-relative directory inside the architecture domain.
+///
+/// BRAND-INVARIANT: this value is either the repository root (`"."`) or the
+/// directory portion of an [`ArchitecturePath`]. It is never an absolute path,
+/// never has a trailing separator, and is used only as the typed key for
+/// architecture file-tree aggregation.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct ArchitectureDirectory(String);
+
+impl ArchitectureDirectory {
+    fn root() -> Self {
+        // ALLOC-JUSTIFICATION: the root is retained as an owned directory key
+        // beside all graph-derived aggregation keys.
+        Self(".".to_owned())
+    }
+
+    fn from_file_path(path: ArchitecturePath<'_>) -> Self {
+        match path.0.rsplit_once('/') {
+            // ALLOC-JUSTIFICATION: graph paths are borrowed input while the
+            // directory key must outlive each aggregation pass.
+            Some((dir, _)) => Self(dir.to_owned()),
+            None => Self::root(),
+        }
+    }
+
+    fn parent(&self) -> Option<Self> {
+        self.0.rsplit_once('/').map(|(parent, _)| {
+            // ALLOC-JUSTIFICATION: each ancestor is retained as a distinct
+            // owned key in the report's directory hierarchy.
+            Self(parent.to_owned())
+        })
+    }
+}
+
 /// The optional repository-relative prefix applied uniformly to one report.
 ///
 /// BRAND-INVARIANT: when present, the prefix is compared only against the
@@ -1288,22 +1322,29 @@ pub fn layering(clusters: &ClusteringResult) -> LayeringResult {
 
 fn file_tree(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> FileTree {
     // dir path -> (direct_file_count, direct_symbol_count).
-    let mut direct_files: BTreeMap<String, usize> = BTreeMap::new();
-    let mut direct_symbols: BTreeMap<String, usize> = BTreeMap::new();
-    let mut all_dirs: BTreeSet<String> = BTreeSet::new();
-    all_dirs.insert(".".to_string());
+    let mut direct_files: BTreeMap<ArchitectureDirectory, usize> = BTreeMap::new();
+    let mut direct_symbols: BTreeMap<ArchitectureDirectory, usize> = BTreeMap::new();
+    let mut all_dirs: BTreeSet<ArchitectureDirectory> = BTreeSet::new();
+    all_dirs.insert(ArchitectureDirectory::root());
 
-    let file_dir_by_id: BTreeMap<&str, String> = graph
+    let file_dir_by_id: BTreeMap<&str, ArchitectureDirectory> = graph
         .file_nodes()
         .filter(|f| scope.includes(ArchitecturePath(&f.rel_path)))
-        .map(|f| (f.id.as_str(), dir_of(&f.rel_path)))
+        .map(|f| {
+            (
+                f.id.as_str(),
+                ArchitectureDirectory::from_file_path(ArchitecturePath(&f.rel_path)),
+            )
+        })
         .collect();
 
     for file in graph.file_nodes() {
         if !scope.includes(ArchitecturePath(&file.rel_path)) {
             continue;
         }
-        let dir = dir_of(&file.rel_path);
+        let dir = ArchitectureDirectory::from_file_path(ArchitecturePath(&file.rel_path));
+        // CLONE-JUSTIFICATION: `direct_files` owns its key while the same
+        // directory value is also required to register its ancestors.
         *direct_files.entry(dir.clone()).or_insert(0) += 1;
         register_ancestors(&mut all_dirs, &dir);
     }
@@ -1314,20 +1355,30 @@ fn file_tree(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> FileTree {
         }
     }
 
-    let root = build_tree_node(".", &all_dirs, &direct_files, &direct_symbols);
+    let root = build_tree_node(
+        &ArchitectureDirectory::root(),
+        &all_dirs,
+        &direct_files,
+        &direct_symbols,
+    );
     FileTree { root }
 }
 
-fn register_ancestors(all_dirs: &mut BTreeSet<String>, dir: &str) {
-    all_dirs.insert(dir.to_string());
-    let mut current = dir;
-    while let Some((parent, _)) = current.rsplit_once('/') {
-        all_dirs.insert(parent.to_string());
+fn register_ancestors(all_dirs: &mut BTreeSet<ArchitectureDirectory>, dir: &ArchitectureDirectory) {
+    // CLONE-JUSTIFICATION: the hierarchy set owns each directory key, while
+    // the caller retains its typed directory for the direct-file aggregation.
+    all_dirs.insert(dir.clone());
+    let mut current = dir.clone();
+    while let Some(parent) = current.parent() {
+        all_dirs.insert(parent.clone());
         current = parent;
     }
 }
 
-fn direct_children<'a>(all_dirs: &'a BTreeSet<String>, dir: &str) -> Vec<&'a str> {
+fn direct_children<'a>(
+    all_dirs: &'a BTreeSet<ArchitectureDirectory>,
+    dir: &ArchitectureDirectory,
+) -> Vec<&'a ArchitectureDirectory> {
     all_dirs
         .iter()
         .filter(|candidate| {
@@ -1335,20 +1386,19 @@ fn direct_children<'a>(all_dirs: &'a BTreeSet<String>, dir: &str) -> Vec<&'a str
                 return false;
             }
             // A direct child's own `dir_of(...)` is exactly `dir` (both
-            // for `dir == "."`, where a top-level candidate like
-            // `"crates"` has no `/` and `dir_of` returns `"."`, and for
-            // any nested `dir`).
-            dir_of(candidate) == dir
+            // for the root, where a top-level candidate like `"crates"`
+            // has no `/` and produces the typed root directory, and for any
+            // nested directory).
+            ArchitectureDirectory::from_file_path(ArchitecturePath(&candidate.0)) == *dir
         })
-        .map(String::as_str)
         .collect()
 }
 
 fn build_tree_node(
-    dir: &str,
-    all_dirs: &BTreeSet<String>,
-    direct_files: &BTreeMap<String, usize>,
-    direct_symbols: &BTreeMap<String, usize>,
+    dir: &ArchitectureDirectory,
+    all_dirs: &BTreeSet<ArchitectureDirectory>,
+    direct_files: &BTreeMap<ArchitectureDirectory, usize>,
+    direct_symbols: &BTreeMap<ArchitectureDirectory, usize>,
 ) -> FileTreeNode {
     let direct_file_count = direct_files.get(dir).copied().unwrap_or(0);
     let direct_symbol_count = direct_symbols.get(dir).copied().unwrap_or(0);
@@ -1364,7 +1414,9 @@ fn build_tree_node(
         direct_symbol_count + children.iter().map(|c| c.total_symbol_count).sum::<usize>();
 
     FileTreeNode {
-        dir: dir.to_string(),
+        // ALLOC-JUSTIFICATION: the public report owns its serialized
+        // directory text independently of the internal typed aggregation key.
+        dir: dir.0.to_owned(),
         direct_file_count,
         direct_symbol_count,
         total_file_count,
