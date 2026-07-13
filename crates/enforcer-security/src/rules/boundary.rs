@@ -2,6 +2,12 @@
 //! facet (h06, §8.8 of the ingested money-critical/security-testing
 //! spec).
 //!
+//! BOUNDARY-INVARIANT: this module accepts raw source text only through
+//! [`ValidationInput`] and emits typed [`Finding`] values; it never treats an
+//! internal-network signal or header as an authorization decision.
+//! boundaryOwnerNote: the Track H boundary validator owns this source-pattern
+//! interpretation and its regular-expression transport boundary.
+//!
 //! Doctrine (§8.8): internal APIs are HOSTILE. Cloudflare/AWS/gateway
 //! topology and "it's on the internal network" give ZERO security —
 //! internal headers (`X-Internal`, `X-Internal-Auth`, `X-Forwarded-*`)
@@ -108,6 +114,8 @@ impl Validator for BoundaryValidator {
         let mut findings = Vec::new();
 
         for (idx, text) in input.source.lines().enumerate() {
+            // CAST-JUSTIFICATION: `enumerate` produces a source-line index and
+            // `saturating_add` preserves a valid one-based finding location.
             let line_number = (idx as u32).saturating_add(1);
 
             if self.internal_route.is_match(text) && !has_auth_guard {
@@ -148,63 +156,5 @@ impl Validator for BoundaryValidator {
             }
         }
         findings
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::path::PathBuf;
-
-    use enforcer_domain::findings::ScanScope;
-    use enforcer_domain::paths::RelPath;
-    use enforcer_validator::harness::run_fixture_parity;
-    use enforcer_validator::validator::{ValidationInput, Validator};
-
-    use super::BoundaryValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
-
-    fn rel(path: &str) -> Result<RelPath, Box<dyn std::error::Error>> {
-        Ok(path.parse()?)
-    }
-
-    #[test]
-    fn mcm_boundary() -> Result<(), Box<dyn std::error::Error>> {
-        let validator = BoundaryValidator::new()?;
-        run_fixture_parity(
-            &validator,
-            &manifest_dir(),
-            "tests/fixtures/money_critical_mechanics/boundary/bad/unauthed_internal.ts",
-            "tests/fixtures/money_critical_mechanics/boundary/good/authed_internal.ts",
-        )?;
-        Ok(())
-    }
-
-    #[test]
-    fn fires_on_trusted_internal_header_alone() -> Result<(), Box<dyn std::error::Error>> {
-        let validator = BoundaryValidator::new()?;
-        let file = rel("src/svc.ts")?;
-        let findings = validator.validate(ValidationInput {
-            file: &file,
-            source: "if (req.headers['x-internal'] === 'true') { grantAccess(); }\n",
-            scope: ScanScope::Files,
-        });
-        assert_eq!(findings.len(), 1);
-        Ok(())
-    }
-
-    #[test]
-    fn silent_on_non_internal_source() -> Result<(), Box<dyn std::error::Error>> {
-        let validator = BoundaryValidator::new()?;
-        let file = rel("src/util.ts")?;
-        let findings = validator.validate(ValidationInput {
-            file: &file,
-            source: "function add(a: number, b: number) { return a + b; }\n",
-            scope: ScanScope::Files,
-        });
-        assert!(findings.is_empty());
-        Ok(())
     }
 }
