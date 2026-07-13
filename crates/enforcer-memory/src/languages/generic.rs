@@ -3177,14 +3177,12 @@ fn cpp_call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
         return Vec::new();
     };
     let mut out = Vec::new();
-    for i in 0..args.child_count() {
-        if let Some(child) = args.child(i) {
-            if matches!(child.kind(), "(" | ")" | ",") {
-                continue;
-            }
-            if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
-            }
+    for child in syntax_children(args) {
+        if matches!(child.kind(), "(" | ")" | ",") {
+            continue;
+        }
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
@@ -3308,10 +3306,8 @@ fn cpp_handle_function_definition(
         name: Some(name.as_str()),
         line: Some(line),
     };
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, &ctx, out, enclosing, fn_scope);
-        }
+    for child in syntax_children(node) {
+        walk(child, &ctx, out, enclosing, fn_scope);
     }
 }
 
@@ -3328,10 +3324,8 @@ fn cpp_walk_scoped(node: Node<'_>, src: &[u8], enclosing: Option<&str>, out: &mu
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, &ctx, out, enclosing, FnScope::default());
-        }
+    for child in syntax_children(node) {
+        walk(child, &ctx, out, enclosing, FnScope::default());
     }
 }
 
