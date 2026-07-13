@@ -1,5 +1,16 @@
 # Architecture
 
+<!-- ai-dense -->
+```yaml
+engine: native Rust workspace
+public_boundaries: "CLI | MCP stdio | optional desktop UI"
+decision_owner: "typed rules and validators return structured findings"
+target_languages: "Rust, TypeScript/JavaScript, Python, Dart, CFML, infrastructure, security"
+ui_boundary: "Tauri presentation invokes Rust-owned state and actions; it does not make policy decisions"
+runtime_truth: "enforcer --help and command-specific help for the binary under test"
+```
+<!-- /ai-dense -->
+
 Ocentra Enforcer is a Rust workspace that exposes one enforcement model through
 the CLI, MCP, automation, and an optional desktop UI. The product boundary is
 the typed rule and finding model: callers request work, validators evaluate a
@@ -57,6 +68,20 @@ repository rather than moving engine decisions into frontend code.
   operations over stdio.
 - **UI:** optional human control plane for inspecting state and invoking
   Rust-owned actions.
+
+## Capability map
+
+The command boundary supports focused repository checks and scans, named
+verification modes, a stdio MCP server, onboarding, architecture checks, and
+an optional desktop surface. Routing is deliberately separate from validation:
+the route identifies applicable policy and a smallest useful scope; validators
+then return findings for that scope.
+
+The workspace also separates human and unattended use. MCP and CI consumers
+receive compact structured results suitable for automation, while the CLI and
+desktop surface provide a human-readable control plane over the same Rust-owned
+contracts. Coordination, when enabled, is installation-level state for claims
+and handoffs rather than application state stored in a target repository.
 
 Consult `enforcer --help` and the command-specific help for the exact command
 contract available in the current build.

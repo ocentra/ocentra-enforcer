@@ -1,5 +1,15 @@
 # MCP And Skill Setup
 
+<!-- ai-dense -->
+```yaml
+audience: "any MCP-capable harness; Codex is one supported development configuration"
+binary: "CLI and MCP server share one executable; MCP starts with `enforcer serve`"
+development: "temporary cargo-run configuration against a disposable target"
+installed: "use an absolute binary path after the release binary is verified"
+safe_rollout: "keep a known-good installation active until a replacement proves its contract"
+```
+<!-- /ai-dense -->
+
 This guide describes the Rust implementation when it is built from this
 repository. It does not ask you to replace a working Enforcer installation
 with an unverified development build.
@@ -63,6 +73,11 @@ enabled = true
 
 On Windows, forward slashes in TOML paths avoid escaping mistakes. Do not use
 a relative path or assume the MCP process starts in the target repository.
+
+Other MCP-capable harnesses use the same executable contract: an absolute
+`enforcer` command with `serve` as its argument. Their configuration file and
+restart procedure are harness-specific; verify the registered command in that
+harness before relying on it.
 
 ## Verify the connection
 

@@ -1,5 +1,16 @@
 # Target Repository Wiring
 
+<!-- ai-dense -->
+```yaml
+integration_order: "path scope -> diff scope -> workspace scope -> CI/MCP adoption"
+scoped_commands: "check/scan/verify accept paths OR --base/--head OR --all"
+verify_command: "verify combines a named mode with the same explicit scope grammar"
+mcp: "call route first, then run the smallest returned validation scope"
+rules: "use the released command help and rule documentation; do not depend on a checkout-local rules path"
+release_boundary: "consumer automation must use a released binary and its tested command contract"
+```
+<!-- /ai-dense -->
+
 This guide describes the current, supportable integration boundary. It is not
 a release-installation promise: verify command and MCP-tool help from the
 actual Enforcer build before wiring a repository or CI job.
@@ -20,9 +31,10 @@ cargo run -p enforcer-cli -- verify --mode local --all
 - a `--base <ref>` and `--head <ref>` diff pair; or
 - `--all` for the workspace.
 
-The CLI does not treat a configuration file, a profile, or a target root as a
-substitute for an explicit scope. Consult `enforcer --help` and command help
-for the exact build you install.
+`verify` also takes a named verification mode. The CLI does not treat a
+configuration file, a profile, or a target root as a substitute for an
+explicit scope. Consult `enforcer --help` and command help for the exact build
+you install.
 
 ## MCP use
 
@@ -33,6 +45,10 @@ reported conditions before widening the gate.
 
 MCP coordination is optional. When enabled, its ledger and exact-file claims
 belong to the Enforcer installation, not to the target repository.
+
+When a rule needs an explanation, use the command help and rule documentation
+shipped with the release under test. Do not make CI or an assistant depend on a
+hardcoded checkout-local rule path.
 
 ## CI and release integration
 

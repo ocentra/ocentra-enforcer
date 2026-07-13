@@ -1,5 +1,16 @@
 # Ocentra Enforcer
 
+<!-- ai-dense -->
+```yaml
+product: native Rust repository-enforcement engine
+entrypoints: "enforcer CLI | enforcer serve (MCP stdio) | optional Tauri UI"
+core_model: "typed rules + deterministic validators -> structured findings and proof"
+scopes: "check/scan/verify: paths | git diff (--base/--head) | --all; verify also selects a named mode"
+workflow: "route or choose the smallest scope -> repair findings -> widen validation"
+implementation: "Rust workspace; TypeScript is presentation-only in the optional UI"
+```
+<!-- /ai-dense -->
+
 Ocentra Enforcer is a native Rust enforcement engine for local development,
 CI, and MCP-enabled coding assistants. It makes repository policy executable:
 the same rule system can route work, scan a scope, retain compact diagnostics,
@@ -38,7 +49,7 @@ The Rust workspace separates the concerns deliberately:
 | `enforcer-cli` | Command-line contract and human-readable output. |
 | `enforcer-mcp` | Stdio MCP boundary and structured tool responses. |
 | `enforcer-rules` / `enforcer-validator` | Rule registry, policy evaluation, and validation. |
-| Language crates | Syntax-aware Rust, TypeScript/JavaScript, Python, Dart, and CFML analysis. |
+| Language crates | Syntax-aware Rust, TypeScript/JavaScript, Python, Dart, CFML, infrastructure, and security analysis. |
 | `enforcer-proof` / `enforcer-harness` | Durable run records, artifacts, and tool-result ingestion. |
 | `enforcer-coordination` | Optional claims, guard decisions, mail, and ledger state. |
 | `enforcer-ui` | Optional desktop control plane. |
@@ -68,15 +79,15 @@ cargo run -p enforcer-cli -- serve --help
 ```
 
 The current CLI surface is `check`, `scan`, `serve`, `ui`, `verify`, `advise`,
-`architecture`, and `onboard` (feature-gated commands appear only in builds
-that include them). `check`, `scan`, and `verify` accept one explicit scope:
-paths, a `--base`/`--head` diff pair, or `--all`. Use `--help` as the source of
-truth for the build you are running.
+`architecture`, and `onboard`. `check`, `scan`, and `verify` accept one
+explicit scope: paths, a `--base`/`--head` diff pair, or `--all`; `verify`
+also selects a named verification mode. Use `--help` as the source of truth
+for the build you are running.
 
 ## Typical workflow
 
 1. For MCP work, route the request through the installed Enforcer MCP tool;
-   for CLI work, choose an explicit scope.
+   for CLI work, choose an explicit scope with `check` or `scan`.
 2. Run the smallest meaningful validation scope.
 3. Read compact diagnostics and repair the reported condition.
 4. Record or inspect proof for work that requires reproducible evidence.
