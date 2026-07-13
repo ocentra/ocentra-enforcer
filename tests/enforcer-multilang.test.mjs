@@ -859,6 +859,71 @@ export const a11 = 11;
   }
 });
 
+test("common scanner ignores circular-import wording in comments but retains self-import detection", () => {
+  const commentOnlyProject = makeProject({
+    "ocentra-enforcer.config.json": JSON.stringify({
+      schemaVersion: 2,
+      profileName: "strict",
+      failOn: ["error"],
+    }),
+    "package.json": JSON.stringify({ name: "architecture-comment-fixture", version: "0.0.0" }),
+    "package-lock.json": JSON.stringify({
+      name: "architecture-comment-fixture",
+      lockfileVersion: 3,
+      requires: true,
+      packages: { "": { name: "architecture-comment-fixture", version: "0.0.0" } },
+    }),
+    "OWNERS": "architecture-fixture\n",
+    "src/notes.ts": `
+// ARCH-1.9 prevents a circular import when a module imports itself.
+export const note = "documentation only";
+`,
+  });
+
+  const commentOnly = run(commentOnlyProject, [
+    "scan",
+    "--json",
+    "--languages",
+    "typescript,common",
+    "--files",
+    "ocentra-enforcer.config.json",
+    "package.json",
+    "package-lock.json",
+    "OWNERS",
+    "src/notes.ts",
+  ]);
+  assert.equal(commentOnly.status, 0, commentOnly.stdout || commentOnly.stderr);
+  const commentOnlyIds = new Set(JSON.parse(commentOnly.stdout).violations.map((violation) => violation.ruleId));
+  assert.equal(commentOnlyIds.has("ARCH-1.9"), false);
+
+  const selfImportProject = makeProject({
+    "ocentra-enforcer.config.json": JSON.stringify({
+      schemaVersion: 2,
+      profileName: "strict",
+      failOn: ["error"],
+    }),
+    "package.json": JSON.stringify({ name: "architecture-self-import-fixture", version: "0.0.0" }),
+    "src/cycle.ts": `
+import { cycle } from "./cycle";
+export const value = cycle;
+`,
+  });
+
+  const selfImport = run(selfImportProject, [
+    "scan",
+    "--json",
+    "--languages",
+    "typescript,common",
+    "--files",
+    "ocentra-enforcer.config.json",
+    "package.json",
+    "src/cycle.ts",
+  ]);
+  assert.notEqual(selfImport.status, 0, selfImport.stdout || selfImport.stderr);
+  const selfImportIds = new Set(JSON.parse(selfImport.stdout).violations.map((violation) => violation.ruleId));
+  assert.equal(selfImportIds.has("ARCH-1.9"), true);
+});
+
 test("Python scanner catches toolchain policy violations", () => {
   const project = makeProject({
     "pyproject.toml": `
