@@ -32,6 +32,21 @@ function run(project, args) {
   });
 }
 
+function runGit(project, args) {
+  const result = spawnSync("git", args, {
+    cwd: project,
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  return result.stdout.trim();
+}
+
+function commitAll(project, message) {
+  runGit(project, ["add", "."]);
+  runGit(project, ["commit", "-m", message]);
+  return runGit(project, ["rev-parse", "HEAD"]);
+}
+
 function report(result) {
   assert.ok(
     result.stdout.trim().startsWith("{"),
@@ -112,6 +127,42 @@ test("explicit source scopes still honor ignored build directories", () => {
     "--json",
     "--files",
     "apps/portal",
+  ]);
+
+  assert.equal(result.status, 0, result.stdout || result.stderr);
+  assert.deepEqual(report(result).violations, []);
+});
+
+test("generic diff scope honors configured ignored paths", () => {
+  const project = makeProject({
+    "ocentra-enforcer.config.json": JSON.stringify({
+      profileName: "ignore-diff-edge",
+      ignoreDirs: [".tmp"],
+      ignoreFileGlobs: ["tests/repo-tooling/ignored-fixture.ts"],
+    }),
+  });
+  runGit(project, ["init"]);
+  runGit(project, ["config", "user.email", "enforcer@example.test"]);
+  runGit(project, ["config", "user.name", "Ocentra Enforcer Test"]);
+  const base = commitAll(project, "initial configuration");
+
+  writeFiles(project, {
+    ".tmp/schema-gen/generated.ts": "export type GeneratedDeviceId = string;\n",
+    "tests/repo-tooling/ignored-fixture.ts":
+      "export type FixtureDeviceId = string;\n",
+  });
+  commitAll(project, "add ignored generated and fixture files");
+
+  const result = run(project, [
+    "architecture",
+    "check",
+    "--scope",
+    "diff",
+    "--json",
+    "--base",
+    base,
+    "--head",
+    "HEAD",
   ]);
 
   assert.equal(result.status, 0, result.stdout || result.stderr);

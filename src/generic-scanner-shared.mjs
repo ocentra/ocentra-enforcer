@@ -3,6 +3,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import {
   collectFiles,
+  isIgnoredPath,
   normalizeRel,
   repoAbsolute,
   uniqueSorted,
@@ -15,12 +16,23 @@ const CHECK_RULE_ID_SET = new Set(Object.keys(CHECK_RULES));
 export const GENERIC_RULES = Object.freeze(
   Object.fromEntries(
     registryRules()
-      .filter((rule) => !rule.id.startsWith("RR-") && !CHECK_RULE_ID_SET.has(rule.id))
+      .filter(
+        (rule) => !rule.id.startsWith("RR-") && !CHECK_RULE_ID_SET.has(rule.id),
+      )
       .map((rule) => [rule.id, { title: rule.title, snippet: rule.snippet }]),
   ),
 );
 
-const TS_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"]);
+const TS_EXTENSIONS = new Set([
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+  ".mts",
+  ".cts",
+]);
 const PY_EXTENSIONS = new Set([".py"]);
 const COMMON_TEXT_EXTENSIONS = new Set([
   ".md",
@@ -37,38 +49,111 @@ const SECRET_RE =
   /\b(?:[A-Z0-9_/-]*(?:api[_-]?key|secret|token|password|private[_-]?key))\b\s*[:=]\s*["'][A-Za-z0-9_./+=:@-]{16,}["']/iu;
 const OPENAI_KEY_RE = /\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b/u;
 const COMMON_SECRET_RULES = [
-  { ruleId: "SEC-2.1", pattern: /\bgh[pousr]_[A-Za-z0-9_]{20,}\b/u, detail: "GitHub token found." },
-  { ruleId: "SEC-2.2", pattern: /\bAKIA[0-9A-Z]{16}\b/u, detail: "AWS access key found." },
-  { ruleId: "SEC-2.3", pattern: /"type"\s*:\s*"service_account"|"private_key_id"\s*:/u, detail: "Google service account JSON marker found." },
-  { ruleId: "SEC-2.4", pattern: /\bAZURE_(?:CLIENT_SECRET|TENANT_ID|CLIENT_ID)\b\s*[:=]/iu, detail: "Azure credential assignment found." },
-  { ruleId: "SEC-2.5", pattern: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b|discord(?:app)?\.[A-Za-z0-9_-]{20,}/iu, detail: "Slack or Discord token found." },
-  { ruleId: "SEC-2.6", pattern: /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/u, detail: "JWT-looking token found." },
-  { ruleId: "SEC-2.7", pattern: /-----BEGIN (?:RSA |OPENSSH |EC |DSA |)?PRIVATE KEY-----/u, detail: "private key block found." },
-  { ruleId: "SEC-2.8", pattern: /\b(?:npm_[A-Za-z0-9]{20,}|pypi-[A-Za-z0-9_-]{20,}|CARGO_REGISTRY_TOKEN\s*=)/u, detail: "package registry token found." },
-  { ruleId: "SEC-2.9", pattern: /\b(?:sk|pk)_(?:live|test)_[A-Za-z0-9]{20,}\b/u, detail: "Stripe key found." },
-  { ruleId: "SEC-2.10", pattern: /\b(?:secret|token|password|key)\b\s*[:=]\s*["'][A-Za-z0-9+/=_-]{32,}["']/iu, detail: "high-entropy secret assignment found." },
+  {
+    ruleId: "SEC-2.1",
+    pattern: /\bgh[pousr]_[A-Za-z0-9_]{20,}\b/u,
+    detail: "GitHub token found.",
+  },
+  {
+    ruleId: "SEC-2.2",
+    pattern: /\bAKIA[0-9A-Z]{16}\b/u,
+    detail: "AWS access key found.",
+  },
+  {
+    ruleId: "SEC-2.3",
+    pattern: /"type"\s*:\s*"service_account"|"private_key_id"\s*:/u,
+    detail: "Google service account JSON marker found.",
+  },
+  {
+    ruleId: "SEC-2.4",
+    pattern: /\bAZURE_(?:CLIENT_SECRET|TENANT_ID|CLIENT_ID)\b\s*[:=]/iu,
+    detail: "Azure credential assignment found.",
+  },
+  {
+    ruleId: "SEC-2.5",
+    pattern:
+      /\bxox[baprs]-[A-Za-z0-9-]{10,}\b|discord(?:app)?\.[A-Za-z0-9_-]{20,}/iu,
+    detail: "Slack or Discord token found.",
+  },
+  {
+    ruleId: "SEC-2.6",
+    pattern:
+      /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/u,
+    detail: "JWT-looking token found.",
+  },
+  {
+    ruleId: "SEC-2.7",
+    pattern: /-----BEGIN (?:RSA |OPENSSH |EC |DSA |)?PRIVATE KEY-----/u,
+    detail: "private key block found.",
+  },
+  {
+    ruleId: "SEC-2.8",
+    pattern:
+      /\b(?:npm_[A-Za-z0-9]{20,}|pypi-[A-Za-z0-9_-]{20,}|CARGO_REGISTRY_TOKEN\s*=)/u,
+    detail: "package registry token found.",
+  },
+  {
+    ruleId: "SEC-2.9",
+    pattern: /\b(?:sk|pk)_(?:live|test)_[A-Za-z0-9]{20,}\b/u,
+    detail: "Stripe key found.",
+  },
+  {
+    ruleId: "SEC-2.10",
+    pattern:
+      /\b(?:secret|token|password|key)\b\s*[:=]\s*["'][A-Za-z0-9+/=_-]{32,}["']/iu,
+    detail: "high-entropy secret assignment found.",
+  },
 ];
-const ENV_PLACEHOLDER_ALLOWED = /(?:example|placeholder|changeme|replace_me|dummy|fake|test|<[^>]+>|\$\{[^}]+\})/iu;
-const SSH_KEY_PATH_RE = /(?:^|\/)(?:id_rsa|id_ed25519|id_ecdsa|id_dsa)(?:\.pub)?$/iu;
-const MOBILE_SECRET_CONFIG_RE = /(?:^|\/)(?:google-services\.json|GoogleService-Info\.plist)$/u;
-const GENERATED_OUTPUT_DIR_RE = /^(?:coverage|playwright-report|test-results|output)(?:\/|$)/iu;
-const GENERATED_DOMAIN_PATH_RE = /(?:^|\/)(?:domain|domains|core)\/.*(?:generated|auto-generated)|(?:^|\/)generated\/.*(?:domain|domains)\//iu;
-const GENERATED_SUPPRESSION_RE = /(?:@ts-(?:ignore|expect-error|nocheck)|eslint-disable|allow\(|noqa|type:\s*ignore)/iu;
-const GENERATED_SNAPSHOT_VOLATILE_RE = /(?:\.snap$|snapshot).*?(?:\d{4}-\d{2}-\d{2}T|[0-9a-f]{8}-[0-9a-f]{4}|random|uuid|timestamp)/iu;
-const BAD_SOURCE_BASENAME_RE = /^(?:utils?|helpers?|common|misc|shared|stuff)\.(?:ts|tsx|js|jsx|mjs|cjs|rs|py)$/iu;
-const GENERATED_PATH_RE = /(?:^|\/)generated(?:\/|$)|(?:generated|auto-generated|contracts?|schemas?)\.(?:ts|tsx|js|json|rs|py)$/iu;
-const GENERATED_PROVENANCE_RE = /(?:@generated|<auto-generated>|generated by|source(?:Owner| owner|):|generator:)/iu;
-const GENERATED_HASH_RE = /(?:sourceHash|schemaHash|contractHash|templateHash|sha256)\s*[:=]/iu;
-const COPIED_BLOCK_RE = /\b(?:copied from|copy-pasted|copy pasted|BEGIN COPIED BLOCK|END COPIED BLOCK)\b/iu;
-const BOUNDARY_PATH_RE = /(?:^|\/)(?:boundary|boundaries|adapter|adapters|codec|codecs|decoder|decoders|transport)(?:\/|\.|-)/iu;
+const ENV_PLACEHOLDER_ALLOWED =
+  /(?:example|placeholder|changeme|replace_me|dummy|fake|test|<[^>]+>|\$\{[^}]+\})/iu;
+const SSH_KEY_PATH_RE =
+  /(?:^|\/)(?:id_rsa|id_ed25519|id_ecdsa|id_dsa)(?:\.pub)?$/iu;
+const MOBILE_SECRET_CONFIG_RE =
+  /(?:^|\/)(?:google-services\.json|GoogleService-Info\.plist)$/u;
+const GENERATED_OUTPUT_DIR_RE =
+  /^(?:coverage|playwright-report|test-results|output)(?:\/|$)/iu;
+const GENERATED_DOMAIN_PATH_RE =
+  /(?:^|\/)(?:domain|domains|core)\/.*(?:generated|auto-generated)|(?:^|\/)generated\/.*(?:domain|domains)\//iu;
+const GENERATED_SUPPRESSION_RE =
+  /(?:@ts-(?:ignore|expect-error|nocheck)|eslint-disable|allow\(|noqa|type:\s*ignore)/iu;
+const GENERATED_SNAPSHOT_VOLATILE_RE =
+  /(?:\.snap$|snapshot).*?(?:\d{4}-\d{2}-\d{2}T|[0-9a-f]{8}-[0-9a-f]{4}|random|uuid|timestamp)/iu;
+const BAD_SOURCE_BASENAME_RE =
+  /^(?:utils?|helpers?|common|misc|shared|stuff)\.(?:ts|tsx|js|jsx|mjs|cjs|rs|py)$/iu;
+const GENERATED_PATH_RE =
+  /(?:^|\/)generated(?:\/|$)|(?:generated|auto-generated|contracts?|schemas?)\.(?:ts|tsx|js|json|rs|py)$/iu;
+const GENERATED_PROVENANCE_RE =
+  /(?:@generated|<auto-generated>|generated by|source(?:Owner| owner|):|generator:)/iu;
+const GENERATED_HASH_RE =
+  /(?:sourceHash|schemaHash|contractHash|templateHash|sha256)\s*[:=]/iu;
+const COPIED_BLOCK_RE =
+  /\b(?:copied from|copy-pasted|copy pasted|BEGIN COPIED BLOCK|END COPIED BLOCK)\b/iu;
+const BOUNDARY_PATH_RE =
+  /(?:^|\/)(?:boundary|boundaries|adapter|adapters|codec|codecs|decoder|decoders|transport)(?:\/|\.|-)/iu;
 const DOMAIN_PATH_RE = /(?:^|\/)(?:domain|domains|core|model|models)(?:\/|$)/iu;
-const FACADE_PATH_RE = /(?:^|\/)(?:index|facade|public-api|api)\.(?:ts|tsx|js|jsx|mjs|rs)$/iu;
+const FACADE_PATH_RE =
+  /(?:^|\/)(?:index|facade|public-api|api)\.(?:ts|tsx|js|jsx|mjs|rs)$/iu;
 const LAYER_IMPORTS = [
-  ["ui", /from\s+["'][^"']*(?:\/ui|\/components|\/views|\/pages|react)[^"']*["']|import\s+.*react/iu],
-  ["domain", /from\s+["'][^"']*(?:\/domain|\/core|\/model|\/schema)[^"']*["']/iu],
-  ["data", /from\s+["'][^"']*(?:\/data|\/db|\/repo|\/repository|\/store)[^"']*["']/iu],
-  ["network", /from\s+["'][^"']*(?:\/api|\/http|\/client|\/transport|axios|fetch)[^"']*["']/iu],
-  ["infra", /from\s+["'][^"']*(?:\/infra|\/adapter|\/adapters|\/platform|\/fs|\/process)[^"']*["']/iu],
+  [
+    "ui",
+    /from\s+["'][^"']*(?:\/ui|\/components|\/views|\/pages|react)[^"']*["']|import\s+.*react/iu,
+  ],
+  [
+    "domain",
+    /from\s+["'][^"']*(?:\/domain|\/core|\/model|\/schema)[^"']*["']/iu,
+  ],
+  [
+    "data",
+    /from\s+["'][^"']*(?:\/data|\/db|\/repo|\/repository|\/store)[^"']*["']/iu,
+  ],
+  [
+    "network",
+    /from\s+["'][^"']*(?:\/api|\/http|\/client|\/transport|axios|fetch)[^"']*["']/iu,
+  ],
+  [
+    "infra",
+    /from\s+["'][^"']*(?:\/infra|\/adapter|\/adapters|\/platform|\/fs|\/process)[^"']*["']/iu,
+  ],
 ];
 const weakAssertionPatterns = [
   { pattern: /\.toBeDefined\s*\(/u, detail: "toBeDefined() is too weak." },
@@ -194,23 +279,30 @@ const pythonBroadExceptPattern = /^\s*except\s+Exception\s*(?:as\s+\w+)?\s*:/u;
 const pythonBareExceptPattern = /^\s*except\s*:/u;
 const pythonPrintPattern = /^\s*print\s*\(/u;
 const pythonRuntimeAssertPattern = /^\s*assert\s+.+/u;
-const pythonSubprocessShellPattern = /\bsubprocess\.(?:run|call|check_call|check_output|Popen)\s*\([^#\n]*\bshell\s*=\s*True/u;
+const pythonSubprocessShellPattern =
+  /\bsubprocess\.(?:run|call|check_call|check_output|Popen)\s*\([^#\n]*\bshell\s*=\s*True/u;
 const pythonWildcardImportPattern = /^\s*from\s+[\w.]+\s+import\s+\*/u;
-const pythonRequestsCallPattern = /\brequests\.(?:get|post|put|patch|delete|head|options)\s*\(/u;
+const pythonRequestsCallPattern =
+  /\brequests\.(?:get|post|put|patch|delete|head|options)\s*\(/u;
 const pythonNaiveDatetimePattern = /\bdatetime\.(?:now|utcnow)\s*\(\s*\)/u;
 const pythonDynamicExecPattern = /\b(?:eval|exec|compile)\s*\(/u;
 const pythonOsSystemPattern = /\bos\.system\s*\(/u;
 const pythonPickleLoadsPattern = /\bpickle\.loads\s*\(/u;
-const pythonYamlUnsafeLoadPattern = /\byaml\.load\s*\((?![^)]*(?:SafeLoader|safe_load))/u;
-const pythonDynamicImportPattern = /\b(?:importlib\.import_module|__import__)\s*\(/u;
+const pythonYamlUnsafeLoadPattern =
+  /\byaml\.load\s*\((?![^)]*(?:SafeLoader|safe_load))/u;
+const pythonDynamicImportPattern =
+  /\b(?:importlib\.import_module|__import__)\s*\(/u;
 const pythonSleepPattern = /\b(?:time\.sleep|asyncio\.sleep)\s*\(/u;
 const pythonCreateTaskPattern = /\basyncio\.create_task\s*\(/u;
-const pythonCoroutineCallPattern = /^\s*(?!await\b|return\b|async\s+with\b)(?:[A-Za-z_]\w*\.)?[A-Za-z_]\w*_async\s*\([^#\n]*\)\s*$/u;
+const pythonCoroutineCallPattern =
+  /^\s*(?!await\b|return\b|async\s+with\b)(?:[A-Za-z_]\w*\.)?[A-Za-z_]\w*_async\s*\([^#\n]*\)\s*$/u;
 const pythonParentRelativeImportPattern = /^\s*from\s+\.\./u;
 const pythonBadModuleNamePattern = /(?:^|\/)(?:utils|helpers|common)\.py$/iu;
 const pythonDataclassPattern = /^\s*@dataclass(?:\((?<args>[^)]*)\))?/u;
-const pythonNamedTuplePattern = /\b(?:NamedTuple|typing\.NamedTuple|collections\.namedtuple)\b/u;
-const pythonRawJsonDictPattern = /\b(?:payload|json|data|body)\s*:\s*dict\s*(?:\[|$)/iu;
+const pythonNamedTuplePattern =
+  /\b(?:NamedTuple|typing\.NamedTuple|collections\.namedtuple)\b/u;
+const pythonRawJsonDictPattern =
+  /\b(?:payload|json|data|body)\s*:\s*dict\s*(?:\[|$)/iu;
 const pythonEnvReadPattern = /\bos\.environ(?:\.|\[)|\bos\.getenv\s*\(/u;
 
 export function collectGenericScopeFiles(root, scope, config, activeLanguages) {
@@ -227,10 +319,17 @@ export function collectGenericScopeFiles(root, scope, config, activeLanguages) {
     return uniqueSorted(
       output
         .split(/\r?\n/u)
-        .map((entry) => repoAbsolute(root, entry))
+        .map((entry) => {
+          const file = repoAbsolute(root, entry);
+          return { file, rel: normalizeRel(root, file) };
+        })
         .filter(
-          (file) => fs.existsSync(file) && isGenericFile(file, activeLanguages),
-        ),
+          ({ file, rel }) =>
+            fs.existsSync(file) &&
+            !isIgnoredPath(rel, config) &&
+            isGenericFile(file, activeLanguages),
+        )
+        .map(({ file }) => file),
     );
   }
   return collectFiles(root, entries, config, (file) =>
@@ -239,9 +338,11 @@ export function collectGenericScopeFiles(root, scope, config, activeLanguages) {
 }
 
 function isWeakPythonAssert(line) {
-  return /^\s*assert\s+[A-Za-z_][\w.]*\s*(?:#.*)?$/u.test(line) ||
+  return (
+    /^\s*assert\s+[A-Za-z_][\w.]*\s*(?:#.*)?$/u.test(line) ||
     /^\s*assert\s+[^#\n]+\s+is\s+not\s+None\b/u.test(line) ||
-    /^\s*assert\s+len\([^)]+\)\s*>\s*0\b/u.test(line);
+    /^\s*assert\s+len\([^)]+\)\s*>\s*0\b/u.test(line)
+  );
 }
 
 function isPythonConfigBoundary(rel) {
@@ -254,7 +355,12 @@ function scanPythonTestBlocks(root, filePath, lines) {
   const violations = [];
   const rel = normalizeRel(root, filePath);
   const text = lines.join("\n");
-  if (/(?:validator|parser|decoder|normalizer)/iu.test(rel) && !/\b(?:invalid|malformed|bad input|reject|raises|pytest\.raises)\b/iu.test(text)) {
+  if (
+    /(?:validator|parser|decoder|normalizer)/iu.test(rel) &&
+    !/\b(?:invalid|malformed|bad input|reject|raises|pytest\.raises)\b/iu.test(
+      text,
+    )
+  ) {
     addViolation(
       violations,
       root,
@@ -265,7 +371,10 @@ function scanPythonTestBlocks(root, filePath, lines) {
       rel,
     );
   }
-  if (/(?:exception|error|failure|raises)/iu.test(rel) && !/\bpytest\.raises\b/u.test(text)) {
+  if (
+    /(?:exception|error|failure|raises)/iu.test(rel) &&
+    !/\bpytest\.raises\b/u.test(text)
+  ) {
     addViolation(
       violations,
       root,
@@ -276,7 +385,10 @@ function scanPythonTestBlocks(root, filePath, lines) {
       rel,
     );
   }
-  if (/(?:parser|normalizer)/iu.test(rel) && !/\b(?:hypothesis|@given|given\s*\()\b/u.test(text)) {
+  if (
+    /(?:parser|normalizer)/iu.test(rel) &&
+    !/\b(?:hypothesis|@given|given\s*\()\b/u.test(text)
+  ) {
     addViolation(
       violations,
       root,
@@ -289,7 +401,9 @@ function scanPythonTestBlocks(root, filePath, lines) {
   }
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index] ?? "";
-    const match = line.match(/^\s*def\s+(test_[A-Za-z_]\w*)\s*\([^)]*\)\s*(?:->\s*[^:]+)?\s*:/u);
+    const match = line.match(
+      /^\s*def\s+(test_[A-Za-z_]\w*)\s*\([^)]*\)\s*(?:->\s*[^:]+)?\s*:/u,
+    );
     if (!match) continue;
     const body = [];
     for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
@@ -302,7 +416,10 @@ function scanPythonTestBlocks(root, filePath, lines) {
       const trimmed = entry.trim();
       return trimmed !== "" && !trimmed.startsWith("#");
     });
-    if (meaningful.length === 0 || meaningful.every((entry) => entry.trim() === "pass")) {
+    if (
+      meaningful.length === 0 ||
+      meaningful.every((entry) => entry.trim() === "pass")
+    ) {
       addViolation(
         violations,
         root,
@@ -352,7 +469,8 @@ function hasLargeRepeatedBlock(lines) {
 
 function firstDuplicateFunctionName(lines) {
   const seen = new Map();
-  const pattern = /^\s*(?:export\s+|pub\s+)?(?:async\s+)?(?:function|fn|def)\s+([A-Za-z_]\w*)\b/u;
+  const pattern =
+    /^\s*(?:export\s+|pub\s+)?(?:async\s+)?(?:function|fn|def)\s+([A-Za-z_]\w*)\b/u;
   let braceDepth = 0;
   const implDepths = [];
   for (let index = 0; index < lines.length; index += 1) {
@@ -391,17 +509,24 @@ function countTextMatches(text, pattern) {
 }
 
 function rawConfigBoundaryText(text) {
-  return /(?:rawTypeBoundaryGlobs|facadeFileGlobs|runtimeStringOwnerGlobs|importBoundaryPolicies)/u.test(text);
+  return /(?:rawTypeBoundaryGlobs|facadeFileGlobs|runtimeStringOwnerGlobs|importBoundaryPolicies)/u.test(
+    text,
+  );
 }
 
 function importsOwnModule(rel, text) {
   const basename = path.basename(rel, path.extname(rel));
   if (!basename || basename === "index") return false;
-  return new RegExp(`from\\s+["'][^"']*/${escapeRegExp(basename)}["']|use\\s+.*::${escapeRegExp(basename)}::`, "iu").test(text);
+  return new RegExp(
+    `from\\s+["'][^"']*/${escapeRegExp(basename)}["']|use\\s+.*::${escapeRegExp(basename)}::`,
+    "iu",
+  ).test(text);
 }
 
 function hasOwnershipFile(dir) {
-  return ["OWNERS", "CODEOWNERS", "README.md"].some((name) => fs.existsSync(path.join(dir, name)));
+  return ["OWNERS", "CODEOWNERS", "README.md"].some((name) =>
+    fs.existsSync(path.join(dir, name)),
+  );
 }
 
 function escapeRegExp(value) {
@@ -436,7 +561,8 @@ function addViolation(
   detail,
   sourceLine = null,
 ) {
-  const rule = registryRule(ruleId, root) ?? GENERIC_RULES[ruleId] ?? { title: "Unknown rule", snippet: "" };
+  const rule = registryRule(ruleId, root) ??
+    GENERIC_RULES[ruleId] ?? { title: "Unknown rule", snippet: "" };
   violations.push({
     ruleId,
     title: rule.title,
@@ -502,18 +628,32 @@ function isSensitiveOrGeneratedPath(filePath) {
 }
 
 function isCommandLikeLine(line) {
-  return /^\s*(?:run:\s*)?(?:-\s+|>\s+)?(?:npx\s+|npm\s+|pnpm\s+|yarn\s+|node\s+|python(?:3)?\s+|uv\s+run\s+|cargo\s+|ruff\s+|pyright\b|mypy\b|gitleaks\b|trufflehog\b|\.\/|[A-Za-z]:[\\/])/iu.test(line) ||
-    /\b(?:execSync|spawnSync|spawn|exec)\s*\(\s*["'`][^"'`]*(?:gitleaks|trufflehog|ruff|pyright|mypy|npm\s+install)/iu.test(line);
+  return (
+    /^\s*(?:run:\s*)?(?:-\s+|>\s+)?(?:npx\s+|npm\s+|pnpm\s+|yarn\s+|node\s+|python(?:3)?\s+|uv\s+run\s+|cargo\s+|ruff\s+|pyright\b|mypy\b|gitleaks\b|trufflehog\b|\.\/|[A-Za-z]:[\\/])/iu.test(
+      line,
+    ) ||
+    /\b(?:execSync|spawnSync|spawn|exec)\s*\(\s*["'`][^"'`]*(?:gitleaks|trufflehog|ruff|pyright|mypy|npm\s+install)/iu.test(
+      line,
+    )
+  );
 }
 
 function isGeneratedLikePath(rel) {
-  return /(?:^|\/)(?:generated|__generated__|snapshots?|__snapshots__|test-results|output)\//iu.test(rel) ||
-    /(?:^|\/)[^/]*snapshot[^/]*\.(?:[cm]?[jt]sx?|json|txt|md|snap)$/iu.test(rel) ||
-    /\.(?:snap|snapshot)$/iu.test(rel);
+  return (
+    /(?:^|\/)(?:generated|__generated__|snapshots?|__snapshots__|test-results|output)\//iu.test(
+      rel,
+    ) ||
+    /(?:^|\/)[^/]*snapshot[^/]*\.(?:[cm]?[jt]sx?|json|txt|md|snap)$/iu.test(
+      rel,
+    ) ||
+    /\.(?:snap|snapshot)$/iu.test(rel)
+  );
 }
 
 function isImportLikeLine(line) {
-  return /^\s*(?:import\b|export\b.*\bfrom\b|(?:const|let|var)\s+\w+\s*=\s*require\(|use\s+)/u.test(line);
+  return /^\s*(?:import\b|export\b.*\bfrom\b|(?:const|let|var)\s+\w+\s*=\s*require\(|use\s+)/u.test(
+    line,
+  );
 }
 
 function isCoordinationVendorToolingPath(rel) {
@@ -521,8 +661,12 @@ function isCoordinationVendorToolingPath(rel) {
 }
 
 function isEnforcerToolingPath(rel) {
-  return /^(?:scripts|mcp|eslint-rules|adapters|tests|schemas)\//u.test(rel) ||
-    /^src\/(?:check(?:-|s\b)|codex-install|coordination\/|documentation-hints|generic-|harness|path-utils|policy|proof(?:-|\.mjs$)|routing|rule-|source-policy-(?:helpers|scanners))/.test(rel);
+  return (
+    /^(?:scripts|mcp|eslint-rules|adapters|tests|schemas)\//u.test(rel) ||
+    /^src\/(?:check(?:-|s\b)|codex-install|coordination\/|documentation-hints|generic-|harness|path-utils|policy|proof(?:-|\.mjs$)|routing|rule-|source-policy-(?:helpers|scanners))/.test(
+      rel,
+    )
+  );
 }
 
 function isTestPath(rel) {
@@ -568,8 +712,14 @@ function redact(value) {
     .replace(/(["'])[A-Za-z0-9_./+=:@-]{8,}\1/gu, "$1[REDACTED]$1")
     .replace(/\bgh[pousr]_[A-Za-z0-9_]{20,}\b/gu, "[REDACTED_GITHUB_TOKEN]")
     .replace(/\bAKIA[0-9A-Z]{16}\b/gu, "[REDACTED_AWS_KEY]")
-    .replace(/\b(?:sk|pk)_(?:live|test)_[A-Za-z0-9]{20,}\b/gu, "[REDACTED_STRIPE_KEY]")
-    .replace(/\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/gu, "[REDACTED_JWT]");
+    .replace(
+      /\b(?:sk|pk)_(?:live|test)_[A-Za-z0-9]{20,}\b/gu,
+      "[REDACTED_STRIPE_KEY]",
+    )
+    .replace(
+      /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/gu,
+      "[REDACTED_JWT]",
+    );
 }
 
 function redactOpenAiKey(value) {
