@@ -16,6 +16,8 @@
 fn main() -> std::io::Result<()> {
     let cli_path = std::env::args()
         .nth(1)
+        // ALLOC-JUSTIFICATION: default_dispatch_context takes the command path by
+        // value, so the fallback must match argv's owned String representation.
         .unwrap_or_else(|| "enforcer".to_owned());
     let ctx = enforcer_mcp::sink::default_dispatch_context(cli_path);
     enforcer_mcp::sink::run_stdio_server(&ctx)
