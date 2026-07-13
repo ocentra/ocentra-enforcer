@@ -5082,17 +5082,12 @@ fn gdscript_base_call_callee(node: Node<'_>, src: &[u8]) -> Option<String> {
 /// recovers the qualifying receiver text separately for
 /// [`CallRef::receiver_text`].
 fn gdscript_attribute_call_callee(node: Node<'_>, src: &[u8]) -> Option<String> {
-    for i in 0..node.child_count() {
-        let child = node.child(i)?;
-        if child.kind() == "identifier" {
-            let name = child.utf8_text(src).ok()?;
-            if let Some(receiver) = gdscript_attribute_call_receiver_text(node, src) {
-                return Some(format!("{receiver}.{name}"));
-            }
-            return Some(name.to_string());
-        }
+    let identifier = syntax_children(node).find(|child| child.kind() == "identifier")?;
+    let name = identifier.utf8_text(src).ok()?;
+    if let Some(receiver) = gdscript_attribute_call_receiver_text(node, src) {
+        return Some(format!("{receiver}.{name}"));
     }
-    None
+    Some(name.to_string())
 }
 
 /// The receiver expression text for an `attribute_call`, if this call
@@ -5117,7 +5112,7 @@ fn gdscript_attribute_call_receiver_text(node: Node<'_>, src: &[u8]) -> Option<S
     if end <= start {
         return None;
     }
-    let raw = std::str::from_utf8(&src[start..end]).ok()?;
+    let raw = std::str::from_utf8(src.get(start..end)?).ok()?;
     let trimmed = raw.trim_end_matches('.').trim();
     if trimmed.is_empty() {
         None
@@ -5164,18 +5159,10 @@ fn gdscript_call_arg_texts(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let Some(args) = node.child_by_field_name("arguments") else {
         return Vec::new();
     };
-    let mut out = Vec::new();
-    for i in 0..args.child_count() {
-        if let Some(child) = args.child(i) {
-            if matches!(child.kind(), "(" | ")" | ",") {
-                continue;
-            }
-            if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
-            }
-        }
-    }
-    out
+    syntax_children(args)
+        .filter(|child| !matches!(child.kind(), "(" | ")" | ","))
+        .filter_map(|child| child.utf8_text(src).ok().map(str::to_string))
+        .collect()
 }
 
 /// GDScript's [`Quirks`] row: `extends_statement`/`class_name_statement`
