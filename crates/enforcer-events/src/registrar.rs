@@ -5,10 +5,17 @@ use crate::{
     SubscriptionReport, UnsubscribeReport,
 };
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum RegistrarStatus {
+    #[default]
+    Active,
+    Disposed,
+}
+
 #[derive(Default)]
 pub struct EventRegistrar {
     handles: Vec<SubscriptionHandle>,
-    disposed: bool,
+    status: RegistrarStatus,
 }
 
 impl EventRegistrar {
@@ -27,7 +34,8 @@ impl EventRegistrar {
         F: Fn(EventContext<E>) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Result<(), EventingError>> + Send + 'static,
     {
-        if self.disposed {
+        // CANCELLATION-TEST: registrar_dispose_cancellation_removes_all_owned_subscriptions
+        if self.status == RegistrarStatus::Disposed {
             return Err(EventingError::RegistrarDisposed);
         }
         let handle = bus
@@ -44,12 +52,21 @@ impl EventRegistrar {
             .into_iter()
             .map(|handle| handle.unsubscribe())
             .collect::<Vec<_>>();
-        self.disposed = true;
+        self.status = RegistrarStatus::Disposed;
         RegistrarDisposeReport { reports }
     }
 
-    pub fn is_disposed(&self) -> bool {
-        self.disposed
+    pub fn status(&self) -> RegistrarStatus {
+        self.status
+    }
+}
+
+impl std::fmt::Debug for EventRegistrar {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("EventRegistrar")
+            .field("status", &self.status)
+            .finish()
     }
 }
 

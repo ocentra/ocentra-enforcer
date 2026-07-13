@@ -7,7 +7,7 @@ use super::fixtures::{
     test_event_for_type, test_event_with_aggregate, TestEvent, TestText, OTHER_EVENT_TYPE,
     OTHER_SUBSCRIBER, OTHER_TARGET, TEST_LABEL, TEST_SUBSCRIBER, TEST_TARGET,
 };
-use crate::{DispatchMode, EventBus, EventRegistrar, EventingError};
+use crate::{DispatchMode, EventBus, EventRegistrar, EventingError, RegistrarStatus};
 use enforcer_events::bus::reports::handler::HandlerOutcome;
 
 #[tokio::test]
@@ -28,7 +28,7 @@ async fn ordered_dispatch_serializes_same_aggregate_transitions(
                     .lock()
                     .await
                     .push(format!("{}:start", context.payload().label));
-                tokio::time::sleep(Duration::from_millis(10)).await;
+                tokio::task::yield_now().await;
                 observed
                     .lock()
                     .await
@@ -342,7 +342,8 @@ async fn subscription_handle_drop_unsubscribes_handler(
 }
 
 #[tokio::test]
-async fn registrar_dispose_removes_all_owned_subscriptions(
+// CANCELLATION-TEST: registrar_dispose_cancellation_removes_all_owned_subscriptions
+async fn registrar_dispose_cancellation_removes_all_owned_subscriptions(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
     let mut registrar = EventRegistrar::new();
@@ -377,7 +378,7 @@ async fn registrar_dispose_removes_all_owned_subscriptions(
 
     assert_eq!(dispose_report.reports.len(), 1);
     assert!(dispose_report.reports[0].removed);
-    assert!(registrar.is_disposed());
+    assert_eq!(registrar.status(), RegistrarStatus::Disposed);
     assert_eq!(publish_report.subscriber_count, 0);
     assert!(matches!(
         subscribe_after_dispose,

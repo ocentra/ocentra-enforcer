@@ -19,7 +19,7 @@ use enforcer_events::journal::policy::{JournalPolicy, JournalSelector};
 use enforcer_events::journal::{EventJournal, JournalAppend};
 use enforcer_events::queue;
 use enforcer_events::queue::policy::{EventQueuePolicy, QueueDisposition};
-use enforcer_events::registrar::EventRegistrar;
+use enforcer_events::registrar::{EventRegistrar, RegistrarStatus};
 use enforcer_events::request;
 use enforcer_events::request::{
     EventResponseContract, RequestCompletionOutcome, RequestEvent, RequestOptions,
