@@ -85,7 +85,7 @@ fn cyberskills_adapter_graceful_skip() -> Result<(), Box<dyn std::error::Error>>
     let AdapterOutcome::Errored { ref error_message } = outcome else {
         return Err(format!("expected Errored, got {outcome:?}").into());
     };
-    assert!(error_message.contains("compilation failed"));
+    assert_eq!(error_message, "slither exited 2: compilation failed");
 
     Ok(())
 }

@@ -47,10 +47,11 @@ fn injected_extra_local_only_step_fails_closed() -> Result<(), Box<dyn std::erro
         1,
         "expected exactly one finding: {findings:?}"
     );
-    assert!(findings[0].detail.contains("cargo local-only-lint"));
-    assert!(findings[0]
-        .detail
-        .contains("is not present in the CI workflow's step set"));
+    assert_eq!(findings[0].title, "local-only step has no matching CI step");
+    assert_eq!(
+        findings[0].detail,
+        "step `cargo local-only-lint` runs locally but is not present in the CI workflow's step set"
+    );
     Ok(())
 }
 
@@ -65,9 +66,11 @@ fn injected_version_skew_fails_closed() -> Result<(), Box<dyn std::error::Error>
         1,
         "expected exactly one finding: {findings:?}"
     );
-    assert!(findings[0].title.contains("version skew"));
-    assert!(findings[0].detail.contains("0.14.0"));
-    assert!(findings[0].detail.contains("0.15.2"));
+    assert_eq!(findings[0].title, "pinned version skew between local and CI");
+    assert_eq!(
+        findings[0].detail,
+        "component `cargo deny check` is pinned to `0.14.0` locally but `0.15.2` in CI"
+    );
     Ok(())
 }
 
@@ -84,8 +87,11 @@ fn injected_toolchain_channel_skew_fails_closed() -> Result<(), Box<dyn std::err
         1,
         "expected exactly one finding: {findings:?}"
     );
-    assert!(findings[0].detail.contains("1.95.0"));
-    assert!(findings[0].detail.contains("1.80.0"));
+    assert_eq!(findings[0].title, "pinned toolchain channel skew");
+    assert_eq!(
+        findings[0].detail,
+        "`rust-toolchain.toml` channel is `1.95.0` but the CI-observed channel is `1.80.0`"
+    );
     Ok(())
 }
 
@@ -125,7 +131,11 @@ fn real_repo_ci_workflow_has_parseable_steps() -> Result<(), Box<dyn std::error:
         "real ci.yml must yield at least one parsed step"
     );
     let names: Vec<&str> = manifest.steps.iter().map(|s| s.name.as_str()).collect();
-    assert!(names.contains(&"cargo fmt --check"));
-    assert!(names.iter().any(|n| n.contains("clippy")));
+    assert!(names.iter().any(|name| name == &"cargo fmt --check"));
+    assert!(
+        names
+            .iter()
+            .any(|name| name == &"cargo clippy -D warnings")
+    );
     Ok(())
 }
