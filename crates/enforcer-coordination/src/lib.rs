@@ -28,7 +28,7 @@
 //!   classes + protected-singleton escalation), `sync::stream` (append-only
 //!   ndjson read/write + hash-chain), `sync::retention` (compact → archive,
 //!   round-trip proof), `ledger` (active-claims projection), `api`
-//!   (init/claim/release/closeout with L1/L2/L13 fixes).
+//!   (init/claim/release/closeout with L1/L2/L13 safeguards).
 //! - **Deferred (not in this pass):** `session` (session-lease TTL /
 //!   thread-mode / delegate-grant "org chart" engine, `runner.mjs:365-537`),
 //!   `repair` (the 3 repair engines + doctor/inspectLedger), `guard` (the
@@ -54,7 +54,7 @@
 //! # Deviation flagged to primary
 //! The workpack's own claim/mail tooling used to coordinate THIS build
 //! (`ocentra_enforcer_coordination_claim`, the `.mjs` implementation) is the
-//! one exhibiting the L13 bug being fixed here in Rust — using it to claim
+//! one exhibiting the L13 behavior corrected here in Rust — using it to claim
 //! this crate's own files required enumerating exact files and splitting
 //! into two ≤10-file claims, exactly the friction this port's
 //! `api::claim_all` eliminates for future Rust-hub consumers.
@@ -67,6 +67,3 @@ pub mod fix_loop;
 pub mod ledger;
 pub mod lock;
 pub mod sync;
-
-pub use domain::{HubConfig, NodeId, NodeName, WriterId};
-pub use error::{CoordinationError, Result};
