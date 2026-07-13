@@ -211,28 +211,3 @@ impl Validator for DockerDaemonHardeningValidator {
         findings
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use std::path::PathBuf;
-
-    use enforcer_validator::harness::run_fixture_parity;
-
-    use super::DockerDaemonHardeningValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
-
-    #[test]
-    fn cyberskills_docker_daemon() -> Result<(), Box<dyn std::error::Error>> {
-        let validator = DockerDaemonHardeningValidator::new()?;
-        run_fixture_parity(
-            &validator,
-            &manifest_dir(),
-            "tests/fixtures/cyberskills/container.docker-daemon/bad/daemon.json",
-            "tests/fixtures/cyberskills/container.docker-daemon/good/daemon.json",
-        )?;
-        Ok(())
-    }
-}

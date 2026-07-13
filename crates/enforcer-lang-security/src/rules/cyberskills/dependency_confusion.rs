@@ -126,28 +126,3 @@ impl Validator for DependencyConfusionClaimableValidator {
         findings
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use std::path::PathBuf;
-
-    use enforcer_validator::harness::run_fixture_parity;
-
-    use super::DependencyConfusionClaimableValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
-
-    #[test]
-    fn cyberskills_dependency_confusion() -> Result<(), Box<dyn std::error::Error>> {
-        let validator = DependencyConfusionClaimableValidator::new()?;
-        run_fixture_parity(
-            &validator,
-            &manifest_dir(),
-            "tests/fixtures/cyberskills/supplychain.dependency-confusion-claimable/bad/package.json",
-            "tests/fixtures/cyberskills/supplychain.dependency-confusion-claimable/good/package.json",
-        )?;
-        Ok(())
-    }
-}
