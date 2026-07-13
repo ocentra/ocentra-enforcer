@@ -9,6 +9,8 @@ impl EventQueue {
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
         state.in_flight_event_ids.remove(event_id);
         state.in_flight_keys.remove(&key);
+        // CLONE-JUSTIFICATION: the completed-key registry and its FIFO eviction
+        // order each retain an owned copy of the same idempotency key.
         if self.policy.idempotency_registry_enabled() && state.completed_keys.insert(key.clone()) {
             state.completed_key_order.push_back(key);
             super::trim_completed_keys(&mut state);
