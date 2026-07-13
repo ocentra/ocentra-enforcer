@@ -770,6 +770,51 @@ fn waits() {
   ]);
 });
 
+test('finite async reads and bounded test routing do not require cancellation evidence', () => {
+  const project = makeProject({
+    'src/read.rs': `
+pub async fn read_once() -> Result<(), ()> {
+    Ok(())
+}
+`,
+    'tests/routing.rs': `
+#[tokio::test]
+async fn routes_a_typed_variant_through_a_bounded_channel() {
+    let (sender, mut receiver) = tokio::sync::mpsc::channel::<u8>(1);
+    sender.send(7).await.expect("receiver remains available during this finite test");
+    assert_eq!(receiver.recv().await, Some(7));
+}
+`,
+  });
+  const result = runGate(project);
+  const output = `${result.stdout}\n${result.stderr}`;
+  assert.doesNotMatch(output, /RR-12\.29/u, output);
+});
+
+test('background tasks still require cancellation evidence', () => {
+  const project = makeProject({
+    'src/worker.rs': `
+pub async fn start_background_work() {
+    tokio::spawn(async move {});
+}
+`,
+  });
+  expectFailure(project, 'RR-12.29');
+});
+
+test('async loops still require cancellation evidence', () => {
+  const project = makeProject({
+    'src/worker.rs': `
+pub async fn drain_forever() {
+    loop {
+        tokio::task::yield_now().await;
+    }
+}
+`,
+  });
+  expectFailure(project, 'RR-12.29');
+});
+
 test('Rust serde domain derives and weak assertions fail scanner', () => {
   const rustAssertMacro = 'assert';
   const project = makeProject({
