@@ -55,3 +55,15 @@ fn lock_lifecycle_distinguishes_active_write_blockers_from_merge_review() {
     assert_eq!(pr_ready.blockers.len(), 1);
     assert_eq!(pr_ready.blockers[0].kind, ConflictType::MergeRisk);
 }
+
+#[test]
+fn malformed_persisted_lock_values_fail_closed_without_weakening_the_claim() {
+    let mut malformed = context("worktree-a", "feature-a");
+    malformed.lock_kind = Some("unknown-lock".to_owned());
+    malformed.operation = Some("unknown-operation".to_owned());
+
+    let enriched = enrich_claim(&claim("writer-a", "lane-a", malformed), true);
+
+    assert_eq!(enriched.lock_kind, LockKind::GlobalWriteLock);
+    assert_eq!(enriched.operation, Operation::Edit);
+}

@@ -224,16 +224,17 @@ pub fn enrich_claim(claim: &RawClaim, has_explicit_context: bool) -> EnrichedCla
         .map(|p| normalize_coordination_path(p))
         .filter(|p| !p.is_empty())
         .collect();
-    let declared_lock_kind = claim
-        .context
-        .lock_kind
-        .as_deref()
-        .and_then(|k| LockKind::parse(k).ok())
-        .unwrap_or(if has_explicit_context {
-            LockKind::WriteLock
-        } else {
-            LockKind::GlobalWriteLock
-        });
+    let declared_lock_kind = match claim.context.lock_kind.as_deref() {
+        Some(raw) => match LockKind::parse(raw) {
+            Ok(kind) => kind,
+            // A malformed persisted lock declaration must never weaken a
+            // claim into a narrower lock. Treat it as a global write lock
+            // until the record is repaired.
+            Err(_) => LockKind::GlobalWriteLock,
+        },
+        None if has_explicit_context => LockKind::WriteLock,
+        None => LockKind::GlobalWriteLock,
+    };
     let singleton_groups: Vec<String> = paths
         .iter()
         .filter_map(|p| protected_singleton_group(p))
@@ -244,12 +245,15 @@ pub fn enrich_claim(claim: &RawClaim, has_explicit_context: bool) -> EnrichedCla
         } else {
             declared_lock_kind
         };
-    let operation = claim
-        .context
-        .operation
-        .as_deref()
-        .and_then(|o| Operation::parse(o).ok())
-        .unwrap_or(Operation::Edit);
+    let operation = match claim.context.operation.as_deref() {
+        Some(raw) => match Operation::parse(raw) {
+            Ok(operation) => operation,
+            // Legacy or malformed wire values retain the existing
+            // conservative edit behavior rather than becoming inspection.
+            Err(_) => Operation::Edit,
+        },
+        None => Operation::Edit,
+    };
     // CLONE-JUSTIFICATION: enriched claims are durable comparison snapshots;
     // they must not borrow the event projection that produced them.
     let claim_group = claim.context.claim_group.clone();
