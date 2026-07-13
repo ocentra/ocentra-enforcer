@@ -58,3 +58,48 @@ fn doctor_requires_complete_fixture_parity_for_code_rule_candidates() -> TestRes
     );
     Ok(())
 }
+
+#[test]
+fn doctor_rejects_duplicate_artifact_references_for_distinct_required_routes() -> TestResult {
+    let id: LessonId = "L10".parse()?;
+    let artifact: ArtifactRef = "rule-candidate.json#L10".parse()?;
+    let record = LessonRecord {
+        id: id.clone(),
+        date: "2026-07-13".parse()?,
+        domain: LessonDomain::Harness,
+        observed: "one artifact was repeated in persisted input".parse()?,
+        lesson: "each declared route needs its own landed artifact reference".parse()?,
+        routes: vec![LessonRoute::DoctrineBlock, LessonRoute::Skill],
+        landed_at: vec![artifact.clone(), artifact.clone()],
+        supersedes_seq: None,
+    };
+    let contents = HashMap::from([(artifact, "lessonId L10".to_owned())]);
+    let rule_id: RuleId = "LESSON-DOCTOR.1".parse()?;
+
+    assert!(!record.is_fully_landed());
+    let findings = run_doctor(&rule_id, &[record], &contents, &HashMap::new())?;
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].severity, Severity::Error);
+    assert!(findings[0]
+        .detail
+        .contains("only 1 landed artifact(s) verified"));
+    Ok(())
+}
+
+#[test]
+fn duplicate_route_entries_do_not_inflate_required_landing_count() -> TestResult {
+    let artifact: ArtifactRef = "doctrine.md#L11".parse()?;
+    let record = LessonRecord {
+        id: "L11".parse()?,
+        date: "2026-07-13".parse()?,
+        domain: LessonDomain::Harness,
+        observed: "legacy input repeated one route".parse()?,
+        lesson: "route identity is a set, not an inflated count".parse()?,
+        routes: vec![LessonRoute::DoctrineBlock, LessonRoute::DoctrineBlock],
+        landed_at: vec![artifact],
+        supersedes_seq: None,
+    };
+
+    assert!(record.is_fully_landed());
+    Ok(())
+}

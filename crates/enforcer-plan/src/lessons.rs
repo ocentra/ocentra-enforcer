@@ -46,7 +46,7 @@
 //! in this crate. No `pub use` barrel (workspace doctrine): consumers path
 //! through `enforcer_plan::lessons::*` directly.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use enforcer_core::error::DecodeError;
@@ -327,12 +327,14 @@ impl LessonRecord {
     /// True when every declared route has landed (or the lesson declares no
     /// routes needing a landing — i.e. every route is `PlanDoc`).
     pub fn is_fully_landed(&self) -> bool {
-        let non_plan_doc_routes = self
+        let required_routes = self
             .routes
             .iter()
-            .filter(|r| **r != LessonRoute::PlanDoc)
-            .count();
-        non_plan_doc_routes <= self.landed_at.len()
+            .copied()
+            .filter(|route| *route != LessonRoute::PlanDoc)
+            .collect::<HashSet<_>>();
+        let landed_artifacts = self.landed_at.iter().collect::<HashSet<_>>();
+        required_routes.len() <= landed_artifacts.len()
     }
 
     /// True when this lesson's only declared route(s) are `PlanDoc`
@@ -976,7 +978,7 @@ pub fn run_doctor(
             continue;
         }
 
-        let landed_ids_present: Vec<&ArtifactRef> = record
+        let landed_ids_present: HashSet<&ArtifactRef> = record
             .landed_at
             .iter()
             .filter(|artifact_ref| {
@@ -989,8 +991,10 @@ pub fn run_doctor(
         let non_plan_doc_routes = record
             .routes
             .iter()
-            .filter(|r| **r != LessonRoute::PlanDoc)
-            .count();
+            .copied()
+            .filter(|route| *route != LessonRoute::PlanDoc)
+            .collect::<HashSet<_>>()
+            .len();
 
         if landed_ids_present.is_empty() && non_plan_doc_routes > 0 {
             findings.push(lesson_finding(
