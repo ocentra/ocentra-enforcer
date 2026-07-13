@@ -9,8 +9,11 @@ use enforcer_rules::waiver::{ExpiryPolicy, Waiver, WaiverDate, WaiverLoadError, 
 /// Relative location of the project-local waiver registry.
 pub const PROJECT_WAIVER_REGISTRY_RELATIVE_PATH: &str = ".enforce/waivers.json";
 
-/// A named exception for one known rule and one exact project-relative path.
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// A named exception for one known rule and one exact project-relative path.
+///
+/// ROUNDTRIP-TEST: `request_to_waiver_roundtrip_preserves_all_boundary_fields`
+/// in `tests/file_rule_waiver_action.rs` proves this boundary mapping.
 pub struct FileRuleWaiverRequest {
     /// Exact project-relative path affected by the finding.
     pub path: String,
@@ -24,8 +27,21 @@ pub struct FileRuleWaiverRequest {
     pub expires: Option<WaiverDate>,
 }
 
-/// Failure while persisting a project-local file-rule waiver.
+/// Convert the UI boundary request into the validated rules-domain waiver row.
+impl From<&FileRuleWaiverRequest> for Waiver {
+    fn from(request: &FileRuleWaiverRequest) -> Self {
+        Self {
+            path: request.path.clone(),
+            rule_id: request.rule_id.clone(),
+            owner: request.owner.clone(),
+            reason: request.reason.clone(),
+            expires: request.expires,
+        }
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
+/// Failure while persisting a project-local file-rule waiver.
 pub enum FileRuleWaiverWriteError {
     /// The requested project root is not a directory.
     #[error("project root `{path}` is not a directory")]
@@ -79,13 +95,7 @@ pub fn upsert_file_rule_waiver(
             .as_ref()
             .is_none_or(|path| waiver.path != *path || waiver.rule_id != request.rule_id)
     });
-    registry.waivers.push(Waiver {
-        path: request.path.clone(),
-        rule_id: request.rule_id.clone(),
-        owner: request.owner.clone(),
-        reason: request.reason.clone(),
-        expires: request.expires,
-    });
+    registry.waivers.push(request.into());
     registry.validate(rules, today, ExpiryPolicy::RejectExpired)?;
 
     let mut serialized = serde_json::to_string_pretty(&registry).map_err(|error| {

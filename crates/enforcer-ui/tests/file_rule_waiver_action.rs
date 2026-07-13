@@ -3,9 +3,10 @@ use std::str::FromStr;
 use enforcer_domain::ids::RuleId;
 use enforcer_rules::loader::{load_registry_from_records, parse_catalog};
 use enforcer_rules::registry::RuleRegistry;
-use enforcer_rules::waiver::{ExpiryPolicy, WaiverDate, WaiverRegistry};
+use enforcer_rules::waiver::{ExpiryPolicy, Waiver, WaiverDate, WaiverRegistry};
 use enforcer_ui::actions::file_rule_waiver::{
     project_waiver_registry_path, upsert_file_rule_waiver, FileRuleWaiverRequest,
+    FileRuleWaiverWriteError,
 };
 
 const RULES: &str = r#"[
@@ -52,7 +53,7 @@ fn invalid_input_writes_nothing() -> Result<(), Box<dyn std::error::Error>> {
         &request("src/**", "platform-team", "tracked migration")?,
     );
 
-    assert!(outcome.is_err());
+    assert!(matches!(outcome, Err(FileRuleWaiverWriteError::Waiver(_))));
     assert!(
         !project_waiver_registry_path(project.path()).exists(),
         "invalid input must not create a waiver file"
@@ -61,6 +62,20 @@ fn invalid_input_writes_nothing() -> Result<(), Box<dyn std::error::Error>> {
         !project.path().join(".enforce").exists(),
         "invalid input must not create the waiver directory"
     );
+    Ok(())
+}
+
+#[test]
+fn request_to_waiver_roundtrip_preserves_all_boundary_fields(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let request = request("src/legacy.rs", "platform-team", "tracked migration")?;
+    let waiver = Waiver::from(&request);
+
+    assert_eq!(waiver.path, request.path);
+    assert_eq!(waiver.rule_id, request.rule_id);
+    assert_eq!(waiver.owner, request.owner);
+    assert_eq!(waiver.reason, request.reason);
+    assert_eq!(waiver.expires, request.expires);
     Ok(())
 }
 
