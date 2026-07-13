@@ -3,5 +3,6 @@
 /**
  * Finding severity, lowercase on the wire (`"error"`, `"warning"`,
  * `"info"`) to match the legacy `.mjs` report shape.
+ *SERDE-TAG-JUSTIFICATION: scalar JSON string contract; object tagging is inapplicable.
  */
 export type Severity = "error" | "warning" | "info";

@@ -5,5 +5,8 @@
  *
  * Always relative (no leading separator or drive letter), normalized to
  * forward slashes, and confined: no `..` segment may escape the root.
+ * BRAND-INVARIANT: constructed only by validated conversions; the inner text
+ * is normalized, relative, and cannot escape its repository root.
+ *BRAND-INVARIANT: validated normalized relative path confined to its root.
  */
 export type RelPath = string;
