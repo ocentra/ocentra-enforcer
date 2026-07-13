@@ -2292,10 +2292,9 @@ fn java_walk_scoped_body(
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..class_node.child_count() {
-        if let Some(child) = class_node.child(i) {
-            walk(child, &ctx, out, name, FnScope::default());
-        }
+    let mut cursor = class_node.walk();
+    for child in class_node.children(&mut cursor) {
+        walk(child, &ctx, out, name, FnScope::default());
     }
     if let Some(container) = name {
         java_emit_constant_field_defines(class_node, src, container, out);
@@ -2313,10 +2312,8 @@ fn java_emit_constant_field_defines(
     container: &str,
     out: &mut ParsedFile,
 ) {
-    for i in 0..class_node.child_count() {
-        let Some(child) = class_node.child(i) else {
-            continue;
-        };
+    let mut cursor = class_node.walk();
+    for child in class_node.children(&mut cursor) {
         match child.kind() {
             "field_declaration" => {
                 let modifiers = java_modifier_texts(child, src);
@@ -2461,8 +2458,8 @@ fn c_innermost_declarator_identifier(node: Node<'_>, src: &[u8]) -> Option<Strin
 /// `languages/c.rs`'s `struct_field_names` byte-for-byte.
 fn c_struct_field_names(body: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..body.child_count() {
-        let Some(child) = body.child(i) else { continue };
+    let mut cursor = body.walk();
+    for child in body.children(&mut cursor) {
         if child.kind() != "field_declaration" {
             continue;
         }
@@ -2479,8 +2476,8 @@ fn c_struct_field_names(body: Node<'_>, src: &[u8]) -> Vec<String> {
 /// `languages/c.rs`'s `typedef_alias_names` byte-for-byte.
 fn c_typedef_alias_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
         match child.kind() {
             "typedef" | "struct_specifier" | "union_specifier" | "enum_specifier" | ";" => {
                 continue;
@@ -2512,8 +2509,8 @@ fn c_top_level_declaration_symbols(
     }
     let is_const = c_declaration_has_const(node, src);
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
         if child.kind() != "init_declarator" && child.kind() != "identifier" {
             continue;
         }
@@ -2544,13 +2541,12 @@ fn c_top_level_declaration_symbols(
 }
 
 fn c_declaration_has_const(node: Node<'_>, src: &[u8]) -> bool {
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            if child.kind() == "type_qualifier" {
-                if let Ok(text) = child.utf8_text(src) {
-                    if text == "const" {
-                        return true;
-                    }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() == "type_qualifier" {
+            if let Ok(text) = child.utf8_text(src) {
+                if text == "const" {
+                    return true;
                 }
             }
         }
@@ -2769,10 +2765,9 @@ fn c_walk_function_body(body: Node<'_>, src: &[u8], name: &str, line: usize, out
         name: Some(name),
         line: Some(line),
     };
-    for i in 0..body.child_count() {
-        if let Some(child) = body.child(i) {
-            walk(child, &ctx, out, None, fn_scope);
-        }
+    let mut cursor = body.walk();
+    for child in body.children(&mut cursor) {
+        walk(child, &ctx, out, None, fn_scope);
     }
 }
 
@@ -2791,10 +2786,9 @@ fn c_walk_scoped(node: Node<'_>, src: &[u8], enclosing: Option<&str>, out: &mut 
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, &ctx, out, enclosing, FnScope::default());
-        }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        walk(child, &ctx, out, enclosing, FnScope::default());
     }
 }
 
@@ -2819,10 +2813,9 @@ fn c_walk_unscoped(node: Node<'_>, src: &[u8], out: &mut ParsedFile) {
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, &ctx, out, None, FnScope::default());
-        }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        walk(child, &ctx, out, None, FnScope::default());
     }
 }
 
@@ -2892,8 +2885,8 @@ fn cpp_innermost_declarator_identifier(node: Node<'_>, src: &[u8]) -> Option<Str
 /// `typedef_alias_names` byte-for-byte.
 fn cpp_typedef_alias_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
         match child.kind() {
             "typedef" | "struct_specifier" | "union_specifier" | "enum_specifier"
             | "class_specifier" | ";" => {
@@ -2926,8 +2919,8 @@ fn cpp_top_level_declaration_symbols(
     }
     let is_const = cpp_declaration_has_const(node, src);
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
         if child.kind() != "init_declarator" && child.kind() != "identifier" {
             continue;
         }
@@ -2958,13 +2951,12 @@ fn cpp_top_level_declaration_symbols(
 }
 
 fn cpp_declaration_has_const(node: Node<'_>, src: &[u8]) -> bool {
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            if child.kind() == "type_qualifier" {
-                if let Ok(text) = child.utf8_text(src) {
-                    if text == "const" {
-                        return true;
-                    }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() == "type_qualifier" {
+            if let Ok(text) = child.utf8_text(src) {
+                if text == "const" {
+                    return true;
                 }
             }
         }
@@ -2976,17 +2968,13 @@ fn cpp_declaration_has_const(node: Node<'_>, src: &[u8]) -> bool {
 /// `languages/cpp.rs`'s `base_class_names` byte-for-byte.
 fn cpp_base_class_names(class_node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..class_node.child_count() {
-        let Some(child) = class_node.child(i) else {
-            continue;
-        };
+    let mut class_cursor = class_node.walk();
+    for child in class_node.children(&mut class_cursor) {
         if child.kind() != "base_class_clause" {
             continue;
         }
-        for j in 0..child.child_count() {
-            let Some(entry) = child.child(j) else {
-                continue;
-            };
+        let mut child_cursor = child.walk();
+        for entry in child.children(&mut child_cursor) {
             if matches!(
                 entry.kind(),
                 "type_identifier" | "qualified_identifier" | "template_type"
@@ -3004,8 +2992,8 @@ fn cpp_base_class_names(class_node: Node<'_>, src: &[u8]) -> Vec<String> {
 /// `languages/cpp.rs`'s `field_names` byte-for-byte.
 fn cpp_field_names(body: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..body.child_count() {
-        let Some(child) = body.child(i) else { continue };
+    let mut cursor = body.walk();
+    for child in body.children(&mut cursor) {
         if child.kind() != "field_declaration" {
             continue;
         }
@@ -3025,14 +3013,13 @@ fn cpp_field_names(body: Node<'_>, src: &[u8]) -> Vec<String> {
 /// `is_abstract_class_body` byte-for-byte.
 fn cpp_is_abstract_class_body(body: Node<'_>, src: &[u8]) -> bool {
     let mut saw_virtual_member = false;
-    for i in 0..body.child_count() {
-        let Some(child) = body.child(i) else { continue };
+    let mut cursor = body.walk();
+    for child in body.children(&mut cursor) {
         if child.kind() != "field_declaration" {
             continue;
         }
-        let field_children: Vec<Node<'_>> = (0..child.child_count())
-            .filter_map(|j| child.child(j))
-            .collect();
+        let mut field_cursor = child.walk();
+        let field_children: Vec<Node<'_>> = child.children(&mut field_cursor).collect();
         let has_pure_virtual = field_children
             .iter()
             .any(|c| c.kind() == "pure_virtual_clause")
@@ -3062,8 +3049,8 @@ fn cpp_is_abstract_class_body(body: Node<'_>, src: &[u8]) -> bool {
 /// `auto f = [](...) { ... };` on a `declaration` node -- mirrors
 /// `languages/cpp.rs`'s `named_lambda_binding` byte-for-byte.
 fn cpp_named_lambda_binding(declaration_node: Node<'_>, src: &[u8]) -> Option<SymbolRef> {
-    for j in 0..declaration_node.child_count() {
-        let inner = declaration_node.child(j)?;
+    let mut cursor = declaration_node.walk();
+    for inner in declaration_node.children(&mut cursor) {
         if inner.kind() != "init_declarator" {
             continue;
         }
