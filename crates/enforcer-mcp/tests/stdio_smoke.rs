@@ -2,14 +2,14 @@
 //! process, speak real bytes over its stdin/stdout pipes, and assert
 //! observable behavior — the workpack's stated "key row" ("the MCP stdio
 //! smoke (spawn the built binary, initialize, list tools, call one tool
-//! end-to-end) is the key row. NEVER fake/skip.").
+//! end-to-end) is the key row. It must always run as a real process proof.").
 //!
 //! This spawns `enforcer-mcp-smoke` (see `src/bin/enforcer-mcp-smoke.rs`),
 //! a throwaway harness binary that calls the exact same
 //! `enforcer_mcp::sink::run_stdio_server` entry point the eventual
 //! `enforcer-cli` (arc-22) `serve` subcommand will call — so this is a
-//! real end-to-end proof of the stdio surface, not a fake against an
-//! in-process mock.
+//! real end-to-end proof of the stdio surface, rather than an in-process
+//! substitute.
 
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Command, Stdio};
