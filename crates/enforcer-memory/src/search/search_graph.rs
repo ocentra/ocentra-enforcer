@@ -294,17 +294,11 @@ pub fn search_graph_with_semantic(
 ) -> Result<SearchGraphResult, SearchGraphError> {
     validate_relationship(spec.relationship.as_deref())?;
 
-    let has_query = spec
-        .query
-        .as_deref()
-        .map(|q| !q.trim().is_empty())
-        .unwrap_or(false);
-
-    if has_query {
+    if let Some(query) = spec.query.as_deref().filter(|query| !query.trim().is_empty()) {
         // Baseline §2.1 mode-interaction: BM25 short-circuits on any
         // usable token, ignoring name_pattern/label/degree filters and
         // semantic_query entirely.
-        let bm25 = run_bm25(graph, spec)?;
+        let bm25 = run_bm25(graph, spec, query)?;
         if !bm25.results.is_empty() || bm25.total > 0 {
             return Ok(bm25);
         }
@@ -397,8 +391,8 @@ fn flat_file(file: &FileNode, label: NodeLabel) -> FlatNode<'_> {
 fn run_bm25(
     graph: &CodeGraph,
     spec: &SearchGraphSpec,
+    query: &str,
 ) -> Result<SearchGraphResult, SearchGraphError> {
-    let query = spec.query.as_deref().unwrap_or_default();
     let terms = crate::fulltext::tokenize(query);
     if terms.is_empty() {
         return Ok(SearchGraphResult {
@@ -428,6 +422,8 @@ fn run_bm25(
             // Simple deterministic BM25-ish scoring: term-overlap ratio
             // is the base signal, boosted by the label tier (baseline
             // §2.2 label-boost table, corrected per doc erratum).
+            // CAST-JUSTIFICATION: term cardinalities are converted to the
+            // floating-point ratio used by the BM25 ranking formula.
             let base = hits as f64 / terms.len() as f64;
             let score = base + n.label.bm25_boost();
             Some((n, score))
@@ -449,6 +445,8 @@ fn run_bm25(
         .skip(offset)
         .take(limit)
         .map(|(n, score)| SearchGraphHit {
+            // ALLOC-JUSTIFICATION: result rows outlive the borrowed flattened
+            // graph view used to calculate this BM25 page.
             node_id: n.node_id.to_owned(),
             name: n.name.to_owned(),
             qualified_name: n.qualified_name,
@@ -511,10 +509,14 @@ fn run_regex_mode(
             let total_deg = in_deg + out_deg;
             let min_ok = spec
                 .min_degree
+                // CAST-JUSTIFICATION: degrees are u32 counters, which fit
+                // losslessly in i64 for comparison with the request bound.
                 .map(|m| m == NO_DEGREE_FILTER || total_deg as i64 >= m)
                 .unwrap_or(true);
             let max_ok = spec
                 .max_degree
+                // CAST-JUSTIFICATION: degrees are u32 counters, which fit
+                // losslessly in i64 for comparison with the request bound.
                 .map(|m| m == NO_DEGREE_FILTER || total_deg as i64 <= m)
                 .unwrap_or(true);
             min_ok && max_ok
@@ -542,6 +544,8 @@ fn run_regex_mode(
             let connected_names = if spec.include_connected {
                 let names = one_hop_names(call_adjacency, n.node_id, graph);
                 for name in &names {
+                    // CLONE-JUSTIFICATION: each hit retains its own names
+                    // while the response-level aggregate owns its dedup set.
                     all_connected.insert(name.clone());
                 }
                 if names.is_empty() {
@@ -553,6 +557,8 @@ fn run_regex_mode(
                 None
             };
             SearchGraphHit {
+                // ALLOC-JUSTIFICATION: regex result rows outlive the borrowed
+                // flattened graph view used to select and sort the page.
                 node_id: n.node_id.to_owned(),
                 name: n.name.to_owned(),
                 qualified_name: n.qualified_name,
@@ -611,6 +617,8 @@ fn one_hop_names(calls: &[CallEdge], node_id: &str, graph: &CodeGraph) -> Vec<St
     let mut names: Vec<String> = calls
         .iter()
         .filter(|c| c.from_file_id == file_id)
+        // CLONE-JUSTIFICATION: connected-name output is owned after the
+        // borrowed call-edge adjacency is released.
         .map(|c| c.callee.clone())
         .collect();
     names.sort();
@@ -647,6 +655,8 @@ fn compute_degrees(
         return degrees;
     }
     for call in graph.calls() {
+        // CLONE-JUSTIFICATION: the degree map owns file ids while it is
+        // assembled independently of the immutable graph call list.
         let entry = degrees.entry(call.from_file_id.clone()).or_insert((0, 0));
         entry.1 += 1;
         // Baseline computes in/out degree against resolved node ids;
@@ -667,6 +677,8 @@ fn resolve_callee_to_node_id(graph: &CodeGraph, callee: &str) -> Option<String> 
     graph
         .symbol_nodes()
         .find(|s| s.name == callee)
+        // CLONE-JUSTIFICATION: callers retain the resolved id in owned degree
+        // aggregation state after graph traversal ends.
         .map(|s| s.id.clone())
 }
 
@@ -678,6 +690,8 @@ fn compute_entry_points(graph: &CodeGraph, relationship: &str) -> HashSet<String
     degrees
         .iter()
         .filter(|(_, (in_deg, out_deg))| *in_deg == 0 && *out_deg >= 1)
+        // CLONE-JUSTIFICATION: the entry-point result owns ids independently
+        // of the local degree map used to derive it.
         .map(|(id, _)| id.clone())
         .collect()
 }
