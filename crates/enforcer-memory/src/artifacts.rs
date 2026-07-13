@@ -224,8 +224,16 @@ impl GraphSnapshot {
         let mut snapshot = GraphSnapshot::default();
         for node in graph.nodes() {
             match node {
-                CodeNode::File(f) => snapshot.files.push(file_snapshot(f, false)),
-                CodeNode::TextOnly(f) => snapshot.files.push(file_snapshot(f, true)),
+                CodeNode::File(f) => {
+                    snapshot
+                        .files
+                        .push(file_snapshot(f, FileSnapshotKind::Structured));
+                }
+                CodeNode::TextOnly(f) => {
+                    snapshot
+                        .files
+                        .push(file_snapshot(f, FileSnapshotKind::TextOnly));
+                }
                 CodeNode::Function(s) => {
                     snapshot
                         .symbols
@@ -350,7 +358,21 @@ impl GraphSnapshot {
     }
 }
 
-fn file_snapshot(f: &crate::code_graph::FileNode, text_only: bool) -> GraphFileSnapshot {
+/// The source graph distinguishes structured files from text-only files.
+/// Keeping that distinction typed avoids accidentally reversing a boolean at
+/// this persistence boundary.
+enum FileSnapshotKind {
+    Structured,
+    TextOnly,
+}
+
+impl FileSnapshotKind {
+    const fn is_text_only(&self) -> bool {
+        matches!(self, Self::TextOnly)
+    }
+}
+
+fn file_snapshot(f: &crate::code_graph::FileNode, kind: FileSnapshotKind) -> GraphFileSnapshot {
     // CLONE-JUSTIFICATION: a graph snapshot is an owned serialization
     // boundary and cannot borrow fields from the live graph node.
     GraphFileSnapshot {
@@ -358,7 +380,7 @@ fn file_snapshot(f: &crate::code_graph::FileNode, text_only: bool) -> GraphFileS
         id: f.id.clone(),
         // CLONE-JUSTIFICATION: exported path is owned snapshot data.
         rel_path: f.rel_path.clone(),
-        text_only,
+        text_only: kind.is_text_only(),
         // CLONE-JUSTIFICATION: exported content digest is owned snapshot data.
         content_hash: f.content_hash.clone(),
         last_commit: f.last_commit.clone(),
@@ -428,6 +450,8 @@ pub enum GraphArtifactError {
     },
     #[error("system clock is before the Unix epoch: {0}")]
     Clock(#[source] std::time::SystemTimeError),
+    #[error("artifact byte length exceeds the u64 persistence format")]
+    ArtifactTooLarge,
     /// The artifact's `.zst` file already exists at the destination --
     /// export refuses to silently overwrite an existing artifact
     /// (mirrors the baseline's O_EXCL-guarded sidecar write).
@@ -486,7 +510,10 @@ pub fn export_graph_artifact(
     })?;
 
     let json = serde_json::to_vec(snapshot)?;
-    let original_size = json.len() as u64;
+    let original_size = json
+        .len()
+        .try_into()
+        .map_err(|_| GraphArtifactError::ArtifactTooLarge)?;
 
     let mut encoder = zstd::Encoder::new(Vec::new(), GRAPH_ARTIFACT_COMPRESSION_LEVEL)
         .map_err(GraphArtifactError::Compression)?;
@@ -494,7 +521,10 @@ pub fn export_graph_artifact(
         .write_all(&json)
         .map_err(GraphArtifactError::Compression)?;
     let compressed = encoder.finish().map_err(GraphArtifactError::Compression)?;
-    let compressed_size = compressed.len() as u64;
+    let compressed_size = compressed
+        .len()
+        .try_into()
+        .map_err(|_| GraphArtifactError::ArtifactTooLarge)?;
 
     let zst_path = dir.join(GRAPH_ARTIFACT_FILENAME);
     let meta_path = dir.join(GRAPH_ARTIFACT_META_FILENAME);
