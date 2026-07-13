@@ -14,6 +14,7 @@ impl EventBus {
             .unwrap_or_else(PoisonError::into_inner);
         Arc::clone(
             gates
+                // CLONE-JUSTIFICATION: the map owns its aggregate key while the caller retains its typed lookup key.
                 .entry(aggregate_key.clone())
                 .or_insert_with(|| Arc::new(Semaphore::new(1))),
         )
