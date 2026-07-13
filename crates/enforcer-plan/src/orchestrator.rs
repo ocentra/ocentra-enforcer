@@ -984,7 +984,7 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
     /// exhausted (a safety bound for tests/CLI callers; a real standing
     /// loop has no such bound and re-arms indefinitely per (5) above).
     pub fn run_until_done(&mut self, max_ticks: u32) -> PlanResult<GatekeeperHandoff> {
-        for _ in 0..max_ticks {
+        for () in std::iter::repeat_n((), max_ticks as usize) {
             match self.tick()? {
                 TickOutcome::Done(handoff) => return Ok(handoff),
                 TickOutcome::Continue { next_wake_armed } => {
