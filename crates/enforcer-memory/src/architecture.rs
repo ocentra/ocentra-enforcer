@@ -124,6 +124,31 @@ impl ArchitectureDirectory {
     }
 }
 
+/// An owned crate or top-level section identifier used during architecture
+/// aggregation.
+///
+/// BRAND-INVARIANT: the value is derived only from a repository-relative
+/// [`ArchitecturePath`], using the crate-map grouping documented by
+/// [`CrateSection`]. It is an internal map key, not an unvalidated caller
+/// supplied identifier.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct ArchitectureSectionKey(String);
+
+impl ArchitectureSectionKey {
+    fn from_path(path: ArchitecturePath<'_>) -> Self {
+        let mut segments = path.0.split('/');
+        let first = segments.next();
+        let second = segments.next();
+        match (first, second) {
+            // ALLOC-JUSTIFICATION: section keys own their normalized grouping
+            // independently of the graph's borrowed file path.
+            (Some("crates"), Some(crate_name)) => Self(format!("crates/{crate_name}")),
+            (Some(first), Some(_)) => Self(first.to_owned()),
+            _ => Self(".".to_owned()),
+        }
+    }
+}
+
 /// The optional repository-relative prefix applied uniformly to one report.
 ///
 /// BRAND-INVARIANT: when present, the prefix is compared only against the
@@ -658,33 +683,20 @@ fn symbol_count_under(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> usize 
         .count()
 }
 
-/// Group a repo-relative path into a crate/section key: everything up
-/// to (and including) the second path segment when the first segment
-/// is `crates` (e.g. `crates/enforcer-memory/src/lib.rs` ->
-/// `crates/enforcer-memory`), otherwise the first path segment, or
-/// `"."` for a root-level file with no directory.
-fn crate_map_key(rel_path: &str) -> String {
-    let segments: Vec<&str> = rel_path.split('/').collect();
-    match segments.as_slice() {
-        [] => ".".to_string(),
-        [_only] => ".".to_string(),
-        ["crates", crate_name, ..] => format!("crates/{crate_name}"),
-        [first, ..] => (*first).to_string(),
-    }
-}
-
 fn crate_sections(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<CrateSection> {
-    let mut sections: BTreeMap<String, CrateSection> = BTreeMap::new();
+    let mut sections: BTreeMap<ArchitectureSectionKey, CrateSection> = BTreeMap::new();
 
     for file in graph.file_nodes() {
         if !scope.includes(ArchitecturePath(&file.rel_path)) {
             continue;
         }
-        let crate_name = crate_map_key(&file.rel_path);
+        let crate_name = ArchitectureSectionKey::from_path(ArchitecturePath(&file.rel_path));
         let section = sections
+            // CLONE-JUSTIFICATION: the typed key indexes the aggregation map
+            // while the report independently owns its output text.
             .entry(crate_name.clone())
             .or_insert_with(|| CrateSection {
-                name: crate_name,
+                name: crate_name.0.clone(),
                 file_count: 0,
                 symbol_count: 0,
                 rel_paths: Vec::new(),
@@ -701,7 +713,7 @@ fn crate_sections(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<CrateS
         if !scope.includes(ArchitecturePath(rel_path)) {
             continue;
         }
-        let crate_name = crate_map_key(rel_path);
+        let crate_name = ArchitectureSectionKey::from_path(ArchitecturePath(rel_path));
         if let Some(section) = sections.get_mut(&crate_name) {
             section.symbol_count += 1;
         }
@@ -889,10 +901,10 @@ fn entry_points(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<EntryPoi
 /// using the same best-effort suffix/name matching
 /// [`crate::analysis::CodeAdjacency`] documents, and tally counts.
 fn dependency_edges(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<DependencyEdge> {
-    let file_paths: Vec<(&str, &str)> = graph
+    let file_paths: Vec<(ArchitecturePath<'_>, &str)> = graph
         .file_nodes()
         .filter(|f| scope.includes(ArchitecturePath(&f.rel_path)))
-        .map(|f| (f.rel_path.as_str(), f.id.as_str()))
+        .map(|f| (ArchitecturePath(&f.rel_path), f.id.as_str()))
         .collect();
     let file_path_by_id: BTreeMap<&str, &str> = graph
         .file_nodes()
@@ -907,7 +919,8 @@ fn dependency_edges(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<Depe
         .map(|s| (s.id.as_str(), s.file_id.as_str()))
         .collect();
 
-    let mut counts: BTreeMap<(String, String), usize> = BTreeMap::new();
+    let mut counts: BTreeMap<(ArchitectureSectionKey, ArchitectureSectionKey), usize> =
+        BTreeMap::new();
 
     for import in graph.imports() {
         let Some(&from_path) = file_path_by_id.get(import.from_file_id.as_str()) else {
@@ -916,9 +929,12 @@ fn dependency_edges(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<Depe
         if !scope.includes(ArchitecturePath(from_path)) {
             continue;
         }
-        if let Some(to_path) = resolve_module_path(&import.module_path, &file_paths) {
-            let from_section = crate_map_key(from_path);
-            let to_section = crate_map_key(to_path);
+        if let Some(to_path) = resolve_module_path(
+            ArchitecturePath(&import.module_path),
+            &file_paths,
+        ) {
+            let from_section = ArchitectureSectionKey::from_path(ArchitecturePath(from_path));
+            let to_section = ArchitectureSectionKey::from_path(to_path);
             if from_section != to_section {
                 *counts.entry((from_section, to_section)).or_insert(0) += 1;
             }
@@ -936,8 +952,9 @@ fn dependency_edges(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<Depe
             if let Some(&to_file_id) = symbol_file_by_id.get(to_symbol_id) {
                 if let Some(&to_path) = file_path_by_id.get(to_file_id) {
                     if scope.includes(ArchitecturePath(to_path)) {
-                        let from_section = crate_map_key(from_path);
-                        let to_section = crate_map_key(to_path);
+                        let from_section =
+                            ArchitectureSectionKey::from_path(ArchitecturePath(from_path));
+                        let to_section = ArchitectureSectionKey::from_path(ArchitecturePath(to_path));
                         if from_section != to_section {
                             *counts.entry((from_section, to_section)).or_insert(0) += 1;
                         }
@@ -949,15 +966,20 @@ fn dependency_edges(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<Depe
 
     counts
         .into_iter()
-        .map(|((from, to), count)| DependencyEdge { from, to, count })
+        .map(|((from, to), count)| DependencyEdge {
+            from: from.0,
+            to: to.0,
+            count,
+        })
         .collect()
 }
 
 fn resolve_module_path<'a>(
-    module_path: &str,
-    file_paths: &[(&'a str, &'a str)],
-) -> Option<&'a str> {
+    module_path: ArchitecturePath<'_>,
+    file_paths: &[(ArchitecturePath<'a>, &'a str)],
+) -> Option<ArchitecturePath<'a>> {
     let needle = module_path
+        .0
         .trim_start_matches("./")
         .trim_start_matches("../");
     let last_segment = needle.rsplit(['/', ':', '.']).next().unwrap_or(needle);
@@ -967,9 +989,9 @@ fn resolve_module_path<'a>(
     file_paths
         .iter()
         .find(|(rel_path, _)| {
-            let stem = rel_path.rsplit('/').next().unwrap_or(rel_path);
+            let stem = rel_path.0.rsplit('/').next().unwrap_or(rel_path.0);
             let stem = stem.split('.').next().unwrap_or(stem);
-            stem == last_segment || rel_path.ends_with(last_segment)
+            stem == last_segment || rel_path.0.ends_with(last_segment)
         })
         .map(|(rel_path, _)| *rel_path)
 }
@@ -1001,7 +1023,8 @@ fn boundaries(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<Boundary> 
         .map(|s| (s.id.as_str(), s.file_id.as_str()))
         .collect();
 
-    let mut counts: BTreeMap<(String, String), usize> = BTreeMap::new();
+    let mut counts: BTreeMap<(ArchitectureSectionKey, ArchitectureSectionKey), usize> =
+        BTreeMap::new();
     for call in graph.calls() {
         let Some(&from_path) = file_path_by_id.get(call.from_file_id.as_str()) else {
             continue;
@@ -1021,8 +1044,8 @@ fn boundaries(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<Boundary> 
         if !scope.includes(ArchitecturePath(to_path)) {
             continue;
         }
-        let from_section = crate_map_key(from_path);
-        let to_section = crate_map_key(to_path);
+        let from_section = ArchitectureSectionKey::from_path(ArchitecturePath(from_path));
+        let to_section = ArchitectureSectionKey::from_path(ArchitecturePath(to_path));
         if from_section != to_section {
             *counts.entry((from_section, to_section)).or_insert(0) += 1;
         }
@@ -1031,8 +1054,8 @@ fn boundaries(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<Boundary> 
     counts
         .into_iter()
         .map(|((from, to), call_count)| Boundary {
-            from,
-            to,
+            from: from.0,
+            to: to.0,
             call_count,
         })
         .collect()
@@ -1180,30 +1203,41 @@ fn layer_classification(
     let entries = entry_points(graph, scope);
     let routes = route_entries(graph, scope);
 
-    let mut fan_in: BTreeMap<&str, usize> = BTreeMap::new();
-    let mut fan_out: BTreeMap<&str, usize> = BTreeMap::new();
+    let mut fan_in: BTreeMap<ArchitectureSectionKey, usize> = BTreeMap::new();
+    let mut fan_out: BTreeMap<ArchitectureSectionKey, usize> = BTreeMap::new();
     for edge in &cross_edges {
-        *fan_out.entry(edge.from.as_str()).or_insert(0) += edge.call_count;
-        *fan_in.entry(edge.to.as_str()).or_insert(0) += edge.call_count;
+        *fan_out
+            .entry(ArchitectureSectionKey(edge.from.clone()))
+            .or_insert(0) += edge.call_count;
+        *fan_in
+            .entry(ArchitectureSectionKey(edge.to.clone()))
+            .or_insert(0) += edge.call_count;
     }
 
-    let mut has_entry_point: BTreeSet<String> = BTreeSet::new();
+    let mut has_entry_point: BTreeSet<ArchitectureSectionKey> = BTreeSet::new();
     for entry in &entries {
-        has_entry_point.insert(crate_map_key(&entry.rel_path));
+        has_entry_point.insert(ArchitectureSectionKey::from_path(ArchitecturePath(
+            &entry.rel_path,
+        )));
     }
-    let mut has_route: BTreeSet<String> = BTreeSet::new();
+    let mut has_route: BTreeSet<ArchitectureSectionKey> = BTreeSet::new();
     for route in &routes {
-        has_route.insert(crate_map_key(&route.declared_in));
+        has_route.insert(ArchitectureSectionKey::from_path(ArchitecturePath(
+            &route.declared_in,
+        )));
     }
 
     sections
         .iter()
         .map(|section| {
+            let section_key = ArchitectureSectionKey(section.name.clone());
+            // CLONE-JUSTIFICATION: the public report owns its section text;
+            // aggregation uses a separate typed key for lookups.
             let name = section.name.clone();
-            let this_fan_in = fan_in.get(name.as_str()).copied().unwrap_or(0);
-            let this_fan_out = fan_out.get(name.as_str()).copied().unwrap_or(0);
-            let is_entry = has_entry_point.contains(&name);
-            let is_api = has_route.contains(&name);
+            let this_fan_in = fan_in.get(&section_key).copied().unwrap_or(0);
+            let this_fan_out = fan_out.get(&section_key).copied().unwrap_or(0);
+            let is_entry = has_entry_point.contains(&section_key);
+            let is_api = has_route.contains(&section_key);
 
             let (layer, reason) = if is_api {
                 (
