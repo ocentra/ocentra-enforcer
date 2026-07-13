@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use enforcer_plan::lessons::{import_seed_corpus, LessonLedger};
+use enforcer_domain::ids::RuleId;
+use enforcer_domain::severity::Severity;
+use enforcer_plan::lessons::{import_seed_corpus, run_doctor, LessonLedger};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -107,5 +109,41 @@ fn duplicate_identity_ignores_unrelated_source_row_order() -> TestResult {
 
     assert_eq!(first_ids.len(), 2);
     assert_eq!(first_ids, reordered_ids);
+    Ok(())
+}
+
+#[test]
+fn real_seed_corpus_preserves_the_doctors_honest_pending_verdict() -> TestResult {
+    let corpus_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../docs/plans/enforcer-selfhost-plan/refs/orchestration-lessons.md");
+    let corpus = std::fs::read_to_string(corpus_path)?;
+    let temporary = tempfile::tempdir()?;
+    let ledger_path = temporary.path().join("lessons.ndjson");
+    let mut ledger = LessonLedger::open(&ledger_path)?;
+    let first = import_seed_corpus(&mut ledger, std::slice::from_ref(&corpus), &[])?;
+    assert!(first.discovered >= 26, "real corpus lost historical lessons");
+    assert_eq!(first.discovered, first.newly_appended);
+    assert_eq!(
+        import_seed_corpus(&mut ledger, std::slice::from_ref(&corpus), &[])?.newly_appended,
+        0,
+        "real corpus re-import must remain idempotent"
+    );
+
+    let records = ledger.latest()?;
+    let contents = records
+        .iter()
+        .flat_map(|record| record.landed_at.iter().cloned())
+        .map(|artifact| (artifact, corpus.clone()))
+        .collect();
+    let rule_id: RuleId = "LESSON-DOCTOR.1".parse()?;
+    let findings = run_doctor(&rule_id, &records, &contents, &HashMap::new())?;
+    assert!(
+        findings.iter().any(|finding| finding.severity == Severity::Error),
+        "unregistered real RuleCandidate fixture parity must fail closed"
+    );
+    assert!(
+        findings.iter().any(|finding| finding.severity == Severity::Warning),
+        "real PlanDoc-only captures must remain visible as warnings"
+    );
     Ok(())
 }
