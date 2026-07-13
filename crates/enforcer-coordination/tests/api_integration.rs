@@ -9,6 +9,7 @@ use enforcer_coordination::api::{
     acknowledge_message, claim_all, closeout, init, open, release, send_message, CallerContext,
     ClaimRequestArgs, CloseoutFilters, Hub,
 };
+use enforcer_coordination::ledger::active_claims;
 use enforcer_domain::ids::{HubName, LaneId};
 use tempfile::tempdir;
 
@@ -125,5 +126,30 @@ fn release_and_message_acknowledgement_are_public_operations() -> Result<(), Box
     let message = send_message(&hub, &lane, "reviewer", "Please inspect.", &caller("wt", "branch"))?;
     let acknowledgement = acknowledge_message(&hub, &lane, &message.id, &caller("wt", "branch"))?;
     assert_eq!(acknowledgement.message_id.as_deref(), Some(message.id.as_str()));
+    Ok(())
+}
+
+#[test]
+fn releasing_one_path_preserves_the_remaining_claimed_paths() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempdir()?;
+    let hub = open_hub(dir.path(), "test-hub", "desktop")?;
+    let repo = tempdir()?;
+    std::fs::write(repo.path().join("a.rs"), "// a")?;
+    std::fs::write(repo.path().join("b.rs"), "// b")?;
+    let lane: LaneId = "desktop".parse()?;
+    let caller = caller("wt", "branch");
+    claim_all(&hub, ClaimRequestArgs {
+        repo_root: repo.path(),
+        lane: &lane,
+        owns: &["a.rs".to_owned(), "b.rs".to_owned()],
+        caller: &caller,
+        reason: None,
+    })?;
+    release(&hub, &lane, &["a.rs".to_owned()], &caller, None)?;
+
+    let events = enforcer_coordination::sync::stream::read_all_streams(&hub.root)?;
+    let claims = active_claims(&events.events);
+    assert_eq!(claims.len(), 1);
+    assert_eq!(claims[0].paths, vec!["b.rs".to_owned()]);
     Ok(())
 }
