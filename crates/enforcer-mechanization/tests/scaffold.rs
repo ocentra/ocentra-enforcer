@@ -95,7 +95,16 @@ fn scaffold_output_lands_five_artifacts_and_re_passes_parity(
     let validator_path = repo_root.join("scaffolded_validator.rs");
     fs::write(&validator_path, &output.validator_skeleton_source)?;
     assert!(validator_path.exists());
-    assert!(output.validator_skeleton_source.contains("RR-77.1"));
+    let expected_contract = format!(
+        "//! Freshly scaffolded validator for `{}` — {}.",
+        spec.rule_id.as_str(),
+        spec.title
+    );
+    assert_eq!(
+        output.validator_skeleton_source.lines().next(),
+        Some(expected_contract.as_str()),
+        "the generated validator must identify the exact scaffolded rule in its module contract"
+    );
 
     // Artifact 3: a resolvable doc anchor.
     let doc_path = repo_root.join("SCAFFOLD_ROUNDTRIP.md");
