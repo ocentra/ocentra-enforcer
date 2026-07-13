@@ -86,6 +86,7 @@ struct ClaimContextExtras {
 }
 
 /// Coordination hub handle: root path + this node's loaded identity.
+#[derive(Debug)]
 pub struct Hub {
     pub root: PathBuf,
     pub config: HubConfig,
@@ -726,7 +727,7 @@ fn append_event(hub: &Hub, args: AppendEventArgs<'_>) -> Result<HubEvent> {
 fn random_event_id() -> String {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default();
+        .unwrap_or_else(|before_epoch| before_epoch.duration());
     format!(
         "evt_{:032x}",
         now.as_nanos() ^ (u128::from(std::process::id()) << 32)
