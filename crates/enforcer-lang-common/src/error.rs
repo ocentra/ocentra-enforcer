@@ -15,7 +15,8 @@ pub enum DeferredAnnotationError {
     /// a parse attempt unless the `DEFERRED` token was already found).
     #[error("annotation `{raw}` does not start with `DEFERRED(`")]
     NotDeferredForm {
-        /// The raw annotation text that failed to match.
+        /// BRAND-INVARIANT: exact untrusted annotation text retained solely
+        /// for an actionable diagnostic; never interpreted as a valid value.
         raw: String,
     },
 
@@ -23,7 +24,8 @@ pub enum DeferredAnnotationError {
     /// surrounding `(...)` is unterminated.
     #[error("annotation `{raw}` has a missing or empty `#<ref>` component (expected `DEFERRED(#<ref>)[revisit:<value>]`)")]
     MissingOrEmptyRef {
-        /// The raw annotation text that failed to match.
+        /// BRAND-INVARIANT: exact untrusted annotation text retained solely
+        /// for an actionable diagnostic; never interpreted as a valid value.
         raw: String,
     },
 
@@ -31,7 +33,8 @@ pub enum DeferredAnnotationError {
     /// `<value>` is empty.
     #[error("annotation `{raw}` has a missing or empty `[revisit:<value>]` component (expected `DEFERRED(#<ref>)[revisit:<value>]`)")]
     MissingOrEmptyRevisit {
-        /// The raw annotation text that failed to match.
+        /// BRAND-INVARIANT: exact untrusted annotation text retained solely
+        /// for an actionable diagnostic; never interpreted as a valid value.
         raw: String,
     },
 }
