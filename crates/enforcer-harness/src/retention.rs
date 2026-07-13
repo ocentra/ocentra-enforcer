@@ -16,6 +16,7 @@ use crate::query::all_runs;
 /// Outcome of a prune pass: the `runId`s that were removed.
 #[derive(Debug, Clone, Default)]
 pub struct PruneOutcome {
+    /// Identifiers of authoritative storage runs removed by this pass.
     pub removed: Vec<String>,
 }
 
@@ -147,7 +148,7 @@ pub fn prune_runs(repo_root: &Path, config: &HarnessConfig) -> Result<PruneOutco
 fn epoch_millis() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
+        .map(|duration| i64::try_from(duration.as_millis()).unwrap_or(i64::MAX))
         .unwrap_or(0)
 }
 
@@ -199,7 +200,9 @@ fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::path::Path;
+
+    use crate::config::HarnessConfig;
     use crate::storage::{record_run, RunInput};
     use enforcer_core::error::{Error, Result};
 
