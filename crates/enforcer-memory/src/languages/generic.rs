@@ -388,11 +388,24 @@ fn walk_children(
     enclosing: Option<&str>,
     fn_scope: FnScope<'_>,
 ) {
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, ctx, out, enclosing, fn_scope);
-        }
+    for child in syntax_children(node) {
+        walk(child, ctx, out, enclosing, fn_scope);
     }
+}
+
+/// Returns every syntax child in source order without exposing parser indexes.
+///
+/// Tree-sitter owns cursor traversal; consumers of the generic walker should
+/// only need the semantic child sequence, never an integer into it.
+fn syntax_children<'tree>(node: Node<'tree>) -> impl Iterator<Item = Node<'tree>> {
+    let mut cursor = node.walk();
+    node.children(&mut cursor).collect::<Vec<_>>().into_iter()
+}
+
+/// Returns the named syntax children in source order.
+fn named_syntax_children<'tree>(node: Node<'tree>) -> impl Iterator<Item = Node<'tree>> {
+    let mut cursor = node.walk();
+    node.named_children(&mut cursor).collect::<Vec<_>>().into_iter()
 }
 
 /// A method-call-shaped callee's receiver text plus a cheap syntactic
@@ -520,22 +533,19 @@ fn call_arg_texts(call_node: Node<'_>, arguments_field: &str, src: &[u8]) -> Vec
         return Vec::new();
     };
     let mut out = Vec::new();
-    for i in 0..args.child_count() {
-        if let Some(child) = args.child(i) {
-            if matches!(child.kind(), "(" | ")" | ",") {
-                continue;
-            }
-            if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
-            }
+    for child in syntax_children(args) {
+        if matches!(child.kind(), "(" | ")" | ",") {
+            continue;
+        }
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
 }
 
 fn first_named_child_text(node: Node<'_>, src: &[u8]) -> Option<String> {
-    for i in 0..node.child_count() {
-        let child = node.child(i)?;
+    for child in syntax_children(node) {
         if child.is_named() {
             return child.utf8_text(src).ok().map(str::to_string);
         }
@@ -604,11 +614,9 @@ fn generic_base_class_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
             extract_text(field_node, src, out);
             return;
         }
-        for i in 0..field_node.named_child_count() {
-            if let Some(child) = field_node.named_child(i) {
-                if CHILD_TYPE_KINDS.contains(&child.kind()) {
-                    extract_text(child, src, out);
-                }
+        for child in named_syntax_children(field_node) {
+            if CHILD_TYPE_KINDS.contains(&child.kind()) {
+                extract_text(child, src, out);
             }
         }
     }
@@ -633,11 +641,9 @@ fn generic_base_class_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
     }
 
     const HERITAGE_CHILD_KINDS: &[&str] = &["extends_interfaces", "super_interfaces"];
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            if HERITAGE_CHILD_KINDS.contains(&child.kind()) {
-                collect_from_field_node(child, src, &mut bases);
-            }
+    for child in syntax_children(node) {
+        if HERITAGE_CHILD_KINDS.contains(&child.kind()) {
+            collect_from_field_node(child, src, &mut bases);
         }
     }
     bases
@@ -800,10 +806,8 @@ fn rust_walk_impl_body(
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..impl_node.child_count() {
-        if let Some(child) = impl_node.child(i) {
-            walk(child, &ctx, out, type_name, FnScope::default());
-        }
+    for child in syntax_children(impl_node) {
+        walk(child, &ctx, out, type_name, FnScope::default());
     }
 }
 
@@ -876,13 +880,11 @@ fn rust_attribute_decorators(function_node: Node<'_>, src: &[u8]) -> Vec<String>
 fn rust_signature_type_refs(function_node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
     if let Some(params) = function_node.child_by_field_name("parameters") {
-        for i in 0..params.child_count() {
-            if let Some(param) = params.child(i) {
-                if param.kind() == "parameter" {
-                    if let Some(type_node) = param.child_by_field_name("type") {
-                        if let Ok(text) = type_node.utf8_text(src) {
-                            out.push(text.to_string());
-                        }
+        for param in syntax_children(params) {
+            if param.kind() == "parameter" {
+                if let Some(type_node) = param.child_by_field_name("type") {
+                    if let Ok(text) = type_node.utf8_text(src) {
+                        out.push(text.to_string());
                     }
                 }
             }
@@ -899,14 +901,12 @@ fn rust_signature_type_refs(function_node: Node<'_>, src: &[u8]) -> Vec<String> 
 fn rust_trait_bounds(trait_node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
     if let Some(bounds) = trait_node.child_by_field_name("bounds") {
-        for i in 0..bounds.child_count() {
-            if let Some(child) = bounds.child(i) {
-                if child.kind() != "+" {
-                    if let Ok(text) = child.utf8_text(src) {
-                        let trimmed = text.trim();
-                        if !trimmed.is_empty() {
-                            out.push(trimmed.to_string());
-                        }
+        for child in syntax_children(bounds) {
+            if child.kind() != "+" {
+                if let Ok(text) = child.utf8_text(src) {
+                    let trimmed = text.trim();
+                    if !trimmed.is_empty() {
+                        out.push(trimmed.to_string());
                     }
                 }
             }
@@ -987,21 +987,17 @@ fn rust_collect_use_paths(node: Node<'_>, src: &[u8], prefix: &str, out: &mut Ve
                 .unwrap_or("");
             let joined = rust_join_prefix(prefix, base);
             if let Some(list) = node.child_by_field_name("list") {
-                for i in 0..list.child_count() {
-                    if let Some(child) = list.child(i) {
-                        if child.kind() != "," && child.kind() != "{" && child.kind() != "}" {
-                            rust_collect_use_paths(child, src, &joined, out);
-                        }
+                for child in syntax_children(list) {
+                    if child.kind() != "," && child.kind() != "{" && child.kind() != "}" {
+                        rust_collect_use_paths(child, src, &joined, out);
                     }
                 }
             }
         }
         "use_list" => {
-            for i in 0..node.child_count() {
-                if let Some(child) = node.child(i) {
-                    if child.kind() != "," && child.kind() != "{" && child.kind() != "}" {
-                        rust_collect_use_paths(child, src, prefix, out);
-                    }
+            for child in syntax_children(node) {
+                if child.kind() != "," && child.kind() != "{" && child.kind() != "}" {
+                    rust_collect_use_paths(child, src, prefix, out);
                 }
             }
         }
@@ -1079,14 +1075,10 @@ enum TsHeritageKind {
 /// byte-for-byte.
 fn ts_heritage_refs(node: Node<'_>, src: &[u8]) -> Vec<(TsHeritageKind, String)> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    for child in syntax_children(node) {
         match child.kind() {
             "class_heritage" => {
-                for j in 0..child.child_count() {
-                    let Some(clause) = child.child(j) else {
-                        continue;
-                    };
+                for clause in syntax_children(child) {
                     ts_collect_heritage_clause(clause, src, &mut out);
                 }
             }
@@ -1109,10 +1101,7 @@ fn ts_collect_heritage_clause(
         "implements_clause" => false,
         _ => return,
     };
-    for k in 0..clause.child_count() {
-        let Some(entry) = clause.child(k) else {
-            continue;
-        };
+    for entry in syntax_children(clause) {
         if matches!(
             entry.kind(),
             "identifier" | "type_identifier" | "nested_type_identifier"
