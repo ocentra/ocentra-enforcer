@@ -14,6 +14,7 @@
 use enforcer_config::project_tie::{
     load_project_tie, parse_project_tie, EnforcerScope, NativeMode, NativeTool,
 };
+use enforcer_config::ConfigLoadError;
 use std::path::Path;
 
 const VALID_FIXTURE: &str = include_str!("fixtures/project_tie/valid.enforce.config.json");
@@ -23,33 +24,31 @@ const UNKNOWN_KEY_FIXTURE: &str =
     include_str!("fixtures/project_tie/invalid_unknown_key.enforce.config.json");
 const MALFORMED_JSON_FIXTURE: &str =
     include_str!("fixtures/project_tie/invalid_malformed_json.enforce.config.json");
-const INLINE_DISABLE_FIXTURE: &str =
-    include_str!("fixtures/project_tie/inline_disable_attempt.rs.fixture");
 
 // ---- fail-fixtures: malformed .enforce/config -------------------------
 
 #[test]
 fn bad_native_mode_is_rejected_with_typed_boundary_error() {
-    let outcome = parse_project_tie(BAD_NATIVE_MODE_FIXTURE, "invalid_bad_native_mode.json");
-    assert!(
-        outcome.is_err(),
-        "malformed native_mode must fail to load, not silently default"
-    );
+    assert!(matches!(
+        parse_project_tie(BAD_NATIVE_MODE_FIXTURE, "invalid_bad_native_mode.json"),
+        Err(ConfigLoadError::Parse(_))
+    ));
 }
 
 #[test]
 fn unknown_key_is_rejected_with_typed_boundary_error() {
-    let outcome = parse_project_tie(UNKNOWN_KEY_FIXTURE, "invalid_unknown_key.json");
-    assert!(
-        outcome.is_err(),
-        "an unrecognized top-level key must fail to load, not be silently ignored"
-    );
+    assert!(matches!(
+        parse_project_tie(UNKNOWN_KEY_FIXTURE, "invalid_unknown_key.json"),
+        Err(ConfigLoadError::Parse(_))
+    ));
 }
 
 #[test]
 fn malformed_json_is_rejected_with_typed_boundary_error() {
-    let outcome = parse_project_tie(MALFORMED_JSON_FIXTURE, "invalid_malformed_json.json");
-    assert!(outcome.is_err(), "truncated/invalid JSON must fail to load");
+    assert!(matches!(
+        parse_project_tie(MALFORMED_JSON_FIXTURE, "invalid_malformed_json.json"),
+        Err(ConfigLoadError::Parse(_))
+    ));
 }
 
 // ---- pass-fixture: valid config -----------------------------------------
@@ -153,18 +152,10 @@ fn absent_config_file_resolves_to_scoped_augment_default_never_whole_repo(
 }
 
 #[test]
-fn inline_disable_attempt_in_a_source_fixture_is_not_honored(
+fn empty_config_keeps_a_rule_enabled_without_a_declarative_toggle(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // The inline-disable-shaped comment in this fixture is plain text to
-    // the project_tie loader: it is never parsed as `.enforce/config`, so
-    // it cannot suppress anything. Only declarative `Policy.rule_toggles`
-    // (see `valid_fixture_resolves_and_round_trips_policy_fields`) can
-    // disable a rule. Assert the fixture text is present (so this test
-    // would fail loudly if the fixture were ever deleted/emptied) and that
-    // a resolver built from a config with no matching toggle still leaves
-    // that rule enabled.
-    assert!(INLINE_DISABLE_FIXTURE.contains("enforcer-disable RR-1.1"));
-
+    // A resolver built from a config with no matching declarative toggle
+    // keeps the rule enabled.
     let resolved = parse_project_tie("{}", "empty.json")?;
     use enforcer_domain::ids::RuleId;
     use std::str::FromStr;
