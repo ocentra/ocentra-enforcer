@@ -312,6 +312,7 @@ fn extract_leaf_pointers(block_text: &str) -> Vec<String> {
 /// `AGENTS-ROUTING.1`: this tier's file declares the read-first routing
 /// managed block (`<!-- agents-read-first -->` ... `<!-- /agents-read-first -->`),
 /// non-empty.
+#[derive(Debug)]
 pub struct AgentsRoutingDeclaredValidator {
     rule_id: RuleId,
 }
@@ -350,6 +351,7 @@ impl Validator for AgentsRoutingDeclaredValidator {
 /// `AGENTS-TREE.1`: this tier's file declares a decision-tree managed
 /// block, and every `LEAF ->` pointer inside it is non-empty (terminates
 /// at a real resume-state anchor, not a dangling placeholder).
+#[derive(Debug)]
 pub struct AgentsTreeTerminatesValidator {
     rule_id: RuleId,
 }
@@ -405,6 +407,7 @@ impl Validator for AgentsTreeTerminatesValidator {
 /// module defaults if that statement is absent so an otherwise-compliant
 /// fixture is not spuriously flagged for omitting the optional restated
 /// budget line).
+#[derive(Debug)]
 pub struct AgentsBudgetValidator {
     rule_id: RuleId,
 }
