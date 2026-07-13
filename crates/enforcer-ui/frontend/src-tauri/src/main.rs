@@ -1339,30 +1339,29 @@ fn run_packaged_scan_sync(
     let mut command = Command::new("node");
     command.arg(&script).arg("scan").arg("--root").arg(&root);
     if target.mode == "crate" {
+        let crate_name = target
+            .crate_name
+            .as_deref()
+            .ok_or_else(|| "validated crate target is missing a package name".to_owned())?;
         command.arg("--crate").arg(
-            target
-                .crate_name
-                .as_deref()
-                .expect("validated crate target must include a package name"),
+            crate_name,
         );
     } else if target.mode == "files" {
         command.arg("--files").args(&target.files);
     } else if target.mode == "diff" {
+        let base = target
+            .base
+            .as_deref()
+            .ok_or_else(|| "validated diff target is missing a base revision".to_owned())?;
+        let head = target
+            .head
+            .as_deref()
+            .ok_or_else(|| "validated diff target is missing a head revision".to_owned())?;
         command
             .arg("--base")
-            .arg(
-                target
-                    .base
-                    .as_deref()
-                    .expect("validated diff target must include base"),
-            )
+            .arg(base)
             .arg("--head")
-            .arg(
-                target
-                    .head
-                    .as_deref()
-                    .expect("validated diff target must include head"),
-            );
+            .arg(head);
     } else {
         command.arg("--workspace");
     }
