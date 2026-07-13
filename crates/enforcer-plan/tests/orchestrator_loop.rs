@@ -1,8 +1,43 @@
+use std::num::NonZeroU32;
+
 use enforcer_plan::error::PlanError;
 use enforcer_plan::orchestrator::{
-    GatekeeperHandoff, InMemoryCoordination, LaneEvent, LaneStatus, Orchestrator, PlanGraph,
-    RecordingWorktreeSpawner, ScriptedLiveness, TickOutcome, WorkpackNode, WORKER_REUSE_CAP,
+    CoordinationPort, GatekeeperHandoff, InMemoryCoordination, LaneEvent, LaneStatus,
+    Orchestrator, PlanGraph, RecordingWorktreeSpawner, ScriptedLiveness, TickOutcome,
+    WorkpackNode, WORKER_REUSE_CAP,
 };
+
+#[derive(Default)]
+struct GuardRejectingPort {
+    events: Vec<LaneEvent>,
+}
+
+impl CoordinationPort for GuardRejectingPort {
+    fn claim(&mut self, lane: &str, owns: &[String]) -> Result<bool, PlanError> {
+        self.events.push(LaneEvent::Claimed {
+            lane: lane.to_owned(),
+            paths: owns.to_vec(),
+        });
+        Ok(true)
+    }
+
+    fn guard(&mut self, lane: &str) -> Result<(), PlanError> {
+        Err(PlanError::GraphInvalid {
+            reason: format!("ownership guard rejected `{lane}`"),
+        })
+    }
+
+    fn closeout(&mut self, lane: &str) -> Result<(), PlanError> {
+        self.events.push(LaneEvent::ClosedOut {
+            lane: lane.to_owned(),
+        });
+        Ok(())
+    }
+
+    fn events(&self) -> &[LaneEvent] {
+        &self.events
+    }
+}
 
 fn node(id: &str, deps: &[&str], owns: &[&str]) -> WorkpackNode {
     WorkpackNode {
@@ -74,7 +109,7 @@ fn verified_done_claim_integrates_and_dispatches_new_frontier() -> Result<(), Pl
 fn stalled_frontier_exhausts_bounded_run() {
     let graph = PlanGraph::from_nodes([node("a", &["missing-dep"], &["a.rs"])]);
     let mut orch = orchestrator(graph);
-    let result = orch.run_until_done(3);
+    let result = orch.run_until_done(NonZeroU32::MIN);
     assert!(matches!(result, Err(PlanError::GraphInvalid { .. })));
 }
 
@@ -124,4 +159,29 @@ fn blocked_ownership_waits_for_retry_without_guarding_or_spawning_early() -> Res
     orch.tick()?;
     assert!(orch.is_dispatched("second"));
     Ok(())
+}
+
+#[test]
+fn guard_rejection_never_spawns_a_worktree() {
+    let graph = PlanGraph::from_nodes([node("lane-a", &[], &["a.rs"])]);
+    let mut orch = Orchestrator::new(
+        graph,
+        GuardRejectingPort::default(),
+        ScriptedLiveness::new(),
+        RecordingWorktreeSpawner::default(),
+    );
+
+    assert!(matches!(orch.tick(), Err(PlanError::GraphInvalid { .. })));
+    assert!(orch.worktree_spawner().spawned.is_empty());
+    assert!(!orch.is_dispatched("lane-a"));
+}
+
+#[test]
+fn invalid_lane_id_is_rejected_before_claim_or_worktree_spawn() {
+    let graph = PlanGraph::from_nodes([node("invalid!", &[], &["a.rs"])]);
+    let mut orch = orchestrator(graph);
+
+    assert!(matches!(orch.tick(), Err(PlanError::GraphInvalid { .. })));
+    assert!(orch.coordination_events().is_empty());
+    assert!(orch.worktree_spawner().spawned.is_empty());
 }

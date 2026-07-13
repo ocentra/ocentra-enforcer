@@ -39,6 +39,7 @@
 //! an orchestrator-side change).
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::num::NonZeroU32;
 
 use enforcer_coordination::api::{self, CallerContext, ClaimRequestArgs, CloseoutFilters, Hub};
 use enforcer_domain::ids::{LaneId, RuleId};
@@ -497,9 +498,10 @@ impl CoordinationPort for InMemoryCoordination {
 /// binding calls it by default without a real `git` process.
 pub trait WorktreeSpawner {
     /// Spawn (or reuse, if already spawned) a dedicated worktree/branch for
-    /// `lane`. Returns an opaque worktree identifier (a path in the real
-    /// implementation).
-    fn spawn(&mut self, lane: &str) -> PlanResult<String>;
+    /// `lane`. The orchestrator validates this identity before any ownership
+    /// claim is made, so a worktree provider never receives an arbitrary
+    /// caller-provided string.
+    fn spawn(&mut self, lane: &LaneId) -> PlanResult<()>;
 }
 
 /// Default `WorktreeSpawner`: records the intent to spawn without shelling
@@ -514,9 +516,11 @@ pub struct RecordingWorktreeSpawner {
 }
 
 impl WorktreeSpawner for RecordingWorktreeSpawner {
-    fn spawn(&mut self, lane: &str) -> PlanResult<String> {
-        self.spawned.push(lane.to_owned());
-        Ok(format!("<worktree:{lane}>"))
+    fn spawn(&mut self, lane: &LaneId) -> PlanResult<()> {
+        // ALLOC-JUSTIFICATION: this test-facing recorder retains a durable
+        // snapshot of each validated lane identity for lifecycle assertions.
+        self.spawned.push(lane.as_str().to_owned());
+        Ok(())
     }
 }
 
@@ -723,6 +727,13 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
         self.port.events()
     }
 
+    /// Read the worktree provider's observable state after a tick. This is
+    /// intentionally read-only so external integration tests can prove that
+    /// a failed ownership guard never starts a worker worktree.
+    pub fn worktree_spawner(&self) -> &W {
+        &self.worktrees
+    }
+
     /// Whether a workpack has entered the active dispatch set.
     pub fn is_dispatched(&self, workpack: &str) -> bool {
         self.dispatched.contains_key(workpack)
@@ -758,6 +769,9 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
         // (1) drain + retry queued intents.
         let retried = self.intents.drain_retry(&mut self.port)?;
         for lane in retried {
+            let lane_id: LaneId = lane.parse().map_err(|decode_err| PlanError::GraphInvalid {
+                reason: format!("intent queue retried invalid lane id `{lane}`: {decode_err}"),
+            })?;
             let workpack = self
                 .pending_dispatches
                 .iter()
@@ -770,9 +784,9 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
                     reason: format!(
                         "intent queue retried lane `{lane}` without a pending workpack dispatch"
                     ),
-                })?;
+            })?;
             self.pending_dispatches.remove(&workpack);
-            self.activate_claimed_lane(&workpack, &lane)?;
+            self.activate_claimed_lane(&workpack, &lane_id)?;
         }
 
         // (2) liveness-check every dispatched, not-yet-done lane.
@@ -906,33 +920,44 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
     }
 
     fn dispatch(&mut self, workpack: &str, lane: &str) -> PlanResult<()> {
+        let lane_id: LaneId = lane.parse().map_err(|decode_err| PlanError::GraphInvalid {
+            reason: format!("cannot dispatch invalid lane id `{lane}`: {decode_err}"),
+        })?;
         let owns = self
             .graph
             .node(workpack)
+            // CLONE-JUSTIFICATION: claiming transfers an owned full `owns:`
+            // snapshot into the durable intent queue / coordination port;
+            // graph nodes must remain available for later frontier ticks.
             .map(|n| n.owns.clone())
             .ok_or_else(|| PlanError::GraphInvalid {
                 reason: format!("cannot dispatch unknown workpack `{workpack}`"),
             })?;
         if !self
             .intents
-            .try_claim_or_queue(&mut self.port, lane, &owns)?
+            .try_claim_or_queue(&mut self.port, lane_id.as_str(), &owns)?
         {
             // ALLOC-JUSTIFICATION: pending ownership must survive this borrow
             // and be matched against a later queue retry in a future tick.
             self.pending_dispatches
-                .insert(workpack.to_owned(), lane.to_owned());
+                // ALLOC-JUSTIFICATION: map keys own the validated lane across
+                // ticks until the intent queue succeeds or is rejected.
+                .insert(workpack.to_owned(), lane_id.as_str().to_owned());
             return Ok(());
         }
-        self.activate_claimed_lane(workpack, lane)
+        self.activate_claimed_lane(workpack, &lane_id)
     }
 
     /// A lane becomes active only after its claim has been accepted. This
     /// prevents a blocked intent from reaching the write guard or spawning a
     /// worker before exclusive ownership exists.
-    fn activate_claimed_lane(&mut self, workpack: &str, lane: &str) -> PlanResult<()> {
+    fn activate_claimed_lane(&mut self, workpack: &str, lane: &LaneId) -> PlanResult<()> {
+        // A worktree is a real worker-side effect. Guard FIRST so a rejected
+        // claim cannot create a runnable worker for an unguarded scope.
+        self.port.guard(lane.as_str())?;
         self.worktrees.spawn(lane)?;
-        self.port.guard(lane)?;
-        self.dispatched.insert(workpack.to_owned(), lane.to_owned());
+        self.dispatched
+            .insert(workpack.to_owned(), lane.as_str().to_owned());
         Ok(())
     }
 
@@ -947,8 +972,8 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
     /// Run `tick()` until [`TickOutcome::Done`], or until `max_ticks` is
     /// exhausted (a safety bound for tests/CLI callers; a real standing
     /// loop has no such bound and re-arms indefinitely per (5) above).
-    pub fn run_until_done(&mut self, max_ticks: u32) -> PlanResult<GatekeeperHandoff> {
-        for _ in 0..max_ticks {
+    pub fn run_until_done(&mut self, max_ticks: NonZeroU32) -> PlanResult<GatekeeperHandoff> {
+        for _ in 0..max_ticks.get() {
             match self.tick()? {
                 TickOutcome::Done(handoff) => return Ok(handoff),
                 TickOutcome::Continue { next_wake_armed } => {
