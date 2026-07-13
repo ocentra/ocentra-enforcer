@@ -1,6 +1,8 @@
-#[allow(clippy::print_stdout)]
-pub(crate) fn print_usage() {
-    println!(
+use std::io::{self, Write};
+
+pub(crate) fn write_usage(mut output: impl Write) -> io::Result<()> {
+    writeln!(
+        output,
         r#"enforcer-literal-scan
 
 Usage:
@@ -20,5 +22,5 @@ Options:
   --no-respect-gitignore  Ignore .gitignore/.ignore rules.
   --max-file-bytes <n>    Skip files larger than this size. Default: 2097152.
 "#
-    );
+    )
 }
