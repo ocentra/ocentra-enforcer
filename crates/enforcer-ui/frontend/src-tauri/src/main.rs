@@ -892,33 +892,43 @@ fn parse_workpack_index(source: &str) -> Vec<WorkpackIndexRow> {
 }
 
 fn parse_workpack_index_row(line: &str) -> Option<WorkpackIndexRow> {
-    let cells = line
+    let mut cells = line
         .trim()
         .trim_matches('|')
         .split('|')
         .map(str::trim)
-        .collect::<Vec<_>>();
-    if cells.len() != 8 || matches!(cells[0], "Status" | "--------") {
+        .fuse();
+    let Some(status) = cells.next() else {
+        return None;
+    };
+    let workpack = cells.next()?;
+    let track = cells.next()?;
+    let owns = cells.next()?;
+    let _ownership_disjoint = cells.next()?;
+    let tier = cells.next()?;
+    let dependencies = cells.next()?;
+    let parallel_safe_with = cells.next()?;
+    if cells.next().is_some() {
         return None;
     }
-    let workpack = cells[1];
-    let link_start = workpack.find('[')?;
-    let link_end = workpack.find("](")?;
-    let path_end = workpack[link_end + 2..].find(')')? + link_end + 2;
-    let label = workpack[link_start + 1..link_end].trim();
+    if matches!(status, "Status" | "--------") {
+        return None;
+    }
+    let (_, link) = workpack.split_once('[')?;
+    let (label, link_target) = link.split_once("](")?;
+    let (source_path, _) = link_target.split_once(')')?;
+    let label = label.trim();
     let (id, title) = label.split_once(' ').unwrap_or((label, label));
     Some(WorkpackIndexRow {
         id: id.to_owned(),
         title: title.to_owned(),
-        status: cells[0].to_owned(),
-        track: cells[2].to_owned(),
-        owns: cells[3].to_owned(),
-        tier: cells[5].to_owned(),
-        dependencies: cells[6].to_owned(),
-        parallel_safe_with: cells[7].to_owned(),
-        source_path: workpack[link_end + 2..path_end]
-            .trim_start_matches("./")
-            .to_owned(),
+        status: status.to_owned(),
+        track: track.to_owned(),
+        owns: owns.to_owned(),
+        tier: tier.to_owned(),
+        dependencies: dependencies.to_owned(),
+        parallel_safe_with: parallel_safe_with.to_owned(),
+        source_path: source_path.trim_start_matches("./").to_owned(),
     })
 }
 
