@@ -18,13 +18,13 @@ sha2 = { workspace = true }
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 enforcer-events = { path = "../enforcer-events", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: runs the validator during guarded coordination and fix-loop rescans.
 enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: deterministic exact-path and directory expansion
 # for claimed ownership sets without widening the root workspace manifest.
 glob = "=0.3.3"
 
 [dev-dependencies]
-serde_json = { workspace = true }
 # DEPENDENCY-JUSTIFICATION: isolated filesystem fixtures for coordination
 # ledger and lock behavior tests.
 tempfile = "=3.27.0"

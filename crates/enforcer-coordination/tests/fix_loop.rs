@@ -309,7 +309,7 @@ fn every_decision_is_emitted_as_a_typed_event() -> Result<()> {
     let initial = scan(&validator, &source)?;
 
     let mut events = Vec::new();
-    let _report = run_fix_loop(
+    let report = run_fix_loop(
         &file,
         &rel_path()?,
         initial,
@@ -318,7 +318,7 @@ fn every_decision_is_emitted_as_a_typed_event() -> Result<()> {
         |event| events.push(event.clone()),
     )?;
 
-    assert!(!events.is_empty());
+    assert_eq!(events.len(), report.iterations.len());
     assert!(events
         .iter()
         .all(|event| event.generator_name == "one-at-a-time-remover"));
