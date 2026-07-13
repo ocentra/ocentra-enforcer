@@ -2,6 +2,7 @@
 name = "enforcer-rules"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Structured rule registry (rules-as-data) for the Ocentra Enforcer workspace: typed rule records loaded from JSON, id/validator/fixtures/doc-anchor/tier linkage, and rule-version-drift detection."
@@ -11,12 +12,13 @@ publish = false
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: The registry loads rule records with shared
+# decode/error contracts and preserves branded domain identifiers and tiers.
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: Rule records name the configured enforcement
+# substrate without reimplementing policy parsing in this data crate.
 enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
-
-[dev-dependencies]
-serde_json = { workspace = true }
 
 [lints]
 workspace = true
