@@ -15,10 +15,10 @@ fn doctor_requires_complete_fixture_parity_for_code_rule_candidates() -> TestRes
     let artifact: ArtifactRef = "rule-candidate.json#L9".parse()?;
     let record = LessonRecord {
         id: id.clone(),
-        date: "2026-07-13".to_owned(),
+        date: "2026-07-13".parse()?,
         domain: LessonDomain::Code,
-        observed: "rule candidate needs fixture parity".to_owned(),
-        lesson: "ship both fail and pass fixtures".to_owned(),
+        observed: "rule candidate needs fixture parity".parse()?,
+        lesson: "ship both fail and pass fixtures".parse()?,
         routes: vec![LessonRoute::RuleCandidate],
         landed_at: vec![artifact.clone()],
         supersedes_seq: None,

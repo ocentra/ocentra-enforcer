@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use enforcer_plan::error::PlanError;
 use enforcer_plan::lessons::{
-    add, import_seed_corpus, list, ArtifactRef, LessonDomain, LessonId, LessonLedger,
+    add, import_seed_corpus, list, ArtifactRef, CapturedDate, LessonDomain, LessonId, LessonLedger,
     LessonRecord, LessonRoute,
 };
 
@@ -29,10 +29,10 @@ fn temp_ledger_path(name: &str) -> PathBuf {
 fn sample_record(id: &str) -> TestResultRecord {
     Ok(LessonRecord {
         id: id.parse()?,
-        date: "2026-07-04".to_owned(),
+        date: "2026-07-04".parse()?,
         domain: LessonDomain::Harness,
-        observed: "example observation".to_owned(),
-        lesson: "example lesson text".to_owned(),
+        observed: "example observation".parse()?,
+        lesson: "example lesson text".parse()?,
         routes: vec![LessonRoute::DoctrineBlock, LessonRoute::Skill],
         landed_at: Vec::new(),
         supersedes_seq: None,
@@ -73,6 +73,13 @@ fn artifact_ref_rejects_invalid_input() {
             .map(|value| value.to_string()),
         Ok("some/path.md#L1".to_owned()),
     );
+}
+
+#[test]
+fn captured_date_rejects_invalid_shape_but_preserves_legacy_absence() {
+    assert!("2026-07-13".parse::<CapturedDate>().is_ok());
+    assert!("".parse::<CapturedDate>().is_ok());
+    assert!("2026/07/13".parse::<CapturedDate>().is_err());
 }
 
 #[test]

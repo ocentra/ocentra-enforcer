@@ -159,6 +159,61 @@ branded_string!(
     validate_artifact_ref
 );
 
+/// Invalid date shapes are rejected at the persistence boundary; the empty
+/// value remains the explicit representation of a legacy stream omission.
+fn validate_captured_date(raw: &str) -> Result<(), DecodeError> {
+    let is_iso_date = raw.len() == 10
+        && raw.as_bytes().get(4) == Some(&b'-')
+        && raw.as_bytes().get(7) == Some(&b'-')
+        && raw
+            .chars()
+            .enumerate()
+            .all(|(index, character)| matches!(index, 4 | 7) || character.is_ascii_digit());
+    if raw.is_empty() || is_iso_date {
+        Ok(())
+    } else {
+        Err(DecodeError::new(
+            "capturedDate",
+            "expected an ISO-8601 YYYY-MM-DD date or an absent date from a legacy stream",
+        ))
+    }
+}
+
+fn validate_lesson_text(raw: &str) -> Result<(), DecodeError> {
+    if raw.trim().is_empty() {
+        Err(DecodeError::new("lessonText", "expected non-empty lesson text"))
+    } else {
+        Ok(())
+    }
+}
+
+fn validate_observed_evidence(_: &str) -> Result<(), DecodeError> {
+    // Worker-memory imports may not carry an observation; preserve that
+    // historical boundary input as an explicit empty evidence value.
+    Ok(())
+}
+
+branded_string!(
+    /// Captured calendar date, or the explicit empty legacy-stream value.
+    CapturedDate,
+    "capturedDate",
+    validate_captured_date
+);
+
+branded_string!(
+    /// The durable lesson statement; empty lessons cannot enter the ledger.
+    LessonText,
+    "lessonText",
+    validate_lesson_text
+);
+
+branded_string!(
+    /// Observed evidence attached to a lesson capture.
+    ObservedEvidence,
+    "observedEvidence",
+    validate_observed_evidence
+);
+
 // ---------------------------------------------------------------------
 // Record shape
 // ---------------------------------------------------------------------
@@ -225,13 +280,13 @@ pub struct LessonRecord {
     /// ISO-8601 date the lesson was captured (free-form string, matching
     /// the seed corpus's own `YYYY-MM-DD` cells — not parsed into a real
     /// date type since the corpus itself is prose-sourced).
-    pub date: String,
+    pub date: CapturedDate,
     /// Harness or code lesson (the dual-domain learning thesis).
     pub domain: LessonDomain,
     /// Live evidence that triggered the lesson (the `observed` cell).
-    pub observed: String,
+    pub observed: ObservedEvidence,
     /// The lesson itself — what to do differently.
-    pub lesson: String,
+    pub lesson: LessonText,
     /// Every harness surface this lesson ships through. Never empty for a
     /// lesson that has been routed (an empty vec means "captured, not yet
     /// routed" — [`run_doctor`] treats that the same as zero landed
@@ -242,11 +297,15 @@ pub struct LessonRecord {
     /// emitted (may be shorter than `routes` for a partially-landed
     /// lesson — that partial state is exactly what [`run_doctor`] fails
     /// closed on).
+    // DEFAULT-JUSTIFICATION: historical append-only rows predate this
+    // collection; absent data is the same as no landed artifact references.
     #[serde(default)]
     pub landed_at: Vec<ArtifactRef>,
     /// Set on a supersede-append record: the id of the earlier record this
     /// one supersedes (same `id`, later journal position). `None` on a
     /// lesson's first capture.
+    // DEFAULT-JUSTIFICATION: old rows have no supersession and must retain
+    // that explicit `None` state when replayed.
     #[serde(default)]
     pub supersedes_seq: Option<usize>,
 }
@@ -374,8 +433,10 @@ impl LessonLedger {
         self.write_line(merged)
     }
 
-    fn write_line(&mut self, record: LessonRecord) -> Result<(), PlanError> {
-        let canonical = serde_json::to_vec(&record).map_err(|e| PlanError::Io {
+fn write_line(&mut self, record: LessonRecord) -> Result<(), PlanError> {
+    // ALLOC-JUSTIFICATION: canonical journal bytes and digest text outlive
+    // serialization frames and are persisted as one immutable chain row.
+    let canonical = serde_json::to_vec(&record).map_err(|e| PlanError::Io {
             path: self.path.display().to_string(),
             reason: e.to_string(),
         })?;
@@ -607,12 +668,14 @@ fn domain_marker(domain: LessonDomain) -> &'static str {
 }
 
 fn render_bindings(record: &LessonRecord) -> HashMap<String, String> {
+    // ALLOC-JUSTIFICATION: a rendered template needs owned substitutions
+    // after the borrowed lesson record has left this helper.
     let mut bindings = HashMap::new();
     bindings.insert("lesson_id".to_owned(), record.id.as_str().to_owned());
-    bindings.insert("date".to_owned(), record.date.clone());
+    bindings.insert("date".to_owned(), record.date.as_str().to_owned());
     bindings.insert("domain".to_owned(), domain_marker(record.domain).to_owned());
-    bindings.insert("observed".to_owned(), record.observed.clone());
-    bindings.insert("lesson".to_owned(), record.lesson.clone());
+    bindings.insert("observed".to_owned(), record.observed.as_str().to_owned());
+    bindings.insert("lesson".to_owned(), record.lesson.as_str().to_owned());
     bindings
 }
 
@@ -824,6 +887,8 @@ pub enum RuleCandidateFixtures {
 }
 
 fn lesson_finding(rule_id: &RuleId, severity: Severity, detail: String, file: &RelPath) -> Finding {
+    // CLONE-JUSTIFICATION: findings are durable diagnostic values and must
+    // own the rule and source path after the doctor input has been released.
     Finding {
         rule_id: rule_id.clone(),
         severity,
@@ -1055,6 +1120,8 @@ fn sniff_domain(observed: &str) -> LessonDomain {
 }
 
 fn seed_row_to_record(row: &SeedRow) -> Result<LessonRecord, PlanError> {
+    // ALLOC-JUSTIFICATION: seed parsing converts borrowed table cells into
+    // independently owned, validated ledger records.
     // CLONE-JUSTIFICATION: the imported record owns its id while the parsed
     // seed row remains available for the remaining route and artifact fields.
     let id = LessonId::try_from(row.id.clone()).map_err(|e: DecodeError| PlanError::Io {
@@ -1075,10 +1142,19 @@ fn seed_row_to_record(row: &SeedRow) -> Result<LessonRecord, PlanError> {
     };
     Ok(LessonRecord {
         id,
-        date: row.date.clone(),
+        date: row.date.clone().parse().map_err(|error: DecodeError| PlanError::Io {
+            path: "seed corpus".to_owned(),
+            reason: error.to_string(),
+        })?,
         domain: sniff_domain(&row.observed),
-        observed: row.observed.clone(),
-        lesson: row.lesson.clone(),
+        observed: row.observed.clone().parse().map_err(|error: DecodeError| PlanError::Io {
+            path: "seed corpus".to_owned(),
+            reason: error.to_string(),
+        })?,
+        lesson: row.lesson.clone().parse().map_err(|error: DecodeError| PlanError::Io {
+            path: "seed corpus".to_owned(),
+            reason: error.to_string(),
+        })?,
         routes: sniff_routes(&row.ships_via, &row.landed_at),
         landed_at,
         supersedes_seq: None,
@@ -1094,6 +1170,9 @@ fn seed_row_to_record(row: &SeedRow) -> Result<LessonRecord, PlanError> {
 #[serde(rename_all = "camelCase")]
 struct MemoryStreamRecord {
     id: String,
+    // DEFAULT-JUSTIFICATION: streams are evolving boundary payloads; each
+    // optional field must decode as absent so the importer can fail closed
+    // only after it identifies an actual lesson record.
     #[serde(default)]
     date: Option<String>,
     #[serde(default)]
@@ -1117,9 +1196,16 @@ fn memory_record_to_lesson(raw: &MemoryStreamRecord) -> Option<Result<LessonReco
     if !raw.id.starts_with('L') {
         return None;
     }
-    let lesson = raw.lesson.clone()?;
-    let observed = raw.observed.clone().unwrap_or_default();
+    let raw_lesson = raw.lesson.clone()?;
     Some((|| -> Result<LessonRecord, PlanError> {
+        let lesson: LessonText = raw_lesson.parse().map_err(|error: DecodeError| PlanError::Io {
+            path: "memory stream".to_owned(),
+            reason: error.to_string(),
+        })?;
+        let observed: ObservedEvidence = raw.observed.clone().unwrap_or_default().parse().map_err(|error: DecodeError| PlanError::Io {
+            path: "memory stream".to_owned(),
+            reason: error.to_string(),
+        })?;
         let id: LessonId = raw.id.parse().map_err(|e: DecodeError| PlanError::Io {
             path: "memory stream".to_owned(),
             reason: e.to_string(),
@@ -1138,11 +1224,14 @@ fn memory_record_to_lesson(raw: &MemoryStreamRecord) -> Option<Result<LessonReco
         };
         let domain = match raw.domain.as_deref() {
             Some("code") => LessonDomain::Code,
-            _ => sniff_domain(&observed),
+            _ => sniff_domain(observed.as_str()),
         };
         Ok(LessonRecord {
             id,
-            date: raw.date.clone().unwrap_or_default(),
+            date: raw.date.clone().unwrap_or_default().parse().map_err(|error: DecodeError| PlanError::Io {
+                path: "memory stream".to_owned(),
+                reason: error.to_string(),
+            })?,
             domain,
             observed,
             lesson,
@@ -1338,10 +1427,10 @@ mod tests {
     fn sample_record(id: &str) -> Result<LessonRecord, DecodeError> {
         Ok(LessonRecord {
             id: id.parse()?,
-            date: "2026-07-04".to_owned(),
+            date: "2026-07-04".parse()?,
             domain: LessonDomain::Harness,
-            observed: "example observation".to_owned(),
-            lesson: "example lesson text".to_owned(),
+            observed: "example observation".parse()?,
+            lesson: "example lesson text".parse()?,
             routes: vec![LessonRoute::DoctrineBlock, LessonRoute::Skill],
             landed_at: Vec::new(),
             supersedes_seq: None,
@@ -1522,10 +1611,10 @@ mod tests {
     fn golden_record() -> Result<LessonRecord, DecodeError> {
         Ok(LessonRecord {
             id: "L900-GOLDEN".parse()?,
-            date: "2026-07-04".to_owned(),
+            date: "2026-07-04".parse()?,
             domain: LessonDomain::Harness,
-            observed: "golden fixture observation".to_owned(),
-            lesson: "golden fixture lesson text".to_owned(),
+            observed: "golden fixture observation".parse()?,
+            lesson: "golden fixture lesson text".parse()?,
             routes: vec![
                 LessonRoute::DoctrineBlock,
                 LessonRoute::Skill,
