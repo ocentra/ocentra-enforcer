@@ -393,6 +393,9 @@ impl LessonLedger {
         let last_digest = if path.exists() {
             let lines = read_lines(path)?;
             verify_lines(&lines)?;
+            // CLONE-JUSTIFICATION: the ledger retains the terminal digest
+            // after the parsed line vector is dropped, so the next append
+            // can extend the verified chain without retaining all rows.
             lines.last().map(|line| line.digest.clone())
         } else {
             None
@@ -410,6 +413,8 @@ impl LessonLedger {
     pub fn append(&mut self, record: LessonRecord) -> Result<(), PlanError> {
         let existing = self.list()?;
         if existing.iter().any(|r| r.id == record.id) {
+            // ALLOC-JUSTIFICATION: `PlanError` owns a stable filesystem
+            // location and diagnostic after this failed append returns.
             return Err(PlanError::Io {
                 path: self.path.display().to_string(),
                 reason: format!(
@@ -437,10 +442,14 @@ impl LessonLedger {
             .enumerate()
             .rev()
             .find(|(_, r)| r.id == *id)
+            // ALLOC-JUSTIFICATION: the error crosses this lookup boundary
+            // and must retain the owned ledger path and lesson identity.
             .ok_or_else(|| PlanError::Io {
                 path: self.path.display().to_string(),
                 reason: format!("cannot supersede unknown lesson `{id}`"),
             })?;
+        // CLONE-JUSTIFICATION: supersession writes a new immutable ledger
+        // row; the verified prior row must remain unchanged in the history.
         let mut merged = prior.clone();
         for artifact in additional_landed_at {
             if !merged.landed_at.contains(&artifact) {
@@ -459,6 +468,8 @@ fn write_line(&mut self, record: LessonRecord) -> Result<(), PlanError> {
             reason: e.to_string(),
         })?;
         let digest = link_digest(self.last_digest.as_deref(), &canonical);
+        // CLONE-JUSTIFICATION: the writer borrows a line while `last_digest`
+        // must retain the same value for the subsequent append.
         let line = LedgerLine {
             record,
             digest: digest.clone(),
@@ -501,6 +512,8 @@ fn write_line(&mut self, record: LessonRecord) -> Result<(), PlanError> {
     pub fn latest(&self) -> Result<Vec<LessonRecord>, PlanError> {
         let mut by_id: HashMap<LessonId, LessonRecord> = HashMap::new();
         for record in self.list()? {
+            // CLONE-JUSTIFICATION: the map owns a key while the full record
+            // remains its value for the latest-state projection.
             by_id.insert(record.id.clone(), record);
         }
         let mut records: Vec<LessonRecord> = by_id.into_values().collect();
@@ -513,6 +526,8 @@ fn read_lines(path: &Path) -> Result<Vec<LedgerLine>, PlanError> {
     if !path.exists() {
         return Ok(Vec::new());
     }
+    // ALLOC-JUSTIFICATION: IO diagnostics outlive the source error and must
+    // own the requested ledger path and operating-system message.
     enforcer_core::ndjson_writer::read_all(path).map_err(|e| PlanError::Io {
         path: path.display().to_string(),
         reason: e.to_string(),
@@ -520,6 +535,8 @@ fn read_lines(path: &Path) -> Result<Vec<LedgerLine>, PlanError> {
 }
 
 fn verify_lines(lines: &[LedgerLine]) -> Result<usize, PlanError> {
+    // ALLOC-JUSTIFICATION: hash-chain verification consumes canonical owned
+    // bytes for all records before it evaluates links against their digests.
     let canonical: Vec<Vec<u8>> = lines
         .iter()
         .map(|line| {
@@ -543,6 +560,8 @@ fn verify_lines(lines: &[LedgerLine]) -> Result<usize, PlanError> {
 }
 
 fn tamper_to_plan_error(tamper: &LedgerTamper) -> PlanError {
+    // ALLOC-JUSTIFICATION: typed diagnostics own the tamper description once
+    // the borrowed verification report is no longer available.
     PlanError::Io {
         path: "lesson ledger".to_owned(),
         reason: tamper.to_string(),
@@ -557,6 +576,8 @@ fn tamper_to_plan_error(tamper: &LedgerTamper) -> PlanError {
 /// tool seam for arc-21.
 pub fn add(ledger_path: &Path, record: LessonRecord) -> Result<LessonRecord, PlanError> {
     let mut ledger = LessonLedger::open(ledger_path)?;
+    // CLONE-JUSTIFICATION: append consumes the persisted row while the CLI
+    // contract returns the caller's original validated record.
     ledger.append(record.clone())?;
     Ok(record)
 }
