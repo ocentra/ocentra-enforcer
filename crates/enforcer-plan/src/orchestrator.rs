@@ -717,6 +717,16 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
         self.port.events()
     }
 
+    /// Whether a workpack has entered the active dispatch set.
+    pub fn is_dispatched(&self, workpack: &str) -> bool {
+        self.dispatched.contains_key(workpack)
+    }
+
+    /// Mutable access to the liveness source between orchestration ticks.
+    pub fn liveness_mut(&mut self) -> &mut L {
+        &mut self.liveness
+    }
+
     /// One tick of the self-driving loop
     /// (workpack requirement, L14/L16/L19/L22/L23/L26 as noted inline):
     ///
@@ -901,163 +911,5 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
         Err(PlanError::GraphInvalid {
             reason: format!("plan did not reach DONE within {max_ticks} ticks"),
         })
-    }
-}
-
-#[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::expect_used)]
-mod tests {
-    use super::*;
-
-    fn node(id: &str, deps: &[&str], owns: &[&str]) -> WorkpackNode {
-        WorkpackNode {
-            id: id.to_owned(),
-            deps: deps.iter().map(|value| (*value).to_owned()).collect(),
-            owns: owns.iter().map(|value| (*value).to_owned()).collect(),
-        }
-    }
-
-    #[test]
-    fn loop_dead_lane_is_detected_and_respawned() {
-        let graph = PlanGraph::from_nodes([node("a", &[], &["a.rs"])]);
-        let mut orch = Orchestrator::new(
-            graph,
-            InMemoryCoordination::new(),
-            ScriptedLiveness::new(),
-            RecordingWorktreeSpawner::default(),
-        );
-        orch.tick().expect("tick 1: dispatches lane 'a'");
-        orch.liveness.set_status("a", LaneStatus::Dead);
-        orch.tick().expect("tick 2: detects dead lane, respawns");
-        // Respawn re-dispatches through the SAME lane name (idempotent,
-        // L19) — the spawner records it twice (initial dispatch + respawn).
-        assert_eq!(
-            orch.worktrees.spawned,
-            vec!["a".to_owned(), "a".to_owned()],
-            "dead lane must be detected and respawned"
-        );
-    }
-
-    #[test]
-    fn loop_tampered_done_claim_is_rejected_not_integrated() {
-        let graph = PlanGraph::from_nodes([node("a", &[], &["a.rs"])]);
-        let mut orch = Orchestrator::new(
-            graph,
-            InMemoryCoordination::new(),
-            ScriptedLiveness::new(),
-            RecordingWorktreeSpawner::default(),
-        );
-        orch.tick().expect("dispatch a");
-        orch.liveness.set_status("a", LaneStatus::ReportedDone);
-        // Deliberately do NOT mark_verifiable("a") — the done-claim is
-        // unscripted/unverifiable, i.e. tampered/premature.
-        let err = orch
-            .tick()
-            .expect_err("tampered done-claim must be rejected");
-        assert!(matches!(err, PlanError::DoneClaimRejected { lane, .. } if lane == "a"));
-        assert!(
-            !orch.done_workpacks().contains("a"),
-            "a rejected done-claim must NOT be integrated"
-        );
-    }
-
-    #[test]
-    fn loop_verified_done_claim_integrates_and_frontier_redispatches() {
-        let graph =
-            PlanGraph::from_nodes([node("a", &[], &["a.rs"]), node("b", &["a"], &["b.rs"])]);
-        let mut orch = Orchestrator::new(
-            graph,
-            InMemoryCoordination::new(),
-            ScriptedLiveness::new(),
-            RecordingWorktreeSpawner::default(),
-        );
-        orch.tick()
-            .expect("dispatch a (b is not yet ready, deps unmet)");
-        assert!(orch.dispatched.contains_key("a"));
-        assert!(!orch.dispatched.contains_key("b"));
-
-        orch.liveness.set_status("a", LaneStatus::ReportedDone);
-        orch.liveness.mark_verifiable("a");
-        orch.tick().expect("verify+integrate a, then dispatch b");
-        assert!(orch.done_workpacks().contains("a"));
-        assert!(
-            orch.dispatched.contains_key("b"),
-            "frontier must re-dispatch newly-ready 'b' after 'a' integrates"
-        );
-    }
-
-    #[test]
-    fn loop_ending_fragile_with_in_flight_lanes_and_no_wake_is_typed_error() {
-        // `run_until_done` is the enforcement point for the L14/L16
-        // contract: ANY `TickOutcome::Continue { next_wake_armed: false }`
-        // while lanes remain in flight must surface as the typed
-        // `IdleWithoutWatchdog` error, never a silent stop. Assert the
-        // enforcement directly against the outcome contract, mirroring
-        // exactly the branch `run_until_done` takes.
-        let outcome = TickOutcome::Continue {
-            next_wake_armed: false,
-        };
-        let in_flight_lanes = 1usize;
-        let result: PlanResult<()> = match outcome {
-            TickOutcome::Done(_) => Ok(()),
-            TickOutcome::Continue {
-                next_wake_armed: true,
-            } => Ok(()),
-            TickOutcome::Continue {
-                next_wake_armed: false,
-            } => Err(PlanError::IdleWithoutWatchdog { in_flight_lanes }),
-        };
-        assert!(matches!(
-            result,
-            Err(PlanError::IdleWithoutWatchdog { in_flight_lanes: 1 })
-        ));
-    }
-
-    #[test]
-    fn loop_run_until_done_returns_error_when_frontier_never_advances() {
-        // "a" depends on a dep id absent from the graph, so it can never
-        // enter the frontier and nothing is ever dispatched: run_until_done
-        // exhausts max_ticks and returns the bounded-run error, proving the
-        // loop never silently "completes" a plan it made no progress on.
-        let graph = PlanGraph::from_nodes([node("a", &["missing-dep"], &["a.rs"])]);
-        let mut orch = Orchestrator::new(
-            graph,
-            InMemoryCoordination::new(),
-            ScriptedLiveness::new(),
-            RecordingWorktreeSpawner::default(),
-        );
-        let err = orch.run_until_done(3).unwrap_err();
-        assert!(matches!(err, PlanError::GraphInvalid { .. }));
-    }
-
-    #[test]
-    fn loop_empty_frontier_all_done_hands_off_to_gatekeeper() {
-        let graph = PlanGraph::from_nodes([node("a", &[], &["a.rs"])]);
-        let mut orch = Orchestrator::new(
-            graph,
-            InMemoryCoordination::new(),
-            ScriptedLiveness::new(),
-            RecordingWorktreeSpawner::default(),
-        );
-        orch.liveness.mark_verifiable("a");
-        orch.tick().expect("dispatch a");
-        orch.liveness.set_status("a", LaneStatus::ReportedDone);
-        let outcome = orch
-            .tick()
-            .expect("verify+integrate a; plan now fully done");
-        let handoff = match outcome {
-            TickOutcome::Done(handoff) => Some(handoff),
-            TickOutcome::Continue { .. } => None,
-        };
-        assert_eq!(
-            handoff.map(|h| h.done_workpacks),
-            Some(vec!["a".to_owned()]),
-            "empty frontier + all-done must hand off to the gatekeeper, not silence"
-        );
-    }
-
-    #[test]
-    fn worker_reuse_cap_retires_lane_identity_after_two_chained_dispatches() {
-        assert_eq!(WORKER_REUSE_CAP, 2);
     }
 }
