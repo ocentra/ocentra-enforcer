@@ -22458,7 +22458,13 @@ fn wit_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
                     line,
                 });
             }
-            if let Some(method_node) = node.child_by_field_name("methods") {
+            for (index, method_node) in syntax_children(node).enumerate() {
+                let Ok(field_index) = u32::try_from(index) else {
+                    continue;
+                };
+                if node.field_name_for_child(field_index) != Some("methods") {
+                    continue;
+                }
                 for func_node in syntax_children(method_node) {
                     if func_node.kind() != "func_item" {
                         continue;
