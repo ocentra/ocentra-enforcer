@@ -1147,12 +1147,105 @@ pub struct ImportOutcome {
     pub newly_appended: usize,
 }
 
+/// A seed import candidate before its persisted identity is assigned. The
+/// source kind is deliberately kept outside [`LessonRecord`]: it is importer
+/// provenance used to make a repeated displayed `L<number>` label unique,
+/// not a claim that the historical source row itself had a new identifier.
+struct SeedImportCandidate {
+    record: LessonRecord,
+    source_kind: SeedImportSourceKind,
+}
+
+#[derive(Clone, Copy)]
+enum SeedImportSourceKind {
+    Markdown,
+    Memory,
+}
+
+/// Assign stable persisted ids to every candidate. Historical seed ledgers
+/// are append-only prose and may legitimately reuse a displayed `L<number>`
+/// label. A duplicate label therefore cannot be the ledger's identity.
+///
+/// Unique labels retain their familiar `L<number>` id. Every repeated label
+/// becomes `L<number>-SRC-<sha256>`; the digest is derived from stable source
+/// kind and canonical record payload, never a mutable row position. That
+/// keeps the original, user-visible label while making each imported row
+/// independently addressable. Only byte-identical source records receive an
+/// ordinal suffix, because there is otherwise no semantic distinction between
+/// their source identities; reordering them preserves the same persisted ids.
+fn assign_seed_import_ids(candidates: &mut Vec<SeedImportCandidate>) -> Result<(), PlanError> {
+    let mut label_counts: HashMap<String, usize> = HashMap::new();
+    for candidate in candidates.iter() {
+        // ALLOC-JUSTIFICATION: the count map owns labels while records are
+        // inspected later, after this short-lived candidate borrow ends.
+        *label_counts
+            .entry(candidate.record.id.as_str().to_owned())
+            .or_default() += 1;
+    }
+
+    let mut identical_record_occurrences: HashMap<(String, String), usize> = HashMap::new();
+    for candidate in candidates.iter_mut() {
+        // ALLOC-JUSTIFICATION: the persisted id must outlive this mutable
+        // record borrow while it is used as a map key and later ledger id.
+        let displayed_label = candidate.record.id.as_str().to_owned();
+        let is_repeated_label = matches!(label_counts.get(&displayed_label), Some(count) if *count > 1);
+        if !is_repeated_label {
+            continue;
+        }
+
+        let payload = serde_json::to_vec(&candidate.record).map_err(|error| PlanError::Io {
+            // ALLOC-JUSTIFICATION: `PlanError` owns diagnostics after the
+            // fallible serialization frame has returned.
+            path: "seed corpus".to_owned(),
+            reason: error.to_string(),
+        })?;
+        // ALLOC-JUSTIFICATION: SHA-256 consumes a stable, owned byte stream
+        // combining immutable source kind with the canonical record payload.
+        let mut identity_material = b"lesson-seed-import-v1\0".to_vec();
+        identity_material.extend_from_slice(match candidate.source_kind {
+            SeedImportSourceKind::Markdown => b"markdown\0",
+            SeedImportSourceKind::Memory => b"memory\0",
+        });
+        identity_material.extend_from_slice(&payload);
+        let digest = link_digest(None, &identity_material);
+        let fingerprint = digest
+            .strip_prefix("sha256:")
+            .ok_or_else(|| PlanError::Io {
+                // ALLOC-JUSTIFICATION: `PlanError` owns the structural
+                // digest diagnostic after this import call returns.
+                path: "seed corpus".to_owned(),
+                reason: "seed identity digest did not contain a SHA-256 prefix".to_owned(),
+            })?;
+        // CLONE-JUSTIFICATION: the occurrence table owns the complete stable
+        // identity while `fingerprint` remains borrowed from `digest`.
+        let occurrence = identical_record_occurrences
+            .entry((displayed_label.clone(), fingerprint.to_owned()))
+            .or_default();
+        *occurrence += 1;
+        let id = if *occurrence == 1 {
+            format!("{displayed_label}-SRC-{fingerprint}")
+        } else {
+            format!("{displayed_label}-SRC-{fingerprint}-{occurrence}")
+        };
+        candidate.record.id = id
+            .parse()
+            .map_err(|error: DecodeError| PlanError::Io {
+                // ALLOC-JUSTIFICATION: conversion diagnostics cross the
+                // importer boundary as owned `PlanError` values.
+                path: "seed corpus".to_owned(),
+                reason: error.to_string(),
+            })?;
+    }
+    Ok(())
+}
+
 /// One-shot, idempotent importer: reads the seed ledger's markdown table
 /// (the preamble doc plus every `refs/lessons/*.md` domain shard, per the
 /// ledger's own L18 split policy) and every `memory/streams/*.ndjson`
-/// worker-memory stream, mapping each row's `ships-via` column to routes,
-/// and appends any row whose id is not already present in `ledger`.
-/// Re-running over unchanged sources adds nothing (idempotent).
+/// worker-memory stream, mapping each row's `ships-via` column to routes.
+/// Repeated displayed source labels are assigned deterministic persisted
+/// [`LessonId`]s, then each previously unseen record is appended. Re-running
+/// over unchanged sources adds nothing (idempotent).
 pub fn import_seed_corpus(
     ledger: &mut LessonLedger,
     seed_markdown_sources: &[String],
@@ -1161,22 +1254,14 @@ pub fn import_seed_corpus(
     let existing_ids: std::collections::HashSet<LessonId> =
         ledger.latest()?.into_iter().map(|r| r.id).collect();
 
-    let mut discovered = 0usize;
-    let mut newly_appended = 0usize;
-    let mut seen_this_run: std::collections::HashSet<LessonId> = std::collections::HashSet::new();
+    let mut candidates = Vec::new();
 
     for markdown in seed_markdown_sources {
         for row in parse_seed_rows(markdown) {
-            discovered += 1;
-            let record = seed_row_to_record(&row)?;
-            if seen_this_run.contains(&record.id) {
-                continue;
-            }
-            seen_this_run.insert(record.id.clone());
-            if !existing_ids.contains(&record.id) {
-                ledger.append(record)?;
-                newly_appended += 1;
-            }
+            candidates.push(SeedImportCandidate {
+                record: seed_row_to_record(&row)?,
+                source_kind: SeedImportSourceKind::Markdown,
+            });
         }
     }
 
@@ -1192,16 +1277,20 @@ pub fn import_seed_corpus(
             let Some(result) = memory_record_to_lesson(&raw) else {
                 continue;
             };
-            let record = result?;
-            discovered += 1;
-            if seen_this_run.contains(&record.id) {
-                continue;
-            }
-            seen_this_run.insert(record.id.clone());
-            if !existing_ids.contains(&record.id) {
-                ledger.append(record)?;
-                newly_appended += 1;
-            }
+            candidates.push(SeedImportCandidate {
+                record: result?,
+                source_kind: SeedImportSourceKind::Memory,
+            });
+        }
+    }
+
+    assign_seed_import_ids(&mut candidates)?;
+    let discovered = candidates.len();
+    let mut newly_appended = 0usize;
+    for candidate in candidates {
+        if !existing_ids.contains(&candidate.record.id) {
+            ledger.append(candidate.record)?;
+            newly_appended += 1;
         }
     }
 
@@ -1221,8 +1310,8 @@ mod tests {
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_nanos())
-                .unwrap_or_default()
+                .expect("test clock must not predate the Unix epoch")
+                .as_nanos()
         );
         std::env::temp_dir().join(unique)
     }
@@ -1245,7 +1334,11 @@ mod tests {
     #[test]
     fn lesson_id_accepts_valid_and_rejects_malformed() {
         for good in ["L1", "L26", "L11-FILL"] {
-            assert!(good.parse::<LessonId>().is_ok(), "should accept {good:?}");
+            assert_eq!(
+                good.parse::<LessonId>().map(|value| value.to_string()),
+                Ok(good.to_owned()),
+                "should accept {good:?}"
+            );
         }
         for bad in ["", "1", "l1", "M1"] {
             assert!(bad.parse::<LessonId>().is_err(), "should reject {bad:?}");
@@ -1255,7 +1348,12 @@ mod tests {
     #[test]
     fn artifact_ref_rejects_empty() {
         assert!("".parse::<ArtifactRef>().is_err());
-        assert!("some/path.md#L1".parse::<ArtifactRef>().is_ok());
+        assert_eq!(
+            "some/path.md#L1"
+                .parse::<ArtifactRef>()
+                .map(|value| value.to_string()),
+            Ok("some/path.md#L1".to_owned())
+        );
     }
 
     // -- Ledger: append-only, hash-chained, verify-on-open --
@@ -1813,7 +1911,7 @@ mod tests {
         Ok(())
     }
 
-    // -- Doc-intent: templates carry the lesson id placeholder --
+    // -- Doc-intent: templates carry the lesson id interpolation token --
 
     #[test]
     fn all_four_templates_declare_the_lesson_id_placeholder() {
