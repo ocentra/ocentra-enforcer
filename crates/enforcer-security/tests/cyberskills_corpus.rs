@@ -20,8 +20,7 @@ struct Case {
     name: String,
     input: String,
     expect: String,
-    #[serde(default)]
-    reason: String,
+    reason: Option<String>,
 }
 
 fn manifest_dir() -> PathBuf {
@@ -61,7 +60,7 @@ fn corpus_frontmatter_lint() -> Result<(), Box<dyn std::error::Error>> {
                 case.expect,
                 findings,
                 if flagged { "flagged" } else { "clean" },
-                case.reason
+                case.reason.as_deref().unwrap_or("no corpus reason recorded")
             ));
         }
     }
