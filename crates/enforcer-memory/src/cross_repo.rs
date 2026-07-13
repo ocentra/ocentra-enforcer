@@ -526,12 +526,11 @@ fn grpc_target_key(callee: &str, args: &[String]) -> Option<String> {
 }
 
 fn grpc_source_key(callee: &str) -> Option<String> {
-    let last_dot = callee.rfind('.')?;
-    let method = &callee[last_dot + 1..];
+    let (service, method) = callee.rsplit_once('.')?;
     if method.is_empty() {
         return None;
     }
-    let mut service = callee[..last_dot].to_owned();
+    let mut service = service.to_owned();
     for prefix in ["pb.New", "pb.", "New"] {
         if let Some(stripped) = service.strip_prefix(prefix) {
             service = stripped.to_owned();
