@@ -346,6 +346,7 @@ struct LedgerLine {
 /// An append-only, hash-chained NDJSON lesson ledger at `path` (by
 /// convention `.enforce/lessons.ndjson`, but callers inject the path so
 /// tests never touch a real repo-relative location).
+#[derive(Debug)]
 pub struct LessonLedger {
     path: PathBuf,
     last_digest: Option<String>,
@@ -354,17 +355,21 @@ pub struct LessonLedger {
 /// Ledger tamper detected on open or replay: a prior row's recorded digest
 /// no longer matches its recomputed digest (payload edited), or the chain
 /// order was disturbed (rows swapped).
+///
+/// BRAND-INVARIANT: these fields remain private because a tamper report is
+/// constructed only from hash-chain verification; callers receive its typed
+/// `PlanError` diagnostic rather than manufacturing a partial report.
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 #[error(
     "lesson ledger tamper detected at line {line_index} (recorded {recorded}, expected {expected})"
 )]
 pub struct LedgerTamper {
     /// Zero-based line index of the first broken link.
-    pub line_index: usize,
+    line_index: usize,
     /// The digest recorded on the broken line.
-    pub recorded: String,
+    recorded: String,
     /// The digest recomputed from payload + previous digest.
-    pub expected: String,
+    expected: String,
 }
 
 impl LessonLedger {
