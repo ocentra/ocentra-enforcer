@@ -797,7 +797,11 @@ fn strip_scheme_and_host(literal: &str) -> String {
 
 fn normalize_http_path(raw: &str) -> String {
     let stripped = strip_scheme_and_host(raw.trim());
-    let without_suffix = stripped.split(['?', '#']).next().unwrap_or_default().trim();
+    let without_suffix = stripped
+        .split(['?', '#'])
+        .next()
+        .map(str::trim)
+        .unwrap_or_else(|| stripped.trim());
     let with_leading_slash = if without_suffix.is_empty() {
         "/".to_owned()
     } else if without_suffix.starts_with('/') {
