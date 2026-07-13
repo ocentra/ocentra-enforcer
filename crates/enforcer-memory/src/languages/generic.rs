@@ -5697,10 +5697,8 @@ fn scala_walk_scoped_body(
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..class_node.child_count() {
-        if let Some(child) = class_node.child(i) {
-            walk(child, &ctx, out, name, FnScope::default());
-        }
+    for child in syntax_children(class_node) {
+        walk(child, &ctx, out, name, FnScope::default());
     }
 }
 
@@ -5762,8 +5760,7 @@ pub fn parse_scala(source: &str) -> ParsedFile {
 /// grammar's class-declaration shape is Java's almost verbatim).
 fn groovy_superclass_name(class_node: Node<'_>, src: &[u8]) -> Option<String> {
     let superclass = class_node.child_by_field_name("superclass")?;
-    let type_node = (0..superclass.child_count())
-        .filter_map(|i| superclass.child(i))
+    let type_node = syntax_children(superclass)
         .find(|n| n.is_named())?;
     type_node.utf8_text(src).ok().map(str::to_string)
 }
@@ -5779,18 +5776,15 @@ fn groovy_super_interfaces(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let Some(interfaces) = node.child_by_field_name("interfaces") else {
         return out;
     };
-    let Some(type_list) = (0..interfaces.child_count())
-        .filter_map(|i| interfaces.child(i))
+    let Some(type_list) = syntax_children(interfaces)
         .find(|n| n.kind() == "type_list")
     else {
         return out;
     };
-    for i in 0..type_list.child_count() {
-        if let Some(child) = type_list.child(i) {
-            if child.is_named() {
-                if let Ok(text) = child.utf8_text(src) {
-                    out.push(text.to_string());
-                }
+    for child in syntax_children(type_list) {
+        if child.is_named() {
+            if let Ok(text) = child.utf8_text(src) {
+                out.push(text.to_string());
             }
         }
     }
@@ -5803,8 +5797,7 @@ fn groovy_super_interfaces(node: Node<'_>, src: &[u8]) -> Vec<String> {
 /// is already the fully dotted path (mirrors [`java_package_name`]
 /// byte-for-byte).
 fn groovy_package_name(node: Node<'_>, src: &[u8]) -> Option<String> {
-    for i in 0..node.child_count() {
-        let child = node.child(i)?;
+    for child in syntax_children(node) {
         if matches!(child.kind(), "scoped_identifier" | "identifier") {
             return child.utf8_text(src).ok().map(str::to_string);
         }
@@ -5820,8 +5813,7 @@ fn groovy_package_name(node: Node<'_>, src: &[u8]) -> Option<String> {
 /// `identifier` match already covers the two real-world common cases
 /// tested).
 fn groovy_import_path(node: Node<'_>, src: &[u8]) -> Option<String> {
-    for i in 0..node.child_count() {
-        let child = node.child(i)?;
+    for child in syntax_children(node) {
         if matches!(child.kind(), "scoped_identifier" | "identifier") {
             return child.utf8_text(src).ok().map(str::to_string);
         }
@@ -5892,14 +5884,12 @@ fn groovy_call_arg_texts(invocation_node: Node<'_>, src: &[u8]) -> Vec<String> {
         return Vec::new();
     };
     let mut out = Vec::new();
-    for i in 0..args.child_count() {
-        if let Some(child) = args.child(i) {
-            if matches!(child.kind(), "(" | ")" | ",") {
-                continue;
-            }
-            if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
-            }
+    for child in syntax_children(args) {
+        if matches!(child.kind(), "(" | ")" | ",") {
+            continue;
+        }
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
@@ -5981,17 +5971,11 @@ fn groovy_call_override(
 /// [`java_annotations`] exactly.
 fn groovy_annotations(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else {
-            continue;
-        };
+    for child in syntax_children(node) {
         if child.kind() != "modifiers" {
             continue;
         }
-        for j in 0..child.child_count() {
-            let Some(modifier) = child.child(j) else {
-                continue;
-            };
+        for modifier in syntax_children(child) {
             if matches!(modifier.kind(), "marker_annotation" | "annotation") {
                 if let Some(name) = child_text(modifier, "name", src) {
                     out.push(name);
@@ -6084,10 +6068,8 @@ fn groovy_walk_scoped_body(
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..class_node.child_count() {
-        if let Some(child) = class_node.child(i) {
-            walk(child, &ctx, out, name, FnScope::default());
-        }
+    for child in syntax_children(class_node) {
+        walk(child, &ctx, out, name, FnScope::default());
     }
 }
 
@@ -6167,10 +6149,8 @@ fn ruby_walk_scoped_body(node: Node<'_>, src: &[u8], name: &str, out: &mut Parse
     let Some(body) = node.child_by_field_name("body") else {
         return;
     };
-    for i in 0..body.child_count() {
-        if let Some(child) = body.child(i) {
-            walk(child, &ctx, out, Some(name), FnScope::default());
-        }
+    for child in syntax_children(body) {
+        walk(child, &ctx, out, Some(name), FnScope::default());
     }
 }
 
@@ -6182,8 +6162,7 @@ fn ruby_walk_scoped_body(node: Node<'_>, src: &[u8], name: &str, out: &mut Parse
 /// scope_resolution]` for a dotted `< Foo::Base`).
 fn ruby_superclass_name(class_node: Node<'_>, src: &[u8]) -> Option<String> {
     let superclass = class_node.child_by_field_name("superclass")?;
-    let named = (0..superclass.child_count())
-        .filter_map(|i| superclass.child(i))
+    let named = syntax_children(superclass)
         .find(|n| n.is_named())?;
     named.utf8_text(src).ok().map(str::to_string)
 }
@@ -6198,8 +6177,7 @@ fn ruby_require_import(call_node: Node<'_>, method_text: &str, src: &[u8]) -> Op
         return None;
     }
     let args = call_node.child_by_field_name("arguments")?;
-    let first_string = (0..args.child_count())
-        .filter_map(|i| args.child(i))
+    let first_string = syntax_children(args)
         .find(|n| n.kind() == "string")?;
     let raw = first_string.utf8_text(src).ok()?;
     let path = raw.trim_matches(|c| c == '"' || c == '\'').to_string();
@@ -6225,14 +6203,12 @@ fn ruby_call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
         return Vec::new();
     };
     let mut out = Vec::new();
-    for i in 0..args.child_count() {
-        if let Some(child) = args.child(i) {
-            if matches!(child.kind(), "(" | ")" | ",") {
-                continue;
-            }
-            if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
-            }
+    for child in syntax_children(args) {
+        if matches!(child.kind(), "(" | ")" | ",") {
+            continue;
+        }
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
