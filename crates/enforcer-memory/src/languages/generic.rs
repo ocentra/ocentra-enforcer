@@ -24507,11 +24507,9 @@ fn agda_first_leaf_text(node: Node<'_>, src: &[u8]) -> Option<String> {
     if node.child_count() == 0 {
         return node.utf8_text(src).ok().map(str::to_string);
     }
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            if let Some(text) = agda_first_leaf_text(child, src) {
-                return Some(text);
-            }
+    for child in syntax_children(node) {
+        if let Some(text) = agda_first_leaf_text(child, src) {
+            return Some(text);
         }
     }
     None
@@ -24526,8 +24524,7 @@ fn agda_find_descendant<'a>(node: Node<'a>, target_kind: &str) -> Option<Node<'a
     if node.kind() == target_kind {
         return Some(node);
     }
-    for i in 0..node.child_count() {
-        let child = node.child(i)?;
+    for child in syntax_children(node) {
         if let Some(found) = agda_find_descendant(child, target_kind) {
             return Some(found);
         }
@@ -24562,9 +24559,7 @@ fn agda_find_descendant<'a>(node: Node<'a>, target_kind: &str) -> Option<Node<'a
 fn agda_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut ParsedFile) -> bool {
     match node.kind() {
         "function" => {
-            let children: Vec<Node<'_>> = (0..node.child_count())
-                .filter_map(|i| node.child(i))
-                .collect();
+            let children: Vec<Node<'_>> = syntax_children(node).collect();
             let Some(lhs) = children.iter().find(|c| c.kind() == "lhs") else {
                 return false;
             };
@@ -24595,8 +24590,7 @@ fn agda_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
             true
         }
         "data" | "record" => {
-            let name_container = (0..node.child_count())
-                .filter_map(|i| node.child(i))
+            let name_container = syntax_children(node)
                 .find(|c| c.kind() == "data_name" || c.kind() == "record_name");
             let Some(name) = name_container.and_then(|c| agda_first_leaf_text(c, src)) else {
                 return false;
@@ -24659,9 +24653,7 @@ fn agda_call_override(
     src: &[u8],
     out: &mut ParsedFile,
 ) -> bool {
-    let children: Vec<Node<'_>> = (0..node.child_count())
-        .filter_map(|i| node.child(i))
-        .collect();
+    let children: Vec<Node<'_>> = syntax_children(node).collect();
     if children.len() < 2 || !children.iter().all(|c| c.kind() == "atom") {
         return false;
     }
