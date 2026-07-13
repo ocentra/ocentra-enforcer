@@ -90,8 +90,12 @@ fn a_forced_schema_violation_fixture_is_rejected_on_decode() -> Result<()> {
     let invalid_raw =
         std::fs::read_to_string(fixtures.join("invalid_run_record_bad_exit_status.json"))?;
 
-    let valid: std::result::Result<RunRecord, _> = serde_json::from_str(&valid_raw);
-    assert!(valid.is_ok(), "the valid fixture must decode: {valid:?}");
+    let valid: RunRecord = serde_json::from_str(&valid_raw)?;
+    assert_eq!(
+        serde_json::to_value(&valid)?.get("exitStatus"),
+        Some(&serde_json::Value::String("violations".to_owned())),
+        "the valid fixture must preserve its violations exit status"
+    );
 
     let invalid: std::result::Result<RunRecord, _> = serde_json::from_str(&invalid_raw);
     assert!(
