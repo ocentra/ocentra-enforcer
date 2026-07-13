@@ -39,38 +39,54 @@ const SECRET_READ_VERBS: &[&str] = &["get", "list", "watch", "*"];
 
 #[derive(Debug, Default, serde::Deserialize)]
 struct Manifest {
+    // DEFAULT-JUSTIFICATION: a document without kind is outside this RBAC-only rule.
     #[serde(default)]
+    // BRAND-INVARIANT: raw manifest kind gates all subsequent RBAC inspection.
     kind: Option<String>,
+    // DEFAULT-JUSTIFICATION: bindings do not have rules and an absent rules list grants nothing.
     #[serde(default)]
     rules: Vec<PolicyRule>,
+    // DEFAULT-JUSTIFICATION: roles do not have roleRef and cannot bind cluster-admin.
     #[serde(default, rename = "roleRef")]
     role_ref: Option<RoleRef>,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
 struct PolicyRule {
+    // DEFAULT-JUSTIFICATION: an absent verb list grants no operation.
     #[serde(default)]
+    // BRAND-INVARIANT: raw verbs are compared only with the narrow hazardous-verb set.
     verbs: Vec<String>,
+    // DEFAULT-JUSTIFICATION: an absent resource list grants no resource access.
     #[serde(default)]
+    // BRAND-INVARIANT: raw resources are compared only with wildcard and secret resource names.
     resources: Vec<String>,
+    // DEFAULT-JUSTIFICATION: an absent apiGroups list cannot grant a wildcard group.
     #[serde(default, rename = "apiGroups")]
+    // BRAND-INVARIANT: raw API groups are compared only for a wildcard grant.
     api_groups: Vec<String>,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
 struct RoleRef {
+    // DEFAULT-JUSTIFICATION: missing kind is conventionally ClusterRole for a ClusterRoleBinding.
     #[serde(default)]
+    // BRAND-INVARIANT: this raw reference kind is used only to qualify cluster-admin bindings.
     kind: Option<String>,
+    // DEFAULT-JUSTIFICATION: missing name cannot identify the cluster-admin role.
     #[serde(default)]
+    // BRAND-INVARIANT: this raw role name is compared only with the canonical cluster-admin name.
     name: Option<String>,
 }
 
+#[derive(Debug)]
 /// `CYBER-K8S-RBAC.1` — RBAC privilege-escalation hardening manifest gate.
 pub struct K8sRbacValidator {
     rule_id: RuleId,
 }
 
 impl K8sRbacValidator {
+    /// Builds the validator with its canonical, validated rule identity.
     pub fn new() -> Result<Self, DecodeError> {
         Ok(Self {
             rule_id: "CYBER-K8S-RBAC.1".parse()?,
@@ -78,11 +94,14 @@ impl K8sRbacValidator {
     }
 
     fn finding(&self, input: &ValidationInput<'_>, severity: Severity, detail: String) -> Finding {
+        // ALLOC-JUSTIFICATION: findings are durable report records and therefore own their static title.
         Finding {
+            // CLONE-JUSTIFICATION: each emitted finding owns its stable rule identity after validation returns.
             rule_id: self.rule_id.clone(),
             severity,
             title: "Kubernetes RBAC manifest grants excessive privilege".to_owned(),
             detail,
+            // CLONE-JUSTIFICATION: each emitted finding owns its source path after the borrowed input expires.
             file: input.file.clone(),
             line: 1,
             snippet: None,
@@ -176,6 +195,7 @@ impl Validator for K8sRbacValidator {
                         Severity::Error,
                         "ClusterRoleBinding binds subjects to `cluster-admin` (full cluster \
                      privilege). Fix: bind to a narrowly scoped ClusterRole or Role instead."
+                            // ALLOC-JUSTIFICATION: the finding detail must outlive this borrowed manifest input.
                             .to_owned(),
                     ),
                 );
