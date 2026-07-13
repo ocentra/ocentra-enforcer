@@ -47,6 +47,7 @@
     "**/target/**",
     "**/build/**",
     "**/dist/**",
+    "crates/enforcer-ui/frontend/src/bindings/**",
     ".agents/**",
     ".cargo/**",
     ".claude/**",
