@@ -70,19 +70,18 @@ fn policy_ingest_mapping() -> Result<(), Box<dyn std::error::Error>> {
         .iter()
         .map(|row| row.rule_id.as_str())
         .collect();
-    for expected in [
+    let expected_rule_ids = BTreeSet::from([
         "MCM-SIGNING.1",
         "MCM-TIME.1",
         "MCM-BOUNDARY.1",
         "MCM-KILLSWITCH.1",
         "MCM-ECONOMIC.1",
         "MCM-ROLLBACK.1",
-    ] {
-        assert!(
-            rule_ids.contains(expected),
-            "missing expected rule row {expected}"
-        );
-    }
+    ]);
+    assert_eq!(
+        rule_ids, expected_rule_ids,
+        "reference fixture must map to exactly its six expected rule rows"
+    );
 
     Ok(())
 }
@@ -105,7 +104,11 @@ fn policy_ingest_unbacked() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(profile.rules.len(), 2);
     let unbacked = profile.unbacked_rule_ids();
     assert_eq!(unbacked.len(), 1);
-    assert!(unbacked.contains("MCM-NOT-YET-MECHANIZED.1"));
+    assert_eq!(
+        unbacked,
+        BTreeSet::from(["MCM-NOT-YET-MECHANIZED.1"]),
+        "only the deliberately unbacked fixture rule may be flagged"
+    );
 
     let backed_row = profile
         .rules
@@ -122,8 +125,12 @@ fn policy_ingest_unbacked() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(findings.len(), 1);
     let finding = &findings[0];
     assert_eq!(finding.rule_id.as_str(), "MCM-NOT-YET-MECHANIZED.1");
-    assert!(finding.detail.contains("no mechanized"));
-    assert!(finding.detail.contains("d01"));
+    assert_eq!(finding.severity, enforcer_domain::severity::Severity::Warning);
+    assert_eq!(
+        finding.title,
+        "policy spec asserts a rule with no mechanized backing (flagged, not enabled)"
+    );
+    assert_eq!(finding.snippet, None);
 
     Ok(())
 }
@@ -176,17 +183,18 @@ fn profile_shape() -> Result<(), Box<dyn std::error::Error>> {
     let profile: MechanizedProfile = serde_json::from_str(&raw)?;
 
     assert_eq!(profile.profile_name, "money-critical-security");
-    assert!(!profile.required_test_categories.is_empty());
-    assert!(!profile.invariants.is_empty());
-    assert!(!profile.rules.is_empty());
+    assert_eq!(profile.required_test_categories.len(), 20);
+    assert_eq!(profile.invariants.len(), 10);
+    assert_eq!(profile.rules.len(), 13);
     assert!(profile.rules.iter().any(|row| row.tier == Tier::T1));
     assert!(profile.rules.iter().any(|row| row.tier == Tier::T2));
 
     let branding_terms = ["solana-labs", "anchor-lang", "ocentra", "simpro"];
     let lower = raw.to_lowercase();
     for term in branding_terms {
-        assert!(
-            !lower.contains(term),
+        assert_eq!(
+            lower.matches(term).count(),
+            0,
             "profile must carry no product/company branding: found `{term}`"
         );
     }
