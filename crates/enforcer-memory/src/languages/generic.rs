@@ -3645,17 +3645,16 @@ fn kotlin_function_like(
 /// `type` -> `user_type` + `value_arguments`, args deliberately not
 /// captured, matching every other language's name-only convention).
 fn kotlin_annotation_name(annotation_node: Node<'_>, src: &[u8]) -> Option<String> {
-    for i in 0..annotation_node.child_count() {
-        let child = annotation_node.child(i)?;
+    let mut annotation_cursor = annotation_node.walk();
+    for child in annotation_node.children(&mut annotation_cursor) {
         match child.kind() {
             "user_type" => return kotlin_user_type_name(child, src),
             "constructor_invocation" => {
-                for j in 0..child.child_count() {
-                    if let Some(inner) = child.child(j) {
-                        if inner.kind() == "user_type" {
-                            if let Some(name) = kotlin_user_type_name(inner, src) {
-                                return Some(name);
-                            }
+                let mut invocation_cursor = child.walk();
+                for inner in child.children(&mut invocation_cursor) {
+                    if inner.kind() == "user_type" {
+                        if let Some(name) = kotlin_user_type_name(inner, src) {
+                            return Some(name);
                         }
                     }
                 }
@@ -3669,11 +3668,10 @@ fn kotlin_annotation_name(annotation_node: Node<'_>, src: &[u8]) -> Option<Strin
 /// A `user_type` node's own leading `identifier` child -- also
 /// fields-less, per [`kotlin_annotation_name`]'s own doc comment.
 fn kotlin_user_type_name(user_type_node: Node<'_>, src: &[u8]) -> Option<String> {
-    for i in 0..user_type_node.child_count() {
-        if let Some(child) = user_type_node.child(i) {
-            if child.kind() == "identifier" {
-                return child.utf8_text(src).ok().map(str::to_string);
-            }
+    let mut user_type_cursor = user_type_node.walk();
+    for child in user_type_node.children(&mut user_type_cursor) {
+        if child.kind() == "identifier" {
+            return child.utf8_text(src).ok().map(str::to_string);
         }
     }
     None
@@ -3688,17 +3686,13 @@ fn kotlin_user_type_name(user_type_node: Node<'_>, src: &[u8]) -> Option<String>
 /// Kotlin's does not (see [`kotlin_annotation_name`]).
 fn kotlin_annotations(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else {
-            continue;
-        };
+    let mut node_cursor = node.walk();
+    for child in node.children(&mut node_cursor) {
         if child.kind() != "modifiers" {
             continue;
         }
-        for j in 0..child.child_count() {
-            let Some(modifier) = child.child(j) else {
-                continue;
-            };
+        let mut modifier_cursor = child.walk();
+        for modifier in child.children(&mut modifier_cursor) {
             if modifier.kind() == "annotation" {
                 if let Some(name) = kotlin_annotation_name(modifier, src) {
                     out.push(name);
@@ -3720,15 +3714,13 @@ fn kotlin_annotations(node: Node<'_>, src: &[u8]) -> Vec<String> {
 /// [`java_route_from_mapping`], adapted for Kotlin's fields-less
 /// `annotation` node shape from [`kotlin_annotation_name`]).
 fn kotlin_route_from_mapping(node: Node<'_>, src: &[u8]) -> Option<RouteRef> {
-    for i in 0..node.child_count() {
-        let child = node.child(i)?;
+    let mut node_cursor = node.walk();
+    for child in node.children(&mut node_cursor) {
         if child.kind() != "modifiers" {
             continue;
         }
-        for j in 0..child.child_count() {
-            let Some(modifier) = child.child(j) else {
-                continue;
-            };
+        let mut modifier_cursor = child.walk();
+        for modifier in child.children(&mut modifier_cursor) {
             if modifier.kind() != "annotation" {
                 continue;
             }
@@ -3760,31 +3752,26 @@ fn kotlin_route_from_mapping(node: Node<'_>, src: &[u8]) -> Option<RouteRef> {
 /// supertype child resolving to the concrete `string_literal` kind for a
 /// bare positional string argument).
 fn kotlin_annotation_path_argument(annotation_node: Node<'_>, src: &[u8]) -> Option<String> {
-    for i in 0..annotation_node.child_count() {
-        let child = annotation_node.child(i)?;
+    let mut annotation_cursor = annotation_node.walk();
+    for child in annotation_node.children(&mut annotation_cursor) {
         if child.kind() != "constructor_invocation" {
             continue;
         }
-        for j in 0..child.child_count() {
-            let Some(value_arguments) = child.child(j) else {
-                continue;
-            };
+        let mut invocation_cursor = child.walk();
+        for value_arguments in child.children(&mut invocation_cursor) {
             if value_arguments.kind() != "value_arguments" {
                 continue;
             }
-            for k in 0..value_arguments.child_count() {
-                let Some(value_argument) = value_arguments.child(k) else {
-                    continue;
-                };
+            let mut arguments_cursor = value_arguments.walk();
+            for value_argument in value_arguments.children(&mut arguments_cursor) {
                 if value_argument.kind() != "value_argument" {
                     continue;
                 }
-                for m in 0..value_argument.child_count() {
-                    if let Some(expr) = value_argument.child(m) {
-                        if expr.kind() == "string_literal" {
-                            if let Ok(raw) = expr.utf8_text(src) {
-                                return Some(raw.trim_matches('"').to_string());
-                            }
+                let mut argument_cursor = value_argument.walk();
+                for expr in value_argument.children(&mut argument_cursor) {
+                    if expr.kind() == "string_literal" {
+                        if let Ok(raw) = expr.utf8_text(src) {
+                            return Some(raw.trim_matches('"').to_string());
                         }
                     }
                 }
