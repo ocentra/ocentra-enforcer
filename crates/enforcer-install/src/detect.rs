@@ -601,10 +601,16 @@ fn codex_capability_manifest(home: Option<&Path>, fs: &dyn FsSource) -> HarnessC
     let marker_path_str = marker_path.display().to_string();
 
     let Some(contents) = fs.read_to_string(&marker_path) else {
-        let no_marker = Evidence::new(&marker_path_str, "file not found; no probe available");
+        let no_marker_observation = "file not found; no probe available";
         return HarnessCapabilities {
-            implicit_invocation: SupportValue::unknown(vec![no_marker.clone()]),
-            cross_session_messaging: SupportValue::unknown(vec![no_marker]),
+            implicit_invocation: SupportValue::unknown(vec![Evidence::new(
+                marker_path_str.as_str(),
+                no_marker_observation,
+            )]),
+            cross_session_messaging: SupportValue::unknown(vec![Evidence::new(
+                marker_path_str,
+                no_marker_observation,
+            )]),
             ..HarnessCapabilities::default()
         };
     };
