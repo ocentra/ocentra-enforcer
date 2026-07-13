@@ -356,7 +356,12 @@ fn read_claim(
     });
     Ok(ProjectClaimSummary {
         registry_path: relative,
-        state: if claim.ok() { "ready" } else { "blocked" }.to_owned(),
+        state: if claim.violations.is_empty() {
+            "ready"
+        } else {
+            "blocked"
+        }
+        .to_owned(),
         required_proof_ids,
         claim: Some(claim),
         error: None,
@@ -483,7 +488,7 @@ mod tests {
             .claim
             .claim
             .as_ref()
-            .is_some_and(|claim| claim.ok()));
+            .is_some_and(|claim| claim.violations.is_empty()));
         Ok(())
     }
 }
