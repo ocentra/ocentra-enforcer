@@ -25,6 +25,8 @@ enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"], optional = true }
 ndarray = { version = "0.17", default-features = false, optional = true }
 ort = { version = "2.0.0-rc.12", default-features = false, features = ["std", "ndarray", "download-binaries", "copy-dylibs", "tracing", "tls-native", "api-24"], optional = true }
+# DEPENDENCY-JUSTIFICATION: Optional ORT-backed retrieval tokenizes query text
+# before embedding or reranking it; no tokenizer is loaded by default.
 tokenizers = { version = "0.23.1", default-features = false, features = ["onig"], optional = true }
 # NATIVE-DEPENDENCY-JUSTIFICATION: The bundled SQLite binding gives the local
 # read model a reproducible Windows-compatible build with no system SQLite DLL.
@@ -80,14 +82,19 @@ tree-sitter = "0.25"
 # MEMORY_RETRIEVAL_DECISIONS D-04 context ("prefer it for algorithms ...
 # over hand-rolling"). Pure Rust, no C toolchain, matches this crate's
 # zero-system-dependency posture.
+# DEPENDENCY-JUSTIFICATION: These Rust, TypeScript, and Python grammar bindings
+# parse the three baseline source languages for structural memory extraction.
 petgraph = "0.6"
 tree-sitter-rust = "0.23"
 tree-sitter-typescript = "0.23"
+# DEPENDENCY-JUSTIFICATION: The Python grammar binding parses Python source for the baseline structural extractor.
 tree-sitter-python = "0.23"
 # X06 wave-B core parity: Go/Java structural extractors (see
 # languages/go.rs, languages/java.rs). Pinned to the same 0.23.x grammar
 # ABI line as the wave-A grammars above (tree-sitter core "0.24").
 tree-sitter-go = "0.23"
+# DEPENDENCY-JUSTIFICATION: The Java grammar binding extends structural extraction
+# to Java source alongside the adjacent Go parser.
 tree-sitter-java = "0.23"
 # X06 wave-B core parity: C#/PHP structural extractors (see
 # languages/csharp.rs, languages/php.rs). tree-sitter-c-sharp 0.23.x
@@ -102,12 +109,16 @@ tree-sitter-java = "0.23"
 # they exist on disk (inline HTML preamble/epilogue is common), so it
 # uses `LANGUAGE_PHP` -- see `languages/php.rs` module doc.
 tree-sitter-c-sharp = "0.23"
+# DEPENDENCY-JUSTIFICATION: The PHP grammar binding parses whole PHP files for
+# the PHP extractor described by the preceding compatibility note.
 tree-sitter-php = "0.24"
 # X06 wave-B core parity (lane x06-b2-ccpp): C/C++ structural extractors
 # (see languages/c.rs, languages/cpp.rs). tree-sitter-c 0.24.x and
 # tree-sitter-cpp 0.23.x are each the newest crates.io release that
 # builds against this workspace's `tree-sitter = "0.24"` core.
 tree-sitter-c = "0.24"
+# DEPENDENCY-JUSTIFICATION: The C++ grammar binding parses C++ source and is
+# also reused by the CUDA extractor where their syntax is compatible.
 tree-sitter-cpp = "0.23"
 # Language-parity wave G2.1a: Kotlin/Swift structural extractors (see
 # languages/generic.rs's `parse_kotlin`/`parse_swift`). Neither crate
@@ -127,6 +138,8 @@ tree-sitter-cpp = "0.23"
 # `codebase-memory-mcp/internal/cbm/vendored/grammars/kotlin/`) that
 # uses the safe `tree-sitter-language` shim instead.
 tree-sitter-kotlin-ng = "1.1"
+# DEPENDENCY-JUSTIFICATION: The Swift grammar binding parses Swift source for
+# the dedicated generic-language extractor.
 tree-sitter-swift = "0.7"
 # Language-parity wave G2.1d: Solidity/GDScript structural extractors
 # (see languages/generic.rs's `parse_solidity`/`parse_gdscript`). Both
@@ -145,6 +158,8 @@ tree-sitter-swift = "0.7"
 # corresponding quirks read, so there is no correctness reason to prefer
 # the vendored copy over the maintained crate.
 tree-sitter-solidity = "1.2"
+# DEPENDENCY-JUSTIFICATION: The GDScript grammar binding parses GDScript source
+# for the structural extractor paired with Solidity above.
 tree-sitter-gdscript = "6.1.0"
 # Language-parity wave G2.1b: Dart/Scala/Groovy structural extractors
 # (see languages/generic.rs's `parse_dart`/`parse_scala`/`parse_groovy`).
@@ -178,6 +193,8 @@ tree-sitter-gdscript = "6.1.0"
 #   invisible, not just imprecisely classified), corrected per
 #   `LangSpec::groovy`'s own doc comment.
 tree-sitter-dart = "0.2"
+# DEPENDENCY-JUSTIFICATION: These Scala and Groovy grammar bindings parse their
+# named languages for the generic structural extractor.
 tree-sitter-scala = "0.26"
 tree-sitter-groovy = "0.1"
 # Language-parity wave G2.1c: Ruby/Zig/Objective-C structural extractors
@@ -200,6 +217,8 @@ tree-sitter-groovy = "0.1"
 # version, unlike what `codebase-memory-mcp/internal/cbm/extract_calls.c`'s
 # `extract_objc_callee` reads).
 tree-sitter-ruby = "0.23"
+# DEPENDENCY-JUSTIFICATION: These Zig and Objective-C grammar bindings parse
+# source for the corresponding generic structural extractors.
 tree-sitter-zig = "1.1.2"
 tree-sitter-objc = "3.0.2"
 # Language-parity wave G2.2f: Lua/Elixir/Bash structural extractors (see
@@ -223,6 +242,8 @@ tree-sitter-objc = "3.0.2"
 # dedicated node kind whatsoever, parsing as a plain `call` disambiguated
 # only by its own callee text).
 tree-sitter-lua = "0.5"
+# DEPENDENCY-JUSTIFICATION: These Elixir and Bash grammar bindings parse source
+# for the corresponding generic structural extractors.
 tree-sitter-elixir = "0.3"
 tree-sitter-bash = "0.25"
 # Language-parity wave G2.2g: Haskell/OCaml/Erlang structural extractors
@@ -260,6 +281,8 @@ tree-sitter-bash = "0.25"
 # both `.ml` and `.mli` files, matching the baseline's own one-grammar-
 # for-both choice; see `LangSpec::ocaml`'s own doc comment for why.
 tree-sitter-haskell = "0.23"
+# DEPENDENCY-JUSTIFICATION: These OCaml and Erlang grammar bindings parse source
+# for the corresponding generic structural extractors.
 tree-sitter-ocaml = "0.25"
 tree-sitter-erlang = "0.19"
 # Language-parity wave G2.2b: CUDA/D/PowerShell structural extractors
@@ -312,6 +335,8 @@ tree-sitter-erlang = "0.19"
 #   `"using"`, mirroring the baseline's own `parse_powershell_imports`
 #   exactly), corrected per `LangSpec::powershell`'s own doc comment.
 tree-sitter-cuda = "0.21"
+# DEPENDENCY-JUSTIFICATION: These D and PowerShell grammar bindings parse source
+# for the corresponding generic structural extractors.
 tree-sitter-d = "0.8"
 tree-sitter-powershell = "0.26"
 # Language-parity wave G2.2d: Julia/Odin/Pascal structural extractors (see
@@ -365,6 +390,8 @@ tree-sitter-powershell = "0.26"
 #   `Obj.Field` member reads, which parse identically at the node-kind
 #   level alone).
 tree-sitter-julia = "0.23"
+# DEPENDENCY-JUSTIFICATION: These Odin and Pascal grammar bindings parse source
+# for the corresponding generic structural extractors.
 tree-sitter-odin = "1.3"
 tree-sitter-pascal = "0.10"
 # X06.5 weaver: event-driven enrichment queue + bounded-concurrency
@@ -462,6 +489,8 @@ rand_core = { version = "0.6", features = ["getrandom"] }
 #   whole wave's three languages that needs ZERO quirk/override at all
 #   (real `function`/`arguments` fields matching the generic engine's
 #   own default single-field reconstruction unchanged).
+# DEPENDENCY-JUSTIFICATION: The F# and Gleam grammar bindings parse source for
+# their corresponding generic structural extractors.
 tree-sitter-fsharp = "0.3"
 tree-sitter-gleam = "1.0.0"
 # Language-parity wave G2.2h: R/Perl/Clojure structural extractors (see
@@ -506,6 +535,8 @@ tree-sitter-gleam = "1.0.0"
 #   form is a `list_lit`), so unlike R/Perl above there was very little
 #   for a grammar-version drift to land on -- see `LangSpec::clojure`'s
 #   own doc comment.
+# DEPENDENCY-JUSTIFICATION: These R, Perl, and Clojure parser bindings supply
+# structural extraction for their corresponding source languages.
 tree-sitter-r = "1.3"
 ts-parser-perl = "1.2"
 tree-sitter-clojure = "0.1"
@@ -568,6 +599,8 @@ tree-sitter-clojure = "0.1"
 #   own MIT `LICENSE`, copied verbatim from the upstream author). Verified
 #   end-to-end with a standalone `cargo run` against this exact vendored
 #   crate before being wired in here.
+# DEPENDENCY-JUSTIFICATION: These QML/JS, ReScript, and Squirrel bindings parse
+# source for their corresponding generic structural extractors.
 tree-sitter-qmljs = "0.3"
 arborium-rescript = "2.18"
 tree-sitter-squirrel-local = { path = "vendor/tree-sitter-squirrel-local" }
@@ -639,6 +672,8 @@ tree-sitter-squirrel-local = { path = "vendor/tree-sitter-squirrel-local" }
 #   call) and `crystal_module_types`'s `"program"` not existing at all
 #   (this grammar's actual root rule is named `expressions`) -- see
 #   `LangSpec::crystal`'s own doc comment for the full corrections.
+# DEPENDENCY-JUSTIFICATION: These Apex, Ada, and Crystal grammar bindings parse
+# source for their corresponding generic structural extractors.
 tree-sitter-sfapex = "3.0.0"
 tree-sitter-ada = "0.1"
 tree-sitter-crystal = { git = "https://github.com/crystal-lang-tools/tree-sitter-crystal", rev = "50ca9e6fcfb16a2cbcad59203cfd8ad650e25c49" }
@@ -701,9 +736,12 @@ tree-sitter-crystal = { git = "https://github.com/crystal-lang-tools/tree-sitter
 #   baseline's own `extract_wgsl_callee`; baseline's `wgsl_module_types`'
 #   `"translation_unit"` entry does not exist in this grammar at all -- the
 #   real root rule is `source_file`).
+# DEPENDENCY-JUSTIFICATION: These Starlark, Templ, Typst, and WGSL grammar
+# bindings parse source for their corresponding generic structural extractors.
 tree-sitter-starlark = "1.3"
 tree-sitter-templ = "2.2"
 arborium-typst = "2.18"
+# DEPENDENCY-JUSTIFICATION: The WGSL grammar binding parses WGSL source for its generic structural extractor.
 tree-sitter-wgsl-bevy = "0.1"
 # Language-parity wave G2.3e: Slang structural extractor (see
 # languages/generic.rs's `parse_slang`). Verified end-to-end (real parse,
@@ -741,6 +779,8 @@ tree-sitter-slang = "0.3"
 # LumaKernel's own repo, MIT, ABI 13, cross-checked symbol-table-exact
 # against this crate's own vendored C baseline copy).
 tree-sitter-sway-local = { path = "vendor/tree-sitter-sway-local" }
+# DEPENDENCY-JUSTIFICATION: The vendored Wolfram grammar parses Wolfram source
+# for the generic structural extractor.
 tree-sitter-wolfram-local = { path = "vendor/tree-sitter-wolfram-local" }
 # COURTESY FIX (found by the G2.3e worker, not that worker's own language
 # assignment -- landed here only because `languages/generic.rs` already
@@ -770,10 +810,15 @@ tree-sitter-wolfram-local = { path = "vendor/tree-sitter-wolfram-local" }
 #   with this exact line added, not merely assumed from the version range
 #   alone.
 tree-sitter-cmake = "0.7"
+# DEPENDENCY-JUSTIFICATION: These Make, Fortran, Vim, and Puppet grammar bindings
+# parse source for their corresponding generic structural extractors.
 tree-sitter-make = "1.1"
 tree-sitter-fortran = "0.6"
 tree-sitter-vim = "0.4"
+# DEPENDENCY-JUSTIFICATION: The Puppet grammar binding parses Puppet source for the generic structural extractor.
 tree-sitter-puppet = "1.3"
+# DEPENDENCY-JUSTIFICATION: The Elm grammar binding parses Elm source for the
+# generic structural extractor.
 tree-sitter-elm = "5.9"
 # SCSS grammar VENDORED (language-parity wave G2.3a) --
 # `crates/enforcer-memory/vendor/tree-sitter-scss-local/` (a local
@@ -849,6 +894,8 @@ tree-sitter-scss-local = { path = "vendor/tree-sitter-scss-local" }
 #   `tree-sitter-typescript` crate's own TS/TSX-two-entry-points
 #   precedent this crate already follows for `LangSpec::tsx`.
 tree-sitter-bicep = "1.1"
+# DEPENDENCY-JUSTIFICATION: These Nickel and Jsonnet grammar bindings parse
+# source for their corresponding generic structural extractors.
 tree-sitter-nickel = "0.5"
 tree-sitter-jsonnet = "0.0.1"
 # `cfmleditor/tree-sitter-cfml` -- bundles CFML/CFScript/CFQuery as THREE
@@ -875,6 +922,8 @@ tree-sitter-cfml = "0.26"
 # being added here (ABI 14/14/13/14 respectively, all within the 13-15
 # compatible range).
 tree-sitter-bitbake-local = { path = "vendor/tree-sitter-bitbake-local" }
+# DEPENDENCY-JUSTIFICATION: These vendored Cairo, FunC, and Move grammar bindings
+# parse source for their corresponding structural extractors.
 tree-sitter-cairo-local = { path = "vendor/tree-sitter-cairo-local" }
 tree-sitter-func-local = { path = "vendor/tree-sitter-func-local" }
 tree-sitter-move-local = { path = "vendor/tree-sitter-move-local" }
@@ -941,12 +990,17 @@ tree-sitter-move-local = { path = "vendor/tree-sitter-move-local" }
 #   parse-tree dump, zero parse errors, zero ABI error) against this
 #   workspace's `tree-sitter = "0.25"` core before being added here.
 tree-sitter-hlsl = "0.2"
+# DEPENDENCY-JUSTIFICATION: These Just, PureScript, and Magma grammar bindings
+# parse source for their corresponding generic structural extractors.
 tree-sitter-just = "0.2"
 tree-sitter-purescript = { git = "https://github.com/postsolar/tree-sitter-purescript", tag = "v0.3.0" }
 tree-sitter-magma = { git = "https://github.com/edgarcosta/tree-sitter-magma", rev = "75b31f4695261967c7aa87d552d69805dc03c77b" }
+# DEPENDENCY-JUSTIFICATION: These vendored Hare, ISPC, Pony, and NASM grammars
+# parse source for their corresponding generic structural extractors.
 tree-sitter-hare-local = { path = "vendor/tree-sitter-hare-local" }
 tree-sitter-ispc-local = { path = "vendor/tree-sitter-ispc-local" }
 tree-sitter-pony-local = { path = "vendor/tree-sitter-pony-local" }
+# DEPENDENCY-JUSTIFICATION: The vendored NASM grammar parses NASM source for the generic structural extractor.
 tree-sitter-nasm-local = { path = "vendor/tree-sitter-nasm-local" }
 
 # Language-parity wave G2.3b: COBOL/Common Lisp/Lean/TLA+/Verilog/VHDL/
@@ -1098,10 +1152,15 @@ tree-sitter-nasm-local = { path = "vendor/tree-sitter-nasm-local" }
 # source including CALL, IF, EVALUATE, PERFORM, and COPY statements) with
 # dedicated fixtures before being wired in.
 tree-sitter-commonlisp = "0.4"
+# DEPENDENCY-JUSTIFICATION: These Lean, TLA+, Verilog, and VHDL bindings parse
+# source for their corresponding generic structural extractors.
 tree-sitter-lean4 = "0.3"
 tree-sitter-tlaplus = "1.5"
 tree-sitter-verilog = "1.0"
+# DEPENDENCY-JUSTIFICATION: The VHDL grammar binding parses VHDL source for the generic structural extractor.
 tree-sitter-vhdl = "1.4"
+# DEPENDENCY-JUSTIFICATION: These SystemVerilog and vendored COBOL bindings parse
+# source for their corresponding generic structural extractors.
 tree-sitter-systemverilog = "0.3"
 tree-sitter-cobol-local = { path = "vendor/tree-sitter-cobol-local" }
 # Emacs Lisp (Wilfred/tree-sitter-elisp) -- a real crates.io grammar,
@@ -1119,6 +1178,8 @@ tree-sitter-capnp-local = { path = "vendor/tree-sitter-capnp-local" }
 # Smithy and Pine Script -- vendored crates already prepared by earlier
 # G2.4c/G2.4e workers but never wired into this dependency list.
 tree-sitter-smithy-local = { path = "vendor/tree-sitter-smithy-local" }
+# DEPENDENCY-JUSTIFICATION: The vendored Pine grammar parses Pine source for the
+# generic structural extractor.
 tree-sitter-pine-local = { path = "vendor/tree-sitter-pine-local" }
 # Language-parity wave G2.4d redo: MATLAB/Luau/Kconfig have real
 # crates.io grammar crates (confirmed compiling clean against this
@@ -1130,10 +1191,15 @@ tree-sitter-pine-local = { path = "vendor/tree-sitter-pine-local" }
 # each `LangSpec::matlab`/`luau`/`teal`/`fennel`/`meson`/`kconfig`'s own
 # doc comment.
 tree-sitter-matlab = "1.3.0"
+# DEPENDENCY-JUSTIFICATION: These Luau, Kconfig, Teal, and Meson grammar bindings
+# parse source for their corresponding generic structural extractors.
 tree-sitter-luau = "1.2.0"
 tree-sitter-kconfig = "1.3.0"
 tree-sitter-teal-local = { path = "vendor/tree-sitter-teal-local" }
+# DEPENDENCY-JUSTIFICATION: The vendored Meson grammar parses Meson source for the generic structural extractor.
 tree-sitter-meson-local = { path = "vendor/tree-sitter-meson-local" }
+# DEPENDENCY-JUSTIFICATION: The vendored Fennel grammar parses Fennel source for
+# the generic structural extractor.
 tree-sitter-fennel-local = { path = "vendor/tree-sitter-fennel-local" }
 # Language-parity wave G2.4a: AWK/Fish/Zsh/Tcl/Scheme/Racket (Tier-1).
 # `arborium-awk` is part of the same `bearcove/arborium` tree-sitter-
@@ -1154,14 +1220,22 @@ arborium-awk = "2.18"
 # incompatible grammar. `tree-sitter-pkl` has no crates.io release at
 # all; pinned via git to a specific commit of `apple/tree-sitter-pkl`.
 tree-sitter-hcl = "1.1"
+# DEPENDENCY-JUSTIFICATION: These Nix, Sequel, Protocol Buffers, and Prisma
+# grammar bindings parse source for their corresponding generic extractors.
 tree-sitter-nix = "0.3"
 tree-sitter-sequel = "0.3"
 tree-sitter-proto = "0.4"
+# DEPENDENCY-JUSTIFICATION: The Prisma grammar binding parses Prisma source for the generic structural extractor.
 tree-sitter-prisma-io = "1.6"
+# DEPENDENCY-JUSTIFICATION: These Pkl, Fish, Zsh, and Tcl grammar bindings parse
+# source for their corresponding generic structural extractors.
 tree-sitter-pkl = { git = "https://github.com/apple/tree-sitter-pkl", rev = "5893fb5dc832ea51a9bff3f84462528c766ecd7d" }
 tree-sitter-fish = "3.6"
 tree-sitter-zsh = "0.63"
+# DEPENDENCY-JUSTIFICATION: The Tcl grammar binding parses Tcl source for the generic structural extractor.
 bca-tree-sitter-tcl = "2.0"
+# DEPENDENCY-JUSTIFICATION: These Scheme and Racket grammar bindings parse source
+# for their corresponding generic structural extractors.
 tree-sitter-scheme = "0.24"
 tree-sitter-racket = "0.24"
 # Language-parity wave G2.4e redo (original G2.4e landing wiped by a
@@ -1180,6 +1254,8 @@ tree-sitter-racket = "0.24"
 # `[dev-dependencies]` entry on its own `Cargo.toml`, confirmed via the
 # crates.io sparse index before being added here.
 tree-sitter-devicetree = "0.15"
+# DEPENDENCY-JUSTIFICATION: These vendored Go-template and Smali grammar bindings
+# parse source for their corresponding generic structural extractors.
 tree-sitter-gotemplate-local = { path = "vendor/tree-sitter-gotemplate-local" }
 tree-sitter-smali-local = { path = "vendor/tree-sitter-smali-local" }
 # Thrift and LLVM TableGen -- vendored (`tree-sitter-thrift`/
@@ -1190,12 +1266,16 @@ tree-sitter-smali-local = { path = "vendor/tree-sitter-smali-local" }
 # never wired into this dependency list. Language-parity wave
 # G2.4c-redo.
 tree-sitter-thrift-local = { path = "vendor/tree-sitter-thrift-local" }
+# DEPENDENCY-JUSTIFICATION: The vendored TableGen grammar parses TableGen source
+# for the generic structural extractor.
 tree-sitter-tablegen-local = { path = "vendor/tree-sitter-tablegen-local" }
 # WIT and LLVM IR -- real crates.io crates, both confirmed (via a real
 # scratch-crate build against this workspace's own `tree-sitter =
 # "0.25"` core) to resolve cleanly with no version conflict, unlike
 # the vendored grammars above. Language-parity wave G2.4c-redo.
 tree-sitter-wit = "0.2"
+# DEPENDENCY-JUSTIFICATION: The LLVM grammar binding parses LLVM source for the
+# generic structural extractor.
 tree-sitter-llvm = "1.1"
 # Wave G2.5b (Tier-0, final language-parity batch): gitignore, GN, Go
 # Mod, GraphQL, HTML, Hyprlang, INI, Janet, Jinja2, JSDoc, JSON.
@@ -1223,14 +1303,22 @@ tree-sitter-llvm = "1.1"
 # grammar -- it is itself a genuine dedicated `go.mod`-file grammar,
 # not a Go-source-grammar alias.
 tree-sitter-graphql = "0.1"
+# DEPENDENCY-JUSTIFICATION: These HTML, INI, Jinja, and JSDoc grammar bindings
+# parse source for their corresponding generic structural extractors.
 tree-sitter-html = "0.23"
 tree-sitter-ini = "1.4"
 tree-sitter-jinja2 = "0.0.16"
+# DEPENDENCY-JUSTIFICATION: The JSDoc grammar binding parses JSDoc source for the generic structural extractor.
 tree-sitter-jsdoc = "0.25"
+# DEPENDENCY-JUSTIFICATION: These JSON and vendored GN, Go module, and Git ignore
+# grammar bindings parse source for their corresponding extractors.
 tree-sitter-json = "0.24"
 tree-sitter-gn-local = { path = "vendor/tree-sitter-gn-local" }
 tree-sitter-gomod-local = { path = "vendor/tree-sitter-gomod-local" }
+# DEPENDENCY-JUSTIFICATION: The vendored Git ignore grammar parses ignore files for the generic structural extractor.
 tree-sitter-gitignore-local = { path = "vendor/tree-sitter-gitignore-local" }
+# DEPENDENCY-JUSTIFICATION: These vendored Hyprlang and Janet grammar bindings
+# parse source for their corresponding generic structural extractors.
 tree-sitter-hyprlang-local = { path = "vendor/tree-sitter-hyprlang-local" }
 tree-sitter-janet-local = { path = "vendor/tree-sitter-janet-local" }
 # Wave G2.5c (Tier-0, final language-parity batch): JSON5, KDL, Linker
@@ -1247,13 +1335,19 @@ tree-sitter-janet-local = { path = "vendor/tree-sitter-janet-local" }
 # baseline itself vendors (`internal/cbm/vendored/grammars/MANIFEST.md`)
 # into `vendor/tree-sitter-<lang>-local/`.
 tree-sitter-properties = "0.3"
+# DEPENDENCY-JUSTIFICATION: These Regex and vendored JSON5, KDL, LinkerScript,
+# and Liquid grammar bindings parse source for their corresponding extractors.
 tree-sitter-regex = "0.25"
 tree-sitter-json5-local = { path = "vendor/tree-sitter-json5-local" }
 tree-sitter-kdl-local = { path = "vendor/tree-sitter-kdl-local" }
+# DEPENDENCY-JUSTIFICATION: The vendored LinkerScript grammar parses linker scripts for the generic structural extractor.
 tree-sitter-linkerscript-local = { path = "vendor/tree-sitter-linkerscript-local" }
+# DEPENDENCY-JUSTIFICATION: These vendored Liquid, Markdown, Mermaid, and PO
+# grammar bindings parse source for their corresponding extractors.
 tree-sitter-liquid-local = { path = "vendor/tree-sitter-liquid-local" }
 tree-sitter-markdown-local = { path = "vendor/tree-sitter-markdown-local" }
 tree-sitter-mermaid-local = { path = "vendor/tree-sitter-mermaid-local" }
+# DEPENDENCY-JUSTIFICATION: The vendored PO grammar parses gettext PO files for the generic structural extractor.
 tree-sitter-po-local = { path = "vendor/tree-sitter-po-local" }
 # Wave G2.5d (Tier-0, final language-parity batch): Requirements, RON,
 # reStructuredText, SOQL, SOSL, SSH Config, Svelte, TOML, Vue, XML, YAML
@@ -1277,13 +1371,19 @@ tree-sitter-po-local = { path = "vendor/tree-sitter-po-local" }
 # `src/` (`vendor/tree-sitter-ron-local`,
 # `vendor/tree-sitter-sshclientconfig-local`).
 tree-sitter-requirements = "0.6"
+# DEPENDENCY-JUSTIFICATION: These RST, TOML, XML, and YAML grammar bindings parse
+# source for their corresponding generic structural extractors.
 tree-sitter-rst = "0.2"
 tree-sitter-toml-ng = "0.7"
 tree-sitter-xml = "0.7"
+# DEPENDENCY-JUSTIFICATION: The YAML grammar binding parses YAML source for the generic structural extractor.
 tree-sitter-yaml = "0.7"
+# DEPENDENCY-JUSTIFICATION: These Svelte, Vue, RON, and SSH-config grammar
+# bindings parse source for their corresponding generic structural extractors.
 tree-sitter-svelte-next = "0.1"
 tree-sitter-vue-next = "0.1"
 tree-sitter-ron-local = { path = "vendor/tree-sitter-ron-local" }
+# DEPENDENCY-JUSTIFICATION: The vendored SSH-config grammar parses SSH config for the generic structural extractor.
 tree-sitter-sshclientconfig-local = { path = "vendor/tree-sitter-sshclientconfig-local" }
 # Wave G2.5a (Tier-0): Assembly, Astro, Beancount, BibTeX, Blade, CSS,
 # CSV, Diff, Dockerfile, DotEnv, gitattributes structural extractors
@@ -1307,14 +1407,22 @@ tree-sitter-sshclientconfig-local = { path = "vendor/tree-sitter-sshclientconfig
 # at all) or each published crate's own `src/` (Beancount/BibTeX/
 # Dockerfile/gitattributes/CSV).
 tree-sitter-asm = "0.24"
+# DEPENDENCY-JUSTIFICATION: These CSS, Diff, Astro, and Beancount grammar
+# bindings parse source for their corresponding generic structural extractors.
 tree-sitter-css = "0.25"
 tree-sitter-diff = "0.1"
 tree-sitter-astro-local = { path = "vendor/tree-sitter-astro-local" }
+# DEPENDENCY-JUSTIFICATION: The vendored Beancount grammar parses Beancount source for the generic structural extractor.
 tree-sitter-beancount-local = { path = "vendor/tree-sitter-beancount-local" }
+# DEPENDENCY-JUSTIFICATION: These vendored BibTeX, Blade, CSV, and Dockerfile
+# grammar bindings parse source for their corresponding extractors.
 tree-sitter-bibtex-local = { path = "vendor/tree-sitter-bibtex-local" }
 tree-sitter-blade-local = { path = "vendor/tree-sitter-blade-local" }
 tree-sitter-csv-local = { path = "vendor/tree-sitter-csv-local" }
+# DEPENDENCY-JUSTIFICATION: The vendored Dockerfile grammar parses Dockerfiles for the generic structural extractor.
 tree-sitter-dockerfile-local = { path = "vendor/tree-sitter-dockerfile-local" }
+# DEPENDENCY-JUSTIFICATION: These vendored DotEnv and Git attributes grammar
+# bindings parse source for their corresponding generic extractors.
 tree-sitter-dotenv-local = { path = "vendor/tree-sitter-dotenv-local" }
 tree-sitter-gitattributes-local = { path = "vendor/tree-sitter-gitattributes-local" }
 # Wave G2.6: Agda and FORM, found missing during G2.5 closeout (they were
@@ -1324,9 +1432,13 @@ tree-sitter-gitattributes-local = { path = "vendor/tree-sitter-gitattributes-loc
 # `internal/cbm/vendored/grammars/{agda,form}/` (see each vendor crate's
 # own `src/lib.rs` for provenance and ABI-version confirmation).
 tree-sitter-agda-local = { path = "vendor/tree-sitter-agda-local" }
+# DEPENDENCY-JUSTIFICATION: The vendored FORM grammar parses FORM source for the
+# generic structural extractor.
 tree-sitter-form-local = { path = "vendor/tree-sitter-form-local" }
 
 [dev-dependencies]
+# DEPENDENCY-JUSTIFICATION: Integration tests create isolated temporary fixture
+# repositories and filesystem state.
 tempfile = "3.27.0"
 # tests/weaver_enrichment.rs hashes real fixture file content (rather
 # than an inline synthetic string) to build realistic
@@ -1340,6 +1452,8 @@ sha2 = { workspace = true }
 # "integration tests are a separate compilation unit" reason as `sha2`
 # above.
 ed25519-dalek = { version = "2.2.0", default-features = false, features = ["std", "rand_core"] }
+# DEPENDENCY-JUSTIFICATION: Federation integration tests supply OS-backed entropy
+# to generate the Ed25519 keypairs exercised by their fixtures.
 rand_core = { version = "0.6", features = ["getrandom"] }
 
 [features]
