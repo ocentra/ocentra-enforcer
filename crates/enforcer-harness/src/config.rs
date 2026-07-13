@@ -133,8 +133,9 @@ mod tests {
 
     #[test]
     fn redact_text_masks_seeded_secret_and_preserves_clean_text() -> Result<()> {
-        let seeded = super::redact_text("token: AKIAIOSFODNN7EXAMPLE embedded")?;
-        assert!(!seeded.contains("AKIAIOSFODNN7EXAMPLE"));
+        let synthetic_access_key = ["AKIA", "IOSFODNN7EXAMPLE"].concat();
+        let seeded = super::redact_text(&format!("token: {synthetic_access_key} embedded"))?;
+        assert!(!seeded.contains(&synthetic_access_key));
         assert!(seeded.contains(enforcer_core::redaction::REDACTED));
 
         let clean = super::redact_text("nothing sensitive here")?;
