@@ -90,6 +90,16 @@ fn namespace_eval_is_a_class_symbol() {
 }
 
 #[test]
+fn incomplete_namespace_eval_is_not_classified_or_panics() {
+    let parsed = parse_tcl("namespace eval\n");
+    assert!(
+        !parsed.symbols.iter().any(|symbol| symbol.name == "eval"),
+        "{:#?}",
+        parsed.symbols
+    );
+}
+
+#[test]
 fn proc_nested_in_namespace_is_defines_attributed() -> TestResult {
     let src = "namespace eval Widgets {\n    proc make {} {\n        puts hi\n    }\n}\n";
     let parsed = parse_tcl(src);

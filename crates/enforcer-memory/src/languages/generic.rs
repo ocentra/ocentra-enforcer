@@ -20863,18 +20863,15 @@ pub fn parse_zsh(source: &str) -> ParsedFile {
 /// `None` if the node's own shape does not match (see
 /// [`LangSpec::tcl`]'s own doc comment: `namespace`'s ENTIRE shape is
 /// one flat, unfielded `word_list`).
-fn tcl_namespace_words<'a>(namespace: Node<'a>, src: &'a [u8]) -> Option<Vec<Node<'a>>> {
+fn tcl_namespace_words<'a>(namespace: Node<'a>) -> Option<Vec<Node<'a>>> {
     let word_list = namespace.named_child(0)?;
     if word_list.kind() != "word_list" {
         return None;
     }
-    let words: Vec<Node<'a>> = (0..word_list.named_child_count())
-        .filter_map(|i| word_list.named_child(i))
-        .collect();
+    let words: Vec<Node<'a>> = named_syntax_children(word_list).collect();
     if words.len() < 2 {
         return None;
     }
-    let _ = src;
     Some(words)
 }
 
@@ -20893,16 +20890,23 @@ fn tcl_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Par
     if node.kind() != "namespace" {
         return false;
     }
-    let Some(words) = tcl_namespace_words(node, src) else {
+    let Some(words) = tcl_namespace_words(node) else {
         return false;
     };
-    let Ok(subcommand) = words[0].utf8_text(src) else {
+    let mut words = words.into_iter();
+    let Some(subcommand_node) = words.next() else {
+        return false;
+    };
+    let Ok(subcommand) = subcommand_node.utf8_text(src) else {
         return false;
     };
     if subcommand != "eval" {
         return false;
     }
-    let Ok(name) = words[1].utf8_text(src) else {
+    let Some(name_node) = words.next() else {
+        return false;
+    };
+    let Ok(name) = name_node.utf8_text(src) else {
         return false;
     };
     if name.is_empty() {
@@ -20922,8 +20926,8 @@ fn tcl_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Par
         quirks: &quirks,
         is_test_file: false,
     };
-    for word in &words[2..] {
-        walk(*word, &ctx, out, Some(name), FnScope::default());
+    for word in words {
+        walk(word, &ctx, out, Some(name), FnScope::default());
     }
     true
 }
