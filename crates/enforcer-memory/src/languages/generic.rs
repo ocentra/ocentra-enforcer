@@ -70,20 +70,21 @@ struct FnScope<'a> {
 /// know it (C++'s in-class `function_definition` handling, in
 /// particular) read it directly rather than losing that context the
 /// moment control passes into this hook.
-type UnmatchedNodeHook = Box<dyn Fn(Node<'_>, Option<&str>, &[u8], &mut ParsedFile) -> bool>;
+type UnmatchedNodeHook =
+    Box<dyn Fn(Node<'_>, Option<&str>, &[u8], &mut ParsedFile) -> bool + Send + Sync>;
 
 /// Signature for [`Quirks::route_from_call`].
-type RouteFromCallHook = Box<dyn Fn(&str, Node<'_>, &[u8]) -> Option<RouteRef>>;
+type RouteFromCallHook = Box<dyn Fn(&str, Node<'_>, &[u8]) -> Option<RouteRef> + Send + Sync>;
 
 /// Signature for [`Quirks::on_method_defined`].
-type MethodDefinedHook = Box<dyn Fn(Node<'_>, &str, usize, &[u8], &mut ParsedFile)>;
+type MethodDefinedHook = Box<dyn Fn(Node<'_>, &str, usize, &[u8], &mut ParsedFile) + Send + Sync>;
 
 /// Signature for [`Quirks::call_override`]: the call node, the
 /// innermost enclosing function/method name + line (`fn_scope`, same
 /// pair `walk` threads through everywhere else), the source bytes, and
 /// the output sink.
 type CallOverrideHook =
-    Box<dyn Fn(Node<'_>, Option<&str>, Option<usize>, &[u8], &mut ParsedFile) -> bool>;
+    Box<dyn Fn(Node<'_>, Option<&str>, Option<usize>, &[u8], &mut ParsedFile) -> bool + Send + Sync>;
 
 /// Per-language override hooks the generic walker calls at fixed
 /// points, mirroring the baseline's per-language quirk branches.
@@ -7294,17 +7295,10 @@ fn lua_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Par
 /// caller's own borrowed `Ctx` through (which the [`Quirks::on_unmatched_node`]
 /// hook signature does not carry access to).
 fn ctx_for_lua(src: &[u8]) -> Ctx<'_> {
-    // `Box::leak` keeps a `'static`-lifetime-free `LangSpec`/`Quirks`
-    // pair alive for exactly this call's own nested walk without
-    // widening `Ctx`'s own lifetime parameter beyond `src`'s -- every
-    // field `LangSpec`/`Quirks` need is itself `Copy`/boxed-fn-pointer
-    // data with no borrow back into this function's stack, so leaking
-    // one pair per anonymous-function-literal node (a bounded, rare
-    // construct, not a hot loop) is a deliberate, small, one-directional
-    // trade favoring this helper's own simplicity over pooling/caching.
     static SPEC: std::sync::OnceLock<LangSpec> = std::sync::OnceLock::new();
+    static QUIRKS: std::sync::OnceLock<Quirks> = std::sync::OnceLock::new();
     let spec = SPEC.get_or_init(LangSpec::lua);
-    let quirks: &'static Quirks = Box::leak(Box::new(lua_quirks()));
+    let quirks = QUIRKS.get_or_init(lua_quirks);
     Ctx {
         spec,
         src,
@@ -7635,13 +7629,14 @@ fn elixir_quirk(
 }
 
 /// A throwaway [`Ctx`] for [`elixir_push_def`]/[`elixir_push_module`]'s
-/// own re-entrant `do_block` walks -- see [`ctx_for_lua`]'s own doc
-/// comment for the identical `Box::leak`-based rationale (this function
-/// is its Elixir-specific twin).
+/// own re-entrant `do_block` walks -- see [`ctx_for_lua`] for the
+/// identical cached-specification pattern (this function is its
+/// Elixir-specific twin).
 fn ctx_for_elixir(src: &[u8]) -> Ctx<'_> {
     static SPEC: std::sync::OnceLock<LangSpec> = std::sync::OnceLock::new();
+    static QUIRKS: std::sync::OnceLock<Quirks> = std::sync::OnceLock::new();
     let spec = SPEC.get_or_init(LangSpec::elixir);
-    let quirks: &'static Quirks = Box::leak(Box::new(elixir_quirks()));
+    let quirks = QUIRKS.get_or_init(elixir_quirks);
     Ctx {
         spec,
         src,
@@ -15136,8 +15131,9 @@ fn scss_on_method_defined(
 /// mirrors [`ctx_for_lua`]'s identical pattern.
 fn ctx_for_scss(src: &[u8]) -> Ctx<'_> {
     static SPEC: std::sync::OnceLock<LangSpec> = std::sync::OnceLock::new();
+    static QUIRKS: std::sync::OnceLock<Quirks> = std::sync::OnceLock::new();
     let spec = SPEC.get_or_init(LangSpec::scss);
-    let quirks: &'static Quirks = Box::leak(Box::new(scss_quirks()));
+    let quirks = QUIRKS.get_or_init(scss_quirks);
     Ctx {
         spec,
         src,
@@ -15355,8 +15351,9 @@ fn cmake_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
 /// mirrors [`ctx_for_lua`]'s identical pattern.
 fn ctx_for_cmake(src: &[u8]) -> Ctx<'_> {
     static SPEC: std::sync::OnceLock<LangSpec> = std::sync::OnceLock::new();
+    static QUIRKS: std::sync::OnceLock<Quirks> = std::sync::OnceLock::new();
     let spec = SPEC.get_or_init(LangSpec::cmake);
-    let quirks: &'static Quirks = Box::leak(Box::new(cmake_quirks()));
+    let quirks = QUIRKS.get_or_init(cmake_quirks);
     Ctx {
         spec,
         src,
@@ -15569,8 +15566,9 @@ fn makefile_quirk(
 /// walk -- mirrors [`ctx_for_lua`]'s identical pattern.
 fn ctx_for_makefile(src: &[u8]) -> Ctx<'_> {
     static SPEC: std::sync::OnceLock<LangSpec> = std::sync::OnceLock::new();
+    static QUIRKS: std::sync::OnceLock<Quirks> = std::sync::OnceLock::new();
     let spec = SPEC.get_or_init(LangSpec::makefile);
-    let quirks: &'static Quirks = Box::leak(Box::new(makefile_quirks()));
+    let quirks = QUIRKS.get_or_init(makefile_quirks);
     Ctx {
         spec,
         src,
@@ -15776,8 +15774,9 @@ fn fortran_quirk(
 /// mirrors [`ctx_for_lua`]'s identical pattern.
 fn ctx_for_fortran(src: &[u8]) -> Ctx<'_> {
     static SPEC: std::sync::OnceLock<LangSpec> = std::sync::OnceLock::new();
+    static QUIRKS: std::sync::OnceLock<Quirks> = std::sync::OnceLock::new();
     let spec = SPEC.get_or_init(LangSpec::fortran);
-    let quirks: &'static Quirks = Box::leak(Box::new(fortran_quirks()));
+    let quirks = QUIRKS.get_or_init(fortran_quirks);
     Ctx {
         spec,
         src,
@@ -15988,8 +15987,9 @@ fn vimscript_quirk(
 /// -- mirrors [`ctx_for_lua`]'s identical pattern.
 fn ctx_for_vimscript(src: &[u8]) -> Ctx<'_> {
     static SPEC: std::sync::OnceLock<LangSpec> = std::sync::OnceLock::new();
+    static QUIRKS: std::sync::OnceLock<Quirks> = std::sync::OnceLock::new();
     let spec = SPEC.get_or_init(LangSpec::vimscript);
-    let quirks: &'static Quirks = Box::leak(Box::new(vimscript_quirks()));
+    let quirks = QUIRKS.get_or_init(vimscript_quirks);
     Ctx {
         spec,
         src,
@@ -16210,8 +16210,9 @@ fn puppet_quirk(
 /// mirrors [`ctx_for_lua`]'s identical pattern.
 fn ctx_for_puppet(src: &[u8]) -> Ctx<'_> {
     static SPEC: std::sync::OnceLock<LangSpec> = std::sync::OnceLock::new();
+    static QUIRKS: std::sync::OnceLock<Quirks> = std::sync::OnceLock::new();
     let spec = SPEC.get_or_init(LangSpec::puppet);
-    let quirks: &'static Quirks = Box::leak(Box::new(puppet_quirks()));
+    let quirks = QUIRKS.get_or_init(puppet_quirks);
     Ctx {
         spec,
         src,
@@ -16400,8 +16401,9 @@ fn elm_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Par
 /// mirrors [`ctx_for_lua`]'s identical pattern.
 fn ctx_for_elm(src: &[u8]) -> Ctx<'_> {
     static SPEC: std::sync::OnceLock<LangSpec> = std::sync::OnceLock::new();
+    static QUIRKS: std::sync::OnceLock<Quirks> = std::sync::OnceLock::new();
     let spec = SPEC.get_or_init(LangSpec::elm);
-    let quirks: &'static Quirks = Box::leak(Box::new(elm_quirks()));
+    let quirks = QUIRKS.get_or_init(elm_quirks);
     Ctx {
         spec,
         src,
@@ -20598,8 +20600,9 @@ pub fn parse_kconfig(source: &str) -> ParsedFile {
 
 fn ctx_for_awk(src: &[u8]) -> Ctx<'_> {
     static SPEC: std::sync::OnceLock<LangSpec> = std::sync::OnceLock::new();
+    static QUIRKS: std::sync::OnceLock<Quirks> = std::sync::OnceLock::new();
     let spec = SPEC.get_or_init(LangSpec::awk);
-    let quirks: &'static Quirks = Box::leak(Box::new(awk_quirks()));
+    let quirks = QUIRKS.get_or_init(awk_quirks);
     Ctx {
         spec,
         src,
@@ -20734,8 +20737,9 @@ pub fn parse_awk(source: &str) -> ParsedFile {
 
 fn ctx_for_fish(src: &[u8]) -> Ctx<'_> {
     static SPEC: std::sync::OnceLock<LangSpec> = std::sync::OnceLock::new();
+    static QUIRKS: std::sync::OnceLock<Quirks> = std::sync::OnceLock::new();
     let spec = SPEC.get_or_init(LangSpec::fish);
-    let quirks: &'static Quirks = Box::leak(Box::new(fish_quirks()));
+    let quirks = QUIRKS.get_or_init(fish_quirks);
     Ctx {
         spec,
         src,
@@ -21111,8 +21115,9 @@ fn lisp2_import(head_node: Node<'_>, src: &[u8], out: &mut ParsedFile) {
 
 fn ctx_for_scheme(src: &[u8]) -> Ctx<'_> {
     static SPEC: std::sync::OnceLock<LangSpec> = std::sync::OnceLock::new();
+    static QUIRKS: std::sync::OnceLock<Quirks> = std::sync::OnceLock::new();
     let spec = SPEC.get_or_init(LangSpec::scheme);
-    let quirks: &'static Quirks = Box::leak(Box::new(scheme_quirks()));
+    let quirks = QUIRKS.get_or_init(scheme_quirks);
     Ctx {
         spec,
         src,
@@ -21274,8 +21279,9 @@ const RACKET_IMPORT_HEADS: &[&str] = &["require", "import", "load", "include"];
 
 fn ctx_for_racket(src: &[u8]) -> Ctx<'_> {
     static SPEC: std::sync::OnceLock<LangSpec> = std::sync::OnceLock::new();
+    static QUIRKS: std::sync::OnceLock<Quirks> = std::sync::OnceLock::new();
     let spec = SPEC.get_or_init(LangSpec::racket);
-    let quirks: &'static Quirks = Box::leak(Box::new(racket_quirks()));
+    let quirks = QUIRKS.get_or_init(racket_quirks);
     Ctx {
         spec,
         src,
@@ -24623,8 +24629,9 @@ fn agda_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
 
 fn ctx_for_agda(src: &[u8]) -> Ctx<'_> {
     static SPEC: std::sync::OnceLock<LangSpec> = std::sync::OnceLock::new();
+    static QUIRKS: std::sync::OnceLock<Quirks> = std::sync::OnceLock::new();
     let spec = SPEC.get_or_init(LangSpec::agda);
-    let quirks: &'static Quirks = Box::leak(Box::new(agda_quirks()));
+    let quirks = QUIRKS.get_or_init(agda_quirks);
     Ctx {
         spec,
         src,
@@ -24766,8 +24773,9 @@ fn form_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
 
 fn ctx_for_form(src: &[u8]) -> Ctx<'_> {
     static SPEC: std::sync::OnceLock<LangSpec> = std::sync::OnceLock::new();
+    static QUIRKS: std::sync::OnceLock<Quirks> = std::sync::OnceLock::new();
     let spec = SPEC.get_or_init(LangSpec::form);
-    let quirks: &'static Quirks = Box::leak(Box::new(form_quirks()));
+    let quirks = QUIRKS.get_or_init(form_quirks);
     Ctx {
         spec,
         src,
