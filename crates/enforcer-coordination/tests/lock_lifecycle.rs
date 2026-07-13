@@ -4,8 +4,23 @@
 //! module, so callers own the same lifecycle guarantees as the lock engine.
 
 use enforcer_coordination::lock::{
-    blockers_for_request, enrich_claim, ClaimContext, ConflictType, Operation, RawClaim,
+    blockers_for_request, enrich_claim, ClaimContext, ConflictType, LockKind, OnConflict,
+    Operation, RawClaim,
 };
+
+#[test]
+fn lock_domain_values_cross_the_boundary_through_explicit_wire_conversion() {
+    let lock_kind = LockKind::parse("branchLease").expect("known lock kind must decode");
+    let operation = Operation::parse("pr_ready").expect("known operation must decode");
+    let policy = OnConflict::parse("intent").expect("known conflict policy must decode");
+
+    assert_eq!(lock_kind.as_str(), "branchLease");
+    assert_eq!(operation.as_str(), "pr_ready");
+    assert_eq!(policy, OnConflict::Intent);
+    assert!(LockKind::parse("unknown-lock").is_err());
+    assert!(Operation::parse("unknown-operation").is_err());
+    assert!(OnConflict::parse("unknown-policy").is_err());
+}
 
 fn context(worktree: &str, branch: &str) -> ClaimContext {
     ClaimContext {

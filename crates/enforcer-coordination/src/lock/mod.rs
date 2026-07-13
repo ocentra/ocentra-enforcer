@@ -11,14 +11,14 @@ pub mod singletons;
 
 use std::collections::BTreeSet;
 
-use serde::{Deserialize, Serialize};
-
 use crate::error::{CoordinationError, Result};
 use singletons::{normalize_coordination_path, protected_singleton_group};
 
 /// The 4 lock kinds. Ported from `lock-policy.js#LOCK_KIND_VALUES`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+/// Domain lock classification. The API boundary accepts the corresponding
+/// wire string and calls [`LockKind::parse`] before the value enters the
+/// conflict engine; this type deliberately has no serde transport contract.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LockKind {
     WriteLock,
     GlobalWriteLock,
@@ -49,8 +49,9 @@ impl LockKind {
 
 /// The coordination operation an actor is performing. Ported from
 /// `lock-policy.js#OPERATION_VALUES`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+/// Domain operation classification. Request decoding is kept at the API
+/// boundary and converts its wire string with [`Operation::parse`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Operation {
     Inspect,
     #[default]
@@ -91,8 +92,9 @@ impl Operation {
 
 /// `onConflict` mode for a claim request. Ported from
 /// `lock-policy.js#ON_CONFLICT_VALUES`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+/// Domain conflict policy. The boundary converts the external string with
+/// [`OnConflict::parse`] before lock lifecycle evaluation begins.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OnConflict {
     Fail,
     Intent,
@@ -115,8 +117,7 @@ impl OnConflict {
 /// `cwd`. The API boundary (arc-16 `api.rs`) requires `project_id`,
 /// `worktree_root`, and `branch` as explicit caller-supplied params for this
 /// reason — this struct has no "resolve from server cwd" fallback baked in.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ClaimContext {
     pub project_id: Option<String>,
     pub git_remote: Option<String>,
@@ -343,8 +344,10 @@ pub fn enrich_claim(claim: &RawClaim, has_explicit_context: bool) -> EnrichedCla
 }
 
 /// One of the 6 conflict classes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+/// Domain conflict classification. Event and API rendering use
+/// [`ConflictType::as_str`] at their transport boundary rather than deriving
+/// a serialization contract on the conflict engine itself.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConflictType {
     WriteLockConflict,
     BranchWriteConflict,
