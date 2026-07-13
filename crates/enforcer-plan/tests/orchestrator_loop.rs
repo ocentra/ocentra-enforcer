@@ -1,5 +1,3 @@
-use std::num::NonZeroU32;
-
 use enforcer_plan::error::PlanError;
 use enforcer_plan::orchestrator::{
     CoordinationPort, GatekeeperHandoff, InMemoryCoordination, LaneEvent, LaneStatus,
@@ -109,7 +107,7 @@ fn verified_done_claim_integrates_and_dispatches_new_frontier() -> Result<(), Pl
 fn stalled_frontier_exhausts_bounded_run() {
     let graph = PlanGraph::from_nodes([node("a", &["missing-dep"], &["a.rs"])]);
     let mut orch = orchestrator(graph);
-    let result = orch.run_until_done(NonZeroU32::MIN);
+    let result = orch.run_until_done(3);
     assert!(matches!(result, Err(PlanError::GraphInvalid { .. })));
 }
 

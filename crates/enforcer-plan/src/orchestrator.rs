@@ -39,7 +39,6 @@
 //! an orchestrator-side change).
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use std::num::NonZeroU32;
 
 use enforcer_coordination::api::{self, CallerContext, ClaimRequestArgs, CloseoutFilters, Hub};
 use enforcer_domain::ids::{LaneId, RuleId};
@@ -972,8 +971,8 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
     /// Run `tick()` until [`TickOutcome::Done`], or until `max_ticks` is
     /// exhausted (a safety bound for tests/CLI callers; a real standing
     /// loop has no such bound and re-arms indefinitely per (5) above).
-    pub fn run_until_done(&mut self, max_ticks: NonZeroU32) -> PlanResult<GatekeeperHandoff> {
-        for _ in 0..max_ticks.get() {
+    pub fn run_until_done(&mut self, max_ticks: u32) -> PlanResult<GatekeeperHandoff> {
+        for _ in 0..max_ticks {
             match self.tick()? {
                 TickOutcome::Done(handoff) => return Ok(handoff),
                 TickOutcome::Continue { next_wake_armed } => {
