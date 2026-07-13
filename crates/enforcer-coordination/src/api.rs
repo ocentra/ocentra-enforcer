@@ -383,7 +383,7 @@ pub fn claim_all(hub: &Hub, request: ClaimRequestArgs<'_>) -> Result<ClaimOutcom
                 kind: "claim",
                 paths: Some(batch.to_vec()),
                 reason: reason.map(str::to_owned),
-                context: Some(&context),
+                context: Some((&context, caller)),
                 metadata: EventMetadata::default(),
             },
         )?;
@@ -414,7 +414,7 @@ pub fn release(
             kind: "release",
             paths: Some(paths.to_vec()),
             reason: reason.map(str::to_owned),
-            context: Some(&context),
+            context: Some((&context, caller)),
             metadata: EventMetadata::default(),
         },
     )
@@ -452,7 +452,7 @@ pub fn send_message(
             kind: "message",
             paths: None,
             reason: None,
-            context: Some(&context),
+            context: Some((&context, caller)),
             metadata: EventMetadata {
                 to: Some(recipient.as_str().to_owned()),
                 body: Some(body.to_owned()),
@@ -503,7 +503,7 @@ pub fn acknowledge_message(
             kind: "ack",
             paths: None,
             reason: None,
-            context: Some(&context),
+            context: Some((&context, caller)),
             metadata: EventMetadata {
                 message_id: Some(message_id.to_owned()),
                 ..Default::default()
@@ -622,7 +622,7 @@ pub fn closeout(
                 kind: "release",
                 paths: Some(paths),
                 reason: Some(reason.clone()),
-                context: Some(&context),
+                context: Some((&context, caller)),
                 metadata: EventMetadata::default(),
             },
         )?;
@@ -632,7 +632,7 @@ pub fn closeout(
     Ok(events)
 }
 
-fn claim_context_to_json(context: &ClaimContext) -> serde_json::Value {
+fn claim_context_to_json(context: &ClaimContext, caller: &CallerContext) -> serde_json::Value {
     let mut map = serde_json::Map::new();
     macro_rules! set {
         ($key:literal, $field:expr) => {
@@ -651,6 +651,7 @@ fn claim_context_to_json(context: &ClaimContext) -> serde_json::Value {
     set!("claimGroup", context.claim_group);
     set!("lockKind", context.lock_kind);
     set!("operation", context.operation);
+    set!("commit", caller.commit);
     serde_json::Value::Object(map)
 }
 
@@ -661,7 +662,7 @@ struct AppendEventArgs<'a> {
     kind: &'a str,
     paths: Option<Vec<String>>,
     reason: Option<String>,
-    context: Option<&'a ClaimContext>,
+    context: Option<(&'a ClaimContext, &'a CallerContext)>,
     metadata: EventMetadata,
 }
 
@@ -717,7 +718,7 @@ fn append_event(hub: &Hub, args: AppendEventArgs<'_>) -> Result<HubEvent> {
         summary: None,
         ttl_seconds: None,
         session_id: None,
-        context: context.map(claim_context_to_json),
+        context: context.map(|(context, caller)| claim_context_to_json(context, caller)),
     };
     event.hash = crate::events::hash_for_event(&event)?;
     append_completed_event(&hub.root, &hub.config.node_id, lane, &event)?;

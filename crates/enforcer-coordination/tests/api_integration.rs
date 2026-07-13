@@ -63,6 +63,7 @@ fn claim_uses_explicit_caller_context() -> Result<(), Box<dyn std::error::Error>
     let context = outcome.events[0].context.as_ref().ok_or("context missing")?;
     assert_eq!(context.get("worktreeRoot").and_then(|value| value.as_str()), Some(caller_worktree));
     assert_eq!(context.get("branch").and_then(|value| value.as_str()), Some("lane/arc-16"));
+    assert_eq!(context.get("commit").and_then(|value| value.as_str()), Some("abc123"));
     Ok(())
 }
 
