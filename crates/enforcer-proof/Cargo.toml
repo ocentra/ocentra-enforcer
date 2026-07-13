@@ -2,6 +2,7 @@
 name = "enforcer-proof"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Rust proof harness (arc-17): routed proofs, artifact capture, freshness, PR-ready claims, an append-only SHA-256 hash-chained NDJSON journal (verify-on-open + on-replay), the rich proof envelope (git-state/in-toto/retention), and a legacy-artifact import path. Consumes enforcer-core's NdjsonWriter<T> sink + hash-chain primitive + two-layer redaction; does not reimplement them."
@@ -12,13 +13,17 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 thiserror = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: shared execution, domain, scan, and event
+# contracts required to capture and verify durable proof artifacts.
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 enforcer-scan = { path = "../enforcer-scan", version = "0.1.0" }
 enforcer-events = { path = "../enforcer-events", version = "0.1.0" }
 
 [dev-dependencies]
-tempfile = "3"
+# DEPENDENCY-JUSTIFICATION: isolated filesystem fixtures for proof artifact
+# capture, freshness, and journal verification tests.
+tempfile = "=3.27.0"
 
 [lints]
 workspace = true
