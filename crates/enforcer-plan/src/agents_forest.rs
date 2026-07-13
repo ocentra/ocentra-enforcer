@@ -272,19 +272,17 @@ fn finding(rule_id: &RuleId, title: &str, detail: impl Into<String>, file: &RelP
 fn managed_block<'a>(source: &'a str, name: &str) -> Option<&'a str> {
     let open = format!("<!-- {name} -->");
     let close = format!("<!-- /{name} -->");
-    let start = source.find(&open)? + open.len();
-    let rest = &source[start..];
-    let end = rest.find(&close)?;
-    Some(rest[..end].trim())
+    let (_, rest) = source.split_once(open.as_str())?;
+    let (block, _) = rest.split_once(close.as_str())?;
+    Some(block.trim())
 }
 
 /// Extract the `<!-- agents-forest-tier: <tier> -->` marker value.
 fn tier_marker(source: &str) -> Option<&str> {
     let open = "<!-- agents-forest-tier:";
-    let start = source.find(open)? + open.len();
-    let rest = &source[start..];
-    let end = rest.find("-->")?;
-    Some(rest[..end].trim())
+    let (_, rest) = source.split_once(open)?;
+    let (marker, _) = rest.split_once("-->")?;
+    Some(marker.trim())
 }
 
 /// Extract a `KEY: value` line's `value` from inside a managed block's
