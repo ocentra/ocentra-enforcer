@@ -122,6 +122,15 @@ impl ArchitectureDirectory {
             Self(parent.to_owned())
         })
     }
+
+    fn contains_path(&self, path: ArchitecturePath<'_>) -> bool {
+        self.0 == "."
+            || path.0 == self.0
+            || path
+                .0
+                .strip_prefix(&self.0)
+                .is_some_and(|rest| rest.starts_with('/'))
+    }
 }
 
 /// An owned crate or top-level section identifier used during architecture
@@ -769,23 +778,19 @@ fn route_entries(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<RouteEn
 /// exactly `Cargo.toml` or `package.json` -- the two manifest formats
 /// this crate's parity floor (D-06: Rust + TS/JS + Python + config)
 /// actually indexes structurally.
-fn is_manifest_file(rel_path: &str) -> bool {
-    let name = rel_path.rsplit('/').next().unwrap_or(rel_path);
+fn is_manifest_file(path: ArchitecturePath<'_>) -> bool {
+    let name = path.0.rsplit('/').next().unwrap_or(path.0);
     name == "Cargo.toml" || name == "package.json"
 }
 
-fn dir_of(rel_path: &str) -> String {
-    match rel_path.rsplit_once('/') {
-        Some((dir, _)) => dir.to_string(),
-        None => ".".to_string(),
-    }
-}
-
 fn package_sections(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<PackageSection> {
-    let manifests: Vec<&str> = graph
+    let manifests: Vec<ArchitecturePath<'_>> = graph
         .file_nodes()
-        .filter(|f| scope.includes(ArchitecturePath(&f.rel_path)) && is_manifest_file(&f.rel_path))
-        .map(|f| f.rel_path.as_str())
+        .filter(|f| {
+            scope.includes(ArchitecturePath(&f.rel_path))
+                && is_manifest_file(ArchitecturePath(&f.rel_path))
+        })
+        .map(|f| ArchitecturePath(&f.rel_path))
         .collect();
 
     let file_path_by_id: BTreeMap<&str, &str> = graph
@@ -803,16 +808,13 @@ fn package_sections(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<Pack
 
     let mut sections: Vec<PackageSection> = Vec::new();
     for manifest in manifests {
-        let dir = dir_of(manifest);
-        let is_under_dir = |rel_path: &str| -> bool {
-            dir == "." || rel_path == dir || rel_path.starts_with(&format!("{dir}/"))
-        };
+        let dir = ArchitectureDirectory::from_file_path(manifest);
         let members: Vec<String> = graph
             .file_nodes()
             .filter(|f| {
                 scope.includes(ArchitecturePath(&f.rel_path))
-                    && f.rel_path != manifest
-                    && is_under_dir(&f.rel_path)
+                    && f.rel_path != manifest.0
+                    && dir.contains_path(ArchitecturePath(&f.rel_path))
             })
             .map(|f| f.rel_path.clone())
             .collect();
@@ -825,7 +827,7 @@ fn package_sections(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<Pack
             let Some(&from_path) = file_path_by_id.get(call.from_file_id.as_str()) else {
                 continue;
             };
-            let from_inside = is_under_dir(from_path);
+            let from_inside = dir.contains_path(ArchitecturePath(from_path));
             let Some(to_symbol_id) = resolve_callee(&call.callee, &symbol_names) else {
                 continue;
             };
@@ -835,7 +837,7 @@ fn package_sections(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<Pack
             let Some(&to_path) = file_path_by_id.get(to_file_id) else {
                 continue;
             };
-            let to_inside = is_under_dir(to_path);
+            let to_inside = dir.contains_path(ArchitecturePath(to_path));
             match (from_inside, to_inside) {
                 (true, false) => fan_out += 1,
                 (false, true) => fan_in += 1,
@@ -844,8 +846,10 @@ fn package_sections(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<Pack
         }
 
         sections.push(PackageSection {
-            dir,
-            manifest_rel_path: manifest.to_string(),
+            // ALLOC-JUSTIFICATION: PackageSection crosses the architecture
+            // report boundary and must own its serialized directory text.
+            dir: dir.0,
+            manifest_rel_path: manifest.0.to_owned(),
             member_file_count: members.len(),
             member_rel_paths: members,
             fan_in,
