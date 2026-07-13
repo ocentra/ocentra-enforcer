@@ -42,7 +42,7 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 # `src/store/analytics.rs` module docs for the full decision record.
 # DEPENDENCY-JUSTIFICATION: DuckDB is an optional analytics backend behind the
 # analytics read-model trait; it is never selected by the default feature set.
-duckdb = { version = "1", features = ["bundled"], optional = true }
+duckdb = { version = "1.10504.0", features = ["bundled"], optional = true }
 # git2 (libgit2 bindings) over gix: X06.2 only needs read-only HEAD/log/
 # blame-style metadata (last commit touching a path, commit count) --
 # libgit2 is the more battle-tested, synchronous, blocking-call-friendly
@@ -145,7 +145,7 @@ tree-sitter-swift = "0.7"
 # corresponding quirks read, so there is no correctness reason to prefer
 # the vendored copy over the maintained crate.
 tree-sitter-solidity = "1.2"
-tree-sitter-gdscript = "6"
+tree-sitter-gdscript = "6.1.0"
 # Language-parity wave G2.1b: Dart/Scala/Groovy structural extractors
 # (see languages/generic.rs's `parse_dart`/`parse_scala`/`parse_groovy`).
 # All three, like every grammar above, depend on `tree-sitter-language`
@@ -200,8 +200,8 @@ tree-sitter-groovy = "0.1"
 # version, unlike what `codebase-memory-mcp/internal/cbm/extract_calls.c`'s
 # `extract_objc_callee` reads).
 tree-sitter-ruby = "0.23"
-tree-sitter-zig = "1"
-tree-sitter-objc = "3"
+tree-sitter-zig = "1.1.2"
+tree-sitter-objc = "3.0.2"
 # Language-parity wave G2.2f: Lua/Elixir/Bash structural extractors (see
 # languages/generic.rs's `parse_lua`/`parse_elixir`/`parse_bash`). All
 # three verified end-to-end (real parse, no ABI error) against this
@@ -392,7 +392,7 @@ enforcer-mcp = { path = "../enforcer-mcp" }
 # adaptive-polling fallback (src/watch.rs) for environments where native
 # events are unreliable. Pure Rust, cross-platform, no C toolchain --
 # matches this crate's zero-system-dependency posture.
-notify = "6"
+notify = "6.1.1"
 # X06.8 federation: bundle + graph-artifact compression for signed
 # personal/team/community memory bundles and the D-11 `.codebase-memory/
 # graph.db.zst` bootstrap artifact. Wraps the zstd C library via
@@ -407,7 +407,7 @@ zstd = "0.13"
 # `asm`/`pkcs8`/network extras needed for sign/verify over raw bytes;
 # tests use fixed-seed `SigningKey::from_bytes`, so no RNG feature and
 # no `rand_core` dependency either).
-ed25519-dalek = { version = "2", default-features = false, features = ["std", "rand_core"] }
+ed25519-dalek = { version = "2.2.0", default-features = false, features = ["std", "rand_core"] }
 # Key generation for federation tests/fixtures (trust-list keypairs) --
 # `getrandom` (not `std`) is what gates `rand_core::OsRng` in 0.6.x. Only
 # used by `#[cfg(test)]` code and `tests/federation_roundtrip.rs`, but
@@ -463,7 +463,7 @@ rand_core = { version = "0.6", features = ["getrandom"] }
 #   (real `function`/`arguments` fields matching the generic engine's
 #   own default single-field reconstruction unchanged).
 tree-sitter-fsharp = "0.3"
-tree-sitter-gleam = "1"
+tree-sitter-gleam = "1.0.0"
 # Language-parity wave G2.2h: R/Perl/Clojure structural extractors (see
 # languages/generic.rs's `parse_r`/`parse_perl`/`parse_clojure`). Verified
 # end-to-end (real parse, no ABI error) against this workspace's
@@ -639,7 +639,7 @@ tree-sitter-squirrel-local = { path = "vendor/tree-sitter-squirrel-local" }
 #   call) and `crystal_module_types`'s `"program"` not existing at all
 #   (this grammar's actual root rule is named `expressions`) -- see
 #   `LangSpec::crystal`'s own doc comment for the full corrections.
-tree-sitter-sfapex = "3"
+tree-sitter-sfapex = "3.0.0"
 tree-sitter-ada = "0.1"
 tree-sitter-crystal = { git = "https://github.com/crystal-lang-tools/tree-sitter-crystal", rev = "50ca9e6fcfb16a2cbcad59203cfd8ad650e25c49" }
 # Language-parity wave G2.3e: Starlark/Templ/Typst/WGSL structural
@@ -1327,7 +1327,7 @@ tree-sitter-agda-local = { path = "vendor/tree-sitter-agda-local" }
 tree-sitter-form-local = { path = "vendor/tree-sitter-form-local" }
 
 [dev-dependencies]
-tempfile = "3"
+tempfile = "3.27.0"
 # tests/weaver_enrichment.rs hashes real fixture file content (rather
 # than an inline synthetic string) to build realistic
 # `WeaverEvent::{NodeChanged,FileChanged}` content hashes; integration
@@ -1339,7 +1339,7 @@ sha2 = { workspace = true }
 # src/share.rs's and src/federation.rs's own unit tests do; same
 # "integration tests are a separate compilation unit" reason as `sha2`
 # above.
-ed25519-dalek = { version = "2", default-features = false, features = ["std", "rand_core"] }
+ed25519-dalek = { version = "2.2.0", default-features = false, features = ["std", "rand_core"] }
 rand_core = { version = "0.6", features = ["getrandom"] }
 
 [features]
