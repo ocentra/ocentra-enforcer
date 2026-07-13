@@ -2151,29 +2151,31 @@ mod desktop_project_tests {
     }
 
     #[test]
-    fn engine_capability_catalog_keeps_planned_dispatch_honest() {
+    fn engine_capability_catalog_keeps_planned_dispatch_honest() -> Result<(), String> {
         let payload = load_engine_capabilities();
         let dispatch = payload
             .capabilities
             .iter()
             .find(|capability| capability.id == "dispatch")
-            .expect("dispatch capability is present");
+            .ok_or_else(|| "engine capability catalog is missing `dispatch`".to_owned())?;
 
         assert!(payload.capabilities.len() >= 12);
         assert_eq!(dispatch.state, "planned");
         assert_eq!(dispatch.target.as_ref().map(|target| target.workspace), Some("findings"));
         assert_eq!(dispatch.target.as_ref().map(|target| target.project_context), Some("required"));
         assert!(dispatch.missing.contains("FixIntent"));
+        Ok(())
     }
 
     #[test]
-    fn engine_capability_catalog_reports_finding_action_foundation_without_promoting_it() {
+    fn engine_capability_catalog_reports_finding_action_foundation_without_promoting_it(
+    ) -> Result<(), String> {
         let payload = load_engine_capabilities();
         let actions = payload
             .capabilities
             .iter()
             .find(|capability| capability.id == "finding-actions")
-            .expect("finding actions capability is present");
+            .ok_or_else(|| "engine capability catalog is missing `finding-actions`".to_owned())?;
 
         assert_eq!(actions.state, "partial");
         assert_eq!(actions.target.as_ref().map(|target| target.workspace), Some("findings"));
@@ -2181,6 +2183,7 @@ mod desktop_project_tests {
         assert!(actions.source.contains("packaged scan overlay"));
         assert!(actions.controls.contains("typed g03 module"));
         assert!(actions.missing.contains("FixIntent lifecycle"));
+        Ok(())
     }
 
     #[test]
@@ -2212,27 +2215,30 @@ mod desktop_project_tests {
     }
 
     #[test]
-    fn engine_capability_catalog_distinguishes_display_catalog_from_runtime_registry() {
+    fn engine_capability_catalog_distinguishes_display_catalog_from_runtime_registry(
+    ) -> Result<(), String> {
         let payload = load_engine_capabilities();
         let rules = payload
             .capabilities
             .iter()
             .find(|capability| capability.id == "rules")
-            .expect("rules capability is present");
+            .ok_or_else(|| "engine capability catalog is missing `rules`".to_owned())?;
 
         assert_eq!(rules.state, "partial");
         assert!(rules.source.contains("display catalog"));
         assert!(rules.missing.contains("production RuleRegistry"));
+        Ok(())
     }
 
     #[test]
-    fn engine_capability_catalog_routes_project_lifecycle_to_setup_honestly() {
+    fn engine_capability_catalog_routes_project_lifecycle_to_setup_honestly(
+    ) -> Result<(), String> {
         let payload = load_engine_capabilities();
         let lifecycle = payload
             .capabilities
             .iter()
             .find(|capability| capability.id == "project-lifecycle")
-            .expect("project lifecycle capability is present");
+            .ok_or_else(|| "engine capability catalog is missing `project-lifecycle`".to_owned())?;
 
         assert_eq!(lifecycle.state, "partial");
         assert_eq!(lifecycle.target.as_ref().map(|target| target.workspace), Some("setup"));
@@ -2243,16 +2249,17 @@ mod desktop_project_tests {
         assert!(lifecycle.missing.contains("onboarding/baseline"));
         assert!(lifecycle.missing.contains("CI wiring"));
         assert!(!lifecycle.source.contains("harness discovery"));
+        Ok(())
     }
 
     #[test]
-    fn engine_capability_catalog_routes_global_harness_adapters_to_hub() {
+    fn engine_capability_catalog_routes_global_harness_adapters_to_hub() -> Result<(), String> {
         let payload = load_engine_capabilities();
         let adapters = payload
             .capabilities
             .iter()
             .find(|capability| capability.id == "harness-adapters")
-            .expect("harness adapters capability is present");
+            .ok_or_else(|| "engine capability catalog is missing `harness-adapters`".to_owned())?;
 
         assert_eq!(adapters.state, "partial");
         assert_eq!(adapters.target.as_ref().map(|target| target.mode), Some("hub"));
@@ -2262,16 +2269,17 @@ mod desktop_project_tests {
         assert!(adapters.controls.contains("Hub -> Adapters"));
         assert!(adapters.controls.contains("capability evidence"));
         assert!(adapters.missing.contains("hook installation"));
+        Ok(())
     }
 
     #[test]
-    fn engine_capability_catalog_keeps_planning_with_engine_workpacks() {
+    fn engine_capability_catalog_keeps_planning_with_engine_workpacks() -> Result<(), String> {
         let payload = load_engine_capabilities();
         let planning = payload
             .capabilities
             .iter()
             .find(|capability| capability.id == "planning")
-            .expect("planning capability is present");
+            .ok_or_else(|| "engine capability catalog is missing `planning`".to_owned())?;
 
         assert_eq!(planning.state, "partial");
         assert_eq!(planning.target.as_ref().map(|target| target.workspace), Some("engine"));
@@ -2280,6 +2288,7 @@ mod desktop_project_tests {
         assert!(planning.workpacks.contains(&"b01"));
         assert!(planning.workpacks.contains(&"d08"));
         assert!(planning.missing.contains("Plan scaffold/validation UI"));
+        Ok(())
     }
 
     #[test]
