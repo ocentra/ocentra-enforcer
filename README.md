@@ -67,15 +67,16 @@ cargo run -p enforcer-cli -- check --help
 cargo run -p enforcer-cli -- serve --help
 ```
 
-The command surface currently includes `check`, `scan`, `serve`, `ui`,
-`install`, `plan`, `proof`, `coordination`, `verify`, `advise`, and
-`architecture`. Some commands are intentionally staged as their respective
-workspace components mature; `--help` is the source of truth for the current
-build.
+The current CLI surface is `check`, `scan`, `serve`, `ui`, `verify`, `advise`,
+`architecture`, and `onboard` (feature-gated commands appear only in builds
+that include them). `check`, `scan`, and `verify` accept one explicit scope:
+paths, a `--base`/`--head` diff pair, or `--all`. Use `--help` as the source of
+truth for the build you are running.
 
 ## Typical workflow
 
-1. Route the requested work to its relevant policy and scope.
+1. For MCP work, route the request through the installed Enforcer MCP tool;
+   for CLI work, choose an explicit scope.
 2. Run the smallest meaningful validation scope.
 3. Read compact diagnostics and repair the reported condition.
 4. Record or inspect proof for work that requires reproducible evidence.
