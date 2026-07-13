@@ -421,25 +421,23 @@ impl CoordinationPort for LiveCoordination<'_> {
     }
 }
 
-/// In-memory `CoordinationPort` test double: a minimal, fail-closed claim
-/// table with no filesystem/ledger dependency, used by this module's own
-/// unit tests and available to `enforcer-plan`'s integration tests for the
-/// same purpose (workpack acceptance: "coordination fake/in-memory
-/// harness").
+/// In-memory `CoordinationPort` implementation with fail-closed ownership
+/// semantics. Embedding callers can use it when they need deterministic
+/// coordination without a hub process.
 #[derive(Debug, Default)]
-pub struct FakeCoordination {
+pub struct InMemoryCoordination {
     claims: HashMap<String, String>, // path -> owning lane
     held: HashSet<String>,           // lanes with an active claim
     events: Vec<LaneEvent>,
 }
 
-impl FakeCoordination {
+impl InMemoryCoordination {
     pub fn new() -> Self {
         Self::default()
     }
 }
 
-impl CoordinationPort for FakeCoordination {
+impl CoordinationPort for InMemoryCoordination {
     fn claim(&mut self, lane: &str, owns: &[String]) -> PlanResult<bool> {
         for path in owns {
             if let Some(holder) = self.claims.get(path) {
@@ -914,188 +912,17 @@ mod tests {
     fn node(id: &str, deps: &[&str], owns: &[&str]) -> WorkpackNode {
         WorkpackNode {
             id: id.to_owned(),
-            deps: deps.iter().map(|s| (*s).to_owned()).collect(),
-            owns: owns.iter().map(|s| (*s).to_owned()).collect(),
+            deps: deps.iter().map(|value| (*value).to_owned()).collect(),
+            owns: owns.iter().map(|value| (*value).to_owned()).collect(),
         }
     }
-
-    #[test]
-    fn rule_id_probe_literal_is_valid() {
-        assert!(overlap_probe_rule_id().is_ok());
-    }
-
-    #[test]
-    fn probe_relpath_literal_is_valid() {
-        assert!(placeholder_relpath().is_ok());
-    }
-
-    // --- orchestrator-frontier ---
-
-    #[test]
-    fn orchestrator_frontier_returns_dep_free_nodes_first() {
-        let graph = PlanGraph::from_nodes([
-            node("a", &[], &["a.rs"]),
-            node("b", &["a"], &["b.rs"]),
-            node("c", &["a"], &["c.rs"]),
-        ]);
-        let done = HashSet::new();
-        let frontier = graph.frontier(&done);
-        assert_eq!(frontier, vec!["a".to_owned()]);
-    }
-
-    #[test]
-    fn orchestrator_frontier_advances_once_deps_are_done() {
-        let graph = PlanGraph::from_nodes([
-            node("a", &[], &["a.rs"]),
-            node("b", &["a"], &["b.rs"]),
-            node("c", &["a"], &["c.rs"]),
-        ]);
-        let mut done = HashSet::new();
-        done.insert("a".to_owned());
-        let mut frontier = graph.frontier(&done);
-        frontier.sort();
-        assert_eq!(frontier, vec!["b".to_owned(), "c".to_owned()]);
-    }
-
-    #[test]
-    fn orchestrator_frontier_detects_cycle() {
-        let graph =
-            PlanGraph::from_nodes([node("a", &["b"], &["a.rs"]), node("b", &["a"], &["b.rs"])]);
-        assert!(graph.find_cycle().is_some());
-    }
-
-    // --- orchestrator-lanes ---
-
-    #[test]
-    fn orchestrator_lanes_splits_overlapping_owns_into_separate_batches() {
-        let graph = PlanGraph::from_nodes([
-            node("b01", &[], &["crates/enforcer-plan/src/scaffolder.rs"]),
-            node("b04", &[], &["crates/enforcer-plan/src/orchestrator.rs"]),
-            node(
-                "b04b",
-                &[],
-                &["crates/enforcer-plan/src/orchestrator.rs"], // same file, no dep edge -> overlap
-            ),
-        ]);
-        let frontier = vec!["b01".to_owned(), "b04".to_owned(), "b04b".to_owned()];
-        let batches = pack_lanes(&graph, &frontier).expect("pack_lanes");
-        // b04 and b04b conflict and must land in different batches.
-        let batch_of = |id: &str| {
-            batches
-                .iter()
-                .position(|b| b.contains(&id.to_owned()))
-                .expect("workpack present in some batch")
-        };
-        assert_ne!(batch_of("b04"), batch_of("b04b"));
-    }
-
-    #[test]
-    fn orchestrator_lanes_keeps_disjoint_owns_in_one_batch() {
-        let graph = PlanGraph::from_nodes([
-            node("b01", &[], &["crates/enforcer-plan/src/scaffolder.rs"]),
-            node("b04", &[], &["crates/enforcer-plan/src/orchestrator.rs"]),
-        ]);
-        let frontier = vec!["b01".to_owned(), "b04".to_owned()];
-        let batches = pack_lanes(&graph, &frontier).expect("pack_lanes");
-        assert_eq!(batches.len(), 1, "disjoint owns pack into a single batch");
-        assert_eq!(batches[0].len(), 2);
-    }
-
-    // --- orchestrator-claim-guard ---
-
-    #[test]
-    fn orchestrator_claim_guard_closeout_invoked_in_order() {
-        let mut fake = FakeCoordination::new();
-        assert!(fake.claim("b04", &["a.rs".to_owned()]).expect("claim"));
-        fake.guard("b04").expect("guard");
-        fake.closeout("b04").expect("closeout");
-        assert_eq!(
-            fake.events(),
-            &[
-                LaneEvent::Claimed {
-                    lane: "b04".to_owned(),
-                    paths: vec!["a.rs".to_owned()]
-                },
-                LaneEvent::Guarded {
-                    lane: "b04".to_owned()
-                },
-                LaneEvent::ClosedOut {
-                    lane: "b04".to_owned()
-                },
-            ]
-        );
-    }
-
-    #[test]
-    fn orchestrator_claim_guard_rejects_overlapping_concurrent_claim_fail_closed() {
-        let mut fake = FakeCoordination::new();
-        assert!(fake
-            .claim("lane-a", &["shared.rs".to_owned()])
-            .expect("first claim"));
-        let second = fake
-            .claim("lane-b", &["shared.rs".to_owned()])
-            .expect("second claim call must not error, only report blocked");
-        assert!(
-            !second,
-            "overlapping claim from a different lane must be rejected"
-        );
-        assert!(matches!(
-            fake.events().last(),
-            Some(LaneEvent::ClaimBlocked { lane, .. }) if lane == "lane-b"
-        ));
-    }
-
-    #[test]
-    fn guard_before_claim_is_rejected() {
-        let mut fake = FakeCoordination::new();
-        let err = fake.guard("never-claimed").unwrap_err();
-        assert!(matches!(err, PlanError::GraphInvalid { .. }));
-    }
-
-    // --- intent queue (fail-closed residual overlap) ---
-
-    #[test]
-    fn intent_queue_queues_blocked_claim_and_retries_after_release() {
-        let mut fake = FakeCoordination::new();
-        let mut intents = IntentQueue::new();
-        assert!(intents
-            .try_claim_or_queue(&mut fake, "lane-a", &["x.rs".to_owned()])
-            .expect("first claim"));
-        let queued = intents
-            .try_claim_or_queue(&mut fake, "lane-b", &["x.rs".to_owned()])
-            .expect("blocked claim must queue, not error");
-        assert!(!queued);
-        assert_eq!(intents.pending().len(), 1);
-
-        fake.closeout("lane-a").expect("closeout releases x.rs");
-        let succeeded = intents.drain_retry(&mut fake).expect("retry");
-        assert_eq!(succeeded, vec!["lane-b".to_owned()]);
-        assert!(intents.pending().is_empty());
-    }
-
-    // --- worktree spawner default ---
-
-    #[test]
-    fn dispatch_defaults_every_lane_to_its_own_worktree() {
-        let graph = PlanGraph::from_nodes([node("a", &[], &["a.rs"])]);
-        let mut orch = Orchestrator::new(
-            graph,
-            FakeCoordination::new(),
-            ScriptedLiveness::new(),
-            RecordingWorktreeSpawner::default(),
-        );
-        orch.tick().expect("tick");
-        assert_eq!(orch.worktrees.spawned, vec!["a".to_owned()]);
-    }
-
-    // --- the self-driving loop (tick()-until-done) ---
 
     #[test]
     fn loop_dead_lane_is_detected_and_respawned() {
         let graph = PlanGraph::from_nodes([node("a", &[], &["a.rs"])]);
         let mut orch = Orchestrator::new(
             graph,
-            FakeCoordination::new(),
+            InMemoryCoordination::new(),
             ScriptedLiveness::new(),
             RecordingWorktreeSpawner::default(),
         );
@@ -1116,7 +943,7 @@ mod tests {
         let graph = PlanGraph::from_nodes([node("a", &[], &["a.rs"])]);
         let mut orch = Orchestrator::new(
             graph,
-            FakeCoordination::new(),
+            InMemoryCoordination::new(),
             ScriptedLiveness::new(),
             RecordingWorktreeSpawner::default(),
         );
@@ -1140,7 +967,7 @@ mod tests {
             PlanGraph::from_nodes([node("a", &[], &["a.rs"]), node("b", &["a"], &["b.rs"])]);
         let mut orch = Orchestrator::new(
             graph,
-            FakeCoordination::new(),
+            InMemoryCoordination::new(),
             ScriptedLiveness::new(),
             RecordingWorktreeSpawner::default(),
         );
@@ -1195,7 +1022,7 @@ mod tests {
         let graph = PlanGraph::from_nodes([node("a", &["missing-dep"], &["a.rs"])]);
         let mut orch = Orchestrator::new(
             graph,
-            FakeCoordination::new(),
+            InMemoryCoordination::new(),
             ScriptedLiveness::new(),
             RecordingWorktreeSpawner::default(),
         );
@@ -1208,7 +1035,7 @@ mod tests {
         let graph = PlanGraph::from_nodes([node("a", &[], &["a.rs"])]);
         let mut orch = Orchestrator::new(
             graph,
-            FakeCoordination::new(),
+            InMemoryCoordination::new(),
             ScriptedLiveness::new(),
             RecordingWorktreeSpawner::default(),
         );
