@@ -34,8 +34,14 @@ export function applyProofEvidenceRules({
     const lineNo = firstLineMatching(originalLines, /^\s*pub\s+fn\s+parse[A-Za-z0-9_]*\s*\(/u);
     addViolation(violations, root, filePath, lineNo, "RR-12.28", "binary/network parser lacks fuzz target evidence.", originalLines[lineNo - 1] ?? null);
   }
-  if (/\b(?:tokio::spawn|select!|unbounded_channel|mpsc::channel|async\s+fn)\b/u.test(masked) && !/\b(?:shutdown|cancellation|CANCELLATION-TEST:|SHUTDOWN-TEST:)\b/iu.test(source)) {
-    const lineNo = firstLineMatching(originalLines, /\b(?:tokio::spawn|select!|unbounded_channel|mpsc::channel|async\s+fn)\b/u);
+  // A finite async operation or a bounded request/reply channel has no owned
+  // background lifecycle to cancel. Require evidence only for constructs that
+  // can outlive their immediate caller and therefore need shutdown coverage.
+  const hasAsyncLoop =
+    /\basync\s+fn\b|\.await\b/u.test(masked) &&
+    /^\s*loop\s*\{/mu.test(masked);
+  if ((/\b(?:tokio::spawn|select!|unbounded_channel)\b/u.test(masked) || hasAsyncLoop) && !/\b(?:shutdown|cancellation|CANCELLATION-TEST:|SHUTDOWN-TEST:)\b/iu.test(source)) {
+    const lineNo = firstLineMatching(originalLines, /\b(?:tokio::spawn|select!|unbounded_channel)\b|^\s*loop\s*\{/mu);
     addViolation(violations, root, filePath, lineNo, "RR-12.29", "concurrency code lacks cancellation/shutdown test evidence.", originalLines[lineNo - 1] ?? null);
   }
 }
