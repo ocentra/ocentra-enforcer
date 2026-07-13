@@ -199,6 +199,8 @@ fn unique(values: Vec<String>) -> Vec<String> {
     let mut seen = BTreeSet::new();
     let mut out = Vec::new();
     for v in values {
+        // CLONE-JUSTIFICATION: the set retains its own membership key while
+        // `out` must preserve the original value and caller ordering.
         if !v.is_empty() && seen.insert(v.clone()) {
             out.push(v);
         }
@@ -243,6 +245,8 @@ pub fn enrich_claim(claim: &RawClaim, has_explicit_context: bool) -> EnrichedCla
         .as_deref()
         .and_then(|o| Operation::parse(o).ok())
         .unwrap_or(Operation::Edit);
+    // CLONE-JUSTIFICATION: enriched claims are durable comparison snapshots;
+    // they must not borrow the event projection that produced them.
     let claim_group = claim.context.claim_group.clone();
     let project_key = normalize_key(
         claim
@@ -267,6 +271,8 @@ pub fn enrich_claim(claim: &RawClaim, has_explicit_context: bool) -> EnrichedCla
     let owner_key = logical_owner_key(&claim.writer, &claim.context);
     let path_keys: Vec<String> = match &claim_group {
         Some(group) => vec![normalize_key(group)],
+        // CLONE-JUSTIFICATION: path keys are an independently-normalized
+        // lookup index retained alongside the original normalized paths.
         None => paths.clone(),
     };
     let global_keys = if lock_kind == LockKind::GlobalWriteLock {
@@ -304,6 +310,8 @@ pub fn enrich_claim(claim: &RawClaim, has_explicit_context: bool) -> EnrichedCla
             .map(|p| format!("{project_key}:{branch_key}:{p}"))
             .collect()
     };
+    // CLONE-JUSTIFICATION: this value is a self-contained ledger snapshot;
+    // callers retain the raw claim while comparisons retain this projection.
     EnrichedClaim {
         writer: claim.writer.clone(),
         lane: claim.lane.clone(),
@@ -471,6 +479,8 @@ fn make_conflict(
     right: &EnrichedClaim,
     paths: Vec<String>,
 ) -> Conflict {
+    // CLONE-JUSTIFICATION: conflicts outlive the borrowed pair and expose
+    // both actor identities in the durable coordination decision.
     Conflict {
         kind,
         paths,
@@ -611,6 +621,8 @@ pub fn blockers_for_request(
         advisories.extend(conflicts.advisories);
     }
 
+    // CLONE-JUSTIFICATION: a request decision retains the complete hard set
+    // and, for most operations, also owns that same set as its blockers.
     let blockers = match operation {
         Operation::Inspect => Vec::new(),
         Operation::Push => hard_conflicts
