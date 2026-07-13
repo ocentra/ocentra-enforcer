@@ -2,6 +2,7 @@
 name = "enforcer-plan"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Track B: the plan scaffolder (emits workpack-skeleton documents) and the PLAN-* structure validators (agent-capsule / owns-deps-tier / required-sections / disjoint-owns parallel-safety / resume-state / stale-proof-row checks) that enforce the plan-document contract this workspace's own docs/plans/** are authored under."
@@ -11,6 +12,9 @@ publish = false
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: Plan validation emits shared core findings, uses
+# branded domain values, resolves workspace configuration, and evaluates the
+# canonical rule and validator contracts.
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
@@ -22,7 +26,7 @@ enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 enforcer-coordination = { path = "../enforcer-coordination", version = "0.1.0" }
 
 [dev-dependencies]
-tempfile = "3"
+tempfile = "=3.27.0"
 # b05's `tests/self_validate.rs` integration test asserts the
 # `commands/plan.rs` `/plan` command emitter dispatches through the real
 # `enforcer` binary invocation (not a stub). Dev-only, test-scoped edge;
