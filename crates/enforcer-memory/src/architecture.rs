@@ -431,6 +431,8 @@ fn hotspot_entries(
                 return None;
             }
             Some(HotspotEntry {
+                // CLONE-JUSTIFICATION: the report outlives this borrowed graph
+                // traversal and therefore owns its exported symbol text.
                 name: s.name.clone(),
                 node_id: s.id.clone(),
                 fan_in: fan_in.get(s.id.as_str()).copied().unwrap_or(0),
@@ -711,6 +713,8 @@ fn crate_sections(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<CrateS
                 rel_paths: Vec::new(),
             });
         section.file_count += 1;
+        // CLONE-JUSTIFICATION: CrateSection is an owned report result while
+        // the source path remains borrowed from the indexed graph.
         section.rel_paths.push(file.rel_path.clone());
     }
 
@@ -759,6 +763,8 @@ fn route_entries(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<RouteEn
                 return None;
             }
             Some(RouteEntry {
+                // CLONE-JUSTIFICATION: route rows are retained in the owned
+                // architecture report after this borrowed graph traversal.
                 method: r.method.clone(),
                 path: r.path.clone(),
                 declared_in: declared_in.to_string(),
@@ -816,6 +822,8 @@ fn package_sections(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<Pack
                     && f.rel_path != manifest.0
                     && dir.contains_path(ArchitecturePath(&f.rel_path))
             })
+            // CLONE-JUSTIFICATION: package membership is returned as owned
+            // report data independent of the indexed graph's file nodes.
             .map(|f| f.rel_path.clone())
             .collect();
 
@@ -869,11 +877,15 @@ fn entry_points(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<EntryPoi
         let name = file.rel_path.rsplit('/').next().unwrap_or(&file.rel_path);
         if name == "main.rs" {
             entries.push(EntryPoint {
+                // CLONE-JUSTIFICATION: the public entry-point report owns
+                // this path after the borrowed graph traversal completes.
                 rel_path: file.rel_path.clone(),
                 kind: EntryPointKind::BinaryMain,
             });
         } else if name == "lib.rs" {
             entries.push(EntryPoint {
+                // CLONE-JUSTIFICATION: the public entry-point report owns
+                // this path after the borrowed graph traversal completes.
                 rel_path: file.rel_path.clone(),
                 kind: EntryPointKind::LibraryRoot,
             });
@@ -1114,6 +1126,8 @@ fn filtered_clusters(
             if cluster.member_node_ids.is_empty() {
                 None
             } else {
+                // CLONE-JUSTIFICATION: the retained-id filter owns its set
+                // while the moved cluster must keep its original identifier.
                 kept_cluster_ids.insert(cluster.id.clone());
                 Some(cluster)
             }
@@ -1174,6 +1188,8 @@ fn cluster_cohesion(result: &ClusteringResult) -> Vec<ClusterCohesion> {
                 internal_edges as f64 / denom as f64
             };
             ClusterCohesion {
+                // CLONE-JUSTIFICATION: cohesion is an owned report view while
+                // cluster identifiers remain owned by the clustering result.
                 cluster_id: cluster.id.clone(),
                 member_count,
                 cohesion,
@@ -1210,6 +1226,8 @@ fn layer_classification(
     let mut fan_in: BTreeMap<ArchitectureSectionKey, usize> = BTreeMap::new();
     let mut fan_out: BTreeMap<ArchitectureSectionKey, usize> = BTreeMap::new();
     for edge in &cross_edges {
+        // CLONE-JUSTIFICATION: independent inbound and outbound aggregation
+        // maps each own their typed key after the edge view is dropped.
         *fan_out
             .entry(ArchitectureSectionKey(edge.from.clone()))
             .or_insert(0) += edge.call_count;
@@ -1288,6 +1306,8 @@ fn layer_classification(
 /// being silently dropped.
 #[doc(hidden)]
 pub fn layering(clusters: &ClusteringResult) -> LayeringResult {
+    // CLONE-JUSTIFICATION: layering mutates independent working sets while
+    // preserving the clustering result for the caller's other report views.
     let all_ids: BTreeSet<String> = clusters.clusters.iter().map(|c| c.id.clone()).collect();
     if all_ids.is_empty() {
         return LayeringResult::default();
@@ -1310,6 +1330,8 @@ pub fn layering(clusters: &ClusteringResult) -> LayeringResult {
         .map(|id| (id.clone(), BTreeSet::new()))
         .collect();
     for edge in &clusters.inter_cluster_edges {
+        // CLONE-JUSTIFICATION: dependency adjacency owns both endpoint ids
+        // independently of the immutable clustering-result edge list.
         remaining_deps
             .entry(edge.from_cluster.clone())
             .or_default()
@@ -1329,6 +1351,8 @@ pub fn layering(clusters: &ClusteringResult) -> LayeringResult {
                         .iter()
                         .all(|d| placed.contains(d) || !all_ids.contains(d))
             })
+            // CLONE-JUSTIFICATION: each output layer owns its ids while the
+            // dependency map remains available for later layers.
             .map(|(id, _)| id.clone())
             .collect();
         ready.sort();
@@ -1338,6 +1362,8 @@ pub fn layering(clusters: &ClusteringResult) -> LayeringResult {
         }
 
         for id in &ready {
+            // CLONE-JUSTIFICATION: `placed` retains completed ids while
+            // `ready` is moved into the returned layer below.
             placed.insert(id.clone());
         }
         layers.push(Layer {
@@ -1389,6 +1415,8 @@ fn file_tree(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> FileTree {
 
     for symbol in graph.symbol_nodes() {
         if let Some(dir) = file_dir_by_id.get(symbol.file_id.as_str()) {
+            // CLONE-JUSTIFICATION: direct-symbol aggregation owns its key;
+            // the file-id index retains the directory for later symbols.
             *direct_symbols.entry(dir.clone()).or_insert(0) += 1;
         }
     }
