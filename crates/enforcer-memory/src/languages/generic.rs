@@ -24592,15 +24592,18 @@ fn agda_call_override(
     out: &mut ParsedFile,
 ) -> bool {
     let children: Vec<Node<'_>> = syntax_children(node).collect();
-    if children.len() < 2 || !children.iter().all(|c| c.kind() == "atom") {
-        return false;
-    }
-    let Some(callee) = agda_first_leaf_text(children[0], src) else {
+    let Some((callee_node, argument_nodes)) = children.split_first() else {
         return false;
     };
-    let arg_texts = children[1..]
+    if argument_nodes.is_empty() || !children.iter().all(|child| child.kind() == "atom") {
+        return false;
+    }
+    let Some(callee) = agda_first_leaf_text(*callee_node, src) else {
+        return false;
+    };
+    let arg_texts = argument_nodes
         .iter()
-        .filter_map(|c| c.utf8_text(src).ok().map(str::to_string))
+        .filter_map(|child| child.utf8_text(src).ok().map(str::to_string))
         .collect();
     out.calls.push(CallRef {
         callee,
