@@ -20,7 +20,7 @@
 //! hatch. The no-bypass meta-check bans inline lint-disable /
 //! validation-bypass directives (`#[allow(...)]` on enforcer-governed
 //! lints, `// eslint-disable`, `# noqa`, `# type: ignore`, `@ts-ignore`,
-//! `clippy::allow` on the deny wall, and any ad-hoc suppress comment)
+//! a Clippy suppression on the deny wall, and any ad-hoc suppress comment)
 //! wherever they appear in scanned source, across languages — the only
 //! legitimate exemption path is a declarative, committed, gated waiver
 //! read from `enforcer-config` (owner + reason + ruleId), never an inline
