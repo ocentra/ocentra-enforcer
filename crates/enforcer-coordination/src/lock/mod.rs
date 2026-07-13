@@ -184,6 +184,8 @@ fn meaningful_owner_part(value: Option<&str>) -> Option<String> {
     if trimmed.is_empty() || trimmed == "unknown" {
         None
     } else {
+        // ALLOC-JUSTIFICATION: owner identity outlives the request text
+        // and becomes part of the durable conflict-comparison key.
         Some(trimmed.to_owned())
     }
 }
@@ -191,6 +193,8 @@ fn meaningful_owner_part(value: Option<&str>) -> Option<String> {
 fn logical_owner_key(writer: &str, context: &ClaimContext) -> String {
     let thread = meaningful_owner_part(context.codex_thread_id.as_deref());
     let session = meaningful_owner_part(context.codex_session_id.as_deref());
+    // ALLOC-JUSTIFICATION: the writer fallback is incorporated into the
+    // owned, normalized owner key retained on every enriched claim.
     let suffix = thread.or(session).unwrap_or_else(|| writer.to_owned());
     normalize_key(&format!("{writer}:{suffix}"))
 }
@@ -316,6 +320,8 @@ pub fn enrich_claim(claim: &RawClaim, has_explicit_context: bool) -> EnrichedCla
         writer: claim.writer.clone(),
         lane: claim.lane.clone(),
         paths,
+        // CLONE-JUSTIFICATION: these event fields complete the independent
+        // snapshot used after the raw event projection has been released.
         event_id: claim.event_id.clone(),
         reason: claim.reason.clone(),
         context: claim.context.clone(),
@@ -484,6 +490,8 @@ fn make_conflict(
     Conflict {
         kind,
         paths,
+        // CLONE-JUSTIFICATION: the result stores both sides of a conflict
+        // after the borrowed claim pair has gone out of scope.
         lanes: [left.lane.clone(), right.lane.clone()],
         writers: [left.writer.clone(), right.writer.clone()],
         event_ids: [left.event_id.clone(), right.event_id.clone()],
@@ -635,6 +643,8 @@ pub fn blockers_for_request(
             .cloned()
             .chain(merge_risks.iter().cloned())
             .collect(),
+        // CLONE-JUSTIFICATION: both decision fields intentionally retain the
+        // complete hard-conflict set for caller diagnostics.
         _ => hard_conflicts.clone(),
     };
 
