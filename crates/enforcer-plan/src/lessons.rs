@@ -315,7 +315,7 @@ impl LessonLedger {
     pub fn open(path: &Path) -> Result<Self, PlanError> {
         let last_digest = if path.exists() {
             let lines = read_lines(path)?;
-            verify_lines(&lines).map_err(|e| tamper_to_plan_error(&e))?;
+            verify_lines(&lines)?;
             lines.last().map(|line| line.digest.clone())
         } else {
             None
@@ -404,7 +404,7 @@ impl LessonLedger {
     /// process may have appended to since it was opened).
     pub fn verify_on_replay(&self) -> Result<usize, PlanError> {
         let lines = read_lines(&self.path)?;
-        verify_lines(&lines).map_err(|e| tamper_to_plan_error(&e))
+        verify_lines(&lines)
     }
 
     /// Every record currently on disk, in append order (INCLUDING
@@ -440,20 +440,27 @@ fn read_lines(path: &Path) -> Result<Vec<LedgerLine>, PlanError> {
     })
 }
 
-fn verify_lines(lines: &[LedgerLine]) -> Result<usize, LedgerTamper> {
+fn verify_lines(lines: &[LedgerLine]) -> Result<usize, PlanError> {
     let canonical: Vec<Vec<u8>> = lines
         .iter()
-        .map(|line| serde_json::to_vec(&line.record).unwrap_or_default())
-        .collect();
+        .map(|line| {
+            serde_json::to_vec(&line.record).map_err(|error| PlanError::Io {
+                path: "lesson ledger".to_owned(),
+                reason: error.to_string(),
+            })
+        })
+        .collect::<Result<_, _>>()?;
     let links = canonical
         .iter()
         .map(Vec::as_slice)
         .zip(lines.iter().map(|line| line.digest.as_str()));
-    verify_chain(links).map_err(|break_| LedgerTamper {
-        line_index: break_.index,
-        recorded: break_.recorded,
-        expected: break_.expected,
-    })
+    verify_chain(links)
+        .map_err(|break_| LedgerTamper {
+            line_index: break_.index,
+            recorded: break_.recorded,
+            expected: break_.expected,
+        })
+        .map_err(|tamper| tamper_to_plan_error(&tamper))
 }
 
 fn tamper_to_plan_error(tamper: &LedgerTamper) -> PlanError {
@@ -494,9 +501,9 @@ pub fn list(
 }
 
 /// Filesystem seam the emitters write through. A plain trait (not a
-/// generic parameter) so callers can inject an in-memory fake in tests
-/// without touching a real temp dir, per the workpack's "pure over
-/// injected fs (temp-dir testable)" requirement.
+/// generic parameter) so callers can inject an in-memory implementation in
+/// consumer tests without touching a real temp dir, per the workpack's
+/// "pure over injected fs (temp-dir testable)" requirement.
 pub trait EmitFs {
     /// Read a file's content, or `None` if it does not exist.
     fn read(&self, path: &Path) -> Option<String>;
@@ -529,16 +536,16 @@ impl EmitFs for RealFs {
     }
 }
 
-/// An in-memory [`EmitFs`] fake for tests: no real filesystem I/O, so
-/// `--dry-run` (zero writes) and "preserves unrelated content" assertions
-/// are exact and fast.
+/// In-memory implementation of [`EmitFs`] for deterministic consumer tests.
+/// It avoids real filesystem I/O, making `--dry-run` and preservation
+/// assertions exact and fast.
 #[derive(Debug, Default, Clone)]
-pub struct FakeFs {
+pub struct MemoryFs {
     files: HashMap<PathBuf, String>,
 }
 
-impl FakeFs {
-    /// Seed the fake with an existing file's content (simulating a file
+impl MemoryFs {
+    /// Seed the in-memory store with existing file content (simulating a file
     /// that already carries unrelated managed-block content).
     pub fn seed(&mut self, path: impl Into<PathBuf>, content: impl Into<String>) {
         self.files.insert(path.into(), content.into());
@@ -556,7 +563,7 @@ impl FakeFs {
     }
 }
 
-impl EmitFs for FakeFs {
+impl EmitFs for MemoryFs {
     fn read(&self, path: &Path) -> Option<String> {
         self.files.get(path).cloned()
     }
@@ -1338,7 +1345,7 @@ mod tests {
     #[test]
     fn doctrine_block_emitter_produces_golden_artifact() -> Result<(), Box<dyn std::error::Error>> {
         let record = sample_record("L1")?;
-        let mut fs = FakeFs::default();
+        let mut fs = MemoryFs::default();
         let target = PathBuf::from("AGENTS.md");
         let outcome = emit_doctrine_block(&mut fs, &record, &target, false)?;
         assert!(outcome.wrote);
@@ -1351,7 +1358,7 @@ mod tests {
     #[test]
     fn dry_run_touches_zero_files() -> Result<(), Box<dyn std::error::Error>> {
         let record = sample_record("L1")?;
-        let mut fs = FakeFs::default();
+        let mut fs = MemoryFs::default();
         let target = PathBuf::from("AGENTS.md");
         let before = fs.file_count();
         let outcome = emit_doctrine_block(&mut fs, &record, &target, true)?;
@@ -1363,7 +1370,7 @@ mod tests {
     #[test]
     fn emitter_preserves_unrelated_existing_content() -> Result<(), Box<dyn std::error::Error>> {
         let record = sample_record("L2")?;
-        let mut fs = FakeFs::default();
+        let mut fs = MemoryFs::default();
         let target = PathBuf::from("AGENTS.md");
         fs.seed(
             &target,
@@ -1383,7 +1390,7 @@ mod tests {
     fn re_emitting_same_lesson_replaces_in_place_not_duplicates(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let record = sample_record("L1")?;
-        let mut fs = FakeFs::default();
+        let mut fs = MemoryFs::default();
         let target = PathBuf::from("AGENTS.md");
         emit_doctrine_block(&mut fs, &record, &target, false)?;
         emit_doctrine_block(&mut fs, &record, &target, false)?;
@@ -1395,7 +1402,7 @@ mod tests {
     #[test]
     fn skill_and_forest_node_emitters_render_lesson_id() -> Result<(), Box<dyn std::error::Error>> {
         let record = sample_record("L3")?;
-        let mut fs = FakeFs::default();
+        let mut fs = MemoryFs::default();
         let skill_outcome = emit_skill(&mut fs, &record, &PathBuf::from("skill.md"), false)?;
         assert!(skill_outcome.rendered.contains("L3"));
         let forest_outcome =
@@ -1410,7 +1417,7 @@ mod tests {
         let mut record = sample_record("L9")?;
         record.domain = LessonDomain::Code;
         record.routes = vec![LessonRoute::RuleCandidate];
-        let mut fs = FakeFs::default();
+        let mut fs = MemoryFs::default();
         let outcome = emit_rule_candidate(
             &mut fs,
             &record,
@@ -1428,7 +1435,7 @@ mod tests {
     #[test]
     fn route_emits_every_declared_route_with_a_target() -> Result<(), Box<dyn std::error::Error>> {
         let record = sample_record("L4")?;
-        let mut fs = FakeFs::default();
+        let mut fs = MemoryFs::default();
         let mut targets = HashMap::new();
         targets.insert(LessonRoute::DoctrineBlock, PathBuf::from("AGENTS.md"));
         targets.insert(LessonRoute::Skill, PathBuf::from("skill.md"));
@@ -1527,7 +1534,7 @@ mod tests {
     #[test]
     fn doctrine_block_matches_pinned_golden() -> Result<(), Box<dyn std::error::Error>> {
         let record = golden_record()?;
-        let mut fs = FakeFs::default();
+        let mut fs = MemoryFs::default();
         let outcome = emit_doctrine_block(&mut fs, &record, &PathBuf::from("x"), false)?;
         assert_eq!(outcome.rendered, read_golden("doctrine-block.md")?);
         Ok(())
@@ -1536,7 +1543,7 @@ mod tests {
     #[test]
     fn skill_matches_pinned_golden() -> Result<(), Box<dyn std::error::Error>> {
         let record = golden_record()?;
-        let mut fs = FakeFs::default();
+        let mut fs = MemoryFs::default();
         let outcome = emit_skill(&mut fs, &record, &PathBuf::from("x"), false)?;
         assert_eq!(outcome.rendered, read_golden("skill.md")?);
         Ok(())
@@ -1545,7 +1552,7 @@ mod tests {
     #[test]
     fn rule_candidate_matches_pinned_golden() -> Result<(), Box<dyn std::error::Error>> {
         let record = golden_record()?;
-        let mut fs = FakeFs::default();
+        let mut fs = MemoryFs::default();
         let outcome = emit_rule_candidate(&mut fs, &record, &PathBuf::from("x"), false)?;
         assert_eq!(outcome.rendered, read_golden("rule-candidate.json")?);
         Ok(())
@@ -1554,7 +1561,7 @@ mod tests {
     #[test]
     fn forest_node_matches_pinned_golden() -> Result<(), Box<dyn std::error::Error>> {
         let record = golden_record()?;
-        let mut fs = FakeFs::default();
+        let mut fs = MemoryFs::default();
         let outcome = emit_forest_node(&mut fs, &record, &PathBuf::from("x"), false)?;
         assert_eq!(outcome.rendered, read_golden("forest-node.md")?);
         Ok(())
@@ -1564,7 +1571,7 @@ mod tests {
     fn golden_lesson_doctor_is_green_once_all_four_routes_land(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mut record = golden_record()?;
-        let mut fs = FakeFs::default();
+        let mut fs = MemoryFs::default();
         let doctrine_path = PathBuf::from("AGENTS.md");
         let skill_path = PathBuf::from("skill.md");
         let forest_path = PathBuf::from("forest.md");
