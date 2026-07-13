@@ -653,6 +653,8 @@ impl EmitFs for RealFs {
 /// private/local to their own templates): missing placeholder -> typed
 /// error, never a panic.
 fn render(template: &str, bindings: &HashMap<String, String>) -> Result<String, PlanError> {
+    // ALLOC-JUSTIFICATION: rendering performs successive substitutions and
+    // returns an owned artifact that outlives both borrowed inputs.
     let mut result = template.to_owned();
     for (name, value) in bindings {
         let placeholder = format!("{{{{{name}}}}}");
@@ -662,6 +664,8 @@ fn render(template: &str, bindings: &HashMap<String, String>) -> Result<String, 
     }
     if let Some(pos) = result.find("{{") {
         if let Some(end) = result[pos..].find("}}") {
+            // ALLOC-JUSTIFICATION: the missing token is retained in the
+            // returned diagnostic after the mutable render buffer is gone.
             let placeholder = result[pos..pos + end + 2].to_owned();
             return Err(PlanError::Io {
                 path: "lesson template".to_owned(),
@@ -746,6 +750,8 @@ fn emit_route(
 /// marker line (`<!-- ...lesson_id... -->`) so unrelated content (other
 /// lessons' blocks, hand-authored prose) is never touched.
 fn replace_or_append_block(existing: &str, new_block: &str, lesson_id: &str) -> String {
+    // ALLOC-JUSTIFICATION: managed-block matching needs an owned needle
+    // while iterating borrowed lines from the existing artifact.
     let marker_needle = lesson_id.to_owned();
     let open_marker_line = existing
         .lines()
@@ -1081,6 +1087,8 @@ fn parse_seed_row(line: &str) -> Option<SeedRow> {
     let lesson = cells.next()?;
     let landed_at = cells.next()?;
     let ships_via = cells.next()?;
+    // ALLOC-JUSTIFICATION: the parsed row owns all cells so conversion can
+    // validate them after this borrowed markdown line has been released.
     Some(SeedRow {
         id: id.to_owned(),
         date: date.to_owned(),
@@ -1103,6 +1111,8 @@ fn parse_seed_rows(markdown: &str) -> Vec<SeedRow> {
 /// safer than silently dropping it) so [`run_doctor`] still reports it
 /// (as a `Warning`), never silently skips it.
 fn sniff_routes(ships_via: &str, landed_at: &str) -> Vec<LessonRoute> {
+    // ALLOC-JUSTIFICATION: route classification normalizes two borrowed
+    // boundary cells into one short-lived, case-insensitive search buffer.
     let haystack = format!("{ships_via} {landed_at}").to_lowercase();
     let mut routes = Vec::new();
     if haystack.contains("doctrine payload") || haystack.contains("c01") {
@@ -1128,6 +1138,8 @@ fn sniff_routes(ships_via: &str, landed_at: &str) -> Vec<LessonRoute> {
 /// without a tag default to `Harness` (the ledger's stated default for
 /// "the rest" of the untagged seed rows).
 fn sniff_domain(observed: &str) -> LessonDomain {
+    // ALLOC-JUSTIFICATION: case normalization is required before matching
+    // historical free-text evidence independent of the source's casing.
     let lower = observed.to_lowercase();
     if lower.trim_start().starts_with("[code]") {
         LessonDomain::Code
@@ -1159,15 +1171,27 @@ fn seed_row_to_record(row: &SeedRow) -> Result<LessonRecord, PlanError> {
     };
     Ok(LessonRecord {
         id,
+        // CLONE-JUSTIFICATION: the durable record owns each validated cell;
+        // the parsed seed row remains borrowed for its other conversions.
+        // ALLOC-JUSTIFICATION: decode errors retain owned diagnostics after
+        // the borrowed markdown row has been released.
         date: row.date.clone().parse().map_err(|error: DecodeError| PlanError::Io {
             path: "seed corpus".to_owned(),
             reason: error.to_string(),
         })?,
         domain: sniff_domain(&row.observed),
+        // CLONE-JUSTIFICATION: evidence becomes an independently owned
+        // branded field in the persisted append-only record.
+        // ALLOC-JUSTIFICATION: a validation failure must keep its owned
+        // diagnostic beyond this borrowed seed-row conversion.
         observed: row.observed.clone().parse().map_err(|error: DecodeError| PlanError::Io {
             path: "seed corpus".to_owned(),
             reason: error.to_string(),
         })?,
+        // CLONE-JUSTIFICATION: lesson text is persisted independently of
+        // the short-lived parsed table row.
+        // ALLOC-JUSTIFICATION: conversion errors own their message across
+        // the importer boundary.
         lesson: row.lesson.clone().parse().map_err(|error: DecodeError| PlanError::Io {
             path: "seed corpus".to_owned(),
             reason: error.to_string(),
@@ -1213,12 +1237,18 @@ fn memory_record_to_lesson(raw: &MemoryStreamRecord) -> Option<Result<LessonReco
     if !raw.id.starts_with('L') {
         return None;
     }
+    // CLONE-JUSTIFICATION: conversion consumes a lesson body while the raw
+    // transport record remains borrowed for the remaining validated fields.
     let raw_lesson = raw.lesson.clone()?;
     Some((|| -> Result<LessonRecord, PlanError> {
+        // ALLOC-JUSTIFICATION: each decode failure owns a stable boundary
+        // name and message after the transport record is no longer borrowed.
         let lesson: LessonText = raw_lesson.parse().map_err(|error: DecodeError| PlanError::Io {
             path: "memory stream".to_owned(),
             reason: error.to_string(),
         })?;
+        // CLONE-JUSTIFICATION: optional transport evidence becomes an owned
+        // validated value while the raw DTO remains borrowed.
         let observed: ObservedEvidence = raw.observed.clone().unwrap_or_default().parse().map_err(|error: DecodeError| PlanError::Io {
             path: "memory stream".to_owned(),
             reason: error.to_string(),
@@ -1227,6 +1257,8 @@ fn memory_record_to_lesson(raw: &MemoryStreamRecord) -> Option<Result<LessonReco
             path: "memory stream".to_owned(),
             reason: e.to_string(),
         })?;
+        // CLONE-JUSTIFICATION: route classification needs an owned value
+        // independent of the raw transport input.
         let ships_via = raw.ships_via.clone().unwrap_or_default();
         let landed_at_cell = raw.landed_at.clone().unwrap_or_default();
         let landed_at = if landed_at_cell.trim().is_empty() {
