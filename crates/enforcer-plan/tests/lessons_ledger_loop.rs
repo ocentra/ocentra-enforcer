@@ -8,6 +8,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use enforcer_core::hash_chain::link_digest;
 use enforcer_plan::error::PlanError;
 use enforcer_plan::lessons::{
     add, emit_doctrine_block, import_seed_corpus, list, ArtifactRef, CapturedDate, EmitFs,
@@ -84,7 +85,9 @@ fn lesson_id_rejects_invalid_input() {
             Ok(good.to_owned()),
         );
     }
-    for bad in ["", "1", "l1", "M1", "Lalpha", "L1x", "L-", "L1-", "L1--FILL"] {
+    for bad in [
+        "", "1", "l1", "M1", "Lalpha", "L1x", "L-", "L1-", "L1--FILL",
+    ] {
         assert_eq!(
             bad.parse::<LessonId>()
                 .err()
@@ -150,7 +153,10 @@ fn rewriting_a_prior_row_is_detected_on_public_open() -> TestResult {
     match LessonLedger::open(&path) {
         Err(PlanError::Io { path, reason }) => {
             assert_eq!(path, "lesson ledger");
-            assert_eq!(reason.starts_with("lesson ledger tamper detected at line 0"), true);
+            assert_eq!(
+                reason.starts_with("lesson ledger tamper detected at line 0"),
+                true
+            );
         }
         Err(other) => return Err(format!("expected tamper rejection, received {other}").into()),
         Ok(_) => return Err("expected tamper rejection, received open ledger".into()),
@@ -205,7 +211,9 @@ fn append_rejects_a_caller_supplied_supersession_link() -> TestResult {
             reason,
             "lesson `L3` declares a supersession; use supersede to create linked ledger rows",
         ),
-        Err(other) => return Err(format!("expected supersession rejection, received {other}").into()),
+        Err(other) => {
+            return Err(format!("expected supersession rejection, received {other}").into())
+        }
         Ok(()) => return Err("expected supersession rejection, received append success".into()),
     }
     assert_eq!(ledger.list()?.len(), 0);
@@ -234,6 +242,47 @@ fn pending_list_keeps_captured_but_unrouted_lessons_visible() -> TestResult {
     let pending = list(&path, None, true)?;
     assert_eq!(pending.len(), 1);
     assert_eq!(pending[0].id.as_str(), "L3");
+    std::fs::remove_file(&path)?;
+    Ok(())
+}
+
+#[test]
+fn ledger_rejects_hash_valid_supersession_that_rewrites_lesson_identity() -> TestResult {
+    let path = temp_ledger_path("supersession-identity");
+    let original = sample_record("L42")?;
+    let original_bytes = serde_json::to_vec(&original)?;
+    let original_digest = link_digest(None, &original_bytes);
+
+    let mut rewritten = original.clone();
+    rewritten.lesson = "rewritten lesson must not replace history".parse()?;
+    rewritten.supersedes_seq = Some(0);
+    let rewritten_bytes = serde_json::to_vec(&rewritten)?;
+    let rewritten_digest = link_digest(Some(&original_digest), &rewritten_bytes);
+
+    let rows = [
+        serde_json::json!({"record": original, "digest": original_digest}),
+        serde_json::json!({"record": rewritten, "digest": rewritten_digest}),
+    ];
+    std::fs::write(
+        &path,
+        format!(
+            "{}\n{}\n",
+            serde_json::to_string(&rows[0])?,
+            serde_json::to_string(&rows[1])?
+        ),
+    )?;
+
+    match LessonLedger::open(&path) {
+        Err(PlanError::Io { path, reason }) => {
+            assert_eq!(path, "lesson ledger");
+            assert_eq!(
+                reason,
+                "invalid lesson supersession at line 1: changes immutable lesson identity fields"
+            );
+        }
+        Ok(_) => return Err("hash-valid lesson rewrite must fail closed".into()),
+        Err(other) => return Err(format!("unexpected ledger error: {other}").into()),
+    }
     std::fs::remove_file(&path)?;
     Ok(())
 }
@@ -269,15 +318,24 @@ fn seed_import_maps_routes_and_domains_from_the_public_record_shape() -> TestRes
     let mut ledger = LessonLedger::open(&path)?;
     import_seed_corpus(&mut ledger, &[seed_markdown_fixture()], &[])?;
     let records = ledger.latest()?;
-    let l1 = records.iter().find(|record| record.id.as_str() == "L1").ok_or("L1")?;
+    let l1 = records
+        .iter()
+        .find(|record| record.id.as_str() == "L1")
+        .ok_or("L1")?;
     assert_eq!(l1.domain, LessonDomain::Harness);
     assert_eq!(l1.routes, vec![LessonRoute::PlanDoc]);
-    let l4 = records.iter().find(|record| record.id.as_str() == "L4").ok_or("L4")?;
+    let l4 = records
+        .iter()
+        .find(|record| record.id.as_str() == "L4")
+        .ok_or("L4")?;
     assert_eq!(
         l4.routes,
         vec![LessonRoute::DoctrineBlock, LessonRoute::ForestNode],
     );
-    let l15 = records.iter().find(|record| record.id.as_str() == "L15").ok_or("L15")?;
+    let l15 = records
+        .iter()
+        .find(|record| record.id.as_str() == "L15")
+        .ok_or("L15")?;
     assert_eq!(l15.domain, LessonDomain::Code);
     assert_eq!(l15.routes, vec![LessonRoute::RuleCandidate]);
     std::fs::remove_file(&path)?;
@@ -301,7 +359,10 @@ fn seed_import_accepts_memory_stream_rows_and_is_idempotent() -> TestResult {
         .ok_or("L900")?;
     assert_eq!(l900.domain, LessonDomain::Code);
     assert_eq!(l900.routes, vec![LessonRoute::RuleCandidate]);
-    assert_eq!(import_seed_corpus(&mut ledger, &[], &[stream])?.newly_appended, 0);
+    assert_eq!(
+        import_seed_corpus(&mut ledger, &[], &[stream])?.newly_appended,
+        0
+    );
     std::fs::remove_file(&path)?;
     Ok(())
 }

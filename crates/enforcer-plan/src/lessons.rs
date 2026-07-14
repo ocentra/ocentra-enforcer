@@ -192,7 +192,10 @@ fn validate_captured_date(raw: &str) -> Result<(), DecodeError> {
 
 fn validate_lesson_text(raw: &str) -> Result<(), DecodeError> {
     if raw.trim().is_empty() {
-        Err(DecodeError::new("lessonText", "expected non-empty lesson text"))
+        Err(DecodeError::new(
+            "lessonText",
+            "expected non-empty lesson text",
+        ))
     } else {
         Ok(())
     }
@@ -488,10 +491,10 @@ impl LessonLedger {
         self.write_line(merged)
     }
 
-fn write_line(&mut self, record: LessonRecord) -> Result<(), PlanError> {
-    // ALLOC-JUSTIFICATION: canonical journal bytes and digest text outlive
-    // serialization frames and are persisted as one immutable chain row.
-    let canonical = serde_json::to_vec(&record).map_err(|e| PlanError::Io {
+    fn write_line(&mut self, record: LessonRecord) -> Result<(), PlanError> {
+        // ALLOC-JUSTIFICATION: canonical journal bytes and digest text outlive
+        // serialization frames and are persisted as one immutable chain row.
+        let canonical = serde_json::to_vec(&record).map_err(|e| PlanError::Io {
             path: self.path.display().to_string(),
             reason: e.to_string(),
         })?;
@@ -584,7 +587,76 @@ fn verify_lines(lines: &[LedgerLine]) -> Result<usize, PlanError> {
             recorded: break_.recorded,
             expected: break_.expected,
         })
-        .map_err(|tamper| tamper_to_plan_error(&tamper))
+        .map_err(|tamper| tamper_to_plan_error(&tamper))?;
+    verify_supersession_state(lines)?;
+    Ok(lines.len())
+}
+
+/// Verify that a supersede-append record extends the latest prior state of
+/// the same lesson. Hash-chain integrity alone proves row order and bytes,
+/// but not that a hash-valid row obeys the ledger's state-transition
+/// contract: supersession may only add landed artifacts, never replace the
+/// lesson identity or discard previous landing evidence.
+fn verify_supersession_state(lines: &[LedgerLine]) -> Result<(), PlanError> {
+    for (index, line) in lines.iter().enumerate() {
+        let Some(prior_index) = line.record.supersedes_seq else {
+            continue;
+        };
+        let Some(prior) = lines.get(prior_index) else {
+            return Err(invalid_supersession(
+                index,
+                "references a missing prior row",
+            ));
+        };
+        if prior_index >= index {
+            return Err(invalid_supersession(index, "must reference an earlier row"));
+        }
+        if prior.record.id != line.record.id {
+            return Err(invalid_supersession(
+                index,
+                "references a different lesson id",
+            ));
+        }
+        let latest_prior_index = lines[..index]
+            .iter()
+            .rposition(|candidate| candidate.record.id == line.record.id);
+        if latest_prior_index != Some(prior_index) {
+            return Err(invalid_supersession(
+                index,
+                "does not extend the latest prior state for its lesson",
+            ));
+        }
+        let unchanged_identity = prior.record.date == line.record.date
+            && prior.record.domain == line.record.domain
+            && prior.record.observed == line.record.observed
+            && prior.record.lesson == line.record.lesson
+            && prior.record.routes == line.record.routes;
+        if !unchanged_identity {
+            return Err(invalid_supersession(
+                index,
+                "changes immutable lesson identity fields",
+            ));
+        }
+        if !prior
+            .record
+            .landed_at
+            .iter()
+            .all(|artifact| line.record.landed_at.contains(artifact))
+        {
+            return Err(invalid_supersession(
+                index,
+                "removes a previously landed artifact",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn invalid_supersession(line_index: usize, reason: &str) -> PlanError {
+    PlanError::Io {
+        path: "lesson ledger".to_owned(),
+        reason: format!("invalid lesson supersession at line {line_index}: {reason}"),
+    }
 }
 
 fn tamper_to_plan_error(tamper: &LedgerTamper) -> PlanError {
@@ -673,7 +745,6 @@ impl EmitFs for RealFs {
         })
     }
 }
-
 
 /// Deterministic `{{name}}` placeholder substitution — a byte-for-byte copy
 /// of the same minimal contract `crate::templates` (b03) and
@@ -1214,27 +1285,39 @@ fn seed_row_to_record(row: &SeedRow) -> Result<LessonRecord, PlanError> {
         // the parsed seed row remains borrowed for its other conversions.
         // ALLOC-JUSTIFICATION: decode errors retain owned diagnostics after
         // the borrowed markdown row has been released.
-        date: row.date.clone().parse().map_err(|error: DecodeError| PlanError::Io {
-            path: "seed corpus".to_owned(),
-            reason: error.to_string(),
-        })?,
+        date: row
+            .date
+            .clone()
+            .parse()
+            .map_err(|error: DecodeError| PlanError::Io {
+                path: "seed corpus".to_owned(),
+                reason: error.to_string(),
+            })?,
         domain: sniff_domain(&row.observed),
         // CLONE-JUSTIFICATION: evidence becomes an independently owned
         // branded field in the persisted append-only record.
         // ALLOC-JUSTIFICATION: a validation failure must keep its owned
         // diagnostic beyond this borrowed seed-row conversion.
-        observed: row.observed.clone().parse().map_err(|error: DecodeError| PlanError::Io {
-            path: "seed corpus".to_owned(),
-            reason: error.to_string(),
-        })?,
+        observed: row
+            .observed
+            .clone()
+            .parse()
+            .map_err(|error: DecodeError| PlanError::Io {
+                path: "seed corpus".to_owned(),
+                reason: error.to_string(),
+            })?,
         // CLONE-JUSTIFICATION: lesson text is persisted independently of
         // the short-lived parsed table row.
         // ALLOC-JUSTIFICATION: conversion errors own their message across
         // the importer boundary.
-        lesson: row.lesson.clone().parse().map_err(|error: DecodeError| PlanError::Io {
-            path: "seed corpus".to_owned(),
-            reason: error.to_string(),
-        })?,
+        lesson: row
+            .lesson
+            .clone()
+            .parse()
+            .map_err(|error: DecodeError| PlanError::Io {
+                path: "seed corpus".to_owned(),
+                reason: error.to_string(),
+            })?,
         routes: sniff_routes(&row.ships_via, &row.landed_at),
         landed_at,
         supersedes_seq: None,
@@ -1282,16 +1365,24 @@ fn memory_record_to_lesson(raw: &MemoryStreamRecord) -> Option<Result<LessonReco
     Some((|| -> Result<LessonRecord, PlanError> {
         // ALLOC-JUSTIFICATION: each decode failure owns a stable boundary
         // name and message after the transport record is no longer borrowed.
-        let lesson: LessonText = raw_lesson.parse().map_err(|error: DecodeError| PlanError::Io {
-            path: "memory stream".to_owned(),
-            reason: error.to_string(),
-        })?;
+        let lesson: LessonText =
+            raw_lesson
+                .parse()
+                .map_err(|error: DecodeError| PlanError::Io {
+                    path: "memory stream".to_owned(),
+                    reason: error.to_string(),
+                })?;
         // CLONE-JUSTIFICATION: optional transport evidence becomes an owned
         // validated value while the raw DTO remains borrowed.
-        let observed: ObservedEvidence = raw.observed.clone().unwrap_or_default().parse().map_err(|error: DecodeError| PlanError::Io {
-            path: "memory stream".to_owned(),
-            reason: error.to_string(),
-        })?;
+        let observed: ObservedEvidence =
+            raw.observed
+                .clone()
+                .unwrap_or_default()
+                .parse()
+                .map_err(|error: DecodeError| PlanError::Io {
+                    path: "memory stream".to_owned(),
+                    reason: error.to_string(),
+                })?;
         let id: LessonId = raw.id.parse().map_err(|e: DecodeError| PlanError::Io {
             path: "memory stream".to_owned(),
             reason: e.to_string(),
@@ -1316,10 +1407,15 @@ fn memory_record_to_lesson(raw: &MemoryStreamRecord) -> Option<Result<LessonReco
         };
         Ok(LessonRecord {
             id,
-            date: raw.date.clone().unwrap_or_default().parse().map_err(|error: DecodeError| PlanError::Io {
-                path: "memory stream".to_owned(),
-                reason: error.to_string(),
-            })?,
+            date: raw
+                .date
+                .clone()
+                .unwrap_or_default()
+                .parse()
+                .map_err(|error: DecodeError| PlanError::Io {
+                    path: "memory stream".to_owned(),
+                    reason: error.to_string(),
+                })?,
             domain,
             observed,
             lesson,
@@ -1384,7 +1480,8 @@ fn assign_seed_import_ids(candidates: &mut Vec<SeedImportCandidate>) -> Result<(
         // ALLOC-JUSTIFICATION: the persisted id must outlive this mutable
         // record borrow while it is used as a map key and later ledger id.
         let displayed_label = candidate.record.id.as_str().to_owned();
-        let is_repeated_label = matches!(label_counts.get(&displayed_label), Some(count) if *count > 1);
+        let is_repeated_label =
+            matches!(label_counts.get(&displayed_label), Some(count) if *count > 1);
         if !is_repeated_label {
             continue;
         }
@@ -1423,14 +1520,12 @@ fn assign_seed_import_ids(candidates: &mut Vec<SeedImportCandidate>) -> Result<(
         } else {
             format!("{displayed_label}-SRC-{fingerprint}-{occurrence}")
         };
-        candidate.record.id = id
-            .parse()
-            .map_err(|error: DecodeError| PlanError::Io {
-                // ALLOC-JUSTIFICATION: conversion diagnostics cross the
-                // importer boundary as owned `PlanError` values.
-                path: "seed corpus".to_owned(),
-                reason: error.to_string(),
-            })?;
+        candidate.record.id = id.parse().map_err(|error: DecodeError| PlanError::Io {
+            // ALLOC-JUSTIFICATION: conversion diagnostics cross the
+            // importer boundary as owned `PlanError` values.
+            path: "seed corpus".to_owned(),
+            reason: error.to_string(),
+        })?;
     }
     Ok(())
 }
