@@ -1,6 +1,32 @@
 use enforcer_memory::languages::csharp::parse;
 use enforcer_memory::parsers::SymbolKind;
 
+#[test]
+fn checked_child_traversal_preserves_csharp_members_attributes_and_routes() {
+    let parsed = parse(
+        r#"
+[Route("api/widgets")]
+public class WidgetController : ControllerBase {
+    [HttpGet("health")]
+    public string Health() => "ok";
+}
+"#,
+    );
+
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "WidgetController"),
+        Some(&SymbolKind::Class)
+    );
+    assert_eq!(
+        symbol_kind(&parsed.symbols, "Health"),
+        Some(&SymbolKind::Method)
+    );
+    assert!(parsed
+        .routes
+        .iter()
+        .any(|route| route.method == "GET" && route.path.contains("health")));
+}
+
 fn symbol_kind<'a>(
     symbols: &'a [enforcer_memory::parsers::SymbolRef],
     name: &str,

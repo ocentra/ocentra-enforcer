@@ -290,10 +290,8 @@ fn walk_children(
     enclosing: Option<&str>,
     fn_scope: FnScope<'_>,
 ) {
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, src, out, enclosing, fn_scope);
-        }
+    for child in node.children(&mut node.walk()) {
+        walk(child, src, out, enclosing, fn_scope);
     }
 }
 
@@ -332,14 +330,12 @@ fn call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
         return Vec::new();
     };
     let mut out = Vec::new();
-    for i in 0..args.child_count() {
-        if let Some(child) = args.child(i) {
-            if matches!(child.kind(), "(" | ")" | ",") {
-                continue;
-            }
-            if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
-            }
+    for child in args.children(&mut args.walk()) {
+        if matches!(child.kind(), "(" | ")" | ",") {
+            continue;
+        }
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
@@ -358,16 +354,13 @@ fn child_text(node: Node<'_>, field: &str, src: &[u8]) -> Option<String> {
 /// child), so this scans direct children by kind.
 fn base_list_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    let Some(base_list) = (0..node.child_count())
-        .filter_map(|i| node.child(i))
+    let Some(base_list) = node
+        .children(&mut node.walk())
         .find(|c| c.kind() == "base_list")
     else {
         return out;
     };
-    for i in 0..base_list.child_count() {
-        let Some(entry) = base_list.child(i) else {
-            continue;
-        };
+    for entry in base_list.children(&mut base_list.walk()) {
         if matches!(
             entry.kind(),
             "identifier" | "generic_name" | "qualified_name"
@@ -437,20 +430,15 @@ fn looks_like_interface_name(name: &str) -> bool {
 /// preceding `attribute_list` siblings.
 fn attribute_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(candidate) = node.child(i) else {
-            continue;
-        };
+    for candidate in node.children(&mut node.walk()) {
         if candidate.kind() != "attribute_list" {
             continue;
         }
-        for j in 0..candidate.child_count() {
-            if let Some(attr) = candidate.child(j) {
-                if attr.kind() == "attribute" {
-                    if let Some(name_node) = attr.child_by_field_name("name") {
-                        if let Ok(text) = name_node.utf8_text(src) {
-                            out.push(text.to_string());
-                        }
+        for attr in candidate.children(&mut candidate.walk()) {
+            if attr.kind() == "attribute" {
+                if let Some(name_node) = attr.child_by_field_name("name") {
+                    if let Ok(text) = name_node.utf8_text(src) {
+                        out.push(text.to_string());
                     }
                 }
             }
@@ -471,19 +459,14 @@ fn is_test_attribute(attribute_name: &str) -> bool {
 /// module doc).
 fn routes_from_attributes(method_node: Node<'_>, src: &[u8], line: usize) -> Vec<RouteRef> {
     let mut out = Vec::new();
-    for i in 0..method_node.child_count() {
-        let Some(candidate) = method_node.child(i) else {
-            continue;
-        };
+    for candidate in method_node.children(&mut method_node.walk()) {
         if candidate.kind() != "attribute_list" {
             continue;
         }
-        for j in 0..candidate.child_count() {
-            if let Some(attr) = candidate.child(j) {
-                if attr.kind() == "attribute" {
-                    if let Some(route) = route_from_attribute(attr, src, line) {
-                        out.push(route);
-                    }
+        for attr in candidate.children(&mut candidate.walk()) {
+            if attr.kind() == "attribute" {
+                if let Some(route) = route_from_attribute(attr, src, line) {
+                    out.push(route);
                 }
             }
         }
@@ -518,19 +501,17 @@ fn route_from_attribute(attr: Node<'_>, src: &[u8], line: usize) -> Option<Route
 /// `name` but leaves the argument list as a plain positional child) --
 /// scan for the first `string_literal` inside it.
 fn attribute_first_string_arg(attr: Node<'_>, src: &[u8]) -> Option<String> {
-    let args = (0..attr.child_count())
-        .filter_map(|i| attr.child(i))
+    let args = attr
+        .children(&mut attr.walk())
         .find(|c| c.kind() == "attribute_argument_list")?;
-    for i in 0..args.child_count() {
-        let arg = args.child(i)?;
+    for arg in args.children(&mut args.walk()) {
         // Each argument is an `attribute_argument` wrapping the
         // literal (or a bare literal for simple positional args,
         // depending on grammar version) -- search either shape.
         let literal = if arg.kind() == "string_literal" {
             Some(arg)
         } else {
-            (0..arg.child_count())
-                .filter_map(|i| arg.child(i))
+            arg.children(&mut arg.walk())
                 .find(|c| c.kind() == "string_literal")
         };
         if let Some(lit) = literal {
@@ -551,8 +532,8 @@ fn route_from_map_call(callee: &str, call_node: Node<'_>, src: &[u8]) -> Option<
         return None;
     }
     let args = call_node.child_by_field_name("arguments")?;
-    let first_string_arg = (0..args.child_count())
-        .filter_map(|i| args.child(i))
+    let first_string_arg = args
+        .children(&mut args.walk())
         .find(|n| n.kind() == "string_literal" || n.kind() == "argument")
         .and_then(|n| {
             if n.kind() == "argument" {
@@ -600,13 +581,11 @@ fn using_directive_path(node: Node<'_>, src: &[u8]) -> Option<String> {
 fn signature_type_refs(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
     if let Some(params) = node.child_by_field_name("parameters") {
-        for i in 0..params.child_count() {
-            if let Some(param) = params.child(i) {
-                if param.kind() == "parameter" {
-                    if let Some(type_node) = param.child_by_field_name("type") {
-                        if let Ok(text) = type_node.utf8_text(src) {
-                            out.push(text.to_string());
-                        }
+        for param in params.children(&mut params.walk()) {
+            if param.kind() == "parameter" {
+                if let Some(type_node) = param.child_by_field_name("type") {
+                    if let Ok(text) = type_node.utf8_text(src) {
+                        out.push(text.to_string());
                     }
                 }
             }
@@ -632,8 +611,7 @@ fn is_const_or_static_readonly(node: Node<'_>, src: &[u8]) -> bool {
     let mut has_const = false;
     let mut has_static = false;
     let mut has_readonly = false;
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    for child in node.children(&mut node.walk()) {
         if child.kind() != "modifier" {
             continue;
         }
@@ -654,19 +632,17 @@ fn is_const_or_static_readonly(node: Node<'_>, src: &[u8]) -> bool {
 /// child (no named field for it either).
 fn field_declarator_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    let Some(decl) = (0..node.child_count())
-        .filter_map(|i| node.child(i))
+    let Some(decl) = node
+        .children(&mut node.walk())
         .find(|c| c.kind() == "variable_declaration")
     else {
         return out;
     };
-    for i in 0..decl.child_count() {
-        if let Some(child) = decl.child(i) {
-            if child.kind() == "variable_declarator" {
-                if let Some(name_node) = child.child_by_field_name("name") {
-                    if let Ok(text) = name_node.utf8_text(src) {
-                        out.push(text.to_string());
-                    }
+    for child in decl.children(&mut decl.walk()) {
+        if child.kind() == "variable_declarator" {
+            if let Some(name_node) = child.child_by_field_name("name") {
+                if let Ok(text) = name_node.utf8_text(src) {
+                    out.push(text.to_string());
                 }
             }
         }
