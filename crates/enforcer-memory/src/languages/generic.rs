@@ -20100,10 +20100,7 @@ fn matlab_quirk(
     }
     let mut callee = None;
     let mut args = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else {
-            continue;
-        };
+    for child in syntax_children(node) {
         match child.kind() {
             "command_name" => callee = child.utf8_text(src).ok().map(str::to_owned),
             "command_argument" => {
@@ -20225,10 +20222,7 @@ fn fennel_on_method_defined(
         line: Some(line),
     };
     let mut past_args = false;
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else {
-            continue;
-        };
+    for child in syntax_children(node) {
         if child.id() == args.id() {
             past_args = true;
             continue;
@@ -20518,10 +20512,8 @@ fn fish_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Pa
         }
         None => FnScope::default(),
     };
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, &ctx, out, None, fn_scope);
-        }
+    for child in syntax_children(node) {
+        walk(child, &ctx, out, None, fn_scope);
     }
     true
 }
@@ -22049,16 +22041,14 @@ fn pkl_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
                 name: Some(name.as_str()),
                 line: Some(line),
             };
-            for i in 0..node.child_count() {
-                if let Some(child) = node.child(i) {
-                    if matches!(
-                        child.kind(),
-                        "methodHeader" | "annotation" | "docComment" | "modifier"
-                    ) {
-                        continue;
-                    }
-                    walk(child, &ctx, out, enclosing, fn_scope);
+            for child in syntax_children(node) {
+                if matches!(
+                    child.kind(),
+                    "methodHeader" | "annotation" | "docComment" | "modifier"
+                ) {
+                    continue;
                 }
+                walk(child, &ctx, out, enclosing, fn_scope);
             }
             true
         }
@@ -22515,8 +22505,7 @@ fn cfml_tag_attribute_text(node: Node<'_>, src: &[u8], key: &str) -> Option<Stri
         .find_map(|attr| {
             let mut name_matches = false;
             let mut value = None;
-            for i in 0..attr.child_count() {
-                let Some(c) = attr.child(i) else { continue };
+            for c in syntax_children(attr) {
                 match c.kind() {
                     "cf_attribute_name" => {
                         if let Ok(t) = c.utf8_text(src) {
@@ -22915,8 +22904,7 @@ fn smali_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut P
         });
     }
 
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    for child in syntax_children(node) {
         let child_line = child.start_position().row + 1;
         match child.kind() {
             "super_directive" | "implements_directive" => {
@@ -23607,19 +23595,13 @@ fn graphql_quirk(
         kind: SymbolKind::Class,
         line,
     });
-    for i in 0..node.child_count() {
-        let Some(fields_container) = node.child(i) else {
-            continue;
-        };
+    for fields_container in syntax_children(node) {
         let member_kind = match fields_container.kind() {
             "fields_definition" => "field_definition",
             "input_fields_definition" => "input_value_definition",
             _ => continue,
         };
-        for j in 0..fields_container.child_count() {
-            let Some(member) = fields_container.child(j) else {
-                continue;
-            };
+        for member in syntax_children(fields_container) {
             if member.kind() != member_kind {
                 continue;
             }
@@ -23735,10 +23717,7 @@ fn ini_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Par
         kind: SymbolKind::Class,
         line,
     });
-    for i in 0..node.child_count() {
-        let Some(setting) = node.child(i) else {
-            continue;
-        };
+    for setting in syntax_children(node) {
         if setting.kind() != "setting" {
             continue;
         }

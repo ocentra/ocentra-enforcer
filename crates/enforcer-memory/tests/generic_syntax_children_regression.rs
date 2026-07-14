@@ -1,5 +1,6 @@
 use enforcer_memory::languages::generic::{
-    parse_ada, parse_apex, parse_cairo, parse_fsharp, parse_julia, parse_powershell, parse_verilog,
+    parse_ada, parse_apex, parse_cairo, parse_fsharp, parse_ini, parse_julia, parse_powershell,
+    parse_verilog,
 };
 use enforcer_memory::parsers::SymbolKind;
 
@@ -101,4 +102,19 @@ fn syntax_child_iteration_preserves_verilog_system_call_arguments() {
         .calls
         .iter()
         .any(|call| { call.callee == "$display" && call.arg_texts == vec!["\"ready\"", "7"] }));
+}
+
+#[test]
+fn syntax_child_iteration_preserves_ini_section_member_relationships() {
+    let ini = parse_ini("[server]\nhost = localhost\nport = 8080\n");
+    assert!(ini
+        .symbols
+        .iter()
+        .any(|symbol| symbol.name == "server" && symbol.kind == SymbolKind::Class));
+    let members: Vec<(&str, &str)> = ini
+        .defines
+        .iter()
+        .map(|define| (define.container_name.as_str(), define.member_name.as_str()))
+        .collect();
+    assert_eq!(members, vec![("server", "host"), ("server", "port")]);
 }
