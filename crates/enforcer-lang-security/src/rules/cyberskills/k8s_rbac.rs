@@ -212,7 +212,10 @@ impl Validator for K8sRbacValidator {
         if kind == "ClusterRoleBinding" || kind == "RoleBinding" {
             let binds_cluster_admin = manifest.role_ref.as_ref().is_some_and(|role_ref| {
                 role_ref.name.as_deref() == Some("cluster-admin")
-                    && role_ref.kind.as_deref() == Some("ClusterRole")
+                    && role_ref
+                        .kind
+                        .as_deref()
+                        .is_none_or(|kind| kind == "ClusterRole")
             });
             if binds_cluster_admin {
                 let scope = if kind == "ClusterRoleBinding" {

@@ -56,6 +56,13 @@
     "reason": "roleRef.name is the built-in `view` role, not cluster-admin"
   },
   {
+    "name": "check-2-cluster-admin-binding-with-omitted-kind",
+    "input": "apiVersion: rbac.authorization.k8s.io/v1\nkind: ClusterRoleBinding\nmetadata:\n  name: implicit-admin\nroleRef:\n  apiGroup: rbac.authorization.k8s.io\n  name: cluster-admin\nsubjects:\n- kind: User\n  name: alice",
+    "expect": "flag",
+    "branch": "cluster-admin-binding",
+    "reason": "an omitted roleRef.kind must not suppress cluster-admin binding detection"
+  },
+  {
     "name": "check-2-binding-system-masters-group",
     "input": "apiVersion: rbac.authorization.k8s.io/v1\nkind: ClusterRoleBinding\nmetadata:\n  name: superusers\nroleRef:\n  apiGroup: rbac.authorization.k8s.io\n  kind: ClusterRole\n  name: view\nsubjects:\n- kind: Group\n  name: system:masters",
     "expect": "flag",
