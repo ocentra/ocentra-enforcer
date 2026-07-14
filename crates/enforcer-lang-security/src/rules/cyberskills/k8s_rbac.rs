@@ -49,6 +49,9 @@ struct Manifest {
     // DEFAULT-JUSTIFICATION: roles do not have roleRef and cannot bind cluster-admin.
     #[serde(default, rename = "roleRef")]
     role_ref: Option<RoleRef>,
+    // DEFAULT-JUSTIFICATION: roles have no subjects and an absent binding subject grants nothing.
+    #[serde(default)]
+    subjects: Vec<Subject>,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
@@ -80,6 +83,18 @@ struct RoleRef {
     // DEFAULT-JUSTIFICATION: missing name cannot identify the cluster-admin role.
     #[serde(default)]
     // BRAND-INVARIANT: this raw role name is compared only with the canonical cluster-admin name.
+    name: Option<String>,
+}
+
+#[derive(Debug, Default, serde::Deserialize)]
+struct Subject {
+    // DEFAULT-JUSTIFICATION: an omitted kind cannot identify a privileged group subject.
+    #[serde(default)]
+    // BRAND-INVARIANT: only the Kubernetes Group kind can be system:masters.
+    kind: Option<String>,
+    // DEFAULT-JUSTIFICATION: an omitted name cannot grant system:masters membership.
+    #[serde(default)]
+    // BRAND-INVARIANT: compared only with the built-in superuser group name.
     name: Option<String>,
 }
 
@@ -211,6 +226,22 @@ impl Validator for K8sRbacValidator {
                     format!(
                         "{kind} binds subjects to the `cluster-admin` ClusterRole ({scope}). \
                              Fix: bind to a narrowly scoped ClusterRole or Role instead."
+                    ),
+                ));
+            }
+
+            let binds_system_masters = manifest.subjects.iter().any(|subject| {
+                subject.kind.as_deref() == Some("Group")
+                    && subject.name.as_deref() == Some("system:masters")
+            });
+            if binds_system_masters {
+                findings.push(self.finding(
+                    &input,
+                    Severity::Error,
+                    format!(
+                        "{kind} binds a subject to the built-in `system:masters` group, whose \
+                         members bypass normal RBAC authorization. Fix: remove this subject and \
+                         bind named identities to a narrowly scoped Role or ClusterRole instead."
                     ),
                 ));
             }

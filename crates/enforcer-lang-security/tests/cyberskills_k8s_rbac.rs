@@ -39,3 +39,22 @@ fn cluster_role_wildcard_non_resource_url_is_rejected() -> Result<(), Box<dyn st
     );
     Ok(())
 }
+
+#[test]
+fn binding_system_masters_group_is_rejected() -> Result<(), Box<dyn std::error::Error>> {
+    let validator = K8sRbacValidator::new()?;
+    let file: RelPath = "cluster-role-binding.yaml".parse()?;
+    let findings = validator.validate(ValidationInput {
+        source: "apiVersion: rbac.authorization.k8s.io/v1\nkind: ClusterRoleBinding\nroleRef:\n  apiGroup: rbac.authorization.k8s.io\n  kind: ClusterRole\n  name: view\nsubjects:\n- kind: Group\n  name: system:masters\n",
+        file: &file,
+        scope: ScanScope::Files,
+    });
+
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].severity, Severity::Error);
+    assert_eq!(
+        findings[0].detail,
+        "ClusterRoleBinding binds a subject to the built-in `system:masters` group, whose members bypass normal RBAC authorization. Fix: remove this subject and bind named identities to a narrowly scoped Role or ClusterRole instead."
+    );
+    Ok(())
+}
