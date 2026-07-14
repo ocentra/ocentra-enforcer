@@ -147,6 +147,26 @@ Item {
 }
 
 #[test]
+fn quoted_qml_import_path_is_unquoted() {
+    let parsed = parse_qml(
+        r#"
+import "./quoted-helper.js"
+
+Item {}
+"#,
+    );
+
+    assert!(
+        parsed
+            .imports
+            .iter()
+            .any(|import| import.module_path == "./quoted-helper.js"),
+        "{:?}",
+        parsed.imports
+    );
+}
+
+#[test]
 fn extracts_call_edges_including_new_expression() -> TestResult {
     let src = r#"
 import QtQuick

@@ -13138,12 +13138,12 @@ fn qml_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
 /// quote characters for the string-literal form (`"./helpers.js"`),
 /// unlike its bare-identifier form (`QtQuick`, no quotes to strip).
 fn strip_quotes_str(text: &str) -> String {
-    let bytes = text.as_bytes();
-    if bytes.len() >= 2 {
-        let first = bytes[0];
-        let last = bytes[bytes.len() - 1];
-        if (first == b'"' && last == b'"') || (first == b'\'' && last == b'\'') {
-            return text[1..text.len() - 1].to_string();
+    for quote in ['"', '\''] {
+        if let Some(inner) = text
+            .strip_prefix(quote)
+            .and_then(|remaining| remaining.strip_suffix(quote))
+        {
+            return inner.to_string();
         }
     }
     text.to_string()
