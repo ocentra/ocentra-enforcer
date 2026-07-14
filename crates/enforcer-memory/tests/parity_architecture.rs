@@ -198,11 +198,38 @@ fn path_scope_does_not_include_a_sibling_with_a_shared_text_prefix() -> TestResu
 
     let mut graph = CodeGraph::new();
     graph.index_repository(dir.path(), &[core, corex], &Manifest::default())?;
-    let report = architecture::build_report(&graph, &[Aspect::Structure], Some("crates/core"), 20, 30);
+    let report =
+        architecture::build_report(&graph, &[Aspect::Structure], Some("crates/core"), 20, 30);
     let structure = report.structure.ok_or("expected structure section")?;
 
     assert_eq!(structure.len(), 1, "{structure:?}");
     assert_eq!(structure[0].name, "crates/core");
+    Ok(())
+}
+
+#[test]
+fn path_prefix_scopes_legacy_hotspots_to_requested_files() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let graph = build_fixture_graph(dir.path())?;
+
+    let report = architecture::build_report(
+        &graph,
+        &[Aspect::Overview, Aspect::Hotspots],
+        Some("crates/core/"),
+        20,
+        30,
+    );
+    let overview = report.overview.ok_or("expected overview section")?;
+    let hotspots = report.hotspots.ok_or("expected hotspots section")?;
+    assert!(!overview.hotspots.is_empty());
+    assert!(!hotspots.is_empty());
+    for score in overview.hotspots.iter().chain(hotspots.iter()) {
+        assert!(
+            score.node_id.starts_with("file:crates/core/")
+                || score.node_id.starts_with("sym:crates/core/"),
+            "scoped hotspot leaked an out-of-scope node: {score:?}"
+        );
+    }
     Ok(())
 }
 

@@ -456,6 +456,45 @@ fn hotspot_entries(
     entries
 }
 
+/// The original hotspot metric scoped to nodes declared under `scope`.
+///
+/// [`CodeAdjacency::hotspots`] ranks a complete graph, so a scoped request
+/// must rank every node before removing nodes outside the requested path.
+/// Truncating first would let out-of-scope nodes consume the caller's limit
+/// and return too few in-scope results.
+fn scoped_hotspots(
+    graph: &CodeGraph,
+    scope: ArchitectureScope<'_>,
+    limit: usize,
+) -> Vec<crate::analysis::HotspotScore> {
+    if scope.prefix.is_none() {
+        return CodeAdjacency::build(graph).hotspots(limit);
+    }
+
+    let mut node_path_by_id: BTreeMap<&str, &str> = graph
+        .file_nodes()
+        .map(|file| (file.id.as_str(), file.rel_path.as_str()))
+        .collect();
+    node_path_by_id.extend(graph.symbol_nodes().map(|symbol| {
+        let path = symbol
+            .file_id
+            .strip_prefix("file:")
+            .unwrap_or(symbol.file_id.as_str());
+        (symbol.id.as_str(), path)
+    }));
+
+    CodeAdjacency::build(graph)
+        .hotspots(usize::MAX)
+        .into_iter()
+        .filter(|score| {
+            node_path_by_id
+                .get(score.node_id.as_str())
+                .is_some_and(|path| scope.includes(ArchitecturePath(path)))
+        })
+        .take(limit)
+        .collect()
+}
+
 /// One directory's entry in [`FileTree`]: its own file/symbol counts
 /// (direct children only) plus nested subdirectories.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -630,7 +669,7 @@ pub fn build_report(
     if wanted.contains(&Aspect::Overview) {
         report.overview = Some(ArchitectureOverview {
             sections: crate_sections(graph, scope),
-            hotspots: CodeAdjacency::build(graph).hotspots(hotspot_limit),
+            hotspots: scoped_hotspots(graph, scope, hotspot_limit),
             language_counts: language_counts(graph, scope),
             total_files: graph
                 .file_nodes()
@@ -666,7 +705,7 @@ pub fn build_report(
         report.entry_points = Some(entry_points(graph, scope));
     }
     if wanted.contains(&Aspect::Hotspots) {
-        report.hotspots = Some(CodeAdjacency::build(graph).hotspots(hotspot_limit));
+        report.hotspots = Some(scoped_hotspots(graph, scope, hotspot_limit));
         report.hotspot_entries = Some(hotspot_entries(graph, scope, hotspot_limit));
     }
     if wanted.contains(&Aspect::Boundaries) {
@@ -952,10 +991,9 @@ fn dependency_edges(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<Depe
         if !scope.includes(ArchitecturePath(from_path)) {
             continue;
         }
-        if let Some(to_path) = resolve_module_path(
-            ArchitecturePath(&import.module_path),
-            &file_paths,
-        ) {
+        if let Some(to_path) =
+            resolve_module_path(ArchitecturePath(&import.module_path), &file_paths)
+        {
             let from_section = ArchitectureSectionKey::from_path(ArchitecturePath(from_path));
             let to_section = ArchitectureSectionKey::from_path(to_path);
             if from_section != to_section {
@@ -977,7 +1015,8 @@ fn dependency_edges(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<Depe
                     if scope.includes(ArchitecturePath(to_path)) {
                         let from_section =
                             ArchitectureSectionKey::from_path(ArchitecturePath(from_path));
-                        let to_section = ArchitectureSectionKey::from_path(ArchitecturePath(to_path));
+                        let to_section =
+                            ArchitectureSectionKey::from_path(ArchitecturePath(to_path));
                         if from_section != to_section {
                             *counts.entry((from_section, to_section)).or_insert(0) += 1;
                         }
