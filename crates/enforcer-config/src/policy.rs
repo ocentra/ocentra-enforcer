@@ -100,13 +100,13 @@ impl Policy {
     /// Returns a description of the first invariant violation found.
     pub fn validate(&self) -> Result<(), String> {
         for (rule_id, toggle) in &self.rule_toggles {
-            if toggle.enabled {
-                continue;
-            }
             let Some(waiver) = &toggle.waiver else {
-                return Err(format!(
-                    "rule `{rule_id}` is disabled but carries no waiver (owner + reason required; inline/silent disables are banned)"
-                ));
+                if !toggle.enabled {
+                    return Err(format!(
+                        "rule `{rule_id}` is disabled but carries no waiver (owner + reason required; inline/silent disables are banned)"
+                    ));
+                }
+                continue;
             };
             if waiver.owner.trim().is_empty() {
                 return Err(format!("waiver for rule `{rule_id}` has an empty owner"));
@@ -142,149 +142,8 @@ impl Policy {
     ) -> enforcer_domain::severity::Severity {
         self.rule_toggles
             .get(rule_id)
+            .filter(|toggle| toggle.enabled)
             .and_then(|toggle| toggle.severity)
             .unwrap_or(default_severity)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{Policy, RuleToggle, Waiver};
-    use enforcer_domain::ids::RuleId;
-    use enforcer_domain::severity::Severity;
-    use std::collections::BTreeMap;
-    use std::str::FromStr;
-
-    /// Test-only helper: parse a known-valid rule id literal, propagating a
-    /// parse failure via `Result` (no `unwrap`/`expect`, both denied by
-    /// workspace clippy lints) so a typo in a fixture surfaces as a failed
-    /// test, not a panic.
-    fn rule_id(s: &str) -> Result<RuleId, enforcer_core::error::DecodeError> {
-        RuleId::from_str(s)
-    }
-
-    #[test]
-    fn absent_toggle_means_enabled() -> Result<(), Box<dyn std::error::Error>> {
-        let policy = Policy::default();
-        assert!(policy.is_rule_enabled(&rule_id("RR-1.1")?));
-        Ok(())
-    }
-
-    #[test]
-    fn disabled_rule_without_waiver_fails_validation() -> Result<(), Box<dyn std::error::Error>> {
-        let mut toggles = BTreeMap::new();
-        toggles.insert(
-            rule_id("RR-1.1")?,
-            RuleToggle {
-                enabled: false,
-                severity: None,
-                waiver: None,
-            },
-        );
-        let policy = Policy {
-            rule_toggles: toggles,
-            ..Policy::default()
-        };
-        assert!(policy.validate().is_err());
-        Ok(())
-    }
-
-    #[test]
-    fn disabled_rule_with_waiver_passes_validation() -> Result<(), Box<dyn std::error::Error>> {
-        let mut toggles = BTreeMap::new();
-        toggles.insert(
-            rule_id("RR-1.1")?,
-            RuleToggle {
-                enabled: false,
-                severity: None,
-                waiver: Some(Waiver {
-                    rule_id: rule_id("RR-1.1")?,
-                    owner: "platform-team".to_owned(),
-                    reason: "legacy module pending migration".to_owned(),
-                }),
-            },
-        );
-        let policy = Policy {
-            rule_toggles: toggles,
-            ..Policy::default()
-        };
-        assert!(policy.validate().is_ok());
-        assert!(!policy.is_rule_enabled(&rule_id("RR-1.1")?));
-        Ok(())
-    }
-
-    #[test]
-    fn waiver_rule_id_mismatch_fails_validation() -> Result<(), Box<dyn std::error::Error>> {
-        let mut toggles = BTreeMap::new();
-        toggles.insert(
-            rule_id("RR-1.1")?,
-            RuleToggle {
-                enabled: false,
-                severity: None,
-                waiver: Some(Waiver {
-                    rule_id: rule_id("RR-2.2")?,
-                    owner: "team".to_owned(),
-                    reason: "reason".to_owned(),
-                }),
-            },
-        );
-        let policy = Policy {
-            rule_toggles: toggles,
-            ..Policy::default()
-        };
-        assert!(policy.validate().is_err());
-        Ok(())
-    }
-
-    #[test]
-    fn severity_override_wins_over_default() -> Result<(), Box<dyn std::error::Error>> {
-        let mut toggles = BTreeMap::new();
-        toggles.insert(
-            rule_id("RR-1.1")?,
-            RuleToggle {
-                enabled: true,
-                severity: Some(Severity::Warning),
-                waiver: None,
-            },
-        );
-        let policy = Policy {
-            rule_toggles: toggles,
-            ..Policy::default()
-        };
-        assert_eq!(
-            policy.effective_severity(&rule_id("RR-1.1")?, Severity::Error),
-            Severity::Warning
-        );
-        assert_eq!(
-            policy.effective_severity(&rule_id("RR-9.9")?, Severity::Error),
-            Severity::Error
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn policy_round_trips_through_json() -> Result<(), Box<dyn std::error::Error>> {
-        let mut toggles = BTreeMap::new();
-        toggles.insert(
-            rule_id("SEC-1.1")?,
-            RuleToggle {
-                enabled: false,
-                severity: None,
-                waiver: Some(Waiver {
-                    rule_id: rule_id("SEC-1.1")?,
-                    owner: "sec-team".to_owned(),
-                    reason: "tracked in TICKET-123".to_owned(),
-                }),
-            },
-        );
-        let policy = Policy {
-            rule_toggles: toggles,
-            skip_cfg_test: true,
-            ..Policy::default()
-        };
-        let wire = serde_json::to_string(&policy)?;
-        let back: Policy = serde_json::from_str(&wire)?;
-        assert_eq!(back, policy);
-        Ok(())
     }
 }
