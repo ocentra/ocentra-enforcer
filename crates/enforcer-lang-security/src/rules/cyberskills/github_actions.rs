@@ -115,6 +115,7 @@ impl Validator for GithubActionsSecurityValidator {
                 if let Some(rest) = trimmed.strip_prefix("permissions:") {
                     let value = rest.split('#').next().unwrap_or_default().trim();
                     if value.eq_ignore_ascii_case("write-all") {
+                        // CLONE-JUSTIFICATION: each emitted diagnostic owns rule and file identity after validation returns.
                         findings.push(Finding {
                             rule_id: self.rule_id.clone(),
                             severity: Severity::Error,
@@ -126,6 +127,7 @@ impl Validator for GithubActionsSecurityValidator {
                                       and grant only the specific scopes each job needs (e.g. \
                                       `contents: read`)."
                                 .to_owned(),
+                            // CLONE-JUSTIFICATION: diagnostic owns the borrowed file path.
                             file: input.file.clone(),
                             line: line_number,
                             snippet: Some(line.to_owned()),
@@ -136,6 +138,7 @@ impl Validator for GithubActionsSecurityValidator {
                     in_top_level_permissions = false;
                 }
             } else if in_top_level_permissions && self.top_level_contents_write.is_match(line) {
+                // CLONE-JUSTIFICATION: each emitted diagnostic owns rule and file identity after validation returns.
                 findings.push(Finding {
                     rule_id: self.rule_id.clone(),
                     severity: Severity::Error,
@@ -146,6 +149,7 @@ impl Validator for GithubActionsSecurityValidator {
                               workflow-level `permissions:` block and grant it only on the \
                               specific job(s) that need it."
                         .to_owned(),
+                    // CLONE-JUSTIFICATION: diagnostic owns the borrowed file path.
                     file: input.file.clone(),
                     line: line_number,
                     snippet: Some(line.to_owned()),
@@ -160,6 +164,7 @@ impl Validator for GithubActionsSecurityValidator {
                 let is_local_action = action.starts_with("./");
                 let is_pinned = self.pinned_sha.is_match(reference);
                 if !is_docker_ref && !is_local_action && !is_pinned {
+                    // CLONE-JUSTIFICATION: each emitted diagnostic owns rule and file identity after validation returns.
                     findings.push(Finding {
                         rule_id: self.rule_id.clone(),
                         severity: Severity::Warning,
@@ -172,6 +177,7 @@ impl Validator for GithubActionsSecurityValidator {
                              code into this workflow. Fix: pin to the immutable commit SHA, \
                              e.g. `{action}@<40-char-sha>  # {reference}`."
                         ),
+                        // CLONE-JUSTIFICATION: diagnostic owns the borrowed file path.
                         file: input.file.clone(),
                         line: line_number,
                         snippet: Some(line.to_owned()),
@@ -183,6 +189,7 @@ impl Validator for GithubActionsSecurityValidator {
             let is_run_key = trimmed.starts_with("run:");
             let currently_in_run = is_run_key || in_run_block;
             if currently_in_run && self.injection_expr.is_match(line) {
+                // CLONE-JUSTIFICATION: each emitted diagnostic owns rule and file identity after validation returns.
                 findings.push(Finding {
                     rule_id: self.rule_id.clone(),
                     severity: Severity::Error,
@@ -196,6 +203,7 @@ impl Validator for GithubActionsSecurityValidator {
                               an `env:` variable and reference it as a shell variable (e.g. \
                               `${PR_TITLE}`) instead of interpolating the expression directly."
                         .to_owned(),
+                    // CLONE-JUSTIFICATION: diagnostic owns the borrowed file path.
                     file: input.file.clone(),
                     line: line_number,
                     snippet: Some(line.to_owned()),
@@ -226,6 +234,7 @@ impl Validator for GithubActionsSecurityValidator {
             }
         }
         if let Some((line_number, matched_line)) = head_ref_hit {
+            // CLONE-JUSTIFICATION: delayed workflow finding owns rule and file identity beyond source scanning.
             findings.push(Finding {
                 rule_id: self.rule_id.clone(),
                 severity: Severity::Error,
@@ -240,6 +249,7 @@ impl Validator for GithubActionsSecurityValidator {
                           only check out the base branch, and gate privileged steps behind a \
                           maintainer label/review."
                     .to_owned(),
+                // CLONE-JUSTIFICATION: diagnostic owns the borrowed file path.
                 file: input.file.clone(),
                 line: line_number,
                 snippet: Some(matched_line.to_owned()),
