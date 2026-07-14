@@ -161,6 +161,13 @@
     "reason": "both tls and tlsverify disabled leaves the remote API fully unauthenticated"
   },
   {
+    "name": "tls: remote TCP host without TLS settings",
+    "input": "{\"hosts\":[\"tcp://0.0.0.0:2375\"]}",
+    "expect": "flag",
+    "branch": "tls",
+    "reason": "a TCP Docker API host without TLS settings is remotely unauthenticated"
+  },
+  {
     "name": "tls: clean both true",
     "input": "{\"tls\":true,\"tlsverify\":true,\"tlscacert\":\"/etc/docker/tls/ca.pem\"}",
     "expect": "clean",

@@ -211,6 +211,25 @@ impl Validator for DockerDaemonHardeningValidator {
             ));
         }
 
+        let has_remote_tcp_host = config
+            .get("hosts")
+            .and_then(|value| value.as_array())
+            .is_some_and(|hosts| {
+                hosts.iter().filter_map(|host| host.as_str()).any(|host| {
+                    host.trim_start()
+                        .get(..6)
+                        .is_some_and(|scheme| scheme.eq_ignore_ascii_case("tcp://"))
+                })
+            });
+        if has_remote_tcp_host && config.get("tls").is_none() && config.get("tlsverify").is_none() {
+            findings.push(self.finding(
+                input.file,
+                Severity::Error,
+                "Docker daemon exposes a remote TCP API without TLS",
+                "daemon.json configures a `tcp://` host without `tls` or `tlsverify`, exposing an unauthenticated Docker API to the network. Fix: use a Unix socket where possible, or set both `tls` and `tlsverify` to `true` with `tlscacert`, `tlscert`, and `tlskey`.".to_owned(),
+            ));
+        }
+
         if config.get("tls").and_then(|value| value.as_bool()) == Some(true)
             && config.get("tlsverify").is_none()
         {
