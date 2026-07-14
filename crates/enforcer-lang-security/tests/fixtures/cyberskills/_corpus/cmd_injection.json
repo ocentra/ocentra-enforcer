@@ -14,6 +14,13 @@
     "reason": "ANY shell=True is flagged even with a fully static command string"
   },
   {
+    "name": "subprocess-shell-true: numeric truthy shell value",
+    "input": "subprocess.run(command, shell=1)",
+    "expect": "flag",
+    "branch": "subprocess-shell-true",
+    "reason": "Python treats numeric 1 as truthy, so this enables the shell like shell=True"
+  },
+  {
     "name": "subprocess-shell-true: clean, no shell keyword",
     "input": "subprocess.run([\"ls\", \"-la\"])",
     "expect": "clean",

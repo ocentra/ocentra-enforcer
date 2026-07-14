@@ -52,6 +52,9 @@ enum SinkCheck {
     /// Only flag when the captured argument (group 1) passes
     /// [`is_dynamic_argument`].
     DynamicArgument,
+    /// Flag a subprocess shell option unless it is an explicit falsey
+    /// literal. The captured option value is capture group 1.
+    ShellEnabledOrDynamic,
 }
 
 #[derive(Debug)]
@@ -81,6 +84,13 @@ fn is_dynamic_argument(argument: &str, fstring_prefix: &Regex) -> bool {
     !trimmed.contains('"') && !trimmed.contains('\'') && !trimmed.contains('`')
 }
 
+/// Python accepts any truthy value for `subprocess`'s `shell` option, not
+/// just the conventional `True`. Preserve explicit falsey literals while
+/// treating a truthy or runtime-controlled value as unsafe.
+fn shell_enabled_or_dynamic(value: &str) -> bool {
+    !matches!(value.trim(), "False" | "None" | "0")
+}
+
 /// `CYBER-CMD-INJECT.1` — command-injection sink detector (T1 per-sink
 /// matcher over source lines).
 #[derive(Debug)]
@@ -101,12 +111,12 @@ impl CommandInjectionValidator {
 
         let sinks = vec![
             SinkPattern {
-                label: "Python subprocess(..., shell=True)",
+                label: "Python subprocess(..., shell enabled/dynamic)",
                 regex: compile(
                     "cyberskillsCmdInjectSubprocessShellTrue",
-                    r"subprocess\.\w+\([^\n]*shell\s*=\s*True\b",
+                    r"subprocess\.\w+\([^\n]*shell\s*=\s*([^,\s)]+)",
                 )?,
-                check: SinkCheck::AlwaysFlag,
+                check: SinkCheck::ShellEnabledOrDynamic,
             },
             SinkPattern {
                 label: "Python os.system(...)",
@@ -182,6 +192,12 @@ impl Validator for CommandInjectionValidator {
                     (SinkCheck::DynamicArgument, Some(captures)) => {
                         let argument = captures.get(1).map(|m| m.as_str()).unwrap_or("");
                         if is_dynamic_argument(argument, &self.fstring_prefix) {
+                            matched_labels.push(sink.label);
+                        }
+                    }
+                    (SinkCheck::ShellEnabledOrDynamic, Some(captures)) => {
+                        let value = captures.get(1).map(|m| m.as_str()).unwrap_or("");
+                        if shell_enabled_or_dynamic(value) {
                             matched_labels.push(sink.label);
                         }
                     }
