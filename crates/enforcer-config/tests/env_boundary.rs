@@ -70,6 +70,23 @@ fn empty_config_path_fails_closed() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn config_path_with_nul_byte_fails_at_the_environment_boundary() -> Result<(), Box<dyn std::error::Error>> {
+    let mut values = BTreeMap::new();
+    values.insert(ENFORCER_CONFIG_PATH_VAR, "config\0override.json".to_owned());
+    let error = ConfigEnv::read_from(&ControlledEnv::with_values(values))
+        .expect_err("NUL path must fail");
+    assert!(matches!(
+        error,
+        ConfigLoadError::InvalidEnvVar {
+            var: ENFORCER_CONFIG_PATH_VAR,
+            reason,
+            ..
+        } if reason == "path override must not contain NUL bytes"
+    ));
+    Ok(())
+}
+
+#[test]
 fn profile_var_with_known_name_decodes() -> Result<(), Box<dyn std::error::Error>> {
     let mut values = BTreeMap::new();
     values.insert(ENFORCER_PROFILE_VAR, "strict".to_owned());

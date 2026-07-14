@@ -101,6 +101,13 @@ impl ConfigEnv {
                     reason: "path override must not be empty".to_owned(),
                 });
             }
+            Some(value) if value.contains('\0') => {
+                return Err(ConfigLoadError::InvalidEnvVar {
+                    var: ENFORCER_CONFIG_PATH_VAR,
+                    value,
+                    reason: "path override must not contain NUL bytes".to_owned(),
+                });
+            }
             Some(value) => Some(PathBuf::from(value)),
         };
 
