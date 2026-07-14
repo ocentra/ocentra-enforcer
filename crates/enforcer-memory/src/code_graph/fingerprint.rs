@@ -87,7 +87,7 @@ fn source_body_fingerprint(
     if start >= end || end > text.len() {
         return None;
     }
-    let window = &text[start..end];
+    let window = text.get(start..end)?;
     let body = braced_body(window).unwrap_or(window);
     let tokens = normalize_source_tokens(body);
     if tokens.is_empty() {
@@ -114,13 +114,13 @@ fn source_body_fingerprint(
 fn braced_body(window: &str) -> Option<&str> {
     let open = window.find('{')?;
     let mut depth = 0usize;
-    for (offset, character) in window[open..].char_indices() {
+    for (offset, character) in window.get(open..)?.char_indices() {
         match character {
             '{' => depth += 1,
             '}' => {
                 depth = depth.saturating_sub(1);
                 if depth == 0 {
-                    return Some(&window[open + 1..open + offset]);
+                    return window.get(open + 1..open + offset);
                 }
             }
             _ => {}

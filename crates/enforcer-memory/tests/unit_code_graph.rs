@@ -147,6 +147,29 @@ fn symbol_extraction_produces_function_type_test_nodes() -> TestResult {
 }
 
 #[test]
+fn unicode_function_body_keeps_a_fingerprint_without_panicking() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    init_git_repo(dir.path())?;
+    let file_path = dir.path().join("lib.rs");
+    fs::write(
+        &file_path,
+        "fn fingerprint_me() {\n    let label = \"🙂\";\n}\n",
+    )?;
+    commit_all(dir.path(), "first")?;
+
+    let mut graph = CodeGraph::new();
+    graph.index_repository(dir.path(), &[file_path], &Manifest::default())?;
+
+    assert!(
+        graph.nodes().iter().any(
+            |node| matches!(node, CodeNode::Function(symbol) if symbol.name == "fingerprint_me" && symbol.source_body_fingerprint.is_some())
+        ),
+        "a UTF-8 function body must retain a safe fingerprint"
+    );
+    Ok(())
+}
+
+#[test]
 fn route_extraction_produces_route_edges() -> TestResult {
     let dir = tempfile::tempdir()?;
     init_git_repo(dir.path())?;
