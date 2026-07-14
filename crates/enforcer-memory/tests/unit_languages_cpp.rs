@@ -117,6 +117,50 @@ void f() { helper(); other::thing(1, 2); }
     assert!(callees.contains(&"other::thing"));
 }
 
+/// Regression: iterator traversal retains written order through base clauses,
+/// class fields, and nested call arguments.
+#[test]
+fn cpp_child_iteration_preserves_inheritance_fields_and_call_argument_order() -> TestResult {
+    let src = r#"
+class First {};
+class Second {};
+class Derived : public First, private Second {
+    int first_field;
+    int second_field;
+};
+
+void run() { other::thing(first(), second()); }
+"#;
+    let parsed = parse(src, false);
+    let bases: Vec<&str> = parsed
+        .inherits
+        .iter()
+        .filter(|edge| edge.sub_name == "Derived")
+        .map(|edge| edge.super_name.as_str())
+        .collect();
+    assert_eq!(bases, vec!["First", "Second"], "{bases:?}");
+
+    let fields: Vec<&str> = parsed
+        .defines
+        .iter()
+        .filter(|edge| edge.container_name == "Derived")
+        .map(|edge| edge.member_name.as_str())
+        .collect();
+    assert_eq!(fields, vec!["first_field", "second_field"], "{fields:?}");
+
+    let call = parsed
+        .calls
+        .iter()
+        .find(|call| call.callee == "other::thing")
+        .ok_or("expected an other::thing call")?;
+    assert_eq!(
+        call.arg_texts,
+        vec!["first()".to_string(), "second()".to_string()],
+        "{call:?}"
+    );
+    Ok(())
+}
+
 #[test]
 fn detects_gtest_test_macro() {
     let src = r#"

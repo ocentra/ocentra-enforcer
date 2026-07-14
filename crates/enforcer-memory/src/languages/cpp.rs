@@ -223,10 +223,9 @@ fn walk_children(
     enclosing: Option<&str>,
     fn_scope: FnScope<'_>,
 ) {
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, src, out, enclosing, fn_scope);
-        }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        walk(child, src, out, enclosing, fn_scope);
     }
 }
 
@@ -292,8 +291,8 @@ fn handle_class_or_struct(
 /// (a plain data struct) is `false` here, not vacuously `true`.
 fn is_abstract_class_body(body: Node<'_>, src: &[u8]) -> bool {
     let mut saw_virtual_member = false;
-    for i in 0..body.child_count() {
-        let Some(child) = body.child(i) else { continue };
+    let mut body_cursor = body.walk();
+    for child in body.children(&mut body_cursor) {
         if child.kind() != "field_declaration" {
             continue;
         }
@@ -304,9 +303,8 @@ fn is_abstract_class_body(body: Node<'_>, src: &[u8]) -> bool {
         // children (verified against the grammar's own parse tree,
         // same "verified against the grammar's own output" rationale
         // as `typescript.rs`'s decorator-field comment).
-        let field_children: Vec<Node<'_>> = (0..child.child_count())
-            .filter_map(|j| child.child(j))
-            .collect();
+        let mut child_cursor = child.walk();
+        let field_children: Vec<Node<'_>> = child.children(&mut child_cursor).collect();
         let has_pure_virtual = field_children
             .iter()
             .any(|c| c.kind() == "pure_virtual_clause")
@@ -340,17 +338,13 @@ fn is_abstract_class_body(body: Node<'_>, src: &[u8]) -> bool {
 /// supertrait bounds).
 fn base_class_names(class_node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..class_node.child_count() {
-        let Some(child) = class_node.child(i) else {
-            continue;
-        };
+    let mut class_cursor = class_node.walk();
+    for child in class_node.children(&mut class_cursor) {
         if child.kind() != "base_class_clause" {
             continue;
         }
-        for j in 0..child.child_count() {
-            let Some(entry) = child.child(j) else {
-                continue;
-            };
+        let mut child_cursor = child.walk();
+        for entry in child.children(&mut child_cursor) {
             if matches!(
                 entry.kind(),
                 "type_identifier" | "qualified_identifier" | "template_type"
@@ -371,8 +365,8 @@ fn base_class_names(class_node: Node<'_>, src: &[u8]) -> Vec<String> {
 /// descends into this same body).
 fn field_names(body: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..body.child_count() {
-        let Some(child) = body.child(i) else { continue };
+    let mut cursor = body.walk();
+    for child in body.children(&mut cursor) {
         if child.kind() != "field_declaration" {
             continue;
         }
@@ -505,8 +499,8 @@ fn innermost_declarator_identifier(node: Node<'_>, src: &[u8]) -> Option<String>
 /// must not be collected as an alias name).
 fn typedef_alias_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
         match child.kind() {
             "typedef" | "struct_specifier" | "union_specifier" | "enum_specifier"
             | "class_specifier" | ";" => {
@@ -543,8 +537,8 @@ fn top_level_declaration_symbols(
     }
     let is_const = declaration_has_const(node, src);
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
         if child.kind() != "init_declarator" && child.kind() != "identifier" {
             continue;
         }
@@ -575,13 +569,12 @@ fn top_level_declaration_symbols(
 }
 
 fn declaration_has_const(node: Node<'_>, src: &[u8]) -> bool {
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            if child.kind() == "type_qualifier" {
-                if let Ok(text) = child.utf8_text(src) {
-                    if text == "const" {
-                        return true;
-                    }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() == "type_qualifier" {
+            if let Ok(text) = child.utf8_text(src) {
+                if text == "const" {
+                    return true;
                 }
             }
         }
@@ -595,8 +588,8 @@ fn declaration_has_const(node: Node<'_>, src: &[u8]) -> bool {
 /// `named_closure_binding` / `typescript.rs`'s
 /// `named_arrow_or_const_binding`.
 fn named_lambda_binding(declaration_node: Node<'_>, src: &[u8]) -> Option<SymbolRef> {
-    for j in 0..declaration_node.child_count() {
-        let inner = declaration_node.child(j)?;
+    let mut cursor = declaration_node.walk();
+    for inner in declaration_node.children(&mut cursor) {
         if inner.kind() != "init_declarator" {
             continue;
         }
@@ -686,8 +679,9 @@ fn gtest_macro_test_name(callee: &str, declarator: Node<'_>, src: &[u8]) -> Opti
         return None;
     }
     let params = declarator.child_by_field_name("parameters")?;
-    let idents: Vec<&str> = (0..params.child_count())
-        .filter_map(|i| params.child(i))
+    let mut params_cursor = params.walk();
+    let idents: Vec<&str> = params
+        .children(&mut params_cursor)
         .filter_map(|n| match n.kind() {
             "identifier" | "type_identifier" => n.utf8_text(src).ok(),
             // `TEST(MathSuite, AddsNumbers)`: each bare comma-separated
@@ -746,14 +740,13 @@ fn call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
         return Vec::new();
     };
     let mut out = Vec::new();
-    for i in 0..args.child_count() {
-        if let Some(child) = args.child(i) {
-            if matches!(child.kind(), "(" | ")" | ",") {
-                continue;
-            }
-            if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
-            }
+    let mut cursor = args.walk();
+    for child in args.children(&mut cursor) {
+        if matches!(child.kind(), "(" | ")" | ",") {
+            continue;
+        }
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
