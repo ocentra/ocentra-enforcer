@@ -405,6 +405,20 @@ fn empty_pattern_matches_matches_everything_and_reports_zero_total_gracefully() 
 }
 
 #[test]
+fn offset_at_usize_max_returns_an_empty_page_without_overflowing() -> TestResult {
+    let (_dir, graph) = fixture_graph()?;
+    let spec = SearchGraphSpec {
+        name_pattern: Some(".*".to_owned()),
+        offset: usize::MAX,
+        ..Default::default()
+    };
+    let result = search_graph(&graph, &spec)?;
+    assert!(result.results.is_empty());
+    assert!(!result.has_more);
+    Ok(())
+}
+
+#[test]
 fn invalid_pattern_returns_typed_error_not_panic() {
     let spec = SearchGraphSpec {
         name_pattern: Some("(unclosed".to_owned()),

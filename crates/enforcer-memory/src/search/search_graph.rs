@@ -466,7 +466,7 @@ fn run_bm25(
         results: page,
         semantic_results: Vec::new(),
         total,
-        has_more: total > offset + emitted,
+        has_more: total.saturating_sub(offset) > emitted,
         connected_names: Vec::new(),
     })
 }
