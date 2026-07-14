@@ -28,6 +28,13 @@
     "reason": "wildcard apiGroups alone still flags, at Warning severity"
   },
   {
+    "name": "check-1-clusterrole-wildcard-non-resource-url",
+    "input": "apiVersion: rbac.authorization.k8s.io/v1\nkind: ClusterRole\nmetadata:\n  name: api-admin\nrules:\n- nonResourceURLs: [\"*\"]\n  verbs: [\"*\"]",
+    "expect": "flag",
+    "branch": "wildcard-non-resource-url",
+    "reason": "wildcard nonResourceURLs with wildcard verbs grants unrestricted non-resource API access"
+  },
+  {
     "name": "check-1-clean-scoped-role",
     "input": "apiVersion: rbac.authorization.k8s.io/v1\nkind: Role\nmetadata:\n  name: pod-reader\n  namespace: default\nrules:\n- apiGroups: [\"\"]\n  resources: [\"pods\"]\n  verbs: [\"get\", \"list\"]",
     "expect": "clean",

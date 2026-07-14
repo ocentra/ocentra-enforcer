@@ -65,6 +65,10 @@ struct PolicyRule {
     #[serde(default, rename = "apiGroups")]
     // BRAND-INVARIANT: raw API groups are compared only for a wildcard grant.
     api_groups: Vec<String>,
+    // DEFAULT-JUSTIFICATION: an absent non-resource URL list grants no API-path access.
+    #[serde(default, rename = "nonResourceURLs")]
+    // BRAND-INVARIANT: raw API paths are compared only for wildcard access.
+    non_resource_urls: Vec<String>,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
@@ -143,21 +147,28 @@ impl Validator for K8sRbacValidator {
                 let wildcard_verbs = has(&rule.verbs, "*");
                 let wildcard_resources = has(&rule.resources, "*");
                 let wildcard_api_groups = has(&rule.api_groups, "*");
+                let wildcard_non_resource_urls = has(&rule.non_resource_urls, "*");
 
-                if wildcard_verbs || wildcard_resources || wildcard_api_groups {
-                    let severity = if wildcard_verbs && wildcard_resources {
-                        Severity::Error
-                    } else {
-                        Severity::Warning
-                    };
+                if wildcard_verbs
+                    || wildcard_resources
+                    || wildcard_api_groups
+                    || wildcard_non_resource_urls
+                {
+                    let severity =
+                        if wildcard_verbs && (wildcard_resources || wildcard_non_resource_urls) {
+                            Severity::Error
+                        } else {
+                            Severity::Warning
+                        };
                     findings.push(self.finding(
                         &input,
                         severity,
                         format!(
                             "{kind} rule grants a wildcard permission (verbs: {:?}, resources: \
-                             {:?}, apiGroups: {:?}). Fix: replace `*` with the specific verbs, \
-                             resources, and apiGroups actually required.",
-                            rule.verbs, rule.resources, rule.api_groups
+                             {:?}, apiGroups: {:?}, nonResourceURLs: {:?}). Fix: replace `*` \
+                             with the specific verbs, resources, API groups, and non-resource \
+                             URLs actually required.",
+                            rule.verbs, rule.resources, rule.api_groups, rule.non_resource_urls
                         ),
                     ));
                 }
