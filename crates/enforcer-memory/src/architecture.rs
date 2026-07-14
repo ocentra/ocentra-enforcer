@@ -169,8 +169,15 @@ struct ArchitectureScope<'a> {
 
 impl ArchitectureScope<'_> {
     fn includes(self, path: ArchitecturePath<'_>) -> bool {
-        self.prefix
-            .is_none_or(|prefix| path.0.starts_with(prefix.0))
+        self.prefix.is_none_or(|prefix| {
+            let normalized_prefix = prefix.0.trim_end_matches('/');
+            normalized_prefix.is_empty()
+                || path.0 == normalized_prefix
+                || path
+                    .0
+                    .strip_prefix(normalized_prefix)
+                    .is_some_and(|remainder| remainder.starts_with('/'))
+        })
     }
 }
 

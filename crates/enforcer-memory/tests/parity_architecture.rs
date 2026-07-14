@@ -184,6 +184,28 @@ fn path_prefix_scopes_structure_to_the_matching_crate_only() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn path_scope_does_not_include_a_sibling_with_a_shared_text_prefix() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    init_repo(dir.path())?;
+    let core = dir.path().join("crates/core/src/lib.rs");
+    let corex = dir.path().join("crates/corex/src/lib.rs");
+    fs::create_dir_all(core.parent().ok_or("core source parent")?)?;
+    fs::create_dir_all(corex.parent().ok_or("corex source parent")?)?;
+    fs::write(&core, "pub fn core() {}\n")?;
+    fs::write(&corex, "pub fn corex() {}\n")?;
+    commit_all(dir.path(), "add sibling crates")?;
+
+    let mut graph = CodeGraph::new();
+    graph.index_repository(dir.path(), &[core, corex], &Manifest::default())?;
+    let report = architecture::build_report(&graph, &[Aspect::Structure], Some("crates/core"), 20, 30);
+    let structure = report.structure.ok_or("expected structure section")?;
+
+    assert_eq!(structure.len(), 1, "{structure:?}");
+    assert_eq!(structure[0].name, "crates/core");
+    Ok(())
+}
+
 // --- hard test: layer ordering on this acyclic fixture -------------------
 
 #[test]
