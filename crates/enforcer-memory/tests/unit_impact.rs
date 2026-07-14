@@ -80,19 +80,17 @@ fn unknown_changed_path_is_reported_with_zero_impact_not_panic() -> TestResult<(
 fn build_risk_fixture(dir: &Path, caller_count: usize) -> TestResult<CodeGraph> {
     init_repo(dir)?;
     fs::write(dir.join("helper.rs"), "fn helper() {}\n")?;
-    for index in 0..caller_count {
+    (0..caller_count).try_for_each(|index| {
         fs::write(
             dir.join(format!("caller{index}.rs")),
             "fn caller() { helper(); }\n",
-        )?;
-    }
+        )
+    })?;
     commit_all(dir, "risk-fixture")?;
 
     let mut graph = CodeGraph::new();
     let mut files = vec![dir.join("helper.rs")];
-    for index in 0..caller_count {
-        files.push(dir.join(format!("caller{index}.rs")));
-    }
+    files.extend((0..caller_count).map(|index| dir.join(format!("caller{index}.rs"))));
     graph.index_repository(dir, &files, &Manifest::default())?;
     Ok(graph)
 }
