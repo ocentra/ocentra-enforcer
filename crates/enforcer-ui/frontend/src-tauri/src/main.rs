@@ -3464,11 +3464,14 @@ fn symbol_kind(kind: &GraphSymbolKindSnapshot) -> &'static str {
 }
 
 #[cfg(test)]
+#[path = "../tests/support/graph_source_snippet.rs"]
+mod graph_source_snippet_tests;
+
+#[cfg(test)]
 mod graph_projection_tests {
     use super::{
         build_projection, focused_graph_file_ids, focused_graph_file_ids_for_node,
-        graph_folder_aggregates, load_graph_source_snippet, symbol_kind, GraphFocusRequest,
-        MAX_PROJECTION_FILES,
+        graph_folder_aggregates, symbol_kind, GraphFocusRequest, MAX_PROJECTION_FILES,
     };
     use enforcer_memory::artifacts::{
         CallEdgeSnapshot, GraphFileSnapshot, GraphSnapshot, GraphSymbolKindSnapshot,
@@ -3607,36 +3610,6 @@ mod graph_projection_tests {
         assert_eq!(focused_projection.nodes[0].path, "src/late-focus.rs");
     }
 
-    #[test]
-    fn graph_source_snippet_reads_context_only_inside_the_selected_project(
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let root = std::env::temp_dir().join(format!(
-            "enforcer-graph-source-snippet-test-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)?
-                .as_nanos()
-        ));
-        std::fs::create_dir_all(root.join("src"))?;
-        std::fs::write(
-            root.join("src/lib.rs"),
-            "one\ntwo\nthree\nfour\nfive\nsix\nseven\neight\n",
-        )?;
-
-        let snippet =
-            load_graph_source_snippet(root.display().to_string(), "src/lib.rs".to_owned(), 5)?;
-
-        assert_eq!(snippet.start_line, 2);
-        assert_eq!(snippet.end_line, 8);
-        assert!(snippet.content.contains("    5 | five"));
-        let error =
-            load_graph_source_snippet(root.display().to_string(), "../outside.rs".to_owned(), 1)
-                .err()
-                .expect("parent path is rejected");
-        assert!(error.contains("project-relative"));
-        std::fs::remove_dir_all(root)?;
-        Ok(())
-    }
 }
 
 fn main() {
