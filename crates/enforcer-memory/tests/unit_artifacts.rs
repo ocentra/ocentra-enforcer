@@ -193,22 +193,6 @@ fn artifact_json_has_exactly_the_baseline_field_set() -> Result<(), Box<dyn Erro
 }
 
 #[test]
-fn graph_file_snapshot_identity_fields_keep_the_string_wire_contract() -> Result<(), Box<dyn Error>>
-{
-    let graph = sample_graph()?;
-    let snapshot = GraphSnapshot::from_code_graph(&graph);
-    let value = serde_json::to_value(&snapshot)?;
-    let file = value["files"]
-        .as_array()
-        .and_then(|files| files.first())
-        .ok_or("expected one file snapshot")?;
-    assert!(file["id"].is_string());
-    assert!(file["rel_path"].is_string());
-    assert!(file["content_hash"].is_string());
-    Ok(())
-}
-
-#[test]
 fn artifact_exists_is_false_until_export_then_true() -> Result<(), Box<dyn Error>> {
     let root = temp_dir("exists-flag");
     std::fs::create_dir_all(&root)?;

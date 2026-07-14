@@ -1273,10 +1273,10 @@ impl CodeGraph {
     fn restore_from_snapshot(&mut self, snapshot: &crate::artifacts::GraphSnapshot) {
         for file in &snapshot.files {
             let node = FileNode {
-                id: file.id.as_str().to_owned(),
-                rel_path: file.rel_path.as_str().to_owned(),
+                id: file.id.clone(),
+                rel_path: file.rel_path.clone(),
                 language: LanguageTag::TextOnly,
-                content_hash: file.content_hash.as_str().to_owned(),
+                content_hash: file.content_hash.clone(),
                 last_commit: file.last_commit.clone(),
                 change_count: file.change_count,
                 chunk_ids: file.chunk_ids.clone(),
