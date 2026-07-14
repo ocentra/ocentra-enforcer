@@ -320,6 +320,15 @@ fn route_choice_trace_with_confidence() -> Result<(), Box<dyn std::error::Error>
     assert_eq!(graph.route_traces()[1].confidence, 1.0);
     assert_eq!(graph.route_traces()[2].confidence, 0.0);
 
+    record_route_choice(
+        &mut graph,
+        "malformed confidence",
+        "recall",
+        f64::NAN,
+        "2026-01-01T00:00:03Z",
+    );
+    assert_eq!(graph.route_traces()[3].confidence, 0.0);
+
     // Procedural memory records both retrieval/fix success AND failure
     // for the same lesson -- a memory that only logs success cannot
     // distinguish "reliable" from "tried once and got lucky".

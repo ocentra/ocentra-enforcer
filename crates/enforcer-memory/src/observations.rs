@@ -116,6 +116,17 @@ impl RouteTrace {
     }
 }
 
+/// Preserve the route-confidence domain at every ingestion and replay
+/// boundary. Public record fields and historical NDJSON can otherwise carry
+/// non-finite values, for which `f64::clamp` alone is not sufficient.
+fn normalize_confidence(confidence: f64) -> f64 {
+    if confidence.is_finite() {
+        confidence.clamp(0.0, 1.0)
+    } else {
+        0.0
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProceduralStoreInput {
     pub lesson_id: String,
@@ -253,7 +264,7 @@ pub fn record_route_choice(
         id: id.clone(),
         query: query.into(),
         route: route.into(),
-        confidence: confidence.clamp(0.0, 1.0),
+        confidence: normalize_confidence(confidence),
         ts: ts.into(),
     };
     graph.ingest_route_trace(trace);
@@ -274,7 +285,7 @@ pub fn record_route_choice_in_store(
             id: id.clone(),
             query: input.query.clone(),
             route: input.route.clone(),
-            confidence: input.confidence.clamp(0.0, 1.0),
+            confidence: normalize_confidence(input.confidence),
             ts: input.ts.clone(),
         };
         let payload = serde_json::json!({
@@ -362,7 +373,7 @@ fn replay_route_traces_from_native_log(store: &Store, graph: &mut MemoryGraph) -
             id: entry.id,
             query: entry.query,
             route: entry.route,
-            confidence: entry.confidence,
+            confidence: normalize_confidence(entry.confidence),
             ts: entry.ts,
         };
         if !graph
@@ -393,7 +404,8 @@ fn replay_procedural_and_routes_from_legacy_observation_log(
                 }
             }
             (Some("route-choice"), Some(payload)) => {
-                let trace: RouteTrace = serde_json::from_value(payload)?;
+                let mut trace: RouteTrace = serde_json::from_value(payload)?;
+                trace.confidence = normalize_confidence(trace.confidence);
                 if !graph.route_traces().iter().any(|r| r.id == trace.id) {
                     graph.ingest_route_trace(trace);
                     count += 1;
