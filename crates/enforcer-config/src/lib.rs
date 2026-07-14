@@ -75,11 +75,12 @@ pub fn load_project_config_with_env(
     let config_env = ConfigEnv::read()?;
     let config_path = config_env
         .config_path
-        .as_deref()
+        .as_ref()
+        .map(env::ConfigPathOverride::as_path)
         .unwrap_or(default_config_path);
     let mut effective = load_project_config(config_path)?;
     if let Some(profile_override) = config_env.profile_name {
-        effective = resolve::resolve_profile_only(&profile_override)?;
+        effective = resolve::resolve_profile_only(profile_override.as_str())?;
     }
     Ok(effective)
 }

@@ -31,6 +31,28 @@ pub const ENFORCER_CONFIG_PATH_VAR: &str = "ENFORCER_CONFIG_PATH";
 /// Name of the profile-name override variable.
 pub const ENFORCER_PROFILE_VAR: &str = "ENFORCER_PROFILE";
 
+/// A non-empty, NUL-free path supplied through `ENFORCER_CONFIG_PATH`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConfigPathOverride(PathBuf);
+
+impl ConfigPathOverride {
+    #[must_use]
+    pub fn as_path(&self) -> &std::path::Path {
+        &self.0
+    }
+}
+
+/// A profile name validated against the embedded profile registry.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProfileNameOverride(String);
+
+impl ProfileNameOverride {
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 /// Typed, decoded view of every environment variable `enforcer-config`
 /// consumes. Constructed only via [`ConfigEnv::read`] /
 /// [`ConfigEnv::read_from`] — never assembled field-by-field from ad hoc
@@ -38,9 +60,9 @@ pub const ENFORCER_PROFILE_VAR: &str = "ENFORCER_PROFILE";
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ConfigEnv {
     /// `ENFORCER_CONFIG_PATH` override, if set.
-    pub config_path: Option<PathBuf>,
+    pub config_path: Option<ConfigPathOverride>,
     /// `ENFORCER_PROFILE` override, if set and valid.
-    pub profile_name: Option<String>,
+    pub profile_name: Option<ProfileNameOverride>,
 }
 
 /// Abstraction over "look up an env var by name", so tests can supply a
@@ -108,12 +130,14 @@ impl ConfigEnv {
                     reason: "path override must not contain NUL bytes".to_owned(),
                 });
             }
-            Some(value) => Some(PathBuf::from(value)),
+            Some(value) => Some(ConfigPathOverride(PathBuf::from(value))),
         };
 
         let profile_name = match env.lookup(ENFORCER_PROFILE_VAR)? {
             None => None,
-            Some(value) if KNOWN_PROFILE_NAMES.contains(&value.as_str()) => Some(value),
+            Some(value) if KNOWN_PROFILE_NAMES.contains(&value.as_str()) => {
+                Some(ProfileNameOverride(value))
+            }
             Some(value) => {
                 return Err(ConfigLoadError::InvalidEnvVar {
                     var: ENFORCER_PROFILE_VAR,

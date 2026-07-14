@@ -48,7 +48,7 @@ fn config_path_var_decodes_to_typed_path_buf() -> Result<(), Box<dyn std::error:
     let mut values = BTreeMap::new();
     values.insert(ENFORCER_CONFIG_PATH_VAR, "custom/cfg.json".to_owned());
     let decoded = ConfigEnv::read_from(&ControlledEnv::with_values(values))?;
-    assert_eq!(decoded.config_path, Some(PathBuf::from("custom/cfg.json")));
+    assert_eq!(decoded.config_path.as_ref().map(|path| path.as_path()), Some(PathBuf::from("custom/cfg.json").as_path()));
     assert_eq!(decoded.profile_name, None);
     Ok(())
 }
@@ -91,7 +91,7 @@ fn profile_var_with_known_name_decodes() -> Result<(), Box<dyn std::error::Error
     let mut values = BTreeMap::new();
     values.insert(ENFORCER_PROFILE_VAR, "strict".to_owned());
     let decoded = ConfigEnv::read_from(&ControlledEnv::with_values(values))?;
-    assert_eq!(decoded.profile_name, Some("strict".to_owned()));
+    assert_eq!(decoded.profile_name.as_ref().map(|profile| profile.as_str()), Some("strict"));
     Ok(())
 }
 
@@ -133,7 +133,7 @@ fn both_vars_set_decode_independently() -> Result<(), Box<dyn std::error::Error>
     values.insert(ENFORCER_CONFIG_PATH_VAR, "a/b.json".to_owned());
     values.insert(ENFORCER_PROFILE_VAR, "ocentra-parent".to_owned());
     let decoded = ConfigEnv::read_from(&ControlledEnv::with_values(values))?;
-    assert_eq!(decoded.config_path, Some(PathBuf::from("a/b.json")));
-    assert_eq!(decoded.profile_name, Some("ocentra-parent".to_owned()));
+    assert_eq!(decoded.config_path.as_ref().map(|path| path.as_path()), Some(PathBuf::from("a/b.json").as_path()));
+    assert_eq!(decoded.profile_name.as_ref().map(|profile| profile.as_str()), Some("ocentra-parent"));
     Ok(())
 }
