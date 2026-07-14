@@ -99,6 +99,19 @@ fn static_backtick_url_literal_is_matched() {
 }
 
 #[test]
+fn absolute_url_with_root_path_is_matched() {
+    let current = graph_with_call("axios.get", "https://api.example.com/");
+    let target = graph_with_route("GET", "/");
+    let mut targets = BTreeMap::new();
+    targets.insert("service-b".to_owned(), &target);
+
+    let report = match_cross_repo("service-a", &current, &targets);
+
+    assert_eq!(report.cross_http_calls.len(), 1);
+    assert_eq!(report.cross_http_calls[0].path, "/");
+}
+
+#[test]
 fn matching_route_declarations_produce_route_declaration_cross_http_edge() {
     let current = graph_with_route("GET", "/widgets");
     let target = graph_with_route("GET", "/widgets");

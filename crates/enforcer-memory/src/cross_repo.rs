@@ -793,8 +793,8 @@ fn strip_quotes(text: &str) -> Option<&str> {
 fn strip_scheme_and_host(literal: &str) -> String {
     for scheme in ["http://", "https://"] {
         if let Some(rest) = literal.strip_prefix(scheme) {
-            if let Some(slash_idx) = rest.find('/') {
-                return rest[slash_idx..].to_owned();
+            if let Some((_, path)) = rest.split_once('/') {
+                return format!("/{path}");
             }
             // A scheme+host with no path at all -- treat as root.
             return "/".to_owned();
