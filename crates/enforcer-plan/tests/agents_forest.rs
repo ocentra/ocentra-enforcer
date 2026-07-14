@@ -206,6 +206,26 @@ fn chain_resolves_fires_on_broken_next_pointer() -> Result<(), Box<dyn std::erro
 }
 
 #[test]
+fn chain_resolves_rejects_a_next_pointer_that_skips_a_tier(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let docs = vec![
+        TierDocument {
+            path: "global/AGENTS.md".to_owned(),
+            source: "<!-- agents-forest-tier: global -->\n<!-- agents-next-tier -->\nNEXT: plan/AGENTS.md\n<!-- /agents-next-tier -->".to_owned(),
+        },
+        TierDocument {
+            path: "plan/AGENTS.md".to_owned(),
+            source: "<!-- agents-forest-tier: plan -->\n<!-- agents-next-tier -->\nNEXT: RESUME_STATE.md\n<!-- /agents-next-tier -->".to_owned(),
+        },
+    ];
+
+    let findings = check_chain_resolves(&rid("AGENTS-CHAIN.1")?, &docs);
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].title, "NEXT pointer targets wrong tier");
+    Ok(())
+}
+
+#[test]
 fn chain_resolves_silent_on_pass_fixtures() -> Result<(), Box<dyn std::error::Error>> {
     let root = manifest_dir();
     let docs = ["global", "project", "plan"]

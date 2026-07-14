@@ -517,17 +517,44 @@ pub fn check_chain_resolves(rule_id: &RuleId, docs: &[TierDocument]) -> Vec<Find
             continue;
         };
 
-        // The plan tier's NEXT pointer legitimately names the resume
-        // anchor (a non-AGENTS.md file) rather than a fourth tier
-        // document, so only global/project tiers are required to resolve
-        // to ANOTHER tier document in `docs`.
-        if marker != "plan" && !by_path.contains_key(next_path.as_str()) {
+        let expected_next_tier = match marker {
+            "global" => Some("project"),
+            "project" => Some("plan"),
+            // The plan tier's NEXT pointer names the resume anchor, not a
+            // fourth tier document.
+            "plan" => None,
+            _ => {
+                findings.push(finding(
+                    rule_id,
+                    "unsupported tier marker",
+                    format!("tier document declares unsupported marker `{marker}`"),
+                    &synthetic_path(&doc.path),
+                ));
+                continue;
+            }
+        };
+        let Some(expected_next_tier) = expected_next_tier else {
+            continue;
+        };
+        let Some(next_doc) = by_path.get(next_path.as_str()) else {
             findings.push(finding(
                 rule_id,
                 "broken NEXT pointer",
                 format!(
                     "tier `{marker}` NEXT pointer names `{next_path}`, which is not one of the \
                      supplied tier documents"
+                ),
+                &synthetic_path(&doc.path),
+            ));
+            continue;
+        };
+        if tier_marker(&next_doc.source) != Some(expected_next_tier) {
+            findings.push(finding(
+                rule_id,
+                "NEXT pointer targets wrong tier",
+                format!(
+                    "tier `{marker}` NEXT pointer names `{next_path}`, which must be a \
+                     `{expected_next_tier}` tier document"
                 ),
                 &synthetic_path(&doc.path),
             ));
