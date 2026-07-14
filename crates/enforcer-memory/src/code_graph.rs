@@ -1509,7 +1509,7 @@ impl CodeGraph {
         // callee last-name-segment -> ids of callable symbols with that name.
         let mut ids_by_name: HashMap<&str, Vec<&str>> = HashMap::new();
         for (id, idx) in &callable_ids {
-            if let Some(s) = callable_symbol(&self.nodes[*idx]) {
+            if let Some(s) = self.nodes.get(*idx).and_then(callable_symbol) {
                 ids_by_name
                     .entry(s.name.as_str())
                     .or_default()
@@ -1526,7 +1526,7 @@ impl CodeGraph {
             // still safe (just conservatively drops one node's Tier B
             // metrics) if that invariant is ever violated by a future
             // edit.
-            let Some(symbol) = callable_symbol(&self.nodes[*idx]) else {
+            let Some(symbol) = self.nodes.get(*idx).and_then(callable_symbol) else {
                 continue;
             };
             let loop_depth = symbol.metrics.map(|m| m.loop_depth).unwrap_or(0);
@@ -1560,7 +1560,7 @@ impl CodeGraph {
 
         for (id, idx) in &callable_ids {
             if let Some(metrics) = results.get(id) {
-                if let Some(symbol) = callable_symbol_mut(&mut self.nodes[*idx]) {
+                if let Some(symbol) = self.nodes.get_mut(*idx).and_then(callable_symbol_mut) {
                     symbol.transitive_metrics = Some(*metrics);
                 }
             }
