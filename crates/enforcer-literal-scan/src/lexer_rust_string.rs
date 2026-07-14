@@ -30,18 +30,23 @@ pub(crate) fn try_rust_raw_string(
     line: &mut usize,
     col: &mut usize,
 ) -> bool {
-    if !source.is_char_boundary(*index) {
+    let Some(rest) = source.get(*index..) else {
         return false;
-    }
-    let Some((prefix_len, hash_count, kind)) = rust_raw_prefix(&source[*index..]) else {
+    };
+    let Some((prefix_len, hash_count, kind)) = rust_raw_prefix(rest) else {
         return false;
     };
     let content_start = *index + prefix_len;
     let closing = format!("\"{}", "#".repeat(hash_count));
-    let Some(end_rel) = source[content_start..].find(&closing) else {
+    let Some(content_source) = source.get(content_start..) else {
         return false;
     };
-    let content = &source[content_start..content_start + end_rel];
+    let Some(end_rel) = content_source.find(&closing) else {
+        return false;
+    };
+    let Some(content) = content_source.get(..end_rel) else {
+        return false;
+    };
     out.push(candidate(
         content,
         *line,
@@ -50,7 +55,10 @@ pub(crate) fn try_rust_raw_string(
         line_at(source, *line),
     ));
     let consumed = prefix_len + end_rel + closing.len();
-    advance_position(&source[*index..*index + consumed], line, col);
+    let Some(consumed_source) = rest.get(..consumed) else {
+        return false;
+    };
+    advance_position(consumed_source, line, col);
     *index += consumed;
     true
 }
@@ -71,7 +79,10 @@ pub(crate) fn try_rust_byte_string(
     if !(ch == 'b' && next == Some('"')) {
         return false;
     }
-    let Some((content, consumed)) = read_quoted(&source[*index + 1..], '"') else {
+    let Some(byte_string_source) = source.get(*index + 1..) else {
+        return false;
+    };
+    let Some((content, consumed)) = read_quoted(byte_string_source, '"') else {
         return false;
     };
     out.push(candidate(
@@ -81,7 +92,10 @@ pub(crate) fn try_rust_byte_string(
         LiteralKind::Byte,
         line_at(source, *line),
     ));
-    advance_position(&source[*index..*index + 1 + consumed], line, col);
+    let Some(consumed_source) = source.get(*index..*index + 1 + consumed) else {
+        return false;
+    };
+    advance_position(consumed_source, line, col);
     *index += 1 + consumed;
     true
 }
@@ -101,7 +115,10 @@ pub(crate) fn try_rust_standard_string(
     if ch != '"' {
         return false;
     }
-    let Some((content, consumed)) = read_quoted(&source[*index..], '"') else {
+    let Some(rest) = source.get(*index..) else {
+        return false;
+    };
+    let Some((content, consumed)) = read_quoted(rest, '"') else {
         return false;
     };
     out.push(candidate(
@@ -111,7 +128,10 @@ pub(crate) fn try_rust_standard_string(
         LiteralKind::Normal,
         line_at(source, *line),
     ));
-    advance_position(&source[*index..*index + consumed], line, col);
+    let Some(consumed_source) = rest.get(..consumed) else {
+        return false;
+    };
+    advance_position(consumed_source, line, col);
     *index += consumed;
     true
 }
@@ -126,14 +146,19 @@ pub(crate) fn try_rust_char_or_lifetime(
     if ch != '\'' {
         return false;
     }
-    let rest = &source[*index..];
+    let Some(rest) = source.get(*index..) else {
+        return false;
+    };
     if is_rust_lifetime(rest) {
         *index += 1;
         *col += 1;
         return true;
     }
     if let Some((_content, consumed)) = read_quoted(rest, '\'') {
-        advance_position(&source[*index..*index + consumed], line, col);
+        let Some(consumed_source) = rest.get(..consumed) else {
+            return false;
+        };
+        advance_position(consumed_source, line, col);
         *index += consumed;
         return true;
     }
