@@ -77,13 +77,15 @@ fn import_target(line: &str) -> Option<&str> {
         return None;
     }
     let from_idx = trimmed.find(" from ")?;
-    let rest = &trimmed[from_idx + " from ".len()..];
+    let start = from_idx.checked_add(" from ".len())?;
+    let rest = trimmed.get(start..)?;
     let quote = rest.chars().next()?;
     if quote != '"' && quote != '\'' {
         return None;
     }
-    let closing = rest[1..].find(quote)?;
-    Some(&rest[1..1 + closing])
+    let quoted = rest.get(1..)?;
+    let closing = quoted.find(quote)?;
+    quoted.get(..closing)
 }
 
 /// FE-ARCH-1.3 — feature boundaries (T1): a `features/<a>/**` file
@@ -109,21 +111,23 @@ impl FeatureBoundaryValidator {
 /// `<name>`, if the path has that shape.
 fn owning_feature(path: &str) -> Option<&str> {
     let idx = path.find("features/")?;
-    let rest = &path[idx + "features/".len()..];
+    let start = idx.checked_add("features/".len())?;
+    let rest = path.get(start..)?;
     let end = rest.find('/')?;
-    Some(&rest[..end])
+    rest.get(..end)
 }
 
 /// Parse `@/features/<name>/...` out of an import target, returning
 /// `<name>`, if the import has that shape.
 fn imported_feature(target: &str) -> Option<&str> {
     let idx = target.find("@/features/")?;
-    let rest = &target[idx + "@/features/".len()..];
+    let start = idx.checked_add("@/features/".len())?;
+    let rest = target.get(start..)?;
     let end = rest.find('/').unwrap_or(rest.len());
     if end == 0 {
         return None;
     }
-    Some(&rest[..end])
+    rest.get(..end)
 }
 
 impl Validator for FeatureBoundaryValidator {
@@ -682,7 +686,9 @@ fn is_any_annotation(text: &str) -> bool {
         return false;
     };
     let end = idx + ": any".len();
-    let right_ok = text[end..]
+    let right_ok = text
+        .get(end..)
+        .unwrap_or("")
         .chars()
         .next()
         .is_none_or(|c| !(c.is_alphanumeric() || c == '_'));
@@ -765,7 +771,7 @@ fn brace_import_names(line: &str) -> Option<Vec<&str>> {
         return None;
     }
     Some(
-        trimmed[open + 1..close]
+        trimmed.get(open.checked_add(1)?..close)?
             .split(',')
             .map(str::trim)
             .filter(|s| !s.is_empty())
