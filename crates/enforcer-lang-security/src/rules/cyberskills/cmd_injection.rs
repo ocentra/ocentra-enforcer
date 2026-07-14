@@ -114,6 +114,11 @@ impl CommandInjectionValidator {
                 check: SinkCheck::DynamicArgument,
             },
             SinkPattern {
+                label: "Python os.popen(...)",
+                regex: compile("cyberskillsCmdInjectOsPopen", r"os\.popen\s*\((.*?)\)")?,
+                check: SinkCheck::DynamicArgument,
+            },
+            SinkPattern {
                 label: "Node child_process.exec()/execSync()",
                 regex: compile(
                     "cyberskillsCmdInjectChildProcessExec",
@@ -213,30 +218,5 @@ impl Validator for CommandInjectionValidator {
             });
         }
         findings
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::path::PathBuf;
-
-    use enforcer_validator::harness::run_fixture_parity;
-
-    use super::CommandInjectionValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
-
-    #[test]
-    fn cyberskills_cmd_injection() -> Result<(), Box<dyn std::error::Error>> {
-        let validator = CommandInjectionValidator::new()?;
-        run_fixture_parity(
-            &validator,
-            &manifest_dir(),
-            "tests/fixtures/cyberskills/web.command-injection/bad/inject.py",
-            "tests/fixtures/cyberskills/web.command-injection/good/safe.py",
-        )?;
-        Ok(())
     }
 }

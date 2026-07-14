@@ -56,6 +56,20 @@
     "reason": "fully static string literal, never flagged"
   },
   {
+    "name": "os-popen: bare variable",
+    "input": "os.popen(cmd)",
+    "expect": "flag",
+    "branch": "os-popen-dynamic",
+    "reason": "os.popen sends a variable command through a shell"
+  },
+  {
+    "name": "os-popen: clean, fully static literal",
+    "input": "os.popen(\"uname -a\")",
+    "expect": "clean",
+    "branch": "os-popen-dynamic",
+    "reason": "fully static command literal is outside this non-literal sink rule"
+  },
+  {
     "name": "node-child-process: backtick template interpolation",
     "input": "child_process.exec(`ls ${dir}`);",
     "expect": "flag",
