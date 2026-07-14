@@ -126,18 +126,23 @@ impl UndirectedAdjacency {
                 return;
             }
             neighbors
+                // CLONE-JUSTIFICATION: adjacency map owns source key while edge tuple retains source.
                 .entry(from.clone())
                 .or_default()
+                // CLONE-JUSTIFICATION: adjacency set owns target while directed edge retains target.
                 .insert(to.clone());
             neighbors
+                // CLONE-JUSTIFICATION: reverse adjacency map owns target key while edge tuple retains target.
                 .entry(to.clone())
                 .or_default()
+                // CLONE-JUSTIFICATION: reverse adjacency set owns source while directed edge retains source.
                 .insert(from.clone());
             directed_edges.push((from, to));
         };
 
         // File -> symbol containment (structural).
         for symbol in graph.symbol_nodes() {
+            // CLONE-JUSTIFICATION: owned adjacency graph outlives borrowed symbol iterator.
             add_edge(symbol.file_id.clone(), symbol.id.clone());
         }
 
@@ -150,6 +155,7 @@ impl UndirectedAdjacency {
             .collect();
         for import in graph.imports() {
             if let Some(to_id) = resolve_module_path(&import.module_path, &file_paths) {
+                // CLONE-JUSTIFICATION: owned adjacency graph outlives borrowed import iterator.
                 add_edge(import.from_file_id.clone(), to_id.to_string());
             }
         }
@@ -161,6 +167,7 @@ impl UndirectedAdjacency {
             .collect();
         for call in graph.calls() {
             if let Some(to_id) = resolve_callee(&call.callee, &symbol_names) {
+                // CLONE-JUSTIFICATION: owned adjacency graph outlives borrowed call iterator.
                 add_edge(call.from_file_id.clone(), to_id.to_string());
             }
         }
@@ -226,6 +233,7 @@ pub fn detect_clusters(graph: &CodeGraph, max_iterations: usize) -> ClusteringRe
     let mut labels: BTreeMap<String, String> = adjacency
         .node_ids
         .iter()
+        // CLONE-JUSTIFICATION: labels own independent key and value entries after adjacency borrow.
         .map(|id| (id.clone(), id.clone()))
         .collect();
 
@@ -256,6 +264,7 @@ pub fn detect_clusters(graph: &CodeGraph, max_iterations: usize) -> ClusteringRe
             if let Some(best_label) = best_label {
                 let current = labels.get(node_id).map(String::as_str).unwrap_or("");
                 if best_label != current {
+                    // CLONE-JUSTIFICATION: label map owns node id beyond adjacency iteration.
                     labels.insert(node_id.clone(), best_label);
                     changed = true;
                 }
@@ -275,8 +284,10 @@ pub fn detect_clusters(graph: &CodeGraph, max_iterations: usize) -> ClusteringRe
     let mut groups: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for (node_id, label) in &labels {
         groups
+            // CLONE-JUSTIFICATION: community map owns label beyond borrowed labels iteration.
             .entry(label.clone())
             .or_default()
+            // CLONE-JUSTIFICATION: community set owns member id beyond borrowed labels iteration.
             .insert(node_id.clone());
     }
 
