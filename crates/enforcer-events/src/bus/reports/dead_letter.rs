@@ -28,9 +28,13 @@ impl DeadLetter {
         stored: &StoredEventEnvelope,
         report: &super::handler::HandlerReport,
     ) -> Option<Self> {
+        // CLONE-JUSTIFICATION: the dead-letter report owns its error after the borrowed handler report is released.
         report.error.clone().map(|error| Self {
+            // CLONE-JUSTIFICATION: the journaled dead letter owns its envelope after the borrowed storage record is released.
             envelope: stored.clone(),
+            // CLONE-JUSTIFICATION: the dead-letter journal retains the subscriber identity independently of the handler report.
             subscriber_id: Some(report.subscriber_id.clone()),
+            // CLONE-JUSTIFICATION: the dead-letter journal retains the target handler independently of the handler report.
             target_handler: Some(report.target_handler.clone()),
             reason: report.outcome.dead_letter_reason(),
             error,
@@ -43,6 +47,7 @@ impl DeadLetter {
         error: EventingError,
     ) -> Self {
         Self {
+            // CLONE-JUSTIFICATION: the queued dead letter owns its envelope after the borrowed storage record is released.
             envelope: stored.clone(),
             subscriber_id: None,
             target_handler: None,
@@ -53,11 +58,16 @@ impl DeadLetter {
 
     pub fn as_event(&self) -> DeadLetterEvent {
         DeadLetterEvent {
+            // CLONE-JUSTIFICATION: the published domain event must own the original event id beyond this borrowed journal entry.
             original_event_id: self.envelope.event_id.clone(),
+            // CLONE-JUSTIFICATION: the published domain event must own the original event type beyond this borrowed journal entry.
             original_event_type: self.envelope.contract.event_type.clone(),
+            // CLONE-JUSTIFICATION: the published domain event must own the original correlation id beyond this borrowed journal entry.
             original_correlation_id: self.envelope.correlation_id.clone(),
             reason: self.reason,
+            // CLONE-JUSTIFICATION: the published domain event must own the optional subscriber identity beyond this borrowed journal entry.
             subscriber_id: self.subscriber_id.clone(),
+            // CLONE-JUSTIFICATION: the published domain event must own the optional target handler beyond this borrowed journal entry.
             target_handler: self.target_handler.clone(),
         }
     }
