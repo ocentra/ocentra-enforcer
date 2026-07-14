@@ -229,7 +229,7 @@ pub fn detect_clusters(graph: &CodeGraph, max_iterations: usize) -> ClusteringRe
         .map(|id| (id.clone(), id.clone()))
         .collect();
 
-    for _ in 0..max_iterations {
+    for _ in std::iter::repeat(()).take(max_iterations) {
         let mut changed = false;
         // Fixed, stable visitation order: sorted node ids, never
         // insertion/hash order and never randomized -- the determinism

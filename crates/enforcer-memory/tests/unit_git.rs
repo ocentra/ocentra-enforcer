@@ -6,6 +6,21 @@ use std::process::Command;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
+#[test]
+fn git_diff_path_lookup_uses_delta_iterator_for_old_and_new_paths() {
+    let source = include_str!("../src/git.rs");
+
+    assert_eq!(
+        source
+            .matches("for idx in 0..diff.deltas().count()")
+            .count(),
+        0
+    );
+    assert_eq!(source.matches("diff.deltas().any(|delta|").count(), 1);
+    assert_eq!(source.matches(".old_file()").count(), 1);
+    assert_eq!(source.matches(".new_file()").count(), 1);
+}
+
 /// Initialize a throwaway git repo with git CLI (available in every
 /// CI/dev environment this workspace targets) so tests exercise real
 /// commit history rather than a hand-built libgit2 object graph.

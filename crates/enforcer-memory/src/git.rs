@@ -200,28 +200,17 @@ fn strip_extended_length_prefix(path: &Path) -> PathBuf {
 }
 
 fn diff_touches_path(diff: &git2::Diff<'_>, rel_path: &str) -> bool {
-    let mut touched = false;
     let normalized = rel_path.replace('\\', "/");
-    // `foreach` cannot capture a mutable outer variable through a
-    // fallible closure while also returning `Result` ergonomically, so
-    // collect delta paths first, then check membership.
-    for idx in 0..diff.deltas().count() {
-        if let Some(delta) = diff.get_delta(idx) {
-            let matches = delta
-                .old_file()
+    diff.deltas().any(|delta| {
+        delta
+            .old_file()
+            .path()
+            .map(|path| path.to_string_lossy().replace('\\', "/") == normalized)
+            .unwrap_or(false)
+            || delta
+                .new_file()
                 .path()
-                .map(|p| p.to_string_lossy().replace('\\', "/") == normalized)
+                .map(|path| path.to_string_lossy().replace('\\', "/") == normalized)
                 .unwrap_or(false)
-                || delta
-                    .new_file()
-                    .path()
-                    .map(|p| p.to_string_lossy().replace('\\', "/") == normalized)
-                    .unwrap_or(false);
-            if matches {
-                touched = true;
-                break;
-            }
-        }
-    }
-    touched
+    })
 }

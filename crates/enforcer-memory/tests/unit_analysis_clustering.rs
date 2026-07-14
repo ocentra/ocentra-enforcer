@@ -164,3 +164,16 @@ fn inter_cluster_edges_count_only_cross_cluster_edges() -> TestResult {
     }
     Ok(())
 }
+
+#[test]
+fn clustering_refinement_uses_bounded_iterator_traversal() {
+    let source = include_str!("../src/analysis/clustering.rs");
+
+    assert_eq!(source.matches("for _ in 0..max_iterations").count(), 0);
+    assert_eq!(
+        source
+            .matches("std::iter::repeat(()).take(max_iterations)")
+            .count(),
+        1
+    );
+}
