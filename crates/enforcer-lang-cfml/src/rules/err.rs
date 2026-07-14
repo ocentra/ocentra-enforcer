@@ -75,7 +75,9 @@ pub struct EmptyCatchSwallowValidator {
 
 impl fmt::Debug for EmptyCatchSwallowValidator {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.debug_struct("EmptyCatchSwallowValidator").finish()
+        formatter
+            .debug_struct("EmptyCatchSwallowValidator")
+            .finish()
     }
 }
 
