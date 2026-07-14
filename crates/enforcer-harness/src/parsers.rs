@@ -439,17 +439,24 @@ fn parse_tsc_text(run_id: &str, tool: &str, text: &str) -> Vec<HarnessDiagnostic
     let re =
         Regex::new(r"(?m)^(.+?)\((\d+),(\d+)\):\s+(error|warning)\s+(TS\d+):\s+(.+)$").unwrap();
     re.captures_iter(text)
-        .map(|cap| HarnessDiagnostic {
-            run_id: run_id.to_owned(),
-            tool: tool.to_owned(),
-            language: "typescript".to_owned(),
-            severity: cap[4].to_owned(),
-            rule_id: cap[5].to_owned(),
-            file: normalize_rel(&cap[1]),
-            line: cap[2].parse().unwrap_or(1),
-            message: cap[6].to_owned(),
-            source: None,
-            fingerprint: None,
+        .filter_map(|cap| {
+            let file = cap.get(1)?.as_str();
+            let line = cap.get(2)?.as_str().parse().unwrap_or(1);
+            let severity = cap.get(4)?.as_str();
+            let rule_id = cap.get(5)?.as_str();
+            let message = cap.get(6)?.as_str();
+            Some(HarnessDiagnostic {
+                run_id: run_id.to_owned(),
+                tool: tool.to_owned(),
+                language: "typescript".to_owned(),
+                severity: severity.to_owned(),
+                rule_id: rule_id.to_owned(),
+                file: normalize_rel(file),
+                line,
+                message: message.to_owned(),
+                source: None,
+                fingerprint: None,
+            })
         })
         .collect()
 }
@@ -458,17 +465,21 @@ fn parse_pytest_text(run_id: &str, tool: &str, text: &str) -> Vec<HarnessDiagnos
     #[allow(clippy::unwrap_used)]
     let re = Regex::new(r"(?m)^FAILED\s+([^:\s]+(?:::[^\s]+)*)\s+-\s+(.+)$").unwrap();
     re.captures_iter(text)
-        .map(|cap| HarnessDiagnostic {
-            run_id: run_id.to_owned(),
-            tool: tool.to_owned(),
-            language: "python".to_owned(),
-            severity: "error".to_owned(),
-            rule_id: "pytest".to_owned(),
-            file: cap[1].split("::").next().unwrap_or_default().to_owned(),
-            line: 1,
-            message: cap[2].to_owned(),
-            source: None,
-            fingerprint: None,
+        .filter_map(|cap| {
+            let path = cap.get(1)?.as_str().split("::").next().unwrap_or_default();
+            let message = cap.get(2)?.as_str();
+            Some(HarnessDiagnostic {
+                run_id: run_id.to_owned(),
+                tool: tool.to_owned(),
+                language: "python".to_owned(),
+                severity: "error".to_owned(),
+                rule_id: "pytest".to_owned(),
+                file: path.to_owned(),
+                line: 1,
+                message: message.to_owned(),
+                source: None,
+                fingerprint: None,
+            })
         })
         .collect()
 }
