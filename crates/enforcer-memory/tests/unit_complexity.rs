@@ -419,6 +419,27 @@ fn transitive_loop_depth_picks_the_max_over_multiple_callees() {
     assert_eq!(result["root"].transitive_loop_depth, 5);
 }
 
+#[test]
+fn transitive_loop_depth_saturates_for_extreme_graph_metrics() {
+    let nodes = vec![
+        CallGraphNode {
+            id: "outer".to_string(),
+            loop_depth: u32::MAX,
+            self_recursive: false,
+            callees: vec!["inner".to_string()],
+        },
+        CallGraphNode {
+            id: "inner".to_string(),
+            loop_depth: 1,
+            self_recursive: false,
+            callees: vec![],
+        },
+    ];
+
+    let result = complexity::propagate_transitive_loop_depth(&nodes);
+    assert_eq!(result["outer"].transitive_loop_depth, u32::MAX);
+}
+
 // ---------------------------------------------------------------------
 // Cycle safety: a cycle in the call graph must terminate and must set
 // `recursive`, never hang.

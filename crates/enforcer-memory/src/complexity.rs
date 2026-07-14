@@ -1017,7 +1017,10 @@ pub fn propagate_transitive_loop_depth(
                 best = callee_tld;
             }
         }
-        let value = node.loop_depth + best;
+        // Transitive depth is a bounded risk estimate. Saturate instead of
+        // panicking in debug or wrapping in release when a caller supplies
+        // an extreme graph metric.
+        let value = node.loop_depth.saturating_add(best);
         ctx.active_path.pop();
         ctx.tld.insert(id.to_string(), value);
         ctx.state.insert(id.to_string(), State::Done);
