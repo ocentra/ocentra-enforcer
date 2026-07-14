@@ -18,8 +18,10 @@ impl EventQueue {
             });
         };
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        // CLONE-JUSTIFICATION: The queued envelope retains its event id while the queue index owns a separate lookup key.
         let event_id = stored.event_id.clone();
         ensure_event_id_available(&state, &event_id)?;
+        // CLONE-JUSTIFICATION: The queued envelope retains its idempotency key while duplicate detection borrows a stable key.
         let key = stored.idempotency_key.clone();
         ensure_idempotency_available(self.policy.idempotency_registry_enabled(), &state, &key)?;
         if state.queued.len() >= capacity {
@@ -46,6 +48,7 @@ impl EventQueue {
         capacity: usize,
         now: EventClockInstant,
     ) -> Result<NoSubscriberQueueDecision, EventingError> {
+        // CLONE-JUSTIFICATION: `stored` is moved into the selected queue outcome, so an owned event type must survive for reject/dead-letter errors.
         let event_type = stored.contract.event_type.clone();
         match self.policy.overflow() {
             QueueOverflowPolicy::RejectPublish => reject_overflow(event_type, capacity),
@@ -106,10 +109,13 @@ fn drop_oldest_and_dead_letter(
     };
     state.queued_event_ids.remove(&dropped.stored.event_id);
     state.queued_keys.remove(&dropped.stored.idempotency_key);
+    // CLONE-JUSTIFICATION: The replacement envelope remains owned by the queue after its event-id lookup key is inserted.
     state.queued_event_ids.insert(stored.event_id.clone());
     if queue.policy.idempotency_registry_enabled() {
+        // CLONE-JUSTIFICATION: The replacement envelope remains owned by the queue after its idempotency lookup key is inserted.
         state.queued_keys.insert(stored.idempotency_key.clone());
     }
+    // CLONE-JUSTIFICATION: The dropped envelope is returned to the caller, while the capacity error requires an owned event type.
     let dropped_event_type = dropped.stored.contract.event_type.clone();
     state.queued.push_back(QueuedEnvelope {
         stored,
@@ -135,6 +141,7 @@ fn ensure_event_id_available(
     event_id: &crate::EventId,
 ) -> Result<(), EventingError> {
     if state.queued_event_ids.contains(event_id) || state.in_flight_event_ids.contains(event_id) {
+        // CLONE-JUSTIFICATION: The duplicate-id error owns the id, while the caller retains the borrowed id for its queue operation.
         return Err(EventingError::DuplicateEventId {
             event_id: event_id.clone(),
         });
@@ -152,6 +159,7 @@ fn ensure_idempotency_available(
             || state.queued_keys.contains(key)
             || state.in_flight_keys.contains(key))
     {
+        // CLONE-JUSTIFICATION: The duplicate-key error owns the key, while the caller retains the borrowed key for its queue operation.
         return Err(EventingError::DuplicateIdempotencyKey {
             idempotency_key: key.clone(),
         });
@@ -166,6 +174,7 @@ fn enqueue_queued_event(
     now: EventClockInstant,
     key: crate::IdempotencyKey,
 ) {
+    // CLONE-JUSTIFICATION: The queued envelope retains its event id while the queue index owns a separate lookup key.
     state.queued_event_ids.insert(stored.event_id.clone());
     if enabled {
         state.queued_keys.insert(key);
