@@ -10119,19 +10119,17 @@ fn ada_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Pars
                 quirks: &quirks,
                 is_test_file: false,
             };
-            for i in 0..node.child_count() {
-                if let Some(child) = node.child(i) {
-                    walk(
-                        child,
-                        &ctx,
-                        out,
-                        enclosing,
-                        FnScope {
-                            name: Some(name.as_str()),
-                            line: Some(line),
-                        },
-                    );
-                }
+            for child in syntax_children(node) {
+                walk(
+                    child,
+                    &ctx,
+                    out,
+                    enclosing,
+                    FnScope {
+                        name: Some(name.as_str()),
+                        line: Some(line),
+                    },
+                );
             }
             true
         }
@@ -10284,12 +10282,10 @@ fn apex_super_interfaces(node: Node<'_>, src: &[u8]) -> Vec<String> {
     else {
         return out;
     };
-    for i in 0..type_list.child_count() {
-        if let Some(child) = type_list.child(i) {
-            if child.is_named() {
-                if let Ok(text) = child.utf8_text(src) {
-                    out.push(text.to_string());
-                }
+    for child in syntax_children(type_list) {
+        if child.is_named() {
+            if let Ok(text) = child.utf8_text(src) {
+                out.push(text.to_string());
             }
         }
     }
@@ -10301,10 +10297,7 @@ fn apex_super_interfaces(node: Node<'_>, src: &[u8]) -> Vec<String> {
 /// wrapping a `type_list`, verified).
 fn apex_extends_interfaces(interface_node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..interface_node.child_count() {
-        let Some(child) = interface_node.child(i) else {
-            continue;
-        };
+    for child in syntax_children(interface_node) {
         if child.kind() != "extends_interfaces" {
             continue;
         }
@@ -10314,12 +10307,10 @@ fn apex_extends_interfaces(interface_node: Node<'_>, src: &[u8]) -> Vec<String> 
         else {
             continue;
         };
-        for j in 0..type_list.child_count() {
-            if let Some(entry) = type_list.child(j) {
-                if entry.is_named() {
-                    if let Ok(text) = entry.utf8_text(src) {
-                        out.push(text.to_string());
-                    }
+        for entry in syntax_children(type_list) {
+            if entry.is_named() {
+                if let Ok(text) = entry.utf8_text(src) {
+                    out.push(text.to_string());
                 }
             }
         }
@@ -10334,15 +10325,11 @@ fn apex_extends_interfaces(interface_node: Node<'_>, src: &[u8]) -> Vec<String> 
 /// `marker_annotation`/`annotation` split, verified).
 fn apex_annotations(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    for child in syntax_children(node) {
         if child.kind() != "modifiers" {
             continue;
         }
-        for j in 0..child.child_count() {
-            let Some(modifier) = child.child(j) else {
-                continue;
-            };
+        for modifier in syntax_children(child) {
             if modifier.kind() == "annotation" {
                 if let Some(name_node) = modifier.child_by_field_name("name") {
                     if let Ok(text) = name_node.utf8_text(src) {
@@ -10359,10 +10346,7 @@ fn apex_annotations(node: Node<'_>, src: &[u8]) -> Vec<String> {
 /// `variable_declarator` shape, verified).
 fn apex_field_names(field_node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..field_node.child_count() {
-        let Some(child) = field_node.child(i) else {
-            continue;
-        };
+    for child in syntax_children(field_node) {
         if child.kind() != "variable_declarator" {
             continue;
         }
@@ -10432,14 +10416,12 @@ fn apex_call_arg_texts(invocation_node: Node<'_>, src: &[u8]) -> Vec<String> {
         return Vec::new();
     };
     let mut out = Vec::new();
-    for i in 0..args.child_count() {
-        if let Some(child) = args.child(i) {
-            if matches!(child.kind(), "(" | ")" | ",") {
-                continue;
-            }
-            if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
-            }
+    for child in syntax_children(args) {
+        if matches!(child.kind(), "(" | ")" | ",") {
+            continue;
+        }
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
@@ -10461,10 +10443,8 @@ fn apex_walk_scoped_body(node: Node<'_>, src: &[u8], name: Option<&str>, out: &m
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, &ctx, out, name, FnScope::default());
-        }
+    for child in syntax_children(node) {
+        walk(child, &ctx, out, name, FnScope::default());
     }
     if let Some(container) = name {
         apex_emit_field_defines(node, src, container, out);
@@ -10477,8 +10457,7 @@ fn apex_walk_scoped_body(node: Node<'_>, src: &[u8], name: Option<&str>, out: &m
 /// [`java_emit_constant_field_defines`], but unconditional (every field,
 /// not just constant-shaped ones).
 fn apex_emit_field_defines(node: Node<'_>, src: &[u8], container: &str, out: &mut ParsedFile) {
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    for child in syntax_children(node) {
         match child.kind() {
             "field_declaration" => {
                 let line = child.start_position().row + 1;
@@ -10697,10 +10676,8 @@ fn crystal_walk_scoped_body(node: Node<'_>, src: &[u8], name: &str, out: &mut Pa
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..body.child_count() {
-        if let Some(child) = body.child(i) {
-            walk(child, &ctx, out, Some(name), FnScope::default());
-        }
+    for child in syntax_children(body) {
+        walk(child, &ctx, out, Some(name), FnScope::default());
     }
 }
 
@@ -10714,11 +10691,9 @@ fn crystal_walk_scoped_body(node: Node<'_>, src: &[u8], name: &str, out: &mut Pa
 /// [`java_annotations`]'s wrapper-field scan: Crystal has no
 /// `modifiers` node at all).
 fn crystal_annotation_name(annotation_node: Node<'_>, src: &[u8]) -> Option<String> {
-    for i in 0..annotation_node.child_count() {
-        if let Some(child) = annotation_node.child(i) {
-            if child.kind() == "constant" {
-                return child.utf8_text(src).ok().map(str::to_string);
-            }
+    for child in syntax_children(annotation_node) {
+        if child.kind() == "constant" {
+            return child.utf8_text(src).ok().map(str::to_string);
         }
     }
     None
@@ -10846,14 +10821,12 @@ fn crystal_call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
         return Vec::new();
     };
     let mut out = Vec::new();
-    for i in 0..args.child_count() {
-        if let Some(child) = args.child(i) {
-            if matches!(child.kind(), "(" | ")" | ",") {
-                continue;
-            }
-            if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
-            }
+    for child in syntax_children(args) {
+        if matches!(child.kind(), "(" | ")" | ",") {
+            continue;
+        }
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
@@ -11030,10 +11003,8 @@ fn r_walk_function_body(
         name: Some(name),
         line: Some(line),
     };
-    for i in 0..body.child_count() {
-        if let Some(child) = body.child(i) {
-            walk(child, &ctx, out, None, fn_scope);
-        }
+    for child in syntax_children(body) {
+        walk(child, &ctx, out, None, fn_scope);
     }
 }
 
@@ -11089,8 +11060,7 @@ fn r_quirk(node: Node<'_>, _enclosing: Option<&str>, src: &[u8], out: &mut Parse
 /// `requireNamespace`/`loadNamespace`/`source`/`box::use`.
 fn r_first_arg_text(call_node: Node<'_>, src: &[u8]) -> Option<String> {
     let args = call_node.child_by_field_name("arguments")?;
-    for i in 0..args.named_child_count() {
-        let arg = args.named_child(i)?;
+    for arg in named_syntax_children(args) {
         if arg.kind() != "argument" {
             continue;
         }

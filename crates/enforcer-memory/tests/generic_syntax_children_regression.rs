@@ -1,4 +1,4 @@
-use enforcer_memory::languages::generic::{parse_ada, parse_fsharp, parse_powershell};
+use enforcer_memory::languages::generic::{parse_ada, parse_apex, parse_fsharp, parse_powershell};
 use enforcer_memory::parsers::SymbolKind;
 
 #[test]
@@ -40,4 +40,29 @@ fn syntax_child_iteration_preserves_generic_language_scope_and_order() {
     assert_eq!(ada.defines.len(), 1);
     assert_eq!(ada.defines[0].container_name, "Widget");
     assert_eq!(ada.defines[0].member_name, "Draw");
+}
+
+#[test]
+fn syntax_child_iteration_preserves_apex_interface_and_field_traversal() {
+    let apex = parse_apex(
+        "public interface Sub extends Base {\n}\npublic class Widget {\n    public String name;\n}\n",
+    );
+    let apex_symbols: Vec<(&str, SymbolKind)> = apex
+        .symbols
+        .iter()
+        .map(|symbol| (symbol.name.as_str(), symbol.kind))
+        .collect();
+    assert_eq!(
+        apex_symbols,
+        vec![
+            ("Sub", SymbolKind::Interface),
+            ("Widget", SymbolKind::Class)
+        ]
+    );
+    assert_eq!(apex.inherits.len(), 1);
+    assert_eq!(apex.inherits[0].sub_name, "Sub");
+    assert_eq!(apex.inherits[0].super_name, "Base");
+    assert_eq!(apex.defines.len(), 1);
+    assert_eq!(apex.defines[0].container_name, "Widget");
+    assert_eq!(apex.defines[0].member_name, "name");
 }
