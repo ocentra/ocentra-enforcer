@@ -215,5 +215,12 @@
     "expect": "flag",
     "branch": "hostNetwork,hostPort,runAsNonRoot,readOnlyRootFilesystem,allowPrivilegeEscalation,capabilities.drop",
     "reason": "legacy app with host networking and multiple unset security options"
+  },
+  {
+    "name": "bad-cronjob-privileged-template",
+    "input": "apiVersion: batch/v1\nkind: CronJob\nmetadata:\n  name: insecure-schedule\nspec:\n  schedule: \"*/5 * * * *\"\n  jobTemplate:\n    spec:\n      template:\n        spec:\n          containers:\n          - name: task\n            image: task:latest\n            securityContext:\n              privileged: true\n          restartPolicy: Never",
+    "expect": "flag",
+    "branch": "cronjob-template",
+    "reason": "CronJob pod template runs a privileged container"
   }
 ]

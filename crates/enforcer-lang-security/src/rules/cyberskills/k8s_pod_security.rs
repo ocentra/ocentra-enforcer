@@ -34,6 +34,7 @@ const WORKLOAD_KINDS: &[&str] = &[
     "StatefulSet",
     "ReplicaSet",
     "Job",
+    "CronJob",
 ];
 
 /// Capabilities that escalate to full host compromise — a Critical add.
@@ -80,11 +81,21 @@ struct PodSpec {
     // DEFAULT-JUSTIFICATION: a bare Pod has no template and is validated through its direct spec.
     #[serde(default)]
     template: Option<Box<PodTemplate>>,
+    /// Present on CronJob â€” the Job template ultimately carries the pod
+    /// template whose spec must receive the same restricted-profile checks.
+    #[serde(default, rename = "jobTemplate")]
+    job_template: Option<Box<JobTemplate>>,
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
 struct PodTemplate {
     // DEFAULT-JUSTIFICATION: an incomplete template has no pod spec to inspect.
+    #[serde(default)]
+    spec: Option<PodSpec>,
+}
+
+#[derive(Debug, Default, serde::Deserialize)]
+struct JobTemplate {
     #[serde(default)]
     spec: Option<PodSpec>,
 }
@@ -184,6 +195,14 @@ impl K8sPodSecurityValidator {
 /// `spec.template.spec`; a bare Pod carries it under `spec` directly.
 fn pod_spec(manifest: &Manifest) -> Option<&PodSpec> {
     let spec = manifest.spec.as_ref()?;
+    if manifest.kind.as_deref() == Some("CronJob") {
+        return spec
+            .job_template
+            .as_ref()
+            .and_then(|job| job.spec.as_ref())
+            .and_then(|job_spec| job_spec.template.as_ref())
+            .and_then(|template| template.spec.as_ref());
+    }
     match spec.template.as_ref().and_then(|t| t.spec.as_ref()) {
         Some(template_spec) => Some(template_spec),
         None => Some(spec),
@@ -398,30 +417,5 @@ impl Validator for K8sPodSecurityValidator {
         }
 
         findings
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::path::PathBuf;
-
-    use enforcer_validator::harness::run_fixture_parity;
-
-    use super::K8sPodSecurityValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
-
-    #[test]
-    fn cyberskills_k8s_pod_security() -> Result<(), Box<dyn std::error::Error>> {
-        let validator = K8sPodSecurityValidator::new()?;
-        run_fixture_parity(
-            &validator,
-            &manifest_dir(),
-            "tests/fixtures/cyberskills/k8s.pod.security-hardening/bad/privileged.yaml",
-            "tests/fixtures/cyberskills/k8s.pod.security-hardening/good/hardened.yaml",
-        )?;
-        Ok(())
     }
 }
