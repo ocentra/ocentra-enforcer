@@ -221,15 +221,25 @@ fn path_prefix_scopes_legacy_hotspots_to_requested_files() -> TestResult {
     );
     let overview = report.overview.ok_or("expected overview section")?;
     let hotspots = report.hotspots.ok_or("expected hotspots section")?;
-    assert!(!overview.hotspots.is_empty());
-    assert!(!hotspots.is_empty());
-    for score in overview.hotspots.iter().chain(hotspots.iter()) {
-        assert!(
-            score.node_id.starts_with("file:crates/core/")
-                || score.node_id.starts_with("sym:crates/core/"),
-            "scoped hotspot leaked an out-of-scope node: {score:?}"
-        );
-    }
+    let expected = [
+        "sym:crates/core/src/lib.rs:1:load",
+        "file:crates/core/Cargo.toml",
+        "file:crates/core/src/lib.rs",
+        "sym:crates/core/Cargo.toml:1:[package]\nname = \"core\"\nversion = \"0.1.0\"\n",
+        "sym:crates/core/Cargo.toml:1:package",
+        "sym:crates/core/src/lib.rs:3:validate",
+    ];
+    let overview_ids: Vec<&str> = overview
+        .hotspots
+        .iter()
+        .map(|score| score.node_id.as_str())
+        .collect();
+    let hotspot_ids: Vec<&str> = hotspots
+        .iter()
+        .map(|score| score.node_id.as_str())
+        .collect();
+    assert_eq!(overview_ids, expected);
+    assert_eq!(hotspot_ids, expected);
     Ok(())
 }
 
