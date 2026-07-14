@@ -15,6 +15,7 @@ pub(super) async fn publish_without_subscribers(
 ) -> Result<PublishReport, EventingError> {
     match bus
         .queue
+        // CLONE-JUSTIFICATION: queue owns the event while this flow retains it for reporting.
         .enqueue_no_subscriber(stored.clone(), bus.clock.now())?
     {
         NoSubscriberQueueDecision::Dispatch(queue_report)
@@ -32,6 +33,7 @@ pub(super) async fn publish_without_subscribers(
             bus.record_stored_snapshot(&stored).await;
             let dead_letter = DeadLetter::for_queue(&dropped, reason, error);
             bus.queue
+                // CLONE-JUSTIFICATION: completion bookkeeping owns the key beyond this borrowed dropped event.
                 .mark_completed(&dropped.event_id, dropped.idempotency_key.clone());
             bus.record_dead_letter(dead_letter).await;
             Ok(empty_publish_report(
@@ -45,6 +47,7 @@ pub(super) async fn publish_without_subscribers(
             bus.record_stored_snapshot(&stored).await;
             let dead_letter = DeadLetter::for_queue(&stored, reason, error);
             bus.queue
+                // CLONE-JUSTIFICATION: completion bookkeeping owns the key beyond this event flow.
                 .mark_completed(&stored.event_id, stored.idempotency_key.clone());
             bus.record_dead_letter(dead_letter).await;
             Ok(empty_publish_report(
@@ -67,10 +70,12 @@ pub(super) async fn dead_letter_expired_deadline(
         &stored,
         DeadLetterReason::DeadlineExpired,
         EventingError::EventDeadlineExpired {
+            // CLONE-JUSTIFICATION: dead-letter error owns event type after stored envelope is consumed.
             event_type: stored.contract.event_type.clone(),
         },
     );
     bus.queue
+        // CLONE-JUSTIFICATION: completion bookkeeping owns the key beyond this event flow.
         .mark_completed(&stored.event_id, stored.idempotency_key.clone());
     bus.record_dead_letter(dead_letter).await;
     Ok(empty_publish_report(
@@ -93,7 +98,9 @@ pub(super) async fn dispatch(
             dispatch_sequential(
                 stored,
                 subscribers,
+                // CLONE-JUSTIFICATION: dispatch task owns publisher context beyond this borrowed bus.
                 EventPublisher::new(bus.clone()),
+                // CLONE-JUSTIFICATION: dispatch task owns handler policy beyond this borrowed bus.
                 bus.handler_policy.clone(),
                 Arc::clone(&bus.clock),
             )
@@ -103,13 +110,16 @@ pub(super) async fn dispatch(
             dispatch_concurrent(
                 stored,
                 subscribers,
+                // CLONE-JUSTIFICATION: dispatch task owns publisher context beyond this borrowed bus.
                 EventPublisher::new(bus.clone()),
+                // CLONE-JUSTIFICATION: dispatch task owns handler policy beyond this borrowed bus.
                 bus.handler_policy.clone(),
                 Arc::clone(&bus.clock),
             )
             .await
         }
         DispatchMode::OrderedByAggregateKey => {
+            // CLONE-JUSTIFICATION: aggregate gate lookup retains key after stored event moves into dispatch.
             let aggregate_key = stored.aggregate_key.clone();
             let aggregate_gate = bus.aggregate_gate(&aggregate_key);
             // The aggregate gate semaphore is never closed anywhere in this
@@ -121,7 +131,9 @@ pub(super) async fn dispatch(
             let reports = dispatch_sequential(
                 stored,
                 subscribers,
+                // CLONE-JUSTIFICATION: dispatch task owns publisher context beyond this borrowed bus.
                 EventPublisher::new(bus.clone()),
+                // CLONE-JUSTIFICATION: dispatch task owns handler policy beyond this borrowed bus.
                 bus.handler_policy.clone(),
                 Arc::clone(&bus.clock),
             )
