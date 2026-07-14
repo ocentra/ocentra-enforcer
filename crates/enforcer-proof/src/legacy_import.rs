@@ -228,6 +228,7 @@ pub fn collect_legacy_artifacts(root: &Path, roots: &[&str]) -> Result<LegacyBun
         collect_files_recursive(&absolute, &mut files)?;
     }
     files.sort();
+    files.dedup();
 
     let mut artifacts = Vec::new();
     let mut failed_artifacts = Vec::new();
