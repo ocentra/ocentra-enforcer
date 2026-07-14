@@ -228,10 +228,8 @@ fn walk_children(
     is_test_file: bool,
     fn_scope: FnScope<'_>,
 ) {
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, src, out, is_test_file, fn_scope);
-        }
+    for child in node.children(&mut node.walk()) {
+        walk(child, src, out, is_test_file, fn_scope);
     }
 }
 
@@ -298,14 +296,12 @@ fn call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
         return Vec::new();
     };
     let mut out = Vec::new();
-    for i in 0..args.child_count() {
-        if let Some(child) = args.child(i) {
-            if matches!(child.kind(), "(" | ")" | ",") {
-                continue;
-            }
-            if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
-            }
+    for child in args.children(&mut args.walk()) {
+        if matches!(child.kind(), "(" | ")" | ",") {
+            continue;
+        }
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
@@ -315,8 +311,7 @@ fn call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
 /// Y` / `type X Y` -- one `type_declaration` may hold multiple
 /// `type_spec`s (`type ( A struct{}; B interface{} )`).
 fn walk_type_declaration(node: Node<'_>, src: &[u8], out: &mut ParsedFile) {
-    for i in 0..node.child_count() {
-        let Some(spec) = node.child(i) else { continue };
+    for spec in node.children(&mut node.walk()) {
         if spec.kind() == "type_alias" {
             // `type X = Y` -- the grammar models this as its own node
             // kind (distinct from `type_spec`), always a plain alias
@@ -393,14 +388,13 @@ fn walk_type_declaration(node: Node<'_>, src: &[u8], out: &mut ParsedFile) {
 /// field -- Go's best-effort structural-inheritance signal.
 fn struct_fields(struct_node: Node<'_>, src: &[u8]) -> Vec<(String, bool)> {
     let mut out = Vec::new();
-    let Some(list) = (0..struct_node.child_count())
-        .filter_map(|i| struct_node.child(i))
+    let Some(list) = struct_node
+        .children(&mut struct_node.walk())
         .find(|n| n.kind() == "field_declaration_list")
     else {
         return out;
     };
-    for i in 0..list.child_count() {
-        let Some(field) = list.child(i) else { continue };
+    for field in list.children(&mut list.walk()) {
         if field.kind() != "field_declaration" {
             continue;
         }
@@ -417,10 +411,7 @@ fn struct_fields(struct_node: Node<'_>, src: &[u8]) -> Vec<(String, bool)> {
 
 fn interface_methods(interface_node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..interface_node.child_count() {
-        let Some(child) = interface_node.child(i) else {
-            continue;
-        };
+    for child in interface_node.children(&mut interface_node.walk()) {
         if child.kind() == "method_elem" {
             if let Some(name) = child_text(child, "name", src) {
                 out.push(name);
@@ -435,8 +426,7 @@ fn interface_methods(interface_node: Node<'_>, src: &[u8]) -> Vec<String> {
 fn receiver_type_name(method_node: Node<'_>, src: &[u8]) -> Option<String> {
     let receiver = method_node.child_by_field_name("receiver")?;
     // `receiver` is a `parameter_list` with exactly one `parameter_declaration`.
-    for i in 0..receiver.child_count() {
-        let child = receiver.child(i)?;
+    for child in receiver.children(&mut receiver.walk()) {
         if child.kind() == "parameter_declaration" {
             let type_node = child.child_by_field_name("type")?;
             let text = type_node.utf8_text(src).ok()?;
@@ -451,13 +441,11 @@ fn receiver_type_name(method_node: Node<'_>, src: &[u8]) -> Option<String> {
 fn signature_type_refs(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
     if let Some(params) = node.child_by_field_name("parameters") {
-        for i in 0..params.child_count() {
-            if let Some(param) = params.child(i) {
-                if param.kind() == "parameter_declaration" {
-                    if let Some(type_node) = param.child_by_field_name("type") {
-                        if let Ok(text) = type_node.utf8_text(src) {
-                            out.push(text.to_string());
-                        }
+        for param in params.children(&mut params.walk()) {
+            if param.kind() == "parameter_declaration" {
+                if let Some(type_node) = param.child_by_field_name("type") {
+                    if let Ok(text) = type_node.utf8_text(src) {
+                        out.push(text.to_string());
                     }
                 }
             }
@@ -476,19 +464,14 @@ fn signature_type_refs(node: Node<'_>, src: &[u8]) -> Vec<String> {
 /// field (Go allows `A, B = 1, 2` in one spec).
 fn spec_names(decl_node: Node<'_>, spec_kind: &str, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..decl_node.child_count() {
-        let Some(spec) = decl_node.child(i) else {
-            continue;
-        };
+    for spec in decl_node.children(&mut decl_node.walk()) {
         if spec.kind() != spec_kind {
             continue;
         }
-        for j in 0..spec.child_count() {
-            if let Some(child) = spec.child(j) {
-                if child.kind() == "identifier" {
-                    if let Ok(text) = child.utf8_text(src) {
-                        out.push(text.to_string());
-                    }
+        for child in spec.children(&mut spec.walk()) {
+            if child.kind() == "identifier" {
+                if let Ok(text) = child.utf8_text(src) {
+                    out.push(text.to_string());
                 }
             }
         }
@@ -500,8 +483,7 @@ fn spec_names(decl_node: Node<'_>, spec_kind: &str, src: &[u8]) -> Vec<String> {
 /// children into every imported path string, quotes stripped.
 fn import_paths(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    for child in node.children(&mut node.walk()) {
         match child.kind() {
             "import_spec" => {
                 if let Some(path) = import_spec_path(child, src) {
@@ -509,12 +491,10 @@ fn import_paths(node: Node<'_>, src: &[u8]) -> Vec<String> {
                 }
             }
             "import_spec_list" => {
-                for j in 0..child.child_count() {
-                    if let Some(spec) = child.child(j) {
-                        if spec.kind() == "import_spec" {
-                            if let Some(path) = import_spec_path(spec, src) {
-                                out.push(path);
-                            }
+                for spec in child.children(&mut child.walk()) {
+                    if spec.kind() == "import_spec" {
+                        if let Some(path) = import_spec_path(spec, src) {
+                            out.push(path);
                         }
                     }
                 }
@@ -532,8 +512,7 @@ fn import_spec_path(spec: Node<'_>, src: &[u8]) -> Option<String> {
 }
 
 fn first_named_child_text(node: Node<'_>, src: &[u8]) -> Option<String> {
-    for i in 0..node.child_count() {
-        let child = node.child(i)?;
+    for child in node.children(&mut node.walk()) {
         if child.is_named() {
             return child.utf8_text(src).ok().map(str::to_string);
         }
@@ -571,8 +550,8 @@ fn route_from_call(callee: &str, call_node: Node<'_>, src: &[u8]) -> Option<Rout
         lower.to_uppercase()
     };
     let args = call_node.child_by_field_name("arguments")?;
-    let first_string_arg = (0..args.child_count())
-        .filter_map(|i| args.child(i))
+    let first_string_arg = args
+        .children(&mut args.walk())
         .find(|n| n.kind() == "interpreted_string_literal" || n.kind() == "raw_string_literal")?;
     let raw = first_string_arg.utf8_text(src).ok()?;
     let path = raw.trim_matches(|c| c == '"' || c == '`').to_string();

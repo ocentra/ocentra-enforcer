@@ -20,6 +20,45 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_go";
 
 #[test]
+fn checked_child_traversal_preserves_go_import_call_and_type_output() {
+    let parsed = parse(
+        r#"package widget
+import (
+    "net/http"
+    alias "example.com/alias"
+)
+type Widget struct { Name string; Embedded }
+type Service interface { Run(http.Handler) }
+func (w *Widget) Serve(h http.Handler) { http.HandleFunc("/health", w.Serve) }
+"#,
+        false,
+    );
+
+    let imports: Vec<&str> = parsed
+        .imports
+        .iter()
+        .map(|entry| entry.module_path.as_str())
+        .collect();
+    assert_eq!(imports, vec!["net/http", "example.com/alias"]);
+    assert!(parsed
+        .symbols
+        .iter()
+        .any(|entry| entry.name == "Widget" && entry.kind == SymbolKind::Struct));
+    assert!(parsed
+        .symbols
+        .iter()
+        .any(|entry| entry.name == "Service" && entry.kind == SymbolKind::Interface));
+    assert!(parsed
+        .calls
+        .iter()
+        .any(|entry| entry.callee == "http.HandleFunc"));
+    assert!(parsed
+        .routes
+        .iter()
+        .any(|entry| entry.path == "/health" && entry.method == "ANY"));
+}
+
+#[test]
 fn extracts_package_as_module_symbol() {
     let parsed = parse("package widget\n", false);
     let names_kinds: Vec<(&str, SymbolKind)> = parsed
