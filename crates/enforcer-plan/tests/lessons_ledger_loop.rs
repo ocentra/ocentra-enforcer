@@ -84,7 +84,7 @@ fn lesson_id_rejects_invalid_input() {
             Ok(good.to_owned()),
         );
     }
-    for bad in ["", "1", "l1", "M1"] {
+    for bad in ["", "1", "l1", "M1", "Lalpha", "L1x", "L-", "L1-", "L1--FILL"] {
         assert_eq!(
             bad.parse::<LessonId>()
                 .err()

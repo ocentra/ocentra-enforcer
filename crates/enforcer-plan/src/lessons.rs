@@ -116,11 +116,22 @@ macro_rules! branded_string {
 fn validate_lesson_id(raw: &str) -> Result<(), DecodeError> {
     // e.g. `L1`, `L26`, `L11-FILL` (the seed corpus's own supersede-fill
     // convention for a row whose `landed-at` was pending).
-    let ok = raw.starts_with('L')
-        && raw.len() > 1
-        && raw[1..]
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-');
+    let ok = raw
+        .strip_prefix('L')
+        .and_then(|rest| {
+            let (number, suffix) = rest
+                .split_once('-')
+                .map_or((rest, None), |(number, suffix)| (number, Some(suffix)));
+            let number_is_valid = !number.is_empty() && number.chars().all(|c| c.is_ascii_digit());
+            let suffix_is_valid = suffix.is_none_or(|suffix| {
+                !suffix.is_empty()
+                    && suffix.split('-').all(|segment| {
+                        !segment.is_empty() && segment.chars().all(|c| c.is_ascii_alphanumeric())
+                    })
+            });
+            (number_is_valid && suffix_is_valid).then_some(())
+        })
+        .is_some();
     if ok {
         Ok(())
     } else {
