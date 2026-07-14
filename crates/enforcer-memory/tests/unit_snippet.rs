@@ -71,6 +71,22 @@ fn snippet_bytes_are_hash_equal_to_an_independent_file_slice() -> TestResult {
 }
 
 #[test]
+fn unicode_snippet_remains_byte_exact_across_line_boundaries() -> TestResult {
+    let source = "fn greeting() {\n    let label = \"🙂\";\n}\nfn next() {}\n";
+    let (dir, graph) = indexed_repo(source, "lib.rs")?;
+
+    let snippet = get_code_snippet(&graph, dir.path(), "lib.rs::greeting", false)?;
+
+    assert_eq!(snippet.start_line, 1);
+    assert_eq!(snippet.end_line, 3);
+    assert_eq!(
+        snippet.bytes,
+        b"fn greeting() {\n    let label = \"\xF0\x9F\x99\x82\";\n}\n"
+    );
+    Ok(())
+}
+
+#[test]
 fn last_symbol_in_file_extends_to_end_of_file_byte_exact() -> TestResult {
     let source = "fn a() {}\nfn b() {\n    2\n}\n";
     let (dir, graph) = indexed_repo(source, "lib.rs")?;

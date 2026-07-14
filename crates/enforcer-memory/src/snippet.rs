@@ -174,6 +174,12 @@ pub enum SnippetError {
         #[source]
         source: std::io::Error,
     },
+
+    /// The indexed line metadata did not resolve to a valid byte range
+    /// in the source file. This fails closed rather than returning a
+    /// truncated or unrelated snippet.
+    #[error("invalid source range for {qualified_name:?}")]
+    InvalidRange { qualified_name: String },
 }
 
 /// This module's `Result` alias.
@@ -338,8 +344,17 @@ fn build_snippet(graph: &CodeGraph, repo_root: &Path, symbol: &SymbolNode) -> Re
 
     let end_line = next_symbol_start_line(graph, symbol).unwrap_or(usize::MAX);
     let (start_byte, end_byte, end_line) =
-        line_range_to_byte_range(&content, symbol.line, end_line);
-    let bytes = content[start_byte..end_byte].to_vec();
+        line_range_to_byte_range(&content, symbol.line, end_line).ok_or_else(|| {
+            SnippetError::InvalidRange {
+                qualified_name: rel_path_and_name(symbol),
+            }
+        })?;
+    let bytes = content
+        .get(start_byte..end_byte)
+        .ok_or_else(|| SnippetError::InvalidRange {
+            qualified_name: rel_path_and_name(symbol),
+        })?
+        .to_vec();
     let sha256 = hash_hex(&bytes);
 
     let callers = inbound_call_degree(graph, &symbol.name);
@@ -400,7 +415,7 @@ fn line_range_to_byte_range(
     content: &[u8],
     start_line: usize,
     end_line_exclusive: usize,
-) -> (usize, usize, usize) {
+) -> Option<(usize, usize, usize)> {
     // Byte offset of the start of each 1-based line, plus one sentinel
     // entry for "start of file" at index 0 (unused) and one trailing
     // sentinel for end-of-file, so both start and end lookups are plain
@@ -417,13 +432,13 @@ fn line_range_to_byte_range(
     let start_idx = start_line
         .saturating_sub(1)
         .min(total_lines.saturating_sub(1));
-    let start_byte = line_starts[start_idx];
+    let start_byte = line_starts.get(start_idx).copied()?;
 
     let end_idx = end_line_exclusive.saturating_sub(1).min(total_lines);
-    let end_byte = line_starts[end_idx.max(start_idx)];
+    let end_byte = line_starts.get(end_idx.max(start_idx)).copied()?;
     let actual_end_line = end_idx.max(start_idx + 1);
 
-    (start_byte, end_byte.max(start_byte), actual_end_line)
+    Some((start_byte, end_byte.max(start_byte), actual_end_line))
 }
 
 fn hash_hex(bytes: &[u8]) -> String {
