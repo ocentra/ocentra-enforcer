@@ -10,16 +10,15 @@ pub(crate) fn try_python_string(
     col: &mut usize,
     last_block_start: &mut bool,
 ) -> bool {
-    let prefix_len = if source.is_char_boundary(*index) {
-        python_string_prefix_len(&source[*index..])
-    } else {
-        0
-    };
-    let quote_index = *index + prefix_len;
-    if !source.is_char_boundary(quote_index) {
+    let Some(rest) = source.get(*index..) else {
         return false;
-    }
-    let Some(quote) = source[quote_index..].chars().next() else {
+    };
+    let prefix_len = python_string_prefix_len(rest);
+    let quote_index = *index + prefix_len;
+    let Some(quote_source) = rest.get(prefix_len..) else {
+        return false;
+    };
+    let Some(quote) = quote_source.chars().next() else {
         return false;
     };
     if quote != '"' && quote != '\'' {
@@ -70,14 +69,25 @@ fn try_python_triple_string(
     last_block_start: &mut bool,
 ) -> bool {
     let delimiter = format!("{quote}{quote}{quote}");
-    if !source[quote_index..].starts_with(&delimiter) {
-        return false;
-    }
-    let Some(end) = source[quote_index + 3..].find(&delimiter) else {
+    let Some(quote_source) = source.get(quote_index..) else {
         return false;
     };
-    let content = &source[quote_index + 3..quote_index + 3 + end];
-    let mut kind = if prefix_has_f(&source[*index..*index + prefix_len]) {
+    if !quote_source.starts_with(&delimiter) {
+        return false;
+    }
+    let Some(after_delimiter) = quote_source.get(3..) else {
+        return false;
+    };
+    let Some(end) = after_delimiter.find(&delimiter) else {
+        return false;
+    };
+    let Some(content) = after_delimiter.get(..end) else {
+        return false;
+    };
+    let Some(prefix) = source.get(*index..*index + prefix_len) else {
+        return false;
+    };
+    let mut kind = if prefix_has_f(prefix) {
         LiteralKind::FString
     } else {
         LiteralKind::Triple
@@ -93,7 +103,10 @@ fn try_python_triple_string(
         line_at(source, *line),
     ));
     let consumed = prefix_len + 3 + end + 3;
-    advance_position(&source[*index..*index + consumed], line, col);
+    let Some(consumed_source) = source.get(*index..*index + consumed) else {
+        return false;
+    };
+    advance_position(consumed_source, line, col);
     *index += consumed;
     *last_block_start = false;
     true
@@ -114,10 +127,16 @@ fn try_python_quoted_string(
     col: &mut usize,
     last_block_start: &mut bool,
 ) -> bool {
-    let Some((content, consumed_quote)) = read_quoted(&source[quote_index..], quote) else {
+    let Some(quote_source) = source.get(quote_index..) else {
         return false;
     };
-    let kind = if prefix_has_f(&source[*index..*index + prefix_len]) {
+    let Some((content, consumed_quote)) = read_quoted(quote_source, quote) else {
+        return false;
+    };
+    let Some(prefix) = source.get(*index..*index + prefix_len) else {
+        return false;
+    };
+    let kind = if prefix_has_f(prefix) {
         LiteralKind::FString
     } else if prefix_len > 0 {
         LiteralKind::Raw
@@ -132,7 +151,10 @@ fn try_python_quoted_string(
         line_at(source, *line),
     ));
     let consumed = prefix_len + consumed_quote;
-    advance_position(&source[*index..*index + consumed], line, col);
+    let Some(consumed_source) = source.get(*index..*index + consumed) else {
+        return false;
+    };
+    advance_position(consumed_source, line, col);
     *index += consumed;
     *last_block_start = false;
     true
