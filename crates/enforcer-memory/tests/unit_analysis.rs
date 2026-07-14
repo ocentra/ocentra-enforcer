@@ -111,10 +111,20 @@ fn hotspots_rank_by_total_degree_descending() -> TestResult<()> {
     let adjacency = CodeAdjacency::build(&graph);
 
     let scores = adjacency.hotspots(5);
-    assert!(!scores.is_empty());
+    assert_eq!(scores.len(), 5, "hotspot limit should be applied exactly");
     for i in 1..scores.len() {
         assert!(scores[i - 1].total_degree() >= scores[i].total_degree());
     }
+    Ok(())
+}
+
+#[test]
+fn hotspots_with_zero_limit_return_no_nodes() -> TestResult<()> {
+    let dir = tempfile::tempdir()?;
+    let graph = build_fixture_graph(dir.path())?;
+    let adjacency = CodeAdjacency::build(&graph);
+
+    assert!(adjacency.hotspots(0).is_empty());
     Ok(())
 }
 

@@ -471,10 +471,12 @@ impl CodeAdjacency {
         let mut scores: Vec<HotspotScore> = self
             .graph
             .node_indices()
-            .map(|idx| HotspotScore {
-                node_id: self.graph[idx].clone(),
-                in_degree: self.graph.edges_directed(idx, Direction::Incoming).count(),
-                out_degree: self.graph.edges_directed(idx, Direction::Outgoing).count(),
+            .filter_map(|idx| {
+                self.graph.node_weight(idx).map(|node_id| HotspotScore {
+                    node_id: node_id.clone(),
+                    in_degree: self.graph.edges_directed(idx, Direction::Incoming).count(),
+                    out_degree: self.graph.edges_directed(idx, Direction::Outgoing).count(),
+                })
             })
             .collect();
         scores.sort_by(|a, b| {
@@ -489,7 +491,7 @@ impl CodeAdjacency {
     fn node_ids(&self) -> impl Iterator<Item = &str> {
         self.graph
             .node_indices()
-            .map(move |idx| self.graph[idx].as_str())
+            .filter_map(move |idx| self.graph.node_weight(idx).map(String::as_str))
     }
 }
 
@@ -539,12 +541,14 @@ fn dfs_paths(
                 continue;
             }
             extended = true;
-            state.current.push(PathHop {
-                node_id: graph[target].clone(),
-                via: *edge.weight(),
-            });
-            dfs_paths(graph, target, direction, remaining - 1, state);
-            state.current.pop();
+            if let Some(node_id) = graph.node_weight(target) {
+                state.current.push(PathHop {
+                    node_id: node_id.clone(),
+                    via: *edge.weight(),
+                });
+                dfs_paths(graph, target, direction, remaining - 1, state);
+                state.current.pop();
+            }
         }
     }
 
@@ -600,13 +604,15 @@ fn push_related(
     } else {
         other
     };
-    if state.visited.insert(other) {
-        state.out.push(RelatedNode {
-            node_id: graph[other].clone(),
-            depth: depth + 1,
-            via: *edge.weight(),
-        });
-        state.frontier.push_back((other, depth + 1));
+    if let Some(node_id) = graph.node_weight(other) {
+        if state.visited.insert(other) {
+            state.out.push(RelatedNode {
+                node_id: node_id.clone(),
+                depth: depth + 1,
+                via: *edge.weight(),
+            });
+            state.frontier.push_back((other, depth + 1));
+        }
     }
 }
 
@@ -617,7 +623,7 @@ fn push_related(
 /// from `CodeGraph::file_nodes()`, itself insertion-ordered).
 fn resolve_module_path<'a>(
     module_path: &str,
-    file_ids: &'a [(&'a str, NodeIndex)],
+    file_ids: &'a Vec<(&'a str, NodeIndex)>,
 ) -> Option<&'a NodeIndex> {
     let needle = module_path
         .trim_start_matches("./")
@@ -641,7 +647,7 @@ fn resolve_module_path<'a>(
 /// path/method segment (`module::func` or `obj.method` -> `func`/`method`).
 fn resolve_callee<'a>(
     callee: &str,
-    symbol_ids: &'a [(&'a str, NodeIndex)],
+    symbol_ids: &'a Vec<(&'a str, NodeIndex)>,
 ) -> Option<&'a NodeIndex> {
     let last_segment = callee.rsplit(['.', ':']).next().unwrap_or(callee);
     symbol_ids
