@@ -32,7 +32,8 @@ use crate::error::{CoordinationError, Result};
 use crate::events::HubEvent;
 use crate::ledger::active_claims;
 use crate::lock::{
-    blockers_for_request, enrich_claim, ClaimContext, LockKind, Operation, RawClaim,
+    blockers_for_request, enrich_claim, ClaimContext, ClaimEventId, ClaimLane, ClaimWriter,
+    LockKind, Operation, RawClaim,
 };
 use crate::sync::stream::{append_completed_event, read_all_streams, stream_tip};
 
@@ -357,10 +358,10 @@ pub fn claim_all(hub: &Hub, request: ClaimRequestArgs<'_>) -> Result<ClaimOutcom
             ..Default::default()
         });
         let raw = RawClaim {
-            writer: writer.as_str().to_owned(),
-            lane: lane.as_str().to_owned(),
+            writer: ClaimWriter::from(writer.as_str()),
+            lane: ClaimLane::from(lane.as_str()),
             paths: batch.to_vec(),
-            event_id: "__request__".to_owned(),
+            event_id: ClaimEventId::from("__request__"),
             reason: reason.map(str::to_owned),
             context: context.clone(),
         };
@@ -525,18 +526,18 @@ pub struct CloseoutFilters {
 fn matches_filters(claim: &RawClaim, filters: &CloseoutFilters) -> bool {
     if !filters.include_all_lanes {
         if let Some(lane) = &filters.lane {
-            if claim.lane != lane.as_str() {
+            if claim.lane.as_str() != lane.as_str() {
                 return false;
             }
         }
     }
     if let Some(writer) = &filters.writer {
-        if &claim.writer != writer {
+        if claim.writer.as_str() != writer {
             return false;
         }
     }
     if let Some(prefix) = &filters.node_id_prefix {
-        if !claim.writer.starts_with(&format!("{prefix}.")) {
+        if !claim.writer.has_node_id_prefix(prefix) {
             return false;
         }
     }
@@ -594,7 +595,7 @@ pub fn closeout(
         std::collections::BTreeMap::new();
     for claim in matching {
         by_lane
-            .entry(claim.lane.clone())
+            .entry(claim.lane.as_str().to_owned())
             .or_default()
             .extend(claim.paths.clone());
     }

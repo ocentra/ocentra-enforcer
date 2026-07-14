@@ -13,7 +13,7 @@ use std::collections::BTreeMap;
 use crate::events::HubEvent;
 use crate::lock::path_overlaps;
 use crate::lock::singletons::normalize_coordination_path;
-use crate::lock::{ClaimContext, RawClaim};
+use crate::lock::{ClaimContext, ClaimEventId, ClaimLane, ClaimWriter, RawClaim};
 
 /// A currently-active claim, keyed by `(writer, eventId)` in the JS source's
 /// `claimIdentityKey`; here we key by event id alone since ids are globally
@@ -41,13 +41,13 @@ pub fn active_claims(events: &[HubEvent]) -> Vec<RawClaim> {
                             // CLONE-JUSTIFICATION: materialization produces
                             // an owned snapshot after the event stream borrow
                             // ends; its identity fields cannot borrow events.
-                            writer: event.writer.clone(),
-                            lane: event.lane.clone(),
+                            writer: ClaimWriter::from(event.writer.clone()),
+                            lane: ClaimLane::from(event.lane.clone()),
                             // CLONE-JUSTIFICATION: the active snapshot keeps
                             // its claimed paths, event identity, and optional
                             // release reason after stream replay completes.
                             paths: paths.clone(),
-                            event_id: event.id.clone(),
+                            event_id: ClaimEventId::from(event.id.clone()),
                             // CLONE-JUSTIFICATION: the active projection
                             // owns the optional reason after replay releases
                             // the source event borrow.
@@ -91,7 +91,7 @@ pub fn active_claims(events: &[HubEvent]) -> Vec<RawClaim> {
                             return true;
                         }
                         let should_resolve = match &owners {
-                            Some(owners) => owners.contains(&claim.writer),
+                            Some(owners) => owners.contains(claim.writer.as_str()),
                             None => event.owner.as_deref() != Some(claim.writer.as_str()),
                         };
                         !should_resolve

@@ -4,8 +4,8 @@
 //! module, so callers own the same lifecycle guarantees as the lock engine.
 
 use enforcer_coordination::lock::{
-    blockers_for_request, enrich_claim, ClaimContext, ConflictType, LockKind, OnConflict,
-    Operation, RawClaim,
+    blockers_for_request, enrich_claim, ClaimContext, ClaimEventId, ClaimLane, ClaimWriter,
+    ConflictType, LockKind, OnConflict, Operation, RawClaim,
 };
 
 #[test]
@@ -33,19 +33,64 @@ fn context(worktree: &str, branch: &str) -> ClaimContext {
 
 fn claim(writer: &str, lane: &str, context: ClaimContext) -> RawClaim {
     RawClaim {
-        writer: writer.to_owned(),
-        lane: lane.to_owned(),
+        writer: ClaimWriter::from(writer),
+        lane: ClaimLane::from(lane),
         paths: vec!["crates/example/src/lib.rs".to_owned()],
-        event_id: format!("event-{writer}"),
+        event_id: ClaimEventId::from(format!("event-{writer}")),
         reason: None,
         context,
     }
 }
 
 #[test]
+fn typed_claim_identity_preserves_event_values_and_conflict_lifecycle() {
+    let writer = ClaimWriter::from("node-a.lane-a");
+    let lane = ClaimLane::from("lane-a");
+    let event_id = ClaimEventId::from("evt-a");
+
+    assert_eq!(writer.as_str(), "node-a.lane-a");
+    assert_eq!(lane.as_str(), "lane-a");
+    assert_eq!(event_id.as_str(), "evt-a");
+
+    let active = enrich_claim(
+        &claim(
+            "node-a.lane-a",
+            "lane-a",
+            context("worktree-a", "feature-a"),
+        ),
+        true,
+    );
+    let request = enrich_claim(
+        &claim(
+            "node-b.lane-b",
+            "lane-b",
+            context("worktree-b", "feature-b"),
+        ),
+        true,
+    );
+    let decision = blockers_for_request(&[active], &request, Operation::PrReady);
+    let conflict = decision
+        .blockers
+        .first()
+        .expect("cross-branch overlap must remain reviewable");
+
+    assert_eq!(conflict.kind, ConflictType::MergeRisk);
+    assert_eq!(conflict.writers[0].as_str(), "node-a.lane-a");
+    assert_eq!(conflict.writers[1].as_str(), "node-b.lane-b");
+    assert_eq!(conflict.lanes[0].as_str(), "lane-a");
+    assert_eq!(conflict.event_ids[1].as_str(), "event-node-b.lane-b");
+}
+
+#[test]
 fn lock_lifecycle_distinguishes_active_write_blockers_from_merge_review() {
-    let active = enrich_claim(&claim("writer-a", "lane-a", context("worktree-a", "feature-a")), true);
-    let request = enrich_claim(&claim("writer-b", "lane-b", context("worktree-b", "feature-b")), true);
+    let active = enrich_claim(
+        &claim("writer-a", "lane-a", context("worktree-a", "feature-a")),
+        true,
+    );
+    let request = enrich_claim(
+        &claim("writer-b", "lane-b", context("worktree-b", "feature-b")),
+        true,
+    );
 
     let edit = blockers_for_request(&[active.clone()], &request, Operation::Edit);
     let pr_ready = blockers_for_request(&[active], &request, Operation::PrReady);

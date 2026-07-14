@@ -14,6 +14,100 @@ use std::collections::BTreeSet;
 use crate::error::{CoordinationError, Result};
 use singletons::{normalize_coordination_path, protected_singleton_group};
 
+/// Stable owner identity carried by a lock claim.
+///
+/// This remains a transparent wire value so existing claim/release events
+/// retain their JSON string representation while lock logic distinguishes an
+/// owner from unrelated free-form strings.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ClaimWriter(String);
+
+impl ClaimWriter {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    pub fn has_node_id_prefix(&self, prefix: &str) -> bool {
+        self.0.starts_with(&format!("{prefix}."))
+    }
+}
+
+impl From<String> for ClaimWriter {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&str> for ClaimWriter {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+
+impl std::fmt::Display for ClaimWriter {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.0)
+    }
+}
+
+/// Stable lane identity carried by a lock claim. It stays transparent at the
+/// event boundary so existing ledgers replay without a migration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ClaimLane(String);
+
+impl ClaimLane {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for ClaimLane {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&str> for ClaimLane {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+
+impl std::fmt::Display for ClaimLane {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.0)
+    }
+}
+
+/// Event-stream identity of a lock claim. It prevents event ids from being
+/// mixed with paths or arbitrary diagnostic strings inside lock decisions.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ClaimEventId(String);
+
+impl ClaimEventId {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for ClaimEventId {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&str> for ClaimEventId {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+
+impl std::fmt::Display for ClaimEventId {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.0)
+    }
+}
+
 /// The 4 lock kinds. Ported from `lock-policy.js#LOCK_KIND_VALUES`.
 /// Domain lock classification. The API boundary accepts the corresponding
 /// wire string and calls [`LockKind::parse`] before the value enters the
@@ -138,10 +232,10 @@ pub struct ClaimContext {
 /// A raw claim as recorded on an event, before enrichment.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RawClaim {
-    pub writer: String,
-    pub lane: String,
+    pub writer: ClaimWriter,
+    pub lane: ClaimLane,
     pub paths: Vec<String>,
-    pub event_id: String,
+    pub event_id: ClaimEventId,
     pub reason: Option<String>,
     pub context: ClaimContext,
 }
@@ -150,10 +244,10 @@ pub struct RawClaim {
 /// `lock-policy.js#enrichClaim`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EnrichedClaim {
-    pub writer: String,
-    pub lane: String,
+    pub writer: ClaimWriter,
+    pub lane: ClaimLane,
     pub paths: Vec<String>,
-    pub event_id: String,
+    pub event_id: ClaimEventId,
     pub reason: Option<String>,
     pub context: ClaimContext,
     pub lock_kind: LockKind,
@@ -191,13 +285,15 @@ fn meaningful_owner_part(value: Option<&str>) -> Option<String> {
     }
 }
 
-fn logical_owner_key(writer: &str, context: &ClaimContext) -> String {
+fn logical_owner_key(writer: &ClaimWriter, context: &ClaimContext) -> String {
     let thread = meaningful_owner_part(context.codex_thread_id.as_deref());
     let session = meaningful_owner_part(context.codex_session_id.as_deref());
     // ALLOC-JUSTIFICATION: the writer fallback is incorporated into the
     // owned, normalized owner key retained on every enriched claim.
-    let suffix = thread.or(session).unwrap_or_else(|| writer.to_owned());
-    normalize_key(&format!("{writer}:{suffix}"))
+    let suffix = thread
+        .or(session)
+        .unwrap_or_else(|| writer.as_str().to_owned());
+    normalize_key(&format!("{}:{suffix}", writer.as_str()))
 }
 
 fn unique(values: Vec<String>) -> Vec<String> {
@@ -390,9 +486,9 @@ impl ConflictType {
 pub struct Conflict {
     pub kind: ConflictType,
     pub paths: Vec<String>,
-    pub lanes: [String; 2],
-    pub writers: [String; 2],
-    pub event_ids: [String; 2],
+    pub lanes: [ClaimLane; 2],
+    pub writers: [ClaimWriter; 2],
+    pub event_ids: [ClaimEventId; 2],
 }
 
 fn overlapping(left: &[String], right: &[String]) -> Vec<String> {
@@ -704,10 +800,10 @@ mod tests {
 
     fn claim(writer: &str, lane: &str, paths: &[&str], context: ClaimContext) -> RawClaim {
         RawClaim {
-            writer: writer.to_owned(),
-            lane: lane.to_owned(),
+            writer: writer.into(),
+            lane: lane.into(),
             paths: paths.iter().map(|p| p.to_string()).collect(),
-            event_id: format!("evt_{writer}"),
+            event_id: format!("evt_{writer}").into(),
             reason: None,
             context,
         }
