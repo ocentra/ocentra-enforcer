@@ -19,7 +19,10 @@ fn wildcard_gitignore_matches_empty_and_nonempty_path_suffixes_without_panicking
     std::fs::create_dir_all(&root)?;
     std::fs::write(root.join(".gitignore"), "cache/*\n")?;
     std::fs::create_dir_all(root.join("cache"))?;
-    std::fs::write(root.join("cache/entry.rs"), "let event = \"cache.created\";\n")?;
+    std::fs::write(
+        root.join("cache/entry.rs"),
+        "let event = \"cache.created\";\n",
+    )?;
 
     let report = run_scan(&CliOptions {
         root: root.clone(),
