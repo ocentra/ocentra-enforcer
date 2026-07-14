@@ -42,6 +42,9 @@
 //! - `tls: false` or `tlsverify: false` (explicit) — agent.py (CIS 2.6,
 //!   HIGH) / process.py `check_tls_config`: the Docker daemon's remote API
 //!   socket is unauthenticated when either flag is explicitly disabled.
+//! - `tls: true` with no `tlsverify` setting â€” transport encryption alone
+//!   does not authenticate remote API clients, so mutual TLS verification
+//!   must be explicitly enabled.
 
 use enforcer_core::error::DecodeError;
 use enforcer_domain::findings::Finding;
@@ -204,6 +207,21 @@ impl Validator for DockerDaemonHardeningValidator {
                      socket unauthenticated. Fix: set both `tls` and `tlsverify` to `true` \
                      and configure `tlscacert`/`tlscert`/`tlskey`.",
                     disabled_tls_keys.join("`/`")
+                ),
+            ));
+        }
+
+        if config.get("tls").and_then(|value| value.as_bool()) == Some(true)
+            && config.get("tlsverify").is_none()
+        {
+            findings.push(self.finding(
+                input.file,
+                Severity::Error,
+                "Docker daemon enables TLS without client certificate verification",
+                String::from(
+                    "daemon.json enables `tls` but does not set `tlsverify: true`, so the remote \
+                     API encrypts traffic without requiring authenticated client certificates. Fix: \
+                     set `tlsverify` to `true` and configure `tlscacert`, `tlscert`, and `tlskey`.",
                 ),
             ));
         }
