@@ -1080,12 +1080,13 @@ fn handle_cross_repo_mode(args: &Value) -> Value {
 }
 
 fn require_string_alias<'a>(args: &'a Value, keys: &[&str]) -> Result<&'a str, Value> {
+    let field_name = keys.first().copied().unwrap_or("field");
     keys.iter()
         .find_map(|key| args.get(*key).and_then(Value::as_str))
         .ok_or_else(|| {
             tool_error(
                 "index_repository",
-                format!("missing required field {:?}", keys[0]),
+                format!("missing required field {field_name:?}"),
             )
         })
 }
@@ -2333,7 +2334,13 @@ pub fn run_stdio_session(
         if read == 0 {
             return Ok(());
         }
-        for frame in reader.push(&buf[..read]) {
+        let bytes = buf.get(..read).ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "reader returned a byte count larger than its buffer",
+            )
+        })?;
+        for frame in reader.push(bytes) {
             handle_frame(&frame, output)?;
         }
     }
@@ -2461,7 +2468,10 @@ fn negotiate_protocol_version(requested: Option<&str>) -> &'static str {
             return matched;
         }
     }
-    SUPPORTED_PROTOCOL_VERSIONS[0]
+    SUPPORTED_PROTOCOL_VERSIONS
+        .first()
+        .copied()
+        .unwrap_or("2025-11-25")
 }
 
 fn initialize_result(params: &Value) -> Value {
@@ -2494,12 +2504,13 @@ fn handle_tools_list(params: &Value) -> Value {
         .unwrap_or(0);
     let all = tool_descriptors();
     let page: Vec<&ToolDescriptor> = all.iter().skip(cursor).take(TOOLS_LIST_PAGE_SIZE).collect();
-    let mut result = json!({ "tools": page });
+    let mut result = serde_json::Map::new();
+    result.insert("tools".to_owned(), json!(page));
     let next_offset = cursor + page.len();
     if next_offset < all.len() {
-        result["nextCursor"] = json!(next_offset.to_string());
+        result.insert("nextCursor".to_owned(), json!(next_offset.to_string()));
     }
-    result
+    Value::Object(result)
 }
 
 fn handle_tools_call(params: &Value) -> Value {

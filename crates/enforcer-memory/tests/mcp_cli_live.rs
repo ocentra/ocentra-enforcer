@@ -188,6 +188,21 @@ fn tools_list_second_page_has_remaining_7_tools_and_no_next_cursor() -> TestResu
 }
 
 #[test]
+fn tools_list_malformed_cursor_defaults_safely_to_first_page() -> TestResult {
+    let reply = send_ndjson(&rpc_request(
+        40,
+        "tools/list",
+        &json!({ "cursor": "not-a-number" }),
+    ))?;
+    let tools = reply["result"]["tools"]
+        .as_array()
+        .ok_or("tools must be an array")?;
+    assert_eq!(tools.len(), 8, "an invalid cursor must use the first page");
+    assert_eq!(reply["result"]["nextCursor"], json!("8"));
+    Ok(())
+}
+
+#[test]
 fn tools_list_across_both_pages_covers_baseline_plus_x06_extension_tools() -> TestResult {
     let page1 = send_ndjson(&rpc_request(5, "tools/list", &json!({})))?;
     let page2 = send_ndjson(&rpc_request(6, "tools/list", &json!({ "cursor": "8" })))?;
