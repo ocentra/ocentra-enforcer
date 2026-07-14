@@ -66,7 +66,10 @@ fn injected_version_skew_fails_closed() -> Result<(), Box<dyn std::error::Error>
         1,
         "expected exactly one finding: {findings:?}"
     );
-    assert_eq!(findings[0].title, "pinned version skew between local and CI");
+    assert_eq!(
+        findings[0].title,
+        "pinned version skew between local and CI"
+    );
     assert_eq!(
         findings[0].detail,
         "component `cargo deny check` is pinned to `0.14.0` locally but `0.15.2` in CI"
@@ -132,10 +135,27 @@ fn real_repo_ci_workflow_has_parseable_steps() -> Result<(), Box<dyn std::error:
     );
     let names: Vec<&str> = manifest.steps.iter().map(|s| s.name.as_str()).collect();
     assert!(names.iter().any(|name| name == &"cargo fmt --check"));
-    assert!(
-        names
-            .iter()
-            .any(|name| name == &"cargo clippy -D warnings")
-    );
+    assert!(names.iter().any(|name| name == &"cargo clippy -D warnings"));
     Ok(())
+}
+
+#[test]
+fn quoted_and_empty_ci_step_names_remain_total() {
+    let manifest = parse_ci_manifest(
+        r#"
+jobs:
+  verify:
+    steps:
+      - name: "cargo fmt --check"
+      - name: ''
+      - name: x
+"#,
+    );
+
+    let names: Vec<&str> = manifest
+        .steps
+        .iter()
+        .map(|step| step.name.as_str())
+        .collect();
+    assert_eq!(names, vec!["cargo fmt --check", "", "x"]);
 }

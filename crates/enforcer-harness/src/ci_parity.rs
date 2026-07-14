@@ -206,12 +206,15 @@ pub fn parse_ci_manifest(text: &str) -> StepManifest {
 /// present. Pure string trimming — not a YAML scalar decoder.
 fn unquote(raw: &str) -> String {
     let bytes = raw.as_bytes();
-    if bytes.len() >= 2 {
-        let first = bytes[0];
-        let last = bytes[bytes.len() - 1];
-        if (first == b'"' && last == b'"') || (first == b'\'' && last == b'\'') {
-            return raw[1..raw.len() - 1].to_owned();
-        }
+    let (Some(first), Some(last)) = (bytes.first(), bytes.last()) else {
+        return raw.to_owned();
+    };
+    if bytes.len() >= 2
+        && ((*first == b'"' && *last == b'"') || (*first == b'\'' && *last == b'\''))
+    {
+        return raw
+            .get(1..bytes.len() - 1)
+            .map_or_else(|| raw.to_owned(), str::to_owned);
     }
     raw.to_owned()
 }
