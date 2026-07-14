@@ -389,7 +389,10 @@ fn walk_children(
     enclosing: Option<&str>,
     fn_scope: FnScope<'_>,
 ) {
-    for child in syntax_children(node) {
+    // This is the hot recursive path: traverse directly from Tree-sitter's
+    // cursor. Search-oriented helpers retain their own ordered iterator.
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
         walk(child, ctx, out, enclosing, fn_scope);
     }
 }
@@ -6411,10 +6414,7 @@ fn zig_test_name(test_node: Node<'_>, src: &[u8]) -> Option<String> {
 /// nested-boundary stop).
 fn zig_container_field_names(container_node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..container_node.child_count() {
-        let Some(child) = container_node.child(i) else {
-            continue;
-        };
+    for child in syntax_children(container_node) {
         if child.kind() != "container_field" {
             continue;
         }
@@ -6444,10 +6444,8 @@ fn zig_walk_container_body(node: Node<'_>, src: &[u8], name: Option<&str>, out: 
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, &ctx, out, name, FnScope::default());
-        }
+    for child in syntax_children(node) {
+        walk(child, &ctx, out, name, FnScope::default());
     }
 }
 
@@ -6464,14 +6462,12 @@ fn zig_builtin_arg_texts(builtin_node: Node<'_>, src: &[u8]) -> Vec<String> {
         return Vec::new();
     };
     let mut out = Vec::new();
-    for i in 0..args.child_count() {
-        if let Some(child) = args.child(i) {
-            if matches!(child.kind(), "(" | ")" | ",") {
-                continue;
-            }
-            if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
-            }
+    for child in syntax_children(args) {
+        if matches!(child.kind(), "(" | ")" | ",") {
+            continue;
+        }
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
@@ -6651,10 +6647,7 @@ fn objc_join_selector_parts(parts: &[&str], has_parameters: bool) -> String {
 fn objc_method_selector(method_node: Node<'_>, src: &[u8]) -> Option<String> {
     let mut parts = Vec::new();
     let mut has_parameters = false;
-    for i in 0..method_node.child_count() {
-        let Some(child) = method_node.child(i) else {
-            continue;
-        };
+    for child in syntax_children(method_node) {
         match child.kind() {
             "identifier" => {
                 if let Ok(text) = child.utf8_text(src) {
@@ -6728,10 +6721,8 @@ fn objc_walk_scoped(node: Node<'_>, src: &[u8], name: Option<&str>, out: &mut Pa
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, &ctx, out, name, FnScope::default());
-        }
+    for child in syntax_children(node) {
+        walk(child, &ctx, out, name, FnScope::default());
     }
 }
 
