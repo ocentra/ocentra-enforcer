@@ -416,7 +416,7 @@ mod real {
         inputs.push(("input_ids".to_owned(), input_ids.into()));
         inputs.push(("attention_mask".to_owned(), attention_mask.into()));
         inputs.push(("position_ids".to_owned(), position_ids.into()));
-        for layer_index in 0..QWEN3_LAYER_COUNT {
+        (0..QWEN3_LAYER_COUNT).try_for_each(|layer_index| -> Result<()> {
             inputs.push((
                 format!("past_key_values.{layer_index}.key"),
                 empty_qwen3_past_tensor("build-ort-past-key")?.into(),
@@ -425,7 +425,8 @@ mod real {
                 format!("past_key_values.{layer_index}.value"),
                 empty_qwen3_past_tensor("build-ort-past-value")?.into(),
             ));
-        }
+            Ok(())
+        })?;
         Ok(inputs)
     }
 
@@ -530,10 +531,9 @@ mod real {
         .map_err(|source| model_error("pool-ort-embedding", source.to_string()))?;
         let active_seq_len = requested_seq_len.min(seq_len).max(1);
         let mut pooled = vec![0.0f32; dim];
-        for token_index in 0..active_seq_len {
-            for (dim_index, pooled_value) in pooled.iter_mut().enumerate().take(dim) {
-                let data_index = token_index * dim + dim_index;
-                if let Some(value) = data.get(data_index) {
+        if dim > 0 {
+            for values in data.chunks(dim).take(active_seq_len) {
+                for (pooled_value, value) in pooled.iter_mut().zip(values) {
                     *pooled_value += *value;
                 }
             }
