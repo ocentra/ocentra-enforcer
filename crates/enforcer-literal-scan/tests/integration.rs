@@ -205,6 +205,28 @@ fn fail_above_turns_high_risk_into_hard_failure() {
 }
 
 #[test]
+fn hash_comment_lexer_ignores_comments_and_keeps_closed_triple_literals() {
+    let root = temp_dir("literal_scan_hash_comment");
+    fs::write(
+        root.join("sample.py"),
+        "# \"comment-only-literal\"\nvalue = \"\"\"triple-live-value\"\"\"\nlabel = \"normal-live-value\"\n",
+    )
+    .unwrap();
+    let opts = CliOptions {
+        root: root.clone(),
+        include_low: true,
+        min_score: 0,
+        ..CliOptions::default()
+    };
+
+    let report = run_scan(&opts).expect("hash-comment scan should run");
+
+    assert_eq!(report.summary.files_scanned, 1);
+    assert_eq!(report.summary.literals_found, 2);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
 fn binary_file_does_not_crash() {
     let root = temp_dir("literal_scan_binary");
     fs::create_dir_all(root.join("src")).unwrap();
@@ -216,6 +238,23 @@ fn binary_file_does_not_crash() {
     let report = run_scan(&opts).expect("scan should handle binary");
     assert_eq!(report.summary.files_scanned, 0);
     assert!(report.ignored.binary >= 1);
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn truncated_c_like_string_openers_do_not_crash_the_scan() {
+    let root = temp_dir("literal_scan_truncated_c_like");
+    fs::write(root.join("sample.cs"), "@\"\n").unwrap();
+    fs::write(root.join("sample.cpp"), "\"\"\"unterminated\n").unwrap();
+    fs::write(root.join("sample.ts"), "const token = `unterminated\n").unwrap();
+    let report = run_scan(&CliOptions {
+        root: root.clone(),
+        include_low: true,
+        min_score: 0,
+        ..CliOptions::default()
+    })
+    .expect("truncated lexemes must be ignored safely");
+    assert_eq!(report.summary.files_scanned, 3);
     let _ = fs::remove_dir_all(root);
 }
 

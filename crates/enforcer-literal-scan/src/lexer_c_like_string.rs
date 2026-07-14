@@ -10,16 +10,21 @@ pub(crate) fn try_triple_string(
     line: &mut usize,
     col: &mut usize,
 ) -> bool {
-    if !source.is_char_boundary(*index)
-        || !language.triple_double_strings
-        || !source[*index..].starts_with("\"\"\"")
-    {
-        return false;
-    }
-    let Some(end) = source[*index + 3..].find("\"\"\"") else {
+    let Some(rest) = source.get(*index..) else {
         return false;
     };
-    let content = &source[*index + 3..*index + 3 + end];
+    if !language.triple_double_strings || !rest.starts_with("\"\"\"") {
+        return false;
+    }
+    let Some(after_open) = rest.strip_prefix("\"\"\"") else {
+        return false;
+    };
+    let Some(end) = after_open.find("\"\"\"") else {
+        return false;
+    };
+    let Some(content) = after_open.get(..end) else {
+        return false;
+    };
     out.push(candidate(
         content,
         *line,
@@ -27,9 +32,17 @@ pub(crate) fn try_triple_string(
         LiteralKind::Triple,
         line_at(source, *line),
     ));
-    let consumed = 3 + end + 3;
-    advance_position(&source[*index..*index + consumed], line, col);
-    *index += consumed;
+    let Some(consumed) = end.checked_add(6) else {
+        return false;
+    };
+    let Some(consumed_text) = rest.get(..consumed) else {
+        return false;
+    };
+    advance_position(consumed_text, line, col);
+    let Some(next_index) = (*index).checked_add(consumed) else {
+        return false;
+    };
+    *index = next_index;
     true
 }
 
@@ -42,11 +55,16 @@ pub(crate) fn try_standard_string(
     line: &mut usize,
     col: &mut usize,
 ) -> bool {
-    let ch = source.as_bytes()[*index] as char;
+    let Some(rest) = source.get(*index..) else {
+        return false;
+    };
+    let Some(ch) = rest.chars().next() else {
+        return false;
+    };
     if ch != '"' && !(language.single_quote_strings && ch == '\'') {
         return false;
     }
-    let Some((content, consumed)) = read_quoted(&source[*index..], ch) else {
+    let Some((content, consumed)) = read_quoted(rest, ch) else {
         return false;
     };
     let mut kind = LiteralKind::Normal;
@@ -62,8 +80,14 @@ pub(crate) fn try_standard_string(
         kind,
         line_at(source, *line),
     ));
-    advance_position(&source[*index..*index + consumed], line, col);
-    *index += consumed;
+    let Some(consumed_text) = rest.get(..consumed) else {
+        return false;
+    };
+    advance_position(consumed_text, line, col);
+    let Some(next_index) = (*index).checked_add(consumed) else {
+        return false;
+    };
+    *index = next_index;
     true
 }
 
@@ -75,11 +99,16 @@ pub(crate) fn try_template_string(
     line: &mut usize,
     col: &mut usize,
 ) -> bool {
-    let ch = source.as_bytes()[*index] as char;
+    let Some(rest) = source.get(*index..) else {
+        return false;
+    };
+    let Some(ch) = rest.chars().next() else {
+        return false;
+    };
     if !(language.backtick_strings && ch == '`') {
         return false;
     }
-    let Some((content, consumed)) = read_quoted(&source[*index..], '`') else {
+    let Some((content, consumed)) = read_quoted(rest, '`') else {
         return false;
     };
     let kind = if content.contains("${") {
@@ -94,8 +123,14 @@ pub(crate) fn try_template_string(
         kind,
         line_at(source, *line),
     ));
-    advance_position(&source[*index..*index + consumed], line, col);
-    *index += consumed;
+    let Some(consumed_text) = rest.get(..consumed) else {
+        return false;
+    };
+    advance_position(consumed_text, line, col);
+    let Some(next_index) = (*index).checked_add(consumed) else {
+        return false;
+    };
+    *index = next_index;
     true
 }
 
@@ -111,7 +146,13 @@ pub(crate) fn try_verbatim_string(
     if !(source.is_char_boundary(*index) && ch == '@' && next == Some('"')) {
         return false;
     }
-    let Some((content, consumed)) = read_quoted(&source[*index + 1..], '"') else {
+    let Some(rest) = source.get(*index..) else {
+        return false;
+    };
+    let Some(after_at) = rest.strip_prefix('@') else {
+        return false;
+    };
+    let Some((content, consumed)) = read_quoted(after_at, '"') else {
         return false;
     };
     out.push(candidate(
@@ -121,7 +162,16 @@ pub(crate) fn try_verbatim_string(
         LiteralKind::Raw,
         line_at(source, *line),
     ));
-    advance_position(&source[*index..*index + 1 + consumed], line, col);
-    *index += 1 + consumed;
+    let Some(total) = consumed.checked_add(1) else {
+        return false;
+    };
+    let Some(consumed_text) = rest.get(..total) else {
+        return false;
+    };
+    advance_position(consumed_text, line, col);
+    let Some(next_index) = (*index).checked_add(total) else {
+        return false;
+    };
+    *index = next_index;
     true
 }
