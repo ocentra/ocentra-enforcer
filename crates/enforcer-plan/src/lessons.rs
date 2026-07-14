@@ -430,6 +430,15 @@ impl LessonLedger {
     /// [`LessonLedger::supersede`] to fill in a pending `landed_at` instead
     /// of calling `append` again for the same id).
     pub fn append(&mut self, record: LessonRecord) -> Result<(), PlanError> {
+        if record.supersedes_seq.is_some() {
+            return Err(PlanError::Io {
+                path: self.path.display().to_string(),
+                reason: format!(
+                    "lesson `{}` declares a supersession; use supersede to create linked ledger rows",
+                    record.id
+                ),
+            });
+        }
         let existing = self.list()?;
         if existing.iter().any(|r| r.id == record.id) {
             // ALLOC-JUSTIFICATION: `PlanError` owns a stable filesystem

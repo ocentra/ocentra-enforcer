@@ -194,6 +194,25 @@ fn append_rejects_a_duplicate_id_without_supersede() -> TestResult {
 }
 
 #[test]
+fn append_rejects_a_caller_supplied_supersession_link() -> TestResult {
+    let path = temp_ledger_path("forged-supersession");
+    let mut ledger = LessonLedger::open(&path)?;
+    let mut record = sample_record("L3")?;
+    record.supersedes_seq = Some(0);
+
+    match ledger.append(record) {
+        Err(PlanError::Io { reason, .. }) => assert_eq!(
+            reason,
+            "lesson `L3` declares a supersession; use supersede to create linked ledger rows",
+        ),
+        Err(other) => return Err(format!("expected supersession rejection, received {other}").into()),
+        Ok(()) => return Err("expected supersession rejection, received append success".into()),
+    }
+    assert_eq!(ledger.list()?.len(), 0);
+    Ok(())
+}
+
+#[test]
 fn add_then_list_round_trips_through_the_cli_seam() -> TestResult {
     let path = temp_ledger_path("seam");
     add(&path, sample_record("L1")?)?;
