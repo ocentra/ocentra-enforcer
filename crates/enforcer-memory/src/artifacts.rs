@@ -90,9 +90,7 @@ pub fn get_exact(
     if manifest.entry(id).is_none() {
         // CLONE-JUSTIFICATION: the typed error owns the requested key after
         // this borrowed manifest lookup returns.
-        return Err(ArtifactLookupError::NotFound {
-            id: id.clone(),
-        });
+        return Err(ArtifactLookupError::NotFound { id: id.clone() });
     }
     manifest.get(id).map_err(|source| match source {
         // CLONE-JUSTIFICATION: each error alternative owns an independent
@@ -139,11 +137,56 @@ pub struct GraphSnapshot {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct GraphFileSnapshotId(String);
+
+impl From<String> for GraphFileSnapshotId {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+impl GraphFileSnapshotId {
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct GraphSnapshotRelativePath(String);
+
+impl From<String> for GraphSnapshotRelativePath {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+impl GraphSnapshotRelativePath {
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct GraphSnapshotContentHash(String);
+
+impl From<String> for GraphSnapshotContentHash {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+impl GraphSnapshotContentHash {
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GraphFileSnapshot {
-    pub id: String,
-    pub rel_path: String,
+    pub id: GraphFileSnapshotId,
+    pub rel_path: GraphSnapshotRelativePath,
     pub text_only: bool,
-    pub content_hash: String,
+    pub content_hash: GraphSnapshotContentHash,
     pub last_commit: Option<String>,
     pub change_count: usize,
     pub chunk_ids: Vec<String>,
@@ -377,12 +420,12 @@ fn file_snapshot(f: &crate::code_graph::FileNode, kind: FileSnapshotKind) -> Gra
     // boundary and cannot borrow fields from the live graph node.
     GraphFileSnapshot {
         // CLONE-JUSTIFICATION: exported id is owned snapshot data.
-        id: f.id.clone(),
+        id: f.id.clone().into(),
         // CLONE-JUSTIFICATION: exported path is owned snapshot data.
-        rel_path: f.rel_path.clone(),
+        rel_path: f.rel_path.clone().into(),
         text_only: kind.is_text_only(),
         // CLONE-JUSTIFICATION: exported content digest is owned snapshot data.
-        content_hash: f.content_hash.clone(),
+        content_hash: f.content_hash.clone().into(),
         last_commit: f.last_commit.clone(),
         change_count: f.change_count,
         chunk_ids: f.chunk_ids.clone(),
@@ -601,11 +644,7 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), GraphArtifactError> {
         .duration_since(std::time::UNIX_EPOCH)
         .map_err(GraphArtifactError::Clock)?
         .as_nanos();
-    let unique = format!(
-        "{}.{}.tmp",
-        std::process::id(),
-        timestamp
-    );
+    let unique = format!("{}.{}.tmp", std::process::id(), timestamp);
     let tmp_path = path.with_extension(unique);
     std::fs::write(&tmp_path, bytes).map_err(|source| GraphArtifactError::Io {
         // CLONE-JUSTIFICATION: the typed error must retain the failed temp path.
