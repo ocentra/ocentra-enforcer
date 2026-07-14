@@ -275,31 +275,31 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, scope: WalkScope<'_>) 
             }
         }
         "const_declaration" => {
-            for i in 0..node.child_count() {
-                if let Some(child) = node.child(i) {
-                    if child.kind() == "const_element" {
-                        // `const_element`'s own name is a positional
-                        // `name` child, not a named field, in this
-                        // grammar version (same shape as `attribute`'s
-                        // name -- see `attribute_name_text`).
-                        let name_node = (0..child.child_count())
-                            .filter_map(|j| child.child(j))
-                            .find(|c| c.kind() == "name");
-                        if let Some(name_node) = name_node {
-                            if let Ok(text) = name_node.utf8_text(src) {
-                                let line = node.start_position().row + 1;
-                                out.symbols.push(SymbolRef {
-                                    name: text.to_string(),
-                                    kind: SymbolKind::Constant,
+            let mut cursor = node.walk();
+            for child in node.children(&mut cursor) {
+                if child.kind() == "const_element" {
+                    // `const_element`'s own name is a positional
+                    // `name` child, not a named field, in this
+                    // grammar version (same shape as `attribute`'s
+                    // name -- see `attribute_name_text`).
+                    let mut child_cursor = child.walk();
+                    let name_node = child
+                        .children(&mut child_cursor)
+                        .find(|candidate| candidate.kind() == "name");
+                    if let Some(name_node) = name_node {
+                        if let Ok(text) = name_node.utf8_text(src) {
+                            let line = node.start_position().row + 1;
+                            out.symbols.push(SymbolRef {
+                                name: text.to_string(),
+                                kind: SymbolKind::Constant,
+                                line,
+                            });
+                            if let Some(container) = enclosing {
+                                out.defines.push(DefinesRef {
+                                    container_name: container.to_string(),
+                                    member_name: text.to_string(),
                                     line,
                                 });
-                                if let Some(container) = enclosing {
-                                    out.defines.push(DefinesRef {
-                                        container_name: container.to_string(),
-                                        member_name: text.to_string(),
-                                        line,
-                                    });
-                                }
                             }
                         }
                     }
@@ -392,10 +392,9 @@ fn walk(node: Node<'_>, src: &[u8], out: &mut ParsedFile, scope: WalkScope<'_>) 
 }
 
 fn walk_children(node: Node<'_>, src: &[u8], out: &mut ParsedFile, scope: WalkScope<'_>) {
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, src, out, scope);
-        }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        walk(child, src, out, scope);
     }
 }
 
@@ -444,14 +443,13 @@ fn call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
         return Vec::new();
     };
     let mut out = Vec::new();
-    for i in 0..args.child_count() {
-        if let Some(child) = args.child(i) {
-            if matches!(child.kind(), "(" | ")" | ",") {
-                continue;
-            }
-            if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
-            }
+    let mut cursor = args.walk();
+    for child in args.children(&mut cursor) {
+        if matches!(child.kind(), "(" | ")" | ",") {
+            continue;
+        }
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
@@ -475,18 +473,18 @@ fn heritage_names(node: Node<'_>, src: &[u8], keyword: &str) -> Vec<String> {
     } else {
         "class_interface_clause"
     };
-    let Some(clause) = (0..node.child_count())
-        .filter_map(|i| node.child(i))
+    let mut node_cursor = node.walk();
+    let Some(clause) = node
+        .children(&mut node_cursor)
         .find(|c| c.kind() == clause_kind)
     else {
         return out;
     };
-    for i in 0..clause.child_count() {
-        if let Some(entry) = clause.child(i) {
-            if entry.kind() == "name" || entry.kind() == "qualified_name" {
-                if let Ok(text) = entry.utf8_text(src) {
-                    out.push(text.to_string());
-                }
+    let mut clause_cursor = clause.walk();
+    for entry in clause.children(&mut clause_cursor) {
+        if entry.kind() == "name" || entry.kind() == "qualified_name" {
+            if let Ok(text) = entry.utf8_text(src) {
+                out.push(text.to_string());
             }
         }
     }
@@ -529,25 +527,21 @@ fn emit_class_heritage_edges(
 /// directly preceding a declaration.
 fn attribute_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(candidate) = node.child(i) else {
-            continue;
-        };
+    let mut cursor = node.walk();
+    for candidate in node.children(&mut cursor) {
         if candidate.kind() != "attribute_list" {
             continue;
         }
-        for j in 0..candidate.child_count() {
-            if let Some(group) = candidate.child(j) {
-                if group.kind() != "attribute_group" {
-                    continue;
-                }
-                for k in 0..group.child_count() {
-                    if let Some(attr) = group.child(k) {
-                        if attr.kind() == "attribute" {
-                            if let Some(name) = attribute_name_text(attr, src) {
-                                out.push(name);
-                            }
-                        }
+        let mut candidate_cursor = candidate.walk();
+        for group in candidate.children(&mut candidate_cursor) {
+            if group.kind() != "attribute_group" {
+                continue;
+            }
+            let mut group_cursor = group.walk();
+            for attr in group.children(&mut group_cursor) {
+                if attr.kind() == "attribute" {
+                    if let Some(name) = attribute_name_text(attr, src) {
+                        out.push(name);
                     }
                 }
             }
@@ -559,11 +553,11 @@ fn attribute_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
 /// An `attribute` node's own name is a positional `name`/`qualified_name`
 /// child, not a named field, in this grammar version.
 fn attribute_name_text(attr: Node<'_>, src: &[u8]) -> Option<String> {
-    (0..attr.child_count())
-        .filter_map(|i| attr.child(i))
-        .find(|c| matches!(c.kind(), "name" | "qualified_name"))
-        .and_then(|n| n.utf8_text(src).ok())
-        .map(str::to_string)
+    let mut cursor = attr.walk();
+    let name_node = attr
+        .children(&mut cursor)
+        .find(|c| matches!(c.kind(), "name" | "qualified_name"))?;
+    name_node.utf8_text(src).ok().map(str::to_string)
 }
 
 fn is_test_attribute(attribute_name: &str) -> bool {
@@ -576,25 +570,21 @@ fn is_test_attribute(attribute_name: &str) -> bool {
 /// Symfony-style `#[Route("/path")]` attributes on a method.
 fn routes_from_attributes(method_node: Node<'_>, src: &[u8], line: usize) -> Vec<RouteRef> {
     let mut out = Vec::new();
-    for i in 0..method_node.child_count() {
-        let Some(candidate) = method_node.child(i) else {
-            continue;
-        };
+    let mut cursor = method_node.walk();
+    for candidate in method_node.children(&mut cursor) {
         if candidate.kind() != "attribute_list" {
             continue;
         }
-        for j in 0..candidate.child_count() {
-            if let Some(group) = candidate.child(j) {
-                if group.kind() != "attribute_group" {
-                    continue;
-                }
-                for k in 0..group.child_count() {
-                    if let Some(attr) = group.child(k) {
-                        if attr.kind() == "attribute" {
-                            if let Some(route) = route_from_symfony_attribute(attr, src, line) {
-                                out.push(route);
-                            }
-                        }
+        let mut candidate_cursor = candidate.walk();
+        for group in candidate.children(&mut candidate_cursor) {
+            if group.kind() != "attribute_group" {
+                continue;
+            }
+            let mut group_cursor = group.walk();
+            for attr in group.children(&mut group_cursor) {
+                if attr.kind() == "attribute" {
+                    if let Some(route) = route_from_symfony_attribute(attr, src, line) {
+                        out.push(route);
                     }
                 }
             }
@@ -627,20 +617,20 @@ fn attribute_first_string_arg(attr: Node<'_>, src: &[u8]) -> Option<String> {
     // child (no named field on this node, unlike
     // `function_call_expression`/`scoped_call_expression` where
     // `arguments` IS a named field).
-    let args = (0..attr.child_count())
-        .filter_map(|i| attr.child(i))
+    let mut attr_cursor = attr.walk();
+    let args = attr
+        .children(&mut attr_cursor)
         .find(|c| c.kind() == "arguments")?;
-    for i in 0..args.child_count() {
-        let arg = args.child(i)?;
+    let mut args_cursor = args.walk();
+    for arg in args.children(&mut args_cursor) {
         if arg.kind() != "argument" {
             continue;
         }
-        for j in 0..arg.child_count() {
-            if let Some(candidate) = arg.child(j) {
-                if matches!(candidate.kind(), "string" | "encapsed_string") {
-                    if let Ok(text) = candidate.utf8_text(src) {
-                        return Some(strip_php_string_literal(text));
-                    }
+        let mut arg_cursor = arg.walk();
+        for candidate in arg.children(&mut arg_cursor) {
+            if matches!(candidate.kind(), "string" | "encapsed_string") {
+                if let Ok(text) = candidate.utf8_text(src) {
+                    return Some(strip_php_string_literal(text));
                 }
             }
         }
@@ -664,13 +654,16 @@ fn route_from_scoped_call(
         return None;
     }
     let args = call_node.child_by_field_name("arguments")?;
-    let first_string = (0..args.child_count())
-        .filter_map(|i| args.child(i))
+    let mut args_cursor = args.walk();
+    let first_string = args
+        .children(&mut args_cursor)
         .filter(|n| n.kind() == "argument")
         .find_map(|arg| {
-            (0..arg.child_count())
-                .filter_map(|i| arg.child(i))
-                .find(|c| matches!(c.kind(), "string" | "encapsed_string"))
+            let mut arg_cursor = arg.walk();
+            let literal = arg
+                .children(&mut arg_cursor)
+                .find(|c| matches!(c.kind(), "string" | "encapsed_string"));
+            literal
         })?;
     let raw = first_string.utf8_text(src).ok()?;
     Some(RouteRef {
@@ -699,8 +692,8 @@ fn strip_php_string_literal(text: &str) -> String {
 /// / `use App\{Foo, Bar};` -- every concrete imported path.
 fn namespace_use_paths(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
         match child.kind() {
             "namespace_use_clause" => {
                 if let Some(path) = namespace_use_clause_path(child, src) {
@@ -712,16 +705,15 @@ fn namespace_use_paths(node: Node<'_>, src: &[u8]) -> Vec<String> {
                     .child_by_field_name("prefix")
                     .and_then(|n| n.utf8_text(src).ok())
                     .unwrap_or("");
-                for j in 0..child.child_count() {
-                    if let Some(clause) = child.child(j) {
-                        if clause.kind() == "namespace_use_clause" {
-                            if let Some(tail) = namespace_use_clause_path(clause, src) {
-                                out.push(if prefix.is_empty() {
-                                    tail
-                                } else {
-                                    format!("{prefix}\\{tail}")
-                                });
-                            }
+                let mut child_cursor = child.walk();
+                for clause in child.children(&mut child_cursor) {
+                    if clause.kind() == "namespace_use_clause" {
+                        if let Some(tail) = namespace_use_clause_path(clause, src) {
+                            out.push(if prefix.is_empty() {
+                                tail
+                            } else {
+                                format!("{prefix}\\{tail}")
+                            });
                         }
                     }
                 }
@@ -745,8 +737,8 @@ fn namespace_use_paths(node: Node<'_>, src: &[u8]) -> Vec<String> {
 }
 
 fn namespace_use_clause_path(clause: Node<'_>, src: &[u8]) -> Option<String> {
-    for i in 0..clause.child_count() {
-        let child = clause.child(i)?;
+    let mut cursor = clause.walk();
+    for child in clause.children(&mut cursor) {
         if matches!(child.kind(), "qualified_name" | "name") {
             return child.utf8_text(src).ok().map(str::to_string);
         }
@@ -758,8 +750,8 @@ fn namespace_use_clause_path(clause: Node<'_>, src: &[u8]) -> Option<String> {
 /// this grammar models each as its own dedicated expression node kind
 /// wrapping the target path expression, not a function call.
 fn require_include_import(node: Node<'_>, src: &[u8]) -> Option<ImportRef> {
-    for i in 0..node.child_count() {
-        let child = node.child(i)?;
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
         if matches!(
             child.kind(),
             "require_expression"
@@ -767,15 +759,14 @@ fn require_include_import(node: Node<'_>, src: &[u8]) -> Option<ImportRef> {
                 | "include_expression"
                 | "include_once_expression"
         ) {
-            for j in 0..child.child_count() {
-                if let Some(target) = child.child(j) {
-                    if matches!(target.kind(), "string" | "encapsed_string") {
-                        if let Ok(text) = target.utf8_text(src) {
-                            return Some(ImportRef {
-                                module_path: strip_php_string_literal(text),
-                                line: node.start_position().row + 1,
-                            });
-                        }
+            let mut child_cursor = child.walk();
+            for target in child.children(&mut child_cursor) {
+                if matches!(target.kind(), "string" | "encapsed_string") {
+                    if let Ok(text) = target.utf8_text(src) {
+                        return Some(ImportRef {
+                            module_path: strip_php_string_literal(text),
+                            line: node.start_position().row + 1,
+                        });
                     }
                 }
             }
@@ -788,16 +779,15 @@ fn require_include_import(node: Node<'_>, src: &[u8]) -> Option<ImportRef> {
 fn signature_type_refs(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
     if let Some(params) = node.child_by_field_name("parameters") {
-        for i in 0..params.child_count() {
-            if let Some(param) = params.child(i) {
-                if matches!(
-                    param.kind(),
-                    "simple_parameter" | "property_promotion_parameter"
-                ) {
-                    if let Some(type_node) = param.child_by_field_name("type") {
-                        if let Ok(text) = type_node.utf8_text(src) {
-                            out.push(text.to_string());
-                        }
+        let mut cursor = params.walk();
+        for param in params.children(&mut cursor) {
+            if matches!(
+                param.kind(),
+                "simple_parameter" | "property_promotion_parameter"
+            ) {
+                if let Some(type_node) = param.child_by_field_name("type") {
+                    if let Ok(text) = type_node.utf8_text(src) {
+                        out.push(text.to_string());
                     }
                 }
             }
@@ -843,11 +833,13 @@ fn constant_from_define_call(callee: &str, call_node: Node<'_>, src: &[u8]) -> O
         return None;
     }
     let args = call_node.child_by_field_name("arguments")?;
-    let first_arg = (0..args.child_count())
-        .filter_map(|i| args.child(i))
+    let mut args_cursor = args.walk();
+    let first_arg = args
+        .children(&mut args_cursor)
         .find(|n| n.kind() == "argument")?;
-    let literal = (0..first_arg.child_count())
-        .filter_map(|i| first_arg.child(i))
+    let mut first_arg_cursor = first_arg.walk();
+    let literal = first_arg
+        .children(&mut first_arg_cursor)
         .find(|n| matches!(n.kind(), "string" | "encapsed_string"))?;
     let text = literal.utf8_text(src).ok()?;
     let name = strip_php_string_literal(text);

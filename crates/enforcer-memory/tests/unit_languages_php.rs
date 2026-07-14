@@ -184,6 +184,44 @@ class C {
     assert!(parsed.routes.iter().any(|r| r.path == "/users/{id}"));
 }
 
+/// Regression: iterator-based child traversal retains source order through
+/// nested PHP attributes and call arguments.
+#[test]
+fn php_child_iteration_preserves_attribute_route_and_call_argument_order(
+) -> Result<(), &'static str> {
+    let src = r#"<?php
+class C {
+    #[Route("/first"), Route("/second")]
+    public function save(int $first, string $second): Result {
+        return Route::post("/first", [$first, $second]);
+    }
+}
+"#;
+    let parsed = parse(src);
+    let routes: Vec<(&str, &str)> = parsed
+        .routes
+        .iter()
+        .map(|route| (route.method.as_str(), route.path.as_str()))
+        .collect();
+    assert_eq!(
+        routes,
+        vec![("", "/first"), ("", "/second"), ("POST", "/first")],
+        "{routes:?}"
+    );
+
+    let call = parsed
+        .calls
+        .iter()
+        .find(|call| call.callee == "Route::post")
+        .ok_or("expected a Route::post call")?;
+    assert_eq!(
+        call.arg_texts,
+        vec!["\"/first\"".to_string(), "[$first, $second]".to_string()],
+        "{call:?}"
+    );
+    Ok(())
+}
+
 #[test]
 fn extracts_const_declaration_and_define_call_as_constants() {
     let src = r#"<?php
