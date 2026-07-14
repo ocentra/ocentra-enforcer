@@ -230,7 +230,7 @@ fn path_prefix_scopes_legacy_hotspots_to_requested_files() -> TestResult {
         "sym:crates/core/src/lib.rs:3:validate",
     ];
     let overview_ids: Vec<&str> = overview
-        .hotspots
+        .hotspots()
         .iter()
         .map(|score| score.node_id.as_str())
         .collect();
@@ -510,7 +510,7 @@ fn empty_graph_every_aspect_returns_empty_sections_not_panic() -> TestResult {
     let overview = report
         .overview
         .ok_or("overview should be Some for an empty graph too")?;
-    assert_eq!(overview.total_files, 0);
+    assert_eq!(overview.total_files_json(), serde_json::json!(0));
     let tree = report
         .file_tree
         .ok_or("file_tree should be Some for an empty graph too")?;

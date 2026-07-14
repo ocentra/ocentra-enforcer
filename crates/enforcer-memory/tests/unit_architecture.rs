@@ -3,6 +3,7 @@ use enforcer_memory::architecture::{
     build_overview, build_report, Aspect, EntryPointKind, LayerCategory,
 };
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
+use serde_json::json;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -49,11 +50,14 @@ fn architecture_overview_groups_files_into_crate_sections() -> TestResult<()> {
     graph.index_repository(dir.path(), &files, &Manifest::default())?;
 
     let overview = build_overview(&graph, 10);
-    let names: Vec<&str> = overview.sections.iter().map(|s| s.name.as_str()).collect();
-    assert!(names.contains(&"crates/foo"));
-    assert!(names.contains(&"crates/bar"));
-    assert_eq!(overview.total_files, 2);
-    assert_eq!(overview.total_symbols, 2);
+    let names: Vec<&str> = overview
+        .sections()
+        .iter()
+        .map(|s| s.name.as_str())
+        .collect();
+    assert_eq!(names, vec!["crates/bar", "crates/foo"]);
+    assert_eq!(overview.total_files_json(), json!(2));
+    assert_eq!(overview.total_symbols_json(), json!(2));
     Ok(())
 }
 
@@ -70,12 +74,9 @@ fn architecture_overview_reports_language_composition_and_hotspots() -> TestResu
     graph.index_repository(dir.path(), &files, &Manifest::default())?;
 
     let overview = build_overview(&graph, 5);
-    assert!(overview
-        .language_counts
-        .iter()
-        .any(|(lang, count)| lang == "Rust" && *count == 2));
+    assert_eq!(overview.language_counts_json(), json!([["Rust", 2]]));
     assert!(
-        !overview.hotspots.is_empty(),
+        !overview.hotspots().is_empty(),
         "expected at least one hotspot entry"
     );
     Ok(())
@@ -85,9 +86,9 @@ fn architecture_overview_reports_language_composition_and_hotspots() -> TestResu
 fn empty_graph_produces_empty_overview_not_panic() {
     let graph = CodeGraph::new();
     let overview = build_overview(&graph, 5);
-    assert!(overview.sections.is_empty());
-    assert_eq!(overview.total_files, 0);
-    assert_eq!(overview.total_symbols, 0);
+    assert!(overview.sections().is_empty());
+    assert_eq!(overview.total_files_json(), json!(0));
+    assert_eq!(overview.total_symbols_json(), json!(0));
 }
 
 /// A small multi-crate fixture used across the aspect tests below:
@@ -212,11 +213,13 @@ fn absolute_or_traversal_path_prefixes_fail_closed() -> TestResult {
         let report = build_report(&graph, &[Aspect::Overview], Some(invalid_prefix), 10, 20);
         let overview = report.overview.ok_or("expected overview section")?;
         assert_eq!(
-            overview.total_files, 0,
+            overview.total_files_json(),
+            json!(0),
             "invalid prefix {invalid_prefix:?} must not widen the query"
         );
         assert_eq!(
-            overview.total_symbols, 0,
+            overview.total_symbols_json(),
+            json!(0),
             "invalid prefix {invalid_prefix:?} must not expose symbols"
         );
     }

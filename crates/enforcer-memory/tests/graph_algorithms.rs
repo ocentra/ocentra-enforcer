@@ -21,6 +21,7 @@ use enforcer_memory::analysis::{CodeAdjacency, TraceDirection};
 use enforcer_memory::architecture;
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use enforcer_memory::impact::{self, RiskLevel};
+use serde_json::json;
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -220,19 +221,21 @@ fn architecture_sections_group_fixture_files_by_directory() -> TestResult {
     let graph = build_fixture_graph(dir.path())?;
 
     let overview = architecture::build_overview(&graph, 10);
-    assert_eq!(overview.total_files, 3, "3 fixture files expected");
-    assert!(overview.total_symbols > 0);
+    assert_eq!(overview.total_files_json(), json!(3));
+    assert_ne!(overview.total_symbols_json(), json!(0));
     // All 3 fixture files land at the repo root -- a single "." section.
-    assert!(overview.sections.iter().any(|s| s.file_count == 3));
+    assert!(overview.sections().iter().any(|s| s.file_count == 3));
     assert!(
-        !overview.hotspots.is_empty(),
+        !overview.hotspots().is_empty(),
         "expected at least one hotspot entry over a connected fixture graph"
     );
-    let rust_count = overview
-        .language_counts
-        .iter()
-        .find(|(lang, _)| lang == "Rust")
-        .map(|(_, count)| *count);
+    let language_counts = overview.language_counts_json();
+    let rust_count = language_counts.as_array().and_then(|counts| {
+        counts.iter().find_map(|entry| {
+            let values = entry.as_array()?;
+            (values.first()?.as_str() == Some("Rust")).then(|| values.get(1)?.as_u64())?
+        })
+    });
     assert_eq!(rust_count, Some(2), "widgets.rs + unrelated.rs are Rust");
     Ok(())
 }
@@ -241,8 +244,8 @@ fn architecture_sections_group_fixture_files_by_directory() -> TestResult {
 fn empty_graph_architecture_overview_is_empty_not_panic() {
     let graph = CodeGraph::new();
     let overview = architecture::build_overview(&graph, 10);
-    assert!(overview.sections.is_empty());
-    assert_eq!(overview.total_files, 0);
+    assert!(overview.sections().is_empty());
+    assert_eq!(overview.total_files_json(), json!(0));
 }
 
 // --- hard test: diff impact ------------------------------------------

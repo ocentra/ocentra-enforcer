@@ -203,11 +203,53 @@ pub struct CrateSection {
 /// composition. Constructed by [`build_overview`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ArchitectureOverview {
-    pub sections: Vec<CrateSection>,
-    pub hotspots: Vec<crate::analysis::HotspotScore>,
-    pub language_counts: Vec<(String, usize)>,
-    pub total_files: usize,
-    pub total_symbols: usize,
+    sections: ArchitectureSections,
+    hotspots: ArchitectureHotspots,
+    language_counts: ArchitectureLanguageCounts,
+    total_files: ArchitectureFileCount,
+    total_symbols: ArchitectureSymbolCount,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ArchitectureSections(Vec<CrateSection>);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ArchitectureHotspots(Vec<crate::analysis::HotspotScore>);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ArchitectureLanguageCounts(Vec<(String, usize)>);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ArchitectureFileCount(usize);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ArchitectureSymbolCount(usize);
+
+impl ArchitectureOverview {
+    /// Crate/top-level-directory sections in deterministic report order.
+    pub fn sections(&self) -> &[CrateSection] {
+        &self.sections.0
+    }
+
+    /// Highest-degree symbols retained for this overview's requested limit.
+    pub fn hotspots(&self) -> &[crate::analysis::HotspotScore] {
+        &self.hotspots.0
+    }
+
+    /// Per-language file counts in the MCP's stable JSON representation.
+    pub fn language_counts_json(&self) -> Value {
+        json!(self.language_counts.0)
+    }
+
+    /// Indexed-file count in the MCP's stable JSON representation.
+    pub fn total_files_json(&self) -> Value {
+        json!(self.total_files.0)
+    }
+
+    /// Indexed-symbol count in the MCP's stable JSON representation.
+    pub fn total_symbols_json(&self) -> Value {
+        json!(self.total_symbols.0)
+    }
 }
 
 /// Build the architecture overview for `graph`. `hotspot_limit` bounds
@@ -226,11 +268,11 @@ pub fn build_overview(graph: &CodeGraph, hotspot_limit: usize) -> ArchitectureOv
     let total_symbols = symbol_count_under(graph, scope);
 
     ArchitectureOverview {
-        sections,
-        hotspots,
-        language_counts,
-        total_files,
-        total_symbols,
+        sections: ArchitectureSections(sections),
+        hotspots: ArchitectureHotspots(hotspots),
+        language_counts: ArchitectureLanguageCounts(language_counts),
+        total_files: ArchitectureFileCount(total_files),
+        total_symbols: ArchitectureSymbolCount(total_symbols),
     }
 }
 
@@ -710,14 +752,16 @@ pub fn build_report(
 
     if wanted.contains(&Aspect::Overview) {
         report.overview = Some(ArchitectureOverview {
-            sections: crate_sections(graph, scope),
-            hotspots: scoped_hotspots(graph, scope, hotspot_limit),
-            language_counts: language_counts(graph, scope),
-            total_files: graph
-                .file_nodes()
-                .filter(|f| scope.includes(ArchitecturePath(&f.rel_path)))
-                .count(),
-            total_symbols: symbol_count_under(graph, scope),
+            sections: ArchitectureSections(crate_sections(graph, scope)),
+            hotspots: ArchitectureHotspots(scoped_hotspots(graph, scope, hotspot_limit)),
+            language_counts: ArchitectureLanguageCounts(language_counts(graph, scope)),
+            total_files: ArchitectureFileCount(
+                graph
+                    .file_nodes()
+                    .filter(|f| scope.includes(ArchitecturePath(&f.rel_path)))
+                    .count(),
+            ),
+            total_symbols: ArchitectureSymbolCount(symbol_count_under(graph, scope)),
         });
     }
     if wanted.contains(&Aspect::Structure) {

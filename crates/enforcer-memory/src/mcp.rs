@@ -1839,9 +1839,9 @@ fn handle_get_architecture(args: &Value) -> Value {
             "clusterId": c.cluster_id, "memberCount": c.member_count, "cohesion": c.cohesion,
         })).collect::<Vec<_>>()),
         "overview": report.overview.map(|overview| json!({
-            "totalFiles": overview.total_files,
-            "totalSymbols": overview.total_symbols,
-            "languageCounts": overview.language_counts,
+            "totalFiles": overview.total_files_json(),
+            "totalSymbols": overview.total_symbols_json(),
+            "languageCounts": overview.language_counts_json(),
         })),
     })
 }
