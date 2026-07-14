@@ -1475,6 +1475,18 @@ fn matches_bespoke_csharp_on_nested_class_inside_namespace() {
 }
 
 #[test]
+fn matches_bespoke_csharp_on_attribute_route_and_member_traversal() {
+    let src = r#"
+[Route("api/widgets")]
+class WidgetsController : ControllerBase {
+    [HttpGet("health")]
+    string Health() => "ok";
+}
+"#;
+    compare_csharp(src, "csharp_attribute_route_and_member_traversal");
+}
+
+#[test]
 fn matches_bespoke_csharp_on_malformed_source_does_not_panic() {
     let src = "class ( { this is not valid C# @@@";
     let bespoke = csharp::parse(src);
