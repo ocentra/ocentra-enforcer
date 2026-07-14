@@ -14,6 +14,13 @@
     "reason": "FROM image with explicit :latest tag"
   },
   {
+    "name": "base-tag: FROM with uppercase :LATEST",
+    "input": "FROM alpine:LATEST\nUSER 10001",
+    "expect": "flag",
+    "branch": "base-tag",
+    "reason": "The mutable latest tag is case-insensitive"
+  },
+  {
     "name": "root-user: no USER instruction",
     "input": "FROM python:3.12@sha256:abc\nRUN echo test",
     "expect": "flag",

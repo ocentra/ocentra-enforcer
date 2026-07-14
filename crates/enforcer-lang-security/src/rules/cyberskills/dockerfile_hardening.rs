@@ -228,7 +228,11 @@ impl Validator for DockerfileHardeningValidator {
                         continue;
                     }
                     let pinned_by_digest = image.contains("@sha256:");
-                    let is_latest = image.ends_with(":latest");
+                    // Docker image tags may contain uppercase characters.
+                    // `LATEST` is just as mutable as the conventional
+                    // lowercase spelling, so compare the normalized image
+                    // reference rather than the original source text.
+                    let is_latest = image_lc.ends_with(":latest");
                     let has_tag = image
                         .rsplit('/')
                         .next()

@@ -61,3 +61,23 @@ fn json_array_add_with_remote_url_is_rejected() -> Result<(), Box<dyn std::error
     );
     Ok(())
 }
+
+#[test]
+fn uppercase_latest_tag_is_rejected() -> Result<(), Box<dyn std::error::Error>> {
+    let validator = DockerfileHardeningValidator::new()?;
+    let file: RelPath = "Dockerfile".parse()?;
+    let findings = validator.validate(ValidationInput {
+        source: "FROM alpine:LATEST\nUSER 10001\n",
+        file: &file,
+        scope: ScanScope::Files,
+    });
+
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].line, 1);
+    assert_eq!(
+        findings[0].severity,
+        enforcer_domain::severity::Severity::Error
+    );
+    assert!(findings[0].detail.contains("mutable `:latest` tag"));
+    Ok(())
+}
