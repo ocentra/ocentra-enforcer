@@ -339,7 +339,12 @@ mod real {
         let outputs = locked
             .run_with_options(inputs, &run_options)
             .map_err(|source| model_error("run-ort-embedding", source.to_string()))?;
-        let output = &outputs[0];
+        let output = outputs.values().next().ok_or_else(|| {
+            model_error(
+                "read-ort-embedding-output",
+                "ONNX Runtime returned no embedding output",
+            )
+        })?;
         let (shape, data) = output
             .try_extract_tensor::<f32>()
             .map_err(|source| model_error("read-ort-embedding-output", source.to_string()))?;
@@ -373,7 +378,12 @@ mod real {
         let outputs = locked
             .run_with_options(inputs, &run_options)
             .map_err(|source| model_error("run-ort-reranker", source.to_string()))?;
-        let output = &outputs[0];
+        let output = outputs.values().next().ok_or_else(|| {
+            model_error(
+                "read-ort-reranker-output",
+                "ONNX Runtime returned no reranker output",
+            )
+        })?;
         let (shape, data) = output
             .try_extract_tensor::<f32>()
             .map_err(|source| model_error("read-ort-reranker-output", source.to_string()))?;
@@ -454,9 +464,19 @@ mod real {
                 format!("expected rank-3 logits, got shape {shape:?}"),
             ));
         }
-        let seq_len = usize::try_from(shape[1])
+        let seq_len = usize::try_from(*shape.get(1).ok_or_else(|| {
+            model_error(
+                "score-ort-reranker-output",
+                "missing sequence dimension in rank-3 logits",
+            )
+        })?)
             .map_err(|source| model_error("score-ort-reranker-output", source.to_string()))?;
-        let vocab_size = usize::try_from(shape[2])
+        let vocab_size = usize::try_from(*shape.get(2).ok_or_else(|| {
+            model_error(
+                "score-ort-reranker-output",
+                "missing vocabulary dimension in rank-3 logits",
+            )
+        })?)
             .map_err(|source| model_error("score-ort-reranker-output", source.to_string()))?;
         let active_seq_len = requested_seq_len.min(seq_len).max(1);
         let yes_index = yes_token_id as usize;
@@ -494,9 +514,19 @@ mod real {
                 format!("expected rank-3 output, got shape {shape:?}"),
             ));
         }
-        let seq_len = usize::try_from(shape[1])
+        let seq_len = usize::try_from(*shape.get(1).ok_or_else(|| {
+            model_error(
+                "pool-ort-embedding",
+                "missing sequence dimension in rank-3 embedding output",
+            )
+        })?)
             .map_err(|source| model_error("pool-ort-embedding", source.to_string()))?;
-        let dim = usize::try_from(shape[2])
+        let dim = usize::try_from(*shape.get(2).ok_or_else(|| {
+            model_error(
+                "pool-ort-embedding",
+                "missing embedding dimension in rank-3 output",
+            )
+        })?)
             .map_err(|source| model_error("pool-ort-embedding", source.to_string()))?;
         let active_seq_len = requested_seq_len.min(seq_len).max(1);
         let mut pooled = vec![0.0f32; dim];
