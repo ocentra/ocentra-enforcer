@@ -259,6 +259,23 @@ fn packages_aspect_detects_both_cargo_manifests() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn package_fan_counts_respect_the_requested_path_scope() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let graph = build_two_crate_fixture(dir.path())?;
+
+    let report = build_report(&graph, &[Aspect::Packages], Some("crates/core/"), 10, 20);
+    let packages = report.packages.ok_or("expected packages section")?;
+    let core = packages
+        .iter()
+        .find(|package| package.manifest_rel_path == "crates/core/Cargo.toml")
+        .ok_or("expected core package under scoped query")?;
+
+    assert_eq!(core.fan_in, 0, "out-of-scope callers must not contribute");
+    assert_eq!(core.fan_out, 0, "out-of-scope callees must not contribute");
+    Ok(())
+}
+
 // --- hard test: entry_points aspect ----------------------------------
 
 #[test]

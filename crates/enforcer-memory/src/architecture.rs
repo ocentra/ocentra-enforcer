@@ -886,6 +886,9 @@ fn package_sections(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<Pack
             let Some(&from_path) = file_path_by_id.get(call.from_file_id.as_str()) else {
                 continue;
             };
+            if !scope.includes(ArchitecturePath(from_path)) {
+                continue;
+            }
             let from_inside = dir.contains_path(ArchitecturePath(from_path));
             let Some(to_symbol_id) = resolve_callee(&call.callee, &symbol_names) else {
                 continue;
@@ -896,6 +899,9 @@ fn package_sections(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<Pack
             let Some(&to_path) = file_path_by_id.get(to_file_id) else {
                 continue;
             };
+            if !scope.includes(ArchitecturePath(to_path)) {
+                continue;
+            }
             let to_inside = dir.contains_path(ArchitecturePath(to_path));
             match (from_inside, to_inside) {
                 (true, false) => fan_out += 1,
