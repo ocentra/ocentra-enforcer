@@ -139,6 +139,7 @@ export const ConfigSchema = Schema.Struct({
   strictEmptyTestTrees: OptionalBoolean,
   generatedArtifactsMode: Schema.optional(Schema.Literal("scan", "tracked")),
   generatedArtifactsTracked: OptionalBoolean,
+  generatedArtifactsAllowlist: OptionalStringArray,
   agentRuleMaxLines: OptionalNumber,
   maxActiveWaivers: OptionalNumber,
   maxWaiverDays: OptionalNumber,

@@ -116,9 +116,11 @@ function collectGeneratedArtifactFindings(
   );
   if (!tracked) return findings;
 
+  const allowlist = config.generatedArtifactsAllowlist ?? [];
   const trackedFiles = trackedScopeFiles(root, scope);
   for (const rel of trackedFiles) {
     if (!isGeneratedArtifactPath(rel)) continue;
+    if (matchesAnyGlob(rel, allowlist)) continue;
     findings.push(
       genericFinding(
         root,

@@ -58,6 +58,7 @@ const KNOWN_CONFIG_KEYS = new Set([
   "strictEmptyTestTrees",
   "generatedArtifactsMode",
   "generatedArtifactsTracked",
+  "generatedArtifactsAllowlist",
   "agentRuleMaxLines",
   "maxActiveWaivers",
   "maxWaiverDays",
