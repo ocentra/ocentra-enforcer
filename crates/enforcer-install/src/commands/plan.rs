@@ -61,15 +61,24 @@ pub const DESCRIPTION: &str = "Scaffold, author, and self-validate an Ocentra-me
 #[must_use]
 pub fn render_command_body() -> String {
     let mut body = String::new();
+    let Some((new_plan, remaining)) = DISPATCH_LINES.split_first() else {
+        return body;
+    };
+    let Some((forced_new_plan, remaining)) = remaining.split_first() else {
+        return body;
+    };
+    let Some((check_plan, _)) = remaining.split_first() else {
+        return body;
+    };
     body.push_str(
         "Dispatch every step through the real `enforcer` binary — never reimplement the \
          scaffolder or the PLAN-* validator inline in this command.\n\n\
          1. Scaffold a new plan directory (b01):\n\n",
     );
     body.push_str("```bash\n");
-    body.push_str(DISPATCH_LINES[0]);
+    body.push_str(new_plan);
     body.push('\n');
-    body.push_str(DISPATCH_LINES[1]);
+    body.push_str(forced_new_plan);
     body.push('\n');
     body.push_str("```\n\n");
     body.push_str("2. Author each workpack's capsule/frontmatter/sections by hand.\n\n");
@@ -77,7 +86,7 @@ pub fn render_command_body() -> String {
         "3. Self-validate against the PLAN-* structure validator (b02) before assigning:\n\n",
     );
     body.push_str("```bash\n");
-    body.push_str(DISPATCH_LINES[2]);
+    body.push_str(check_plan);
     body.push('\n');
     body.push_str("```\n\n");
     body.push_str(
