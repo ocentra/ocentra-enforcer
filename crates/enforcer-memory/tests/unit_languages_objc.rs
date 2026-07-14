@@ -133,6 +133,29 @@ fn extracts_method_defines_inside_implementation() {
 }
 
 #[test]
+fn method_body_traverses_each_message_expression_in_source_order() {
+    let src = r#"
+@implementation Widget
+- (void)draw {
+    [canvas prepare];
+    [canvas render];
+}
+@end
+"#;
+    let parsed = parse_objc(src);
+    let calls: Vec<(&str, Option<&str>)> = parsed
+        .calls
+        .iter()
+        .map(|call| (call.callee.as_str(), call.from_symbol.as_deref()))
+        .collect();
+
+    assert_eq!(
+        calls,
+        vec![("prepare", Some("draw")), ("render", Some("draw"))]
+    );
+}
+
+#[test]
 fn extracts_message_expression_zero_argument_selector() -> TestResult {
     let src = r#"
 @implementation Widget

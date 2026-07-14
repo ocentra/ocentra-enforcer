@@ -6753,10 +6753,8 @@ fn objc_walk_method_body(
         name: Some(name),
         line: Some(line),
     };
-    for i in 0..body.child_count() {
-        if let Some(child) = body.child(i) {
-            walk(child, &ctx, out, None, fn_scope);
-        }
+    for child in syntax_children(body) {
+        walk(child, &ctx, out, None, fn_scope);
     }
 }
 
