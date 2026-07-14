@@ -3,14 +3,17 @@ pub(crate) fn glob_match(pattern: &str, text: &str) -> bool {
 }
 
 fn glob_match_bytes(pattern: &[u8], text: &[u8]) -> bool {
-    if pattern.is_empty() {
+    let Some((&pattern_head, pattern_tail)) = pattern.split_first() else {
         return text.is_empty();
+    };
+    if pattern_head == b'*' {
+        return (0..=text.len()).any(|index| {
+            text.get(index..)
+                .is_some_and(|text_tail| glob_match_bytes(pattern_tail, text_tail))
+        });
     }
-    if pattern[0] == b'*' {
-        return (0..=text.len()).any(|index| glob_match_bytes(&pattern[1..], &text[index..]));
-    }
-    if !text.is_empty() && (pattern[0] == b'?' || pattern[0] == text[0]) {
-        return glob_match_bytes(&pattern[1..], &text[1..]);
-    }
-    false
+    let Some((&text_head, text_tail)) = text.split_first() else {
+        return false;
+    };
+    (pattern_head == b'?' || pattern_head == text_head) && glob_match_bytes(pattern_tail, text_tail)
 }
