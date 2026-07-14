@@ -19,6 +19,7 @@ pub(super) fn deadline_expired_report(
         },
         HandlerOutcome::DeadlineExpired,
         Some(EventingError::EventDeadlineExpired {
+            // CLONE-JUSTIFICATION: the report-owned error outlives this borrowed stored envelope.
             event_type: stored.contract.event_type.clone(),
         }),
         attempts,
@@ -52,7 +53,9 @@ pub(super) fn handled_report(
     HandlerReport::new(
         stored,
         HandlerIdentity {
+            // CLONE-JUSTIFICATION: HandlerReport owns the subscriber identity after this borrowed record is released.
             subscriber_id: subscriber.id.clone(),
+            // CLONE-JUSTIFICATION: HandlerReport owns the target handler after this borrowed record is released.
             target_handler: subscriber.target_handler.clone(),
         },
         HandlerOutcome::Handled,
@@ -70,7 +73,9 @@ pub(super) fn failed_report(
     HandlerReport::new(
         stored,
         HandlerIdentity {
+            // CLONE-JUSTIFICATION: HandlerReport owns the subscriber identity after this borrowed record is released.
             subscriber_id: subscriber.id.clone(),
+            // CLONE-JUSTIFICATION: HandlerReport owns the target handler after this borrowed record is released.
             target_handler: subscriber.target_handler.clone(),
         },
         HandlerOutcome::Failed,
@@ -87,11 +92,14 @@ pub(super) fn timed_out_report(
     HandlerReport::new(
         stored,
         HandlerIdentity {
+            // CLONE-JUSTIFICATION: HandlerReport owns the subscriber identity after this borrowed record is released.
             subscriber_id: subscriber.id.clone(),
+            // CLONE-JUSTIFICATION: HandlerReport owns the target handler after this borrowed record is released.
             target_handler: subscriber.target_handler.clone(),
         },
         HandlerOutcome::TimedOut,
         Some(EventingError::HandlerTimedOut {
+            // CLONE-JUSTIFICATION: the report-owned timeout error retains the subscriber identity after the borrowed record is released.
             subscriber_id: subscriber.id.clone(),
         }),
         attempts,
@@ -106,11 +114,14 @@ pub(super) fn panicked_report(
     HandlerReport::new(
         stored,
         HandlerIdentity {
+            // CLONE-JUSTIFICATION: HandlerReport owns the subscriber identity after this borrowed record is released.
             subscriber_id: subscriber.id.clone(),
+            // CLONE-JUSTIFICATION: HandlerReport owns the target handler after this borrowed record is released.
             target_handler: subscriber.target_handler.clone(),
         },
         HandlerOutcome::Panicked,
         Some(EventingError::HandlerPanicked {
+            // CLONE-JUSTIFICATION: the report-owned panic error retains the subscriber identity after the borrowed record is released.
             subscriber_id: subscriber.id.clone(),
         }),
         attempts,

@@ -191,6 +191,7 @@ impl Validator for PrototypePollutionValidator {
 
             if self.proto_dot_write.is_match(line) {
                 findings.push(Finding {
+                    // CLONE-JUSTIFICATION: returned findings outlive the borrowed validation input and own their rule ID.
                     rule_id: self.rule_id.clone(),
                     severity: Severity::Error,
                     title: "Direct write to Object.prototype via __proto__".to_owned(),
@@ -200,6 +201,7 @@ impl Validator for PrototypePollutionValidator {
                              `Object.create(null)` for plain data maps and validate/allowlist \
                              property names before any dynamic assignment."
                         .to_owned(),
+                    // CLONE-JUSTIFICATION: returned findings outlive the borrowed validation input and own their file path.
                     file: input.file.clone(),
                     line: line_number,
                     snippet: Some(line.to_owned()),
@@ -208,6 +210,7 @@ impl Validator for PrototypePollutionValidator {
 
             if self.proto_bracket_literal.is_match(line) {
                 findings.push(Finding {
+                    // CLONE-JUSTIFICATION: returned findings outlive the borrowed validation input and own their rule ID.
                     rule_id: self.rule_id.clone(),
                     severity: Severity::Error,
                     title: "Computed access to a dangerous prototype key".to_owned(),
@@ -218,6 +221,7 @@ impl Validator for PrototypePollutionValidator {
                              reject these three key names before any dynamic property write, or \
                              use a `Map` instead of a plain object for user-controlled keys."
                         .to_owned(),
+                    // CLONE-JUSTIFICATION: returned findings outlive the borrowed validation input and own their file path.
                     file: input.file.clone(),
                     line: line_number,
                     snippet: Some(line.to_owned()),
@@ -226,6 +230,7 @@ impl Validator for PrototypePollutionValidator {
 
             if self.constructor_prototype_chain.is_match(line) {
                 findings.push(Finding {
+                    // CLONE-JUSTIFICATION: returned findings outlive the borrowed validation input and own their rule ID.
                     rule_id: self.rule_id.clone(),
                     severity: Severity::Error,
                     title: "Prototype access via constructor.prototype".to_owned(),
@@ -235,6 +240,7 @@ impl Validator for PrototypePollutionValidator {
                              write through `constructor.prototype`; use `Object.create(null)` \
                              for plain data maps and validate/allowlist property names."
                         .to_owned(),
+                    // CLONE-JUSTIFICATION: returned findings outlive the borrowed validation input and own their file path.
                     file: input.file.clone(),
                     line: line_number,
                     snippet: Some(line.to_owned()),
@@ -243,6 +249,7 @@ impl Validator for PrototypePollutionValidator {
 
             if self.computed_merge.is_match(line) && !has_denylist_guard {
                 findings.push(Finding {
+                    // CLONE-JUSTIFICATION: returned findings outlive the borrowed validation input and own their rule ID.
                     rule_id: self.rule_id.clone(),
                     severity: Severity::Error,
                     title: "Unguarded recursive merge write".to_owned(),
@@ -254,6 +261,7 @@ impl Validator for PrototypePollutionValidator {
                              Object prototype. Fix: skip the three dangerous key names before \
                              assigning, or build the merge target with `Object.create(null)`."
                         .to_owned(),
+                    // CLONE-JUSTIFICATION: returned findings outlive the borrowed validation input and own their file path.
                     file: input.file.clone(),
                     line: line_number,
                     snippet: Some(line.to_owned()),
@@ -263,6 +271,7 @@ impl Validator for PrototypePollutionValidator {
             for (regex, label) in &self.merge_calls {
                 if regex.is_match(line) && self.untrusted_source.is_match(line) {
                     findings.push(Finding {
+                        // CLONE-JUSTIFICATION: returned findings outlive the borrowed validation input and own their rule ID.
                         rule_id: self.rule_id.clone(),
                         severity: Severity::Error,
                         title: "Deep merge/assign fed directly from request input".to_owned(),
@@ -276,6 +285,7 @@ impl Validator for PrototypePollutionValidator {
                              an explicit denylist/allowlist, or merge onto an \
                              `Object.create(null)` target."
                         ),
+                        // CLONE-JUSTIFICATION: returned findings outlive the borrowed validation input and own their file path.
                         file: input.file.clone(),
                         line: line_number,
                         snippet: Some(line.to_owned()),
