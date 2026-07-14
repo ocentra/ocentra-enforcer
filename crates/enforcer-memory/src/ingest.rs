@@ -93,11 +93,19 @@ pub struct Incident {
 
 impl Incident {
     pub fn searchable_text(&self) -> String {
+        let fault_class = match self.fault_class.as_deref() {
+            Some(value) => value,
+            None => "",
+        };
+        let rule_id = match self.rule_id.as_deref() {
+            Some(value) => value,
+            None => "",
+        };
         format!(
             "{} {} {}",
             self.repo_context,
-            self.fault_class.clone().unwrap_or_default(),
-            self.rule_id.clone().unwrap_or_default()
+            fault_class,
+            rule_id
         )
     }
 }
@@ -123,6 +131,7 @@ pub struct Observation {
 /// created so the caller can, e.g., surface it in a run's proof journal.
 pub fn ingest_observation(graph: &mut MemoryGraph, observation: Observation) -> String {
     let id = format!("obs-{}-{:04}", observation.source_surface, graph.len());
+    // CLONE-JUSTIFICATION: the graph consumes the incident while the caller receives its id.
     let incident = incident_from_observation(id.clone(), observation);
     graph.ingest_incident(incident);
     id
@@ -144,6 +153,7 @@ pub fn append_observation_payload_to_store(
     let mut assigned_id = String::new();
     store.append_observation_entry(|seq| {
         let id = format!("obs-{}-{seq:04}", observation.source_surface);
+        // CLONE-JUSTIFICATION: the durable log entry owns its id while the caller receives it after append.
         assigned_id = id.clone();
         ObservationLogEntry {
             schema_version: SCHEMA_VERSION,
@@ -224,13 +234,20 @@ fn incident_from_observation(id: String, observation: Observation) -> Incident {
 
 fn incident_from_entry(entry: &ObservationLogEntry) -> Incident {
     Incident {
+        // CLONE-JUSTIFICATION: the graph-owned incident outlives this borrowed durable log entry.
         id: entry.id.clone(),
+        // CLONE-JUSTIFICATION: the graph-owned incident outlives this borrowed durable log entry.
         lesson_id: entry.lesson_id.clone(),
+        // CLONE-JUSTIFICATION: the graph-owned incident outlives this borrowed durable log entry.
         rule_id: entry.rule_id.clone(),
+        // CLONE-JUSTIFICATION: the graph-owned incident outlives this borrowed durable log entry.
         fault_class: entry.fault_class.clone(),
+        // CLONE-JUSTIFICATION: the graph-owned incident outlives this borrowed durable log entry.
         repo_context: entry.repo_context.clone(),
         clean: entry.clean,
+        // CLONE-JUSTIFICATION: the graph-owned incident outlives this borrowed durable log entry.
         source_surface: entry.source_surface.clone(),
+        // CLONE-JUSTIFICATION: the graph-owned incident outlives this borrowed durable log entry.
         ts: entry.ts.clone(),
     }
 }
