@@ -154,6 +154,13 @@
     "reason": "ADD with local file (not URL) is allowed"
   },
   {
+    "name": "bad: ADD JSON array with remote URL",
+    "input": "FROM python:3.12@sha256:abc\nUSER 10001\nADD [\"https://example.com/tool\", \"/usr/local/bin/tool\"]",
+    "expect": "flag",
+    "branch": "remote-add",
+    "reason": "JSON-array ADD still fetches a remote URL and must be rejected"
+  },
+  {
     "name": "clean: apt-get with --no-install-recommends",
     "input": "FROM python:3.12@sha256:abc\nUSER 10001\nRUN apt-get update && apt-get install -y --no-install-recommends curl",
     "expect": "clean",

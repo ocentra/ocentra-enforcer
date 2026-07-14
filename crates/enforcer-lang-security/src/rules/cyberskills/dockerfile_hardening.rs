@@ -290,7 +290,14 @@ impl Validator for DockerfileHardeningValidator {
                     }
                 }
                 "ADD" => {
-                    let src = instr.args.split_whitespace().next().unwrap_or("");
+                    let json_source = instr
+                        .args
+                        .trim_start()
+                        .strip_prefix("[\"")
+                        .and_then(|rest| rest.split_once('"'))
+                        .map(|(source, _)| source);
+                    let src = json_source
+                        .unwrap_or_else(|| instr.args.split_whitespace().next().unwrap_or(""));
                     if src.starts_with("http://") || src.starts_with("https://") {
                         findings.push(self.finding(
                             &input,

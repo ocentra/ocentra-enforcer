@@ -42,3 +42,22 @@ fn platform_qualified_from_uses_the_actual_image_reference(
     );
     Ok(())
 }
+
+#[test]
+fn json_array_add_with_remote_url_is_rejected() -> Result<(), Box<dyn std::error::Error>> {
+    let validator = DockerfileHardeningValidator::new()?;
+    let file: RelPath = "Dockerfile".parse()?;
+    let findings = validator.validate(ValidationInput {
+        source: "FROM alpine:3.20\nADD [\"https://example.com/tool\", \"/usr/local/bin/tool\"]\nUSER 10001\n",
+        file: &file,
+        scope: ScanScope::Files,
+    });
+
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].line, 2);
+    assert_eq!(
+        findings[0].severity,
+        enforcer_domain::severity::Severity::Error
+    );
+    Ok(())
+}
