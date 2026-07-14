@@ -134,6 +134,7 @@ pub fn ingest_trace_records_into_store(
             fault_class: Some("runtime-trace".to_owned()),
             repo_context: format!("{} -> {}", record.caller, record.callee),
             clean: true,
+            // CLONE-JUSTIFICATION: emitted observation outlives the borrowed batch.
             source_surface: batch.source_surface.clone(),
             ts: batch.ts.clone(),
             supersedes_seq: None,
@@ -209,9 +210,11 @@ impl TraceStore {
             let callee_known = known_ids.contains(record.callee.as_str())
                 || known_raw_callees.contains(record.callee.as_str());
             if caller_known && callee_known {
+                // CLONE-JUSTIFICATION: runtime-count map owns the key after borrowed record inspection.
                 let key = (record.caller.clone(), record.callee.clone());
                 *self.runtime_counts.entry(key).or_insert(0) += record.count;
             } else {
+                // CLONE-JUSTIFICATION: unresolved evidence is retained independently of the input record.
                 self.unresolved.push(UnresolvedTrace {
                     record: record.clone(),
                     unresolved_caller: !caller_known,
@@ -263,6 +266,7 @@ impl TraceStore {
         let mut merged: BTreeMap<(String, String), TracedEdge> = BTreeMap::new();
 
         for call in graph.calls() {
+            // CLONE-JUSTIFICATION: merged edge map owns keys while graph calls stay borrowed.
             let key = (call.from_file_id.clone(), call.callee.clone());
             merged.entry(key.clone()).or_insert(TracedEdge {
                 caller: call.from_file_id.clone(),
@@ -273,6 +277,7 @@ impl TraceStore {
         }
 
         for ((caller, callee), count) in &self.runtime_counts {
+            // CLONE-JUSTIFICATION: merged keys and runtime edge payloads have independent ownership.
             let key = (caller.clone(), callee.clone());
             match merged.get_mut(&key) {
                 Some(edge) => edge.observed_count = *count,
@@ -280,6 +285,7 @@ impl TraceStore {
                     merged.insert(
                         key,
                         TracedEdge {
+                            // CLONE-JUSTIFICATION: stored runtime edge owns caller/callee beyond borrowed count-map iteration.
                             caller: caller.clone(),
                             callee: callee.clone(),
                             provenance: EdgeProvenance::Runtime,
