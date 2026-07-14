@@ -617,9 +617,14 @@ fn verify_supersession_state(lines: &[LedgerLine]) -> Result<(), PlanError> {
                 "references a different lesson id",
             ));
         }
-        let latest_prior_index = lines[..index]
+        let latest_prior_index = lines
             .iter()
-            .rposition(|candidate| candidate.record.id == line.record.id);
+            .enumerate()
+            .take(index)
+            .filter_map(|(candidate_index, candidate)| {
+                (candidate.record.id == line.record.id).then_some(candidate_index)
+            })
+            .last();
         if latest_prior_index != Some(prior_index) {
             return Err(invalid_supersession(
                 index,
