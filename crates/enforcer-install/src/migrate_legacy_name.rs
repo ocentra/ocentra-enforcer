@@ -141,6 +141,10 @@ pub enum FindingKind {
     /// A `mcpServers`/`mcp_servers` registration keyed under
     /// [`LEGACY_SERVER_NAME`] instead of [`SERVER_NAME`].
     LegacyServerRegistration,
+    /// Both legacy and neutral server keys are present in the same
+    /// structured registry. Migration must stop rather than overwrite the
+    /// neutral entry.
+    ConflictingServerRegistration,
     /// A `rust_rules_*` or `ocentra_enforcer_*` tool-name string literal
     /// embedded in config prose (not a structured registry key).
     LegacyToolNameLiteral,
@@ -267,16 +271,25 @@ fn scan_json(target: &ConfigTarget, raw: &str) -> InstallResult<Vec<Finding>> {
             reason: format!("not valid JSON: {e}"),
         })?;
     let mut findings = Vec::new();
-    if value
+    let servers = value
         .get("mcpServers")
-        .and_then(|s| s.get(LEGACY_SERVER_NAME))
-        .is_some()
-    {
+        .and_then(JsonValue::as_object);
+    if servers.is_some_and(|servers| servers.contains_key(LEGACY_SERVER_NAME)) {
+        let conflicts_with_neutral = servers
+            .is_some_and(|servers| servers.contains_key(SERVER_NAME));
         findings.push(Finding {
             harness: target.harness.clone(),
             path: target.path.display().to_string(),
-            kind: FindingKind::LegacyServerRegistration,
-            detail: format!("mcpServers.{LEGACY_SERVER_NAME}"),
+            kind: if conflicts_with_neutral {
+                FindingKind::ConflictingServerRegistration
+            } else {
+                FindingKind::LegacyServerRegistration
+            },
+            detail: if conflicts_with_neutral {
+                format!("mcpServers contains both {LEGACY_SERVER_NAME} and {SERVER_NAME}")
+            } else {
+                format!("mcpServers.{LEGACY_SERVER_NAME}")
+            },
         });
     }
     Ok(findings)
@@ -290,17 +303,25 @@ fn scan_toml(target: &ConfigTarget, raw: &str) -> InstallResult<Vec<Finding>> {
         reason: format!("not valid TOML: {e}"),
     })?;
     let mut findings = Vec::new();
-    if doc
+    let servers = doc
         .get("mcp_servers")
-        .and_then(toml_edit::Item::as_table)
-        .and_then(|servers| servers.get(LEGACY_SERVER_NAME))
-        .is_some()
-    {
+        .and_then(toml_edit::Item::as_table);
+    if servers.is_some_and(|servers| servers.contains_key(LEGACY_SERVER_NAME)) {
+        let conflicts_with_neutral = servers
+            .is_some_and(|servers| servers.contains_key(SERVER_NAME));
         findings.push(Finding {
             harness: target.harness.clone(),
             path: target.path.display().to_string(),
-            kind: FindingKind::LegacyServerRegistration,
-            detail: format!("mcp_servers.{LEGACY_SERVER_NAME}"),
+            kind: if conflicts_with_neutral {
+                FindingKind::ConflictingServerRegistration
+            } else {
+                FindingKind::LegacyServerRegistration
+            },
+            detail: if conflicts_with_neutral {
+                format!("mcp_servers contains both {LEGACY_SERVER_NAME} and {SERVER_NAME}")
+            } else {
+                format!("mcp_servers.{LEGACY_SERVER_NAME}")
+            },
         });
     }
     Ok(findings)
@@ -366,11 +387,31 @@ pub fn migrate(
 ) -> InstallResult<MigrationOutcome> {
     let mut outcome = MigrationOutcome::default();
 
+    let mut planned_rewrites = Vec::new();
     for target in targets {
         let before = scan_one(target)?;
         if before.is_empty() {
             continue;
         }
+        if before
+            .iter()
+            .any(|finding| finding.kind == FindingKind::ConflictingServerRegistration)
+        {
+            // ALLOC-JUSTIFICATION: the typed preflight failure must retain
+            // both the target path and collision explanation after scanning
+            // has released its borrowed config data.
+            return Err(InstallError::MalformedConfig {
+                path: target.path.display().to_string(),
+                reason: format!(
+                    "contains both `{LEGACY_SERVER_NAME}` and `{SERVER_NAME}` MCP registrations; \
+                     migration refuses to overwrite the existing neutral entry"
+                ),
+            });
+        }
+        planned_rewrites.push((target, before));
+    }
+
+    for (target, before) in planned_rewrites {
         outcome.findings.extend(before);
         let backup_path = timestamped_backup(&target.path)?;
         rewrite_target(target)?;
