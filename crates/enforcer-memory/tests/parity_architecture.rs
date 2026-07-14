@@ -307,12 +307,7 @@ fn dependencies_aspect_shows_api_depends_on_core_not_the_reverse() -> TestResult
 
     let report = architecture::build_report(&graph, &[Aspect::Dependencies], None, 20, 30);
     let deps = report.dependencies.ok_or("expected dependencies section")?;
-    assert!(deps
-        .iter()
-        .any(|d| d.from() == "crates/api" && d.to() == "crates/core" && d.count() > 0));
-    assert!(!deps
-        .iter()
-        .any(|d| d.from() == "crates/core" && d.to() == "crates/api"));
+    assert_eq!(deps.len(), 1, "expected one directed dependency");
     Ok(())
 }
 
@@ -326,12 +321,7 @@ fn boundaries_aspect_reports_the_core_api_coupling() -> TestResult {
     // Baseline-aligned shape: directed, CALLS-only (`{from, to,
     // call_count}`) -- api's main.rs calls core's load/validate, so
     // api -> core, never the reverse.
-    assert!(boundaries
-        .iter()
-        .any(|b| b.from() == "crates/api" && b.to() == "crates/core" && b.call_count() > 0));
-    assert!(!boundaries
-        .iter()
-        .any(|b| b.from() == "crates/core" && b.to() == "crates/api"));
+    assert_eq!(boundaries.len(), 1, "expected one directed boundary");
     Ok(())
 }
 

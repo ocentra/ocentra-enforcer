@@ -79,6 +79,7 @@
 use crate::analysis::clustering::{self, ClusteringResult};
 use crate::analysis::CodeAdjacency;
 use crate::code_graph::CodeGraph;
+use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Borrowed, repository-relative path text inside the architecture domain.
@@ -305,39 +306,17 @@ pub enum EntryPointKind {
     RouteHandler,
 }
 
-/// A validated architecture section identifier exposed by a cross-section
-/// report record.
-///
-/// BRAND-INVARIANT: constructed only from [`ArchitectureSectionKey`], whose
-/// value is derived from a repository-relative graph path.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ArchitectureSectionId(String);
+struct ArchitectureSectionId(String);
 
 impl ArchitectureSectionId {
     fn from_key(key: ArchitectureSectionKey) -> Self {
         Self(key.0)
     }
-
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
 }
 
-/// A non-negative count of edges crossing between two architecture sections.
-///
-/// BRAND-INVARIANT: values are accumulated from resolved graph edges only.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct CrossSectionEdgeCount(usize);
-
-impl CrossSectionEdgeCount {
-    fn new(value: usize) -> Self {
-        Self(value)
-    }
-
-    pub fn get(self) -> usize {
-        self.0
-    }
-}
+struct CrossSectionEdgeCount(usize);
 
 /// A directed dependency edge between two crate/module sections (see
 /// [`CrateSection::name`]), with the number of resolved import/call
@@ -347,20 +326,6 @@ pub struct DependencyEdge {
     from: ArchitectureSectionId,
     to: ArchitectureSectionId,
     count: CrossSectionEdgeCount,
-}
-
-impl DependencyEdge {
-    pub fn from(&self) -> &str {
-        self.from.as_str()
-    }
-
-    pub fn to(&self) -> &str {
-        self.to.as_str()
-    }
-
-    pub fn count(&self) -> usize {
-        self.count.get()
-    }
 }
 
 /// A directed cross-section CALLS-edge count: `from` section calls into
@@ -373,20 +338,6 @@ pub struct Boundary {
     from: ArchitectureSectionId,
     to: ArchitectureSectionId,
     call_count: CrossSectionEdgeCount,
-}
-
-impl Boundary {
-    pub fn from(&self) -> &str {
-        self.from.as_str()
-    }
-
-    pub fn to(&self) -> &str {
-        self.to.as_str()
-    }
-
-    pub fn call_count(&self) -> usize {
-        self.call_count.get()
-    }
 }
 
 /// One layer in the dependency-direction topological ordering of
@@ -681,6 +632,30 @@ pub struct ClusterCohesion {
     pub cluster_id: String,
     pub member_count: usize,
     pub cohesion: f64,
+}
+
+/// Converts dependency edges into their stable MCP JSON representation.
+pub(crate) fn dependency_edges_json(edges: Vec<DependencyEdge>) -> Value {
+    json!(edges
+        .into_iter()
+        .map(|edge| json!({
+            "from": edge.from.0,
+            "to": edge.to.0,
+            "count": edge.count.0,
+        }))
+        .collect::<Vec<_>>())
+}
+
+/// Converts cross-section boundaries into their stable MCP JSON representation.
+pub(crate) fn boundaries_json(boundaries: Vec<Boundary>) -> Value {
+    json!(boundaries
+        .into_iter()
+        .map(|boundary| json!({
+            "from": boundary.from.0,
+            "to": boundary.to.0,
+            "callCount": boundary.call_count.0,
+        }))
+        .collect::<Vec<_>>())
 }
 
 /// Build a [`ArchitectureReport`] containing exactly the requested
@@ -1104,7 +1079,7 @@ fn dependency_edges(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<Depe
         .map(|((from, to), count)| DependencyEdge {
             from: ArchitectureSectionId::from_key(from),
             to: ArchitectureSectionId::from_key(to),
-            count: CrossSectionEdgeCount::new(count),
+            count: CrossSectionEdgeCount(count),
         })
         .collect()
 }
@@ -1191,7 +1166,7 @@ fn boundaries(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<Boundary> 
         .map(|((from, to), call_count)| Boundary {
             from: ArchitectureSectionId::from_key(from),
             to: ArchitectureSectionId::from_key(to),
-            call_count: CrossSectionEdgeCount::new(call_count),
+            call_count: CrossSectionEdgeCount(call_count),
         })
         .collect()
 }
@@ -1348,11 +1323,12 @@ fn layer_classification(
         // CLONE-JUSTIFICATION: independent inbound and outbound aggregation
         // maps each own their typed key after the edge view is dropped.
         *fan_out
-            .entry(ArchitectureSectionKey(edge.from().to_owned()))
-            .or_insert(0) += edge.call_count();
+            .entry(ArchitectureSectionKey(edge.from.0.clone()))
+            .or_insert(0) += edge.call_count.0;
+        // CLONE-JUSTIFICATION: the inbound map independently owns its key.
         *fan_in
-            .entry(ArchitectureSectionKey(edge.to().to_owned()))
-            .or_insert(0) += edge.call_count();
+            .entry(ArchitectureSectionKey(edge.to.0.clone()))
+            .or_insert(0) += edge.call_count.0;
     }
 
     let mut has_entry_point: BTreeSet<ArchitectureSectionKey> = BTreeSet::new();

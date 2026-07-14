@@ -1809,9 +1809,7 @@ fn handle_get_architecture(args: &Value) -> Value {
             "symbolCount": s.symbol_count,
             "relPaths": s.rel_paths,
         })).collect::<Vec<_>>()),
-        "dependencies": report.dependencies.map(|edges| edges.into_iter().map(|e| json!({
-            "from": e.from(), "to": e.to(), "count": e.count(),
-        })).collect::<Vec<_>>()),
+        "dependencies": report.dependencies.map(architecture::dependency_edges_json),
         "routes": report.routes.map(|routes| routes.into_iter().map(|r| json!({
             "method": r.method, "path": r.path, "declaredIn": r.declared_in, "line": r.line,
         })).collect::<Vec<_>>()),
@@ -1832,9 +1830,7 @@ fn handle_get_architecture(args: &Value) -> Value {
         "hotspotEntries": report.hotspot_entries.map(|entries| entries.into_iter().map(|h| json!({
             "name": h.name, "nodeId": h.node_id, "fanIn": h.fan_in,
         })).collect::<Vec<_>>()),
-        "boundaries": report.boundaries.map(|boundaries| boundaries.into_iter().map(|b| json!({
-            "from": b.from(), "to": b.to(), "callCount": b.call_count(),
-        })).collect::<Vec<_>>()),
+        "boundaries": report.boundaries.map(architecture::boundaries_json),
         "layerClassification": report.layer_classification.map(|layers| layers.into_iter().map(|l| json!({
             "name": l.name, "layer": format!("{:?}", l.layer), "reason": l.reason,
         })).collect::<Vec<_>>()),
