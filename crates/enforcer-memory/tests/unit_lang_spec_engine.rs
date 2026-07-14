@@ -1617,6 +1617,43 @@ class C {
     compare_php(src, "php_symfony_route_attribute");
 }
 
+/// Direct generic-engine regression: iterator traversal retains source order
+/// through nested attributes and a static call's argument list.
+#[test]
+fn generic_php_child_iteration_preserves_route_and_call_argument_order() -> TestResult {
+    let src = r#"<?php
+class C {
+    #[Route("/first"), Route("/second")]
+    public function save(int $first, string $second): Result {
+        return Route::post("/first", [$first, $second]);
+    }
+}
+"#;
+    let parsed = generic::parse_php(src);
+    let routes: Vec<(&str, &str)> = parsed
+        .routes
+        .iter()
+        .map(|route| (route.method.as_str(), route.path.as_str()))
+        .collect();
+    assert_eq!(
+        routes,
+        vec![("", "/first"), ("", "/second"), ("POST", "/first")],
+        "{routes:?}"
+    );
+
+    let call = parsed
+        .calls
+        .iter()
+        .find(|call| call.callee == "Route::post")
+        .ok_or("expected a Route::post call")?;
+    assert_eq!(
+        call.arg_texts,
+        vec!["\"/first\"".to_string(), "[$first, $second]".to_string()],
+        "{call:?}"
+    );
+    Ok(())
+}
+
 #[test]
 fn matches_bespoke_php_on_const_declaration_and_define_call_as_constants() {
     let src = r#"<?php
