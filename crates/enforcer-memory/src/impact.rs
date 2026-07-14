@@ -184,10 +184,10 @@ pub fn analyze_diff_impact_scoped(
 ) -> ScopedImpactReport {
     let adjacency = CodeAdjacency::build(graph);
     let test_ids = test_node_ids(graph);
-    let route_file_ids: BTreeSet<String> = graph
+    let route_file_ids: BTreeSet<&str> = graph
         .routes()
         .iter()
-        .map(|r| r.from_file_id.clone())
+        .map(|r| r.from_file_id.as_str())
         .collect();
     // Computed once for the whole call (not once per seed per changed
     // path): `hotspots` scores every node in the graph, so re-deriving
@@ -209,12 +209,13 @@ pub fn analyze_diff_impact_scoped(
     for rel_path in changed_paths {
         let file_id = format!("file:{rel_path}");
         let mut seeds: BTreeSet<String> = BTreeSet::new();
-        seeds.insert(file_id.clone());
         for symbol in graph.symbol_nodes() {
             if symbol.file_id == file_id {
+                // CLONE-JUSTIFICATION: graph-owned symbol ids must outlive this borrowed graph during traversal.
                 seeds.insert(symbol.id.clone());
             }
         }
+        seeds.insert(file_id);
 
         let mut affected: BTreeSet<String> = BTreeSet::new();
         for seed in &seeds {
@@ -259,10 +260,12 @@ pub fn analyze_diff_impact_scoped(
         let risk = classify_risk_from_factors(factors);
 
         for id in &scoped_affected {
+            // CLONE-JUSTIFICATION: the aggregate report and this file-level report independently own each id.
             total.insert(id.clone());
         }
 
         impacted.push(ScopedImpactedFile {
+            // CLONE-JUSTIFICATION: the report owns this path after the borrowed changed-path input is released.
             rel_path: rel_path.clone(),
             affected_node_ids: scoped_affected,
             factors: RiskFactorsSnapshot {
@@ -377,8 +380,10 @@ pub fn detect_changes_view(
                 };
                 if let Some((symbol, label)) = symbol {
                     impacted_symbols.push(ChangedSymbol {
+                        // CLONE-JUSTIFICATION: the response owns graph-derived symbol text after traversal.
                         name: symbol.name.clone(),
                         label: label.to_string(),
+                        // CLONE-JUSTIFICATION: each response row owns its file while the input slice remains borrowed.
                         file: file.clone(),
                     });
                 }
@@ -432,12 +437,13 @@ pub fn analyze_diff_impact(
         // starting at the file id alone can never see a call into a
         // symbol the file merely contains).
         let mut seeds: BTreeSet<String> = BTreeSet::new();
-        seeds.insert(file_id.clone());
         for symbol in graph.symbol_nodes() {
             if symbol.file_id == file_id {
+                // CLONE-JUSTIFICATION: graph-owned symbol ids must outlive this borrowed graph during traversal.
                 seeds.insert(symbol.id.clone());
             }
         }
+        seeds.insert(file_id);
 
         let mut affected: BTreeSet<String> = BTreeSet::new();
         for seed in &seeds {
@@ -452,10 +458,12 @@ pub fn analyze_diff_impact(
 
         let affected: Vec<String> = affected.into_iter().collect();
         for id in &affected {
+            // CLONE-JUSTIFICATION: the aggregate report and this file-level report independently own each id.
             total.insert(id.clone());
         }
         let risk = classify_risk(affected.len());
         impacted.push(ImpactedFile {
+            // CLONE-JUSTIFICATION: the report owns this path after the borrowed changed-path input is released.
             rel_path: rel_path.clone(),
             affected_node_ids: affected,
             risk,
