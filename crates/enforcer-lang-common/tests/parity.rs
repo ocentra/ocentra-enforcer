@@ -12,6 +12,7 @@ use std::path::PathBuf;
 use enforcer_lang_common::port_platform::DeclaredScope;
 use enforcer_lang_common::registry;
 use enforcer_lang_common::rules::deferred_work::DeferredWorkValidator;
+use enforcer_lang_common::rules::test_quality::BehavioralTestNameValidator;
 use enforcer_validator::harness::run_fixture_parity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
@@ -46,7 +47,8 @@ fn manifest_dir() -> PathBuf {
 }
 
 #[test]
-fn truncated_deferred_annotation_is_a_safe_malformed_finding() -> Result<(), Box<dyn std::error::Error>> {
+fn truncated_deferred_annotation_is_a_safe_malformed_finding(
+) -> Result<(), Box<dyn std::error::Error>> {
     let validator = DeferredWorkValidator::new()?;
     let file = "src/example.rs".parse()?;
     let findings = validator.validate(ValidationInput {
@@ -56,6 +58,20 @@ fn truncated_deferred_annotation_is_a_safe_malformed_finding() -> Result<(), Box
     });
     assert_eq!(findings.len(), 1);
     assert!(findings[0].title.contains("malformed"));
+    Ok(())
+}
+
+#[test]
+fn truncated_test_name_is_ignored_safely() -> Result<(), Box<dyn std::error::Error>> {
+    let validator = BehavioralTestNameValidator::new()?;
+    let file = "tests/example.test.ts".parse()?;
+    assert!(validator
+        .validate(ValidationInput {
+            file: &file,
+            source: "it(\"unfinished",
+            scope: enforcer_domain::findings::ScanScope::Files
+        })
+        .is_empty());
     Ok(())
 }
 

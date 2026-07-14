@@ -240,8 +240,10 @@ fn test_names(source: &str) -> Vec<String> {
             if let Some(rest) = line.trim_start().strip_prefix(opener) {
                 if let Some(quote) = rest.chars().next() {
                     if quote == '"' || quote == '\'' {
-                        if let Some(end) = rest[1..].find(quote) {
-                            names.push(rest[1..1 + end].to_owned());
+                        if let Some(quoted) = rest.strip_prefix(quote) {
+                            if let Some((name, _)) = quoted.split_once(quote) {
+                                names.push(name.to_owned());
+                            }
                         }
                     }
                 }
@@ -250,7 +252,9 @@ fn test_names(source: &str) -> Vec<String> {
         let trimmed = line.trim_start();
         if let Some(rest) = trimmed.strip_prefix("def test_") {
             if let Some(paren) = rest.find('(') {
-                names.push(format!("test_{}", &rest[..paren]));
+                if let Some(name) = rest.get(..paren) {
+                    names.push(format!("test_{name}"));
+                }
             }
         }
     }
@@ -590,8 +594,7 @@ const COVERAGE_FLOOR_MINIMUM: u32 = 70;
 fn coverage_floor_value(source: &str) -> Option<u32> {
     for line in source.lines() {
         for marker in ["fail_under", "--cov-fail-under"] {
-            if let Some(pos) = line.find(marker) {
-                let rest = &line[pos + marker.len()..];
+            if let Some((_, rest)) = line.split_once(marker) {
                 let digits: String = rest
                     .chars()
                     .skip_while(|c| !c.is_ascii_digit())
