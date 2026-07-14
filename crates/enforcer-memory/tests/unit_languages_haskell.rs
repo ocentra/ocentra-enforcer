@@ -212,6 +212,18 @@ draw s = helper 3
 }
 
 #[test]
+fn scoped_function_walk_preserves_call_and_scope() {
+    let parsed = parse_haskell("draw value = helper value\n");
+    let calls: Vec<(&str, Option<&str>)> = parsed
+        .calls
+        .iter()
+        .map(|call| (call.callee.as_str(), call.from_symbol.as_deref()))
+        .collect();
+
+    assert_eq!(calls, vec![("helper", Some("draw"))]);
+}
+
+#[test]
 fn malformed_source_does_not_panic() {
     let parsed = parse_haskell("module ??? where this is not valid haskell @@@");
     let _ = parsed;

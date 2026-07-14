@@ -7651,10 +7651,8 @@ fn haskell_walk_scoped(node: Node<'_>, src: &[u8], fn_scope: FnScope<'_>, out: &
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, &ctx, out, None, fn_scope);
-        }
+    for child in syntax_children(node) {
+        walk(child, &ctx, out, None, fn_scope);
     }
 }
 
