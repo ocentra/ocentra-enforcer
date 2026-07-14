@@ -96,6 +96,24 @@ fn matching_route_declarations_produce_route_declaration_cross_http_edge() {
 }
 
 #[test]
+fn route_declarations_match_templated_paths_and_wildcard_methods() {
+    let current = graph_with_route("ANY", "/widgets/42");
+    let target = graph_with_route("GET", "/widgets/{id}");
+    let mut targets = BTreeMap::new();
+    targets.insert("service-b".to_owned(), &target);
+
+    let report = match_cross_repo("service-a", &current, &targets);
+
+    assert_eq!(report.cross_http_calls.len(), 1);
+    assert_eq!(
+        report.cross_http_calls[0].via,
+        CrossHttpMatchKind::RouteDeclaration
+    );
+    assert_eq!(report.cross_http_calls[0].method, "GET");
+    assert_eq!(report.cross_http_calls[0].path, "/widgets/{id}");
+}
+
+#[test]
 fn matching_publish_subscribe_topics_increment_cross_channel() {
     let current = graph_with_channel_call("events.publish", "widgets.created");
     let target = graph_with_channel_call("bus.subscribe", "widgets.created");

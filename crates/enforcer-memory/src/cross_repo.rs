@@ -231,12 +231,16 @@ pub fn match_cross_repo(
             let route_accepts_any_method = route_method.is_empty() || route_method == "ANY";
 
             for current_route in current_routes {
-                if normalize_http_path(&current_route.path) != route_path {
+                if !http_path_matches_route(&current_route.path, &route_path) {
                     continue;
                 }
+                let current_route_method = current_route.method.to_uppercase();
+                let current_route_accepts_any_method = current_route_method.is_empty()
+                    || current_route_method == "ANY";
                 if !route_accepts_any_method
+                    && !current_route_accepts_any_method
                     && !current_route.method.is_empty()
-                    && current_route.method.to_uppercase() != route_method
+                    && current_route_method != route_method
                 {
                     continue;
                 }
