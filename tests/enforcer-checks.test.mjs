@@ -510,6 +510,26 @@ test('check architecture-policy deduplicates legacy scanner aliases', () => {
   ]);
 });
 
+test('check architecture-policy preserves findings from shared generic scans', () => {
+  const project = makeProject({
+    'ocentra-enforcer.config.json': JSON.stringify({
+      profileName: 'architecture-generic-cache-test',
+      architecturePolicyChecks: ['reexports', 'placeholder-implementation'],
+    }),
+    'src/index.ts': [
+      'export { Thing } from "./thing";\n',
+      'throw new Error("not implemented");\n',
+    ].join(''),
+  });
+  const result = run(project, ['check', 'architecture-policy', '--json']);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const ruleIds = new Set(JSON.parse(result.stdout).violations.map(
+    (violation) => violation.ruleId,
+  ));
+  assert.equal(ruleIds.has('TS-1.1'), true);
+  assert.equal(ruleIds.has('SRC-1.2'), true);
+});
+
 test('check architecture-policy reports progress for non-json workspace runs', () => {
   const project = makeProject({
     'ocentra-enforcer.config.json': JSON.stringify({

@@ -1,4 +1,5 @@
 import process from "node:process";
+import { withCachedArchitectureReports } from "./cli-architecture-scan-cache.mjs";
 
 function scopeLabel(scope) {
   if (!scope || scope.mode === "all") return "workspace";
@@ -48,26 +49,6 @@ function canonicalArchitectureChecks(checks, normalizeCheckName) {
   ];
 }
 
-function withCachedScannerReports(deps) {
-  const reports = new Map();
-  return {
-    ...deps,
-    runEnforcerScan(options, invocationDeps) {
-      const key = JSON.stringify({
-        root: options.root,
-        rawScope: options.rawScope,
-        command: options.command,
-        scanOnly: options.scanOnly,
-        languages: options.languages,
-      });
-      if (!reports.has(key)) {
-        reports.set(key, deps.runEnforcerScan(options, invocationDeps));
-      }
-      return reports.get(key);
-    },
-  };
-}
-
 export function runArchitecturePolicyCheck(context, deps) {
   const checks =
     context.config.architecturePolicyChecks ??
@@ -76,7 +57,7 @@ export function runArchitecturePolicyCheck(context, deps) {
     checks,
     deps.normalizeCheckName,
   );
-  const cachedDeps = withCachedScannerReports(deps);
+  const cachedDeps = withCachedArchitectureReports(deps);
   const progress = createArchitectureProgressReporter(context, routedChecks);
   const reports = routedChecks.map((check, index) => {
     progress("start", { check, index: index + 1 });
