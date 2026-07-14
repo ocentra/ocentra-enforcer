@@ -105,7 +105,10 @@ const FILE_ROLE_NAMES: [&str; 10] = [
 
 impl FileRole {
     pub(crate) fn as_str(self) -> &'static str {
-        FILE_ROLE_NAMES[self as usize]
+        FILE_ROLE_NAMES
+            .get(self as usize)
+            .copied()
+            .unwrap_or("unknown")
     }
 }
 
@@ -139,7 +142,10 @@ const LITERAL_KIND_NAMES: [&str; 10] = [
 
 impl LiteralKind {
     pub(crate) fn as_str(&self) -> &'static str {
-        LITERAL_KIND_NAMES[*self as usize]
+        LITERAL_KIND_NAMES
+            .get(*self as usize)
+            .copied()
+            .unwrap_or("normal")
     }
 }
 
@@ -199,11 +205,17 @@ const RISK_CATEGORY_RULE_IDS: [&str; 16] = [
 
 impl RiskCategory {
     pub fn as_str(&self) -> &'static str {
-        RISK_CATEGORY_NAMES[*self as usize]
+        RISK_CATEGORY_NAMES
+            .get(*self as usize)
+            .copied()
+            .unwrap_or("unknown-literal")
     }
 
     pub(crate) fn rule_id(&self) -> &'static str {
-        RISK_CATEGORY_RULE_IDS[*self as usize]
+        RISK_CATEGORY_RULE_IDS
+            .get(*self as usize)
+            .copied()
+            .unwrap_or("LIT-1.1")
     }
 }
 
