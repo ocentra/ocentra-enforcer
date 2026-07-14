@@ -28,6 +28,13 @@
     "reason": "storage bucket IAM binding members list contains allAuthenticatedUsers alongside a scoped user"
   },
   {
+    "name": "iam_policy_members_list_allusers",
+    "input": "resource \"google_project_iam_policy\" \"example\" {\n  project = \"my-project\"\n  binding {\n    role    = \"roles/viewer\"\n    members = [\"allUsers\"]\n  }\n}",
+    "expect": "flag",
+    "branch": "public-iam-policy",
+    "reason": "project IAM policy binding grants allUsers"
+  },
+  {
     "name": "sql_ipv4_enabled_true",
     "input": "resource \"google_sql_database_instance\" \"example\" {\n  name = \"mydb\"\n\n  settings {\n    ip_configuration {\n      ipv4_enabled = true\n    }\n  }\n}",
     "expect": "flag",
@@ -75,6 +82,13 @@
     "expect": "clean",
     "branch": "public-iam-member",
     "reason": "IAM binding members list with only scoped principals"
+  },
+  {
+    "name": "iam_policy_scoped_members",
+    "input": "resource \"google_storage_bucket_iam_policy\" \"example\" {\n  bucket = \"my-bucket\"\n  binding {\n    role    = \"roles/storage.objectViewer\"\n    members = [\"group:data-team@example.com\"]\n  }\n}",
+    "expect": "clean",
+    "branch": "public-iam-policy",
+    "reason": "IAM policy with only a scoped group principal is acceptable"
   },
   {
     "name": "sql_private_ip_restricted_network",
