@@ -266,7 +266,7 @@ fn artifact_summary(root: &Path, run: &ProofRun) -> ProjectRunArtifacts {
     let present = run
         .artifacts
         .iter()
-        .filter(|artifact| root.join(&artifact.path).is_file())
+        .filter(|artifact| project_path(root, &artifact.path).is_some_and(|path| path.is_file()))
         .count();
     ProjectRunArtifacts {
         declared,
@@ -286,6 +286,21 @@ fn freshness_for(run: &ProofRun, current_git: &GitState) -> &'static str {
         (Some(_), Some(_)) => "stale",
         _ => "unavailable",
     }
+}
+
+fn project_path(root: &Path, path: &str) -> Option<PathBuf> {
+    let relative = Path::new(path);
+    if relative.components().any(|component| {
+        matches!(
+            component,
+            std::path::Component::ParentDir
+                | std::path::Component::RootDir
+                | std::path::Component::Prefix(_)
+        )
+    }) {
+        return None;
+    }
+    Some(root.join(relative))
 }
 
 fn read_claim(
@@ -351,8 +366,8 @@ fn read_claim(
         current_git: current_git.clone(),
         latest_run: &|proof_id| latest_runs.get(proof_id).cloned(),
         definition: &|proof_id| definitions.get(proof_id).cloned(),
-        artifact_exists: &|path| root.join(path).is_file(),
-        required_path_exists: &|path| root.join(path).exists(),
+        artifact_exists: &|path| project_path(root, path).is_some_and(|path| path.is_file()),
+        required_path_exists: &|path| project_path(root, path).is_some_and(|path| path.exists()),
     });
     Ok(ProjectClaimSummary {
         registry_path: relative,
