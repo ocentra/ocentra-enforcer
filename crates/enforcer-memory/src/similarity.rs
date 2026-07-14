@@ -214,7 +214,7 @@ fn jaccard(a: &BTreeSet<String>, b: &BTreeSet<String>) -> f64 {
 /// string when `rel_path` has no dot.
 fn file_ext(rel_path: &str) -> &str {
     match rel_path.rfind('.') {
-        Some(idx) => &rel_path[idx..],
+        Some(idx) => rel_path.get(idx..).unwrap_or(""),
         None => "",
     }
 }
@@ -225,16 +225,12 @@ fn file_ext(rel_path: &str) -> &str {
 /// `shared / max(components_a, components_b)`; returns `1.0` (no boost)
 /// when either path has no directory components.
 pub fn proximity_multiplier(path_a: &str, path_b: &str) -> f64 {
-    let a_bytes = path_a.as_bytes();
-    let b_bytes = path_b.as_bytes();
-    let mut shared_slashes = 0usize;
-    let mut i = 0usize;
-    while i < a_bytes.len() && i < b_bytes.len() && a_bytes[i] == b_bytes[i] {
-        if a_bytes[i] == b'/' {
-            shared_slashes += 1;
-        }
-        i += 1;
-    }
+    let shared_slashes = path_a
+        .bytes()
+        .zip(path_b.bytes())
+        .take_while(|(left, right)| left == right)
+        .filter(|(byte, _)| *byte == b'/')
+        .count();
     let total_a = path_a.matches('/').count();
     let total_b = path_b.matches('/').count();
     let max_total = total_a.max(total_b);
@@ -411,10 +407,8 @@ pub fn similar_to(graph: &CodeGraph) -> Vec<SimilarToEdge> {
     let mut edge_counts: HashMap<&str, usize> = HashMap::new();
     let mut edges = Vec::new();
 
-    for i in 0..profiles.len() {
-        for j in (i + 1)..profiles.len() {
-            let a = &profiles[i];
-            let b = &profiles[j];
+    for (index, a) in profiles.iter().enumerate() {
+        for b in profiles.iter().skip(index + 1) {
             if a.ext != b.ext {
                 continue;
             }
@@ -451,10 +445,8 @@ pub fn similar_to_identifier_tokens(graph: &CodeGraph) -> Vec<SimilarToEdge> {
     let mut edge_counts: HashMap<&str, usize> = HashMap::new();
     let mut edges = Vec::new();
 
-    for i in 0..profiles.len() {
-        for j in (i + 1)..profiles.len() {
-            let a = &profiles[i];
-            let b = &profiles[j];
+    for (index, a) in profiles.iter().enumerate() {
+        for b in profiles.iter().skip(index + 1) {
             if a.ext != ".rs" || b.ext != ".rs" {
                 continue;
             }
@@ -488,10 +480,8 @@ pub fn similar_to_body_shingles(graph: &CodeGraph) -> Vec<SimilarToEdge> {
     let mut edge_counts: HashMap<&str, usize> = HashMap::new();
     let mut edges = Vec::new();
 
-    for i in 0..profiles.len() {
-        for j in (i + 1)..profiles.len() {
-            let a = &profiles[i];
-            let b = &profiles[j];
+    for (index, a) in profiles.iter().enumerate() {
+        for b in profiles.iter().skip(index + 1) {
             if a.ext != b.ext {
                 continue;
             }
@@ -536,10 +526,8 @@ pub fn semantically_related(graph: &CodeGraph) -> Vec<SemanticallyRelatedEdge> {
     let mut edge_counts: HashMap<&str, usize> = HashMap::new();
     let mut edges = Vec::new();
 
-    for i in 0..profiles.len() {
-        for j in (i + 1)..profiles.len() {
-            let a = &profiles[i];
-            let b = &profiles[j];
+    for (index, a) in profiles.iter().enumerate() {
+        for b in profiles.iter().skip(index + 1) {
             if a.ext != b.ext {
                 continue;
             }
@@ -596,7 +584,8 @@ fn decode_minhash_hex(hex: &str, k: usize) -> Option<MinHashSignature> {
     let mut values = [0u32; MINHASH_K];
     for (idx, chunk) in hex.as_bytes().chunks_exact(8).enumerate() {
         let raw = std::str::from_utf8(chunk).ok()?;
-        values[idx] = u32::from_str_radix(raw, 16).ok()?;
+        let value = values.get_mut(idx)?;
+        *value = u32::from_str_radix(raw, 16).ok()?;
     }
     Some(MinHashSignature { values })
 }

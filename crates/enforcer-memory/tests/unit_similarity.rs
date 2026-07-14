@@ -171,6 +171,12 @@ fn proximity_multiplier_no_directory_components_no_boost() {
     assert!((boost - 1.0).abs() < f64::EPSILON);
 }
 
+#[test]
+fn proximity_multiplier_stops_at_the_first_different_path_component() {
+    let boost = proximity_multiplier("src/a/widget.rs", "src/ab/widget.rs");
+    assert!((boost - 1.05).abs() < f64::EPSILON);
+}
+
 // ---------------------------------------------------------------------
 // SIMILAR_TO baseline MinHash contract
 // ---------------------------------------------------------------------
