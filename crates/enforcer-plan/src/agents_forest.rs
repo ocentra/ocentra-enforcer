@@ -580,6 +580,12 @@ pub fn run_resume_simulation(
     by_path: &HashMap<String, TierDocument>,
     budget_bytes_total: usize,
 ) -> ResumeSimOutcome {
+    if tier_marker(&global.source) != Some("global") {
+        return ResumeSimOutcome::Broken(format!(
+            "resume simulation must start from a global tier document, got `{}`",
+            global.path
+        ));
+    }
     let mut summed_bytes = global.source.len();
     let mut current = global;
     let mut visited_tiers = HashSet::new();
@@ -636,12 +642,29 @@ pub fn run_resume_simulation(
             };
         }
 
+        let expected_next_tier = match marker {
+            "global" => "project",
+            "project" => "plan",
+            _ => {
+                return ResumeSimOutcome::Broken(format!(
+                    "tier document `{}` has unsupported tier marker `{marker}`",
+                    current.path
+                ));
+            }
+        };
+
         let Some(next_doc) = by_path.get(&next_path) else {
             return ResumeSimOutcome::Broken(format!(
                 "tier `{marker}` NEXT pointer names `{next_path}`, which was not supplied to the \
-                 walker"
+                walker"
             ));
         };
+        if tier_marker(&next_doc.source) != Some(expected_next_tier) {
+            return ResumeSimOutcome::Broken(format!(
+                "tier `{marker}` at `{}` must point to a `{expected_next_tier}` tier, not `{}`",
+                current.path, next_path
+            ));
+        }
         summed_bytes += next_doc.source.len();
         current = next_doc;
     }

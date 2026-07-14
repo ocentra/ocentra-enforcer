@@ -135,6 +135,30 @@ fn resume_simulation_fails_closed_on_a_cyclic_next_chain() {
 }
 
 #[test]
+fn resume_simulation_rejects_skipping_the_project_tier() -> Result<(), Box<dyn std::error::Error>> {
+    let f = facts();
+    let forest = scaffold_forest(&f)?;
+    let global = TierDocument {
+        path: "AGENTS.md".to_owned(),
+        source: format!(
+            "<!-- agents-forest-tier: global -->\n<!-- agents-next-tier -->\nNEXT: {}\n<!-- /agents-next-tier -->",
+            f.plan_tier_path
+        ),
+    };
+    let plan = TierDocument {
+        path: f.plan_tier_path.clone(),
+        source: forest.plan,
+    };
+    let by_path = HashMap::from([(plan.path.clone(), plan)]);
+
+    assert!(matches!(
+        run_resume_simulation(&global, &by_path, 10_000),
+        ResumeSimOutcome::Broken(reason) if reason.contains("must point to a `project` tier")
+    ));
+    Ok(())
+}
+
+#[test]
 fn validators_hold_fixture_parity() -> Result<(), Box<dyn std::error::Error>> {
     let root = manifest_dir();
     run_fixture_parity(
