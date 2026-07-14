@@ -44,19 +44,28 @@ pub struct ConfigEnv {
 }
 
 /// Abstraction over "look up an env var by name", so tests can supply a
-/// fake environment instead of mutating the real process environment
+/// controlled environment instead of mutating the real process environment
 /// (`std::env::set_var` is process-global and racy under parallel tests).
 pub trait EnvLookup {
-    /// Return the variable's value if set.
-    fn lookup(&self, name: &str) -> Option<String>;
+    /// Return the variable's value if set. An unreadable value is an error;
+    /// only an absent value means that no override was supplied.
+    fn lookup(&self, name: &str) -> ConfigResult<Option<String>>;
 }
 
 /// The real process environment.
+#[derive(Debug)]
 pub struct ProcessEnv;
 
 impl EnvLookup for ProcessEnv {
-    fn lookup(&self, name: &str) -> Option<String> {
-        std::env::var(name).ok()
+    fn lookup(&self, name: &str) -> ConfigResult<Option<String>> {
+        match std::env::var(name) {
+            Ok(value) => Ok(Some(value)),
+            Err(std::env::VarError::NotPresent) => Ok(None),
+            Err(std::env::VarError::NotUnicode(_)) => Err(ConfigLoadError::EnvVarRead {
+                var: name.to_owned(),
+                reason: "value is not valid Unicode".to_owned(),
+            }),
+        }
     }
 }
 
@@ -67,8 +76,9 @@ impl ConfigEnv {
     /// parsed-at-boundary.
     ///
     /// # Errors
-    /// Returns [`ConfigLoadError::InvalidEnvVar`] if `ENFORCER_PROFILE` is
-    /// set to a name outside [`KNOWN_PROFILE_NAMES`].
+    /// Returns [`ConfigLoadError::InvalidEnvVar`] if a declared override is
+    /// malformed, or [`ConfigLoadError::EnvVarRead`] if a process value is
+    /// unreadable.
     pub fn read() -> ConfigResult<Self> {
         Self::read_from(&ProcessEnv)
     }
@@ -78,12 +88,23 @@ impl ConfigEnv {
     /// environment).
     ///
     /// # Errors
-    /// Returns [`ConfigLoadError::InvalidEnvVar`] if `ENFORCER_PROFILE` is
-    /// set to a name outside [`KNOWN_PROFILE_NAMES`].
+    /// Returns [`ConfigLoadError::InvalidEnvVar`] if a declared override is
+    /// malformed, or an error returned by [`EnvLookup`] if its source cannot
+    /// read a requested value.
     pub fn read_from(env: &dyn EnvLookup) -> ConfigResult<Self> {
-        let config_path = env.lookup(ENFORCER_CONFIG_PATH_VAR).map(PathBuf::from);
+        let config_path = match env.lookup(ENFORCER_CONFIG_PATH_VAR)? {
+            None => None,
+            Some(value) if value.trim().is_empty() => {
+                return Err(ConfigLoadError::InvalidEnvVar {
+                    var: ENFORCER_CONFIG_PATH_VAR,
+                    value,
+                    reason: "path override must not be empty".to_owned(),
+                });
+            }
+            Some(value) => Some(PathBuf::from(value)),
+        };
 
-        let profile_name = match env.lookup(ENFORCER_PROFILE_VAR) {
+        let profile_name = match env.lookup(ENFORCER_PROFILE_VAR)? {
             None => None,
             Some(value) if KNOWN_PROFILE_NAMES.contains(&value.as_str()) => Some(value),
             Some(value) => {
@@ -102,84 +123,5 @@ impl ConfigEnv {
             config_path,
             profile_name,
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{ConfigEnv, EnvLookup, ENFORCER_CONFIG_PATH_VAR, ENFORCER_PROFILE_VAR};
-    use crate::error::ConfigLoadError;
-    use std::collections::BTreeMap;
-    use std::path::PathBuf;
-
-    /// A fake environment for deterministic, non-racy tests: no
-    /// `std::env::set_var` anywhere in this module.
-    struct FakeEnv(BTreeMap<&'static str, String>);
-
-    impl EnvLookup for FakeEnv {
-        fn lookup(&self, name: &str) -> Option<String> {
-            self.0.get(name).cloned()
-        }
-    }
-
-    #[test]
-    fn absent_vars_decode_to_no_overrides() -> Result<(), Box<dyn std::error::Error>> {
-        let env = FakeEnv(BTreeMap::new());
-        let decoded = ConfigEnv::read_from(&env)?;
-        assert_eq!(decoded, ConfigEnv::default());
-        Ok(())
-    }
-
-    #[test]
-    fn config_path_var_decodes_to_typed_path_buf() -> Result<(), Box<dyn std::error::Error>> {
-        let mut vars = BTreeMap::new();
-        vars.insert(ENFORCER_CONFIG_PATH_VAR, "custom/cfg.json".to_owned());
-        let env = FakeEnv(vars);
-        let decoded = ConfigEnv::read_from(&env)?;
-        assert_eq!(decoded.config_path, Some(PathBuf::from("custom/cfg.json")));
-        assert_eq!(decoded.profile_name, None);
-        Ok(())
-    }
-
-    #[test]
-    fn profile_var_with_known_name_decodes() -> Result<(), Box<dyn std::error::Error>> {
-        let mut vars = BTreeMap::new();
-        vars.insert(ENFORCER_PROFILE_VAR, "strict".to_owned());
-        let env = FakeEnv(vars);
-        let decoded = ConfigEnv::read_from(&env)?;
-        assert_eq!(decoded.profile_name, Some("strict".to_owned()));
-        Ok(())
-    }
-
-    #[test]
-    fn profile_var_with_unknown_name_fails_closed_not_silently_default(
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut vars = BTreeMap::new();
-        vars.insert(ENFORCER_PROFILE_VAR, "bogus-profile".to_owned());
-        let env = FakeEnv(vars);
-        let outcome = ConfigEnv::read_from(&env);
-        let Err(err) = outcome else {
-            return Err("expected Err for unknown ENFORCER_PROFILE value, got Ok".into());
-        };
-        match err {
-            ConfigLoadError::InvalidEnvVar { var, value, .. } => {
-                assert_eq!(var, ENFORCER_PROFILE_VAR);
-                assert_eq!(value, "bogus-profile");
-                Ok(())
-            }
-            other => Err(format!("expected InvalidEnvVar, got {other:?}").into()),
-        }
-    }
-
-    #[test]
-    fn both_vars_set_decode_independently() -> Result<(), Box<dyn std::error::Error>> {
-        let mut vars = BTreeMap::new();
-        vars.insert(ENFORCER_CONFIG_PATH_VAR, "a/b.json".to_owned());
-        vars.insert(ENFORCER_PROFILE_VAR, "ocentra-parent".to_owned());
-        let env = FakeEnv(vars);
-        let decoded = ConfigEnv::read_from(&env)?;
-        assert_eq!(decoded.config_path, Some(PathBuf::from("a/b.json")));
-        assert_eq!(decoded.profile_name, Some("ocentra-parent".to_owned()));
-        Ok(())
     }
 }

@@ -42,6 +42,18 @@ pub enum ConfigLoadError {
         reason: String,
     },
 
+    /// An `enforcer-config` environment variable could not be decoded from
+    /// the process environment. This is distinct from an unset variable:
+    /// treating an unreadable override as absent would silently select a
+    /// different configuration layer.
+    #[error("failed to read environment variable `{var}`: {reason}")]
+    EnvVarRead {
+        /// Name of the environment variable whose value was unreadable.
+        var: String,
+        /// Safe description of the read failure.
+        reason: String,
+    },
+
     /// An `enforcer-config`-owned environment variable was set but its
     /// value did not decode into the declared typed shape (mirrors the
     /// file-load fail-closed contract: a bad env override is a typed
