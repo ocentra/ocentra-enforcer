@@ -171,15 +171,25 @@ where
     }
 
     pub fn store(&self) -> Result<StoredEventEnvelope, EventingError> {
+        // CLONE-JUSTIFICATION: this borrowed live envelope must produce an independently owned durable transport record.
         Ok(StoredEventEnvelope {
+            // CLONE-JUSTIFICATION: owned durable record retains contract after borrowed envelope returns.
             contract: self.contract.clone(),
+            // CLONE-JUSTIFICATION: owned durable record retains event id after borrowed envelope returns.
             event_id: self.event_id.clone(),
+            // CLONE-JUSTIFICATION: owned durable record retains correlation id after borrowed envelope returns.
             correlation_id: self.correlation_id.clone(),
+            // CLONE-JUSTIFICATION: owned durable record retains causation id after borrowed envelope returns.
             causation_id: self.causation_id.clone(),
+            // CLONE-JUSTIFICATION: owned durable record retains aggregate key after borrowed envelope returns.
             aggregate_key: self.aggregate_key.clone(),
+            // CLONE-JUSTIFICATION: owned durable record retains idempotency key after borrowed envelope returns.
             idempotency_key: self.idempotency_key.clone(),
+            // CLONE-JUSTIFICATION: owned durable record retains source after borrowed envelope returns.
             source: self.source.clone(),
+            // CLONE-JUSTIFICATION: owned durable record retains timestamp after borrowed envelope returns.
             observed_at: self.observed_at.clone(),
+            // CLONE-JUSTIFICATION: owned durable record retains target handler after borrowed envelope returns.
             target_handler: self.target_handler.clone(),
             priority: self.priority,
             deadline: self.deadline,
@@ -209,6 +219,7 @@ impl StoredEventPayload {
     where
         E: DeserializeOwned,
     {
+        // CLONE-JUSTIFICATION: serde_json::from_value consumes Value while this borrowed stored payload remains reusable.
         serde_json::from_value(self.value.clone())
     }
 }
@@ -239,26 +250,38 @@ impl StoredEventEnvelope {
         E: DomainEvent,
     {
         let payload: E = self.payload.decode().map_err(|error| {
+            // CLONE-JUSTIFICATION: the owned decode error outlives this borrowed stored envelope.
             EventingError::payload_decode(self.contract.event_type.clone(), &error)
         })?;
         let expected = payload.contract()?;
         if expected != self.contract {
             return Err(EventingError::ContractMismatch {
                 expected: expected.event_type,
+                // CLONE-JUSTIFICATION: the owned mismatch error outlives this borrowed stored envelope.
                 received: self.contract.event_type.clone(),
                 expected_schema_version: expected.schema_version,
                 received_schema_version: self.contract.schema_version,
             });
         }
+        // CLONE-JUSTIFICATION: this borrowed durable transport record must reconstruct an independently owned live envelope.
         Ok(EventEnvelope {
+            // CLONE-JUSTIFICATION: reconstructed live envelope owns contract beyond borrowed record.
             contract: self.contract.clone(),
+            // CLONE-JUSTIFICATION: reconstructed live envelope owns event id beyond borrowed record.
             event_id: self.event_id.clone(),
+            // CLONE-JUSTIFICATION: reconstructed live envelope owns correlation id beyond borrowed record.
             correlation_id: self.correlation_id.clone(),
+            // CLONE-JUSTIFICATION: reconstructed live envelope owns causation id beyond borrowed record.
             causation_id: self.causation_id.clone(),
+            // CLONE-JUSTIFICATION: reconstructed live envelope owns aggregate key beyond borrowed record.
             aggregate_key: self.aggregate_key.clone(),
+            // CLONE-JUSTIFICATION: reconstructed live envelope owns idempotency key beyond borrowed record.
             idempotency_key: self.idempotency_key.clone(),
+            // CLONE-JUSTIFICATION: reconstructed live envelope owns source beyond borrowed record.
             source: self.source.clone(),
+            // CLONE-JUSTIFICATION: reconstructed live envelope owns timestamp beyond borrowed record.
             observed_at: self.observed_at.clone(),
+            // CLONE-JUSTIFICATION: reconstructed live envelope owns target handler beyond borrowed record.
             target_handler: self.target_handler.clone(),
             priority: self.priority,
             deadline: self.deadline,
