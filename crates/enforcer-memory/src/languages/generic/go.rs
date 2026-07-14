@@ -91,8 +91,7 @@ fn go_on_method_defined(node: Node<'_>, name: &str, line: usize, src: &[u8], out
 }
 
 fn walk_go_type_declaration(node: Node<'_>, source: GoSource<'_>, out: &mut ParsedFile) {
-    for i in 0..node.child_count() {
-        let Some(spec) = node.child(i) else { continue };
+    for spec in syntax_children(node) {
         if spec.kind() == "type_alias" {
             if let Some(name) = child_text(spec, "name", source.bytes()) {
                 out.symbols.push(SymbolRef {
@@ -169,8 +168,7 @@ fn go_struct_fields(struct_node: Node<'_>, source: GoSource<'_>) -> Vec<(String,
     else {
         return out;
     };
-    for i in 0..list.child_count() {
-        let Some(field) = list.child(i) else { continue };
+    for field in syntax_children(list) {
         if field.kind() != "field_declaration" {
             continue;
         }
@@ -187,10 +185,7 @@ fn go_struct_fields(struct_node: Node<'_>, source: GoSource<'_>) -> Vec<(String,
 
 fn go_interface_methods(interface_node: Node<'_>, source: GoSource<'_>) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..interface_node.child_count() {
-        let Some(child) = interface_node.child(i) else {
-            continue;
-        };
+    for child in syntax_children(interface_node) {
         if child.kind() == "method_elem" {
             if let Some(name) = child_text(child, "name", source.bytes()) {
                 out.push(name);
@@ -202,8 +197,7 @@ fn go_interface_methods(interface_node: Node<'_>, source: GoSource<'_>) -> Vec<S
 
 fn go_receiver_type_name(method_node: Node<'_>, source: GoSource<'_>) -> Option<String> {
     let receiver = method_node.child_by_field_name("receiver")?;
-    for i in 0..receiver.child_count() {
-        let child = receiver.child(i)?;
+    for child in syntax_children(receiver) {
         if child.kind() == "parameter_declaration" {
             let type_node = child.child_by_field_name("type")?;
             let text = type_node.utf8_text(source.bytes()).ok()?;
@@ -215,19 +209,14 @@ fn go_receiver_type_name(method_node: Node<'_>, source: GoSource<'_>) -> Option<
 
 fn go_spec_names(decl_node: Node<'_>, spec_kind: &str, source: GoSource<'_>) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..decl_node.child_count() {
-        let Some(spec) = decl_node.child(i) else {
-            continue;
-        };
+    for spec in syntax_children(decl_node) {
         if spec.kind() != spec_kind {
             continue;
         }
-        for j in 0..spec.child_count() {
-            if let Some(child) = spec.child(j) {
-                if child.kind() == "identifier" {
-                    if let Ok(text) = child.utf8_text(source.bytes()) {
-                        out.push(text.to_string());
-                    }
+        for child in syntax_children(spec) {
+            if child.kind() == "identifier" {
+                if let Ok(text) = child.utf8_text(source.bytes()) {
+                    out.push(text.to_string());
                 }
             }
         }
@@ -237,8 +226,7 @@ fn go_spec_names(decl_node: Node<'_>, spec_kind: &str, source: GoSource<'_>) -> 
 
 fn go_import_paths(node: Node<'_>, source: GoSource<'_>) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    for child in syntax_children(node) {
         match child.kind() {
             "import_spec" => {
                 if let Some(path) = go_import_spec_path(child, source) {
@@ -246,12 +234,10 @@ fn go_import_paths(node: Node<'_>, source: GoSource<'_>) -> Vec<String> {
                 }
             }
             "import_spec_list" => {
-                for j in 0..child.child_count() {
-                    if let Some(spec) = child.child(j) {
-                        if spec.kind() == "import_spec" {
-                            if let Some(path) = go_import_spec_path(spec, source) {
-                                out.push(path);
-                            }
+                for spec in syntax_children(child) {
+                    if spec.kind() == "import_spec" {
+                        if let Some(path) = go_import_spec_path(spec, source) {
+                            out.push(path);
                         }
                     }
                 }
