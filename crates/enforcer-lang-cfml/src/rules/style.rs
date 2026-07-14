@@ -57,7 +57,9 @@ fn is_unscoped_assignment(trimmed: &str) -> bool {
     let Some(eq_idx) = trimmed.find(" = ") else {
         return false;
     };
-    let candidate = &trimmed[..eq_idx];
+    let Some(candidate) = trimmed.get(..eq_idx) else {
+        return false;
+    };
     !candidate.is_empty()
         && candidate
             .chars()
@@ -167,10 +169,21 @@ fn is_untyped_public_signature(trimmed: &str) -> bool {
     let Some(open) = trimmed.find('(') else {
         return false;
     };
-    let Some(close) = trimmed[open..].find(')') else {
+    let Some(after_open) = trimmed.get(open..) else {
         return false;
     };
-    let params = &trimmed[open + 1..open + close];
+    let Some(close) = after_open.find(')') else {
+        return false;
+    };
+    let Some(params_start) = open.checked_add(1) else {
+        return false;
+    };
+    let Some(params_end) = open.checked_add(close) else {
+        return false;
+    };
+    let Some(params) = trimmed.get(params_start..params_end) else {
+        return false;
+    };
     let has_untyped_param = !params.trim().is_empty()
         && params.split(',').any(|p| {
             let p = p.trim();
