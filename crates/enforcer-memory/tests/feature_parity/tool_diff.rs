@@ -3163,9 +3163,7 @@ fn candidate_fixture_check_passes(
     nodes_debug: &str,
 ) -> bool {
     match kind {
-        FixtureCheckKind::SymbolName | FixtureCheckKind::Filename => {
-            nodes_debug.contains(expected)
-        }
+        FixtureCheckKind::SymbolName | FixtureCheckKind::Filename => nodes_debug.contains(expected),
         FixtureCheckKind::ImportPath | FixtureCheckKind::CallCallee => {
             let Some(file_path) = files.iter().find(|p| {
                 p.file_name()

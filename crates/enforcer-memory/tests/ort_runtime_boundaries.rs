@@ -24,7 +24,10 @@ fn ort_runtime_models_missing_output_and_shape_dimensions_as_errors() {
         1
     );
     assert_eq!(
-        occurrence_count(runtime, "missing sequence dimension in rank-3 embedding output"),
+        occurrence_count(
+            runtime,
+            "missing sequence dimension in rank-3 embedding output"
+        ),
         1
     );
     assert_eq!(

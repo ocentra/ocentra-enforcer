@@ -294,7 +294,11 @@ pub fn search_graph_with_semantic(
 ) -> Result<SearchGraphResult, SearchGraphError> {
     validate_relationship(spec.relationship.as_deref())?;
 
-    if let Some(query) = spec.query.as_deref().filter(|query| !query.trim().is_empty()) {
+    if let Some(query) = spec
+        .query
+        .as_deref()
+        .filter(|query| !query.trim().is_empty())
+    {
         // Baseline §2.1 mode-interaction: BM25 short-circuits on any
         // usable token, ignoring name_pattern/label/degree filters and
         // semantic_query entirely.

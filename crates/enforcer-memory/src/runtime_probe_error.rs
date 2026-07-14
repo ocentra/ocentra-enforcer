@@ -14,5 +14,4 @@ pub enum RuntimeProbeError {
     /// A memory runtime operation returned its typed crate error.
     #[error(transparent)]
     Memory(#[from] crate::error::MemoryError),
-
 }

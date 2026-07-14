@@ -102,8 +102,7 @@ pub fn is_error_result(result_json: &str) -> bool {
 /// True if `envelope` (a parsed [`cli_invoke`] result) is specifically the
 /// unknown-tool-name special case, by its exact binding-spec text.
 fn is_unknown_tool(envelope: &Value) -> bool {
-    envelope_text(envelope)
-        .is_some_and(|text| text.starts_with("unknown tool: "))
+    envelope_text(envelope).is_some_and(|text| text.starts_with("unknown tool: "))
 }
 
 fn envelope_text(envelope: &Value) -> Option<&str> {

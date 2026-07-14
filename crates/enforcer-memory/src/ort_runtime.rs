@@ -470,14 +470,14 @@ mod real {
                 "missing sequence dimension in rank-3 logits",
             )
         })?)
-            .map_err(|source| model_error("score-ort-reranker-output", source.to_string()))?;
+        .map_err(|source| model_error("score-ort-reranker-output", source.to_string()))?;
         let vocab_size = usize::try_from(*shape.get(2).ok_or_else(|| {
             model_error(
                 "score-ort-reranker-output",
                 "missing vocabulary dimension in rank-3 logits",
             )
         })?)
-            .map_err(|source| model_error("score-ort-reranker-output", source.to_string()))?;
+        .map_err(|source| model_error("score-ort-reranker-output", source.to_string()))?;
         let active_seq_len = requested_seq_len.min(seq_len).max(1);
         let yes_index = yes_token_id as usize;
         let no_index = no_token_id as usize;
@@ -520,14 +520,14 @@ mod real {
                 "missing sequence dimension in rank-3 embedding output",
             )
         })?)
-            .map_err(|source| model_error("pool-ort-embedding", source.to_string()))?;
+        .map_err(|source| model_error("pool-ort-embedding", source.to_string()))?;
         let dim = usize::try_from(*shape.get(2).ok_or_else(|| {
             model_error(
                 "pool-ort-embedding",
                 "missing embedding dimension in rank-3 output",
             )
         })?)
-            .map_err(|source| model_error("pool-ort-embedding", source.to_string()))?;
+        .map_err(|source| model_error("pool-ort-embedding", source.to_string()))?;
         let active_seq_len = requested_seq_len.min(seq_len).max(1);
         let mut pooled = vec![0.0f32; dim];
         for token_index in 0..active_seq_len {

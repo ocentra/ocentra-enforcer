@@ -115,7 +115,10 @@ fn adjacent_cli_flags_each_remain_boolean() -> TestResult {
     let parsed = parse_cli_args(&argv)?;
     let args: Value = serde_json::from_str(&parsed.args_json)?;
 
-    assert_eq!(args, serde_json::json!({"includeNeighbors": true, "verbose": true}));
+    assert_eq!(
+        args,
+        serde_json::json!({"includeNeighbors": true, "verbose": true})
+    );
     Ok(())
 }
 

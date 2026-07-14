@@ -90,9 +90,7 @@ pub fn get_exact(
     if manifest.entry(id).is_none() {
         // CLONE-JUSTIFICATION: the typed error owns the requested key after
         // this borrowed manifest lookup returns.
-        return Err(ArtifactLookupError::NotFound {
-            id: id.clone(),
-        });
+        return Err(ArtifactLookupError::NotFound { id: id.clone() });
     }
     manifest.get(id).map_err(|source| match source {
         // CLONE-JUSTIFICATION: each error alternative owns an independent
@@ -601,11 +599,7 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), GraphArtifactError> {
         .duration_since(std::time::UNIX_EPOCH)
         .map_err(GraphArtifactError::Clock)?
         .as_nanos();
-    let unique = format!(
-        "{}.{}.tmp",
-        std::process::id(),
-        timestamp
-    );
+    let unique = format!("{}.{}.tmp", std::process::id(), timestamp);
     let tmp_path = path.with_extension(unique);
     std::fs::write(&tmp_path, bytes).map_err(|source| GraphArtifactError::Io {
         // CLONE-JUSTIFICATION: the typed error must retain the failed temp path.

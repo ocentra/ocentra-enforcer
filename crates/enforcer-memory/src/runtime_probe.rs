@@ -390,10 +390,7 @@ pub fn write_runtime_probe_stdout() -> Result<(), RuntimeProbeError> {
     write_proof(&proof_out, &proof)?;
     return Ok(());
 
-    fn write_proof(
-        proof_out: &Path,
-        proof: &RuntimeProbeProof,
-    ) -> Result<(), RuntimeProbeError> {
+    fn write_proof(proof_out: &Path, proof: &RuntimeProbeProof) -> Result<(), RuntimeProbeError> {
         if let Some(parent) = proof_out.parent() {
             std::fs::create_dir_all(parent)?;
         }

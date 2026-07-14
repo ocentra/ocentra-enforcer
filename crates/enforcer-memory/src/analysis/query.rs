@@ -156,10 +156,10 @@ pub fn parse(input: &str) -> Result<ParsedQuery, QueryError> {
     let upper = input.to_uppercase();
     for verb in WRITE_VERBS {
         if contains_word(&upper, verb) {
-        return Err(QueryError::WriteVerbRejected {
-            // ALLOC-JUSTIFICATION: this typed error outlives the borrowed
-            // query input, so its rejected verb is retained as owned data.
-            verb: verb.to_string(),
+            return Err(QueryError::WriteVerbRejected {
+                // ALLOC-JUSTIFICATION: this typed error outlives the borrowed
+                // query input, so its rejected verb is retained as owned data.
+                verb: verb.to_string(),
             });
         }
     }
@@ -503,20 +503,21 @@ fn resolve_property(
         "linear_scan_in_loop" => {
             node_metrics(node).map(|m| PropertyValue::Int(i64::from(m.linear_scan_in_loop)))
         }
-        "alloc_in_loop" => node_metrics(node).map(|m| PropertyValue::Int(i64::from(m.alloc_in_loop))),
-        "self_recursive" => node_metrics(node)
-            .map(|m| PropertyValue::Int(if m.self_recursive { 1 } else { 0 })),
+        "alloc_in_loop" => {
+            node_metrics(node).map(|m| PropertyValue::Int(i64::from(m.alloc_in_loop)))
+        }
+        "self_recursive" => {
+            node_metrics(node).map(|m| PropertyValue::Int(if m.self_recursive { 1 } else { 0 }))
+        }
         "recursion_in_loop" => {
             node_metrics(node).map(|m| PropertyValue::Int(if m.recursion_in_loop { 1 } else { 0 }))
         }
-        "unguarded_recursion" => {
-            node_metrics(node).map(|m| PropertyValue::Int(if m.unguarded_recursion { 1 } else { 0 }))
-        }
+        "unguarded_recursion" => node_metrics(node)
+            .map(|m| PropertyValue::Int(if m.unguarded_recursion { 1 } else { 0 })),
         "transitive_loop_depth" => node_transitive_metrics(node)
             .map(|m| PropertyValue::Int(i64::from(m.transitive_loop_depth))),
-        "recursive" => {
-            node_transitive_metrics(node).map(|m| PropertyValue::Int(if m.recursive { 1 } else { 0 }))
-        }
+        "recursive" => node_transitive_metrics(node)
+            .map(|m| PropertyValue::Int(if m.recursive { 1 } else { 0 })),
         _ => None,
     }
 }
@@ -948,7 +949,9 @@ fn tokenize(input: &str) -> Result<Vec<Token>, QueryError> {
             {
                 i += 1;
             }
-            tokens.push(Token::Word(chars.get(start..i).into_iter().flatten().collect()));
+            tokens.push(Token::Word(
+                chars.get(start..i).into_iter().flatten().collect(),
+            ));
             continue;
         }
         // Multi-char symbols first.

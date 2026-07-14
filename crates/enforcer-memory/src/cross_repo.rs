@@ -235,8 +235,8 @@ pub fn match_cross_repo(
                     continue;
                 }
                 let current_route_method = current_route.method.to_uppercase();
-                let current_route_accepts_any_method = current_route_method.is_empty()
-                    || current_route_method == "ANY";
+                let current_route_accepts_any_method =
+                    current_route_method.is_empty() || current_route_method == "ANY";
                 if !route_accepts_any_method
                     && !current_route_accepts_any_method
                     && !current_route.method.is_empty()
