@@ -81,8 +81,15 @@ pub struct WorkpackNode {
 impl WorkpackNode {
     fn to_owns_record(&self) -> OwnsRecord {
         OwnsRecord {
+            // CLONE-JUSTIFICATION: the validator consumes an independent
+            // record snapshot while this graph node remains available for
+            // subsequent frontier and dispatch operations.
             workpack_id: self.id.clone(),
+            // CLONE-JUSTIFICATION: the validator's record outlives this
+            // borrowed graph view and therefore owns its dependency list.
             deps: self.deps.clone(),
+            // CLONE-JUSTIFICATION: overlap checking owns its input snapshot
+            // while the graph retains the canonical declared paths.
             owns: self.owns.clone(),
         }
     }
@@ -103,6 +110,8 @@ impl PlanGraph {
     }
 
     pub fn insert(&mut self, node: WorkpackNode) {
+        // CLONE-JUSTIFICATION: the map key owns the identifier while the
+        // inserted node retains the same identity as its durable value.
         self.nodes.insert(node.id.clone(), node);
     }
 
@@ -184,6 +193,8 @@ impl PlanGraph {
             .values()
             .filter(|node| !done.contains(&node.id))
             .filter(|node| node.deps.iter().all(|dep| done.contains(dep)))
+            // CLONE-JUSTIFICATION: callers receive an owned frontier that
+            // remains valid after the graph borrow ends.
             .map(|node| node.id.clone())
             .collect()
     }
@@ -215,6 +226,8 @@ pub fn pack_lanes(graph: &PlanGraph, frontier: &[String]) -> PlanResult<Vec<Lane
         .collect();
     let rule_id = overlap_probe_rule_id()?;
     let placeholder = placeholder_relpath()?;
+    // CLONE-JUSTIFICATION: each predicate finding owns its callback path;
+    // the callback can be invoked repeatedly from this borrowed closure.
     let findings = check_parallel_safety(&rule_id, &records, |_| placeholder.clone());
 
     let mut conflicts: HashSet<(String, String)> = HashSet::new();
@@ -246,12 +259,16 @@ pub fn pack_lanes(graph: &PlanGraph, frontier: &[String]) -> PlanResult<Vec<Lane
                 .iter()
                 .all(|other| !conflicts.contains(&sorted_pair(id, other)));
             if fits {
+                // CLONE-JUSTIFICATION: batches own stable workpack ids while
+                // the sorted frontier remains borrowed for conflict checks.
                 batch.push(id.clone());
                 placed = true;
                 break;
             }
         }
         if !placed {
+            // CLONE-JUSTIFICATION: a newly created batch owns its workpack
+            // id independently of the borrowed sorted frontier.
             batches.push(vec![id.clone()]);
         }
     }
@@ -410,6 +427,8 @@ impl CoordinationPort for LiveCoordination<'_> {
             reason: format!("invalid lane id `{lane}`: {decode_err}"),
         })?;
         let filters = CloseoutFilters {
+            // CLONE-JUSTIFICATION: the closeout filter owns the lane id
+            // while the same parsed id is passed by reference to the API.
             lane: Some(lane_id.clone()),
             ..Default::default()
         };
@@ -462,6 +481,8 @@ impl CoordinationPort for InMemoryCoordination {
             }
         }
         for path in owns {
+            // CLONE-JUSTIFICATION: the claims map persists an owned path key
+            // after this borrowed ownership declaration is released.
             self.claims.insert(path.clone(), lane.to_owned());
         }
         self.held.insert(lane.to_owned());
@@ -807,6 +828,8 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
             .dispatched
             .iter()
             .filter(|(wp, _)| !self.done.contains(*wp))
+            // CLONE-JUSTIFICATION: tick mutates orchestration state after
+            // collecting this stable owned workpack/lane liveness snapshot.
             .map(|(wp, lane)| (wp.clone(), lane.clone()))
             .collect();
 
