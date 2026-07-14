@@ -13755,10 +13755,8 @@ fn sway_walk_impl_body(
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..impl_node.child_count() {
-        if let Some(child) = impl_node.child(i) {
-            walk(child, &ctx, out, type_name, FnScope::default());
-        }
+    for child in syntax_children(impl_node) {
+        walk(child, &ctx, out, type_name, FnScope::default());
     }
 }
 
@@ -13836,10 +13834,8 @@ fn sway_walk_scoped_body(node: Node<'_>, src: &[u8], name: &str, out: &mut Parse
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, &ctx, out, Some(name), FnScope::default());
-        }
+    for child in syntax_children(node) {
+        walk(child, &ctx, out, Some(name), FnScope::default());
     }
 }
 
@@ -13978,8 +13974,7 @@ pub fn parse_starlark(source: &str) -> ParsedFile {
 /// same rationale as Go's `type_spec`-not-`type_declaration` array
 /// choice).
 fn walk_templ_type_declaration(node: Node<'_>, src: &[u8], out: &mut ParsedFile) {
-    for i in 0..node.child_count() {
-        let Some(spec) = node.child(i) else { continue };
+    for spec in syntax_children(node) {
         if spec.kind() == "type_alias" {
             if let Some(name) = child_text(spec, "name", src) {
                 out.symbols.push(SymbolRef {
@@ -14015,8 +14010,7 @@ fn walk_templ_type_declaration(node: Node<'_>, src: &[u8], out: &mut ParsedFile)
 /// comment.
 fn templ_import_paths(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    for child in syntax_children(node) {
         match child.kind() {
             "import_spec" => {
                 if let Some(path) = templ_import_spec_path(child, src) {
@@ -14024,12 +14018,10 @@ fn templ_import_paths(node: Node<'_>, src: &[u8]) -> Vec<String> {
                 }
             }
             "import_spec_list" => {
-                for j in 0..child.child_count() {
-                    if let Some(spec) = child.child(j) {
-                        if spec.kind() == "import_spec" {
-                            if let Some(path) = templ_import_spec_path(spec, src) {
-                                out.push(path);
-                            }
+                for spec in syntax_children(child) {
+                    if spec.kind() == "import_spec" {
+                        if let Some(path) = templ_import_spec_path(spec, src) {
+                            out.push(path);
                         }
                     }
                 }
@@ -14133,16 +14125,13 @@ fn typst_let_function_name(node: Node<'_>, src: &[u8]) -> Option<String> {
 /// for its own nested `group`/argument-shaped children rather than
 /// leaving `arg_texts` perpetually empty for every Typst call.
 fn typst_call_arg_texts(item: Node<'_>, src: &[u8]) -> Vec<String> {
-    for i in 0..item.child_count() {
-        let Some(child) = item.child(i) else { continue };
+    for child in syntax_children(item) {
         if child.kind() == "group" {
             let mut out = Vec::new();
-            for j in 0..child.child_count() {
-                if let Some(arg) = child.child(j) {
-                    if arg.is_named() {
-                        if let Ok(text) = arg.utf8_text(src) {
-                            out.push(text.to_string());
-                        }
+            for arg in syntax_children(child) {
+                if arg.is_named() {
+                    if let Ok(text) = arg.utf8_text(src) {
+                        out.push(text.to_string());
                     }
                 }
             }
@@ -14677,19 +14666,17 @@ fn wolfram_quirk(
                 quirks: &quirks,
                 is_test_file: false,
             };
-            for i in 0..node.child_count() {
-                if let Some(child) = node.child(i) {
-                    walk(
-                        child,
-                        &ctx,
-                        out,
-                        enclosing,
-                        FnScope {
-                            name: Some(name.as_str()),
-                            line: Some(line),
-                        },
-                    );
-                }
+            for child in syntax_children(node) {
+                walk(
+                    child,
+                    &ctx,
+                    out,
+                    enclosing,
+                    FnScope {
+                        name: Some(name.as_str()),
+                        line: Some(line),
+                    },
+                );
             }
             true
         }
@@ -15160,14 +15147,12 @@ fn ctx_for_cmake(src: &[u8]) -> Ctx<'_> {
 /// of [`call_arg_texts`] does not apply.
 fn arg_texts_from_node(args: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..args.child_count() {
-        if let Some(child) = args.child(i) {
-            if matches!(child.kind(), "(" | ")" | ",") {
-                continue;
-            }
-            if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
-            }
+    for child in syntax_children(args) {
+        if matches!(child.kind(), "(" | ")" | ",") {
+            continue;
+        }
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
@@ -16511,10 +16496,8 @@ fn bitbake_walk_scoped(
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, &ctx, out, enclosing, fn_scope);
-        }
+    for child in syntax_children(node) {
+        walk(child, &ctx, out, enclosing, fn_scope);
     }
 }
 
@@ -16573,11 +16556,9 @@ fn cairo_leading_identifier_name(node: Node<'_>, src: &[u8]) -> Option<String> {
 /// node -- reading that child directly is more robust than re-deriving
 /// the same information from text).
 fn cairo_attribute_name(attribute_node: Node<'_>, src: &[u8]) -> Option<String> {
-    for i in 0..attribute_node.child_count() {
-        if let Some(child) = attribute_node.child(i) {
-            if matches!(child.kind(), "identifier" | "scoped_identifier") {
-                return child.utf8_text(src).ok().map(str::to_string);
-            }
+    for child in syntax_children(attribute_node) {
+        if matches!(child.kind(), "identifier" | "scoped_identifier") {
+            return child.utf8_text(src).ok().map(str::to_string);
         }
     }
     None
@@ -16696,10 +16677,8 @@ fn cairo_walk_scoped(
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, &ctx, out, enclosing, fn_scope);
-        }
+    for child in syntax_children(node) {
+        walk(child, &ctx, out, enclosing, fn_scope);
     }
 }
 
@@ -16716,10 +16695,7 @@ fn cairo_walk_scoped(
 fn cairo_call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
     let function_id = call_node.child_by_field_name("function").map(|n| n.id());
     let mut out = Vec::new();
-    for i in 0..call_node.child_count() {
-        let Some(child) = call_node.child(i) else {
-            continue;
-        };
+    for child in syntax_children(call_node) {
         if matches!(child.kind(), "(" | ")" | ",") {
             continue;
         }
@@ -16798,8 +16774,7 @@ pub fn parse_cairo(source: &str) -> ParsedFile {
 /// `"name"`-keyed one specifically (the property's own declared name),
 /// matching [`LangSpec::cfscript`]'s own doc comment finding.
 fn cfscript_tag_argument_value(node: Node<'_>, src: &[u8], key: &str) -> Option<String> {
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    for child in syntax_children(node) {
         if child.kind() != "assignment_expression" {
             continue;
         }
@@ -17470,8 +17445,7 @@ fn jsonnet_quirk(
 fn jsonnet_call_callee(node: Node<'_>) -> Option<Node<'_>> {
     let parent = node.parent()?;
     let mut previous = None;
-    for i in 0..parent.child_count() {
-        let child = parent.child(i)?;
+    for child in syntax_children(parent) {
         if child.id() == node.id() {
             return previous;
         }

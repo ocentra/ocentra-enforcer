@@ -1,5 +1,5 @@
 use enforcer_memory::languages::generic::{
-    parse_ada, parse_apex, parse_fsharp, parse_julia, parse_powershell,
+    parse_ada, parse_apex, parse_cairo, parse_fsharp, parse_julia, parse_powershell,
 };
 use enforcer_memory::parsers::SymbolKind;
 
@@ -78,4 +78,18 @@ fn syntax_child_iteration_preserves_julia_function_scope() {
     assert_eq!(julia.calls.len(), 1);
     assert_eq!(julia.calls[0].callee, "helper");
     assert_eq!(julia.calls[0].from_symbol.as_deref(), Some("draw"));
+}
+
+#[test]
+fn syntax_child_iteration_preserves_cairo_call_arguments_and_scope() {
+    let cairo = parse_cairo("fn main() {\n    helper(1, 2, 3);\n}\n");
+    assert!(cairo
+        .symbols
+        .iter()
+        .any(|symbol| symbol.name == "main" && symbol.kind == SymbolKind::Function));
+    assert!(cairo.calls.iter().any(|call| {
+        call.callee == "helper"
+            && call.from_symbol.as_deref() == Some("main")
+            && call.arg_texts == vec!["1", "2", "3"]
+    }));
 }
