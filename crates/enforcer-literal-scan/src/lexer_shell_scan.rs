@@ -9,7 +9,10 @@ pub(crate) fn lex_shell(source: &str) -> Vec<LiteralCandidate> {
     let mut col = 1usize;
 
     while index < bytes.len() {
-        let ch = bytes[index] as char;
+        let Some(&byte) = bytes.get(index) else {
+            break;
+        };
+        let ch = byte as char;
         if ch == '\n' {
             line += 1;
             col = 1;
@@ -17,7 +20,7 @@ pub(crate) fn lex_shell(source: &str) -> Vec<LiteralCandidate> {
             continue;
         }
         if ch == '#' {
-            while index < bytes.len() && bytes[index] as char != '\n' {
+            while bytes.get(index).is_some_and(|byte| *byte as char != '\n') {
                 index += 1;
                 col += 1;
             }
@@ -25,8 +28,14 @@ pub(crate) fn lex_shell(source: &str) -> Vec<LiteralCandidate> {
         }
         if let Some((literal, consumed)) = parse_shell_string(source, index, line, col) {
             out.push(literal);
-            advance_position(&source[index..index + consumed], &mut line, &mut col);
-            index += consumed;
+            let Some(next_index) = index.checked_add(consumed) else {
+                break;
+            };
+            let Some(consumed_text) = source.get(index..next_index) else {
+                break;
+            };
+            advance_position(consumed_text, &mut line, &mut col);
+            index = next_index;
             continue;
         }
         index += 1;
@@ -45,7 +54,8 @@ fn parse_shell_string(
     if !matches!(ch, '"' | '\'' | '`') {
         return None;
     }
-    let (content, consumed) = read_quoted(&source[index..], ch)?;
+    let rest = source.get(index..)?;
+    let (content, consumed) = read_quoted(rest, ch)?;
     let kind = if ch == '`' {
         LiteralKind::Template
     } else {

@@ -258,6 +258,21 @@ fn truncated_c_like_string_openers_do_not_crash_the_scan() {
     let _ = fs::remove_dir_all(root);
 }
 
+#[test]
+fn truncated_shell_quote_does_not_crash_the_scan() {
+    let root = temp_dir("literal_scan_truncated_shell");
+    fs::write(root.join("script.sh"), "echo 'unterminated\n# comment").unwrap();
+    let report = run_scan(&CliOptions {
+        root: root.clone(),
+        include_low: true,
+        min_score: 0,
+        ..CliOptions::default()
+    })
+    .expect("truncated shell quote must be ignored safely");
+    assert_eq!(report.summary.files_scanned, 1);
+    let _ = fs::remove_dir_all(root);
+}
+
 fn temp_dir(name: &str) -> PathBuf {
     let mut path = std::env::temp_dir();
     let nanos = SystemTime::now()
