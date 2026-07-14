@@ -874,6 +874,13 @@ fn max_access_depth(node: Node<'_>, table: &NodeKindTable) -> u32 {
     let mut best = 0u32;
     let mut stack = vec![node];
     while let Some(current) = stack.pop() {
+        // `compute` reports metrics for one definition only.  `walk_body`
+        // already treats nested closures/functions as a boundary, so access
+        // depth must do the same: a chain inside a closure belongs to that
+        // closure's symbol, not its enclosing function.
+        if table.function_defs.contains(&current.kind()) && current.id() != node.id() {
+            continue;
+        }
         if table.member_access.contains(&current.kind()) {
             let depth = chain_depth(current, table);
             if depth > best {

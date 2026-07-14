@@ -127,6 +127,24 @@ fn straight(a: i32, b: i32) -> i32 {
 }
 
 #[test]
+fn rust_outer_access_depth_excludes_nested_closure_body() -> TestResult<()> {
+    let source = r#"
+fn outer() {
+    let short = root.child;
+    let nested = || inner.one.two.three;
+    let _ = (short, nested);
+}
+"#;
+
+    let metrics = rust_metrics(source, "outer")?;
+    assert_eq!(
+        metrics.max_access_depth, 2,
+        "the nested closure's four-segment chain belongs to the closure, not outer"
+    );
+    Ok(())
+}
+
+#[test]
 fn rust_nested_loops_increase_cognitive_more_than_flat_loops() -> TestResult<()> {
     // Two independent (flat, sibling) loops: cognitive = (1+0) + (1+0) = 2.
     let flat = r#"
