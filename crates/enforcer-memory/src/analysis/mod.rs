@@ -157,6 +157,8 @@ impl CodeAdjacency {
 
         for node in graph.nodes() {
             let id = node.id().to_string();
+            // CLONE-JUSTIFICATION: the adjacency map borrows its key while the graph
+            // must independently own the same node id for the query session.
             index_of.entry(id.clone()).or_insert_with(|| g.add_node(id));
         }
 
@@ -164,6 +166,8 @@ impl CodeAdjacency {
         // always a node already inserted above).
         let mut symbol_file_of: HashMap<String, String> = HashMap::new();
         for symbol in graph.symbol_nodes() {
+            // CLONE-JUSTIFICATION: this lookup outlives the borrowed graph symbols and
+            // therefore stores independently owned symbol and containing-file ids.
             symbol_file_of.insert(symbol.id.clone(), symbol.file_id.clone());
             if let (Some(&from), Some(&to)) =
                 (index_of.get(&symbol.file_id), index_of.get(&symbol.id))
@@ -473,6 +477,8 @@ impl CodeAdjacency {
             .node_indices()
             .filter_map(|idx| {
                 self.graph.node_weight(idx).map(|node_id| HotspotScore {
+                    // CLONE-JUSTIFICATION: hotspot results escape the adjacency graph,
+                    // so each result must own the node id after the graph is dropped.
                     node_id: node_id.clone(),
                     in_degree: self.graph.edges_directed(idx, Direction::Incoming).count(),
                     out_degree: self.graph.edges_directed(idx, Direction::Outgoing).count(),
@@ -521,6 +527,8 @@ fn dfs_paths(
 ) {
     if remaining == 0 {
         if !state.current.is_empty() {
+            // CLONE-JUSTIFICATION: a completed result needs an owned path snapshot
+            // before DFS backtracking mutates the working path in place.
             state.paths.push(state.current.clone());
         }
         return;
@@ -543,6 +551,8 @@ fn dfs_paths(
             extended = true;
             if let Some(node_id) = graph.node_weight(target) {
                 state.current.push(PathHop {
+                    // CLONE-JUSTIFICATION: the work path outlives this borrowed graph
+                    // lookup and must retain the reached node id for later output.
                     node_id: node_id.clone(),
                     via: *edge.weight(),
                 });
@@ -553,6 +563,8 @@ fn dfs_paths(
     }
 
     if !extended && !state.current.is_empty() {
+        // CLONE-JUSTIFICATION: leaf output needs an owned path snapshot before DFS
+        // backtracking removes the final hop from the mutable working path.
         state.paths.push(state.current.clone());
     }
     state.on_path.remove(&idx);
@@ -607,6 +619,8 @@ fn push_related(
     if let Some(node_id) = graph.node_weight(other) {
         if state.visited.insert(other) {
             state.out.push(RelatedNode {
+                // CLONE-JUSTIFICATION: related-node results escape the graph borrow and
+                // therefore own the discovered node id.
                 node_id: node_id.clone(),
                 depth: depth + 1,
                 via: *edge.weight(),
@@ -672,7 +686,11 @@ pub(crate) fn test_node_ids(graph: &CodeGraph) -> HashSet<String> {
     let mut ids = HashSet::new();
     for node in graph.nodes() {
         if let CodeNode::Test(sym) = node {
+            // CLONE-JUSTIFICATION: the returned set must own test symbol ids after the
+            // input graph borrow ends.
             ids.insert(sym.id.clone());
+            // CLONE-JUSTIFICATION: the returned set also owns each containing file id
+            // after the input graph borrow ends.
             ids.insert(sym.file_id.clone());
         }
     }
