@@ -102,9 +102,17 @@ pub fn is_error_result(result_json: &str) -> bool {
 /// True if `envelope` (a parsed [`cli_invoke`] result) is specifically the
 /// unknown-tool-name special case, by its exact binding-spec text.
 fn is_unknown_tool(envelope: &Value) -> bool {
-    envelope["content"][0]["text"]
-        .as_str()
+    envelope_text(envelope)
         .is_some_and(|text| text.starts_with("unknown tool: "))
+}
+
+fn envelope_text(envelope: &Value) -> Option<&str> {
+    envelope
+        .get("content")
+        .and_then(Value::as_array)
+        .and_then(|content| content.first())
+        .and_then(|entry| entry.get("text"))
+        .and_then(Value::as_str)
 }
 
 /// Parsed CLI invocation: which output mode, and the tool + JSON args to
@@ -147,8 +155,11 @@ pub fn parse_cli_args(argv: &[String]) -> Result<CliInvocation, CliError> {
     };
     let args_json = if flag_args.is_empty() {
         "{}".to_owned()
-    } else if flag_args.len() == 1 && flag_args[0].starts_with('{') {
-        flag_args[0].to_owned()
+    } else if flag_args.len() == 1 {
+        match flag_args.first().copied() {
+            Some(raw_json) if raw_json.starts_with('{') => raw_json.to_owned(),
+            _ => flags_to_json(flag_args)?,
+        }
     } else {
         flags_to_json(flag_args)?
     };
@@ -169,24 +180,22 @@ pub fn parse_cli_args(argv: &[String]) -> Result<CliInvocation, CliError> {
 /// becomes the JSON boolean `true`.
 fn flags_to_json(tokens: &[&str]) -> Result<String, CliError> {
     let mut map: serde_json::Map<String, Value> = serde_json::Map::new();
-    let mut i = 0;
-    while i < tokens.len() {
-        let token = tokens[i];
+    let mut tokens = tokens.iter().copied().peekable();
+    while let Some(token) = tokens.next() {
         let Some(flag) = token.strip_prefix("--") else {
             return Err(CliError::InvalidJson(format!(
                 "expected a --flag, got {token:?}"
             )));
         };
         let key = kebab_to_key(flag);
-        let has_value = i + 1 < tokens.len() && !tokens[i + 1].starts_with("--");
-        let value: Value = if has_value {
-            i += 1;
-            parse_flag_value(tokens[i])
-        } else {
-            Value::Bool(true)
+        let value: Value = match tokens.peek().copied() {
+            Some(next) if !next.starts_with("--") => match tokens.next() {
+                Some(raw) => parse_flag_value(raw),
+                None => Value::Bool(true),
+            },
+            _ => Value::Bool(true),
         };
         insert_or_accumulate(&mut map, key, value);
-        i += 1;
     }
     serde_json::to_string(&Value::Object(map))
         .map_err(|source| CliError::InvalidJson(format!("failed to encode flags: {source}")))
@@ -345,10 +354,7 @@ pub fn run_cli(argv: &[String]) -> CliOutcome {
     }
 
     // Default mode: unwrap the envelope, printing content[0].text alone.
-    let text = envelope["content"][0]["text"]
-        .as_str()
-        .unwrap_or("")
-        .to_owned();
+    let text = envelope_text(&envelope).unwrap_or("").to_owned();
     if is_error {
         CliOutcome {
             stdout: None,

@@ -107,6 +107,19 @@ fn boolean_flag_with_no_value_becomes_true() -> TestResult {
 }
 
 #[test]
+fn adjacent_cli_flags_each_remain_boolean() -> TestResult {
+    let argv: Vec<String> = ["get_code_snippet", "--include-neighbors", "--verbose"]
+        .iter()
+        .map(|value| value.to_string())
+        .collect();
+    let parsed = parse_cli_args(&argv)?;
+    let args: Value = serde_json::from_str(&parsed.args_json)?;
+
+    assert_eq!(args, serde_json::json!({"includeNeighbors": true, "verbose": true}));
+    Ok(())
+}
+
+#[test]
 fn repeated_flag_accumulates_into_an_array() -> TestResult {
     let argv: Vec<String> = ["ingest_traces", "--caller", "a", "--caller", "b"]
         .iter()
