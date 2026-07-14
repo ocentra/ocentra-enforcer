@@ -49,6 +49,13 @@
     "reason": "Passing the whole req.params into find() is the same raw-object operator-injection shape as req.body/req.query."
   },
   {
+    "name": "js_raw_req_body_replaceone",
+    "input": "db.collection(\"users\").replaceOne(req.body, { role: \"member\" });",
+    "expect": "flag",
+    "branch": "raw_request_direct_js",
+    "reason": "replaceOne() accepts a query filter as its first argument; passing req.body lets an attacker inject an operator filter and replace an unintended document."
+  },
+  {
     "name": "pymongo_raw_request_json",
     "input": "users = collection.find(request.json)",
     "expect": "flag",

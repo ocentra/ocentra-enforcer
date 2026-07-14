@@ -107,7 +107,7 @@ const ALWAYS_FLAG_SINKS: &[NoSqlSink] = &[
               equivalent non-JS query operator",
     },
     NoSqlSink {
-        regex: r"\.(?:find|findOne|findOneAndUpdate|updateOne|updateMany|deleteOne|deleteMany|remove|count|aggregate)\s*\(\s*req\.(?:body|query|params)\s*[,)]",
+        regex: r"\.(?:find|findOne|findOneAndUpdate|replaceOne|updateOne|updateMany|deleteOne|deleteMany|remove|count|aggregate)\s*\(\s*req\.(?:body|query|params)\s*[,)]",
         label: "raw req.body/req.query/req.params passed directly as a Mongo query filter (operator injection)",
         fix: "reject object/array inputs where a string is expected: validate/cast each field of \
               req.body/req.query/req.params before using it in a query filter, and never pass the \
@@ -164,7 +164,7 @@ impl NoSqlInjectionValidator {
             always_flag.push((regex, sink.label, sink.fix));
         }
         let mongo_call_js = Regex::new(
-            r"\.(?:find|findOne|findOneAndUpdate|updateOne|updateMany|deleteOne|deleteMany|remove|count|aggregate)\s*\(",
+            r"\.(?:find|findOne|findOneAndUpdate|replaceOne|updateOne|updateMany|deleteOne|deleteMany|remove|count|aggregate)\s*\(",
         )
         .map_err(|err| DecodeError::new("cyberskillsNoSqlInjectMongoCallJs", err.to_string()))?;
         let bare_property_request_value =
