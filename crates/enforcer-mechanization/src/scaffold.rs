@@ -83,19 +83,27 @@ pub fn scaffold_rule(spec: &ScaffoldSpec) -> MechanizationResult<ScaffoldOutput>
     }
 
     let record = RuleRecord {
+        // CLONE-JUSTIFICATION: `record` must own its rule id while `spec` remains borrowed for generated output below.
         rule_id: spec.rule_id.clone(),
         version: 1,
+        // CLONE-JUSTIFICATION: `record` retains its title independently of the caller-owned scaffold specification.
         title: spec.title.clone(),
         tier: spec.tier,
         validator: ValidatorRef {
+            // CLONE-JUSTIFICATION: the emitted record owns validator metadata after this borrowed specification is returned to its caller.
             crate_name: spec.validator_crate.clone(),
+            // CLONE-JUSTIFICATION: the emitted record owns validator metadata after this borrowed specification is returned to its caller.
             path: spec.validator_path.clone(),
         },
         fixtures: FixtureRef {
+            // CLONE-JUSTIFICATION: fixture locations belong to the durable rule record while `spec` remains available for source generation.
             fail: spec.fail_fixture_path.clone(),
+            // CLONE-JUSTIFICATION: fixture locations belong to the durable rule record while `spec` remains available for source generation.
             pass: spec.pass_fixture_path.clone(),
         },
+        // CLONE-JUSTIFICATION: the catalog record must own its documentation location beyond this borrowed input.
         doc_anchor: spec.doc_anchor.clone(),
+        // CLONE-JUSTIFICATION: the catalog record must own its tags beyond this borrowed input.
         tags: spec.tags.clone(),
         params: serde_json::Value::Null,
     };
