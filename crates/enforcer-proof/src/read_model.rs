@@ -162,8 +162,14 @@ fn read_journal(root: &Path, path: &Path) -> ProjectJournalSummary {
                 path: relative,
                 state: JournalState::Verified,
                 record_count: records.len(),
+                // CLONE-JUSTIFICATION: this summary owns journal metadata
+                // after the replayed record list is dropped.
                 latest_event_type: latest.map(|record| record.event_type.clone()),
+                // CLONE-JUSTIFICATION: this summary owns journal metadata
+                // after the replayed record list is dropped.
                 latest_proof_id: latest.map(|record| record.proof_id.clone()),
+                // CLONE-JUSTIFICATION: this summary owns journal metadata
+                // after the replayed record list is dropped.
                 latest_timestamp: latest.map(|record| record.timestamp.clone()),
                 error: None,
             }
@@ -340,6 +346,8 @@ fn read_claim(
         .proofs
         .iter()
         .filter(|definition| definition.required_for_pr_ready)
+        // CLONE-JUSTIFICATION: the returned project claim summary retains
+        // required IDs independently of the parsed registry.
         .map(|definition| definition.id.clone())
         .collect::<Vec<_>>();
     if required_proof_ids.is_empty() {
@@ -355,16 +363,28 @@ fn read_claim(
     let definitions = registry
         .proofs
         .iter()
-        .map(|definition| (definition.id.clone(), definition.clone()))
+        .map(|definition| {
+            // CLONE-JUSTIFICATION: the lookup map outlives the borrowed
+            // registry while claim evaluation receives owned definitions.
+            (definition.id.clone(), definition.clone())
+        })
         .collect::<BTreeMap<_, _>>();
     let latest_runs = latest_runs_by_proof(runs);
     let claim = claim_proof(&ClaimArgs {
         claim_id: "project-pr-ready".to_owned(),
         pr_ready: true,
         allow_dirty: false,
+        // CLONE-JUSTIFICATION: claim evaluation consumes its input while the
+        // response must retain the required IDs.
         proof_ids: required_proof_ids.clone(),
+        // CLONE-JUSTIFICATION: claim evaluation owns Git state while the
+        // caller's snapshot remains borrowed.
         current_git: current_git.clone(),
+        // CLONE-JUSTIFICATION: the callback contract returns an owned proof
+        // run from the read-model's retained lookup map.
         latest_run: &|proof_id| latest_runs.get(proof_id).cloned(),
+        // CLONE-JUSTIFICATION: the callback contract returns an owned proof
+        // definition from the read-model's retained lookup map.
         definition: &|proof_id| definitions.get(proof_id).cloned(),
         artifact_exists: &|path| project_path(root, path).is_some_and(|path| path.is_file()),
         required_path_exists: &|path| project_path(root, path).is_some_and(|path| path.exists()),
@@ -393,6 +413,8 @@ fn latest_runs_by_proof(runs: &[ProjectProofRunSummary]) -> BTreeMap<String, Pro
             .get(&run.proof_id)
             .is_none_or(|existing: &ProofRun| run.ended_at > existing.ended_at);
         if replace {
+            // CLONE-JUSTIFICATION: the latest-run index owns both its key and
+            // snapshot after the borrowed read-model entries are released.
             latest.insert(run.proof_id.clone(), run.clone());
         }
     }
