@@ -69,6 +69,8 @@ impl SubscriptionHandle {
     }
 
     pub fn report(&self) -> SubscriptionReport {
+        // CLONE-JUSTIFICATION: the handle retains its report for idempotent unsubscribe,
+        // while callers receive an independently owned snapshot.
         self.report.clone()
     }
 
@@ -83,7 +85,11 @@ impl SubscriptionHandle {
             false
         };
         UnsubscribeReport {
+            // CLONE-JUSTIFICATION: the handle retains its report so repeated unsubscribe
+            // calls can return the same subscription identity without changing state.
             subscriber_id: self.report.subscriber_id.clone(),
+            // CLONE-JUSTIFICATION: the handle retains its report so repeated unsubscribe
+            // calls can return the same subscription identity without changing state.
             event_type: self.report.event_type.clone(),
             removed,
         }
@@ -114,8 +120,14 @@ where
 {
     let callback = Arc::new(handler);
     Ok(SubscriberRecord {
+        // CLONE-JUSTIFICATION: the subscriber is borrowed by the registration API while
+        // the registry record must retain an owned identifier after the call returns.
         id: subscriber.id.clone(),
+        // CLONE-JUSTIFICATION: the subscriber is borrowed by the registration API while
+        // the registry record must retain an owned event type after the call returns.
         event_type: subscriber.event_type.clone(),
+        // CLONE-JUSTIFICATION: the subscriber is borrowed by the registration API while
+        // the registry record must retain an owned routing target after the call returns.
         target_handler: subscriber.target_handler.clone(),
         handler: Arc::new(move |stored, publisher| {
             let callback = Arc::clone(&callback);
@@ -132,13 +144,16 @@ pub(super) fn insert_subscriber(
     record: SubscriberRecord,
 ) -> Result<(), EventingError> {
     let mut registry = registry.lock().unwrap_or_else(PoisonError::into_inner);
+    // CLONE-JUSTIFICATION: the map key and the queued record each own the event type;
+    // the record remains intact for insertion after selecting its bucket.
     let subscribers = registry.entry(record.event_type.clone()).or_default();
-    let subscriber_id = record.id.clone();
     if subscribers
         .iter()
         .any(|subscriber| subscriber.id == record.id)
     {
-        return Err(EventingError::DuplicateSubscriber { subscriber_id });
+        return Err(EventingError::DuplicateSubscriber {
+            subscriber_id: record.id,
+        });
     }
     subscribers.push(record);
     Ok(())
