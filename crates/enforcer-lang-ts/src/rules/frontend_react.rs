@@ -396,7 +396,9 @@ impl Validator for UseEffectWhyCommentValidator {
             if !line.text.contains("useEffect(") {
                 continue;
             }
-            let has_why_above = all_lines[..idx]
+            let has_why_above = all_lines
+                .get(..idx)
+                .unwrap_or(&[])
                 .iter()
                 .rev()
                 .take_while(|prev| prev.text.trim().is_empty() || is_comment_only_line(prev.text))
@@ -709,12 +711,13 @@ impl Validator for NoExplicitAnyValidator {
             if !is_any_annotation(line.text) {
                 continue;
             }
-            let waived = idx > 0
-                && all_lines[idx - 1]
-                    .text
-                    .trim_start()
-                    .starts_with("// waiver: any")
-                && all_lines[idx - 1].text.contains("// reason:");
+            let waived = idx
+                .checked_sub(1)
+                .and_then(|previous| all_lines.get(previous))
+                .is_some_and(|previous| {
+                    previous.text.trim_start().starts_with("// waiver: any")
+                        && previous.text.contains("// reason:")
+                });
             if waived {
                 continue;
             }
