@@ -245,10 +245,12 @@ pub fn match_cross_repo(
                     continue;
                 }
                 report.cross_http_calls.push(CrossHttpCallEdge {
+                    // CLONE-JUSTIFICATION: report edges outlive the borrowed graph/target scan inputs.
                     source_project: current_project.to_owned(),
                     source_file_id: current_route.from_file_id.clone(),
                     source_line: current_route.line,
                     target_project: target_name.clone(),
+                    // CLONE-JUSTIFICATION: report evidence owns the matched method and route path.
                     method: route_method.clone(),
                     path: route.path.clone(),
                     via: CrossHttpMatchKind::RouteDeclaration,
@@ -265,10 +267,12 @@ pub fn match_cross_repo(
                     }
                 }
                 report.cross_http_calls.push(CrossHttpCallEdge {
+                    // CLONE-JUSTIFICATION: report edges own independent values after matching borrowed inputs.
                     source_project: current_project.to_owned(),
                     source_file_id: site.from_file_id.clone(),
                     source_line: site.line,
                     target_project: target_name.clone(),
+                    // CLONE-JUSTIFICATION: report evidence owns the matched method and route path.
                     method: route_method.clone(),
                     path: route.path.clone(),
                     via: site.via,
@@ -283,10 +287,12 @@ pub fn match_cross_repo(
                     continue;
                 }
                 report.cross_channel_links.push(CrossChannelEdge {
+                    // CLONE-JUSTIFICATION: emitted cross-project evidence owns source and target identifiers.
                     source_project: current_project.to_owned(),
                     source_file_id: source.from_file_id.clone(),
                     source_line: source.line,
                     target_project: target_name.clone(),
+                    // CLONE-JUSTIFICATION: report evidence owns the matched channel topic.
                     topic: source.topic.clone(),
                 });
             }
@@ -385,6 +391,7 @@ fn outbound_http_call_sites(graph: &CodeGraph) -> Vec<HttpCallSite> {
             continue;
         };
         sites.push(HttpCallSite {
+            // CLONE-JUSTIFICATION: collected call sites survive the borrowed graph traversal.
             from_file_id: call.from_file_id.clone(),
             line: call.line,
             verb: http_verb_from_callee(&call.callee),
@@ -408,6 +415,7 @@ fn channel_sites(graph: &CodeGraph) -> Vec<ChannelSite> {
             continue;
         };
         sites.push(ChannelSite {
+            // CLONE-JUSTIFICATION: collected channel sites own the file id after graph traversal.
             from_file_id: call.from_file_id.clone(),
             line: call.line,
             direction,
@@ -437,6 +445,7 @@ fn async_sites(graph: &CodeGraph) -> Vec<ProtocolSite> {
             continue;
         };
         sites.push(ProtocolSite {
+            // CLONE-JUSTIFICATION: protocol sites are retained independently of borrowed call records.
             from_file_id: call.from_file_id.clone(),
             line: call.line,
             direction,
@@ -490,6 +499,7 @@ fn grpc_sites(graph: &CodeGraph) -> Vec<ProtocolSite> {
     for call in graph.calls() {
         if let Some(key) = grpc_target_key(&call.callee, &call.arg_texts) {
             sites.push(ProtocolSite {
+                // CLONE-JUSTIFICATION: protocol sites outlive the borrowed graph call.
                 from_file_id: call.from_file_id.clone(),
                 line: call.line,
                 direction: ProtocolDirection::Target,
@@ -499,6 +509,7 @@ fn grpc_sites(graph: &CodeGraph) -> Vec<ProtocolSite> {
         }
         if let Some(key) = grpc_source_key(&call.callee) {
             sites.push(ProtocolSite {
+                // CLONE-JUSTIFICATION: protocol sites outlive the borrowed graph call.
                 from_file_id: call.from_file_id.clone(),
                 line: call.line,
                 direction: ProtocolDirection::Source,
@@ -592,6 +603,7 @@ fn graphql_sites(graph: &CodeGraph) -> Vec<ProtocolSite> {
             ProtocolDirection::Source
         };
         sites.push(ProtocolSite {
+            // CLONE-JUSTIFICATION: protocol sites are accumulated after borrowed call inspection.
             from_file_id: call.from_file_id.clone(),
             line: call.line,
             direction,
@@ -633,6 +645,7 @@ fn trpc_sites(graph: &CodeGraph) -> Vec<ProtocolSite> {
         ) {
             if let Some(key) = first_literal_arg(&call.arg_texts) {
                 sites.push(ProtocolSite {
+                    // CLONE-JUSTIFICATION: protocol sites keep an owned file id after graph traversal.
                     from_file_id: call.from_file_id.clone(),
                     line: call.line,
                     direction: ProtocolDirection::Target,
@@ -643,6 +656,7 @@ fn trpc_sites(graph: &CodeGraph) -> Vec<ProtocolSite> {
         }
         if let Some(key) = trpc_procedure_from_callee(&call.callee) {
             sites.push(ProtocolSite {
+                // CLONE-JUSTIFICATION: protocol sites keep an owned file id after graph traversal.
                 from_file_id: call.from_file_id.clone(),
                 line: call.line,
                 direction: ProtocolDirection::Source,
@@ -695,6 +709,7 @@ fn match_protocol_sites(
                 continue;
             }
             edges.push(CrossProtocolEdge {
+                // CLONE-JUSTIFICATION: the report owns evidence fields beyond the borrowed site iteration.
                 source_project: current_project.to_owned(),
                 source_file_id: source.from_file_id.clone(),
                 source_line: source.line,
