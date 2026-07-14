@@ -78,6 +78,9 @@ fn uppercase_latest_tag_is_rejected() -> Result<(), Box<dyn std::error::Error>> 
         findings[0].severity,
         enforcer_domain::severity::Severity::Error
     );
-    assert!(findings[0].detail.contains("mutable `:latest` tag"));
+    assert_eq!(
+        findings[0].detail,
+        "base image `alpine:LATEST` uses the mutable `:latest` tag. Fix: pin a specific version (ideally `image:tag@sha256:...`)."
+    );
     Ok(())
 }
