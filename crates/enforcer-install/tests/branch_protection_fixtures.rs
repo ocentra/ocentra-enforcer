@@ -149,6 +149,26 @@ fn emitter_payload_matches_the_pinned_golden_fixture() -> Result<(), Box<dyn std
 }
 
 #[test]
+fn emitter_deduplicates_repeated_workflow_contexts() {
+    let repeated = WorkflowJob {
+        workflow_name: "Rust CI".to_owned(),
+        job_id: "rust-ci".to_owned(),
+        matrix: vec!["ubuntu-latest".to_owned(), "ubuntu-latest".to_owned()],
+    };
+    let desired = DesiredProtection::baseline(vec![repeated.clone(), repeated]);
+
+    let contexts = desired.required_contexts();
+    assert_eq!(contexts, vec!["Rust CI / rust-ci (ubuntu-latest)".to_owned()]);
+    assert_eq!(
+        emit_payload(&desired)
+            .required_status_checks
+            .expect("nonempty desired protection emits required checks")
+            .contexts,
+        contexts
+    );
+}
+
+#[test]
 fn emitted_payload_applied_as_live_state_yields_the_pass_fixture(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // The emitter fixture's core claim: applying the emitted config (as if

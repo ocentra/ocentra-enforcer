@@ -39,6 +39,8 @@
 //! did (it named `Ocentra Enforcer / ocentra-enforcer (*)`, a pre-rename
 //! context that was never applied as a real setting).
 
+use std::collections::BTreeSet;
+
 use serde::{Deserialize, Serialize};
 
 /// One CI workflow's declared identity, enough to derive every
@@ -118,9 +120,11 @@ impl DesiredProtection {
     /// is stable across runs.
     #[must_use]
     pub fn required_contexts(&self) -> Vec<String> {
+        let mut seen = BTreeSet::new();
         self.required_jobs
             .iter()
             .flat_map(resolve_contexts)
+            .filter(|context| seen.insert(context.clone()))
             .collect()
     }
 }
