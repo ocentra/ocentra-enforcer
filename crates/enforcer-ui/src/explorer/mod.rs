@@ -344,16 +344,33 @@ pub fn split_skill_forms(raw: &str) -> (String, String) {
     let Some(open_at) = raw.find(AI_DENSE_OPEN) else {
         return (String::new(), raw.to_owned());
     };
-    let Some(close_rel) = raw[open_at..].find(AI_DENSE_CLOSE) else {
+    let Some(after_open_at) = open_at.checked_add(AI_DENSE_OPEN.len()) else {
         return (String::new(), raw.to_owned());
     };
-    let close_at = open_at + close_rel + AI_DENSE_CLOSE.len();
-    let dense = raw[open_at + AI_DENSE_OPEN.len()..open_at + close_rel]
-        .trim()
-        .to_owned();
+    let Some(after_open) = raw.get(after_open_at..) else {
+        return (String::new(), raw.to_owned());
+    };
+    let Some(close_rel) = after_open.find(AI_DENSE_CLOSE) else {
+        return (String::new(), raw.to_owned());
+    };
+    let Some(close_at) = after_open_at
+        .checked_add(close_rel)
+        .and_then(|start| start.checked_add(AI_DENSE_CLOSE.len()))
+    else {
+        return (String::new(), raw.to_owned());
+    };
+    let Some(dense) = after_open.get(..close_rel).map(str::trim).map(str::to_owned) else {
+        return (String::new(), raw.to_owned());
+    };
+    let Some(before_open) = raw.get(..open_at) else {
+        return (String::new(), raw.to_owned());
+    };
+    let Some(after_close) = raw.get(close_at..) else {
+        return (String::new(), raw.to_owned());
+    };
     let mut verbose = String::new();
-    verbose.push_str(&raw[..open_at]);
-    verbose.push_str(&raw[close_at..]);
+    verbose.push_str(before_open);
+    verbose.push_str(after_close);
     (dense, verbose.trim().to_owned())
 }
 
