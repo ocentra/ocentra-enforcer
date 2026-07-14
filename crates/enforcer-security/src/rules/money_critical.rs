@@ -273,6 +273,8 @@ impl<'ast> Visit<'ast> for FnCollector {
     fn visit_item_fn(&mut self, item: &'ast ItemFn) {
         self.functions.push(CollectedFn {
             ident: sig_ident(&item.sig),
+            // CLONE-JUSTIFICATION: the collector retains metadata after this
+            // AST visitor releases the borrowed free-function item.
             attrs: item.attrs.clone(),
             body_text: body_text_of(item),
             line: line_of(item),
@@ -283,6 +285,8 @@ impl<'ast> Visit<'ast> for FnCollector {
     fn visit_impl_item_fn(&mut self, item: &'ast ImplItemFn) {
         self.functions.push(CollectedFn {
             ident: sig_ident(&item.sig),
+            // CLONE-JUSTIFICATION: collected inherent-method metadata must
+            // outlive the AST item borrowed for this visitor callback.
             attrs: item.attrs.clone(),
             body_text: body_text_of(item),
             line: line_of(item),
@@ -293,6 +297,8 @@ impl<'ast> Visit<'ast> for FnCollector {
     fn visit_trait_item_fn(&mut self, item: &'ast TraitItemFn) {
         self.functions.push(CollectedFn {
             ident: sig_ident(&item.sig),
+            // CLONE-JUSTIFICATION: collected trait-method metadata survives
+            // after this callback releases its borrowed AST item.
             attrs: item.attrs.clone(),
             body_text: body_text_of(item),
             line: line_of(item),
@@ -349,6 +355,8 @@ impl Validator for MoneyCriticalClassifyValidator {
                 continue;
             }
             findings.push(Finding {
+                // CLONE-JUSTIFICATION: each finding owns its rule identity
+                // independently of the reusable validator instance.
                 rule_id: self.rule_id.clone(),
                 severity: Severity::Warning,
                 title: "unit classified money-critical (T2 scored)".to_owned(),
@@ -364,6 +372,8 @@ impl Validator for MoneyCriticalClassifyValidator {
                     scored.confidence_label(),
                     scored.fired.join(", ")
                 ),
+                // CLONE-JUSTIFICATION: findings remain valid after the
+                // borrowed validation input is released by this call.
                 file: input.file.clone(),
                 line: func.line,
                 snippet: None,
@@ -420,6 +430,8 @@ impl Validator for MoneyCriticalAnnotatedValidator {
                 continue;
             }
             findings.push(Finding {
+                // CLONE-JUSTIFICATION: each finding owns its rule identity
+                // independently of the reusable validator instance.
                 rule_id: self.rule_id.clone(),
                 severity: Severity::Error,
                 title: "classified money-critical unit is unannotated (T1 gate)".to_owned(),
@@ -433,6 +445,8 @@ impl Validator for MoneyCriticalAnnotatedValidator {
                     scored.score,
                     scored.fired.join(", ")
                 ),
+                // CLONE-JUSTIFICATION: findings remain valid after the
+                // borrowed validation input is released by this call.
                 file: input.file.clone(),
                 line: func.line,
                 snippet: None,
