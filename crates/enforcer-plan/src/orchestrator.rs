@@ -145,7 +145,7 @@ impl PlanGraph {
                 Some(Mark::Done) => return None,
                 Some(Mark::Visiting) => {
                     let start = stack.iter().position(|s| s == id).unwrap_or(0);
-                    let mut cycle = stack[start..].to_vec();
+                    let mut cycle: Vec<String> = stack.iter().skip(start).cloned().collect();
                     cycle.push(id.to_owned());
                     return Some(cycle);
                 }
@@ -795,7 +795,7 @@ impl<P: CoordinationPort, L: LaneLivenessSource, W: WorktreeSpawner> Orchestrato
                     reason: format!(
                         "intent queue retried lane `{lane}` without a pending workpack dispatch"
                     ),
-            })?;
+                })?;
             self.pending_dispatches.remove(&workpack);
             self.activate_claimed_lane(&workpack, &lane_id)?;
         }
