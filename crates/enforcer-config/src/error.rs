@@ -59,7 +59,7 @@ pub enum ConfigLoadError {
     /// file-load fail-closed contract: a bad env override is a typed
     /// error, never a silent fallback to the default). See
     /// [`crate::env`].
-    #[error("environment variable `{var}` is set to an invalid value `{value}`: {reason}")]
+    #[error("environment variable `{var}` is set to an invalid value: {reason}")]
     InvalidEnvVar {
         /// The environment variable name (always one of [`crate::env`]'s
         /// declared vars).
