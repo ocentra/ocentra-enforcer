@@ -777,8 +777,11 @@ fn contains_any(haystack: &str, needles: &[&str]) -> bool {
 
 fn strip_quotes(text: &str) -> Option<&str> {
     for quote in ['"', '\'', '`'] {
-        if text.len() >= 2 && text.starts_with(quote) && text.ends_with(quote) {
-            return Some(&text[1..text.len() - 1]);
+        if let Some(inner) = text
+            .strip_prefix(quote)
+            .and_then(|remaining| remaining.strip_suffix(quote))
+        {
+            return Some(inner);
         }
     }
     None

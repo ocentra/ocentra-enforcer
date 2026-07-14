@@ -79,6 +79,26 @@ fn matching_route_and_call_produces_exactly_one_cross_http_edge() {
 }
 
 #[test]
+fn static_backtick_url_literal_is_matched() {
+    let mut current = CodeGraph::new();
+    current.push_call_for_test(CallEdge {
+        from_file_id: "file:client.ts".to_owned(),
+        callee: "axios.get".to_owned(),
+        line: 20,
+        arg_texts: vec!["`/widgets`".to_owned()],
+        ..CallEdge::default()
+    });
+    let target = graph_with_route("GET", "/widgets");
+    let mut targets = BTreeMap::new();
+    targets.insert("service-b".to_owned(), &target);
+
+    let report = match_cross_repo("service-a", &current, &targets);
+
+    assert_eq!(report.cross_http_calls.len(), 1);
+    assert_eq!(report.cross_http_calls[0].path, "/widgets");
+}
+
+#[test]
 fn matching_route_declarations_produce_route_declaration_cross_http_edge() {
     let current = graph_with_route("GET", "/widgets");
     let target = graph_with_route("GET", "/widgets");
