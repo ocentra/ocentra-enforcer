@@ -73,6 +73,9 @@ struct PodSpec {
     // DEFAULT-JUSTIFICATION: workloads without init containers require no init-container findings.
     #[serde(default, rename = "initContainers")]
     init_containers: Vec<Container>,
+    // DEFAULT-JUSTIFICATION: workloads without ephemeral containers have no debug-container security context to check.
+    #[serde(default, rename = "ephemeralContainers")]
+    ephemeral_containers: Vec<Container>,
     // DEFAULT-JUSTIFICATION: an absent pod context intentionally delegates to container-level checks.
     #[serde(default, rename = "securityContext")]
     security_context: Option<SecurityContext>,
@@ -287,7 +290,12 @@ impl Validator for K8sPodSecurityValidator {
         }
 
         let pod_sc = spec.security_context.as_ref();
-        for container in spec.containers.iter().chain(spec.init_containers.iter()) {
+        for container in spec
+            .containers
+            .iter()
+            .chain(spec.init_containers.iter())
+            .chain(spec.ephemeral_containers.iter())
+        {
             let name = if container.name.is_empty() {
                 "<unnamed>"
             } else {
