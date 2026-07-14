@@ -47,25 +47,40 @@ pub fn classify_scripts(root: &Path, scripts_root: &Path) -> Result<Vec<Classifi
         }
     }
     files.sort();
-    Ok(files
-        .into_iter()
-        .map(|path| {
-            let rel = path
-                .strip_prefix(root)
-                .unwrap_or(&path)
-                .to_string_lossy()
-                .replace('\\', "/");
-            let name = path
-                .file_name()
-                .map(|n| n.to_string_lossy().to_ascii_lowercase())
-                .unwrap_or_default();
-            ClassifiedScript {
-                is_proof_named: name.contains("proof"),
-                path: rel,
-                name,
-            }
-        })
-        .collect())
+    let mut classified = Vec::with_capacity(files.len());
+    for path in files {
+        let relative = path.strip_prefix(root).map_err(|_| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("legacy script `{}` is outside repository root", path.display()),
+            )
+        })?;
+        if relative.components().any(|component| {
+            matches!(
+                component,
+                std::path::Component::ParentDir
+                    | std::path::Component::RootDir
+                    | std::path::Component::Prefix(_)
+            )
+        }) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("legacy script `{}` escapes repository root", path.display()),
+            )
+            .into());
+        }
+        let rel = relative.to_string_lossy().replace('\\', "/");
+        let name = match path.file_name() {
+            Some(file_name) => file_name.to_string_lossy().to_ascii_lowercase(),
+            None => continue,
+        };
+        classified.push(ClassifiedScript {
+            is_proof_named: name.contains("proof"),
+            path: rel,
+            name,
+        });
+    }
+    Ok(classified)
 }
 
 /// Result of a [`migrate_legacy_proofs`] call.
@@ -187,6 +202,26 @@ pub fn collect_legacy_artifacts(root: &Path, roots: &[&str]) -> Result<LegacyBun
     let mut files = Vec::new();
     for entry in roots {
         let absolute = root.join(entry);
+        let relative = absolute.strip_prefix(root).map_err(|_| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("legacy artifact root `{}` is outside repository root", absolute.display()),
+            )
+        })?;
+        if relative.components().any(|component| {
+            matches!(
+                component,
+                std::path::Component::ParentDir
+                    | std::path::Component::RootDir
+                    | std::path::Component::Prefix(_)
+            )
+        }) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("legacy artifact root `{}` escapes repository root", absolute.display()),
+            )
+            .into());
+        }
         if !absolute.exists() {
             continue;
         }
