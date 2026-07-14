@@ -56,22 +56,24 @@ fn use_tree_forbidden(tree: &syn::UseTree, prefix: &[String]) -> Option<String> 
         syn::UseTree::Path(use_path) => {
             let mut next_prefix = prefix.to_vec();
             next_prefix.push(use_path.ident.to_string());
-            if next_prefix.len() == 1 && FORBIDDEN_ROOTS.contains(&next_prefix[0].as_str()) {
-                return Some(next_prefix.join("::"));
-            }
-            if next_prefix.len() == 2 {
-                let pair = (next_prefix[0].as_str(), next_prefix[1].as_str());
-                if FORBIDDEN_TWO_SEGMENT.contains(&pair) {
+            match next_prefix.as_slice() {
+                [root] if FORBIDDEN_ROOTS.contains(&root.as_str()) => {
                     return Some(next_prefix.join("::"));
                 }
+                [root, leaf] if FORBIDDEN_TWO_SEGMENT.contains(&(root.as_str(), leaf.as_str())) => {
+                    return Some(format!("{root}::{leaf}"));
+                }
+                _ => {}
             }
             use_tree_forbidden(&use_path.tree, &next_prefix)
         }
         syn::UseTree::Name(use_name) => {
             let mut next_prefix = prefix.to_vec();
             next_prefix.push(use_name.ident.to_string());
-            if next_prefix.len() == 1 && FORBIDDEN_ROOTS.contains(&next_prefix[0].as_str()) {
-                return Some(next_prefix.join("::"));
+            if let [root] = next_prefix.as_slice() {
+                if FORBIDDEN_ROOTS.contains(&root.as_str()) {
+                    return Some(next_prefix.join("::"));
+                }
             }
             None
         }
