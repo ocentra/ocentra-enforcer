@@ -341,7 +341,7 @@ impl ClockResponse {
 impl EventResponseContract for ClockResponse {}
 
 async fn yield_until(condition: impl Fn() -> bool) -> Result<(), String> {
-    for _ in 0..50 {
+    for () in std::iter::repeat_n((), 50) {
         if condition() {
             return Ok(());
         }

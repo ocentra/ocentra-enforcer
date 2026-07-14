@@ -91,7 +91,7 @@ async fn metrics_snapshot_reports_queue_dead_letter_journal_and_request_counts(
 async fn metrics_snapshot_reports_bounded_in_memory_event_retention(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bus = EventBus::new();
-    for index in 0..IN_MEMORY_RETENTION_PROBE_COUNT {
+    for index in (0..).take(IN_MEMORY_RETENTION_PROBE_COUNT) {
         bus.publish(
             test_event_with_idempotency(
                 TestText(TEST_LABEL.to_owned()),

@@ -78,7 +78,7 @@ async fn request_terminal_retention_uses_completion_order_not_request_id_sort_or
     .await?;
 
     let first_new = RequestId::parse("request-a-0000")?;
-    for index in 0..(REQUEST_TERMINAL_RETENTION_PROBE_COUNT - 1) {
+    for index in (0..).take(REQUEST_TERMINAL_RETENTION_PROBE_COUNT - 1) {
         let request_id = format!("request-a-{index:04}");
         let event_id = format!("request-retention-event-{index:04}");
         publish_retention_probe_request(
