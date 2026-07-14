@@ -177,6 +177,8 @@ impl ResolvedProjectTie {
 
         Ok(ResolvedProjectTie {
             ties,
+            // CLONE-JUSTIFICATION: The resolved view outlives its borrowed raw config and
+            // owns the already-validated policy it exposes to downstream consumers.
             policy: config.policy.clone(),
         })
     }

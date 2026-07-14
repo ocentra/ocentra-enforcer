@@ -22,12 +22,20 @@ fn deep_merge(base: &mut Value, overlay: &Value) {
                 match base_map.get_mut(key) {
                     Some(base_value) => deep_merge(base_value, overlay_value),
                     None => {
-                        base_map.insert(key.clone(), overlay_value.clone());
+                        // CLONE-JUSTIFICATION: A newly merged map entry must own its key
+                        // after this borrowed overlay value is released.
+                        let owned_key = key.clone();
+                        // CLONE-JUSTIFICATION: The merged base must retain an independent
+                        // value after the borrowed overlay is released.
+                        let owned_value = overlay_value.clone();
+                        base_map.insert(owned_key, owned_value);
                     }
                 }
             }
         }
         (base_slot, overlay_value) => {
+            // CLONE-JUSTIFICATION: Replacing the base requires an owned value that remains
+            // valid after the borrowed overlay is released.
             *base_slot = overlay_value.clone();
         }
     }
