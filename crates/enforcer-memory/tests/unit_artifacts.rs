@@ -3,7 +3,8 @@
 
 use enforcer_memory::artifacts::{
     artifact_dir, artifact_exists, export_graph_artifact, get_exact, get_snippet_exact,
-    import_graph_artifact, ArtifactLookupError, GraphSnapshot, GRAPH_ARTIFACT_META_FILENAME,
+    import_graph_artifact, ArtifactLookupError, GraphArtifactError, GraphSnapshot,
+    GRAPH_ARTIFACT_FILENAME, GRAPH_ARTIFACT_META_FILENAME,
 };
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
 use enforcer_memory::ids::ArtifactId;
@@ -121,6 +122,37 @@ fn export_then_import_reconstructs_identical_node_and_edge_counts() -> Result<()
     assert_eq!(imported.edge_count(), snapshot.edge_count());
     assert_eq!(meta.nodes, snapshot.node_count());
     assert_eq!(meta.edges, snapshot.edge_count());
+
+    std::fs::remove_dir_all(&root)?;
+    Ok(())
+}
+
+#[test]
+fn exporting_over_an_existing_artifact_fails_without_overwriting() -> Result<(), Box<dyn Error>> {
+    let graph = sample_graph()?;
+    let snapshot = GraphSnapshot::from_code_graph(&graph);
+    let root = temp_dir("export-refuses-overwrite");
+    std::fs::create_dir_all(&root)?;
+
+    export_graph_artifact(&root, &snapshot, "original", None, "2026-07-05T00:00:00Z")?;
+    let artifact_path = artifact_dir(&root).join(GRAPH_ARTIFACT_FILENAME);
+    let metadata_path = artifact_dir(&root).join(GRAPH_ARTIFACT_META_FILENAME);
+    let artifact_before = std::fs::read(&artifact_path)?;
+    let metadata_before = std::fs::read(&metadata_path)?;
+
+    let outcome = export_graph_artifact(
+        &root,
+        &snapshot,
+        "replacement",
+        Some("different-commit".to_owned()),
+        "2026-07-06T00:00:00Z",
+    );
+    assert!(matches!(
+        outcome,
+        Err(GraphArtifactError::AlreadyExists { path }) if path == artifact_path
+    ));
+    assert_eq!(std::fs::read(&artifact_path)?, artifact_before);
+    assert_eq!(std::fs::read(&metadata_path)?, metadata_before);
 
     std::fs::remove_dir_all(&root)?;
     Ok(())

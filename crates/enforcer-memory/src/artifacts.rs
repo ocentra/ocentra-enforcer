@@ -528,6 +528,14 @@ pub fn export_graph_artifact(
 
     let zst_path = dir.join(GRAPH_ARTIFACT_FILENAME);
     let meta_path = dir.join(GRAPH_ARTIFACT_META_FILENAME);
+    // An artifact is a stable snapshot. Refuse partial prior exports as well
+    // as complete ones rather than silently replacing either component.
+    if zst_path.exists() {
+        return Err(GraphArtifactError::AlreadyExists { path: zst_path });
+    }
+    if meta_path.exists() {
+        return Err(GraphArtifactError::AlreadyExists { path: meta_path });
+    }
     write_atomic(&zst_path, &compressed)?;
 
     let metadata = ArtifactMetadata {
@@ -587,9 +595,7 @@ pub fn import_graph_artifact(
 /// first, then rename over the destination. The temp file is created
 /// with a unique name derived from the process id and a monotonic
 /// counter-like nanosecond timestamp so concurrent exports never
-/// collide on the same temp path (the O_EXCL-guard analogue -- an
-/// existing destination is replaced only by the final rename, never by
-/// an in-place write).
+/// collide on the same temp path.
 fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), GraphArtifactError> {
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
