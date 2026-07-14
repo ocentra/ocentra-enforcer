@@ -11,7 +11,9 @@ use std::path::PathBuf;
 
 use enforcer_lang_common::port_platform::DeclaredScope;
 use enforcer_lang_common::registry;
+use enforcer_lang_common::rules::deferred_work::DeferredWorkValidator;
 use enforcer_validator::harness::run_fixture_parity;
+use enforcer_validator::validator::{ValidationInput, Validator};
 
 /// The legacy rule catalog, read once per test binary. Path is relative to
 /// this crate's manifest dir (`crates/enforcer-lang-common`) up to the
@@ -41,6 +43,20 @@ struct LegacyRuleEntry {
 
 fn manifest_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+}
+
+#[test]
+fn truncated_deferred_annotation_is_a_safe_malformed_finding() -> Result<(), Box<dyn std::error::Error>> {
+    let validator = DeferredWorkValidator::new()?;
+    let file = "src/example.rs".parse()?;
+    let findings = validator.validate(ValidationInput {
+        file: &file,
+        source: "// TODO DEFERRED(#ARC-1)[revisit:",
+        scope: enforcer_domain::findings::ScanScope::Files,
+    });
+    assert_eq!(findings.len(), 1);
+    assert!(findings[0].title.contains("malformed"));
+    Ok(())
 }
 
 fn family_of(rule_id: &str) -> String {

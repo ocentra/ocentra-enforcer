@@ -145,7 +145,7 @@ struct DeferredAnnotation {
 ///   non-empty `<ref>` and non-empty `<value>`.
 fn extract_annotation(line: &str) -> Option<Result<DeferredAnnotation, DeferredAnnotationError>> {
     let start = line.find("DEFERRED(")?;
-    let rest = &line[start..];
+    let rest = line.get(start..)?;
     Some(parse_deferred_annotation(rest))
 }
 
@@ -161,13 +161,12 @@ fn parse_deferred_annotation(raw: &str) -> Result<DeferredAnnotation, DeferredAn
         .strip_prefix("DEFERRED(")
         .ok_or_else(annotation_form_error)?;
 
-    let ref_close =
+    let (ref_body, after_ref) =
         after_prefix
-            .find(')')
+            .split_once(')')
             .ok_or_else(|| DeferredAnnotationError::MissingOrEmptyRef {
                 raw: raw.to_owned(),
             })?;
-    let ref_body = &after_prefix[..ref_close];
     let reference = ref_body.strip_prefix('#').unwrap_or(ref_body).trim();
     if reference.is_empty() {
         return Err(DeferredAnnotationError::MissingOrEmptyRef {
@@ -175,29 +174,24 @@ fn parse_deferred_annotation(raw: &str) -> Result<DeferredAnnotation, DeferredAn
         });
     }
 
-    let after_ref = &after_prefix[ref_close.saturating_add(1)..];
-    let bracket_open =
-        after_ref
-            .find('[')
-            .ok_or_else(|| DeferredAnnotationError::MissingOrEmptyRevisit {
-                raw: raw.to_owned(),
-            })?;
+    let (between, after_bracket) = after_ref.split_once('[').ok_or_else(|| {
+        DeferredAnnotationError::MissingOrEmptyRevisit {
+            raw: raw.to_owned(),
+        }
+    })?;
     // Only whitespace may separate `)` and `[`; anything else means this
     // was not actually a well-formed `DEFERRED(#ref)[revisit:...]` token
     // (e.g. stray characters between the two components).
-    if !after_ref[..bracket_open].trim().is_empty() {
+    if !between.trim().is_empty() {
         return Err(DeferredAnnotationError::MissingOrEmptyRevisit {
             raw: raw.to_owned(),
         });
     }
-    let after_bracket = &after_ref[bracket_open.saturating_add(1)..];
-    let bracket_close =
-        after_bracket
-            .find(']')
-            .ok_or_else(|| DeferredAnnotationError::MissingOrEmptyRevisit {
-                raw: raw.to_owned(),
-            })?;
-    let revisit_body = &after_bracket[..bracket_close];
+    let (revisit_body, _) = after_bracket.split_once(']').ok_or_else(|| {
+        DeferredAnnotationError::MissingOrEmptyRevisit {
+            raw: raw.to_owned(),
+        }
+    })?;
     let revisit_value = revisit_body
         .strip_prefix("revisit:")
         .ok_or_else(|| DeferredAnnotationError::MissingOrEmptyRevisit {
