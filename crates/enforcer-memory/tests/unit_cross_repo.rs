@@ -283,6 +283,33 @@ fn non_literal_url_argument_is_not_matched() {
 }
 
 #[test]
+fn interpolated_channel_topics_are_not_matched_as_static_cross_repo_evidence() {
+    let mut current = CodeGraph::new();
+    current.push_call_for_test(CallEdge {
+        from_file_id: "file:publisher.ts".to_owned(),
+        callee: "eventBus.publish".to_owned(),
+        line: 20,
+        arg_texts: vec!["`orders.${tenant}`".to_owned()],
+        ..CallEdge::default()
+    });
+    let mut target = CodeGraph::new();
+    target.push_call_for_test(CallEdge {
+        from_file_id: "file:consumer.ts".to_owned(),
+        callee: "eventBus.subscribe".to_owned(),
+        line: 30,
+        arg_texts: vec!["`orders.${tenant}`".to_owned()],
+        ..CallEdge::default()
+    });
+    let mut targets = BTreeMap::new();
+    targets.insert("service-b".to_owned(), &target);
+
+    let report = match_cross_repo("service-a", &current, &targets);
+
+    assert_eq!(report.cross_channel, 0);
+    assert_eq!(report.cross_channel_links.len(), 0);
+}
+
+#[test]
 fn trailing_slash_is_ignored_when_matching_paths() {
     let current = graph_with_call("axios.get", "/widgets/");
     let target = graph_with_route("GET", "/widgets");

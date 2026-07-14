@@ -765,8 +765,10 @@ fn extract_url_literal(arg: &str) -> Option<String> {
 }
 
 fn first_literal_arg(args: &[String]) -> Option<String> {
-    args.iter()
-        .find_map(|arg| strip_quotes(arg.trim()).map(str::to_owned))
+    args.iter().find_map(|arg| {
+        let literal = strip_quotes(arg.trim())?;
+        (!literal.contains("${")).then(|| literal.to_owned())
+    })
 }
 
 fn contains_any(haystack: &str, needles: &[&str]) -> bool {
