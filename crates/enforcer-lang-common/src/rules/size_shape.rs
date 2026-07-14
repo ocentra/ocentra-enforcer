@@ -148,7 +148,9 @@ fn function_blocks(source: &str) -> Vec<(u32, u32)> {
     let mut spans = Vec::new();
     let mut i = 0usize;
     while i < lines.len() {
-        let line = lines[i];
+        let Some(&line) = lines.get(i) else {
+            break;
+        };
         let is_opener = FUNCTION_OPENERS.iter().any(|marker| line.contains(marker));
         if !is_opener {
             i += 1;
@@ -160,7 +162,10 @@ fn function_blocks(source: &str) -> Vec<(u32, u32)> {
             let mut j = i;
             let mut opened = false;
             while j < lines.len() {
-                for ch in lines[j].chars() {
+                let Some(&current) = lines.get(j) else {
+                    break;
+                };
+                for ch in current.chars() {
                     if ch == '{' {
                         depth += 1;
                         opened = true;
@@ -182,7 +187,9 @@ fn function_blocks(source: &str) -> Vec<(u32, u32)> {
             let indent = line.chars().take_while(|c| *c == ' ').count();
             let mut j = i + 1;
             while j < lines.len() {
-                let next = lines[j];
+                let Some(&next) = lines.get(j) else {
+                    break;
+                };
                 let next_indent = next.chars().take_while(|c| *c == ' ').count();
                 if !next.trim().is_empty() && next_indent <= indent {
                     break;
@@ -257,7 +264,9 @@ fn class_blocks(source: &str) -> Vec<ClassBlock> {
     let mut blocks = Vec::new();
     let mut i = 0usize;
     while i < lines.len() {
-        let line = lines[i];
+        let Some(&line) = lines.get(i) else {
+            break;
+        };
         if !line.contains("class ") {
             i += 1;
             continue;
@@ -267,7 +276,10 @@ fn class_blocks(source: &str) -> Vec<ClassBlock> {
         let mut j = i;
         let mut opened = false;
         while j < lines.len() {
-            for ch in lines[j].chars() {
+            let Some(&current) = lines.get(j) else {
+                break;
+            };
+            for ch in current.chars() {
                 if ch == '{' {
                     depth += 1;
                     opened = true;
@@ -373,8 +385,12 @@ impl Validator for ClassSizeValidator {
 /// line this heuristic does not recognize as a signature at all).
 fn param_count_in_signature(line: &str) -> Option<u32> {
     let open = line.find('(')?;
-    let close = line[open..].find(')').map(|i| open + i)?;
-    let inner = line[open + 1..close].trim();
+    let after_open = line.get(open..)?;
+    let close = after_open
+        .find(')')
+        .and_then(|offset| open.checked_add(offset))?;
+    let inner_start = open.checked_add(1)?;
+    let inner = line.get(inner_start..close)?.trim();
     if inner.is_empty() {
         return None;
     }
@@ -677,8 +693,8 @@ const BASELINE_MARKER_PREFIX: &str = "enforcer-baseline:";
 /// N` marker comment, if present anywhere in the file.
 fn recorded_baseline(source: &str) -> Option<u32> {
     for line in source.lines() {
-        if let Some(idx) = line.find(BASELINE_MARKER_PREFIX) {
-            let rest = line[idx + BASELINE_MARKER_PREFIX.len()..].trim();
+        if let Some((_, rest)) = line.split_once(BASELINE_MARKER_PREFIX) {
+            let rest = rest.trim();
             let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
             if let Ok(value) = digits.parse::<u32>() {
                 return Some(value);
