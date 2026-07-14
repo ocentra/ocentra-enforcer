@@ -599,23 +599,21 @@ fn verify_lines(lines: &[LedgerLine]) -> Result<usize, PlanError> {
 /// lesson identity or discard previous landing evidence.
 fn verify_supersession_state(lines: &[LedgerLine]) -> Result<(), PlanError> {
     for (index, line) in lines.iter().enumerate() {
+        let invalid = |reason: &str| PlanError::Io {
+            path: "lesson ledger".into(),
+            reason: format!("invalid lesson supersession at line {index}: {reason}"),
+        };
         let Some(prior_index) = line.record.supersedes_seq else {
             continue;
         };
         let Some(prior) = lines.get(prior_index) else {
-            return Err(invalid_supersession(
-                index,
-                "references a missing prior row",
-            ));
+            return Err(invalid("references a missing prior row"));
         };
         if prior_index >= index {
-            return Err(invalid_supersession(index, "must reference an earlier row"));
+            return Err(invalid("must reference an earlier row"));
         }
         if prior.record.id != line.record.id {
-            return Err(invalid_supersession(
-                index,
-                "references a different lesson id",
-            ));
+            return Err(invalid("references a different lesson id"));
         }
         let latest_prior_index = lines
             .iter()
@@ -626,8 +624,7 @@ fn verify_supersession_state(lines: &[LedgerLine]) -> Result<(), PlanError> {
             })
             .last();
         if latest_prior_index != Some(prior_index) {
-            return Err(invalid_supersession(
-                index,
+            return Err(invalid(
                 "does not extend the latest prior state for its lesson",
             ));
         }
@@ -637,10 +634,7 @@ fn verify_supersession_state(lines: &[LedgerLine]) -> Result<(), PlanError> {
             && prior.record.lesson == line.record.lesson
             && prior.record.routes == line.record.routes;
         if !unchanged_identity {
-            return Err(invalid_supersession(
-                index,
-                "changes immutable lesson identity fields",
-            ));
+            return Err(invalid("changes immutable lesson identity fields"));
         }
         if !prior
             .record
@@ -648,20 +642,10 @@ fn verify_supersession_state(lines: &[LedgerLine]) -> Result<(), PlanError> {
             .iter()
             .all(|artifact| line.record.landed_at.contains(artifact))
         {
-            return Err(invalid_supersession(
-                index,
-                "removes a previously landed artifact",
-            ));
+            return Err(invalid("removes a previously landed artifact"));
         }
     }
     Ok(())
-}
-
-fn invalid_supersession(line_index: usize, reason: &str) -> PlanError {
-    PlanError::Io {
-        path: "lesson ledger".to_owned(),
-        reason: format!("invalid lesson supersession at line {line_index}: {reason}"),
-    }
 }
 
 fn tamper_to_plan_error(tamper: &LedgerTamper) -> PlanError {
