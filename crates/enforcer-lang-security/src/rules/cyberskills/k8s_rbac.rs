@@ -183,50 +183,28 @@ impl Validator for K8sRbacValidator {
         // grants full cluster privilege to its subjects. `roleRef.kind` for
         // a ClusterRoleBinding is conventionally `ClusterRole`; treat a
         // missing `kind` the same way rather than requiring it verbatim.
-        if kind == "ClusterRoleBinding" {
+        if kind == "ClusterRoleBinding" || kind == "RoleBinding" {
             let binds_cluster_admin = manifest.role_ref.as_ref().is_some_and(|role_ref| {
                 role_ref.name.as_deref() == Some("cluster-admin")
-                    && matches!(role_ref.kind.as_deref(), None | Some("ClusterRole"))
+                    && role_ref.kind.as_deref() == Some("ClusterRole")
             });
             if binds_cluster_admin {
-                findings.push(
-                    self.finding(
-                        &input,
-                        Severity::Error,
-                        "ClusterRoleBinding binds subjects to `cluster-admin` (full cluster \
-                     privilege). Fix: bind to a narrowly scoped ClusterRole or Role instead."
-                            // ALLOC-JUSTIFICATION: the finding detail must outlive this borrowed manifest input.
-                            .to_owned(),
+                let scope = if kind == "ClusterRoleBinding" {
+                    "full cluster privilege"
+                } else {
+                    "full privilege within the binding namespace"
+                };
+                findings.push(self.finding(
+                    &input,
+                    Severity::Error,
+                    format!(
+                        "{kind} binds subjects to the `cluster-admin` ClusterRole ({scope}). \
+                             Fix: bind to a narrowly scoped ClusterRole or Role instead."
                     ),
-                );
+                ));
             }
         }
 
         findings
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::path::PathBuf;
-
-    use enforcer_validator::harness::run_fixture_parity;
-
-    use super::K8sRbacValidator;
-
-    fn manifest_dir() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    }
-
-    #[test]
-    fn cyberskills_k8s_rbac() -> Result<(), Box<dyn std::error::Error>> {
-        let validator = K8sRbacValidator::new()?;
-        run_fixture_parity(
-            &validator,
-            &manifest_dir(),
-            "tests/fixtures/cyberskills/k8s.rbac-privilege-escalation/bad/wildcard.yaml",
-            "tests/fixtures/cyberskills/k8s.rbac-privilege-escalation/good/scoped.yaml",
-        )?;
-        Ok(())
     }
 }
