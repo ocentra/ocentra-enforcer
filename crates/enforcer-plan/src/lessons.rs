@@ -525,7 +525,8 @@ impl LessonLedger {
     /// process may have appended to since it was opened).
     pub fn verify_on_replay(&self) -> Result<usize, PlanError> {
         let lines = read_lines(&self.path)?;
-        verify_lines(&lines)
+        verify_lines(&lines)?;
+        Ok(lines.len())
     }
 
     /// Every record currently on disk, in append order (INCLUDING
@@ -565,15 +566,15 @@ fn read_lines(path: &Path) -> Result<Vec<LedgerLine>, PlanError> {
     })
 }
 
-fn verify_lines(lines: &[LedgerLine]) -> Result<usize, PlanError> {
+fn verify_lines(lines: &[LedgerLine]) -> Result<(), PlanError> {
     // ALLOC-JUSTIFICATION: hash-chain verification consumes canonical owned
     // bytes for all records before it evaluates links against their digests.
     let canonical: Vec<Vec<u8>> = lines
         .iter()
         .map(|line| {
             serde_json::to_vec(&line.record).map_err(|error| PlanError::Io {
-                path: "lesson ledger".to_owned(),
-                reason: error.to_string(),
+                path: "lesson ledger".into(),
+                reason: format!("{error}"),
             })
         })
         .collect::<Result<_, _>>()?;
@@ -589,7 +590,7 @@ fn verify_lines(lines: &[LedgerLine]) -> Result<usize, PlanError> {
         })
         .map_err(|tamper| tamper_to_plan_error(&tamper))?;
     verify_supersession_state(lines)?;
-    Ok(lines.len())
+    Ok(())
 }
 
 /// Verify that a supersede-append record extends the latest prior state of
