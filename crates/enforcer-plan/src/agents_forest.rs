@@ -224,24 +224,37 @@ pub fn scaffold_forest(facts: &ForestFacts) -> Result<RenderedForest, PlanError>
     let budget_bytes = facts.budget_bytes.to_string();
 
     let mut global_bindings = HashMap::new();
+    // CLONE-JUSTIFICATION: the global `HashMap<String, String>` owns this render scope's binding.
     global_bindings.insert("workspace_name".to_owned(), facts.workspace_name.clone());
+    // CLONE-JUSTIFICATION: the global `HashMap<String, String>` owns this render scope's binding.
     global_bindings.insert("next_tier_path".to_owned(), facts.project_tier_path.clone());
+    // CLONE-JUSTIFICATION: the global `HashMap<String, String>` owns this render scope's binding.
     global_bindings.insert("resume_anchor".to_owned(), facts.resume_anchor.clone());
+    // CLONE-JUSTIFICATION: global and later tier maps independently own their budget bindings.
     global_bindings.insert("budget_lines".to_owned(), budget_lines.clone());
+    // CLONE-JUSTIFICATION: global and later tier maps independently own their budget bindings.
     global_bindings.insert("budget_bytes".to_owned(), budget_bytes.clone());
     let global = render(GLOBAL_TEMPLATE, &global_bindings)?;
 
     let mut project_bindings = HashMap::new();
+    // CLONE-JUSTIFICATION: the project `HashMap<String, String>` owns this render scope's binding.
     project_bindings.insert("project_name".to_owned(), facts.project_name.clone());
+    // CLONE-JUSTIFICATION: the project `HashMap<String, String>` owns this render scope's binding.
     project_bindings.insert("next_tier_path".to_owned(), facts.plan_tier_path.clone());
+    // CLONE-JUSTIFICATION: the project `HashMap<String, String>` owns this render scope's binding.
     project_bindings.insert("resume_anchor".to_owned(), facts.resume_anchor.clone());
+    // CLONE-JUSTIFICATION: project and plan maps independently own their budget bindings.
     project_bindings.insert("budget_lines".to_owned(), budget_lines.clone());
+    // CLONE-JUSTIFICATION: project and plan maps independently own their budget bindings.
     project_bindings.insert("budget_bytes".to_owned(), budget_bytes.clone());
     let project = render(PROJECT_TEMPLATE, &project_bindings)?;
 
     let mut plan_bindings = HashMap::new();
+    // CLONE-JUSTIFICATION: the plan `HashMap<String, String>` owns this render scope's binding.
     plan_bindings.insert("plan_name".to_owned(), facts.plan_name.clone());
+    // CLONE-JUSTIFICATION: the plan map needs distinct owned values for two placeholder keys.
     plan_bindings.insert("next_tier_path".to_owned(), facts.resume_anchor.clone());
+    // CLONE-JUSTIFICATION: the plan map needs distinct owned values for two placeholder keys.
     plan_bindings.insert("resume_anchor".to_owned(), facts.resume_anchor.clone());
     plan_bindings.insert("budget_lines".to_owned(), budget_lines);
     plan_bindings.insert("budget_bytes".to_owned(), budget_bytes);
@@ -256,10 +269,12 @@ pub fn scaffold_forest(facts: &ForestFacts) -> Result<RenderedForest, PlanError>
 
 fn finding(rule_id: &RuleId, title: &str, detail: impl Into<String>, file: &RelPath) -> Finding {
     Finding {
+        // CLONE-JUSTIFICATION: the returned Finding must own its rule ID beyond this borrowed validator input.
         rule_id: rule_id.clone(),
         severity: Severity::Error,
         title: title.to_owned(),
         detail: detail.into(),
+        // CLONE-JUSTIFICATION: the returned Finding must own its path beyond this borrowed validator input.
         file: file.clone(),
         line: 1,
         snippet: None,
