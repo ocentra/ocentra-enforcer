@@ -65,6 +65,7 @@ impl CallerContext {
         ClaimContext {
             project_id: Some(self.project_id),
             git_remote: None,
+            // CLONE-JUSTIFICATION: transport context carries both independently owned path fields.
             repo_root: Some(self.worktree_root.clone()),
             worktree_root: Some(self.worktree_root),
             branch: Some(self.branch),
@@ -116,6 +117,7 @@ pub fn init(root: &Path, hub: &HubName, lane: &LaneId) -> Result<HubConfig> {
     let node_id = NodeId::random();
     let node_name = NodeName::sanitize_hostname(&hostname_or_fallback());
     let config = HubConfig {
+        // CLONE-JUSTIFICATION: configuration owns the hub while the caller retains it for initialization.
         hub: hub.clone(),
         node_id,
         node_name,
@@ -259,6 +261,7 @@ pub fn normalize_owns_paths(repo_root: &Path, entries: &[String]) -> Result<Vec<
                 // individually once they exist, or the caller should list
                 // them explicitly).
             }
+        // CLONE-JUSTIFICATION: the set owns its de-duplication key while the vector receives the value.
         } else if seen.insert(trimmed.clone()) {
             out.push(trimmed);
         }
@@ -274,6 +277,7 @@ fn push_relative(
 ) {
     if let Ok(rel) = path.strip_prefix(root) {
         let rel_str = rel.to_string_lossy().replace('\\', "/");
+        // CLONE-JUSTIFICATION: the set and output vector each retain the normalized path.
         if seen.insert(rel_str.clone()) {
             out.push(rel_str);
         }
@@ -352,6 +356,7 @@ pub fn claim_all(hub: &Hub, request: ClaimRequestArgs<'_>) -> Result<ClaimOutcom
     let writer = WriterId::new(&hub.config.node_id, lane);
     let mut events = Vec::new();
     for batch in expanded.chunks(MAX_CLAIM_PATHS) {
+        // CLONE-JUSTIFICATION: each persisted claim batch needs an owned caller context.
         let context = caller.clone().into_claim_context(ClaimContextExtras {
             lock_kind: Some(LockKind::WriteLock),
             operation: Some(Operation::Edit),
@@ -363,6 +368,7 @@ pub fn claim_all(hub: &Hub, request: ClaimRequestArgs<'_>) -> Result<ClaimOutcom
             paths: batch.to_vec(),
             event_id: ClaimEventId::from("__request__".to_owned()),
             reason: reason.map(str::to_owned),
+            // CLONE-JUSTIFICATION: raw request retains context while later event construction also needs it.
             context: context.clone(),
         };
         let request = enrich_claim(&raw, true);
@@ -405,6 +411,7 @@ pub fn release(
     caller: &CallerContext,
     reason: Option<&str>,
 ) -> Result<HubEvent> {
+    // CLONE-JUSTIFICATION: append_event consumes context while the caller remains borrowed by this API.
     let context = caller
         .clone()
         .into_claim_context(ClaimContextExtras::default());
@@ -439,6 +446,7 @@ pub fn send_message(
             "coordination message body is required",
         ));
     }
+    // CLONE-JUSTIFICATION: append_event consumes context while the caller remains borrowed by this API.
     let context = caller
         .clone()
         .into_claim_context(ClaimContextExtras::default());
@@ -490,6 +498,7 @@ pub fn acknowledge_message(
             "coordination message is already acknowledged by this writer",
         ));
     }
+    // CLONE-JUSTIFICATION: append_event consumes context while the caller remains borrowed by this API.
     let context = caller
         .clone()
         .into_claim_context(ClaimContextExtras::default());
@@ -597,8 +606,10 @@ pub fn closeout(
         by_lane
             .entry(claim.lane.as_str().to_owned())
             .or_default()
+            // CLONE-JUSTIFICATION: release aggregation owns paths beyond the borrowed claim iteration.
             .extend(claim.paths.clone());
     }
+    // CLONE-JUSTIFICATION: release events own their transport context after validation.
     let context = caller
         .clone()
         .into_claim_context(ClaimContextExtras::default());
@@ -618,6 +629,7 @@ pub fn closeout(
                 lane: &lane,
                 kind: "release",
                 paths: Some(paths),
+                // CLONE-JUSTIFICATION: each release event owns its optional request reason.
                 reason: Some(reason.clone()),
                 context: Some((&context, caller)),
                 metadata: EventMetadata::default(),
@@ -634,6 +646,7 @@ fn claim_context_to_json(context: &ClaimContext, caller: &CallerContext) -> serd
     macro_rules! set {
         ($key:literal, $field:expr) => {
             if let Some(v) = &$field {
+                // CLONE-JUSTIFICATION: JSON transport values must own strings borrowed from request fields.
                 map.insert($key.to_owned(), serde_json::Value::String(v.clone()));
             }
         };
@@ -683,6 +696,7 @@ fn append_event(hub: &Hub, args: AppendEventArgs<'_>) -> Result<HubEvent> {
     let tip = stream_tip(&hub.root, &hub.config.node_id, lane)?;
     let writer = WriterId::new(&hub.config.node_id, lane);
     let seq = tip.as_ref().map_or(1, |t| t.seq + 1);
+    // CLONE-JUSTIFICATION: a new event persists predecessor identity independently of the borrowed tip.
     let prev_event_id = tip.as_ref().map(|t| t.id.clone());
     let prev_hash = tip.as_ref().map(|t| t.hash.clone());
     let mut event = HubEvent {
