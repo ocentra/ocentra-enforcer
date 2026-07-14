@@ -491,6 +491,25 @@ test('check architecture-policy aggregates configured reusable checks', () => {
   assert.equal(report.violations.some((violation) => violation.ruleId === 'TS-1.2'), true);
 });
 
+test('check architecture-policy deduplicates legacy scanner aliases', () => {
+  const project = makeProject({
+    'ocentra-enforcer.config.json': JSON.stringify({
+      profileName: 'architecture-alias-test',
+      architecturePolicyChecks: [
+        'rust-string-boundaries',
+        'no-naked-domain-strings',
+      ],
+    }),
+    'src/index.ts': 'export const value = 1;\n',
+  });
+  const result = run(project, ['check', 'architecture-policy', '--json']);
+  assert.equal(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.deepEqual(report.checks.map((check) => check.check), [
+    'no-naked-domain-strings',
+  ]);
+});
+
 test('check architecture-policy reports progress for non-json workspace runs', () => {
   const project = makeProject({
     'ocentra-enforcer.config.json': JSON.stringify({

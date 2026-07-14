@@ -38,11 +38,45 @@ function createArchitectureProgressReporter(context, checks) {
   };
 }
 
+function canonicalArchitectureChecks(checks, normalizeCheckName) {
+  return [
+    ...new Set(
+      checks
+        .filter((check) => check !== "architecture-policy")
+        .map((check) => normalizeCheckName(check)),
+    ),
+  ];
+}
+
+function withCachedScannerReports(deps) {
+  const reports = new Map();
+  return {
+    ...deps,
+    runEnforcerScan(options, invocationDeps) {
+      const key = JSON.stringify({
+        root: options.root,
+        rawScope: options.rawScope,
+        command: options.command,
+        scanOnly: options.scanOnly,
+        languages: options.languages,
+      });
+      if (!reports.has(key)) {
+        reports.set(key, deps.runEnforcerScan(options, invocationDeps));
+      }
+      return reports.get(key);
+    },
+  };
+}
+
 export function runArchitecturePolicyCheck(context, deps) {
   const checks =
     context.config.architecturePolicyChecks ??
     deps.DEFAULT_ARCHITECTURE_POLICY_CHECKS;
-  const routedChecks = checks.filter((check) => check !== "architecture-policy");
+  const routedChecks = canonicalArchitectureChecks(
+    checks,
+    deps.normalizeCheckName,
+  );
+  const cachedDeps = withCachedScannerReports(deps);
   const progress = createArchitectureProgressReporter(context, routedChecks);
   const reports = routedChecks.map((check, index) => {
     progress("start", { check, index: index + 1 });
@@ -60,7 +94,7 @@ export function runArchitecturePolicyCheck(context, deps) {
           tracked: context.decoded.tracked,
           strictEmptyTestTrees: context.decoded.strictEmptyTestTrees,
         },
-        deps,
+        cachedDeps,
       );
     progress("done", {
       check,
