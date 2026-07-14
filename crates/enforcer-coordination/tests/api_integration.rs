@@ -60,10 +60,22 @@ fn claim_uses_explicit_caller_context() -> Result<(), Box<dyn std::error::Error>
             reason: None,
         },
     )?;
-    let context = outcome.events[0].context.as_ref().ok_or("context missing")?;
-    assert_eq!(context.get("worktreeRoot").and_then(|value| value.as_str()), Some(caller_worktree));
-    assert_eq!(context.get("branch").and_then(|value| value.as_str()), Some("lane/arc-16"));
-    assert_eq!(context.get("commit").and_then(|value| value.as_str()), Some("abc123"));
+    let context = outcome.events[0]
+        .context
+        .as_ref()
+        .ok_or("context missing")?;
+    assert_eq!(
+        context.get("worktreeRoot").and_then(|value| value.as_str()),
+        Some(caller_worktree)
+    );
+    assert_eq!(
+        context.get("branch").and_then(|value| value.as_str()),
+        Some("lane/arc-16")
+    );
+    assert_eq!(
+        context.get("commit").and_then(|value| value.as_str()),
+        Some("abc123")
+    );
     Ok(())
 }
 
@@ -105,9 +117,21 @@ fn closeout_does_not_release_another_lane() -> Result<(), Box<dyn std::error::Er
     let lane_a: LaneId = "lane-a".parse()?;
     let lane_b: LaneId = "lane-b".parse()?;
     for (lane, file) in [(&lane_a, "a.rs"), (&lane_b, "b.rs")] {
-        claim_all(&hub, ClaimRequestArgs { repo_root: repo.path(), lane, owns: &[file.to_owned()], caller: &caller("wt", lane.as_str()), reason: None })?;
+        claim_all(
+            &hub,
+            ClaimRequestArgs {
+                repo_root: repo.path(),
+                lane,
+                owns: &[file.to_owned()],
+                caller: &caller("wt", lane.as_str()),
+                reason: None,
+            },
+        )?;
     }
-    let filters = CloseoutFilters { lane: Some(lane_a.clone()), ..Default::default() };
+    let filters = CloseoutFilters {
+        lane: Some(lane_a.clone()),
+        ..Default::default()
+    };
     let events = closeout(&hub, &lane_a, &filters, &caller("wt-a", "br-a"), None)?;
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].lane, "lane-a");
@@ -115,24 +139,50 @@ fn closeout_does_not_release_another_lane() -> Result<(), Box<dyn std::error::Er
 }
 
 #[test]
-fn release_and_message_acknowledgement_are_public_operations() -> Result<(), Box<dyn std::error::Error>> {
+fn release_and_message_acknowledgement_are_public_operations(
+) -> Result<(), Box<dyn std::error::Error>> {
     let dir = tempdir()?;
     let hub = open_hub(dir.path(), "test-hub", "desktop")?;
     let repo = tempdir()?;
     std::fs::write(repo.path().join("a.rs"), "// a")?;
     let lane: LaneId = "desktop".parse()?;
-    claim_all(&hub, ClaimRequestArgs { repo_root: repo.path(), lane: &lane, owns: &["a.rs".to_owned()], caller: &caller("wt", "branch"), reason: None })?;
-    let released = release(&hub, &lane, &["a.rs".to_owned()], &caller("wt", "branch"), None)?;
+    claim_all(
+        &hub,
+        ClaimRequestArgs {
+            repo_root: repo.path(),
+            lane: &lane,
+            owns: &["a.rs".to_owned()],
+            caller: &caller("wt", "branch"),
+            reason: None,
+        },
+    )?;
+    let released = release(
+        &hub,
+        &lane,
+        &["a.rs".to_owned()],
+        &caller("wt", "branch"),
+        None,
+    )?;
     assert_eq!(released.kind, "release");
     let recipient: LaneId = "reviewer".parse()?;
-    let message = send_message(&hub, &lane, &recipient, "Please inspect.", &caller("wt", "branch"))?;
+    let message = send_message(
+        &hub,
+        &lane,
+        &recipient,
+        "Please inspect.",
+        &caller("wt", "branch"),
+    )?;
     let acknowledgement = acknowledge_message(&hub, &lane, &message.id, &caller("wt", "branch"))?;
-    assert_eq!(acknowledgement.message_id.as_deref(), Some(message.id.as_str()));
+    assert_eq!(
+        acknowledgement.message_id.as_deref(),
+        Some(message.id.as_str())
+    );
     Ok(())
 }
 
 #[test]
-fn releasing_one_path_preserves_the_remaining_claimed_paths() -> Result<(), Box<dyn std::error::Error>> {
+fn releasing_one_path_preserves_the_remaining_claimed_paths(
+) -> Result<(), Box<dyn std::error::Error>> {
     let dir = tempdir()?;
     let hub = open_hub(dir.path(), "test-hub", "desktop")?;
     let repo = tempdir()?;
@@ -140,13 +190,16 @@ fn releasing_one_path_preserves_the_remaining_claimed_paths() -> Result<(), Box<
     std::fs::write(repo.path().join("b.rs"), "// b")?;
     let lane: LaneId = "desktop".parse()?;
     let caller = caller("wt", "branch");
-    claim_all(&hub, ClaimRequestArgs {
-        repo_root: repo.path(),
-        lane: &lane,
-        owns: &["a.rs".to_owned(), "b.rs".to_owned()],
-        caller: &caller,
-        reason: None,
-    })?;
+    claim_all(
+        &hub,
+        ClaimRequestArgs {
+            repo_root: repo.path(),
+            lane: &lane,
+            owns: &["a.rs".to_owned(), "b.rs".to_owned()],
+            caller: &caller,
+            reason: None,
+        },
+    )?;
     release(&hub, &lane, &["a.rs".to_owned()], &caller, None)?;
 
     let events = enforcer_coordination::sync::stream::read_all_streams(&hub.root)?;

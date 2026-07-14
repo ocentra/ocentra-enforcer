@@ -359,7 +359,11 @@ pub fn split_skill_forms(raw: &str) -> (String, String) {
     else {
         return (String::new(), raw.to_owned());
     };
-    let Some(dense) = after_open.get(..close_rel).map(str::trim).map(str::to_owned) else {
+    let Some(dense) = after_open
+        .get(..close_rel)
+        .map(str::trim)
+        .map(str::to_owned)
+    else {
         return (String::new(), raw.to_owned());
     };
     let Some(before_open) = raw.get(..open_at) else {
