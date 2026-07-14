@@ -186,6 +186,7 @@ pub fn record_procedural(
 ) -> String {
     let id = format!("proc-{:04}", graph.procedural_records().len());
     let record = ProceduralRecord {
+        // CLONE-JUSTIFICATION: the record is consumed by graph ingestion while the caller receives its id.
         id: id.clone(),
         lesson_id: lesson_id.into(),
         outcome,
@@ -205,12 +206,17 @@ pub fn record_procedural_in_store(
     let mut assigned_record: Option<ProceduralRecord> = None;
     store.append_observation_entry(|seq| {
         let id = format!("proc-{seq:04}");
+        // CLONE-JUSTIFICATION: the append closure retains the returned id while the observation entry owns its id.
         assigned_id = id.clone();
         let record = ProceduralRecord {
+            // CLONE-JUSTIFICATION: the procedural record and observation entry are independent durable records.
             id: id.clone(),
+            // CLONE-JUSTIFICATION: native procedural persistence and the observation envelope each own this field.
             lesson_id: input.lesson_id.clone(),
             outcome: input.outcome,
+            // CLONE-JUSTIFICATION: native procedural persistence and the observation envelope each own this field.
             detail: input.detail.clone(),
+            // CLONE-JUSTIFICATION: native procedural persistence and the observation envelope each own this field.
             ts: input.ts.clone(),
         };
         let payload = serde_json::json!({
@@ -225,12 +231,15 @@ pub fn record_procedural_in_store(
             schema_version: SCHEMA_VERSION,
             seq,
             id,
+            // CLONE-JUSTIFICATION: the native procedural record remains owned for subsequent append and graph ingestion.
             lesson_id: input.lesson_id.clone(),
             rule_id: None,
             fault_class: Some(input.outcome.as_str().to_owned()),
+            // CLONE-JUSTIFICATION: the native procedural record remains owned for subsequent append and graph ingestion.
             repo_context: input.detail.clone(),
             clean: input.outcome.is_success(),
             source_surface: "procedural-memory".to_owned(),
+            // CLONE-JUSTIFICATION: the native procedural record remains owned for subsequent append and graph ingestion.
             ts: input.ts.clone(),
             supersedes_seq: None,
             payload_kind: Some("procedural-memory".to_owned()),
@@ -243,6 +252,7 @@ pub fn record_procedural_in_store(
             reason: "append did not assign a procedural record".to_owned(),
         });
     };
+    // CLONE-JUSTIFICATION: store append consumes one record while graph ingestion consumes the other.
     store.append_procedural(record.clone())?;
     graph.ingest_procedural(record);
     Ok(assigned_id)
@@ -261,6 +271,7 @@ pub fn record_route_choice(
 ) -> String {
     let id = format!("route-{:04}", graph.route_traces().len());
     let trace = RouteTrace {
+        // CLONE-JUSTIFICATION: the trace is consumed by graph ingestion while the caller receives its id.
         id: id.clone(),
         query: query.into(),
         route: route.into(),
@@ -280,12 +291,17 @@ pub fn record_route_choice_in_store(
     let mut assigned_trace: Option<RouteTrace> = None;
     store.append_observation_entry(|seq| {
         let id = format!("route-{seq:04}");
+        // CLONE-JUSTIFICATION: the append closure retains the returned id while the observation entry owns its id.
         assigned_id = id.clone();
         let trace = RouteTrace {
+            // CLONE-JUSTIFICATION: the route trace and observation entry are independent durable records.
             id: id.clone(),
+            // CLONE-JUSTIFICATION: native route persistence and the observation envelope each own this field.
             query: input.query.clone(),
+            // CLONE-JUSTIFICATION: native route persistence and the observation envelope each own this field.
             route: input.route.clone(),
             confidence: normalize_confidence(input.confidence),
+            // CLONE-JUSTIFICATION: native route persistence and the observation envelope each own this field.
             ts: input.ts.clone(),
         };
         let payload = serde_json::json!({
@@ -303,9 +319,11 @@ pub fn record_route_choice_in_store(
             lesson_id: String::new(),
             rule_id: None,
             fault_class: Some("route-choice".to_owned()),
+            // CLONE-JUSTIFICATION: the native route trace remains owned for subsequent append and graph ingestion.
             repo_context: input.query.clone(),
             clean: true,
             source_surface: "route-choice".to_owned(),
+            // CLONE-JUSTIFICATION: the native route trace remains owned for subsequent append and graph ingestion.
             ts: input.ts.clone(),
             supersedes_seq: None,
             payload_kind: Some("route-choice".to_owned()),
@@ -318,6 +336,7 @@ pub fn record_route_choice_in_store(
             reason: "append did not assign a route trace".to_owned(),
         });
     };
+    // CLONE-JUSTIFICATION: store append consumes one trace while graph ingestion consumes the other.
     store.append_route_trace(trace.clone())?;
     graph.ingest_route_trace(trace);
     Ok(assigned_id)
