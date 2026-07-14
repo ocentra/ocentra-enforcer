@@ -30,13 +30,14 @@ fn import_target(line: &str) -> Option<&str> {
         return None;
     }
     let from_idx = trimmed.find(" from ")?;
-    let rest = &trimmed[from_idx + " from ".len()..];
+    let rest = trimmed.get(from_idx + " from ".len()..)?;
     let quote = rest.chars().next()?;
     if quote != '"' && quote != '\'' {
         return None;
     }
-    let closing = rest[1..].find(quote)?;
-    Some(&rest[1..1 + closing])
+    let body = rest.get(1..)?;
+    let closing = body.find(quote)?;
+    body.get(..closing)
 }
 
 /// `typescript/import-boundaries` validator for TS-4.1.
