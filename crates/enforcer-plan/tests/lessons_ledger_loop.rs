@@ -205,6 +205,20 @@ fn add_then_list_round_trips_through_the_cli_seam() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn pending_list_keeps_captured_but_unrouted_lessons_visible() -> TestResult {
+    let path = temp_ledger_path("unrouted-pending");
+    let mut record = sample_record("L3")?;
+    record.routes.clear();
+
+    add(&path, record)?;
+    let pending = list(&path, None, true)?;
+    assert_eq!(pending.len(), 1);
+    assert_eq!(pending[0].id.as_str(), "L3");
+    std::fs::remove_file(&path)?;
+    Ok(())
+}
+
 fn seed_markdown_fixture() -> String {
     r#"
 | id | date | observed | lesson | landed-at | ships-via |

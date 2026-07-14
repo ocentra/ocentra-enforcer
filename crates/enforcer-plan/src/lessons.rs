@@ -338,6 +338,12 @@ impl LessonRecord {
     /// True when every declared route has landed (or the lesson declares no
     /// routes needing a landing — i.e. every route is `PlanDoc`).
     pub fn is_fully_landed(&self) -> bool {
+        // A captured lesson with no route has no landing plan yet. It must
+        // remain pending so the CLI's pending view agrees with `run_doctor`'s
+        // fail-closed treatment of an unrouted ledger row.
+        if self.routes.is_empty() {
+            return false;
+        }
         let required_routes = self
             .routes
             .iter()
