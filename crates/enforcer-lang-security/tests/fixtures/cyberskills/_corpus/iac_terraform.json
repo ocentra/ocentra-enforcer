@@ -238,6 +238,13 @@
     "branch": "IAM-ACTION-WILDCARD"
   },
   {
+    "name": "truncated_resource_block_is_ignored_safely",
+    "input": "resource \"aws_s3_bucket\" \"unfinished\" {\n  bucket = \"data\"\n",
+    "expect": "clean",
+    "reason": "malformed unterminated resource must not panic or fabricate a finding",
+    "branch": "MALFORMED-RESOURCE"
+  },
+  {
     "name": "sg_rule_string_port_values",
     "input": "resource \"aws_security_group_rule\" \"ssh\" {\n  type            = \"ingress\"\n  from_port       = \"22\"\n  to_port         = \"22\"\n  protocol        = \"tcp\"\n  cidr_blocks     = [\"0.0.0.0/0\"]\n  security_group_id = \"sg-12345\"\n}",
     "expect": "flag",

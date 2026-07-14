@@ -51,11 +51,17 @@ pub(crate) fn resource_blocks(source: &str) -> Vec<ResourceBlock<'_>> {
         let Some(close_brace) = matching_brace(source, open_brace) else {
             continue;
         };
-        let line = 1 + source[..whole.start()].matches('\n').count() as u32;
+        let Some(prefix) = source.get(..whole.start()) else {
+            continue;
+        };
+        let line = 1 + prefix.matches('\n').count() as u32;
+        let Some(body) = source.get(open_brace.saturating_add(1)..close_brace) else {
+            continue;
+        };
         blocks.push(ResourceBlock {
             resource_type: capture.get(1).map_or("", |m| m.as_str()),
             name: capture.get(2).map_or("", |m| m.as_str()),
-            body: &source[open_brace + 1..close_brace],
+            body,
             line,
         });
     }
@@ -245,13 +251,22 @@ fn split_statements(body: &str) -> Vec<&str> {
     let mut chunks = Vec::new();
     let mut cursor = marker;
     let bytes = body.as_bytes();
-    while let Some(rel_open) = body[cursor..].find('{') {
+    while let Some(remaining) = body.get(cursor..) {
+        let Some(rel_open) = remaining.find('{') else {
+            break;
+        };
         let open = cursor + rel_open;
         let Some(close) = matching_brace(body, open) else {
             break;
         };
-        chunks.push(&body[open..=close]);
-        cursor = close + 1;
+        let Some(chunk) = body.get(open..=close) else {
+            break;
+        };
+        chunks.push(chunk);
+        let Some(next_cursor) = close.checked_add(1) else {
+            break;
+        };
+        cursor = next_cursor;
         if cursor >= bytes.len() {
             break;
         }
@@ -373,7 +388,9 @@ pub(crate) fn ingress_subblocks(body: &str) -> Vec<&str> {
         };
         let open_brace = whole.end() - 1;
         if let Some(close_brace) = matching_brace(body, open_brace) {
-            blocks.push(&body[open_brace + 1..close_brace]);
+            if let Some(block) = body.get(open_brace.saturating_add(1)..close_brace) {
+                blocks.push(block);
+            }
         }
     }
     blocks
