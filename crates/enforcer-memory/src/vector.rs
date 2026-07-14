@@ -60,7 +60,9 @@ impl VectorManifest {
         let expected = &self.model;
         if expected.embedding_model != candidate.embedding_model {
             reasons.push(StaleReason::EmbeddingModel {
+                // CLONE-JUSTIFICATION: owned stale reason outlives borrowed expected metadata.
                 expected: expected.embedding_model.clone(),
+                // CLONE-JUSTIFICATION: owned stale reason outlives borrowed candidate metadata.
                 actual: candidate.embedding_model.clone(),
             });
         }
@@ -72,37 +74,49 @@ impl VectorManifest {
         }
         if expected.dtype != candidate.dtype {
             reasons.push(StaleReason::Dtype {
+                // CLONE-JUSTIFICATION: owned stale reason outlives borrowed expected metadata.
                 expected: expected.dtype.clone(),
+                // CLONE-JUSTIFICATION: owned stale reason outlives borrowed candidate metadata.
                 actual: candidate.dtype.clone(),
             });
         }
         if expected.similarity_metric != candidate.similarity_metric {
             reasons.push(StaleReason::SimilarityMetric {
+                // CLONE-JUSTIFICATION: owned stale reason outlives borrowed expected metadata.
                 expected: expected.similarity_metric.clone(),
+                // CLONE-JUSTIFICATION: owned stale reason outlives borrowed candidate metadata.
                 actual: candidate.similarity_metric.clone(),
             });
         }
         if expected.normalization != candidate.normalization {
             reasons.push(StaleReason::Normalization {
+                // CLONE-JUSTIFICATION: owned stale reason outlives borrowed expected metadata.
                 expected: expected.normalization.clone(),
+                // CLONE-JUSTIFICATION: owned stale reason outlives borrowed candidate metadata.
                 actual: candidate.normalization.clone(),
             });
         }
         if expected.formatter_version != candidate.formatter_version {
             reasons.push(StaleReason::FormatterVersion {
+                // CLONE-JUSTIFICATION: owned stale reason outlives borrowed expected metadata.
                 expected: expected.formatter_version.clone(),
+                // CLONE-JUSTIFICATION: owned stale reason outlives borrowed candidate metadata.
                 actual: candidate.formatter_version.clone(),
             });
         }
         if expected.chunker_version != candidate.chunker_version {
             reasons.push(StaleReason::ChunkerVersion {
+                // CLONE-JUSTIFICATION: owned stale reason outlives borrowed expected metadata.
                 expected: expected.chunker_version.clone(),
+                // CLONE-JUSTIFICATION: owned stale reason outlives borrowed candidate metadata.
                 actual: candidate.chunker_version.clone(),
             });
         }
         if expected.parser_version != candidate.parser_version {
             reasons.push(StaleReason::ParserVersion {
+                // CLONE-JUSTIFICATION: owned stale reason outlives borrowed expected metadata.
                 expected: expected.parser_version.clone(),
+                // CLONE-JUSTIFICATION: owned stale reason outlives borrowed candidate metadata.
                 actual: candidate.parser_version.clone(),
             });
         }
@@ -162,6 +176,7 @@ impl VectorIndex {
             .entries
             .iter()
             .map(|(doc_id, vector)| ScoredCandidate {
+                // CLONE-JUSTIFICATION: returned search result owns its document id beyond the index borrow.
                 doc_id: doc_id.clone(),
                 score: cosine_similarity(query_vector, vector),
             })
@@ -208,6 +223,7 @@ pub fn embed_documents(
     let mut entries = Vec::new();
     for (doc_id, text) in documents {
         if seen.insert(doc_id.as_str(), ()).is_none() {
+            // CLONE-JUSTIFICATION: returned embedded entry owns its id beyond the borrowed documents slice.
             entries.push((doc_id.clone(), embedder.embed(text)?));
         }
     }
