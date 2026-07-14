@@ -421,15 +421,36 @@ fn symbol_snapshot(
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ArtifactMetadata {
     pub schema_version: u32,
-    pub commit: Option<String>,
-    pub indexed_at: String,
-    pub project: String,
+    commit: ArtifactCommit,
+    indexed_at: ArtifactIndexedAt,
+    project: ArtifactProject,
     pub nodes: usize,
     pub edges: usize,
     pub original_size: u64,
     pub compressed_size: u64,
     pub compression_level: i32,
 }
+
+/// `artifact.json`'s optional source commit at the persistence boundary.
+/// BRAND-INVARIANT: this wire value is serialized only through
+/// [`ArtifactMetadata`], preserving the stable `commit` JSON field.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+struct ArtifactCommit(Option<String>);
+
+/// `artifact.json`'s indexing timestamp at the persistence boundary.
+/// BRAND-INVARIANT: this wire value is serialized only through
+/// [`ArtifactMetadata`], preserving the stable `indexed_at` JSON field.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+struct ArtifactIndexedAt(String);
+
+/// `artifact.json`'s project label at the persistence boundary.
+/// BRAND-INVARIANT: this wire value is serialized only through
+/// [`ArtifactMetadata`], preserving the stable `project` JSON field.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+struct ArtifactProject(String);
 
 /// Errors from exporting/importing the persistence artifact.
 #[derive(Debug, thiserror::Error)]
@@ -538,9 +559,9 @@ pub fn export_graph_artifact(
 
     let metadata = ArtifactMetadata {
         schema_version: GRAPH_ARTIFACT_SCHEMA_VERSION,
-        commit,
-        indexed_at: indexed_at.to_owned(),
-        project: project.to_owned(),
+        commit: ArtifactCommit(commit),
+        indexed_at: ArtifactIndexedAt(indexed_at.to_owned()),
+        project: ArtifactProject(project.to_owned()),
         nodes: snapshot.node_count(),
         edges: snapshot.edge_count(),
         original_size,

@@ -187,6 +187,9 @@ fn artifact_json_has_exactly_the_baseline_field_set() -> Result<(), Box<dyn Erro
     expected.sort_unstable();
     assert_eq!(keys, expected, "artifact.json field set must match exactly");
     assert_eq!(obj["schema_version"], serde_json::json!(2));
+    assert_eq!(obj["commit"], serde_json::Value::Null);
+    assert_eq!(obj["indexed_at"], serde_json::json!("2026-07-05T00:00:00Z"));
+    assert_eq!(obj["project"], serde_json::json!("demo"));
 
     std::fs::remove_dir_all(&root)?;
     Ok(())
