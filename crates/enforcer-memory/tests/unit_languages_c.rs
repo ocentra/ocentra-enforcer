@@ -80,6 +80,44 @@ fn extracts_call_edges() {
     assert!(callees.contains(&"other_fn"));
 }
 
+/// Regression: iterator traversal retains written field, typedef, and call
+/// argument ordering.
+#[test]
+fn c_child_iteration_preserves_fields_aliases_and_call_argument_order() -> Result<(), &'static str>
+{
+    let src = r#"
+struct Pair { int first; int second; };
+typedef int FirstAlias, SecondAlias;
+void run() { other_fn(first(), second()); }
+"#;
+    let parsed = parse(src, false);
+    let fields: Vec<&str> = parsed
+        .defines
+        .iter()
+        .filter(|edge| edge.container_name == "Pair")
+        .map(|edge| edge.member_name.as_str())
+        .collect();
+    assert_eq!(fields, vec!["first", "second"], "{fields:?}");
+    let aliases: Vec<&str> = parsed
+        .symbols
+        .iter()
+        .filter(|symbol| symbol.kind == SymbolKind::TypeAlias)
+        .map(|symbol| symbol.name.as_str())
+        .collect();
+    assert_eq!(aliases, vec!["FirstAlias", "SecondAlias"], "{aliases:?}");
+    let call = parsed
+        .calls
+        .iter()
+        .find(|call| call.callee == "other_fn")
+        .ok_or("expected an other_fn call")?;
+    assert_eq!(
+        call.arg_texts,
+        vec!["first()".to_string(), "second()".to_string()],
+        "{call:?}"
+    );
+    Ok(())
+}
+
 #[test]
 fn detects_test_by_name_convention() {
     let src = "void test_addition() {} void teardown_test() {} void normal_fn() {}";

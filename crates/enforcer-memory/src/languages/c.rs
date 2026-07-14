@@ -206,10 +206,9 @@ fn walk_children(
     enclosing: Option<&str>,
     fn_scope: FnScope<'_>,
 ) {
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, src, out, enclosing, fn_scope);
-        }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        walk(child, src, out, enclosing, fn_scope);
     }
 }
 
@@ -219,14 +218,13 @@ fn call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
         return Vec::new();
     };
     let mut out = Vec::new();
-    for i in 0..args.child_count() {
-        if let Some(child) = args.child(i) {
-            if matches!(child.kind(), "(" | ")" | ",") {
-                continue;
-            }
-            if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
-            }
+    let mut cursor = args.walk();
+    for child in args.children(&mut cursor) {
+        if matches!(child.kind(), "(" | ")" | ",") {
+            continue;
+        }
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
@@ -256,8 +254,8 @@ fn innermost_declarator_identifier(node: Node<'_>, src: &[u8]) -> Option<String>
 /// their own declared field name, if any).
 fn struct_field_names(body: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..body.child_count() {
-        let Some(child) = body.child(i) else { continue };
+    let mut cursor = body.walk();
+    for child in body.children(&mut cursor) {
         if child.kind() != "field_declaration" {
             continue;
         }
@@ -283,8 +281,8 @@ fn struct_field_names(body: Node<'_>, src: &[u8]) -> Vec<String> {
 /// ordering.
 fn typedef_alias_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
         match child.kind() {
             "typedef" | "struct_specifier" | "union_specifier" | "enum_specifier" | ";" => {
                 continue; // the type-specifier side, not an alias name.
@@ -324,8 +322,8 @@ fn top_level_declaration_symbols(
     }
     let is_const = declaration_has_const(node, src);
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
         if child.kind() != "init_declarator" && child.kind() != "identifier" {
             continue;
         }
@@ -356,13 +354,12 @@ fn top_level_declaration_symbols(
 }
 
 fn declaration_has_const(node: Node<'_>, src: &[u8]) -> bool {
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            if child.kind() == "type_qualifier" {
-                if let Ok(text) = child.utf8_text(src) {
-                    if text == "const" {
-                        return true;
-                    }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() == "type_qualifier" {
+            if let Ok(text) = child.utf8_text(src) {
+                if text == "const" {
+                    return true;
                 }
             }
         }
