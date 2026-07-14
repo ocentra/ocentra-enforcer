@@ -428,14 +428,10 @@ pub fn release(
 pub fn send_message(
     hub: &Hub,
     lane: &LaneId,
-    recipient_lane: &str,
+    recipient_lane: &LaneId,
     body: &str,
     caller: &CallerContext,
 ) -> Result<HubEvent> {
-    let recipient: LaneId = recipient_lane
-        .trim()
-        .parse()
-        .map_err(|error: enforcer_core::error::DecodeError| CoordinationError::from(error))?;
     let body = body.trim();
     if body.is_empty() {
         return Err(CoordinationError::rejected(
@@ -454,7 +450,7 @@ pub fn send_message(
             reason: None,
             context: Some((&context, caller)),
             metadata: EventMetadata {
-                to: Some(recipient.as_str().to_owned()),
+                to: Some(recipient_lane.as_str().to_owned()),
                 body: Some(body.to_owned()),
                 ..Default::default()
             },
@@ -516,7 +512,7 @@ pub fn acknowledge_message(
 /// `matchingCloseoutClaims`.
 #[derive(Debug, Clone, Default)]
 pub struct CloseoutFilters {
-    pub lane: Option<String>,
+    pub lane: Option<LaneId>,
     pub include_all_lanes: bool,
     pub writer: Option<String>,
     pub node_id_prefix: Option<String>,
@@ -529,7 +525,7 @@ pub struct CloseoutFilters {
 fn matches_filters(claim: &RawClaim, filters: &CloseoutFilters) -> bool {
     if !filters.include_all_lanes {
         if let Some(lane) = &filters.lane {
-            if &claim.lane != lane {
+            if claim.lane != lane.as_str() {
                 return false;
             }
         }

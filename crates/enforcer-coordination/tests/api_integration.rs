@@ -107,7 +107,7 @@ fn closeout_does_not_release_another_lane() -> Result<(), Box<dyn std::error::Er
     for (lane, file) in [(&lane_a, "a.rs"), (&lane_b, "b.rs")] {
         claim_all(&hub, ClaimRequestArgs { repo_root: repo.path(), lane, owns: &[file.to_owned()], caller: &caller("wt", lane.as_str()), reason: None })?;
     }
-    let filters = CloseoutFilters { lane: Some("lane-a".to_owned()), ..Default::default() };
+    let filters = CloseoutFilters { lane: Some(lane_a.clone()), ..Default::default() };
     let events = closeout(&hub, &lane_a, &filters, &caller("wt-a", "br-a"), None)?;
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].lane, "lane-a");
@@ -124,7 +124,8 @@ fn release_and_message_acknowledgement_are_public_operations() -> Result<(), Box
     claim_all(&hub, ClaimRequestArgs { repo_root: repo.path(), lane: &lane, owns: &["a.rs".to_owned()], caller: &caller("wt", "branch"), reason: None })?;
     let released = release(&hub, &lane, &["a.rs".to_owned()], &caller("wt", "branch"), None)?;
     assert_eq!(released.kind, "release");
-    let message = send_message(&hub, &lane, "reviewer", "Please inspect.", &caller("wt", "branch"))?;
+    let recipient: LaneId = "reviewer".parse()?;
+    let message = send_message(&hub, &lane, &recipient, "Please inspect.", &caller("wt", "branch"))?;
     let acknowledgement = acknowledge_message(&hub, &lane, &message.id, &caller("wt", "branch"))?;
     assert_eq!(acknowledgement.message_id.as_deref(), Some(message.id.as_str()));
     Ok(())

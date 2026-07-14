@@ -410,7 +410,7 @@ impl CoordinationPort for LiveCoordination<'_> {
             reason: format!("invalid lane id `{lane}`: {decode_err}"),
         })?;
         let filters = CloseoutFilters {
-            lane: Some(lane.to_owned()),
+            lane: Some(lane_id.clone()),
             ..Default::default()
         };
         api::closeout(

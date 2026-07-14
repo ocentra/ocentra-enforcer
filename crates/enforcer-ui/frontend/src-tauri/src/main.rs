@@ -34,7 +34,7 @@ use project_registry::{
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-use enforcer_domain::ids::RuleId;
+use enforcer_domain::ids::{LaneId, RuleId};
 use enforcer_domain::severity::Tier;
 use enforcer_rules::registry::{FixtureRef, RuleRecord, RuleRegistry, ValidatorRef};
 use enforcer_rules::waiver::WaiverDate;
@@ -1762,10 +1762,15 @@ fn send_hub_message(
     let hub = enforcer_coordination::api::open(&root)
         .map_err(|error| format!("cannot open existing coordination identity: {error}"))?;
     let caller = desktop_hub_caller();
+    let recipient_lane: LaneId = request
+        .recipient_lane
+        .trim()
+        .parse()
+        .map_err(|error| format!("invalid coordination recipient lane: {error}"))?;
     enforcer_coordination::api::send_message(
         &hub,
         &hub.config.default_lane,
-        &request.recipient_lane,
+        &recipient_lane,
         &request.body,
         &caller,
     )
