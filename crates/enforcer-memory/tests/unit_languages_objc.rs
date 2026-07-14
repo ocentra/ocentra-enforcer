@@ -201,6 +201,26 @@ fn extracts_message_expression_multi_keyword_selector() -> TestResult {
 }
 
 #[test]
+fn message_expression_records_only_argument_texts() -> TestResult {
+    let src = r#"
+@implementation Widget
+- (void)draw {
+    [self setName:@"Rex" withAge:3];
+}
+@end
+"#;
+    let parsed = parse_objc(src);
+    let call = parsed
+        .calls
+        .iter()
+        .find(|call| call.callee == "setName:withAge:")
+        .ok_or("expected a setName:withAge: message send")?;
+
+    assert_eq!(call.arg_texts, vec!["@\"Rex\"", "3"]);
+    Ok(())
+}
+
+#[test]
 fn class_receiver_message_send_is_new_expression_hint() -> TestResult {
     let src = r#"
 @implementation Widget

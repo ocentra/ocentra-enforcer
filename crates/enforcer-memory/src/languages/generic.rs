@@ -6890,10 +6890,7 @@ fn objc_message_arg_texts(message_node: Node<'_>, src: &[u8]) -> Vec<String> {
         .collect();
     let receiver = message_node.child_by_field_name("receiver");
     let mut out = Vec::new();
-    for i in 0..message_node.child_count() {
-        let Some(child) = message_node.child(i) else {
-            continue;
-        };
+    for child in syntax_children(message_node) {
         if !child.is_named() {
             continue;
         }
