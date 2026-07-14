@@ -309,6 +309,41 @@ public class WidgetController {
     assert!(routes.contains(&("POST", "/widgets")), "{routes:?}");
 }
 
+/// Regression: syntax-child traversal must retain source order for both
+/// annotation arguments and nested method-call arguments.
+#[test]
+fn java_child_iteration_preserves_route_and_call_argument_order() -> TestResult {
+    let src = r#"
+package widget;
+
+public class WidgetController {
+    @PostMapping(value = "/widgets", consumes = "application/json")
+    public String create(WidgetService service) {
+        return service.save(first(), second());
+    }
+}
+"#;
+    let parsed = parse(src);
+    let route = parsed
+        .routes
+        .iter()
+        .find(|route| route.method == "POST")
+        .ok_or("expected a POST route")?;
+    assert_eq!(route.path, "/widgets", "{route:?}");
+
+    let call = parsed
+        .calls
+        .iter()
+        .find(|call| call.callee == "service.save")
+        .ok_or("expected a service.save call")?;
+    assert_eq!(
+        call.arg_texts,
+        vec!["first()".to_string(), "second()".to_string()],
+        "{call:?}"
+    );
+    Ok(())
+}
+
 #[test]
 fn call_inside_method_records_from_symbol_scope() -> TestResult {
     let src = r#"
