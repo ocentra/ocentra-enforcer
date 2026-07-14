@@ -5,6 +5,7 @@ import {
   childDirs,
   finding,
   hasFile,
+  scopeFilesByExtensions,
   scopedProjectRoots,
 } from "./check-source-core-helpers.mjs";
 
@@ -42,7 +43,7 @@ function collectRequiredTestFindings(
           ),
         );
       }
-      collectInlineSourceTestFindings(root, srcPath, config, findings);
+      collectInlineSourceTestFindings(root, srcPath, config, findings, scope);
       collectStrictEmptyTestTreeFindings(
         root,
         dir,
@@ -73,7 +74,13 @@ function collectRequiredTestFindings(
         ),
       );
     }
-    collectInlineSourceTestFindings(root, path.join(dir, "src"), config, findings);
+    collectInlineSourceTestFindings(
+      root,
+      path.join(dir, "src"),
+      config,
+      findings,
+      scope,
+    );
     collectStrictEmptyTestTreeFindings(
       root,
       dir,
@@ -85,14 +92,15 @@ function collectRequiredTestFindings(
   return findings.filter((entry) => !isIgnored(entry.file, config));
 }
 
-function collectInlineSourceTestFindings(root, srcPath, config, findings) {
+function collectInlineSourceTestFindings(
+  root,
+  srcPath,
+  config,
+  findings,
+  scope = { mode: "all" },
+) {
   if (!fs.existsSync(srcPath)) return;
-  const files = collectFiles(
-    root,
-    [srcPath],
-    config,
-    (file) => isInlineTestSourceCandidate(file),
-  );
+  const files = collectInlineTestSourceFiles(root, srcPath, config, scope);
   for (const file of files) {
     const text = fs.readFileSync(file, "utf8");
     const lines = text.split(/\r?\n/u);
@@ -112,6 +120,39 @@ function collectInlineSourceTestFindings(root, srcPath, config, findings) {
       break;
     }
   }
+}
+
+function collectInlineTestSourceFiles(root, srcPath, config, scope) {
+  if (scope.mode !== "files" && scope.mode !== "diff") {
+    return collectFiles(root, [srcPath], config, (file) =>
+      isInlineTestSourceCandidate(file),
+    );
+  }
+  const sourceExtensions = new Set([
+    ".rs",
+    ".py",
+    ".js",
+    ".cjs",
+    ".mjs",
+    ".ts",
+    ".cts",
+    ".mts",
+    ".tsx",
+    ".jsx",
+  ]);
+  return scopeFilesByExtensions(root, scope, config, sourceExtensions).filter(
+    (file) => isInlineTestSourceCandidate(file) && isWithinSourceTree(srcPath, file),
+  );
+}
+
+function isWithinSourceTree(srcPath, file) {
+  const relative = path.relative(srcPath, file);
+  return (
+    relative !== "" &&
+    relative !== ".." &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative)
+  );
 }
 
 function isInlineTestSourceCandidate(file) {
@@ -196,6 +237,7 @@ function normalizeProjectRoot(root, target) {
 
 export {
   collectEmptyPlaceholderTrees,
+  collectInlineTestSourceFiles,
   collectInlineSourceTestFindings,
   collectRequiredTestFindings,
   collectStrictEmptyTestTreeFindings,

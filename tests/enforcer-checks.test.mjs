@@ -244,6 +244,39 @@ test('check required-tests limits package discovery to touched project roots', (
   assert.equal(report.scope.files.includes('packages/covered/src/index.ts'), true);
 });
 
+test('check required-tests limits inline source-test findings to selected files', () => {
+  const project = makeProject({
+    'crates/core/Cargo.toml': '[package]\nname = "core"\nversion = "0.1.0"\nedition = "2021"\n',
+    'crates/core/src/touched.rs': 'pub fn value() -> u8 { 1 }\n',
+    'crates/core/src/legacy_inline_test.rs': '#[cfg(test)]\nmod tests {}\n',
+    'crates/core/tests/value.rs': '#[test]\nfn value_is_stable() { assert_eq!(1, 1); }\n',
+  });
+  const scoped = run(project, [
+    'check',
+    'required-tests',
+    '--json',
+    '--files',
+    'crates/core/src/touched.rs',
+  ]);
+  assert.equal(scoped.status, 0, scoped.stdout || scoped.stderr);
+  assert.deepEqual(JSON.parse(scoped.stdout).violations, []);
+
+  const legacy = run(project, [
+    'check',
+    'required-tests',
+    '--json',
+    '--files',
+    'crates/core/src/legacy_inline_test.rs',
+  ]);
+  assert.notEqual(legacy.status, 0, legacy.stdout || legacy.stderr);
+  assert.equal(
+    JSON.parse(legacy.stdout).violations.some(
+      (violation) => violation.ruleId === 'TEST-2.2' && violation.file === 'crates/core/src/legacy_inline_test.rs',
+    ),
+    true,
+  );
+});
+
 test('check single-source-contracts accepts the migrated Ocentra Parent contract config shape', () => {
   const project = makeProject({
     'config/owner.json': JSON.stringify({ ports: { portal: '4478' } }),
