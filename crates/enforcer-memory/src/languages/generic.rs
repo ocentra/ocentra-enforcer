@@ -83,8 +83,9 @@ type MethodDefinedHook = Box<dyn Fn(Node<'_>, &str, usize, &[u8], &mut ParsedFil
 /// innermost enclosing function/method name + line (`fn_scope`, same
 /// pair `walk` threads through everywhere else), the source bytes, and
 /// the output sink.
-type CallOverrideHook =
-    Box<dyn Fn(Node<'_>, Option<&str>, Option<usize>, &[u8], &mut ParsedFile) -> bool + Send + Sync>;
+type CallOverrideHook = Box<
+    dyn Fn(Node<'_>, Option<&str>, Option<usize>, &[u8], &mut ParsedFile) -> bool + Send + Sync,
+>;
 
 /// Per-language override hooks the generic walker calls at fixed
 /// points, mirroring the baseline's per-language quirk branches.
@@ -409,7 +410,9 @@ fn syntax_children<'tree>(node: Node<'tree>) -> impl Iterator<Item = Node<'tree>
 /// Returns the named syntax children in source order.
 fn named_syntax_children<'tree>(node: Node<'tree>) -> impl Iterator<Item = Node<'tree>> {
     let mut cursor = node.walk();
-    node.named_children(&mut cursor).collect::<Vec<_>>().into_iter()
+    node.named_children(&mut cursor)
+        .collect::<Vec<_>>()
+        .into_iter()
 }
 
 /// A method-call-shaped callee's receiver text plus a cheap syntactic
@@ -1819,9 +1822,7 @@ fn java_package_name(node: Node<'_>, src: &[u8]) -> Option<String> {
 fn java_superclass_name(class_node: Node<'_>, src: &[u8]) -> Option<String> {
     let superclass = class_node.child_by_field_name("superclass")?;
     let mut cursor = superclass.walk();
-    let type_node = superclass
-        .children(&mut cursor)
-        .find(|n| n.is_named())?;
+    let type_node = superclass.children(&mut cursor).find(|n| n.is_named())?;
     type_node.utf8_text(src).ok().map(str::to_string)
 }
 
@@ -3861,15 +3862,11 @@ fn kotlin_delegation_bases(node: Node<'_>, src: &[u8]) -> Vec<String> {
         if child.kind() != "delegation_specifier" {
             continue;
         }
-        let Some(mut user_type) = syntax_children(child)
-            .find(|n| n.is_named())
-        else {
+        let Some(mut user_type) = syntax_children(child).find(|n| n.is_named()) else {
             continue;
         };
         if user_type.kind() == "constructor_invocation" {
-            let Some(inner) = syntax_children(user_type)
-                .find(|n| n.is_named())
-            else {
+            let Some(inner) = syntax_children(user_type).find(|n| n.is_named()) else {
                 continue;
             };
             user_type = inner;
@@ -4295,9 +4292,7 @@ fn swift_inheritance_bases(node: Node<'_>, src: &[u8]) -> Vec<String> {
         if child.kind() != "inheritance_specifier" {
             continue;
         }
-        let Some(type_node) = syntax_children(child)
-            .find(|n| n.is_named())
-        else {
+        let Some(type_node) = syntax_children(child).find(|n| n.is_named()) else {
             continue;
         };
         if let Ok(text) = type_node.utf8_text(src) {
@@ -5763,8 +5758,7 @@ pub fn parse_scala(source: &str) -> ParsedFile {
 /// grammar's class-declaration shape is Java's almost verbatim).
 fn groovy_superclass_name(class_node: Node<'_>, src: &[u8]) -> Option<String> {
     let superclass = class_node.child_by_field_name("superclass")?;
-    let type_node = syntax_children(superclass)
-        .find(|n| n.is_named())?;
+    let type_node = syntax_children(superclass).find(|n| n.is_named())?;
     type_node.utf8_text(src).ok().map(str::to_string)
 }
 
@@ -5779,9 +5773,7 @@ fn groovy_super_interfaces(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let Some(interfaces) = node.child_by_field_name("interfaces") else {
         return out;
     };
-    let Some(type_list) = syntax_children(interfaces)
-        .find(|n| n.kind() == "type_list")
-    else {
+    let Some(type_list) = syntax_children(interfaces).find(|n| n.kind() == "type_list") else {
         return out;
     };
     for child in syntax_children(type_list) {
@@ -6165,8 +6157,7 @@ fn ruby_walk_scoped_body(node: Node<'_>, src: &[u8], name: &str, out: &mut Parse
 /// scope_resolution]` for a dotted `< Foo::Base`).
 fn ruby_superclass_name(class_node: Node<'_>, src: &[u8]) -> Option<String> {
     let superclass = class_node.child_by_field_name("superclass")?;
-    let named = syntax_children(superclass)
-        .find(|n| n.is_named())?;
+    let named = syntax_children(superclass).find(|n| n.is_named())?;
     named.utf8_text(src).ok().map(str::to_string)
 }
 
@@ -6180,8 +6171,7 @@ fn ruby_require_import(call_node: Node<'_>, method_text: &str, src: &[u8]) -> Op
         return None;
     }
     let args = call_node.child_by_field_name("arguments")?;
-    let first_string = syntax_children(args)
-        .find(|n| n.kind() == "string")?;
+    let first_string = syntax_children(args).find(|n| n.kind() == "string")?;
     let raw = first_string.utf8_text(src).ok()?;
     let path = raw.trim_matches(|c| c == '"' || c == '\'').to_string();
     if path.is_empty() {
@@ -7951,10 +7941,8 @@ fn ocaml_walk_scoped(
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, &ctx, out, enclosing, fn_scope);
-        }
+    for child in syntax_children(node) {
+        walk(child, &ctx, out, enclosing, fn_scope);
     }
 }
 
@@ -8304,11 +8292,10 @@ fn ocaml_method_invocation_receiver(
 /// file.
 fn ocaml_application_arg_texts(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
+    for (i, child) in syntax_children(node).enumerate() {
         if node.field_name_for_child(i as u32) != Some("argument") {
             continue;
         }
-        let Some(child) = node.child(i) else { continue };
         if let Ok(text) = child.utf8_text(src) {
             out.push(text.to_string());
         }
@@ -8883,10 +8870,8 @@ fn d_walk_scoped(
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..body.child_count() {
-        if let Some(child) = body.child(i) {
-            walk(child, &ctx, out, enclosing, fn_scope);
-        }
+    for child in syntax_children(body) {
+        walk(child, &ctx, out, enclosing, fn_scope);
     }
 }
 
@@ -9088,8 +9073,7 @@ fn ps_first_simple_name(node: Node<'_>, src: &[u8]) -> Option<String> {
 fn ps_class_base_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
     let mut seen_colon = false;
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    for child in syntax_children(node) {
         match child.kind() {
             ":" => seen_colon = true,
             "{" => break,
@@ -9198,8 +9182,7 @@ fn ps_class_like(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bool {
             line,
         });
     }
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    for child in syntax_children(node) {
         if child.kind() == "class_method_definition" {
             ps_method_like(child, name.as_str(), src, out);
         }
@@ -9228,10 +9211,8 @@ fn ps_walk_scoped(
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..body.child_count() {
-        if let Some(child) = body.child(i) {
-            walk(child, &ctx, out, enclosing, fn_scope);
-        }
+    for child in syntax_children(body) {
+        walk(child, &ctx, out, enclosing, fn_scope);
     }
 }
 
@@ -9291,10 +9272,8 @@ fn ps_last_generic_token_text<'a>(node: Node<'a>, src: &'a [u8]) -> Option<&'a s
                 }
             }
         }
-        for i in 0..current.child_count() {
-            if let Some(child) = current.child(i) {
-                stack.push(child);
-            }
+        for child in syntax_children(current) {
+            stack.push(child);
         }
     }
     best.and_then(|n| n.utf8_text(src).ok())
@@ -9462,10 +9441,7 @@ fn fsharp_long_identifier_text(node: Node<'_>, src: &[u8]) -> Option<String> {
         "identifier" | "op_identifier" => node.utf8_text(src).ok().map(str::to_string),
         "long_identifier" => {
             let mut parts = Vec::new();
-            for i in 0..node.child_count() {
-                let Some(child) = node.child(i) else {
-                    continue;
-                };
+            for child in syntax_children(node) {
                 if child.kind() == "identifier" {
                     if let Ok(text) = child.utf8_text(src) {
                         parts.push(text.to_string());
@@ -9495,10 +9471,7 @@ fn fsharp_long_identifier_text(node: Node<'_>, src: &[u8]) -> Option<String> {
 /// already has for an analogous case (e.g. [`zig_quirk`]'s anonymous
 /// active-pattern skip).
 fn fsharp_declaration_left_name(left_node: Node<'_>, src: &[u8]) -> Option<String> {
-    for i in 0..left_node.child_count() {
-        let Some(child) = left_node.child(i) else {
-            continue;
-        };
+    for child in syntax_children(left_node) {
         match child.kind() {
             "identifier" | "op_identifier" => {
                 return child.utf8_text(src).ok().map(str::to_string);
@@ -9525,8 +9498,7 @@ fn fsharp_declaration_left_name(left_node: Node<'_>, src: &[u8]) -> Option<Strin
 /// matches this row's own "baseline's real depth, not idealized" bar
 /// for `member_defn`/nested-OOP scope).
 fn fsharp_declaration_left(defn_node: Node<'_>) -> Option<Node<'_>> {
-    for i in 0..defn_node.child_count() {
-        let child = defn_node.child(i)?;
+    for child in syntax_children(defn_node) {
         if matches!(
             child.kind(),
             "function_declaration_left" | "value_declaration_left"
@@ -9570,10 +9542,7 @@ fn fsharp_find_descendant<'a>(node: Node<'a>, kind: &str) -> Option<Node<'a>> {
     if node.kind() == kind {
         return Some(node);
     }
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else {
-            continue;
-        };
+    for child in syntax_children(node) {
         if let Some(found) = fsharp_find_descendant(child, kind) {
             return Some(found);
         }
@@ -9613,10 +9582,8 @@ fn fsharp_walk_container_body(
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, &ctx, out, name, FnScope::default());
-        }
+    for child in syntax_children(node) {
+        walk(child, &ctx, out, name, FnScope::default());
     }
 }
 
@@ -10043,8 +10010,7 @@ fn ada_derived_base_name(full_type_decl: Node<'_>, src: &[u8]) -> Option<String>
 /// packages separated by commas, each its own such child).
 fn ada_import_paths(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    for child in syntax_children(node) {
         if matches!(child.kind(), "identifier" | "selected_component" | "name") {
             if let Ok(text) = child.utf8_text(src) {
                 out.push(text.to_string());
@@ -10078,10 +10044,8 @@ fn ada_component_declaration_names(record_body: Node<'_>, src: &[u8]) -> Vec<(St
             }
             continue;
         }
-        for i in 0..node.child_count() {
-            if let Some(child) = node.child(i) {
-                stack.push(child);
-            }
+        for child in syntax_children(node) {
+            stack.push(child);
         }
     }
     out
@@ -10100,10 +10064,8 @@ fn ada_walk_scoped_body(node: Node<'_>, src: &[u8], name: &str, out: &mut Parsed
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, &ctx, out, Some(name), FnScope::default());
-        }
+    for child in syntax_children(node) {
+        walk(child, &ctx, out, Some(name), FnScope::default());
     }
 }
 
