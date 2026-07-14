@@ -57,24 +57,33 @@ impl FromStr for WaiverDate {
                 value: raw.to_owned(),
             });
         }
-        let year =
-            raw[..4]
-                .parse::<u16>()
-                .map_err(|_parse_error| WaiverLoadError::InvalidExpiry {
-                    value: raw.to_owned(),
-                })?;
-        let month =
-            raw[5..7]
-                .parse::<u8>()
-                .map_err(|_parse_error| WaiverLoadError::InvalidExpiry {
-                    value: raw.to_owned(),
-                })?;
-        let day =
-            raw[8..10]
-                .parse::<u8>()
-                .map_err(|_parse_error| WaiverLoadError::InvalidExpiry {
-                    value: raw.to_owned(),
-                })?;
+        let year = raw
+            .get(..4)
+            .ok_or_else(|| WaiverLoadError::InvalidExpiry {
+                value: raw.to_owned(),
+            })?
+            .parse::<u16>()
+            .map_err(|_parse_error| WaiverLoadError::InvalidExpiry {
+                value: raw.to_owned(),
+            })?;
+        let month = raw
+            .get(5..7)
+            .ok_or_else(|| WaiverLoadError::InvalidExpiry {
+                value: raw.to_owned(),
+            })?
+            .parse::<u8>()
+            .map_err(|_parse_error| WaiverLoadError::InvalidExpiry {
+                value: raw.to_owned(),
+            })?;
+        let day = raw
+            .get(8..10)
+            .ok_or_else(|| WaiverLoadError::InvalidExpiry {
+                value: raw.to_owned(),
+            })?
+            .parse::<u8>()
+            .map_err(|_parse_error| WaiverLoadError::InvalidExpiry {
+                value: raw.to_owned(),
+            })?;
         Self::new(year, month, day)
     }
 }
