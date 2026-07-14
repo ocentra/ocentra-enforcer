@@ -177,6 +177,7 @@ fn bullet_finding(
 
 fn uncited_finding(doc_path: &RelPath, bullet: &ImperativeBullet, self_id: &RuleId) -> Finding {
     Finding {
+        // CLONE-JUSTIFICATION: Finding outlives this borrowed validator rule reference.
         rule_id: self_id.clone(),
         severity: Severity::Error,
         title: "must/never bullet has no [ruleId] citation".to_owned(),
@@ -185,8 +186,10 @@ fn uncited_finding(doc_path: &RelPath, bullet: &ImperativeBullet, self_id: &Rule
              prose pretending to be enforcement",
             bullet.text
         ),
+        // CLONE-JUSTIFICATION: Finding owns its path after this borrowed input returns.
         file: doc_path.clone(),
         line: bullet.line,
+        // CLONE-JUSTIFICATION: Finding owns the diagnostic excerpt independently of the parsed bullet.
         snippet: Some(bullet.text.clone()),
     }
 }
@@ -199,12 +202,15 @@ fn dangling_finding(
     self_id: &RuleId,
 ) -> Finding {
     Finding {
+        // CLONE-JUSTIFICATION: Finding outlives this borrowed validator rule reference.
         rule_id: self_id.clone(),
         severity: Severity::Error,
         title: "must/never bullet cites an unregistered ruleId".to_owned(),
         detail: format!("bullet `{}` cites `[{cited}]` but {reason}", bullet.text),
+        // CLONE-JUSTIFICATION: Finding owns its path after this borrowed input returns.
         file: doc_path.clone(),
         line: bullet.line,
+        // CLONE-JUSTIFICATION: Finding owns the diagnostic excerpt independently of the parsed bullet.
         snippet: Some(bullet.text.clone()),
     }
 }
@@ -233,6 +239,7 @@ pub fn find_undocumented_rules<'a>(
         .iter()
         .filter(|record| !cited_ids.contains(record.rule_id.as_str()))
         .map(|record| Finding {
+            // CLONE-JUSTIFICATION: Finding owns the rule identity while the registry iterator only borrows it.
             rule_id: record.rule_id.clone(),
             severity: Severity::Warning,
             title: "rule has no agent-doc mention".to_owned(),
@@ -241,6 +248,7 @@ pub fn find_undocumented_rules<'a>(
                  must/never guidance",
                 record.rule_id, record.title
             ),
+            // CLONE-JUSTIFICATION: each returned Finding owns the shared advisory path beyond this borrowed input.
             file: advisory_doc_path.clone(),
             line: 0,
             snippet: None,
