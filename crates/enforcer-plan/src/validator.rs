@@ -122,25 +122,24 @@ impl Validator for PlanCapsuleValidator {
         // capsule line must match CAPSULE_LINES verbatim, in order.
         let mut expected_idx = 0usize;
         let mut cursor = start;
-        while expected_idx < CAPSULE_LINES.len() {
+        while let Some(expected) = CAPSULE_LINES.get(expected_idx) {
             let Some(actual) = lines.get(cursor) else {
                 return vec![finding(
                     &self.rule_id,
                     "truncated agent-capsule block",
                     format!(
                         "capsule ended before required line `{}`",
-                        CAPSULE_LINES[expected_idx]
+                        expected
                     ),
                     input.file,
                     (cursor + 1) as u32,
                 )];
             };
-            let expected = CAPSULE_LINES[expected_idx];
-            if expected == "> Plan: `enforcer-selfhost-plan`" {
+            if *expected == "> Plan: `enforcer-selfhost-plan`" {
                 // Allow a `> Doc:` line to be inserted directly after
                 // `Plan:` before continuing the fixed sequence — checked
                 // by peeking one line ahead rather than matching text.
-                if actual.trim() != expected {
+                if actual.trim() != *expected {
                     return vec![finding(
                         &self.rule_id,
                         "agent-capsule field modified",
@@ -159,7 +158,7 @@ impl Validator for PlanCapsuleValidator {
                 expected_idx += 1;
                 continue;
             }
-            if actual.trim() != expected {
+            if actual.trim() != *expected {
                 return vec![finding(
                     &self.rule_id,
                     "agent-capsule field modified",
@@ -197,7 +196,9 @@ impl Validator for PlanSkeletonValidator {
         let lines: Vec<&str> = input.source.lines().collect();
         let mut cursor = 0usize;
         for &heading in REQUIRED_HEADINGS {
-            let found = lines[cursor..].iter().position(|l| l.trim() == heading);
+            let found = lines
+                .get(cursor..)
+                .and_then(|remaining| remaining.iter().position(|line| line.trim() == heading));
             match found {
                 Some(offset) => cursor += offset + 1,
                 None => {
@@ -445,10 +446,14 @@ pub fn check_parallel_safety(
     file_for: impl Fn(&str) -> enforcer_domain::paths::RelPath,
 ) -> Vec<Finding> {
     let mut findings = Vec::new();
-    for i in 0..records.len() {
-        for j in (i + 1)..records.len() {
-            let a = &records[i];
-            let b = &records[j];
+    for (index, a) in records.iter().enumerate() {
+        let Some(following) = index
+            .checked_add(1)
+            .and_then(|start| records.get(start..))
+        else {
+            continue;
+        };
+        for b in following {
             let has_dep_edge = a.deps.iter().any(|d| d == &b.workpack_id)
                 || b.deps.iter().any(|d| d == &a.workpack_id);
             if has_dep_edge {
@@ -583,10 +588,12 @@ pub fn check_checklist_drift(rule_id: &RuleId, input: ValidationInput<'_>) -> Ve
 }
 
 fn section_text(lowercase_source: &str, start_heading: &str, end_heading: &str) -> Option<String> {
-    let start = lowercase_source.find(start_heading)? + start_heading.len();
-    let rest = &lowercase_source[start..];
+    let start = lowercase_source
+        .find(start_heading)?
+        .checked_add(start_heading.len())?;
+    let rest = lowercase_source.get(start..)?;
     let end = rest.find(end_heading).unwrap_or(rest.len());
-    Some(rest[..end].to_owned())
+    rest.get(..end).map(str::to_owned)
 }
 
 #[cfg(test)]
