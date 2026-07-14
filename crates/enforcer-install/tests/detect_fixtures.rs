@@ -34,6 +34,29 @@ fn empty_home_fixture_detects_no_harness_present() -> Result<(), Box<dyn std::er
 }
 
 #[test]
+fn blank_home_override_fails_closed_without_falling_back_to_default(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temporary = tempfile::tempdir()?;
+    std::fs::create_dir_all(temporary.path().join(".codex"))?;
+    let env = MapEnv::new()
+        .with("HOME", temporary.path().display().to_string())
+        .with("CODEX_HOME", "   ");
+    let records = detect_harnesses(&env, &RealFs)?;
+    let codex = records
+        .iter()
+        .find(|record| record.id.as_str() == "codex")
+        .ok_or("expected codex record")?;
+
+    assert!(!codex.present);
+    assert!(codex.home_path.is_none());
+    assert_eq!(
+        codex.evidence[0].observation,
+        "override is blank; refusing to resolve an ambiguous harness home"
+    );
+    Ok(())
+}
+
+#[test]
 fn caps_codex_fixture_declares_implicit_invocation_yes() -> Result<(), Box<dyn std::error::Error>> {
     let home = fixture_root("caps-codex");
     let env = env_for(&home);

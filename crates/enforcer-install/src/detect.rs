@@ -506,6 +506,13 @@ fn detect_one(
     let id: HarnessId = probe.id.parse()?;
 
     let (home_path, mut evidence) = match env.get(probe.env_override) {
+        Some(overridden) if overridden.trim().is_empty() => {
+            let ev = Evidence::new(
+                format!("env:{}", probe.env_override),
+                "override is blank; refusing to resolve an ambiguous harness home".to_owned(),
+            );
+            (None, vec![ev])
+        }
         Some(overridden) => {
             let path = PathBuf::from(&overridden);
             let ev = Evidence::new(
