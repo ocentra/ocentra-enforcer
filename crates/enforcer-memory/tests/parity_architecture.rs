@@ -309,10 +309,10 @@ fn dependencies_aspect_shows_api_depends_on_core_not_the_reverse() -> TestResult
     let deps = report.dependencies.ok_or("expected dependencies section")?;
     assert!(deps
         .iter()
-        .any(|d| d.from == "crates/api" && d.to == "crates/core" && d.count > 0));
+        .any(|d| d.from() == "crates/api" && d.to() == "crates/core" && d.count() > 0));
     assert!(!deps
         .iter()
-        .any(|d| d.from == "crates/core" && d.to == "crates/api"));
+        .any(|d| d.from() == "crates/core" && d.to() == "crates/api"));
     Ok(())
 }
 
@@ -328,10 +328,10 @@ fn boundaries_aspect_reports_the_core_api_coupling() -> TestResult {
     // api -> core, never the reverse.
     assert!(boundaries
         .iter()
-        .any(|b| b.from == "crates/api" && b.to == "crates/core" && b.call_count > 0));
+        .any(|b| b.from() == "crates/api" && b.to() == "crates/core" && b.call_count() > 0));
     assert!(!boundaries
         .iter()
-        .any(|b| b.from == "crates/core" && b.to == "crates/api"));
+        .any(|b| b.from() == "crates/core" && b.to() == "crates/api"));
     Ok(())
 }
 

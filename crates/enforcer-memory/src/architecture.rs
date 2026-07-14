@@ -305,14 +305,62 @@ pub enum EntryPointKind {
     RouteHandler,
 }
 
+/// A validated architecture section identifier exposed by a cross-section
+/// report record.
+///
+/// BRAND-INVARIANT: constructed only from [`ArchitectureSectionKey`], whose
+/// value is derived from a repository-relative graph path.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ArchitectureSectionId(String);
+
+impl ArchitectureSectionId {
+    fn from_key(key: ArchitectureSectionKey) -> Self {
+        Self(key.0)
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// A non-negative count of edges crossing between two architecture sections.
+///
+/// BRAND-INVARIANT: values are accumulated from resolved graph edges only.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct CrossSectionEdgeCount(usize);
+
+impl CrossSectionEdgeCount {
+    fn new(value: usize) -> Self {
+        Self(value)
+    }
+
+    pub fn get(self) -> usize {
+        self.0
+    }
+}
+
 /// A directed dependency edge between two crate/module sections (see
 /// [`CrateSection::name`]), with the number of resolved import/call
 /// edges crossing from `from` into `to`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DependencyEdge {
-    pub from: String,
-    pub to: String,
-    pub count: usize,
+    from: ArchitectureSectionId,
+    to: ArchitectureSectionId,
+    count: CrossSectionEdgeCount,
+}
+
+impl DependencyEdge {
+    pub fn from(&self) -> &str {
+        self.from.as_str()
+    }
+
+    pub fn to(&self) -> &str {
+        self.to.as_str()
+    }
+
+    pub fn count(&self) -> usize {
+        self.count.get()
+    }
 }
 
 /// A directed cross-section CALLS-edge count: `from` section calls into
@@ -322,9 +370,23 @@ pub struct DependencyEdge {
 /// from [`Aspect::Dependencies`]'s broader import+call edge set.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Boundary {
-    pub from: String,
-    pub to: String,
-    pub call_count: usize,
+    from: ArchitectureSectionId,
+    to: ArchitectureSectionId,
+    call_count: CrossSectionEdgeCount,
+}
+
+impl Boundary {
+    pub fn from(&self) -> &str {
+        self.from.as_str()
+    }
+
+    pub fn to(&self) -> &str {
+        self.to.as_str()
+    }
+
+    pub fn call_count(&self) -> usize {
+        self.call_count.get()
+    }
 }
 
 /// One layer in the dependency-direction topological ordering of
@@ -1040,9 +1102,9 @@ fn dependency_edges(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<Depe
     counts
         .into_iter()
         .map(|((from, to), count)| DependencyEdge {
-            from: from.0,
-            to: to.0,
-            count,
+            from: ArchitectureSectionId::from_key(from),
+            to: ArchitectureSectionId::from_key(to),
+            count: CrossSectionEdgeCount::new(count),
         })
         .collect()
 }
@@ -1127,9 +1189,9 @@ fn boundaries(graph: &CodeGraph, scope: ArchitectureScope<'_>) -> Vec<Boundary> 
     counts
         .into_iter()
         .map(|((from, to), call_count)| Boundary {
-            from: from.0,
-            to: to.0,
-            call_count,
+            from: ArchitectureSectionId::from_key(from),
+            to: ArchitectureSectionId::from_key(to),
+            call_count: CrossSectionEdgeCount::new(call_count),
         })
         .collect()
 }
@@ -1286,11 +1348,11 @@ fn layer_classification(
         // CLONE-JUSTIFICATION: independent inbound and outbound aggregation
         // maps each own their typed key after the edge view is dropped.
         *fan_out
-            .entry(ArchitectureSectionKey(edge.from.clone()))
-            .or_insert(0) += edge.call_count;
+            .entry(ArchitectureSectionKey(edge.from().to_owned()))
+            .or_insert(0) += edge.call_count();
         *fan_in
-            .entry(ArchitectureSectionKey(edge.to.clone()))
-            .or_insert(0) += edge.call_count;
+            .entry(ArchitectureSectionKey(edge.to().to_owned()))
+            .or_insert(0) += edge.call_count();
     }
 
     let mut has_entry_point: BTreeSet<ArchitectureSectionKey> = BTreeSet::new();
