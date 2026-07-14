@@ -4,9 +4,12 @@
 
 use std::path::PathBuf;
 
+use enforcer_domain::findings::ScanScope;
+use enforcer_domain::paths::RelPath;
 use enforcer_lang_security::rules::cyberskills::dependency_confusion::DependencyConfusionClaimableValidator;
 use enforcer_lang_security::rules::cyberskills::docker_daemon::DockerDaemonHardeningValidator;
 use enforcer_validator::harness::run_fixture_parity;
+use enforcer_validator::validator::{ValidationInput, Validator};
 
 fn manifest_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -21,6 +24,38 @@ fn dependency_confusion_fixture_parity() -> Result<(), Box<dyn std::error::Error
         "tests/fixtures/cyberskills/supplychain.dependency-confusion-claimable/bad/package.json",
         "tests/fixtures/cyberskills/supplychain.dependency-confusion-claimable/good/package.json",
     )?;
+    Ok(())
+}
+
+#[test]
+fn dependency_confusion_reports_an_internal_npm_alias_target_once(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let validator = DependencyConfusionClaimableValidator::new()?;
+    let file: RelPath = "package.json".parse()?;
+    let findings = validator.validate(ValidationInput {
+        file: &file,
+        source: r#"{
+            "dependencies": {
+                "internal-api": "^1.0.0",
+                "public-alias": "npm:internal-api@^2.0.0"
+            }
+        }"#,
+        scope: ScanScope::Files,
+    });
+
+    assert_eq!(
+        findings.len(),
+        1,
+        "one resolved package should yield one finding"
+    );
+    assert_eq!(
+        findings[0].detail,
+        "dependency `internal-api` is unscoped and matches an internal-looking naming \
+         convention, so it is a CANDIDATE for a dependency-confusion takeover. This is a \
+         naming heuristic, not a registry-verified verdict (see h12 for the registry-probe \
+         adapter). Fix: publish it under an org scope (`@your-org/internal-api`), or confirm \
+         the public-registry name is claimed/reserved by your org."
+    );
     Ok(())
 }
 

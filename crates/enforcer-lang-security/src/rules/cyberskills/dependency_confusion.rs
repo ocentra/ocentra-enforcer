@@ -65,6 +65,13 @@ fn looks_internal(name: &str) -> bool {
         .any(|prefix| name.starts_with(prefix))
 }
 
+/// Return the package actually resolved by an npm alias specifier.
+///
+/// A dependency such as `"public-name": "npm:internal-api@^1"` downloads
+/// `internal-api`, not `public-name`. Inspecting only manifest keys would
+/// therefore miss an unscoped internal-looking package hidden behind an
+/// alias. Scoped alias targets retain their complete `@scope/name` form so
+/// the normal scope mitigation is applied by [`looks_internal`].
 /// `CYBER-DEPCONFUSION.1` — an unscoped, internal-looking dependency name
 /// in a `package.json` manifest is flagged as dependency-confusion
 /// claimable.
@@ -96,7 +103,26 @@ impl Validator for DependencyConfusionClaimableValidator {
             &manifest.optional_dependencies,
             &manifest.peer_dependencies,
         ] {
-            names.extend(map.keys().map(String::as_str));
+            for (name, specifier) in map {
+                names.push(name);
+                if let Some(target) = specifier.strip_prefix("npm:") {
+                    // An npm alias can hide the actually resolved package:
+                    // `public-name: npm:internal-api@^1` fetches
+                    // `internal-api`. A scoped target starts with `@`; only
+                    // a later `@` is its version delimiter.
+                    let target = if target.starts_with('@') {
+                        target
+                            .rsplit_once('@')
+                            .and_then(|(name, _)| (!name.is_empty()).then_some(name))
+                            .unwrap_or(target)
+                    } else {
+                        target.split_once('@').map_or(target, |(name, _)| name)
+                    };
+                    if !target.is_empty() {
+                        names.push(target);
+                    }
+                }
+            }
         }
         names.sort_unstable();
         names.dedup();
