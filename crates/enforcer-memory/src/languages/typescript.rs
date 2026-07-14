@@ -281,10 +281,9 @@ fn walk_children(
     enclosing: Option<&str>,
     fn_scope: FnScope<'_>,
 ) {
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, src, out, enclosing, fn_scope);
-        }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        walk(child, src, out, enclosing, fn_scope);
     }
 }
 
@@ -320,14 +319,13 @@ fn call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
         return Vec::new();
     };
     let mut out = Vec::new();
-    for i in 0..args.child_count() {
-        if let Some(child) = args.child(i) {
-            if matches!(child.kind(), "(" | ")" | ",") {
-                continue;
-            }
-            if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
-            }
+    let mut cursor = args.walk();
+    for child in args.children(&mut cursor) {
+        if matches!(child.kind(), "(" | ")" | ",") {
+            continue;
+        }
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
@@ -343,14 +341,12 @@ enum HeritageKind {
 /// `implements_clause` children.
 fn heritage_refs(node: Node<'_>, src: &[u8]) -> Vec<(HeritageKind, String)> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
         match child.kind() {
             "class_heritage" => {
-                for j in 0..child.child_count() {
-                    let Some(clause) = child.child(j) else {
-                        continue;
-                    };
+                let mut child_cursor = child.walk();
+                for clause in child.children(&mut child_cursor) {
                     collect_heritage_clause(clause, src, &mut out);
                 }
             }
@@ -369,10 +365,8 @@ fn collect_heritage_clause(clause: Node<'_>, src: &[u8], out: &mut Vec<(Heritage
         "implements_clause" => false,
         _ => return,
     };
-    for k in 0..clause.child_count() {
-        let Some(entry) = clause.child(k) else {
-            continue;
-        };
+    let mut cursor = clause.walk();
+    for entry in clause.children(&mut cursor) {
         if matches!(
             entry.kind(),
             "identifier" | "type_identifier" | "nested_type_identifier"
@@ -421,8 +415,8 @@ fn preceding_decorators(node: Node<'_>, src: &[u8]) -> Vec<String> {
 }
 
 fn decorator_name(decorator_node: Node<'_>, src: &[u8]) -> Option<String> {
-    for i in 0..decorator_node.child_count() {
-        let child = decorator_node.child(i)?;
+    let mut cursor = decorator_node.walk();
+    for child in decorator_node.children(&mut cursor) {
         match child.kind() {
             "call_expression" => {
                 let function = child.child_by_field_name("function")?;
@@ -441,12 +435,11 @@ fn decorator_name(decorator_node: Node<'_>, src: &[u8]) -> Option<String> {
 fn signature_type_refs(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
     if let Some(params) = node.child_by_field_name("parameters") {
-        for i in 0..params.child_count() {
-            if let Some(param) = params.child(i) {
-                if let Some(type_node) = param.child_by_field_name("type") {
-                    if let Ok(text) = type_node.utf8_text(src) {
-                        out.push(text.trim_start_matches(':').trim().to_string());
-                    }
+        let mut cursor = params.walk();
+        for param in params.children(&mut cursor) {
+            if let Some(type_node) = param.child_by_field_name("type") {
+                if let Ok(text) = type_node.utf8_text(src) {
+                    out.push(text.trim_start_matches(':').trim().to_string());
                 }
             }
         }
@@ -463,8 +456,8 @@ fn signature_type_refs(node: Node<'_>, src: &[u8]) -> Vec<String> {
 /// arrow-function/lambda binding, best-effort [`SymbolKind::Lambda`]
 /// source.
 fn named_arrow_or_const_binding(node: Node<'_>, src: &[u8]) -> Option<SymbolRef> {
-    for i in 0..node.child_count() {
-        let declarator = node.child(i)?;
+    let mut cursor = node.walk();
+    for declarator in node.children(&mut cursor) {
         if declarator.kind() != "variable_declarator" {
             continue;
         }
@@ -514,8 +507,9 @@ fn route_from_call(callee: &str, call_node: Node<'_>, src: &[u8]) -> Option<Rout
         return None;
     }
     let args = call_node.child_by_field_name("arguments")?;
-    let first_string_arg = (0..args.child_count())
-        .filter_map(|i| args.child(i))
+    let mut args_cursor = args.walk();
+    let first_string_arg = args
+        .children(&mut args_cursor)
         .find(|n| n.kind() == "string")?;
     let raw = first_string_arg.utf8_text(src).ok()?;
     let path = raw
@@ -533,8 +527,9 @@ fn route_from_call(callee: &str, call_node: Node<'_>, src: &[u8]) -> Option<Rout
 
 /// Recognize NestJS-style decorators: `@Get("/path")`, `@Post()`.
 fn route_from_decorator(decorator_node: Node<'_>, src: &[u8]) -> Option<RouteRef> {
-    let call = (0..decorator_node.child_count())
-        .filter_map(|i| decorator_node.child(i))
+    let mut decorator_cursor = decorator_node.walk();
+    let call = decorator_node
+        .children(&mut decorator_cursor)
         .find(|n| n.kind() == "call_expression")?;
     let function = call.child_by_field_name("function")?;
     let name = function.utf8_text(src).ok()?;
@@ -544,11 +539,12 @@ fn route_from_decorator(decorator_node: Node<'_>, src: &[u8]) -> Option<RouteRef
     let path = call
         .child_by_field_name("arguments")
         .and_then(|args| {
-            (0..args.child_count())
-                .filter_map(|i| args.child(i))
-                .find(|n| n.kind() == "string")
+            let mut args_cursor = args.walk();
+            let string_node = args
+                .children(&mut args_cursor)
+                .find(|node| node.kind() == "string");
+            string_node.and_then(|node| node.utf8_text(src).ok())
         })
-        .and_then(|n| n.utf8_text(src).ok())
         .map(|raw| {
             raw.trim_matches(|c| c == '"' || c == '\'' || c == '`')
                 .to_string()

@@ -51,3 +51,50 @@ fn extracts_nestjs_decorator_route() {
         .iter()
         .any(|r| r.method == "POST" && r.path == "/items"));
 }
+
+/// Regression: iterator traversal keeps written order across heritage,
+/// decorators, and nested call arguments.
+#[test]
+fn typescript_child_iteration_preserves_heritage_route_and_call_argument_order(
+) -> Result<(), &'static str> {
+    let src = r#"
+class Base {}
+interface First {}
+interface Second {}
+class Controller extends Base implements First, Second {
+    @Post("/items")
+    create() { return api.save(first(), second()); }
+}
+"#;
+    let parsed = parse(src, Language::TypeScript);
+    let inherited: Vec<&str> = parsed
+        .inherits
+        .iter()
+        .filter(|edge| edge.sub_name == "Controller")
+        .map(|edge| edge.super_name.as_str())
+        .collect();
+    assert_eq!(inherited, vec!["Base"], "{inherited:?}");
+    let implemented: Vec<&str> = parsed
+        .implements
+        .iter()
+        .filter(|edge| edge.type_name == "Controller")
+        .map(|edge| edge.trait_name.as_str())
+        .collect();
+    assert_eq!(implemented, vec!["First", "Second"], "{implemented:?}");
+    assert!(parsed
+        .routes
+        .iter()
+        .any(|route| route.method == "POST" && route.path == "/items"));
+
+    let call = parsed
+        .calls
+        .iter()
+        .find(|call| call.callee == "api.save")
+        .ok_or("expected an api.save call")?;
+    assert_eq!(
+        call.arg_texts,
+        vec!["first()".to_string(), "second()".to_string()],
+        "{call:?}"
+    );
+    Ok(())
+}
