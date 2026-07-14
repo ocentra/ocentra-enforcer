@@ -11,9 +11,21 @@ import { scanCommonFile } from "./generic-common-scanner.mjs";
 import { scanPythonFile } from "./generic-python-scanner.mjs";
 import { scanTypeScriptFile } from "./generic-typescript-scanner.mjs";
 
-export function runGenericScan({ root, scope, config, languages = [] }) {
+export function runGenericScan({
+  root,
+  scope,
+  config,
+  languages = [],
+  sourceOnly = false,
+}) {
   const activeLanguages = new Set(languages);
-  const files = collectGenericScopeFiles(root, scope, config, activeLanguages);
+  const files = collectGenericScopeFiles(
+    root,
+    scope,
+    config,
+    activeLanguages,
+    sourceOnly,
+  );
   const violations = [];
   for (const filePath of files) {
     const ext = path.extname(filePath).toLowerCase();

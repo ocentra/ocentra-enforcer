@@ -27,6 +27,7 @@ export function withCachedArchitectureReports(deps) {
           deps.runGenericScan({
             ...options,
             languages: ["rust", "typescript", "python", "common"],
+            sourceOnly: true,
           }),
         );
       }

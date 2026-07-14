@@ -520,6 +520,10 @@ test('check architecture-policy preserves findings from shared generic scans', (
       'export { Thing } from "./thing";\n',
       'throw new Error("not implemented");\n',
     ].join(''),
+    'docs/notes.md': [
+      'export { Thing } from "./thing";\n',
+      'throw new Error("not implemented");\n',
+    ].join(''),
   });
   const result = run(project, ['check', 'architecture-policy', '--json']);
   assert.notEqual(result.status, 0, result.stdout || result.stderr);
@@ -528,6 +532,12 @@ test('check architecture-policy preserves findings from shared generic scans', (
   ));
   assert.equal(ruleIds.has('TS-1.1'), true);
   assert.equal(ruleIds.has('SRC-1.2'), true);
+  assert.equal(
+    JSON.parse(result.stdout).violations.every(
+      (violation) => violation.file === 'src/index.ts',
+    ),
+    true,
+  );
 });
 
 test('check architecture-policy reports progress for non-json workspace runs', () => {

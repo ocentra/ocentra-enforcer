@@ -45,6 +45,14 @@ const COMMON_TEXT_EXTENSIONS = new Set([
   ".yml",
   ".env",
 ]);
+const SOURCE_COMMON_TEXT_EXTENSIONS = new Set([
+  ".json",
+  ".jsonc",
+  ".toml",
+  ".yaml",
+  ".yml",
+  ".env",
+]);
 const SECRET_RE =
   /\b(?:[A-Z0-9_/-]*(?:api[_-]?key|secret|token|password|private[_-]?key))\b\s*[:=]\s*["'][A-Za-z0-9_./+=:@-]{16,}["']/iu;
 const OPENAI_KEY_RE = /\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b/u;
@@ -305,7 +313,13 @@ const pythonRawJsonDictPattern =
   /\b(?:payload|json|data|body)\s*:\s*dict\s*(?:\[|$)/iu;
 const pythonEnvReadPattern = /\bos\.environ(?:\.|\[)|\bos\.getenv\s*\(/u;
 
-export function collectGenericScopeFiles(root, scope, config, activeLanguages) {
+export function collectGenericScopeFiles(
+  root,
+  scope,
+  config,
+  activeLanguages,
+  sourceOnly = false,
+) {
   if (scope.mode === "crate" && !scope.crateRoot) return [];
   const entries =
     scope.mode === "files"
@@ -327,13 +341,13 @@ export function collectGenericScopeFiles(root, scope, config, activeLanguages) {
           ({ file, rel }) =>
             fs.existsSync(file) &&
             !isIgnoredPath(rel, config) &&
-            isGenericFile(file, activeLanguages),
+            isGenericFile(file, activeLanguages, sourceOnly),
         )
         .map(({ file }) => file),
     );
   }
   return collectFiles(root, entries, config, (file) =>
-    isGenericFile(file, activeLanguages),
+    isGenericFile(file, activeLanguages, sourceOnly),
   );
 }
 
@@ -574,8 +588,11 @@ function addViolation(
   });
 }
 
-function isGenericFile(filePath, activeLanguages) {
+function isGenericFile(filePath, activeLanguages, sourceOnly = false) {
   const ext = path.extname(filePath).toLowerCase();
+  const commonTextExtensions = sourceOnly
+    ? SOURCE_COMMON_TEXT_EXTENSIONS
+    : COMMON_TEXT_EXTENSIONS;
   if (
     activeLanguages.has("typescript") &&
     (TS_EXTENSIONS.has(ext) || isTypeScriptConfigPath(filePath))
@@ -586,7 +603,7 @@ function isGenericFile(filePath, activeLanguages) {
     activeLanguages.has("common") &&
     (TS_EXTENSIONS.has(ext) ||
       PY_EXTENSIONS.has(ext) ||
-      COMMON_TEXT_EXTENSIONS.has(ext) ||
+      commonTextExtensions.has(ext) ||
       ext === ".rs" ||
       isPolicyFile(filePath) ||
       isSensitiveOrGeneratedPath(filePath))
@@ -730,6 +747,7 @@ export {
   TS_EXTENSIONS,
   PY_EXTENSIONS,
   COMMON_TEXT_EXTENSIONS,
+  SOURCE_COMMON_TEXT_EXTENSIONS,
   SECRET_RE,
   OPENAI_KEY_RE,
   COMMON_SECRET_RULES,
