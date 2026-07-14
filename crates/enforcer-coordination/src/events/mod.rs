@@ -11,6 +11,39 @@ use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 
 use crate::error::{CoordinationError, Result};
+use crate::lock::{ClaimEventId, ClaimLane, ClaimWriter};
+
+// Claim identity values cross the raw event-wire boundary only here. The lock
+// engine receives branded values and never owns raw event strings directly.
+impl ClaimWriter {
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for ClaimWriter {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl ClaimLane {
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for ClaimLane {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<String> for ClaimEventId {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
 
 /// The coordination event envelope. Fields mirror `HubEventSchema` in
 /// `domain.js`. Unlike the JS schema (branded strings validated by `effect`),

@@ -219,9 +219,9 @@ fn fold_claims(events: &[HubEvent]) -> Vec<ClaimRow> {
     let mut rows: Vec<ClaimRow> = active_claims(events)
         .into_iter()
         .map(|claim| ClaimRow {
-            claim_id: claim.event_id.as_str().to_owned(),
-            lane_id: claim.lane.as_str().to_owned(),
-            writer: claim.writer.as_str().to_owned(),
+            claim_id: claim.event_id.to_string(),
+            lane_id: claim.lane.to_string(),
+            writer: claim.writer.to_string(),
             paths: claim.paths,
             reason: claim.reason,
         })

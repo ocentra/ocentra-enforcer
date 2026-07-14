@@ -19,30 +19,11 @@ use singletons::{normalize_coordination_path, protected_singleton_group};
 /// This remains a transparent wire value so existing claim/release events
 /// retain their JSON string representation while lock logic distinguishes an
 /// owner from unrelated free-form strings.
+/// BRAND-INVARIANT: the event boundary preserves the recorded owner token
+/// exactly; lock decisions may compare it, but never reinterpret it as a path
+/// or a generic display string.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ClaimWriter(String);
-
-impl ClaimWriter {
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
-    pub fn has_node_id_prefix(&self, prefix: &str) -> bool {
-        self.0.starts_with(&format!("{prefix}."))
-    }
-}
-
-impl From<String> for ClaimWriter {
-    fn from(value: String) -> Self {
-        Self(value)
-    }
-}
-
-impl From<&str> for ClaimWriter {
-    fn from(value: &str) -> Self {
-        Self(value.to_owned())
-    }
-}
+pub struct ClaimWriter(pub(crate) String);
 
 impl std::fmt::Display for ClaimWriter {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -52,26 +33,10 @@ impl std::fmt::Display for ClaimWriter {
 
 /// Stable lane identity carried by a lock claim. It stays transparent at the
 /// event boundary so existing ledgers replay without a migration.
+/// BRAND-INVARIANT: the event boundary preserves the recorded lane token
+/// exactly; lock decisions only use it as durable lane identity.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ClaimLane(String);
-
-impl ClaimLane {
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl From<String> for ClaimLane {
-    fn from(value: String) -> Self {
-        Self(value)
-    }
-}
-
-impl From<&str> for ClaimLane {
-    fn from(value: &str) -> Self {
-        Self(value.to_owned())
-    }
-}
+pub struct ClaimLane(pub(crate) String);
 
 impl std::fmt::Display for ClaimLane {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -81,26 +46,10 @@ impl std::fmt::Display for ClaimLane {
 
 /// Event-stream identity of a lock claim. It prevents event ids from being
 /// mixed with paths or arbitrary diagnostic strings inside lock decisions.
+/// BRAND-INVARIANT: the event boundary preserves the recorded event id
+/// exactly; lock decisions retain it solely to identify the conflicting claim.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ClaimEventId(String);
-
-impl ClaimEventId {
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl From<String> for ClaimEventId {
-    fn from(value: String) -> Self {
-        Self(value)
-    }
-}
-
-impl From<&str> for ClaimEventId {
-    fn from(value: &str) -> Self {
-        Self(value.to_owned())
-    }
-}
+pub struct ClaimEventId(pub(crate) String);
 
 impl std::fmt::Display for ClaimEventId {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -800,8 +749,8 @@ mod tests {
 
     fn claim(writer: &str, lane: &str, paths: &[&str], context: ClaimContext) -> RawClaim {
         RawClaim {
-            writer: writer.into(),
-            lane: lane.into(),
+            writer: writer.to_owned().into(),
+            lane: lane.to_owned().into(),
             paths: paths.iter().map(|p| p.to_string()).collect(),
             event_id: format!("evt_{writer}").into(),
             reason: None,

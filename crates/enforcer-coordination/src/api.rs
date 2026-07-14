@@ -358,10 +358,10 @@ pub fn claim_all(hub: &Hub, request: ClaimRequestArgs<'_>) -> Result<ClaimOutcom
             ..Default::default()
         });
         let raw = RawClaim {
-            writer: ClaimWriter::from(writer.as_str()),
-            lane: ClaimLane::from(lane.as_str()),
+            writer: ClaimWriter::from(writer.as_str().to_owned()),
+            lane: ClaimLane::from(lane.as_str().to_owned()),
             paths: batch.to_vec(),
-            event_id: ClaimEventId::from("__request__"),
+            event_id: ClaimEventId::from("__request__".to_owned()),
             reason: reason.map(str::to_owned),
             context: context.clone(),
         };
@@ -537,7 +537,7 @@ fn matches_filters(claim: &RawClaim, filters: &CloseoutFilters) -> bool {
         }
     }
     if let Some(prefix) = &filters.node_id_prefix {
-        if !claim.writer.has_node_id_prefix(prefix) {
+        if !claim.writer.as_str().starts_with(&format!("{prefix}.")) {
             return false;
         }
     }
@@ -693,6 +693,8 @@ fn append_event(hub: &Hub, args: AppendEventArgs<'_>) -> Result<HubEvent> {
         node_name: hub.config.node_name.as_str().to_owned(),
         lane: lane.as_str().to_owned(),
         writer: writer.as_str().to_owned(),
+        // ALLOC-JUSTIFICATION: the append-only event owns its durable kind
+        // after this command boundary returns to its caller.
         kind: kind.to_owned(),
         ts: now_iso(),
         seq,

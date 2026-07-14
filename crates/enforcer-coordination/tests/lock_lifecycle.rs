@@ -33,8 +33,8 @@ fn context(worktree: &str, branch: &str) -> ClaimContext {
 
 fn claim(writer: &str, lane: &str, context: ClaimContext) -> RawClaim {
     RawClaim {
-        writer: ClaimWriter::from(writer),
-        lane: ClaimLane::from(lane),
+        writer: ClaimWriter::from(writer.to_owned()),
+        lane: ClaimLane::from(lane.to_owned()),
         paths: vec!["crates/example/src/lib.rs".to_owned()],
         event_id: ClaimEventId::from(format!("event-{writer}")),
         reason: None,
@@ -44,13 +44,13 @@ fn claim(writer: &str, lane: &str, context: ClaimContext) -> RawClaim {
 
 #[test]
 fn typed_claim_identity_preserves_event_values_and_conflict_lifecycle() {
-    let writer = ClaimWriter::from("node-a.lane-a");
-    let lane = ClaimLane::from("lane-a");
-    let event_id = ClaimEventId::from("evt-a");
+    let writer = ClaimWriter::from("node-a.lane-a".to_owned());
+    let lane = ClaimLane::from("lane-a".to_owned());
+    let event_id = ClaimEventId::from("evt-a".to_owned());
 
-    assert_eq!(writer.as_str(), "node-a.lane-a");
-    assert_eq!(lane.as_str(), "lane-a");
-    assert_eq!(event_id.as_str(), "evt-a");
+    assert_eq!(writer.to_string(), "node-a.lane-a");
+    assert_eq!(lane.to_string(), "lane-a");
+    assert_eq!(event_id.to_string(), "evt-a");
 
     let active = enrich_claim(
         &claim(
@@ -69,16 +69,19 @@ fn typed_claim_identity_preserves_event_values_and_conflict_lifecycle() {
         true,
     );
     let decision = blockers_for_request(&[active], &request, Operation::PrReady);
-    let conflict = decision
-        .blockers
-        .first()
-        .expect("cross-branch overlap must remain reviewable");
-
-    assert_eq!(conflict.kind, ConflictType::MergeRisk);
-    assert_eq!(conflict.writers[0].as_str(), "node-a.lane-a");
-    assert_eq!(conflict.writers[1].as_str(), "node-b.lane-b");
-    assert_eq!(conflict.lanes[0].as_str(), "lane-a");
-    assert_eq!(conflict.event_ids[1].as_str(), "event-node-b.lane-b");
+    if let Some(conflict) = decision.blockers.first() {
+        assert_eq!(conflict.kind, ConflictType::MergeRisk);
+        assert_eq!(conflict.writers[0].to_string(), "node-a.lane-a");
+        assert_eq!(conflict.writers[1].to_string(), "node-b.lane-b");
+        assert_eq!(conflict.lanes[0].to_string(), "lane-a");
+        assert_eq!(conflict.event_ids[1].to_string(), "event-node-b.lane-b");
+    } else {
+        assert_eq!(
+            decision.blockers.len(),
+            1,
+            "cross-branch overlap must remain reviewable"
+        );
+    }
 }
 
 #[test]
