@@ -161,7 +161,9 @@ impl ArchitectureSectionKey {
 /// The optional repository-relative prefix applied uniformly to one report.
 ///
 /// BRAND-INVARIANT: when present, the prefix is compared only against the
-/// slash-normalized paths held by [`ArchitecturePath`].
+/// slash-normalized paths held by [`ArchitecturePath`]. Absolute and parent
+/// traversal prefixes are rejected by matching no paths, so malformed caller
+/// input can never widen an architecture query to the whole repository.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct ArchitectureScope<'a> {
     prefix: Option<ArchitecturePath<'a>>,
@@ -170,6 +172,9 @@ struct ArchitectureScope<'a> {
 impl ArchitectureScope<'_> {
     fn includes(self, path: ArchitecturePath<'_>) -> bool {
         self.prefix.is_none_or(|prefix| {
+            if prefix.0.starts_with('/') || prefix.0.split('/').any(|segment| segment == "..") {
+                return false;
+            }
             let normalized_prefix = prefix.0.trim_end_matches('/');
             normalized_prefix.is_empty()
                 || path.0 == normalized_prefix

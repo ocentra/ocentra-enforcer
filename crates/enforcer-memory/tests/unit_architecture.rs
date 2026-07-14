@@ -203,6 +203,26 @@ fn path_prefix_filters_structure_and_languages_to_matching_files_only() -> TestR
     Ok(())
 }
 
+#[test]
+fn absolute_or_traversal_path_prefixes_fail_closed() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let graph = build_two_crate_fixture(dir.path())?;
+
+    for invalid_prefix in ["/", "/crates/core", "../crates/core", "crates/../api"] {
+        let report = build_report(&graph, &[Aspect::Overview], Some(invalid_prefix), 10, 20);
+        let overview = report.overview.ok_or("expected overview section")?;
+        assert_eq!(
+            overview.total_files, 0,
+            "invalid prefix {invalid_prefix:?} must not widen the query"
+        );
+        assert_eq!(
+            overview.total_symbols, 0,
+            "invalid prefix {invalid_prefix:?} must not expose symbols"
+        );
+    }
+    Ok(())
+}
+
 // --- hard test: routes aspect ---------------------------------------
 
 #[test]
