@@ -276,7 +276,7 @@ fn artifact_summary(root: &Path, run: &ProofRun) -> ProjectRunArtifacts {
             .artifacts
             .iter()
             .map(|artifact| artifact.byte_length)
-            .sum(),
+            .fold(0_u64, u64::saturating_add),
     }
 }
 
