@@ -8,8 +8,8 @@ pub(crate) fn lex_lisp(source: &str) -> Vec<LiteralCandidate> {
     let mut line = 1usize;
     let mut col = 1usize;
 
-    while index < bytes.len() {
-        let ch = bytes[index] as char;
+    while let Some(byte) = bytes.get(index).copied() {
+        let ch = char::from(byte);
         if ch == '\n' {
             line += 1;
             col = 1;
@@ -17,24 +17,31 @@ pub(crate) fn lex_lisp(source: &str) -> Vec<LiteralCandidate> {
             continue;
         }
         if ch == ';' {
-            while index < bytes.len() && bytes[index] as char != '\n' {
+            while let Some(comment_byte) = bytes.get(index).copied() {
+                if comment_byte == b'\n' {
+                    break;
+                }
                 index += 1;
                 col += 1;
             }
             continue;
         }
         if ch == '"' {
-            if let Some((content, consumed)) = read_quoted(&source[index..], '"') {
-                out.push(candidate(
-                    &content,
-                    line,
-                    col,
-                    LiteralKind::Normal,
-                    line_at(source, line),
-                ));
-                advance_position(&source[index..index + consumed], &mut line, &mut col);
-                index += consumed;
-                continue;
+            if let Some(rest) = source.get(index..) {
+                if let Some((content, consumed)) = read_quoted(rest, '"') {
+                    if let Some(consumed_source) = rest.get(..consumed) {
+                        out.push(candidate(
+                            &content,
+                            line,
+                            col,
+                            LiteralKind::Normal,
+                            line_at(source, line),
+                        ));
+                        advance_position(consumed_source, &mut line, &mut col);
+                        index += consumed;
+                        continue;
+                    }
+                }
             }
         }
         index += 1;
