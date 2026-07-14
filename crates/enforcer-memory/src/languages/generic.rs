@@ -11835,22 +11835,20 @@ fn julia_walk_function_definition(node: Node<'_>, src: &[u8], out: &mut ParsedFi
         name: name.as_deref(),
         line: Some(line),
     };
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            // Skip the `signature` child itself: its own nested
-            // `argument_list` holds only parameter-pattern identifiers
-            // (never a real call/def), and re-walking it here would risk
-            // a spurious self-referential CALLS edge from `f`'s own
-            // `fn_scope` back to `f`'s own name (the signature's
-            // `call_expression` looks exactly like an ordinary call
-            // node). Matches `zig_walk_container_body`'s equally
-            // deliberate exclusion of the node kind it already consumed
-            // directly.
-            if child.kind() == "signature" {
-                continue;
-            }
-            walk(child, &ctx, out, None, fn_scope);
+    for child in syntax_children(node) {
+        // Skip the `signature` child itself: its own nested
+        // `argument_list` holds only parameter-pattern identifiers
+        // (never a real call/def), and re-walking it here would risk
+        // a spurious self-referential CALLS edge from `f`'s own
+        // `fn_scope` back to `f`'s own name (the signature's
+        // `call_expression` looks exactly like an ordinary call
+        // node). Matches `zig_walk_container_body`'s equally
+        // deliberate exclusion of the node kind it already consumed
+        // directly.
+        if child.kind() == "signature" {
+            continue;
         }
+        walk(child, &ctx, out, None, fn_scope);
     }
 }
 
@@ -11934,13 +11932,11 @@ fn julia_walk_scoped(node: Node<'_>, src: &[u8], name: Option<&str>, out: &mut P
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            if child.kind() == "type_head" {
-                continue;
-            }
-            walk(child, &ctx, out, name, FnScope::default());
+    for child in syntax_children(node) {
+        if child.kind() == "type_head" {
+            continue;
         }
+        walk(child, &ctx, out, name, FnScope::default());
     }
 }
 
@@ -11972,8 +11968,7 @@ fn julia_walk_scoped_fn_body(
         line: fn_name.map(|_| line),
     };
     let mut skipped_lhs = false;
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    for child in syntax_children(node) {
         if !skipped_lhs && child.is_named() {
             skipped_lhs = true;
             continue;
@@ -12017,8 +12012,7 @@ fn julia_short_form_function_name(node: Node<'_>, src: &[u8]) -> Option<String> 
 /// `ParsedFile` shape has no room for.
 fn julia_import_paths(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    for child in syntax_children(node) {
         if !child.is_named() {
             continue;
         }
@@ -12134,14 +12128,12 @@ fn julia_call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
         return Vec::new();
     };
     let mut out = Vec::new();
-    for i in 0..args.child_count() {
-        if let Some(child) = args.child(i) {
-            if !child.is_named() {
-                continue;
-            }
-            if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
-            }
+    for child in syntax_children(args) {
+        if !child.is_named() {
+            continue;
+        }
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
@@ -12350,20 +12342,14 @@ fn odin_leading_identifier_name(node: Node<'_>, src: &[u8]) -> Option<String> {
 /// `LangSpec::odin`'s own doc comment for the full finding).
 fn odin_struct_fields(struct_node: Node<'_>, src: &[u8]) -> Vec<(String, bool)> {
     let mut out = Vec::new();
-    for i in 0..struct_node.child_count() {
-        let Some(field) = struct_node.child(i) else {
-            continue;
-        };
+    for field in syntax_children(struct_node) {
         if field.kind() != "field" {
             continue;
         }
         let mut is_embedded = false;
         let mut field_name = None;
         let mut type_name = None;
-        for j in 0..field.child_count() {
-            let Some(child) = field.child(j) else {
-                continue;
-            };
+        for child in syntax_children(field) {
             match child.kind() {
                 "using" => is_embedded = true,
                 "identifier" if field_name.is_none() => {
@@ -12409,10 +12395,8 @@ fn odin_walk_scoped(
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, &ctx, out, enclosing, fn_scope);
-        }
+    for child in syntax_children(node) {
+        walk(child, &ctx, out, enclosing, fn_scope);
     }
 }
 
@@ -12430,14 +12414,12 @@ fn odin_walk_scoped(
 /// every one).
 fn odin_call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..call_node.child_count() {
+    for (i, child) in syntax_children(call_node).enumerate() {
         if call_node.field_name_for_child(i as u32) != Some("argument") {
             continue;
         }
-        if let Some(child) = call_node.child(i) {
-            if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
-            }
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
@@ -12716,13 +12698,10 @@ fn pascal_walk_decl_type(node: Node<'_>, src: &[u8], out: &mut ParsedFile) -> bo
 /// `ts_node_is_named` check uses).
 fn pascal_class_parents(decl_class: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..decl_class.child_count() {
+    for (i, child) in syntax_children(decl_class).enumerate() {
         if decl_class.field_name_for_child(i as u32) != Some("parent") {
             continue;
         }
-        let Some(child) = decl_class.child(i) else {
-            continue;
-        };
         if !child.is_named() {
             continue;
         }
@@ -12755,10 +12734,8 @@ fn pascal_walk_scoped(node: Node<'_>, src: &[u8], enclosing: Option<&str>, out: 
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, &ctx, out, enclosing, FnScope::default());
-        }
+    for child in syntax_children(node) {
+        walk(child, &ctx, out, enclosing, FnScope::default());
     }
 }
 
@@ -12917,14 +12894,12 @@ fn pascal_call_override(
 /// is this WRAPPING node, not a bare list itself).
 fn pascal_expr_args_texts(args_node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..args_node.child_count() {
-        if let Some(child) = args_node.child(i) {
-            if !child.is_named() {
-                continue;
-            }
-            if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
-            }
+    for child in syntax_children(args_node) {
+        if !child.is_named() {
+            continue;
+        }
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
@@ -13091,10 +13066,8 @@ fn qml_walk_scoped_body(node: Node<'_>, src: &[u8], name: Option<&str>, out: &mu
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, &ctx, out, name, FnScope::default());
-        }
+    for child in syntax_children(node) {
+        walk(child, &ctx, out, name, FnScope::default());
     }
 }
 
@@ -13455,8 +13428,7 @@ fn squirrel_def_block(node: Node<'_>) -> Option<Node<'_>> {
 /// position beyond the class's own name).
 fn squirrel_base_class_name(node: Node<'_>, src: &[u8]) -> Option<String> {
     let mut seen_extends = false;
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    for child in syntax_children(node) {
         if child.kind() == "extends" {
             seen_extends = true;
             continue;
@@ -13498,8 +13470,7 @@ fn squirrel_walk_class_members(node: Node<'_>, src: &[u8], class_name: &str, out
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    for child in syntax_children(node) {
         if child.kind() != "member_declaration" {
             continue;
         }

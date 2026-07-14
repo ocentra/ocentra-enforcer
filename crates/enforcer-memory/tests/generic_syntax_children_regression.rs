@@ -1,4 +1,6 @@
-use enforcer_memory::languages::generic::{parse_ada, parse_apex, parse_fsharp, parse_powershell};
+use enforcer_memory::languages::generic::{
+    parse_ada, parse_apex, parse_fsharp, parse_julia, parse_powershell,
+};
 use enforcer_memory::parsers::SymbolKind;
 
 #[test]
@@ -65,4 +67,15 @@ fn syntax_child_iteration_preserves_apex_interface_and_field_traversal() {
     assert_eq!(apex.defines.len(), 1);
     assert_eq!(apex.defines[0].container_name, "Widget");
     assert_eq!(apex.defines[0].member_name, "name");
+}
+
+#[test]
+fn syntax_child_iteration_preserves_julia_function_scope() {
+    let julia = parse_julia("function draw(value)\n    helper(value)\nend\n");
+    assert_eq!(julia.symbols.len(), 1);
+    assert_eq!(julia.symbols[0].name, "draw");
+    assert_eq!(julia.symbols[0].kind, SymbolKind::Function);
+    assert_eq!(julia.calls.len(), 1);
+    assert_eq!(julia.calls[0].callee, "helper");
+    assert_eq!(julia.calls[0].from_symbol.as_deref(), Some("draw"));
 }
