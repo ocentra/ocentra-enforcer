@@ -13,7 +13,8 @@ pub(crate) fn lex_rust(source: &str) -> Vec<LiteralCandidate> {
     let mut block_depth = 0usize;
 
     while index < bytes.len() {
-        let ch = bytes[index] as char;
+        let Some(&byte) = bytes.get(index) else { break };
+        let ch = byte as char;
         let next = bytes.get(index + 1).map(|b| *b as char);
         if ch == '\n' {
             line += 1;
@@ -26,7 +27,7 @@ pub(crate) fn lex_rust(source: &str) -> Vec<LiteralCandidate> {
             continue;
         }
         if ch == '/' && next == Some('/') {
-            while index < bytes.len() && bytes[index] as char != '\n' {
+            while bytes.get(index).is_some_and(|byte| *byte as char != '\n') {
                 index += 1;
                 col += 1;
             }

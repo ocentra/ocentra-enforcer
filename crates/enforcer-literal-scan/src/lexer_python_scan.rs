@@ -10,7 +10,8 @@ pub(crate) fn lex_python(source: &str) -> Vec<LiteralCandidate> {
     let mut last_significant_line_had_block_start = true;
 
     while index < bytes.len() {
-        let ch = bytes[index] as char;
+        let Some(&byte) = bytes.get(index) else { break };
+        let ch = byte as char;
         if ch == '\n' {
             line += 1;
             col = 1;
@@ -18,7 +19,7 @@ pub(crate) fn lex_python(source: &str) -> Vec<LiteralCandidate> {
             continue;
         }
         if ch == '#' {
-            while index < bytes.len() && bytes[index] as char != '\n' {
+            while bytes.get(index).is_some_and(|byte| *byte as char != '\n') {
                 index += 1;
                 col += 1;
             }
