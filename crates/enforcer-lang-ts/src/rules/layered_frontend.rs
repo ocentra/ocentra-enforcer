@@ -73,14 +73,14 @@ fn import_target(line: &str) -> Option<&str> {
     if !trimmed.starts_with("import ") && !trimmed.starts_with("export ") {
         return None;
     }
-    let from_idx = trimmed.find(" from ")?;
-    let rest = &trimmed[from_idx + " from ".len()..];
+    let (_, rest) = trimmed.split_once(" from ")?;
     let quote = rest.chars().next()?;
     if quote != '"' && quote != '\'' {
         return None;
     }
-    let closing = rest[1..].find(quote)?;
-    Some(&rest[1..1 + closing])
+    let quoted = rest.strip_prefix(quote)?;
+    let (target, _) = quoted.split_once(quote)?;
+    Some(target)
 }
 
 /// FRONT-01 / `LFE-1.1` — no repository/data access inside the router
@@ -225,10 +225,9 @@ impl Validator for NoFetchInUseEffectValidator {
 /// Parse `features/<name>/...` out of a repo-relative path, returning
 /// `<name>`, if the path has that shape.
 fn owning_feature(path: &str) -> Option<&str> {
-    let idx = path.find("features/")?;
-    let rest = &path[idx + "features/".len()..];
-    let end = rest.find('/')?;
-    Some(&rest[..end])
+    let (_, rest) = path.split_once("features/")?;
+    let (feature, _) = rest.split_once('/')?;
+    (!feature.is_empty()).then_some(feature)
 }
 
 /// Parse `@/features/<name>/...` (or a relative `../<name>/...` /
@@ -237,21 +236,17 @@ fn owning_feature(path: &str) -> Option<&str> {
 /// relative-crossing shape `../<name>/internal/...` used by
 /// ADBP_PARITY_MATRIX's FRONT-03 example (`../otherFeature/internal/x`).
 fn imported_feature(target: &str) -> Option<&str> {
-    if let Some(idx) = target.find("@/features/") {
-        let rest = &target[idx + "@/features/".len()..];
-        let end = rest.find('/').unwrap_or(rest.len());
-        if end == 0 {
-            return None;
+    if let Some((_, rest)) = target.split_once("@/features/") {
+        let feature = rest.split('/').next()?;
+        if !feature.is_empty() {
+            return Some(feature);
         }
-        return Some(&rest[..end]);
     }
     if let Some(stripped) = target.strip_prefix("../") {
         // A relative import that both crosses up a directory AND reaches
         // into another feature's `internal/` sub-path — a bare `../sibling`
         // (no deeper segment) does NOT count as a feature-internals reach.
-        let end = stripped.find('/')?;
-        let name = &stripped[..end];
-        let rest_after_name = &stripped[end + 1..];
+        let (name, rest_after_name) = stripped.split_once('/')?;
         if !name.is_empty() && rest_after_name.contains("internal/") {
             return Some(name);
         }
@@ -348,11 +343,11 @@ impl StrEnumOnlyValidator {
 /// single/double-quoted string literal. A member with NO initializer at all
 /// (implicit numeric) also fails this check.
 fn member_has_string_initializer(text: &str) -> bool {
-    let Some(eq_idx) = text.find('=') else {
+    let Some((_, rhs)) = text.split_once('=') else {
         // No initializer at all -> implicit numeric member.
         return false;
     };
-    let rhs = text[eq_idx + 1..].trim().trim_end_matches(',');
+    let rhs = rhs.trim().trim_end_matches(',');
     (rhs.starts_with('\'') && rhs.ends_with('\'') && rhs.len() >= 2)
         || (rhs.starts_with('"') && rhs.ends_with('"') && rhs.len() >= 2)
 }
@@ -451,14 +446,12 @@ impl Validator for SymbolLevelDiValidator {
                 continue;
             }
             let trimmed = line.text.trim_start();
-            let Some(open) = trimmed.find("@inject(") else {
+            let Some((_, rest)) = trimmed.split_once("@inject(") else {
                 continue;
             };
-            let rest = &trimmed[open + "@inject(".len()..];
-            let Some(close) = rest.find(')') else {
+            let Some((token, _)) = rest.split_once(')') else {
                 continue;
             };
-            let token = &rest[..close];
             if !is_symbol_di_token(token) {
                 return vec![finding(
                     &self.rule_id,
