@@ -177,10 +177,8 @@ fn walk_children(
     enclosing: Option<&str>,
     fn_scope: FnScope<'_>,
 ) {
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, src, out, enclosing, fn_scope);
-        }
+    for child in node.children(&mut node.walk()) {
+        walk(child, src, out, enclosing, fn_scope);
     }
 }
 
@@ -235,14 +233,12 @@ fn call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
         return Vec::new();
     };
     let mut out = Vec::new();
-    for i in 0..args.child_count() {
-        if let Some(child) = args.child(i) {
-            if matches!(child.kind(), "(" | ")" | ",") {
-                continue;
-            }
-            if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
-            }
+    for child in args.children(&mut args.walk()) {
+        if matches!(child.kind(), "(" | ")" | ",") {
+            continue;
+        }
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
@@ -264,12 +260,10 @@ fn is_test_name(name: &str) -> bool {
 fn base_class_names(class_node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
     if let Some(superclasses) = class_node.child_by_field_name("superclasses") {
-        for i in 0..superclasses.child_count() {
-            if let Some(child) = superclasses.child(i) {
-                if matches!(child.kind(), "identifier" | "attribute") {
-                    if let Ok(text) = child.utf8_text(src) {
-                        out.push(text.to_string());
-                    }
+        for child in superclasses.children(&mut superclasses.walk()) {
+            if matches!(child.kind(), "identifier" | "attribute") {
+                if let Ok(text) = child.utf8_text(src) {
+                    out.push(text.to_string());
                 }
             }
         }
@@ -287,14 +281,11 @@ fn decorators_on(node: Node<'_>, src: &[u8]) -> Vec<(String, String)> {
     else {
         return out;
     };
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    for child in node.children(&mut node.walk()) {
         if child.kind() != "decorator" {
             continue;
         }
-        let decorator_expr = (0..child.child_count())
-            .filter_map(|j| child.child(j))
-            .find(|n| n.kind() != "@");
+        let decorator_expr = child.children(&mut child.walk()).find(|n| n.kind() != "@");
         let Some(expr) = decorator_expr else { continue };
         let name = match expr.kind() {
             "call" => expr
@@ -312,8 +303,8 @@ fn decorators_on(node: Node<'_>, src: &[u8]) -> Vec<(String, String)> {
 /// `f = lambda x: ...` -- a named lambda binding, best-effort
 /// [`SymbolKind::Lambda`] source.
 fn named_lambda_binding(expr_stmt: Node<'_>, src: &[u8]) -> Option<SymbolRef> {
-    let assignment = (0..expr_stmt.child_count())
-        .filter_map(|i| expr_stmt.child(i))
+    let assignment = expr_stmt
+        .children(&mut expr_stmt.walk())
         .find(|n| n.kind() == "assignment")?;
     let left = assignment.child_by_field_name("left")?;
     if left.kind() != "identifier" {
@@ -339,23 +330,21 @@ fn child_text(node: Node<'_>, field: &str, src: &[u8]) -> Option<String> {
 
 fn dotted_names_under(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            match child.kind() {
-                "dotted_name" => {
-                    if let Ok(text) = child.utf8_text(src) {
+    for child in node.children(&mut node.walk()) {
+        match child.kind() {
+            "dotted_name" => {
+                if let Ok(text) = child.utf8_text(src) {
+                    out.push(text.to_string());
+                }
+            }
+            "aliased_import" => {
+                if let Some(name_node) = child.child_by_field_name("name") {
+                    if let Ok(text) = name_node.utf8_text(src) {
                         out.push(text.to_string());
                     }
                 }
-                "aliased_import" => {
-                    if let Some(name_node) = child.child_by_field_name("name") {
-                        if let Ok(text) = name_node.utf8_text(src) {
-                            out.push(text.to_string());
-                        }
-                    }
-                }
-                _ => {}
             }
+            _ => {}
         }
     }
     out
@@ -364,15 +353,14 @@ fn dotted_names_under(node: Node<'_>, src: &[u8]) -> Vec<String> {
 /// Recognize Flask/FastAPI-style decorators: `@app.route("/x")`,
 /// `@app.get("/x")`, `@router.post("/x")`.
 fn route_from_decorated(decorated_node: Node<'_>, src: &[u8]) -> Option<RouteRef> {
-    for i in 0..decorated_node.child_count() {
-        let child = decorated_node.child(i)?;
+    for child in decorated_node.children(&mut decorated_node.walk()) {
         if child.kind() != "decorator" {
             continue;
         }
         // A `decorator` node wraps either a bare `identifier`/
         // `attribute` or a `call` (when it has arguments).
-        let call = (0..child.child_count())
-            .filter_map(|j| child.child(j))
+        let call = child
+            .children(&mut child.walk())
             .find(|n| n.kind() == "call")?;
         let function = call.child_by_field_name("function")?;
         let function_text = function.utf8_text(src).unwrap_or("");
@@ -390,8 +378,7 @@ fn route_from_decorated(decorated_node: Node<'_>, src: &[u8]) -> Option<RouteRef
         let path = call
             .child_by_field_name("arguments")
             .and_then(|args| {
-                (0..args.child_count())
-                    .filter_map(|k| args.child(k))
+                args.children(&mut args.walk())
                     .find(|n| n.kind() == "string")
             })
             .and_then(|n| n.utf8_text(src).ok())

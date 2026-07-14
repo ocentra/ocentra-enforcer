@@ -2,6 +2,44 @@ use enforcer_memory::languages::python::parse;
 use enforcer_memory::parsers::SymbolKind;
 
 #[test]
+fn preserves_decorated_class_and_call_children() {
+    let parsed = parse(
+        "@router.post(\"/items\")\nclass Child(Base):\n    def create(self, item):\n        return helper(item, \"ready\")\n",
+    );
+
+    let symbols: Vec<(&str, SymbolKind)> = parsed
+        .symbols
+        .iter()
+        .map(|symbol| (symbol.name.as_str(), symbol.kind))
+        .collect();
+    let calls: Vec<(&str, Vec<&str>)> = parsed
+        .calls
+        .iter()
+        .map(|call| {
+            (
+                call.callee.as_str(),
+                call.arg_texts.iter().map(String::as_str).collect(),
+            )
+        })
+        .collect();
+
+    assert_eq!(
+        symbols,
+        vec![("Child", SymbolKind::Class), ("create", SymbolKind::Method)]
+    );
+    assert_eq!(parsed.routes.len(), 1);
+    assert_eq!(parsed.routes[0].method, "POST");
+    assert_eq!(parsed.routes[0].path, "/items");
+    assert_eq!(
+        calls,
+        vec![
+            ("router.post", vec!["\"/items\""]),
+            ("helper", vec!["item", "\"ready\""]),
+        ]
+    );
+}
+
+#[test]
 fn extracts_function_and_test_symbols() {
     let src = "def normal():\n    pass\n\ndef test_something():\n    pass\n";
     let parsed = parse(src);
