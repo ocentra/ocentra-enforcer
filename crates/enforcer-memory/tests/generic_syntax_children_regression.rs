@@ -1,5 +1,5 @@
 use enforcer_memory::languages::generic::{
-    parse_ada, parse_apex, parse_cairo, parse_fsharp, parse_julia, parse_powershell,
+    parse_ada, parse_apex, parse_cairo, parse_fsharp, parse_julia, parse_powershell, parse_verilog,
 };
 use enforcer_memory::parsers::SymbolKind;
 
@@ -92,4 +92,13 @@ fn syntax_child_iteration_preserves_cairo_call_arguments_and_scope() {
             && call.from_symbol.as_deref() == Some("main")
             && call.arg_texts == vec!["1", "2", "3"]
     }));
+}
+
+#[test]
+fn syntax_child_iteration_preserves_verilog_system_call_arguments() {
+    let verilog = parse_verilog("module widget;\n  initial $display(\"ready\", 7);\nendmodule\n");
+    assert!(verilog
+        .calls
+        .iter()
+        .any(|call| { call.callee == "$display" && call.arg_texts == vec!["\"ready\"", "7"] }));
 }

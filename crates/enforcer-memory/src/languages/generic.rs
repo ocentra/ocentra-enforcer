@@ -17459,14 +17459,12 @@ fn jsonnet_call_callee(node: Node<'_>) -> Option<Node<'_>> {
 /// Every `arg`-kinded child of a `suffix_apply`, in written order.
 fn jsonnet_call_arg_texts(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            if child.kind() != "arg" {
-                continue;
-            }
-            if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
-            }
+    for child in syntax_children(node) {
+        if child.kind() != "arg" {
+            continue;
+        }
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
@@ -17839,11 +17837,10 @@ fn lean_quirk(node: Node<'_>, enclosing: Option<&str>, src: &[u8], out: &mut Par
 /// the source span between named segments) reconstructs the real path.
 fn lean_import_path(node: Node<'_>, src: &[u8]) -> Option<String> {
     let mut path = String::new();
-    for i in 0..node.child_count() {
+    for (i, child) in syntax_children(node).enumerate() {
         if node.field_name_for_child(i as u32) != Some("module") {
             continue;
         }
-        let Some(child) = node.child(i) else { continue };
         if !child.is_named() {
             continue;
         }
@@ -17898,8 +17895,7 @@ pub fn parse_lean(source: &str) -> ParsedFile {
 /// list at all).
 fn tlaplus_module_names(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    for child in syntax_children(node) {
         if child.kind() == "identifier_ref" {
             if let Ok(text) = child.utf8_text(src) {
                 out.push(text.to_string());
@@ -18000,11 +17996,10 @@ fn tlaplus_quirk(
 /// adapted here for a repeated-field shape instead.
 fn tlaplus_bound_op_arg_texts(node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
-    for i in 0..node.child_count() {
+    for (i, child) in syntax_children(node).enumerate() {
         if node.field_name_for_child(i as u32) != Some("parameter") {
             continue;
         }
-        let Some(child) = node.child(i) else { continue };
         if !child.is_named() {
             continue;
         }
@@ -18121,10 +18116,7 @@ fn hdl_find_descendant<'a>(node: Node<'a>, kind: &str) -> Option<Node<'a>> {
     if node.kind() == kind {
         return Some(node);
     }
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else {
-            continue;
-        };
+    for child in syntax_children(node) {
         if let Some(found) = hdl_find_descendant(child, kind) {
             return Some(found);
         }
@@ -18148,8 +18140,7 @@ fn hdl_first_leaf_identifier<'a>(node: Node<'a>, src: &'a [u8]) -> Option<&'a st
     {
         return node.utf8_text(src).ok();
     }
-    for i in 0..node.child_count() {
-        let child = node.child(i)?;
+    for child in syntax_children(node) {
         if let Some(found) = hdl_first_leaf_identifier(child, src) {
             return Some(found);
         }
@@ -18164,8 +18155,7 @@ fn hdl_first_leaf_identifier<'a>(node: Node<'a>, src: &'a [u8]) -> Option<&'a st
 /// the WRONG (argument-internal) identifier for a `system_tf_call`
 /// wrapping a `system_tf_identifier` sibling rather than a nested one.
 fn hdl_system_tf_callee<'a>(node: Node<'a>, src: &'a [u8]) -> Option<&'a str> {
-    for i in 0..node.child_count() {
-        let child = node.child(i)?;
+    for child in syntax_children(node) {
         if child.kind() == "system_tf_identifier" {
             return child.utf8_text(src).ok();
         }
@@ -18198,14 +18188,12 @@ fn hdl_call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
         return Vec::new();
     };
     let mut out = Vec::new();
-    for i in 0..args.child_count() {
-        if let Some(child) = args.child(i) {
-            if matches!(child.kind(), "(" | ")" | ",") {
-                continue;
-            }
-            if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
-            }
+    for child in syntax_children(args) {
+        if matches!(child.kind(), "(" | ")" | ",") {
+            continue;
+        }
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
@@ -19049,14 +19037,12 @@ fn purescript_function_name(node: Node<'_>, src: &[u8]) -> Option<String> {
     // (tree-sitter's `child_by_field_name` returns only the FIRST
     // matching child for a "multiple" field; the operator identifier
     // itself is a later sibling also tagged `"name"`).
-    for i in 0..node.child_count() {
+    for (i, child) in syntax_children(node).enumerate() {
         if node.field_name_for_child(i as u32) != Some("name") {
             continue;
         }
-        if let Some(child) = node.child(i) {
-            if child.is_named() {
-                return child.utf8_text(src).ok().map(str::to_string);
-            }
+        if child.is_named() {
+            return child.utf8_text(src).ok().map(str::to_string);
         }
     }
     None
@@ -19212,10 +19198,8 @@ fn purescript_walk_scoped(
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, &ctx, out, enclosing, fn_scope);
-        }
+    for child in syntax_children(node) {
+        walk(child, &ctx, out, enclosing, fn_scope);
     }
 }
 
@@ -19430,8 +19414,7 @@ fn hare_call_override(
     };
     let (receiver_text, receiver_hint) = receiver_of_call(callee_node, src);
     let mut arg_texts = Vec::new();
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    for (i, child) in syntax_children(node).enumerate() {
         if !child.is_named() {
             continue;
         }
@@ -19523,10 +19506,8 @@ fn pony_walk_scoped(node: Node<'_>, src: &[u8], enclosing: Option<&str>, out: &m
         quirks: &quirks,
         is_test_file: false,
     };
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, &ctx, out, enclosing, FnScope::default());
-        }
+    for child in syntax_children(node) {
+        walk(child, &ctx, out, enclosing, FnScope::default());
     }
 }
 
@@ -19726,8 +19707,7 @@ fn nasm_walk_source_file(node: Node<'_>, src: &[u8], out: &mut ParsedFile) {
         is_test_file: false,
     };
     let mut current_label: Option<(String, usize)> = None;
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    for child in syntax_children(node) {
         if let Some(label_node) = nasm_source_line_label(child) {
             if let Some(name) = child_text(label_node, "name", src) {
                 current_label = Some((name, label_node.start_position().row + 1));
@@ -19811,8 +19791,7 @@ fn emacslisp_on_method_defined(
         line: Some(line),
     };
     let mut past_parameters = false;
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else { continue };
+    for child in syntax_children(node) {
         if child.id() == parameters.id() {
             past_parameters = true;
             continue;
@@ -20095,10 +20074,7 @@ fn matlab_on_method_defined(
         name: Some(name),
         line: Some(line),
     };
-    for i in 0..node.child_count() {
-        let Some(child) = node.child(i) else {
-            continue;
-        };
+    for child in syntax_children(node) {
         if child.kind() == "block" {
             walk_children(child, &ctx, out, None, fn_scope);
         }
