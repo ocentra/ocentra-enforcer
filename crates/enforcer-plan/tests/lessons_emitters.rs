@@ -136,6 +136,20 @@ fn route_only_emits_declared_routes_that_have_explicit_targets() -> TestResult {
 }
 
 #[test]
+fn route_emits_each_declared_route_at_most_once() -> TestResult {
+    let mut record = sample_record("L40")?;
+    record.routes = vec![LessonRoute::DoctrineBlock, LessonRoute::DoctrineBlock];
+    let mut fs = FixtureFs::default();
+    let targets = HashMap::from([(LessonRoute::DoctrineBlock, PathBuf::from("AGENTS.md"))]);
+
+    let outcomes = route(&mut fs, &record, &targets, false)?;
+
+    assert_eq!(outcomes.len(), 1);
+    assert_eq!(outcomes[0].path, PathBuf::from("AGENTS.md"));
+    Ok(())
+}
+
+#[test]
 fn doctor_rejects_unlanded_artifacts_at_the_public_boundary() -> TestResult {
     let record = sample_record("L5")?;
     let rule_id: RuleId = "LESSON-DOCTOR.1".parse()?;

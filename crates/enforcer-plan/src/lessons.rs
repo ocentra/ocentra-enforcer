@@ -892,7 +892,11 @@ pub fn route(
     dry_run: bool,
 ) -> Result<Vec<EmitOutcome>, PlanError> {
     let mut outcomes = Vec::new();
+    let mut emitted_routes = HashSet::new();
     for declared_route in &record.routes {
+        if !emitted_routes.insert(*declared_route) {
+            continue;
+        }
         let Some(target) = targets.get(declared_route) else {
             continue;
         };
