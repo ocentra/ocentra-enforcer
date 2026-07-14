@@ -252,10 +252,9 @@ fn walk_children(
     enclosing: Option<&str>,
     fn_scope: FnScope<'_>,
 ) {
-    for i in 0..node.child_count() {
-        if let Some(child) = node.child(i) {
-            walk(child, src, out, enclosing, fn_scope);
-        }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        walk(child, src, out, enclosing, fn_scope);
     }
 }
 
@@ -297,13 +296,12 @@ fn attribute_decorators(function_node: Node<'_>, src: &[u8]) -> Vec<String> {
 fn signature_type_refs(function_node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
     if let Some(params) = function_node.child_by_field_name("parameters") {
-        for i in 0..params.child_count() {
-            if let Some(param) = params.child(i) {
-                if param.kind() == "parameter" {
-                    if let Some(type_node) = param.child_by_field_name("type") {
-                        if let Ok(text) = type_node.utf8_text(src) {
-                            out.push(text.to_string());
-                        }
+        let mut cursor = params.walk();
+        for param in params.children(&mut cursor) {
+            if param.kind() == "parameter" {
+                if let Some(type_node) = param.child_by_field_name("type") {
+                    if let Ok(text) = type_node.utf8_text(src) {
+                        out.push(text.to_string());
                     }
                 }
             }
@@ -321,14 +319,13 @@ fn signature_type_refs(function_node: Node<'_>, src: &[u8]) -> Vec<String> {
 fn trait_bounds(trait_node: Node<'_>, src: &[u8]) -> Vec<String> {
     let mut out = Vec::new();
     if let Some(bounds) = trait_node.child_by_field_name("bounds") {
-        for i in 0..bounds.child_count() {
-            if let Some(child) = bounds.child(i) {
-                if child.kind() != "+" {
-                    if let Ok(text) = child.utf8_text(src) {
-                        let trimmed = text.trim();
-                        if !trimmed.is_empty() {
-                            out.push(trimmed.to_string());
-                        }
+        let mut cursor = bounds.walk();
+        for child in bounds.children(&mut cursor) {
+            if child.kind() != "+" {
+                if let Ok(text) = child.utf8_text(src) {
+                    let trimmed = text.trim();
+                    if !trimmed.is_empty() {
+                        out.push(trimmed.to_string());
                     }
                 }
             }
@@ -415,14 +412,13 @@ fn call_arg_texts(call_node: Node<'_>, src: &[u8]) -> Vec<String> {
         return Vec::new();
     };
     let mut out = Vec::new();
-    for i in 0..args.child_count() {
-        if let Some(child) = args.child(i) {
-            if matches!(child.kind(), "(" | ")" | ",") {
-                continue;
-            }
-            if let Ok(text) = child.utf8_text(src) {
-                out.push(text.to_string());
-            }
+    let mut cursor = args.walk();
+    for child in args.children(&mut cursor) {
+        if matches!(child.kind(), "(" | ")" | ",") {
+            continue;
+        }
+        if let Ok(text) = child.utf8_text(src) {
+            out.push(text.to_string());
         }
     }
     out
@@ -499,21 +495,19 @@ fn collect_use_paths(node: Node<'_>, src: &[u8], prefix: &str, out: &mut Vec<Str
                 .unwrap_or("");
             let joined = join_prefix(prefix, base);
             if let Some(list) = node.child_by_field_name("list") {
-                for i in 0..list.child_count() {
-                    if let Some(child) = list.child(i) {
-                        if child.kind() != "," && child.kind() != "{" && child.kind() != "}" {
-                            collect_use_paths(child, src, &joined, out);
-                        }
+                let mut cursor = list.walk();
+                for child in list.children(&mut cursor) {
+                    if child.kind() != "," && child.kind() != "{" && child.kind() != "}" {
+                        collect_use_paths(child, src, &joined, out);
                     }
                 }
             }
         }
         "use_list" => {
-            for i in 0..node.child_count() {
-                if let Some(child) = node.child(i) {
-                    if child.kind() != "," && child.kind() != "{" && child.kind() != "}" {
-                        collect_use_paths(child, src, prefix, out);
-                    }
+            let mut cursor = node.walk();
+            for child in node.children(&mut cursor) {
+                if child.kind() != "," && child.kind() != "{" && child.kind() != "}" {
+                    collect_use_paths(child, src, prefix, out);
                 }
             }
         }

@@ -62,6 +62,47 @@ fn extracts_call_edges() {
     assert!(callees.contains(&"other::thing"));
 }
 
+/// Regression: iterator traversal retains source order through trait bounds,
+/// grouped imports, and nested call arguments.
+#[test]
+fn rust_child_iteration_preserves_bounds_import_and_call_argument_order() -> Result<(), &'static str>
+{
+    let src = r#"
+trait Child: First + Second {}
+use crate::items::{Alpha, Beta};
+fn run() { other::thing(first(), second()); }
+"#;
+    let parsed = parse(src);
+    let bounds: Vec<&str> = parsed
+        .inherits
+        .iter()
+        .filter(|edge| edge.sub_name == "Child")
+        .map(|edge| edge.super_name.as_str())
+        .collect();
+    assert_eq!(bounds, vec![":", "First", "Second"], "{bounds:?}");
+    let imports: Vec<&str> = parsed
+        .imports
+        .iter()
+        .map(|item| item.module_path.as_str())
+        .collect();
+    assert_eq!(
+        imports,
+        vec!["crate::items::Alpha", "crate::items::Beta"],
+        "{imports:?}"
+    );
+    let call = parsed
+        .calls
+        .iter()
+        .find(|call| call.callee == "other::thing")
+        .ok_or("expected an other::thing call")?;
+    assert_eq!(
+        call.arg_texts,
+        vec!["first()".to_string(), "second()".to_string()],
+        "{call:?}"
+    );
+    Ok(())
+}
+
 #[test]
 fn malformed_source_does_not_panic() {
     let parsed = parse("fn ( { this is not valid rust @@@");
