@@ -268,6 +268,7 @@ pub mod queue;
 pub mod ranking;
 pub mod recall;
 pub mod record;
+pub mod boundary;
 pub mod redaction;
 pub mod rerank;
 pub mod resolution;

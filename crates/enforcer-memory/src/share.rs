@@ -37,7 +37,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::graph::{MemoryGraph, MemoryNode};
 use crate::lesson::LessonRow;
-use crate::record::MemoryRecordDto;
+use crate::boundary::record::MemoryRecordDto;
 
 /// Current wire schema version for [`BundleManifest`]/[`BundleGraphSnapshot`].
 /// A bundle whose manifest carries a DIFFERENT version is rejected by

@@ -6,7 +6,8 @@ use enforcer_memory::federation::{
 };
 use enforcer_memory::graph::MemoryGraph;
 use enforcer_memory::lesson::LessonRow;
-use enforcer_memory::record::{MemoryRecordDto as MemoryRecord, Provenance, RecordDomain, RecordKind};
+use enforcer_memory::boundary::record::MemoryRecordDto as MemoryRecord;
+use enforcer_memory::record::{Provenance, RecordDomain, RecordKind};
 use enforcer_memory::share::{
     export_bundle, BundleGraphSnapshot, ExportConsent, ExportRequest, Scope, SignedBundle,
 };

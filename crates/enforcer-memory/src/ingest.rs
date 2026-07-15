@@ -12,7 +12,8 @@
 
 use crate::error::Result as MemoryResult;
 use crate::graph::MemoryGraph;
-use crate::record::{MemoryRecord, MemoryRecordDto};
+use crate::boundary::record::MemoryRecordDto;
+use crate::record::MemoryRecord;
 use crate::schema::{ObservationLogEntry, SCHEMA_VERSION};
 use crate::store::Store;
 use thiserror::Error;

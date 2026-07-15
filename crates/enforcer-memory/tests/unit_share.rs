@@ -1,7 +1,8 @@
 use ed25519_dalek::SigningKey;
 use enforcer_memory::graph::MemoryGraph;
 use enforcer_memory::lesson::LessonRow;
-use enforcer_memory::record::{MemoryRecordDto as MemoryRecord, Provenance, RecordDomain, RecordKind};
+use enforcer_memory::boundary::record::MemoryRecordDto as MemoryRecord;
+use enforcer_memory::record::{Provenance, RecordDomain, RecordKind};
 use enforcer_memory::share::{
     export_bundle, BundleGraphSnapshot, BundleManifest, ExportConsent, ExportRequest, Scope,
     ShareError, SignedBundle, BUNDLE_SCHEMA_VERSION,

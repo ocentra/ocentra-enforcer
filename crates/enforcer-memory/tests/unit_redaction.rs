@@ -1,4 +1,5 @@
-use enforcer_memory::record::{Evidence, MemoryRecordDto as MemoryRecord, Provenance, RecordDomain, RecordKind};
+use enforcer_memory::boundary::record::MemoryRecordDto as MemoryRecord;
+use enforcer_memory::record::{Evidence, Provenance, RecordDomain, RecordKind};
 use enforcer_memory::redaction::{
     redact_identity, redact_path, redact_record, redact_secrets, redact_text, truncate_snippet,
     RedactionConfig,
