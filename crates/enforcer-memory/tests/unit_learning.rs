@@ -14,7 +14,7 @@ use enforcer_memory::observations::{
     record_procedural_in_store, record_route_choice_in_store, ProceduralOutcome,
     ProceduralStoreInput, RouteChoiceStoreInput,
 };
-use enforcer_memory::record::{MemoryRecord, Provenance, RecordDomain, RecordKind};
+use enforcer_memory::record::{MemoryRecordDto as MemoryRecord, Provenance, RecordDomain, RecordKind};
 use enforcer_memory::store::Store;
 
 fn record(id: &str, domain: RecordDomain, landed_at: Vec<&str>) -> MemoryRecord {

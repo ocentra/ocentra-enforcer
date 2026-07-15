@@ -104,7 +104,7 @@ pub enum EvidenceResult<'a> {
 pub fn evidence<'a>(graph: &'a MemoryGraph, lesson_id: &str) -> EvidenceResult<'a> {
     let landed_at = graph.nodes().iter().find_map(|node| match node {
         MemoryNode::Lesson(row) if row.id == lesson_id => Some(row.landed_at.clone()),
-        MemoryNode::Record(record) if record.id == lesson_id => record.landed_at.first().cloned(),
+        MemoryNode::Record(record) if record.id() == lesson_id => record.landed_at().first().cloned(),
         _ => None,
     });
 

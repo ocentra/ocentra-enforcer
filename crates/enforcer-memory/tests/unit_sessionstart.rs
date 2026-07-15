@@ -1,6 +1,6 @@
 use enforcer_memory::graph::MemoryGraph;
 use enforcer_memory::ingest::{ingest_observation, Observation};
-use enforcer_memory::record::{MemoryRecord, Provenance, RecordDomain, RecordKind};
+use enforcer_memory::record::{MemoryRecordDto as MemoryRecord, Provenance, RecordDomain, RecordKind};
 use enforcer_memory::sessionstart::recall_pack;
 
 fn landed_record(id: &str) -> MemoryRecord {

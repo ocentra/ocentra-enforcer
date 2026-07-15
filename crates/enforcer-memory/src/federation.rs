@@ -259,9 +259,9 @@ fn verify_schema_version(found: u32) -> Result<(), RejectReason> {
 /// repo recorded.
 fn ingest_inactive(graph: &mut MemoryGraph, snapshot: BundleGraphSnapshot) -> ImportReport {
     let mut report = ImportReport::default();
-    for mut record in snapshot.records {
-        record.landed_at.clear();
-        graph.ingest_record(record);
+    for mut dto in snapshot.records {
+        dto.landed_at.clear();
+        graph.ingest_record(crate::record::MemoryRecord::from_dto(dto));
         report.records_imported += 1;
     }
     for mut lesson in snapshot.lessons {

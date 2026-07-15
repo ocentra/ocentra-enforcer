@@ -25,7 +25,7 @@ impl MemoryNode {
     /// Stable node id, used for dedup and `landedAt`/evidence lookups.
     pub fn id(&self) -> &str {
         match self {
-            MemoryNode::Record(record) => &record.id,
+            MemoryNode::Record(record) => record.id(),
             MemoryNode::Lesson(lesson) => &lesson.id,
             MemoryNode::Incident(incident) => &incident.id,
         }
@@ -65,8 +65,8 @@ impl MemoryGraph {
         Self::default()
     }
 
-    pub fn ingest_record(&mut self, record: MemoryRecord) {
-        self.nodes.push(MemoryNode::Record(Box::new(record)));
+    pub fn ingest_record(&mut self, record: impl Into<MemoryRecord>) {
+        self.nodes.push(MemoryNode::Record(Box::new(record.into())));
     }
 
     pub fn ingest_lesson_row(&mut self, row: LessonRow) {
@@ -119,7 +119,7 @@ impl MemoryGraph {
     pub fn lesson_like_nodes(&self) -> impl Iterator<Item = &MemoryNode> {
         self.nodes.iter().filter(|node| match node {
             MemoryNode::Lesson(_) => true,
-            MemoryNode::Record(record) => matches!(record.kind, RecordKind::Lesson),
+            MemoryNode::Record(record) => matches!(record.kind(), RecordKind::Lesson),
             MemoryNode::Incident(_) => false,
         })
     }

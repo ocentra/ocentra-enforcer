@@ -37,7 +37,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::graph::{MemoryGraph, MemoryNode};
 use crate::lesson::LessonRow;
-use crate::record::MemoryRecord;
+use crate::record::MemoryRecordDto;
 
 /// Current wire schema version for [`BundleManifest`]/[`BundleGraphSnapshot`].
 /// A bundle whose manifest carries a DIFFERENT version is rejected by
@@ -135,7 +135,7 @@ pub struct BundleManifest {
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BundleGraphSnapshot {
-    pub records: Vec<MemoryRecord>,
+    pub records: Vec<MemoryRecordDto>,
     pub lessons: Vec<LessonRow>,
 }
 
@@ -146,7 +146,7 @@ impl BundleGraphSnapshot {
         let mut lessons = Vec::new();
         for node in graph.nodes() {
             match node {
-                MemoryNode::Record(record) => records.push((**record).clone()),
+                MemoryNode::Record(record) => records.push(record.to_dto()),
                 MemoryNode::Lesson(row) => lessons.push(row.clone()),
                 MemoryNode::Incident(_) => {}
             }

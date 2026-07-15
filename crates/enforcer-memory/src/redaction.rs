@@ -196,26 +196,24 @@ pub fn redact_record(
     repo_root: Option<&str>,
     config: RedactionConfig,
 ) -> crate::record::MemoryRecord {
-    let mut redacted = record.clone();
+    let mut redacted = record.to_dto();
     let explicit_identities: Vec<&str> = [
-        record.provenance.user.as_deref(),
-        record.provenance.session_id.as_deref(),
+        record.provenance().user.as_deref(),
+        record.provenance().session_id.as_deref(),
     ]
     .into_iter()
     .flatten()
     .collect();
 
-    redacted.statement = redact_text(&record.statement, repo_root, &explicit_identities, config);
+    redacted.statement = redact_text(record.statement(), repo_root, &explicit_identities, config);
     redacted.why = record
-        .why
-        .as_ref()
+        .why()
         .map(|w| redact_text(w, repo_root, &explicit_identities, config));
     redacted.how_to_apply = record
-        .how_to_apply
-        .as_ref()
+        .how_to_apply()
         .map(|h| redact_text(h, repo_root, &explicit_identities, config));
     redacted.landed_at = record
-        .landed_at
+        .landed_at()
         .iter()
         .map(|l| redact_path(l, repo_root))
         .collect();
@@ -230,5 +228,5 @@ pub fn redact_record(
     redacted.provenance.session_id = None;
     redacted.provenance.model = None;
 
-    redacted
+    crate::record::MemoryRecord::from_dto(redacted)
 }

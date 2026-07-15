@@ -85,12 +85,12 @@ fn lesson_facts(node: &MemoryNode) -> Option<LessonFacts<'_>> {
             supersedes: None,
             domain: None,
         }),
-        MemoryNode::Record(record) if matches!(record.kind, crate::record::RecordKind::Lesson) => {
+        MemoryNode::Record(record) if matches!(record.kind(), crate::record::RecordKind::Lesson) => {
             Some(LessonFacts {
-                id: &record.id,
-                landed_at: record.landed_at.iter().map(String::as_str).collect(),
-                supersedes: record.supersedes.as_deref(),
-                domain: Some(record.domain),
+                id: record.id(),
+                landed_at: record.landed_at().iter().map(String::as_str).collect(),
+                supersedes: record.supersedes(),
+                domain: Some(record.domain()),
             })
         }
         _ => None,

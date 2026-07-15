@@ -19,7 +19,7 @@ use enforcer_memory::graph::MemoryGraph;
 use enforcer_memory::ids::ArtifactId;
 use enforcer_memory::learning::{lesson_status, LessonStatus};
 use enforcer_memory::lesson::LessonRow;
-use enforcer_memory::record::{MemoryRecord, Provenance, RecordDomain, RecordKind};
+use enforcer_memory::record::{MemoryRecordDto as MemoryRecord, Provenance, RecordDomain, RecordKind};
 use enforcer_memory::redaction::{redact_record, RedactionConfig};
 use enforcer_memory::share::{export_bundle, BundleGraphSnapshot, ExportConsent, Scope};
 use enforcer_memory::store::manifest::ArtifactManifest;
@@ -368,12 +368,13 @@ fn community_redaction_matches_the_committed_golden_fixture_byte_exact() -> Test
     let expected = std::fs::read_to_string(fixture_dir.join("community-expected.ndjson"))?;
 
     let record: MemoryRecord = serde_json::from_str(input.trim_end())?;
+    let record = enforcer_memory::record::MemoryRecord::from_dto(record);
     let redacted = redact_record(
         &record,
         Some(r"C:\Projects\enforcer"),
         RedactionConfig::default(),
     );
-    let actual = serde_json::to_string(&redacted)? + "\n";
+    let actual = serde_json::to_string(&redacted.to_dto())? + "\n";
     assert_eq!(
         actual, expected,
         "community redaction output must be byte-exact against the committed golden fixture"

@@ -12,7 +12,7 @@
 
 use crate::error::Result as MemoryResult;
 use crate::graph::MemoryGraph;
-use crate::record::MemoryRecord;
+use crate::record::{MemoryRecord, MemoryRecordDto};
 use crate::schema::{ObservationLogEntry, SCHEMA_VERSION};
 use crate::store::Store;
 use thiserror::Error;
@@ -39,12 +39,12 @@ pub fn parse_ndjson(text: &str) -> Result<Vec<MemoryRecord>, IngestError> {
         if trimmed.is_empty() {
             continue;
         }
-        let record: MemoryRecord =
+        let dto: MemoryRecordDto =
             serde_json::from_str(trimmed).map_err(|source| IngestError::InvalidJson {
                 line: idx + 1,
                 source,
             })?;
-        records.push(record);
+        records.push(MemoryRecord::from_dto(dto));
     }
     Ok(records)
 }

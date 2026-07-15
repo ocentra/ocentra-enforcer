@@ -1,4 +1,4 @@
-use enforcer_memory::record::{Evidence, MemoryRecord, Provenance, RecordDomain, RecordKind};
+use enforcer_memory::record::{Evidence, MemoryRecordDto as MemoryRecord, Provenance, RecordDomain, RecordKind};
 use enforcer_memory::redaction::{
     redact_identity, redact_path, redact_record, redact_secrets, redact_text, truncate_snippet,
     RedactionConfig,
@@ -119,20 +119,21 @@ fn redact_record_clears_identity_fields_and_redacts_paths() {
         },
     };
 
+    let record = enforcer_memory::record::MemoryRecord::from_dto(record);
     let redacted = redact_record(
         &record,
         Some(r"C:\Projects\enforcer"),
         RedactionConfig::default(),
     );
-    assert!(redacted.provenance.user.is_none());
-    assert!(redacted.provenance.session_id.is_none());
-    assert!(redacted.provenance.model.is_none());
-    assert_eq!(redacted.provenance.writer, "arc-05");
-    assert!(!redacted.statement.contains("Projects"));
-    assert!(!redacted.statement.contains("alice@example.com"));
-    assert_eq!(redacted.landed_at[0], "src/lib.rs");
+    assert!(redacted.provenance().user.is_none());
+    assert!(redacted.provenance().session_id.is_none());
+    assert!(redacted.provenance().model.is_none());
+    assert_eq!(redacted.provenance().writer, "arc-05");
+    assert!(!redacted.statement().contains("Projects"));
+    assert!(!redacted.statement().contains("alice@example.com"));
+    assert_eq!(redacted.landed_at()[0], "src/lib.rs");
     assert_eq!(
-        redacted.evidence.as_ref().and_then(|e| e.r#ref.as_deref()),
+        redacted.evidence().and_then(|e| e.r#ref.as_deref()),
         Some("src/lib.rs")
     );
 }
@@ -146,12 +147,13 @@ fn golden_community_export_redaction_is_byte_exact() -> Result<(), Box<dyn std::
     let expected = std::fs::read_to_string(fixture_dir.join("community-expected.ndjson"))?;
 
     let record: MemoryRecord = serde_json::from_str(input.trim_end())?;
+    let record = enforcer_memory::record::MemoryRecord::from_dto(record);
     let redacted = redact_record(
         &record,
         Some(r"C:\Projects\enforcer"),
         RedactionConfig::default(),
     );
-    let actual = serde_json::to_string(&redacted)? + "\n";
+    let actual = serde_json::to_string(&redacted.to_dto())? + "\n";
     assert_eq!(
         actual, expected,
         "community redaction output must be byte-exact against the committed fixture"

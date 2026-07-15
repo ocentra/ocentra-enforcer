@@ -175,7 +175,7 @@ pub fn recurrence_curve(graph: &MemoryGraph, lesson_id: &str) -> Vec<RecurrenceP
             row.id == lesson_id && !row.landed_at.trim().is_empty()
         }
         crate::graph::MemoryNode::Record(record) => {
-            record.id == lesson_id && record.landed_at.iter().any(|l| !l.trim().is_empty())
+            record.id() == lesson_id && record.landed_at().iter().any(|l| !l.trim().is_empty())
         }
         crate::graph::MemoryNode::Incident(_) => false,
     });
