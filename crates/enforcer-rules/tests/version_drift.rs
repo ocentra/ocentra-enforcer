@@ -7,10 +7,13 @@
 //! `rule-version-manifest.json` matches the real shipped baseline
 //! registry today (anti-vacuous: this is not fixture-only).
 
+use enforcer_domain::rules_types::{
+    RuleCatalogJson, RuleCatalogSource, RuleManifest, RuleManifestJson,
+};
 use enforcer_rules::loader::parse_catalog;
 use enforcer_rules::registry::RuleRegistry;
 use enforcer_rules::version_drift::{
-    build_manifest, check_registry_drift, drift_findings, ManifestDrift, RegistryManifest,
+    build_manifest, check_registry_drift, decode_manifest, drift_findings, ManifestDrift,
 };
 
 const BASELINE_CATALOG: &str = include_str!("fixtures/version_drift/baseline_catalog.json");
@@ -32,19 +35,33 @@ const OCENTRA_PARENT_POSTURE_JSON: &str = include_str!("../rules/ocentra-parent-
 const DEFERRED_WORK_GATE_JSON: &str = include_str!("../rules/deferred-work-gate.json");
 const REAL_MANIFEST: &str = include_str!("../rule-version-manifest.json");
 
+fn catalog(
+    raw: &str,
+    source: &str,
+) -> Result<Vec<enforcer_rules::registry::RuleRecord>, Box<dyn std::error::Error>> {
+    let raw = RuleCatalogJson::try_from(raw.to_owned())?;
+    let source = RuleCatalogSource::try_from(source.to_owned())?;
+    Ok(parse_catalog(&raw, &source)?)
+}
+
 fn registry_from(catalog_json: &str) -> Result<RuleRegistry, Box<dyn std::error::Error>> {
-    let records = parse_catalog(catalog_json, "<fixture>")?;
+    let records = catalog(catalog_json, "<fixture>")?;
     Ok(RuleRegistry::from_records(records)?)
 }
 
+fn manifest_from(raw: &str) -> Result<RuleManifest, enforcer_rules::version_drift::ManifestError> {
+    let raw = RuleManifestJson::try_from(raw.to_owned())?;
+    decode_manifest(&raw)
+}
+
 fn real_baseline_registry() -> Result<RuleRegistry, Box<dyn std::error::Error>> {
-    let mut records = parse_catalog(DENY_WALL_JSON, "rules/deny-wall.json")?;
-    records.extend(parse_catalog(NO_REEXPORTS_JSON, "rules/no-reexports.json")?);
-    records.extend(parse_catalog(
+    let mut records = catalog(DENY_WALL_JSON, "rules/deny-wall.json")?;
+    records.extend(catalog(NO_REEXPORTS_JSON, "rules/no-reexports.json")?);
+    records.extend(catalog(
         OCENTRA_PARENT_POSTURE_JSON,
         "rules/ocentra-parent-posture.json",
     )?);
-    records.extend(parse_catalog(
+    records.extend(catalog(
         DEFERRED_WORK_GATE_JSON,
         "rules/deferred-work-gate.json",
     )?);
@@ -54,7 +71,7 @@ fn real_baseline_registry() -> Result<RuleRegistry, Box<dyn std::error::Error>> 
 #[test]
 fn unchanged_registry_passes_against_the_pinned_manifest() -> Result<(), Box<dyn std::error::Error>>
 {
-    let manifest = RegistryManifest::parse(BASELINE_MANIFEST)?;
+    let manifest = manifest_from(BASELINE_MANIFEST)?;
     // Cosmetic-only changes (title/tag rename) relative to the baseline
     // catalog must NOT trip drift.
     let registry = registry_from(UNCHANGED_CATALOG)?;
@@ -70,7 +87,7 @@ fn unchanged_registry_passes_against_the_pinned_manifest() -> Result<(), Box<dyn
 
 #[test]
 fn content_change_without_version_bump_fails_closed() -> Result<(), Box<dyn std::error::Error>> {
-    let manifest = RegistryManifest::parse(BASELINE_MANIFEST)?;
+    let manifest = manifest_from(BASELINE_MANIFEST)?;
     let registry = registry_from(CONTENT_CHANGE_NO_BUMP_CATALOG)?;
     let drift = check_registry_drift(&manifest, &registry);
 
@@ -91,14 +108,18 @@ fn content_change_without_version_bump_fails_closed() -> Result<(), Box<dyn std:
     let findings = drift_findings(&drift);
     assert_eq!(findings.len(), 1, "exactly one rule drifted");
     assert_eq!(findings[0].rule_id.as_str(), "T1-VDRIFT.2");
-    assert!(findings[0].detail.contains("Fix:"));
-    assert!(findings[0].detail.contains("T1-VDRIFT.2"));
+    assert!(findings[0]
+        .detail
+        .starts_with("`T1-VDRIFT.2`'s validator/fixtures/doc-anchor changed"));
+    assert!(findings[0]
+        .detail
+        .ends_with("re-run the manifest generator to pin the new hash."));
     Ok(())
 }
 
 #[test]
 fn version_bump_without_content_change_fails_closed() -> Result<(), Box<dyn std::error::Error>> {
-    let manifest = RegistryManifest::parse(BASELINE_MANIFEST)?;
+    let manifest = manifest_from(BASELINE_MANIFEST)?;
     let registry = registry_from(HOLLOW_BUMP_CATALOG)?;
     let drift = check_registry_drift(&manifest, &registry);
 
@@ -118,13 +139,15 @@ fn version_bump_without_content_change_fails_closed() -> Result<(), Box<dyn std:
     let findings = drift_findings(&drift);
     assert_eq!(findings.len(), 1, "exactly one rule drifted");
     assert_eq!(findings[0].rule_id.as_str(), "T1-VDRIFT.1");
-    assert!(findings[0].detail.contains("Fix:"));
+    assert!(findings[0]
+        .detail
+        .starts_with("`T1-VDRIFT.1`'s RuleRecord.version was bumped"));
     Ok(())
 }
 
 #[test]
 fn matched_version_and_hash_bump_together_passes() -> Result<(), Box<dyn std::error::Error>> {
-    let manifest = RegistryManifest::parse(BASELINE_MANIFEST)?;
+    let manifest = manifest_from(BASELINE_MANIFEST)?;
     let registry = registry_from(LEGITIMATE_BUMP_CATALOG)?;
     let drift = check_registry_drift(&manifest, &registry);
 
@@ -150,7 +173,7 @@ fn version_alone_or_hash_alone_never_passes_without_the_other(
     // "neither alone passes" assertion: hash-changed-only (no bump) and
     // version-changed-only (hollow bump) both fail; only both together
     // (proven above) passes.
-    let manifest = RegistryManifest::parse(BASELINE_MANIFEST)?;
+    let manifest = manifest_from(BASELINE_MANIFEST)?;
 
     let hash_only = registry_from(CONTENT_CHANGE_NO_BUMP_CATALOG)?;
     let hash_only_drift = check_registry_drift(&manifest, &hash_only);
@@ -166,10 +189,10 @@ fn version_alone_or_hash_alone_never_passes_without_the_other(
 #[test]
 fn removing_a_pinned_rule_without_updating_the_manifest_fails_closed(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let manifest = RegistryManifest::parse(BASELINE_MANIFEST)?;
+    let manifest = manifest_from(BASELINE_MANIFEST)?;
     // Registry with only one of the two pinned rules — the other was
     // silently dropped from the catalog.
-    let records = parse_catalog(BASELINE_CATALOG, "baseline_catalog.json")?;
+    let records = catalog(BASELINE_CATALOG, "baseline_catalog.json")?;
     let one_record = vec![records
         .into_iter()
         .find(|r| r.rule_id.as_str() == "T1-VDRIFT.1")
@@ -188,8 +211,14 @@ fn removing_a_pinned_rule_without_updating_the_manifest_fails_closed(
 
 #[test]
 fn manifest_parse_rejects_malformed_manifest_json() {
-    assert!(RegistryManifest::parse("{not json").is_err());
-    assert!(RegistryManifest::parse(r#"{"schemaVersion":0,"entries":{}}"#).is_err());
+    assert!(matches!(
+        manifest_from("{not json"),
+        Err(enforcer_rules::version_drift::ManifestError::Parse(_))
+    ));
+    assert!(matches!(
+        manifest_from(r#"{"schemaVersion":0,"entries":{}}"#),
+        Err(enforcer_rules::version_drift::ManifestError::Invalid(_))
+    ));
 }
 
 /// Anti-vacuous: the real, committed `rule-version-manifest.json` matches
@@ -201,8 +230,11 @@ fn manifest_parse_rejects_malformed_manifest_json() {
 fn the_real_shipped_manifest_matches_the_real_shipped_baseline_registry(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let registry = real_baseline_registry()?;
-    let recomputed = build_manifest(&registry, 1);
-    let pinned = RegistryManifest::parse(REAL_MANIFEST)?;
+    let recomputed = build_manifest(
+        &registry,
+        enforcer_domain::rules_types::RuleManifestSchemaVersion::new(1)?,
+    );
+    let pinned = manifest_from(REAL_MANIFEST)?;
     assert_eq!(
         pinned, recomputed,
         "rule-version-manifest.json is stale relative to the real shipped baseline catalogs"
@@ -221,7 +253,7 @@ fn the_real_shipped_manifest_matches_the_real_shipped_baseline_registry(
 #[test]
 fn the_real_shipped_manifest_has_no_orphans_or_gaps() -> Result<(), Box<dyn std::error::Error>> {
     let registry = real_baseline_registry()?;
-    let pinned = RegistryManifest::parse(REAL_MANIFEST)?;
+    let pinned = manifest_from(REAL_MANIFEST)?;
     let drift = check_registry_drift(&pinned, &registry);
     assert!(
         !drift

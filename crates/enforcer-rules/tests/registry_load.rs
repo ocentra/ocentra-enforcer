@@ -5,8 +5,10 @@
 //! malformed/duplicate record is rejected, and a seeded d13 version-drift
 //! fails closed.
 
+use enforcer_domain::rules_types::VersionDriftOutcome;
+use enforcer_domain::rules_types::{RuleCatalogJson, RuleCatalogSource};
 use enforcer_rules::loader::{load_registry_from_records, parse_catalog};
-use enforcer_rules::version_drift::{check_drift, has_drift, DriftOutcome};
+use enforcer_rules::version_drift::{check_drift, has_drift};
 use enforcer_rules::RuleLoadError;
 
 const DENY_WALL_JSON: &str = include_str!("../rules/deny-wall.json");
@@ -14,15 +16,31 @@ const NO_REEXPORTS_JSON: &str = include_str!("../rules/no-reexports.json");
 const OCENTRA_PARENT_POSTURE_JSON: &str = include_str!("../rules/ocentra-parent-posture.json");
 const DEFERRED_WORK_GATE_JSON: &str = include_str!("../rules/deferred-work-gate.json");
 
+fn catalog(
+    raw: &str,
+    source: &str,
+) -> enforcer_rules::RuleResult<Vec<enforcer_rules::registry::RuleRecord>> {
+    let raw =
+        RuleCatalogJson::try_from(raw.to_owned()).map_err(|error| RuleLoadError::Boundary {
+            reason: enforcer_rules::boundary_reason(error),
+        })?;
+    let source = RuleCatalogSource::try_from(source.to_owned()).map_err(|error| {
+        RuleLoadError::Boundary {
+            reason: enforcer_rules::boundary_reason(error),
+        }
+    })?;
+    parse_catalog(&raw, &source)
+}
+
 fn all_baseline_records(
 ) -> Result<Vec<enforcer_rules::registry::RuleRecord>, Box<dyn std::error::Error>> {
-    let mut records = parse_catalog(DENY_WALL_JSON, "rules/deny-wall.json")?;
-    records.extend(parse_catalog(NO_REEXPORTS_JSON, "rules/no-reexports.json")?);
-    records.extend(parse_catalog(
+    let mut records = catalog(DENY_WALL_JSON, "rules/deny-wall.json")?;
+    records.extend(catalog(NO_REEXPORTS_JSON, "rules/no-reexports.json")?);
+    records.extend(catalog(
         OCENTRA_PARENT_POSTURE_JSON,
         "rules/ocentra-parent-posture.json",
     )?);
-    records.extend(parse_catalog(
+    records.extend(catalog(
         DEFERRED_WORK_GATE_JSON,
         "rules/deferred-work-gate.json",
     )?);
@@ -158,9 +176,8 @@ fn ocentra_parent_posture_yields_all_four_expected_records(
     let reexport_posture = registry
         .get(&"T1-PARENTPOSTURE.1".parse()?)
         .ok_or("expected T1-PARENTPOSTURE.1")?;
-    assert_eq!(
-        reexport_posture.params["publicReexportPolicy"],
-        serde_json::json!("forbid")
+    assert!(
+        matches!(reexport_posture.params.get("publicReexportPolicy"), Some(enforcer_domain::rules_types::RuleParameter::Text(value)) if value == "forbid")
     );
 
     // blockedProtocolDependencies posture record references the
@@ -168,10 +185,9 @@ fn ocentra_parent_posture_yields_all_four_expected_records(
     let dependency_posture = registry
         .get(&"T1-PARENTPOSTURE.4".parse()?)
         .ok_or("expected T1-PARENTPOSTURE.4")?;
-    assert!(dependency_posture.params["configSubstrate"]
-        .as_str()
-        .ok_or("expected configSubstrate to be a string")?
-        .contains("CargoDependencyPolicy"));
+    assert!(
+        matches!(dependency_posture.params.get("configSubstrate"), Some(enforcer_domain::rules_types::RuleParameter::Text(value)) if value.contains("CargoDependencyPolicy"))
+    );
 
     Ok(())
 }
@@ -212,15 +228,8 @@ fn malformed_record_is_rejected() -> Result<(), Box<dyn std::error::Error>> {
             "docAnchor": ""
         }
     ]"#;
-    let records = parse_catalog(malformed, "<inline>")?;
-    match load_registry_from_records(records) {
-        Err(RuleLoadError::MalformedRecord { rule_id, reason }) => {
-            assert_eq!(rule_id, "RR-BAD.1");
-            assert_eq!(reason, "validator crateName/path must not be empty");
-        }
-        Err(other) => return Err(format!("unexpected malformed-record error: {other:?}").into()),
-        Ok(_) => return Err("malformed record unexpectedly loaded".into()),
-    }
+    let outcome = catalog(malformed, "<inline>");
+    assert!(matches!(outcome, Err(RuleLoadError::Boundary { .. })));
     Ok(())
 }
 
@@ -231,7 +240,7 @@ fn duplicate_rule_id_across_catalogs_is_rejected() -> Result<(), Box<dyn std::er
     records.push(clone_of_first);
     match load_registry_from_records(records) {
         Err(RuleLoadError::DuplicateRuleId { rule_id }) => {
-            assert_eq!(rule_id, "T1-DENYWALL.1");
+            assert_eq!(rule_id.as_str(), "T1-DENYWALL.1");
         }
         Err(other) => return Err(format!("unexpected duplicate-id error: {other:?}").into()),
         Ok(_) => return Err("duplicate rule id unexpectedly loaded".into()),
@@ -252,11 +261,11 @@ fn seeded_version_drift_fails_closed_on_content_change_without_bump(
     // Seed a drift: bump the doc anchor (a parity artifact) without
     // bumping `version`.
     let mut candidate = baseline.clone();
-    candidate.doc_anchor = format!("{}-moved", baseline.doc_anchor);
+    candidate.doc_anchor = format!("{}-moved", baseline.doc_anchor).parse()?;
 
     assert_eq!(
         check_drift(&baseline, &candidate),
-        DriftOutcome::ContentChangedVersionNotBumped
+        VersionDriftOutcome::ContentChangedVersionNotBumped
     );
     assert!(has_drift(&baseline, &candidate));
     Ok(())
@@ -274,11 +283,12 @@ fn seeded_version_drift_fails_closed_on_hollow_version_bump(
 
     // Seed a drift: bump `version` with no matching fixture/anchor change.
     let mut candidate = baseline.clone();
-    candidate.version += 1;
+    candidate.version =
+        enforcer_domain::rules_types::RuleVersion::new(baseline.version.value() + 1)?;
 
     assert_eq!(
         check_drift(&baseline, &candidate),
-        DriftOutcome::VersionBumpedContentUnchanged
+        VersionDriftOutcome::VersionBumpedContentUnchanged
     );
     assert!(has_drift(&baseline, &candidate));
     Ok(())
@@ -295,12 +305,13 @@ fn legitimate_version_bump_matching_content_change_is_clean(
         .clone();
 
     let mut candidate = baseline.clone();
-    candidate.fixtures.fail = format!("{}.v2", baseline.fixtures.fail);
-    candidate.version += 1;
+    candidate.fixtures.fail = format!("{}.v2", baseline.fixtures.fail).parse()?;
+    candidate.version =
+        enforcer_domain::rules_types::RuleVersion::new(baseline.version.value() + 1)?;
 
     assert_eq!(
         check_drift(&baseline, &candidate),
-        DriftOutcome::ContentChangedVersionBumped
+        VersionDriftOutcome::ContentChangedVersionBumped
     );
     assert!(!has_drift(&baseline, &candidate));
     Ok(())
