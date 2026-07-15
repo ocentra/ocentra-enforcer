@@ -11,7 +11,9 @@
 //! project's `.enforce/config` is silent), so f05 and f03 never disagree
 //! about a tool's effective mode.
 
-use enforcer_config::project_tie::{EnforcerScope, NativeMode, NativeTool, ResolvedProjectTie};
+use enforcer_config::project_tie::ResolvedProjectTie;
+use enforcer_config::serde::{WireEnforcerScope, WireNativeMode, WireNativeTool};
+use enforcer_domain::config_types::{NativeTool, ResolvedNativeTie};
 use serde::{Deserialize, Serialize};
 
 use super::detect::DetectedLanguage;
@@ -19,7 +21,7 @@ use super::detect::DetectedLanguage;
 /// ROUNDTRIP-TEST: `tests/router.rs::route_plan_is_data_driven_and_round_trips_through_json`
 /// proves this nested DTO round-trips as part of its enclosing route plan.
 ///
-/// A serializable projection of `enforcer_config::project_tie::ResolvedNativeTie`
+/// A serializable projection of [`ResolvedNativeTie`]
 /// (mode + scope, no borrowed state) — the tie type itself does not derive
 /// `Serialize`/`Deserialize` (it is an internal resolver output, not a
 /// wire type), so [`NativeToolRouteDto`] carries this flat mirror instead of
@@ -28,16 +30,16 @@ use super::detect::DetectedLanguage;
 #[serde(rename_all = "camelCase")]
 pub struct RouteTieDto {
     /// Effective native mode for this tool.
-    pub mode: NativeMode,
+    pub mode: WireNativeMode,
     /// Effective enforcer-checks scope for this tool.
-    pub scope: EnforcerScope,
+    pub scope: WireEnforcerScope,
 }
 
-impl From<&enforcer_config::project_tie::ResolvedNativeTie> for RouteTieDto {
-    fn from(value: &enforcer_config::project_tie::ResolvedNativeTie) -> Self {
+impl From<&ResolvedNativeTie> for RouteTieDto {
+    fn from(value: &ResolvedNativeTie) -> Self {
         Self {
-            mode: value.mode,
-            scope: value.scope,
+            mode: value.mode.into(),
+            scope: value.scope.into(),
         }
     }
 }
@@ -52,15 +54,15 @@ impl From<&enforcer_config::project_tie::ResolvedNativeTie> for RouteTieDto {
 #[serde(rename_all = "camelCase")]
 pub struct NativeToolRouteDto {
     /// The native tool identity (`cargo`, `tsc`, `ruff`, `dart`, `CFLint`).
-    pub tool: NativeTool,
+    pub tool: WireNativeTool,
     /// The f03-resolved tie (mode + scope) for this tool.
     pub tie: RouteTieDto,
 }
 
-impl From<&enforcer_config::project_tie::ResolvedNativeTie> for NativeToolRouteDto {
-    fn from(value: &enforcer_config::project_tie::ResolvedNativeTie) -> Self {
+impl From<&ResolvedNativeTie> for NativeToolRouteDto {
+    fn from(value: &ResolvedNativeTie) -> Self {
         Self {
-            tool: value.tool,
+            tool: value.tool.into(),
             tie: RouteTieDto::from(value),
         }
     }
@@ -102,12 +104,14 @@ pub fn native_tools_for(
 #[cfg(test)]
 mod tests {
     use super::{native_tools_for, DetectedLanguage};
-    use enforcer_config::project_tie::{NativeMode, NativeTool, ProjectConfig, ResolvedProjectTie};
+    use enforcer_config::project_tie::{ProjectConfig, ResolvedProjectTie};
+    use enforcer_config::serde::{WireNativeMode, WireNativeTool};
+    use enforcer_domain::config_types::ConfigSource;
 
     fn default_tie() -> Result<ResolvedProjectTie, Box<dyn std::error::Error>> {
         Ok(ResolvedProjectTie::resolve(
             &ProjectConfig::default(),
-            "<test>",
+            &ConfigSource("<test>".to_owned()),
         )?)
     }
 
@@ -116,8 +120,8 @@ mod tests {
         let tie = default_tie()?;
         let routes = native_tools_for(DetectedLanguage::Rust, &tie);
         assert_eq!(routes.len(), 1);
-        assert_eq!(routes[0].tool, NativeTool::Cargo);
-        assert_eq!(routes[0].tie.mode, NativeMode::Augment);
+        assert_eq!(routes[0].tool, WireNativeTool::Cargo);
+        assert_eq!(routes[0].tie.mode, WireNativeMode::Augment);
         Ok(())
     }
 

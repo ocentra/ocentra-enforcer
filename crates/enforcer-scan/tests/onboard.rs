@@ -112,9 +112,9 @@ fn onboard_scaffolds_enforce_with_profile_baseline_and_registration() -> TestRes
     assert!(enforce_dir.join(BASELINE_FILE).exists());
     assert!(enforce_dir.join(REGISTRATION_FILE).exists());
 
-    // Profile round-trips through the f03 ProjectConfig serde shape.
+    // Config round-trips through the f03 wire shape at the JSON boundary.
     let config_raw = std::fs::read_to_string(enforce_dir.join(PROJECT_CONFIG_FILE))?;
-    let _config: enforcer_config::project_tie::ProjectConfig = serde_json::from_str(&config_raw)?;
+    let _config: enforcer_config::serde::WireProjectConfig = serde_json::from_str(&config_raw)?;
 
     // Baseline round-trips and grandfathers exactly the fixture's violation.
     let loaded_baseline = onboard::require_onboarded(&root)?;

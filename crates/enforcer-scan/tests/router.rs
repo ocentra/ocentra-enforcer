@@ -8,9 +8,8 @@
 //! name promises. Fixtures assert on the emitted plan, never on side
 //! effects (T1 deterministic, no network, no native-tool invocation).
 
-use enforcer_config::project_tie::{
-    load_project_tie, EnforcerScope, NativeMode, NativeTool, ResolvedProjectTie,
-};
+use enforcer_config::project_tie::{load_project_tie, ResolvedProjectTie};
+use enforcer_config::serde::{WireEnforcerScope, WireNativeMode, WireNativeTool};
 use enforcer_scan::router::detect::DetectedLanguage;
 use enforcer_scan::router::plan::{build_route_plan, RoutePlanDto, RoutePlanScope, RulePack};
 use enforcer_scan::router::scope::RouteScope;
@@ -79,7 +78,7 @@ fn mixed_repo_routes_rust_and_ts_packs_and_native_tools() -> Result<(), Box<dyn 
     );
     assert_eq!(
         plan.native_tools.iter().map(|route| route.tool).collect::<Vec<_>>(),
-        vec![NativeTool::Cargo, NativeTool::Tsc],
+        vec![WireNativeTool::Cargo, WireNativeTool::Tsc],
         "mixed repositories must attach the native tool for each detected language"
     );
     Ok(())
@@ -210,10 +209,10 @@ fn f03_tie_override_is_honored_on_the_route_plan() -> Result<(), Box<dyn std::er
     let cargo_route = plan
         .native_tools
         .iter()
-        .find(|r| r.tool == NativeTool::Cargo)
+        .find(|r| r.tool == WireNativeTool::Cargo)
         .ok_or("expected a cargo native tool route in the plan")?;
-    assert_eq!(cargo_route.tie.mode, NativeMode::Override);
-    assert_eq!(cargo_route.tie.scope, EnforcerScope::Scoped);
+    assert_eq!(cargo_route.tie.mode, WireNativeMode::Override);
+    assert_eq!(cargo_route.tie.scope, WireEnforcerScope::Scoped);
     Ok(())
 }
 

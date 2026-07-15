@@ -26,9 +26,9 @@ use std::str::FromStr;
 
 use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::paths::{RelPath, RepoRoot};
+use enforcer_domain::scan_types::{CommitRef, ScopeRequest};
 use enforcer_domain::severity::Tier;
 
-use crate::scope::{CommitRef, ScopeRequest};
 
 /// The named scan modes an agent/CLI/MCP caller selects. Each variant is a
 /// caller *intent*; [`ScanRequest::resolve`] turns it into a concrete
@@ -378,6 +378,7 @@ fn is_drive_or_unc_absolute(normalized: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{ScanMode, ScanModeError, ScanRequest, TierFilter};
+    use enforcer_domain::scan_types::ScopeRequest;
     use enforcer_domain::paths::{RelPath, RepoRoot};
     use enforcer_domain::severity::Tier;
     use std::str::FromStr;
@@ -434,7 +435,7 @@ mod tests {
         assert_eq!(resolved.mode, ScanMode::Scoped);
         assert!(matches!(
             resolved.scope_request,
-            crate::scope::ScopeRequest::Paths(_)
+            ScopeRequest::Paths(_)
         ));
         Ok(())
     }
@@ -446,7 +447,7 @@ mod tests {
             ..ScanRequest::default()
         };
         let resolved = request.resolve(&repo_root()?, &cwd()?)?;
-        assert_eq!(resolved.scope_request, crate::scope::ScopeRequest::All);
+        assert_eq!(resolved.scope_request, ScopeRequest::All);
         assert_eq!(resolved.tier_filter, TierFilter::All);
         Ok(())
     }
@@ -486,7 +487,7 @@ mod tests {
         let resolved = request.resolve(&repo_root()?, &cwd()?)?;
         assert!(matches!(
             resolved.scope_request,
-            crate::scope::ScopeRequest::Diff { .. }
+            ScopeRequest::Diff { .. }
         ));
         Ok(())
     }
@@ -528,7 +529,7 @@ mod tests {
         let resolved = request.resolve(&repo_root()?, &cwd()?)?;
         assert!(matches!(
             resolved.scope_request,
-            crate::scope::ScopeRequest::Paths(_)
+            ScopeRequest::Paths(_)
         ));
         Ok(())
     }

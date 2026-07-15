@@ -62,14 +62,16 @@
 
 use std::path::Path;
 
-use enforcer_config::project_tie::ProjectConfig;
+use enforcer_config::error::ConfigLoadError;
+use enforcer_config::serde::WireProjectConfig;
 use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::hashes::Sha256;
 use enforcer_domain::paths::RepoRoot;
 
 use crate::engine;
 use crate::rules::baseline_ratchet::{self, Baseline};
-use crate::scope::{self, ScopeRequest};
+use crate::scope;
+use enforcer_domain::scan_types::ScopeRequest;
 use crate::walk::{self, IgnoreRules};
 
 /// Directory onboarding scaffolds under the repo root.
@@ -136,7 +138,7 @@ pub enum OnboardError {
     /// [`ProjectConfig`] (see [`enforcer_config::project_tie`]). Onboarding
     /// refuses to proceed rather than silently replacing an invalid or
     /// malformed config.
-    ConfigLoad(enforcer_config::ConfigLoadError),
+    ConfigLoad(ConfigLoadError),
     /// A scope resolution or validator-registry decode failed during the
     /// baseline scan.
     Decode(DecodeError),
@@ -233,8 +235,10 @@ fn write_default_config_if_absent(config_path: &Path) -> Result<ConfigProvisioni
             .map_err(OnboardError::ConfigLoad)?;
         return Ok(ConfigProvisioning::PreservedExisting);
     }
-    let default_config = ProjectConfig::default();
-    let payload = serde_json::to_vec_pretty(&default_config).map_err(|e| io_err(config_path, e))?;
+    // `.enforce/config` is a wire artifact. Keep its JSON spelling at the
+    // config boundary instead of serializing the resolved domain model.
+    let payload = serde_json::to_vec_pretty(&WireProjectConfig::default())
+        .map_err(|e| io_err(config_path, e))?;
     std::fs::write(config_path, payload).map_err(|e| io_err(config_path, e))?;
     Ok(ConfigProvisioning::WroteDefault)
 }

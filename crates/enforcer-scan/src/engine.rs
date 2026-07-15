@@ -37,15 +37,15 @@
 use rayon::iter::ParallelIterator;
 use rayon::prelude::IntoParallelRefIterator;
 
-use enforcer_config::model::InlineTestPolicy;
+use enforcer_domain::config_types::InlineTestPolicy;
 use enforcer_domain::findings::{Finding, Report, ScanScope, Violation};
 use enforcer_domain::paths::{RelPath, RepoRoot};
+use enforcer_domain::scan_types::ResolvedScope;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
 use crate::cargo_workspace_policy;
 use crate::router::{classify, LanguageFamily};
-use crate::scope::ResolvedScope;
 
 /// Every family's validators, grouped by [`LanguageFamily`] so [`run`]
 /// only invokes the validators actually applicable to a given file.
@@ -289,10 +289,11 @@ mod tests {
     use super::{build_family_validators, fold_report, run};
     use enforcer_domain::findings::{Finding, ScanScope};
     use enforcer_domain::paths::RepoRoot;
+    use enforcer_domain::scan_types::ScopeRequest;
     use enforcer_domain::severity::Severity;
 
     use crate::router::LanguageFamily;
-    use crate::scope::{resolve, ScopeRequest};
+    use crate::scope::resolve;
     use crate::walk::{walk, IgnoreRules};
 
     fn write_file(root: &std::path::Path, rel: &str, contents: &str) -> std::io::Result<()> {

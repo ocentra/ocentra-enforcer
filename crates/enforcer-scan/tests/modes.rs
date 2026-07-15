@@ -10,10 +10,11 @@
 //! - `scoped` is the no-arg default.
 
 use enforcer_domain::paths::RepoRoot;
+use enforcer_domain::scan_types::ScopeRequest;
 use enforcer_domain::severity::Tier;
 use enforcer_scan::engine::{build_family_validators, run};
 use enforcer_scan::modes::{ScanMode, ScanModeError, ScanRequest, TierFilter};
-use enforcer_scan::scope::{resolve, ScopeRequest};
+use enforcer_scan::scope::resolve;
 use enforcer_scan::walk::{walk, IgnoreRules};
 
 fn fixture_root(name: &str) -> std::path::PathBuf {

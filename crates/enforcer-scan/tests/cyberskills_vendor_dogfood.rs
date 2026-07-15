@@ -14,6 +14,7 @@
 use std::path::{Path, PathBuf};
 
 use enforcer_config::resolve::resolve_profile_only;
+use enforcer_domain::config_types::ConfigProfileName;
 use enforcer_scan::walk::{walk, IgnoreRules};
 
 fn repo_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
@@ -33,7 +34,8 @@ fn cyberskills_vendor_not_dogfooded() -> Result<(), Box<dyn std::error::Error>> 
         return Ok(());
     }
 
-    let config = resolve_profile_only("ocentra-enforcer")?;
+    let profile_name = ConfigProfileName("ocentra-enforcer".to_owned());
+    let config = resolve_profile_only(&profile_name)?;
 
     let rules = IgnoreRules {
         ignore_dirs: config.ignore_dirs.clone(),

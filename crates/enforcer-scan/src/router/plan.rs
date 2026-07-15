@@ -197,7 +197,9 @@ mod tests {
     use super::{build_route_plan, RoutePlanScope, RulePack};
     use crate::router::detect::DetectedLanguage;
     use crate::router::scope::RouteScope;
-    use enforcer_config::project_tie::{NativeMode, NativeTool, ProjectConfig, ResolvedProjectTie};
+    use enforcer_config::project_tie::{ProjectConfig, ResolvedProjectTie};
+    use enforcer_config::serde::{WireNativeMode, WireNativeTool};
+    use enforcer_domain::config_types::{ConfigJson, ConfigSource};
     use std::str::FromStr;
 
     fn rel(path: &str) -> Result<enforcer_domain::paths::RelPath, Box<dyn std::error::Error>> {
@@ -207,7 +209,7 @@ mod tests {
     fn default_tie() -> Result<ResolvedProjectTie, Box<dyn std::error::Error>> {
         Ok(ResolvedProjectTie::resolve(
             &ProjectConfig::default(),
-            "<test>",
+            &ConfigSource("<test>".to_owned()),
         )?)
     }
 
@@ -231,11 +233,11 @@ mod tests {
         assert!(plan
             .native_tools
             .iter()
-            .any(|route| route.tool == NativeTool::Cargo));
+            .any(|route| route.tool == WireNativeTool::Cargo));
         assert!(plan
             .native_tools
             .iter()
-            .any(|route| route.tool == NativeTool::Tsc));
+            .any(|route| route.tool == WireNativeTool::Tsc));
         Ok(())
     }
 
@@ -315,15 +317,18 @@ mod tests {
             "native": { "cargo": { "mode": "override" } }
         })
         .to_string();
-        let tie = enforcer_config::project_tie::parse_project_tie(&raw, "<test>")?;
+        let tie = enforcer_config::project_tie::parse_project_tie(
+            &ConfigJson(raw),
+            &ConfigSource("<test>".to_owned()),
+        )?;
         let paths = vec![rel("Cargo.toml")?, rel("src/lib.rs")?];
         let plan = build_route_plan(&paths, &RouteScope::Repo, &tie);
         let cargo_route = plan
             .native_tools
             .iter()
-            .find(|route| route.tool == NativeTool::Cargo)
+            .find(|route| route.tool == WireNativeTool::Cargo)
             .ok_or("expected a cargo native tool route")?;
-        assert_eq!(cargo_route.tie.mode, NativeMode::Override);
+        assert_eq!(cargo_route.tie.mode, WireNativeMode::Override);
         Ok(())
     }
 }

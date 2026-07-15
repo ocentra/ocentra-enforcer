@@ -4,12 +4,13 @@
 //! is found and routed to the right family; the pass fixture's clean tree
 //! produces an empty report.
 
-use enforcer_config::model::InlineTestPolicy;
+use enforcer_domain::config_types::InlineTestPolicy;
 use enforcer_domain::findings::{Finding, Report};
 use enforcer_domain::paths::RepoRoot;
+use enforcer_domain::scan_types::ScopeRequest;
 use enforcer_domain::severity::Severity;
 use enforcer_scan::engine::{build_family_validators, run, run_with_inline_test_policy};
-use enforcer_scan::scope::{resolve, ScopeRequest};
+use enforcer_scan::scope::resolve;
 use enforcer_scan::walk::{walk, IgnoreRules};
 
 fn fixture_root(name: &str) -> std::path::PathBuf {
