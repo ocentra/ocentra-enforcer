@@ -18,7 +18,7 @@ export function applyBoundaryTransportRules({
     if (!/\b(?:TryFrom|From)\s*<[^>]*\b/u.test(source) && !/\b(?:map_to_domain|into_domain|to_domain)\b/u.test(source)) {
       addViolation(violations, root, filePath, lineNo, "RR-14.23", `DTO struct ${name} lacks explicit domain conversion.`, originalLines[lineNo - 1] ?? null);
     }
-    if (!/\b(?:round[-_ ]?trip|ROUNDTRIP-TEST:)\b/iu.test(source)) {
+    if (!/(?:^|[^A-Za-z0-9])(?:round[-_ ]?trip|ROUNDTRIP-TEST:)(?:$|[^A-Za-z0-9])/iu.test(source)) {
       addViolation(violations, root, filePath, lineNo, "RR-14.25", `DTO struct ${name} lacks round-trip test evidence.`, originalLines[lineNo - 1] ?? null);
     }
   }

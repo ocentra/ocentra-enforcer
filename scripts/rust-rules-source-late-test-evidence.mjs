@@ -18,7 +18,7 @@ export function applyProofEvidenceRules({
     const lineNo = firstLineMatching(originalLines, /\bparse[A-Za-z0-9_]*\s*\(/u);
     addViolation(violations, root, filePath, lineNo, "RR-12.17", "parser lacks invalid/empty/oversized/malformed test evidence.", originalLines[lineNo - 1] ?? null);
   }
-  if (/\b(?:TryFrom|From)\s*<[^>]*(?:Dto|Request|Response|Envelope)[^>]*>/u.test(source) && !/\b(?:negative|invalid|reject)\b/iu.test(source)) {
+  if (/\b(?:TryFrom|From)\s*<[^>]*(?:Dto|Request|Response|Envelope)[^>]*>/u.test(source) && !/(?:^|[^A-Za-z0-9])(?:negative|invalid|reject(?:s|ed|ion)?)(?:$|[^A-Za-z0-9])/iu.test(source)) {
     const lineNo = firstLineMatching(originalLines, /\b(?:TryFrom|From)\s*</u);
     addViolation(violations, root, filePath, lineNo, "RR-12.18", "DTO conversion lacks negative test evidence.", originalLines[lineNo - 1] ?? null);
   }

@@ -121,7 +121,7 @@ mod tests {
     }
 
     #[test]
-    fn round_trip(
+    fn github_read_dto_round_trip(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let wire = serde_json::to_string(&pass_dto())?;
         let dto: LiveProtectionStateDto = serde_json::from_str(&wire)?;
@@ -142,7 +142,7 @@ mod tests {
     }
 
     #[test]
-    fn reject() {
+    fn github_read_dto_rejects() {
         let dto = LiveProtectionStateDto {
             required_status_checks: Some(RequiredStatusChecksDto {
                 strict: true,

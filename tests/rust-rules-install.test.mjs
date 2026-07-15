@@ -54,6 +54,39 @@ function commitFixture(project) {
   git(project, ['commit', '-m', 'baseline']);
 }
 
+test('boundary DTO evidence recognizes underscore-separated Rust test names', () => {
+  const project = makeProject({
+    'src/boundary/dto.rs': `
+      #[derive(serde::Serialize, serde::Deserialize)]
+      pub struct InputDto { pub value: String }
+
+      pub struct DomainValue;
+
+      impl TryFrom<InputDto> for DomainValue {
+        type Error = ();
+
+        fn try_from(_dto: InputDto) -> Result<Self, Self::Error> {
+          Ok(Self)
+        }
+      }
+
+      #[cfg(test)]
+      mod tests {
+        #[test]
+        fn wire_round_trip_is_preserved() {}
+
+        #[test]
+        fn invalid_payload_is_rejected() {}
+      }
+    `,
+  });
+  const result = runGateArgs(project, ['scan', '--files', 'src/boundary/dto.rs', '--json']);
+  const report = JSON.parse(result.stdout);
+  const evidenceRules = new Set(report.violations.map((violation) => violation.ruleId));
+  assert.equal(evidenceRules.has('RR-12.18'), false, result.stdout);
+  assert.equal(evidenceRules.has('RR-14.25'), false, result.stdout);
+});
+
 test('doctor reports usable scope', () => {
   const project = makeProject({
     'rust-rules.config.json': JSON.stringify({ requireCargoDeny: false }),
