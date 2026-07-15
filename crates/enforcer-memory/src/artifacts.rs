@@ -31,7 +31,6 @@
 //! `commit`, `indexed_at`, `project`, `nodes`, `edges`, `original_size`,
 //! `compressed_size`, `compression_level`.
 
-use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -528,18 +527,11 @@ pub fn export_graph_artifact(
         source,
     })?;
 
-    let json = serde_json::to_vec(snapshot)?;
-    let original_size = json
+    let compressed = crate::boundary::artifact_transport::encode(snapshot)?;
+    let original_size = serde_json::to_vec(snapshot)?
         .len()
         .try_into()
         .map_err(|_| GraphArtifactError::ArtifactTooLarge)?;
-
-    let mut encoder = zstd::Encoder::new(Vec::new(), GRAPH_ARTIFACT_COMPRESSION_LEVEL)
-        .map_err(GraphArtifactError::Compression)?;
-    encoder
-        .write_all(&json)
-        .map_err(GraphArtifactError::Compression)?;
-    let compressed = encoder.finish().map_err(GraphArtifactError::Compression)?;
     let compressed_size = compressed
         .len()
         .try_into()
@@ -585,13 +577,7 @@ pub fn import_graph_artifact(
     let zst_path = dir.join(GRAPH_ARTIFACT_FILENAME);
     let meta_path = dir.join(GRAPH_ARTIFACT_META_FILENAME);
 
-    let meta_raw =
-        std::fs::read_to_string(&meta_path).map_err(|source| GraphArtifactError::Io {
-            // CLONE-JUSTIFICATION: the typed error must retain the failed path.
-            path: meta_path.clone(),
-            source,
-        })?;
-    let metadata: ArtifactMetadata = serde_json::from_str(&meta_raw)?;
+    let metadata = crate::boundary::artifact_transport::read_metadata(&meta_path)?;
     if metadata.schema_version > GRAPH_ARTIFACT_SCHEMA_VERSION {
         return Err(GraphArtifactError::UnsupportedSchemaVersion {
             found: metadata.schema_version,
@@ -603,9 +589,7 @@ pub fn import_graph_artifact(
         path: zst_path,
         source,
     })?;
-    let decompressed =
-        zstd::decode_all(compressed.as_slice()).map_err(GraphArtifactError::Decompression)?;
-    let snapshot: GraphSnapshot = serde_json::from_slice(&decompressed)?;
+    let snapshot = crate::boundary::artifact_transport::decode(&compressed)?;
 
     Ok((snapshot, metadata))
 }
