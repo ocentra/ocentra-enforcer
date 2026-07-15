@@ -14,6 +14,12 @@ use enforcer_install::ci::branch_protection::{
     emit_payload, resolve_contexts, verify_and_report, BranchProtectionReport, DesiredProtection,
     GhApiPayload, LiveProtectionState, Verdict, WorkflowJob,
 };
+use enforcer_install::ci::boundary::branch_protection::LiveProtectionStateDto;
+use enforcer_install::ci::branch_protection_domain::{
+    BypassAllowance, ContextRequirement, ObservedBranchProtection, PullRequestRequirement,
+    RequiredChecksHealth, UpToDateRequirement,
+};
+use enforcer_domain::ids::GitHubCheckContext;
 use std::path::{Path, PathBuf};
 
 fn fixture_path(name: &str) -> PathBuf {
@@ -30,6 +36,26 @@ fn load_live(name: &str) -> Result<LiveProtectionState, Box<dyn std::error::Erro
 fn load_report(name: &str) -> Result<BranchProtectionReport, Box<dyn std::error::Error>> {
     let raw = std::fs::read_to_string(fixture_path(name))?;
     Ok(serde_json::from_str(&raw)?)
+}
+
+#[test]
+fn github_live_fixture_maps_to_typed_observation() -> Result<(), Box<dyn std::error::Error>> {
+    let raw = std::fs::read_to_string(fixture_path("pass.json"))?;
+    let dto: LiveProtectionStateDto = serde_json::from_str(&raw)?;
+    let observed = ObservedBranchProtection::try_from(dto)?;
+    let context = GitHubCheckContext::try_from("Rust CI / rust-ci (windows-latest)".to_owned())?;
+
+    assert_eq!(
+        observed.context_requirement(&context),
+        ContextRequirement::Present
+    );
+    assert_eq!(observed.up_to_date(), UpToDateRequirement::Required);
+    assert_eq!(observed.pull_requests(), PullRequestRequirement::Required);
+    assert_eq!(observed.administrator_bypass(), BypassAllowance::Denied);
+    assert_eq!(observed.force_push(), BypassAllowance::Denied);
+    assert_eq!(observed.deletion(), BypassAllowance::Denied);
+    assert_eq!(observed.required_checks(), RequiredChecksHealth::Passing);
+    Ok(())
 }
 
 /// The desired configuration for THIS repo's `main`: both CI workflows
@@ -149,7 +175,7 @@ fn emitter_payload_matches_the_pinned_golden_fixture() -> Result<(), Box<dyn std
 }
 
 #[test]
-fn emitter_deduplicates_repeated_workflow_contexts() {
+fn emitter_deduplicates_repeated_workflow_contexts() -> Result<(), Box<dyn std::error::Error>> {
     let repeated = WorkflowJob {
         workflow_name: "Rust CI".to_owned(),
         job_id: "rust-ci".to_owned(),
@@ -159,13 +185,11 @@ fn emitter_deduplicates_repeated_workflow_contexts() {
 
     let contexts = desired.required_contexts();
     assert_eq!(contexts, vec!["Rust CI / rust-ci (ubuntu-latest)".to_owned()]);
-    assert_eq!(
-        emit_payload(&desired)
-            .required_status_checks
-            .expect("nonempty desired protection emits required checks")
-            .contexts,
-        contexts
-    );
+    let required_checks = emit_payload(&desired)
+        .required_status_checks
+        .ok_or("nonempty desired protection emits required checks")?;
+    assert_eq!(required_checks.contexts, contexts);
+    Ok(())
 }
 
 #[test]
