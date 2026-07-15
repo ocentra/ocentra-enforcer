@@ -307,8 +307,8 @@ mod tests {
     }
 
     #[test]
-    /// Serializes each GitHub boundary shape and round-trips it through its
-    /// actual JSON contract.
+    /// Serializes each GitHub boundary shape in a round-trip test of its actual
+    /// JSON contract.
     fn github_branch_protection_dtos_round_trip() -> Result<(), Box<dyn std::error::Error>> {
         let write = BranchProtectionWriteDto {
             required_status_checks: RequiredStatusChecksDto {
