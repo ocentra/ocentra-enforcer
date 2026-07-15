@@ -18,6 +18,9 @@
 //! never a release-pipeline or Action-definition file.
 
 pub mod branch_protection;
+pub mod boundary {
+    pub mod branch_protection;
+}
 pub mod branch_protection_domain;
 pub mod github_action;
 pub mod installer_scripts;
