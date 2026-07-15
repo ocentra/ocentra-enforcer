@@ -103,6 +103,17 @@ pub fn find_user(id: UserId) -> Result<Option<UserRecord>, LookupError> {
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
 });
 
+test('presentation-boundary modules are classified as raw-type boundaries', () => {
+  const project = makeProject({
+    'src/topology_presentation_boundary.rs': `
+/// Formats a topology report at the outbound presentation boundary.
+pub fn rendered_text(value: &str) -> &str { value }
+`,
+  });
+  const result = runGate(project);
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+});
+
 test('unwrap fails with RR-4.1 and helpful output', () => {
   const project = makeProject({
     'src/lib.rs': `

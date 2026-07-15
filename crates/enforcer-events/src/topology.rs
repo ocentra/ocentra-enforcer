@@ -1,50 +1,49 @@
 use std::collections::BTreeSet;
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
+
+use crate::topology_presentation_boundary::{EventTopologyMarkdown, EventTopologyRustType};
 
 use crate::{
     EventContract, EventContractRegistry, EventNamespace, EventType, SourceComponent, SubscriberId,
     TargetHandler,
 };
 
-const MARKDOWN_TITLE: &str = "# Event Topology Manifest";
-const MARKDOWN_HEADER: &str =
-    "| Event Type | Schema Version | Publishers | Subscribers | Families | Status | Rust Type |";
-const MARKDOWN_SEPARATOR: &str = "| --- | --- | --- | --- | --- | --- | --- |";
-const EMPTY_CELL: &str = "none";
-const LIST_SEPARATOR: &str = ", ";
-const SUBSCRIBER_TARGET_SEPARATOR: &str = " -> ";
-const CELL_ESCAPE_TARGET: &str = "|";
-const CELL_ESCAPE_REPLACEMENT: &str = "\\|";
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+/// SERIALIZATION-DOC: outbound topology input is emitted in the canonical eventing manifest.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct EventTopologyPublisher {
     pub event_type: EventType,
     pub source_component: SourceComponent,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+/// SERIALIZATION-DOC: outbound subscriber wiring is emitted in the canonical eventing manifest.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct EventTopologySubscriber {
     pub event_type: EventType,
     pub subscriber_id: SubscriberId,
     pub target_handler: TargetHandler,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+/// SERIALIZATION-DOC: outbound event-family variants are emitted in the canonical eventing manifest.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct EventTopologyFamilyVariant {
     pub family: EventNamespace,
     pub event_type: EventType,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+/// SERIALIZATION-DOC: outbound subscriber targets use stable camelCase field names.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EventTopologySubscriberTarget {
     pub subscriber_id: SubscriberId,
     pub target_handler: TargetHandler,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+/// SERIALIZATION-DOC: outbound topology status is a stable kebab-case wire value.
+/// SERDE-TAG-JUSTIFICATION: this fieldless enum is represented as its explicit status string.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(tag = "status", rename_all = "kebab-case")]
 pub enum EventTopologyStatus {
     Covered,
     NoPublisher,
@@ -52,31 +51,22 @@ pub enum EventTopologyStatus {
     AcceptedOneSided,
 }
 
-impl EventTopologyStatus {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Covered => "covered",
-            Self::NoPublisher => "no-publisher",
-            Self::NoSubscriber => "no-subscriber",
-            Self::AcceptedOneSided => "accepted-one-sided",
-        }
-    }
-}
-
+/// SERIALIZATION-DOC: generated manifest entries are the published topology report contract.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EventTopologyEntry {
     pub contract: EventContract,
-    rust_type: EventTopologyRustType,
+    pub(crate) rust_type: EventTopologyRustType,
     pub publishers: Vec<SourceComponent>,
     pub subscribers: Vec<EventTopologySubscriberTarget>,
     pub families: Vec<EventNamespace>,
     pub status: EventTopologyStatus,
 }
 
+/// SERIALIZATION-DOC: generated manifest wraps the ordered published topology entries.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct EventTopologyManifest {
-    entries: Vec<EventTopologyEntry>,
+    pub(crate) entries: Vec<EventTopologyEntry>,
 }
 
 impl EventTopologyManifest {
@@ -96,12 +86,14 @@ impl EventTopologyManifest {
                     publishers
                         .iter()
                         .filter(|publisher| &publisher.event_type == event_type)
+                        // CLONE-JUSTIFICATION: the manifest owns a stable snapshot independent of caller slices.
                         .map(|publisher| publisher.source_component.clone()),
                 );
                 let subscribers = collect_sorted_unique(
                     subscribers
                         .iter()
                         .filter(|subscriber| &subscriber.event_type == event_type)
+                        // CLONE-JUSTIFICATION: the manifest owns a stable subscriber-target snapshot.
                         .map(|subscriber| EventTopologySubscriberTarget {
                             subscriber_id: subscriber.subscriber_id.clone(),
                             target_handler: subscriber.target_handler.clone(),
@@ -111,9 +103,11 @@ impl EventTopologyManifest {
                     family_variants
                         .iter()
                         .filter(|variant| &variant.event_type == event_type)
+                        // CLONE-JUSTIFICATION: the manifest owns family values after the input slice is released.
                         .map(|variant| variant.family.clone()),
                 );
                 EventTopologyEntry {
+                    // CLONE-JUSTIFICATION: descriptors remain owned by the registry while the manifest owns its contract.
                     contract: EventContract::new(event_type.clone(), descriptor.schema_version()),
                     rust_type: EventTopologyRustType::from_static(descriptor.rust_type()),
                     status: status_for(event_type, &publishers, &subscribers, &accepted),
@@ -133,63 +127,13 @@ impl EventTopologyManifest {
     pub fn unready_entries(&self) -> Vec<&EventTopologyEntry> {
         self.entries
             .iter()
-            .filter(|entry| is_unready_status(entry.status))
+            .filter(|entry| matches!(entry.status, EventTopologyStatus::NoPublisher | EventTopologyStatus::NoSubscriber))
             .collect()
     }
 
-    pub fn render_markdown(&self) -> String {
-        let mut markdown = String::from(MARKDOWN_TITLE);
-        markdown.push_str("\n\n");
-        markdown.push_str(MARKDOWN_HEADER);
-        markdown.push('\n');
-        markdown.push_str(MARKDOWN_SEPARATOR);
-        markdown.push('\n');
-        for entry in &self.entries {
-            markdown.push_str("| ");
-            markdown.push_str(&escape_cell(entry.contract.event_type.as_str()));
-            markdown.push_str(" | ");
-            markdown.push_str(&entry.contract.schema_version.value().to_string());
-            markdown.push_str(" | ");
-            markdown.push_str(&escape_cell(&join_components(&entry.publishers)));
-            markdown.push_str(" | ");
-            markdown.push_str(&escape_cell(&join_subscribers(&entry.subscribers)));
-            markdown.push_str(" | ");
-            markdown.push_str(&escape_cell(&join_families(&entry.families)));
-            markdown.push_str(" | ");
-            markdown.push_str(entry.status.as_str());
-            markdown.push_str(" | ");
-            markdown.push_str(&escape_cell(entry.rust_type.as_str()));
-            markdown.push_str(" |\n");
-        }
-        markdown
+    pub fn render_markdown(&self) -> EventTopologyMarkdown {
+        EventTopologyMarkdown::render(&self.entries)
     }
-}
-
-impl EventTopologyEntry {
-    pub fn rust_type(&self) -> &str {
-        self.rust_type.as_str()
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-#[serde(transparent)]
-struct EventTopologyRustType(String);
-
-impl EventTopologyRustType {
-    fn from_static(value: &'static str) -> Self {
-        Self(String::from(value))
-    }
-
-    fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-fn is_unready_status(status: EventTopologyStatus) -> bool {
-    matches!(
-        status,
-        EventTopologyStatus::NoPublisher | EventTopologyStatus::NoSubscriber
-    )
 }
 
 fn collect_sorted_unique<T>(values: impl Iterator<Item = T>) -> Vec<T>
@@ -218,40 +162,4 @@ fn status_for(
         return EventTopologyStatus::NoPublisher;
     }
     EventTopologyStatus::NoSubscriber
-}
-
-fn join_components(values: &[SourceComponent]) -> String {
-    join_string_values(values.iter().map(SourceComponent::as_str))
-}
-
-fn join_subscribers(values: &[EventTopologySubscriberTarget]) -> String {
-    if values.is_empty() {
-        return String::from(EMPTY_CELL);
-    }
-    values
-        .iter()
-        .map(|subscriber| {
-            let mut value = String::from(subscriber.subscriber_id.as_str());
-            value.push_str(SUBSCRIBER_TARGET_SEPARATOR);
-            value.push_str(subscriber.target_handler.as_str());
-            value
-        })
-        .collect::<Vec<_>>()
-        .join(LIST_SEPARATOR)
-}
-
-fn join_families(values: &[EventNamespace]) -> String {
-    join_string_values(values.iter().map(EventNamespace::as_str))
-}
-
-fn join_string_values<'a>(values: impl Iterator<Item = &'a str>) -> String {
-    let values = values.collect::<Vec<_>>();
-    if values.is_empty() {
-        return String::from(EMPTY_CELL);
-    }
-    values.join(LIST_SEPARATOR)
-}
-
-fn escape_cell(value: &str) -> String {
-    value.replace(CELL_ESCAPE_TARGET, CELL_ESCAPE_REPLACEMENT)
 }

@@ -68,6 +68,7 @@ pub mod replay;
 pub mod request;
 pub mod testkit;
 pub mod topology;
+pub mod topology_presentation_boundary;
 
 use bus::publisher::{EventContext, EventPublisher};
 use bus::reports::dead_letter::{dead_letter_recorded_event_type, DeadLetter, DeadLetterEvent};

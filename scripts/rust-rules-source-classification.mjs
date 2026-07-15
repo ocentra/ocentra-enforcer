@@ -12,7 +12,7 @@ export function isBoundaryModulePath(rel, config) {
   return (
     isTestFile(rel, config) ||
     isRawTypeBoundary(rel, config) ||
-    /(?:^|\/)(?:boundary|boundaries|serde|transport|adapter|adapters)(?:\/|\.|-)/iu.test(
+    /(?:^|[\/_-])(?:boundary|boundaries|serde|transport|adapter|adapters)(?:\/|\.|-|_)/iu.test(
       rel,
     )
   );
