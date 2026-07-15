@@ -24416,7 +24416,7 @@ pub fn agda_quirks() -> Quirks {
 pub fn parse_agda(source: &str) -> ParsedFile {
     let spec = LangSpec::agda();
     let quirks = agda_quirks();
-    let language: tree_sitter::Language = tree_sitter_agda_local::language().into();
+    let language: tree_sitter::Language = tree_sitter_agda::LANGUAGE.into();
     parse_with_spec(source, &language, &spec, &quirks, false)
 }
 
