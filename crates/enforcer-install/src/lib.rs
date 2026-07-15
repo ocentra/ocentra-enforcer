@@ -71,6 +71,7 @@ pub mod ci;
 pub mod cli_contract;
 pub mod commands;
 pub mod core;
+#[path = "boundary/detect_configuration.rs"]
 pub mod detect;
 pub mod distribution;
 pub mod doctor;

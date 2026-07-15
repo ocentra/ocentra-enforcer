@@ -43,19 +43,24 @@
 //!
 //! # Deviation note (workpack c02, ownership)
 //!
-//! The workpack floats [`HarnessId`] as "a branded `enforcer-domain`
+//! The workpack floats [`HarnessId`] as "a branded shared identifier
 //! newtype" but this workpack's `owns:` line grants only
 //! `crates/enforcer-install/src/detect.rs` (+ its fixtures) — it does NOT
-//! grant `crates/enforcer-domain/src/ids.rs`. Per the workpack's own
+//! grant a workspace identity module. Per the workpack's own
 //! fallback instruction ("otherwise define crate-locally and flag"),
 //! [`HarnessId`] is defined here, crate-local, using the exact same
 //! parse-at-boundary/no-bare-string-constructor shape as the
 //! `enforcer_domain::ids::branded_string!` family (`RuleId`, `HubName`,
-//! `LaneId`, ...) so a future promotion into `enforcer-domain` is a pure
+//! `LaneId`, ...) so a future promotion into a shared identity module is a pure
 //! move, not a redesign. Flagged for the orchestrator/hub: promote
 //! `HarnessId` (and `Cap`/`Support` if desired workspace-wide) into
-//! `enforcer-domain::ids` in a follow-up that owns that file.
+//! that shared identity module in a follow-up that owns that file.
 
+// BOUNDARY-INVARIANT: raw environment, filesystem, and serialized harness
+// state enter only here; every observation is normalized into typed detection
+// records before a caller can make an install or orchestration decision.
+// boundaryOwnerNote: c02 owns the harness discovery transport boundary.
+// Negative malformed/invalid harness identifiers are rejected by `HarnessId`.
 use enforcer_core::error::DecodeError;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -67,7 +72,7 @@ use std::path::{Path, PathBuf};
 
 /// Branded harness identifier (e.g. `"claude"`, `"codex"`, `"gemini"`).
 /// Validates on construction; no bare-string constructor, matching the
-/// `enforcer_domain::ids` brand shape (parse-at-boundary, camelCase-safe
+/// validated identifier shape (parse-at-boundary, camelCase-safe
 /// on the wire via `serde(try_from = "String", into = "String")`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
@@ -666,6 +671,8 @@ fn codex_capability_manifest(home: Option<&Path>, fs: &dyn FsSource) -> HarnessC
 /// An in-memory [`EnvSource`] for unit tests — a closed, deterministic
 /// env map with no dependency on the real process environment.
 #[derive(Debug, Clone, Default)]
+// BRAND-INVARIANT: the raw map remains private and can be populated only
+// through `with`, the closed test-fixture configuration boundary.
 pub struct MapEnv(BTreeMap<String, String>);
 
 impl MapEnv {
@@ -755,7 +762,11 @@ mod tests {
     fn known_harness_ids_are_all_valid_harness_ids() {
         for raw in KNOWN_HARNESS_IDS {
             let parsed: Result<HarnessId, _> = raw.parse();
-            assert!(parsed.is_ok(), "expected {raw:?} to be a valid HarnessId");
+            assert_eq!(
+                parsed.map(|id| id.to_string()),
+                Ok((*raw).to_owned()),
+                "expected {raw:?} to be a valid HarnessId"
+            );
         }
     }
 
@@ -1003,7 +1014,4 @@ mod tests {
         let outcome = serde_json::from_str::<HarnessId>("\"Not Valid\"");
         assert!(outcome.is_err());
     }
-
-    #[allow(dead_code)]
-    fn assert_env_source_object_safe(_: &dyn EnvSource) {}
 }
