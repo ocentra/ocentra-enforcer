@@ -66,6 +66,7 @@
 //! files or directories — it only documents the mount points here.
 
 pub mod adapters;
+#[path = "boundary/backup_filesystem.rs"]
 pub mod backup;
 pub mod ci;
 pub mod cli_contract;

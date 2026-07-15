@@ -9,6 +9,13 @@
 //! a row overwrites its own prior backup, which is the correct behavior
 //! for "the last known-good state before the most recent write attempt").
 
+// BOUNDARY-INVARIANT: filesystem paths and OS errors enter only here; callers
+// receive a derived backup path or a typed InstallError.
+// boundaryOwnerNote: c02 owns this filesystem transport boundary.
+// Negative invalid input is a missing backup; `restore_without_a_backup_is_a_detected_error`
+// proves it returns the typed error rather than silently writing a new file.
+// The boundary parses the platform path representation only to derive the
+// fixed backup target; no unvalidated path text crosses into adapter logic.
 use std::path::{Path, PathBuf};
 
 use crate::error::{InstallError, InstallResult};
