@@ -180,6 +180,41 @@ fn validate_threat_id(raw: &str) -> Result<(), DecodeError> {
     }
 }
 
+fn validate_github_check_context(raw: &str) -> Result<(), DecodeError> {
+    let valid = !raw.is_empty()
+        && raw.len() <= 512
+        && raw
+            .chars()
+            .all(|character| !character.is_control() && character != '\n' && character != '\r');
+    if valid {
+        Ok(())
+    } else {
+        Err(DecodeError::new(
+            "githubCheckContext",
+            "expected 1..=512 printable characters without line breaks",
+        ))
+    }
+}
+
+fn validate_github_branch_name(raw: &str) -> Result<(), DecodeError> {
+    let valid = !raw.is_empty()
+        && raw.len() <= 255
+        && !raw.starts_with('-')
+        && !raw.ends_with('/')
+        && !raw.contains("..")
+        && raw
+            .chars()
+            .all(|character| !character.is_control() && !character.is_whitespace() && character != '~' && character != '^' && character != ':' && character != '?' && character != '*' && character != '[' && character != '\\');
+    if valid {
+        Ok(())
+    } else {
+        Err(DecodeError::new(
+            "githubBranchName",
+            "expected a non-empty GitHub branch name without control, whitespace, or Git ref special characters",
+        ))
+    }
+}
+
 branded_string!(
     /// Branded rule identifier (e.g. `RR-6.1`, `DEP-1.1`).
     RuleId,
@@ -221,3 +256,42 @@ branded_string!(
     "threatId",
     validate_threat_id
 );
+
+branded_string!(
+    /// Branded GitHub status-check context, validated before protection policy comparison.
+    GitHubCheckContext,
+    "githubCheckContext",
+    validate_github_check_context
+);
+
+branded_string!(
+    /// Branded GitHub branch name used by branch-protection policy and reports.
+    GitHubBranchName,
+    "githubBranchName",
+    validate_github_branch_name
+);
+
+#[cfg(test)]
+mod tests {
+    use super::{GitHubBranchName, GitHubCheckContext};
+
+    #[test]
+    fn github_check_context_rejects_line_breaks() {
+        assert!(GitHubCheckContext::try_from("Rust CI / rust-ci\nspoof".to_owned()).is_err());
+    }
+
+    #[test]
+    fn github_branch_name_rejects_git_ref_special_characters() {
+        assert!(GitHubBranchName::try_from("main..backup".to_owned()).is_err());
+        assert!(GitHubBranchName::try_from("release candidate".to_owned()).is_err());
+    }
+
+    #[test]
+    fn github_branch_protection_values_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+        let context = GitHubCheckContext::try_from("Rust CI / rust-ci (windows-latest)".to_owned())?;
+        let branch = GitHubBranchName::try_from("main".to_owned())?;
+        assert_eq!(context.as_str(), "Rust CI / rust-ci (windows-latest)");
+        assert_eq!(branch.as_str(), "main");
+        Ok(())
+    }
+}
