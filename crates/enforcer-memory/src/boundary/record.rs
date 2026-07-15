@@ -70,3 +70,26 @@ impl From<MemoryRecordDto> for crate::record::MemoryRecord {
         Self::from_dto(dto)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::MemoryRecordDto;
+
+    #[test]
+    fn record_dto_roundtrip_preserves_the_external_wire_shape() {
+        let source = r#"{"schemaVersion":1,"id":"mem-1","ts":"2026-07-14T00:00:00Z","kind":"lesson","domain":"harness","statement":"Use the local gate.","provenance":{"writer":"primary"}}"#;
+        let dto: MemoryRecordDto = serde_json::from_str(source).expect("valid record DTO");
+        let serialized = serde_json::to_string(&dto).expect("serializable record DTO");
+        let reparsed: MemoryRecordDto =
+            serde_json::from_str(&serialized).expect("roundtrip record DTO");
+        assert_eq!(reparsed, dto);
+    }
+
+    #[test]
+    /// Negative wire input must fail before it can become a domain record.
+    fn negative_record_dto_rejects_missing_required_wire_fields() {
+        let missing_statement =
+            r#"{"schemaVersion":1,"id":"mem-1","ts":"2026-07-14T00:00:00Z","kind":"lesson","domain":"harness","provenance":{"writer":"primary"}}"#;
+        assert!(serde_json::from_str::<MemoryRecordDto>(missing_statement).is_err());
+    }
+}
