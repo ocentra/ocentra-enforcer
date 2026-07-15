@@ -317,9 +317,12 @@ function scanCargoManifest(root, manifest, config, violations) {
       !config.allowPathDependencies &&
       inDependencySection &&
       /\bpath\s*=/u.test(line) &&
-      !isWorkspaceMemberPathDependency({
-        currentSection,
+      !isAllowedPathDependency({
+        root,
+        manifest,
         dependencyName,
+        line,
+        currentSection,
         workspacePackageNames,
       })
     ) {
@@ -429,6 +432,72 @@ function isWorkspaceMemberPathDependency({
     ) &&
     dependencyName !== null &&
     workspacePackageNames.has(dependencyName)
+  );
+}
+
+function isAllowedPathDependency({
+  root,
+  manifest,
+  dependencyName,
+  line,
+  currentSection,
+  workspacePackageNames,
+}) {
+  if (/^tree-sitter-[a-z0-9-]+-local$/u.test(dependencyName ?? "")) {
+    return isFirstPartyVendoredParserDependency({
+      root,
+      manifest,
+      dependencyName,
+      line,
+    });
+  }
+  return isWorkspaceMemberPathDependency({
+    currentSection,
+    dependencyName,
+    workspacePackageNames,
+  });
+}
+
+function isFirstPartyVendoredParserDependency({
+  root,
+  manifest,
+  dependencyName,
+  line,
+}) {
+  if (!dependencyName || !/^tree-sitter-[a-z0-9-]+-local$/u.test(dependencyName)) {
+    return false;
+  }
+  const pathMatch = line.match(/\bpath\s*=\s*"([^"]+)"/u);
+  if (!pathMatch) return false;
+
+  const rootPath = path.resolve(root);
+  const dependencyPath = path.resolve(path.dirname(manifest), pathMatch[1]);
+  const relative = toPosix(path.relative(rootPath, dependencyPath));
+  if (
+    relative.startsWith("../") ||
+    path.isAbsolute(relative) ||
+    !/(?:^|\/)vendor\/tree-sitter-[a-z0-9-]+-local$/u.test(relative)
+  ) {
+    return false;
+  }
+
+  const dependencyManifest = path.join(dependencyPath, "Cargo.toml");
+  const parserSource = path.join(dependencyPath, "src", "parser.c");
+  const librarySource = path.join(dependencyPath, "src", "lib.rs");
+  if (
+    !fs.existsSync(dependencyManifest) ||
+    !fs.existsSync(parserSource) ||
+    !fs.existsSync(librarySource)
+  ) {
+    return false;
+  }
+
+  const cargoText = fs.readFileSync(dependencyManifest, "utf8");
+  const declaredName = packageNameFromManifest(dependencyManifest);
+  return (
+    declaredName === dependencyName &&
+    /(?:^|\n)\s*publish\s*=\s*false\b/u.test(cargoText) &&
+    !/\b(?:path|git)\s*=/u.test(cargoText)
   );
 }
 

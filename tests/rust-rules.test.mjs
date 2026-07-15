@@ -349,6 +349,52 @@ outside = { path = "../outside", version = "0.1.0" }
   assert.doesNotMatch(output, /member.*Path dependency found/u, output);
 });
 
+test('first-party vendored parser dependency passes RR-9.3 structural policy', () => {
+  const project = makeProject({
+    'src/lib.rs': 'pub struct MemoryGraph;\n',
+  });
+  fs.appendFileSync(
+    path.join(project, 'Cargo.toml'),
+    '\n[dependencies]\ntree-sitter-fixture-local = { path = "vendor/tree-sitter-fixture-local" }\n',
+    'utf8',
+  );
+  const vendor = path.join(project, 'vendor', 'tree-sitter-fixture-local');
+  fs.mkdirSync(path.join(vendor, 'src'), { recursive: true });
+  fs.writeFileSync(
+    path.join(vendor, 'Cargo.toml'),
+    '[package]\nname = "tree-sitter-fixture-local"\nversion = "0.1.0"\nedition = "2021"\nrust-version = "1.75"\npublish = false\n',
+    'utf8',
+  );
+  fs.writeFileSync(path.join(vendor, 'src', 'lib.rs'), 'pub struct ParserLanguage;\n', 'utf8');
+  fs.writeFileSync(path.join(vendor, 'src', 'parser.c'), 'int parser_fixture(void) { return 0; }\n', 'utf8');
+
+  const result = runGate(project);
+  const output = `${result.stdout}\n${result.stderr}`;
+  assert.doesNotMatch(output, /RR-9\.3/u, output);
+});
+
+test('vendored parser with nested git dependency still fails RR-9.3', () => {
+  const project = makeProject({
+    'src/lib.rs': 'pub struct MemoryGraph;\n',
+  });
+  fs.appendFileSync(
+    path.join(project, 'Cargo.toml'),
+    '\n[dependencies]\ntree-sitter-fixture-local = { path = "vendor/tree-sitter-fixture-local" }\n',
+    'utf8',
+  );
+  const vendor = path.join(project, 'vendor', 'tree-sitter-fixture-local');
+  fs.mkdirSync(path.join(vendor, 'src'), { recursive: true });
+  fs.writeFileSync(
+    path.join(vendor, 'Cargo.toml'),
+    '[package]\nname = "tree-sitter-fixture-local"\nversion = "0.1.0"\nedition = "2021"\nrust-version = "1.75"\npublish = false\n[dependencies]\nunsafe-parser = { git = "https://example.invalid/parser" }\n',
+    'utf8',
+  );
+  fs.writeFileSync(path.join(vendor, 'src', 'lib.rs'), 'pub struct ParserLanguage;\n', 'utf8');
+  fs.writeFileSync(path.join(vendor, 'src', 'parser.c'), 'int parser_fixture(void) { return 0; }\n', 'utf8');
+
+  expectFailure(project, 'RR-9.3');
+});
+
 test('Cargo loose versions, copyleft licenses, and build dependencies fail scanner', () => {
   const project = makeProject({
     'src/lib.rs': 'pub struct UserId;\n',
