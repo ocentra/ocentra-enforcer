@@ -17,7 +17,9 @@
 //! skips re-download, cache-miss downloads+caches" without spinning up a
 //! real GitHub Actions runner.
 
-use crate::ci::release_pipeline::BinaryVariant;
+use crate::ci::{
+    boundary::release_rendering::render_variant_label, release_pipeline::BinaryVariant,
+};
 
 /// Compute the `actions/cache` key for one `(version, platform-triple,
 /// variant)` combination. Stable/deterministic: the same inputs always
@@ -28,7 +30,7 @@ use crate::ci::release_pipeline::BinaryVariant;
 pub fn cache_key(version: &str, platform_triple: &str, variant: BinaryVariant) -> String {
     format!(
         "enforcer-{}-{platform_triple}-v{version}",
-        variant.asset_label()
+        render_variant_label(variant)
     )
 }
 
@@ -66,7 +68,7 @@ impl Default for ActionInputs {
 /// split).
 #[must_use]
 pub fn render_action_yml() -> String {
-    let default_variant = BinaryVariant::ci_default().asset_label();
+    let default_variant = render_variant_label(BinaryVariant::ci_default());
     format!(
         r#"name: "enforcer scan"
 description: >-

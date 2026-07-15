@@ -16,7 +16,9 @@
 //! out of scope for this pure-rendering module (mirrors every other
 //! emitter in this crate).
 
-use crate::ci::release_pipeline::BinaryVariant;
+use crate::ci::{
+    boundary::release_rendering::render_variant_label, release_pipeline::BinaryVariant,
+};
 use crate::distribution::TargetPlatform;
 
 /// The per-platform optional-dependency package name npm resolves for
@@ -127,7 +129,7 @@ pub fn render_wrapper_package_json(version: &str) -> String {
   "cpu": ["x64", "arm64"]
 }}
 "#,
-        default_variant = BinaryVariant::ci_default().asset_label(),
+        default_variant = render_variant_label(BinaryVariant::ci_default()),
     )
 }
 

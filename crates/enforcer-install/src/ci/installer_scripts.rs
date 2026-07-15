@@ -20,7 +20,10 @@
 //! understanding of what a release asset is named — the scripts are
 //! rendered, not hand-maintained prose that silently rots.
 
-use crate::ci::release_pipeline::{self, BinaryVariant};
+use crate::ci::{
+    boundary::release_rendering::{render_asset_name, render_variant_label},
+    release_pipeline::BinaryVariant,
+};
 use crate::distribution::TargetPlatform;
 use sha2::{Digest, Sha256};
 
@@ -30,7 +33,7 @@ use sha2::{Digest, Sha256};
 /// CI does with the rendered output).
 #[must_use]
 pub fn render_install_sh(version: &str) -> String {
-    let default_variant = BinaryVariant::ci_default().asset_label();
+    let default_variant = render_variant_label(BinaryVariant::ci_default());
     format!(
         r#"#!/usr/bin/env sh
 # enforcer installer (c10 release pipeline) -- POSIX sh, no Rust toolchain
@@ -107,7 +110,7 @@ echo "enforcer installer: installed $INSTALL_DIR/enforcer ($VARIANT, v$VERSION, 
 /// same checksum-verify-or-refuse contract as [`render_install_sh`].
 #[must_use]
 pub fn render_install_ps1(version: &str) -> String {
-    let default_variant = BinaryVariant::ci_default().asset_label();
+    let default_variant = render_variant_label(BinaryVariant::ci_default());
     format!(
         r#"# enforcer installer (c10 release pipeline) -- Windows PowerShell, no
 # Rust toolchain required. Downloads the matching release binary,
@@ -187,7 +190,7 @@ pub fn resolve_asset_name(
             })
         }
     };
-    Ok(release_pipeline::asset_name(platform, variant, version))
+    Ok(render_asset_name(platform, variant, version))
 }
 
 /// Which C runtime a Linux host links against — the installer's own

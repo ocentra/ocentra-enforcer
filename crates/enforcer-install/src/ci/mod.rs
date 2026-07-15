@@ -20,6 +20,7 @@
 pub mod branch_protection;
 pub mod boundary {
     pub mod branch_protection;
+    pub mod release_rendering;
 }
 pub mod branch_protection_domain;
 pub mod github_action;
