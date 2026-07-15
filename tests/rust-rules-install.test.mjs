@@ -386,7 +386,7 @@ pub async fn retry_without_policy(values: Vec<u8>) {
     while retry < 3 {}
     tokio::select! { _ = async_ping() => {} }
     for item in values { compute(item); }
-    while compute(1) > 0 { async_ping().await; }
+    loop { async_ping().await; }
 }
 
 fn retry_without_policy_counter() -> u8 { 0 }
