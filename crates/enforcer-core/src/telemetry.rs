@@ -116,7 +116,7 @@ where
         // redacted `value` is a valid `T` before that exact JSON value is
         // serialized to the line we write and hash.
         let _: T = serde_json::from_value(value.clone()).map_err(|e| {
-            Error::Decode(crate::error::DecodeError::new(
+            Error::Decode(enforcer_domain::boundary::decode_error::DecodeError::new(
                 "runTelemetry.record",
                 format!("record failed fail-closed decode round-trip after redaction: {e}"),
             ))

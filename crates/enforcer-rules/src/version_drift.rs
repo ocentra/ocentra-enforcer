@@ -42,8 +42,8 @@
 
 use std::collections::BTreeMap;
 
-use enforcer_core::error::DecodeError;
 use enforcer_core::hash_chain;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::hashes::Sha256;
 use enforcer_domain::ids::RuleId;
@@ -218,7 +218,7 @@ pub fn hash_record(record: &RuleRecord) -> Sha256 {
 
 /// Hash arbitrary bytes into a branded [`Sha256`] via
 /// `enforcer_core::hash_chain::link_digest`. `link_digest` always returns
-/// `sha256:` + 64 lowercase hex chars by construction (`DIGEST_PREFIX`
+/// `sha256:` + 64 lowercase hex chars by construction (`SHA256_PREFIX`
 /// followed by a `{:02x}`-formatted loop over a fixed-size SHA-256
 /// output — see its definition), which is exactly the shape
 /// [`Sha256::try_from`] accepts. The `unreachable!` below matches the
@@ -455,7 +455,7 @@ mod tests {
     use crate::registry::{FixtureRef, RuleRecord, ValidatorRef};
     use enforcer_domain::severity::Tier;
 
-    fn base() -> Result<RuleRecord, enforcer_core::error::DecodeError> {
+    fn base() -> Result<RuleRecord, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(RuleRecord {
             rule_id: "RR-3.1".parse()?,
             version: 1,
@@ -595,7 +595,7 @@ mod manifest_tests {
     fn sample(
         rule_id: &str,
         version: u32,
-    ) -> Result<RuleRecord, enforcer_core::error::DecodeError> {
+    ) -> Result<RuleRecord, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(RuleRecord {
             rule_id: rule_id.parse()?,
             version,

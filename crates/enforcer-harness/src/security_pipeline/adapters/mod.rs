@@ -17,7 +17,7 @@
 //! pass. Every stage parser calls it before constructing an outcome, so
 //! the invariant cannot drift per stage.
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 
 pub mod concurrency_report;
 pub mod coverage_report;

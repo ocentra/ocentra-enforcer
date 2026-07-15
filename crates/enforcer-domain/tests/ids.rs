@@ -1,7 +1,9 @@
 //! Black-box tests for branded identifier validation and serde boundaries.
 
-use enforcer_core::error::DecodeError;
-use enforcer_domain::ids::{CausationId, CorrelationId, HubName, LaneId, RuleId, ThreatId};
+use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::ids::{
+    CausationId, CorrelationId, HarnessId, HubName, LaneId, RuleId, ThreatId,
+};
 
 fn parse<T: std::str::FromStr<Err = DecodeError>>(raw: &str) -> Result<T, DecodeError> {
     raw.parse()
@@ -61,6 +63,20 @@ fn hub_and_lane_ids_validate() -> Result<(), DecodeError> {
     let lane: LaneId = parse("arc-02")?;
     assert_eq!(lane.as_str(), "arc-02");
     assert_rejected::<LaneId>("UPPER", "laneId")?;
+    Ok(())
+}
+
+#[test]
+fn harness_id_validates_at_the_shared_boundary() -> Result<(), DecodeError> {
+    for valid in ["claude", "codex", "kilocode", "agent-2"] {
+        assert_eq!(parse::<HarnessId>(valid)?.as_str(), valid);
+    }
+    for invalid in ["", "Codex", "has space", "a_b", "a/b"] {
+        assert_rejected::<HarnessId>(invalid, "harnessId")?;
+    }
+    let malformed = serde_json::from_str::<HarnessId>("\"Not Valid\"")
+        .expect_err("malformed harness id JSON must fail branded deserialization");
+    assert_eq!(malformed.classify(), serde_json::error::Category::Data);
     Ok(())
 }
 

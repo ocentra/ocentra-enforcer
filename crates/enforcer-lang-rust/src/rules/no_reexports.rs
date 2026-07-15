@@ -31,7 +31,7 @@ impl NoReexportsValidator {
     /// construction (parse-at-boundary; the literal below is proven valid
     /// by `enforcer_domain::ids` tests, and this constructor is exercised
     /// by this module's own tests).
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "T1-NOREEXPORT.1".parse()?,
         })

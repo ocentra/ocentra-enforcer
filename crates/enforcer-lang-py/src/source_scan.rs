@@ -5,7 +5,7 @@
 //! mentions the same words in a comment, string, or docstring stays silent
 //! -- the mem-arc-06-0002 gotcha this crate's fixtures are built to catch.
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_validator::validator::Validator;
 
 use crate::line_marker::{Guard, LineMarkerValidator, MissingCompanionValidator};

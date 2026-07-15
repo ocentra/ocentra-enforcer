@@ -20,7 +20,7 @@
 //! `aws_s3_bucket_public_access_block`, missing versioning) are deliberately
 //! NOT emitted here — they over-flag — and are tracked as follow-ups.
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;

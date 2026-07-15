@@ -42,7 +42,7 @@
 //! or `Template(...).render(...)` literal, or an ordinary f-string that is
 //! never passed to a template-rendering sink at all.
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;

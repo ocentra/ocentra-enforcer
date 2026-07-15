@@ -1,4 +1,4 @@
-//! Coordination-crate error type. Distinct from `enforcer_core::error::DecodeError`
+//! Coordination-crate error type. Distinct from `enforcer_domain::boundary::decode_error::DecodeError`
 //! because coordination errors are operational (claim conflicts, ledger
 //! corruption, IO) rather than pure decode-at-boundary failures.
 
@@ -13,7 +13,7 @@ pub enum CoordinationError {
     /// Ledger event (de)serialization failure.
     Serde(serde_json::Error),
     /// A domain-layer `enforcer-domain` decode failure (e.g. bad `HubName`/`LaneId`).
-    Decode(enforcer_core::error::DecodeError),
+    Decode(enforcer_domain::boundary::decode_error::DecodeError),
     /// The requested claim/release/closeout could not proceed for a stated reason.
     Rejected(String),
     /// An event's stored hash does not match its recomputed wire hash.
@@ -78,8 +78,8 @@ impl From<serde_json::Error> for CoordinationError {
     }
 }
 
-impl From<enforcer_core::error::DecodeError> for CoordinationError {
-    fn from(err: enforcer_core::error::DecodeError) -> Self {
+impl From<enforcer_domain::boundary::decode_error::DecodeError> for CoordinationError {
+    fn from(err: enforcer_domain::boundary::decode_error::DecodeError) -> Self {
         Self::Decode(err)
     }
 }

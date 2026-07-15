@@ -1,6 +1,6 @@
 //! Branded path newtypes. Paths are stored normalized to forward slashes
 //! (the workspace-canonical representation from
-//! `enforcer_core::platform::normalize_separators`); validation happens at
+//! a local separator normalizer); validation happens at
 //! construction so no illegal path value can exist downstream.
 //!
 //! [`RepoRoot::resolve`] and [`RepoRoot::relativize`] are the only sanctioned
@@ -8,7 +8,11 @@
 //! `RelPath`s, never two `RepoRoot`s), and an absolute string relativizes
 //! against a root back into a validated `RelPath`.
 
-use enforcer_core::error::DecodeError;
+use crate::boundary::decode_error::DecodeError;
+
+fn normalize_separators(path: &str) -> String {
+    path.replace('\\', "/")
+}
 
 /// Branded absolute repository root.
 ///
@@ -77,7 +81,7 @@ impl RepoRoot {
     /// depth: a path already under the root cannot contain a `..` escape,
     /// but the check is re-run via [`RelPath`]'s own constructor).
     pub fn relativize(&self, abs: &str) -> Result<RelPath, DecodeError> {
-        let normalized = enforcer_core::platform::normalize_separators(abs);
+        let normalized = normalize_separators(abs);
         let stripped = normalized
             .strip_prefix(&self.0)
             .and_then(|rest| rest.strip_prefix('/'))
@@ -114,7 +118,7 @@ impl TryFrom<String> for RepoRoot {
         if raw.trim().is_empty() {
             return Err(DecodeError::new("repoRoot", "must not be empty"));
         }
-        let normalized = enforcer_core::platform::normalize_separators(&raw);
+        let normalized = normalize_separators(&raw);
         let unc = normalized.starts_with("//") && normalized.len() > 2;
         let posix = normalized.starts_with('/') && !normalized.starts_with("//");
         let windows = windows_drive_root_marker(&normalized).is_some();
@@ -135,7 +139,7 @@ impl TryFrom<String> for RelPath {
         if raw.trim().is_empty() {
             return Err(DecodeError::new("relPath", "must not be empty"));
         }
-        let normalized = enforcer_core::platform::normalize_separators(&raw);
+        let normalized = normalize_separators(&raw);
         if normalized.starts_with('/') || windows_drive_root_marker(&normalized).is_some() {
             return Err(DecodeError::new(
                 "relPath",
@@ -209,7 +213,7 @@ impl std::fmt::Display for RelPath {
 #[cfg(test)]
 mod tests {
     use super::{RelPath, RepoRoot};
-    use enforcer_core::error::DecodeError;
+    use crate::boundary::decode_error::DecodeError;
 
     #[test]
     fn repo_root_accepts_absolute_forms_and_normalizes() -> Result<(), DecodeError> {

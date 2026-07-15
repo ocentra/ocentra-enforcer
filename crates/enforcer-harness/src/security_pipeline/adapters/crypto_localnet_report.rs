@@ -12,7 +12,8 @@
 //! boundaryOwnerNote: h07 `security_pipeline` owns this parsing seam;
 //! e-pack-crypto-blockchain consumes it read-only when enabled.
 
-use enforcer_core::error::{DecodeError, Result};
+use enforcer_core::error::Result;
+use enforcer_domain::boundary::decode_error::DecodeError;
 
 use crate::security_pipeline::crypto_localnet::{
     CryptoLocalnetActivation, CryptoLocalnetConfig, CryptoLocalnetOutcome,

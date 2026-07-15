@@ -28,8 +28,9 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use enforcer_core::error::{DecodeError, Error as CoreError, Result as CoreResult};
+use enforcer_core::error::{Error as CoreError, Result as CoreResult};
 use enforcer_core::hash_chain::link_digest;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::{Finding, Violation};
 use enforcer_domain::hashes::Sha256;
 use enforcer_domain::ids::RuleId;
@@ -224,7 +225,8 @@ pub type BaselineRecord = BaselineRecordDto;
 impl BaselineRecordDto {
     /// Build a record from a [`Baseline`], computing its integrity hash.
     pub fn from_baseline(baseline: &Baseline) -> CoreResult<Self> {
-        let entries: Vec<BaselineEntryDto> = baseline.known.iter().map(BaselineEntryDto::from).collect();
+        let entries: Vec<BaselineEntryDto> =
+            baseline.known.iter().map(BaselineEntryDto::from).collect();
         let integrity = Self::compute_hash(&entries)?;
         Ok(Self {
             version: BASELINE_RECORD_VERSION,

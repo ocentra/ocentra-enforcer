@@ -127,7 +127,10 @@ impl UnitEntry {
     pub(super) fn missing_category_labels(&self) -> Vec<&'static str> {
         match self.tests.as_ref() {
             Some(tests) => tests.missing_category_labels(),
-            None => REQUIRED_CATEGORIES.iter().map(|(_, label)| *label).collect(),
+            None => REQUIRED_CATEGORIES
+                .iter()
+                .map(|(_, label)| *label)
+                .collect(),
         }
     }
 }

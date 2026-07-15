@@ -7,7 +7,7 @@ fn validate_domain_source(source: &str) -> Result<Vec<enforcer_domain::findings:
     let validator = LayerDomainValidator::new().map_err(|error| error.to_string())?;
     let file: RelPath = "crates/example/src/domain/service.rs"
         .parse()
-        .map_err(|error: enforcer_core::error::DecodeError| error.to_string())?;
+        .map_err(|error: enforcer_domain::boundary::decode_error::DecodeError| error.to_string())?;
     Ok(validator.validate(ValidationInput {
         file: &file,
         source,

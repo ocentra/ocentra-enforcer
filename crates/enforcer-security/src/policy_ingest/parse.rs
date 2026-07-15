@@ -118,19 +118,18 @@ fn parse_rule_line(
     let rule_id_token = item[..open].trim();
     let tier_token = item[open + 1..close].trim();
 
-    let rule_id: RuleId =
-        rule_id_token
-            .parse()
-            .map_err(|decode_err: enforcer_core::error::DecodeError| {
-                PolicyIngestError::MalformedEntry {
-                    spec_source: source_name.to_owned(),
-                    section: section.to_owned(),
-                    reason: format!(
-                        "`{rule_id_token}` is not a well-formed rule id: {}",
-                        decode_err.reason
-                    ),
-                }
-            })?;
+    let rule_id: RuleId = rule_id_token.parse().map_err(
+        |decode_err: enforcer_domain::boundary::decode_error::DecodeError| {
+            PolicyIngestError::MalformedEntry {
+                spec_source: source_name.to_owned(),
+                section: section.to_owned(),
+                reason: format!(
+                    "`{rule_id_token}` is not a well-formed rule id: {}",
+                    decode_err.reason
+                ),
+            }
+        },
+    )?;
 
     let tier = match tier_token {
         "T1" => Tier::T1,

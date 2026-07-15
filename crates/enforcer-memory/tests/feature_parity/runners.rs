@@ -7867,7 +7867,7 @@ fn coordination_error_pattern_probe(row: &QaRow) -> RowResult {
                 &[
                     "pub enum CoordinationError {",
                     "impl From<std::io::Error> for CoordinationError {",
-                    "impl From<enforcer_core::error::DecodeError> for CoordinationError {",
+                    "impl From<enforcer_domain::boundary::decode_error::DecodeError> for CoordinationError {",
                 ],
             ),
             (
@@ -7875,7 +7875,7 @@ fn coordination_error_pattern_probe(row: &QaRow) -> RowResult {
                 "crates/enforcer-coordination/src/api.rs",
                 &[
                     ".map_err(|e| CoordinationError::rejected(format!(\"invalid glob {trimmed}: {e}\")))?",
-                    ".map_err(|e: enforcer_core::error::DecodeError| CoordinationError::from(e))?;",
+                    ".map_err(|e: enforcer_domain::boundary::decode_error::DecodeError| CoordinationError::from(e))?;",
                 ],
             ),
         ],

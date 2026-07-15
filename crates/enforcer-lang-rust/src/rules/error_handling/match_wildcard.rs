@@ -28,7 +28,7 @@ pub struct MatchWildcardValidator {
 impl MatchWildcardValidator {
     /// Build the validator, parsing its own `RuleId` literal at
     /// construction (parse-at-boundary).
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "RUST-MATCH-NO-WILDCARD".parse()?,
         })

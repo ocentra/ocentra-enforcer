@@ -16,8 +16,8 @@
 
 use std::path::PathBuf;
 
-use enforcer_core::error::DecodeError;
 use enforcer_core::platform::normalize_separators;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::ScanScope;
 use enforcer_domain::paths::{RelPath, RepoRoot};
 
@@ -252,7 +252,9 @@ mod tests {
         /// Test helper: the real API is `FromStr`, but spelling
         /// `"main".parse::<CommitRef>()` at every call site reads worse
         /// than a named helper in test code specifically.
-        fn from_str_helper(raw: &str) -> Result<Self, enforcer_core::error::DecodeError> {
+        fn from_str_helper(
+            raw: &str,
+        ) -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
             raw.parse()
         }
     }

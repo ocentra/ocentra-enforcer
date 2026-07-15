@@ -41,7 +41,7 @@ impl TestScanValidator {
     /// Build the validator. Fails closed if the literal `TS-3.1` somehow
     /// stops parsing as a [`RuleId`] (never true in a passing build; see
     /// `tests/completeness.rs`).
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: RULE_ID.parse()?,
         })

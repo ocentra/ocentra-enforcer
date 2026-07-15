@@ -25,8 +25,8 @@
 //! raw-text entry point for run-context tokens, instead of widening any
 //! crate-wide raw-string ownership globs.
 
-use crate::error::DecodeError;
 use crate::run_context::RunContext;
+use enforcer_domain::boundary::decode_error::DecodeError;
 
 /// Environment variable [`resolve_from_process_env`] reads when no
 /// explicit flag value is given. Not read anywhere else in this module —
@@ -149,8 +149,9 @@ mod tests {
         resolve, resolve_from_process_env, AGENT_INLINE_TOKEN, HUMAN_REVIEW_TOKEN,
         RUN_CONTEXT_ENV_VAR,
     };
-    use crate::error::{DecodeError, Result};
+    use crate::error::Result;
     use crate::run_context::RunContext;
+    use enforcer_domain::boundary::decode_error::DecodeError;
 
     /// Every variant of the closed domain, for exhaustive coverage.
     const ALL_CONTEXTS: &[RunContext] = &[RunContext::AgentInline, RunContext::HumanReview];

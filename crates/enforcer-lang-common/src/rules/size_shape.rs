@@ -97,7 +97,7 @@ const FILE_LINE_CAP_RUST: u32 = 400;
 
 impl FileLengthValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "SIZE-FILE-1.1".parse()?,
         })
@@ -213,7 +213,7 @@ const FUNCTION_LINE_CAP: u32 = 30;
 
 impl FunctionLengthValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "SIZE-FUNC-1.1".parse()?,
         })
@@ -326,7 +326,7 @@ const CLASS_PUBLIC_METHOD_CAP: u32 = 12;
 
 impl ClassSizeValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "SIZE-CLASS-1.1".parse()?,
         })
@@ -407,7 +407,7 @@ const PARAM_COUNT_CAP: u32 = 5;
 
 impl ParamCountValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "SIZE-PARAMS-1.1".parse()?,
         })
@@ -458,7 +458,7 @@ const LINE_LENGTH_CAP: usize = 120;
 
 impl LineLengthValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "SIZE-LINE-1.1".parse()?,
         })
@@ -504,7 +504,7 @@ const TEST_FILE_LINE_CAP: u32 = 300;
 
 impl TestFileLengthValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "SIZE-TESTFILE-1.1".parse()?,
         })
@@ -592,7 +592,7 @@ pub struct ComplexityNestingValidator {
 
 impl ComplexityNestingValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "SIZE-CX-1.1".parse()?,
         })
@@ -643,7 +643,7 @@ const PACKAGE_NESTING_DEPTH_CAP: usize = 3;
 
 impl PackageNestingDepthValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "SIZE-NEST-1.1".parse()?,
         })
@@ -716,7 +716,7 @@ pub struct RatchetLengthValidator {
 
 impl RatchetLengthValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FE-LEN-2.1".parse()?,
         })
@@ -754,7 +754,8 @@ impl Validator for RatchetLengthValidator {
 }
 
 /// Build every `size_shape` family validator this crate owns (d22).
-pub fn validators() -> Result<Vec<Box<dyn Validator>>, enforcer_core::error::DecodeError> {
+pub fn validators(
+) -> Result<Vec<Box<dyn Validator>>, enforcer_domain::boundary::decode_error::DecodeError> {
     Ok(vec![
         Box::new(FileLengthValidator::new()?),
         Box::new(FunctionLengthValidator::new()?),
@@ -782,7 +783,7 @@ mod tests {
 
     #[test]
     fn nine_validators_registered_with_unique_rule_ids(
-    ) -> Result<(), enforcer_core::error::DecodeError> {
+    ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
         let vs = validators()?;
         assert_eq!(vs.len(), 9);
         let mut seen = std::collections::BTreeSet::new();

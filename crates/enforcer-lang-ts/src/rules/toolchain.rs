@@ -65,7 +65,9 @@ pub struct ToolchainValidator {
 }
 
 impl ToolchainValidator {
-    fn new_for(spec_index: usize) -> Result<Self, enforcer_core::error::DecodeError> {
+    fn new_for(
+        spec_index: usize,
+    ) -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         let rule_id: RuleId = SPECS[spec_index].rule_id.parse()?;
         Ok(Self {
             rule_id,
@@ -74,22 +76,22 @@ impl ToolchainValidator {
     }
 
     /// TS-5.1.
-    pub fn ts_5_1() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn ts_5_1() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Self::new_for(0)
     }
 
     /// TS-7.1.
-    pub fn ts_7_1() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn ts_7_1() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Self::new_for(1)
     }
 
     /// TS-7.12.
-    pub fn ts_7_12() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn ts_7_12() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Self::new_for(2)
     }
 
     /// TS-7.13.
-    pub fn ts_7_13() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn ts_7_13() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Self::new_for(3)
     }
 }

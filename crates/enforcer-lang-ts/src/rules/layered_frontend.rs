@@ -96,7 +96,7 @@ pub struct NoRepoInRouterValidator {
 
 impl NoRepoInRouterValidator {
     /// Build the validator.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "LFE-1.1".parse()?,
         })
@@ -166,7 +166,7 @@ pub struct NoFetchInUseEffectValidator {
 
 impl NoFetchInUseEffectValidator {
     /// Build the validator.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "LFE-1.2".parse()?,
         })
@@ -270,7 +270,7 @@ pub struct FeatureBoundariesValidator {
 
 impl FeatureBoundariesValidator {
     /// Build the validator.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "LFE-1.3".parse()?,
         })
@@ -332,7 +332,7 @@ pub struct StrEnumOnlyValidator {
 
 impl StrEnumOnlyValidator {
     /// Build the validator.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "LFE-1.4".parse()?,
         })
@@ -415,7 +415,7 @@ pub struct SymbolLevelDiValidator {
 
 impl SymbolLevelDiValidator {
     /// Build the validator.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "LFE-1.5".parse()?,
         })
@@ -480,7 +480,8 @@ impl Validator for SymbolLevelDiValidator {
 /// through the standalone `enforcer-rules` catalog
 /// (`rules/layered-frontend.json`), NOT `registry::build_all` (see module
 /// docs).
-pub fn validators() -> Result<Vec<Box<dyn Validator>>, enforcer_core::error::DecodeError> {
+pub fn validators(
+) -> Result<Vec<Box<dyn Validator>>, enforcer_domain::boundary::decode_error::DecodeError> {
     Ok(vec![
         Box::new(NoRepoInRouterValidator::new()?),
         Box::new(NoFetchInUseEffectValidator::new()?),
@@ -504,7 +505,7 @@ mod tests {
 
     #[test]
     fn five_validators_registered_with_unique_rule_ids(
-    ) -> Result<(), enforcer_core::error::DecodeError> {
+    ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
         let vs = validators()?;
         assert_eq!(vs.len(), 5);
         let mut seen = std::collections::BTreeSet::new();

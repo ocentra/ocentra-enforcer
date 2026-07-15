@@ -87,7 +87,7 @@ fn pytest_diagnostic() -> HarnessDiagnostic {
     }
 }
 
-fn feedback_spec() -> Result<ScaffoldSpec, enforcer_core::error::DecodeError> {
+fn feedback_spec() -> Result<ScaffoldSpec, enforcer_domain::boundary::decode_error::DecodeError> {
     Ok(ScaffoldSpec {
         rule_id: "RR-96.1".parse()?,
         title: "No mismatched frobnication (auto-proposed from a harness failure)".to_owned(),

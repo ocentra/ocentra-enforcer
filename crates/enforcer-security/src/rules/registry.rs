@@ -8,7 +8,7 @@
 //! extend, not a file they own outright (this file is part of the
 //! skeleton `owns:` set per the workpack's Parallel Ownership Notes).
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_validator::validator::Validator;
 
 use crate::cyberskills::frontmatter_lint::SkillFrontmatterValidValidator;

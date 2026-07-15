@@ -69,9 +69,10 @@ pub mod rules;
 /// Build every validator this crate registers, across all eight rule
 /// modules. Order is not significant to any consumer — `enforcer-scan`
 /// dispatches by `RuleId`, not by vec position.
-pub fn all_validators(
-) -> Result<Vec<Box<dyn enforcer_validator::validator::Validator>>, enforcer_core::error::DecodeError>
-{
+pub fn all_validators() -> Result<
+    Vec<Box<dyn enforcer_validator::validator::Validator>>,
+    enforcer_domain::boundary::decode_error::DecodeError,
+> {
     let mut validators = Vec::new();
     validators.extend(rules::arch::all()?);
     validators.extend(rules::types::all()?);

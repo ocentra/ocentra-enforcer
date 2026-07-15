@@ -112,7 +112,7 @@ pub struct OwnersetValidator {
 
 impl OwnersetValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "OWNERSET-1.1".parse()?,
         })
@@ -134,7 +134,8 @@ impl Validator for OwnersetValidator {
 }
 
 /// Build every `change_discipline` family validator this crate owns (d21).
-pub fn validators() -> Result<Vec<Box<dyn Validator>>, enforcer_core::error::DecodeError> {
+pub fn validators(
+) -> Result<Vec<Box<dyn Validator>>, enforcer_domain::boundary::decode_error::DecodeError> {
     Ok(vec![Box::new(OwnersetValidator::new()?)])
 }
 
@@ -150,16 +151,17 @@ mod tests {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
     }
 
-    fn path(p: &str) -> Result<RelPath, enforcer_core::error::DecodeError> {
+    fn path(p: &str) -> Result<RelPath, enforcer_domain::boundary::decode_error::DecodeError> {
         p.parse()
     }
 
-    fn rule_id() -> Result<RuleId, enforcer_core::error::DecodeError> {
+    fn rule_id() -> Result<RuleId, enforcer_domain::boundary::decode_error::DecodeError> {
         "OWNERSET-1.1".parse()
     }
 
     #[test]
-    fn one_validator_registered() -> Result<(), enforcer_core::error::DecodeError> {
+    fn one_validator_registered() -> Result<(), enforcer_domain::boundary::decode_error::DecodeError>
+    {
         let vs = validators()?;
         assert_eq!(vs.len(), 1);
         assert_eq!(vs[0].rule_id().as_str(), "OWNERSET-1.1");
@@ -168,7 +170,7 @@ mod tests {
 
     #[test]
     fn dropped_marker_is_flagged_naming_file_and_lost_text(
-    ) -> Result<(), enforcer_core::error::DecodeError> {
+    ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
         let base = "- [ ] Seam A (owner-set, RESTORED): do the thing\n\
                      - [ ] Seam B (owner-set): do the other thing\n";
         let head = "- [ ] Seam A (owner-set, RESTORED): do the thing\n";
@@ -181,7 +183,8 @@ mod tests {
     }
 
     #[test]
-    fn identical_markers_are_clean() -> Result<(), enforcer_core::error::DecodeError> {
+    fn identical_markers_are_clean(
+    ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
         let base = "- [ ] Seam A (owner-set): keep this\n";
         let head = "- [ ] Seam A (owner-set): keep this\n";
         assert!(check_ownerset(base, head, &path("f.md")?, &rule_id()?).is_empty());
@@ -189,7 +192,8 @@ mod tests {
     }
 
     #[test]
-    fn moved_or_reordered_marker_is_clean() -> Result<(), enforcer_core::error::DecodeError> {
+    fn moved_or_reordered_marker_is_clean(
+    ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
         let base = "intro\n- [ ] Seam A (owner-set): keep this\noutro\n";
         let head = "outro\nintro\n- [ ] Seam A (owner-set): keep this\n";
         assert!(check_ownerset(base, head, &path("f.md")?, &rule_id()?).is_empty());
@@ -197,7 +201,8 @@ mod tests {
     }
 
     #[test]
-    fn new_marker_added_is_clean() -> Result<(), enforcer_core::error::DecodeError> {
+    fn new_marker_added_is_clean(
+    ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
         let base = "- [ ] Seam A (owner-set): keep this\n";
         let head = "- [ ] Seam A (owner-set): keep this\n\
                      - [ ] Seam B (owner-set): brand new requirement\n";
@@ -206,7 +211,8 @@ mod tests {
     }
 
     #[test]
-    fn unrelated_edit_near_marker_is_clean() -> Result<(), enforcer_core::error::DecodeError> {
+    fn unrelated_edit_near_marker_is_clean(
+    ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
         let base = "context line one\n- [ ] Seam A (owner-set): keep this\ncontext line two\n";
         let head =
             "context line one, reworded\n- [ ] Seam A (owner-set): keep this\ncontext line two, also reworded\n";
@@ -215,7 +221,8 @@ mod tests {
     }
 
     #[test]
-    fn no_markers_in_base_is_clean() -> Result<(), enforcer_core::error::DecodeError> {
+    fn no_markers_in_base_is_clean(
+    ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
         assert!(check_ownerset(
             "plain doc\n",
             "plain doc, hardened\n",
@@ -292,7 +299,7 @@ mod tests {
     /// crate's other `rules::*` modules' harness-failure expectations.
     #[test]
     fn harness_fails_closed_when_validator_never_fires_on_a_real_drop(
-    ) -> Result<(), enforcer_core::error::DecodeError> {
+    ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
         struct NeverFiresValidator {
             rule_id: RuleId,
         }

@@ -25,9 +25,9 @@ use std::io::{Read as _, Write as _};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener, TcpStream};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use enforcer_core::error::DecodeError;
 use enforcer_core::run_context::boundary::resolve;
 use enforcer_core::run_context::{RunContext, SilentModeRefusal};
+use enforcer_domain::boundary::decode_error::DecodeError;
 
 /// The exact structured HTML body the in-test surface serves under
 /// `HumanReview` — asserted byte-for-byte after a real loopback round

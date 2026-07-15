@@ -13,7 +13,7 @@
 
 use std::collections::BTreeMap;
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use serde::{Deserialize, Serialize};
 
 use crate::error::{ConfigLoadError, ConfigResult};

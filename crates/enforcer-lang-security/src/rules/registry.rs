@@ -4,7 +4,7 @@
 //! `rules/rules.json`'s `family == "security"` count (22) — one entry per
 //! rule id, no orphans, no duplicates.
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_validator::validator::Validator;
 
 use super::generic_scanner;

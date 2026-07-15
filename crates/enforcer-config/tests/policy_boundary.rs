@@ -7,7 +7,7 @@ use enforcer_config::policy::{Policy, RuleToggle, Waiver};
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 
-fn rule_id(value: &str) -> Result<RuleId, enforcer_core::error::DecodeError> {
+fn rule_id(value: &str) -> Result<RuleId, enforcer_domain::boundary::decode_error::DecodeError> {
     RuleId::from_str(value)
 }
 

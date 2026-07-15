@@ -145,15 +145,14 @@ impl ClaudeAdapter {
     }
 
     fn repo_root(path: &Path) -> InstallResult<RepoRoot> {
-        path.display()
-            .to_string()
-            .try_into()
-            .map_err(
-                |e: enforcer_core::error::DecodeError| InstallError::MalformedConfig {
+        path.display().to_string().try_into().map_err(
+            |e: enforcer_domain::boundary::decode_error::DecodeError| {
+                InstallError::MalformedConfig {
                     path: path.display().to_string(),
                     reason: e.to_string(),
-                },
-            )
+                }
+            },
+        )
     }
 
     /// Read `~/.claude.json` as a JSON [`Value`], defaulting to an empty

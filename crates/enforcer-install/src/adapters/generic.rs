@@ -135,12 +135,12 @@ impl GenericAdapter {
             .display()
             .to_string()
             .try_into()
-            .map_err(
-                |e: enforcer_core::error::DecodeError| InstallError::MalformedConfig {
+            .map_err(|e: enforcer_domain::boundary::decode_error::DecodeError| {
+                InstallError::MalformedConfig {
                     path: self.config.target_path.display().to_string(),
                     reason: e.to_string(),
-                },
-            )?;
+                }
+            })?;
         Ok(PlannedChange {
             harness: self.config.harness_key.to_owned(),
             kind: ArtifactKind::McpRegistration,

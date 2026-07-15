@@ -16,7 +16,8 @@
 //! recorded_honesty_matrix_property_holds_for_every_stage_shape` drives
 //! this parser over a generated shape matrix.
 
-use enforcer_core::error::{DecodeError, Result};
+use enforcer_core::error::Result;
+use enforcer_domain::boundary::decode_error::DecodeError;
 
 use crate::security_pipeline::fuzz::{FuzzFailure, FuzzOutcome};
 use crate::security_pipeline::seam::{EngineDetailText, EngineRuleLabel, SeedText};

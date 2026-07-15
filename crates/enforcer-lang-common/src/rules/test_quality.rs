@@ -107,7 +107,7 @@ pub struct TestCompanionRequiredValidator {
 
 impl TestCompanionRequiredValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "TEST-COMPANION.1".parse()?,
         })
@@ -175,7 +175,7 @@ pub struct AssertionFreeTestValidator {
 
 impl AssertionFreeTestValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "TEST-ASSERTIONFREE.1".parse()?,
         })
@@ -271,7 +271,7 @@ pub struct BehavioralTestNameValidator {
 
 impl BehavioralTestNameValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "TEST-BEHAVIORNAME.1".parse()?,
         })
@@ -352,7 +352,7 @@ pub struct AssertOnVariantNotMessageValidator {
 
 impl AssertOnVariantNotMessageValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "TEST-VARIANT.1".parse()?,
         })
@@ -409,7 +409,7 @@ pub struct TestDataFactoryValidator {
 
 impl TestDataFactoryValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "TEST-FACTORY.1".parse()?,
         })
@@ -473,7 +473,7 @@ pub struct NoWallClockAssertValidator {
 
 impl NoWallClockAssertValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "TEST-NOWALLCLOCK.1".parse()?,
         })
@@ -538,7 +538,7 @@ pub struct CoverageGatePresenceValidator {
 
 impl CoverageGatePresenceValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "TEST-COVERAGEGATE.1".parse()?,
         })
@@ -619,7 +619,7 @@ pub struct CoverageFailFloorValidator {
 
 impl CoverageFailFloorValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "TEST-COVERAGEFLOOR.1".parse()?,
         })
@@ -661,7 +661,8 @@ impl Validator for CoverageFailFloorValidator {
 }
 
 /// Build every `test_quality` family validator this crate owns (d23).
-pub fn validators() -> Result<Vec<Box<dyn Validator>>, enforcer_core::error::DecodeError> {
+pub fn validators(
+) -> Result<Vec<Box<dyn Validator>>, enforcer_domain::boundary::decode_error::DecodeError> {
     Ok(vec![
         Box::new(TestCompanionRequiredValidator::new()?),
         Box::new(AssertionFreeTestValidator::new()?),
@@ -688,7 +689,7 @@ mod tests {
 
     #[test]
     fn eight_validators_registered_with_unique_rule_ids(
-    ) -> Result<(), enforcer_core::error::DecodeError> {
+    ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
         let vs = validators()?;
         assert_eq!(vs.len(), 8);
         let mut seen = std::collections::BTreeSet::new();

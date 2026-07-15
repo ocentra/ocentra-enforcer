@@ -10,7 +10,7 @@
 //! it is a failure this module surfaces explicitly rather than letting an
 //! empty findings list masquerade as "all clear".
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 
 use crate::outcome::{Outcome, SkipReason};
 use enforcer_domain::paths::RelPath;
@@ -117,7 +117,11 @@ impl CoverageDto {
         Coverage {
             ran_count: self.ran_count,
             skipped_count: self.skipped_count,
-            skips: self.skips.into_iter().map(SkipRecordDto::into_domain).collect(),
+            skips: self
+                .skips
+                .into_iter()
+                .map(SkipRecordDto::into_domain)
+                .collect(),
         }
     }
 }

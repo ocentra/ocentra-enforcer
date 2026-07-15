@@ -49,8 +49,8 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
-use enforcer_core::error::DecodeError;
 use enforcer_core::hash_chain::{link_digest, verify_chain};
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::paths::RelPath;

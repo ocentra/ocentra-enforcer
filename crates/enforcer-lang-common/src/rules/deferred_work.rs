@@ -62,7 +62,7 @@ impl DeferredWorkValidator {
     /// Build the validator, parsing its own `RuleId` literal at
     /// construction (parse-at-boundary, mirroring every other bespoke
     /// validator in this crate/workspace).
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "DEFER-1.1".parse()?,
         })

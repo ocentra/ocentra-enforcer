@@ -3,7 +3,7 @@
 //! [`crate::model::EffectiveConfig`]. Zero project config resolves to the
 //! `default` profile alone.
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use serde_json::Value;
 
 use crate::error::{ConfigLoadError, ConfigResult};

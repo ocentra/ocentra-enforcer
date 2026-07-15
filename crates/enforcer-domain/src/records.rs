@@ -121,9 +121,10 @@ mod tests {
     use super::{
         ArtifactRef, DiagnosticRecord, EnforcerEvent, RunEvent, ScanEvent, SCHEMA_VERSION,
     };
+    use crate::boundary::decode_error::DecodeError;
     use crate::findings::ScanScope;
+    use crate::hashes::Sha256;
     use crate::severity::Severity;
-    use enforcer_core::error::DecodeError;
 
     fn json_err(e: &serde_json::Error) -> DecodeError {
         DecodeError::new("records", e.to_string())
@@ -178,18 +179,18 @@ mod tests {
 
     #[test]
     fn artifact_ref_round_trips_with_branded_digest() -> Result<(), DecodeError> {
-        let digest = enforcer_core::hash_chain::link_digest(None, b"artifact-bytes");
+        let digest = Sha256::of(b"artifact-bytes");
         let event = EnforcerEvent::Artifact(ArtifactRef {
             schema_version: SCHEMA_VERSION,
             correlation_id: "run-003".parse()?,
             causation_id: None,
             path: "proof/cargo/arc-02.txt".parse()?,
-            sha256: digest.parse()?,
+            sha256: digest.clone(),
             kind: "proof".to_owned(),
         });
         let wire = serde_json::to_value(&event).map_err(|e| json_err(&e))?;
         assert_eq!(wire["eventType"], "artifact");
-        assert_eq!(wire["sha256"], digest);
+        assert_eq!(wire["sha256"], digest.as_str());
         let back: EnforcerEvent = serde_json::from_value(wire).map_err(|e| json_err(&e))?;
         assert_eq!(back, event);
         Ok(())
@@ -233,30 +234,6 @@ mod tests {
             "durationMs": 1
         });
         assert!(serde_json::from_value::<EnforcerEvent>(bad_id).is_err());
-        Ok(())
-    }
-
-    #[test]
-    fn records_ride_the_core_ndjson_sink() -> Result<(), enforcer_core::error::Error> {
-        // Integration seam: domain records through the arc-01 mechanism.
-        let unique = format!(
-            "enforcer-domain-records-{}-{}.ndjson",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_nanos())
-                .unwrap_or_default()
-        );
-        let path = std::env::temp_dir().join(unique);
-        {
-            let mut sink: enforcer_core::ndjson_writer::NdjsonWriter<EnforcerEvent> =
-                enforcer_core::ndjson_writer::NdjsonWriter::open(&path)?;
-            sink.append(&EnforcerEvent::Run(sample_run()?))?;
-        }
-        let back: Vec<EnforcerEvent> = enforcer_core::ndjson_writer::read_all(&path)?;
-        assert_eq!(back.len(), 1);
-        assert!(matches!(back[0], EnforcerEvent::Run(_)));
-        std::fs::remove_file(&path)?;
         Ok(())
     }
 }

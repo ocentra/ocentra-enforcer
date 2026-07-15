@@ -8,7 +8,7 @@
 //! source -- their fixtures are `.json`/`.yaml`, mirroring
 //! `enforcer-lang-dart::rules::toolchain`'s posture for `pubspec.yaml`/CI.
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};

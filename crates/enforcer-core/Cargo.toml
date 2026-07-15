@@ -15,17 +15,13 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 sha2 = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: core consumes the shared boundary DecodeError and
+# SHA-256 brand directly; enforcer-domain remains the dependency leaf.
+enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 # `regex` powers the core redaction matcher. It is intentionally direct because
 # the root workspace manifest is owned by a separate integration packet; pin the
 # resolved compatible release so this crate's build remains reproducible.
 regex = "=1.12.4"
-
-[dev-dependencies]
-# Dev-only: enforcer-domain (arc-02) depends on enforcer-core, so this edge
-# only exists for the test binary, not the library build graph — no cycle.
-# Used by tests/telemetry.rs to prove the generic sink against the concrete
-# `enforcer-domain::run_record::RunRecord` shape (d04).
-enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 
 [lints]
 workspace = true

@@ -70,14 +70,16 @@ impl LiteralScanBridgeValidator {
     /// threshold, parsing its own `RuleId` literal at construction
     /// (parse-at-boundary, mirroring every other bespoke validator in this
     /// workspace).
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Self::with_min_score(DEFAULT_MIN_SCORE)
     }
 
     /// Build the bridge validator with an explicit advisory threshold
     /// (e.g. for a caller that wires a project-specific `fail_above`-style
     /// override through to the universal floor).
-    pub fn with_min_score(min_score: u8) -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn with_min_score(
+        min_score: u8,
+    ) -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "LIT-2.1".parse()?,
             min_score,

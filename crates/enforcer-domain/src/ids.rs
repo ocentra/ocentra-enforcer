@@ -2,7 +2,7 @@
 //! public raw-string constructor; parse at the boundary, use the brand
 //! everywhere after.
 
-use enforcer_core::error::DecodeError;
+use crate::boundary::decode_error::DecodeError;
 
 /// Declare a branded string newtype with validation and serde boundary wiring.
 macro_rules! branded_string {
@@ -132,6 +132,22 @@ fn validate_lane_id(raw: &str) -> Result<(), DecodeError> {
     }
 }
 
+fn validate_harness_id(raw: &str) -> Result<(), DecodeError> {
+    let ok = !raw.is_empty()
+        && raw.len() <= 64
+        && raw
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
+    if ok {
+        Ok(())
+    } else {
+        Err(DecodeError::new(
+            "harnessId",
+            "expected lowercase kebab-case (e.g. `claude`, `codex`, `kilocode`)",
+        ))
+    }
+}
+
 fn validate_correlation_like(raw: &str) -> Result<(), DecodeError> {
     let ok = !raw.is_empty()
         && raw.len() <= 128
@@ -202,9 +218,17 @@ fn validate_github_branch_name(raw: &str) -> Result<(), DecodeError> {
         && !raw.starts_with('-')
         && !raw.ends_with('/')
         && !raw.contains("..")
-        && raw
-            .chars()
-            .all(|character| !character.is_control() && !character.is_whitespace() && character != '~' && character != '^' && character != ':' && character != '?' && character != '*' && character != '[' && character != '\\');
+        && raw.chars().all(|character| {
+            !character.is_control()
+                && !character.is_whitespace()
+                && character != '~'
+                && character != '^'
+                && character != ':'
+                && character != '?'
+                && character != '*'
+                && character != '['
+                && character != '\\'
+        });
     if valid {
         Ok(())
     } else {
@@ -234,6 +258,13 @@ branded_string!(
     LaneId,
     "laneId",
     validate_lane_id
+);
+
+branded_string!(
+    /// Branded agent-harness identifier (e.g. `claude`, `codex`, `kilocode`).
+    HarnessId,
+    "harnessId",
+    validate_harness_id
 );
 
 branded_string!(
@@ -288,7 +319,8 @@ mod tests {
 
     #[test]
     fn github_branch_protection_values_round_trip() -> Result<(), Box<dyn std::error::Error>> {
-        let context = GitHubCheckContext::try_from("Rust CI / rust-ci (windows-latest)".to_owned())?;
+        let context =
+            GitHubCheckContext::try_from("Rust CI / rust-ci (windows-latest)".to_owned())?;
         let branch = GitHubBranchName::try_from("main".to_owned())?;
         assert_eq!(context.as_str(), "Rust CI / rust-ci (windows-latest)");
         assert_eq!(branch.as_str(), "main");

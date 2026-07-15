@@ -5,7 +5,7 @@
 //! `DART-NAV-2.*` (scored: imperative navigation), and `DART-L10N-2.1`
 //! (scored: hardcoded user-facing string).
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};

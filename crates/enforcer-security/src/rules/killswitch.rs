@@ -38,7 +38,7 @@
 //!   source — its absence is flagged as "untested kill switch is
 //!   forbidden", independent of the mechanical properties above.
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;

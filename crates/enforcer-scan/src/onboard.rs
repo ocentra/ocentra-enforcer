@@ -63,7 +63,7 @@
 use std::path::Path;
 
 use enforcer_config::project_tie::ProjectConfig;
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::hashes::Sha256;
 use enforcer_domain::paths::RepoRoot;
 

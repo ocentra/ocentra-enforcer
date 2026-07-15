@@ -19,17 +19,19 @@ pub fn resolve_request(args: &ScopeArgs) -> Result<enforcer_scan::scope::ScopeRe
         return Ok(enforcer_scan::scope::ScopeRequest::Diff {
             base: base
                 .parse()
-                .map_err(|e: enforcer_core::error::DecodeError| e.to_string())?,
+                .map_err(|e: enforcer_domain::boundary::decode_error::DecodeError| e.to_string())?,
             head: head
                 .parse()
-                .map_err(|e: enforcer_core::error::DecodeError| e.to_string())?,
+                .map_err(|e: enforcer_domain::boundary::decode_error::DecodeError| e.to_string())?,
         });
     }
     if args.all {
         return Ok(enforcer_scan::scope::ScopeRequest::All);
     }
     if !args.paths.is_empty() {
-        return Ok(enforcer_scan::scope::ScopeRequest::Paths(args.paths.clone()));
+        return Ok(enforcer_scan::scope::ScopeRequest::Paths(
+            args.paths.clone(),
+        ));
     }
     Err("no scope given: pass <paths...>, --all, or --base <sha> --head <sha>".to_owned())
 }

@@ -6,7 +6,7 @@
 //! convention (`CF-STYLE-5.1`), private-by-default (`CF-STYLE-2.2`), and
 //! unused locals (`CFML-DEAD-1.1`).
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};

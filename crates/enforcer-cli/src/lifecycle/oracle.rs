@@ -258,7 +258,7 @@ mod tests {
         let root: enforcer_domain::paths::RepoRoot = std::env::temp_dir()
             .to_string_lossy()
             .parse()
-            .map_err(|e: enforcer_core::error::DecodeError| e.to_string())?;
+            .map_err(|e: enforcer_domain::boundary::decode_error::DecodeError| e.to_string())?;
         let resolved = resolve(&ScopeRequest::Paths(vec![]), &root)?;
         let verdict = check_oracle(&resolved, &[]);
         assert!(verdict.is_pass(), "expected pass, got {verdict:?}");

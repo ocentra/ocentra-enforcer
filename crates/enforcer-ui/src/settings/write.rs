@@ -29,7 +29,7 @@ use std::path::Path;
 use enforcer_config::error::{ConfigLoadError, ConfigResult};
 use enforcer_config::policy::{RuleToggle, Waiver};
 use enforcer_config::project_tie::{load_project_tie, ProjectConfig, ResolvedProjectTie};
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 

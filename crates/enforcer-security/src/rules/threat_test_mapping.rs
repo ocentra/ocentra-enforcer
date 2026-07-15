@@ -69,7 +69,7 @@
 //! standalone against a fixture, exactly like the other h03 representative
 //! triples in the workpack).
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::{RuleId, ThreatId};
 use enforcer_domain::severity::Severity;

@@ -47,7 +47,7 @@
 //! window enough to risk false positives on unrelated trailing content); only
 //! the plain bare/single-string spellings above are covered.
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;

@@ -100,7 +100,7 @@ pub struct FeatureBoundaryValidator {
 
 impl FeatureBoundaryValidator {
     /// Build the validator.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FE-ARCH-1.3".parse()?,
         })
@@ -181,7 +181,7 @@ pub struct ComponentsFeatureInversionValidator {
 
 impl ComponentsFeatureInversionValidator {
     /// Build the validator.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FE-ARCH-1.4".parse()?,
         })
@@ -254,7 +254,7 @@ pub struct NoServerDataInClientStoreValidator {
 
 impl NoServerDataInClientStoreValidator {
     /// Build the validator.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FE-STATE-1.1".parse()?,
         })
@@ -317,7 +317,7 @@ pub struct NoFetchInUseEffectValidator {
 
 impl NoFetchInUseEffectValidator {
     /// Build the validator.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FE-STATE-1.2".parse()?,
         })
@@ -378,7 +378,7 @@ pub struct UseEffectWhyCommentValidator {
 
 impl UseEffectWhyCommentValidator {
     /// Build the validator.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FE-HOOK-1.2".parse()?,
         })
@@ -436,7 +436,7 @@ pub struct TypedErrorsInServicesValidator {
 
 impl TypedErrorsInServicesValidator {
     /// Build the validator.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FE-PAT-1.4".parse()?,
         })
@@ -493,7 +493,7 @@ pub struct ImageAltValidator {
 
 impl ImageAltValidator {
     /// Build the validator.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FE-CMP-1.12".parse()?,
         })
@@ -562,7 +562,7 @@ pub struct InputLabelValidator {
 
 impl InputLabelValidator {
     /// Build the validator.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FE-A11Y-1.3".parse()?,
         })
@@ -617,7 +617,7 @@ pub struct EnvCentralizationValidator {
 
 impl EnvCentralizationValidator {
     /// Build the validator.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FE-CFG-1.1".parse()?,
         })
@@ -673,7 +673,7 @@ pub struct NoExplicitAnyValidator {
 
 impl NoExplicitAnyValidator {
     /// Build the validator.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FE-TS-1.5".parse()?,
         })
@@ -753,7 +753,7 @@ pub struct TypeOnlyImportValidator {
 
 impl TypeOnlyImportValidator {
     /// Build the validator.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FE-TS-1.14".parse()?,
         })
@@ -774,7 +774,8 @@ fn brace_import_names(line: &str) -> Option<Vec<&str>> {
         return None;
     }
     Some(
-        trimmed.get(open.checked_add(1)?..close)?
+        trimmed
+            .get(open.checked_add(1)?..close)?
             .split(',')
             .map(str::trim)
             .filter(|s| !s.is_empty())
@@ -840,7 +841,7 @@ pub struct ExplicitFsmTransitionsValidator {
 
 impl ExplicitFsmTransitionsValidator {
     /// Build the validator.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FE-FSM-1.2".parse()?,
         })
@@ -909,7 +910,7 @@ pub struct EffectNotZodValidator {
 
 impl EffectNotZodValidator {
     /// Build the validator.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FE-EFFECT-1.1".parse()?,
         })
@@ -956,7 +957,8 @@ impl Validator for EffectNotZodValidator {
 /// Wired through the standalone `enforcer-rules` catalog
 /// (`rules/frontend-react.json`), NOT `registry::build_all` (see module
 /// docs).
-pub fn validators() -> Result<Vec<Box<dyn Validator>>, enforcer_core::error::DecodeError> {
+pub fn validators(
+) -> Result<Vec<Box<dyn Validator>>, enforcer_domain::boundary::decode_error::DecodeError> {
     Ok(vec![
         Box::new(FeatureBoundaryValidator::new()?),
         Box::new(ComponentsFeatureInversionValidator::new()?),
@@ -988,7 +990,7 @@ mod tests {
 
     #[test]
     fn thirteen_validators_registered_with_unique_rule_ids(
-    ) -> Result<(), enforcer_core::error::DecodeError> {
+    ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
         let vs = validators()?;
         assert_eq!(vs.len(), 13);
         let mut seen = std::collections::BTreeSet::new();

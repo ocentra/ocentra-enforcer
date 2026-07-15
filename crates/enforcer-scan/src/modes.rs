@@ -24,7 +24,7 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::paths::{RelPath, RepoRoot};
 use enforcer_domain::severity::Tier;
 
@@ -95,7 +95,7 @@ impl std::fmt::Display for ScanMode {
 /// `enforcer-scan` does not depend on the `thiserror` crate directly (only
 /// `enforcer-core` does), so this implements [`std::error::Error`] /
 /// [`std::fmt::Display`] by hand, in the same structured-message spirit as
-/// [`enforcer_core::error::DecodeError`] (which this type wraps and defers
+/// [`enforcer_domain::boundary::decode_error::DecodeError`] (which this type wraps and defers
 /// to for scope/commit-ish validation failures).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ScanModeError {

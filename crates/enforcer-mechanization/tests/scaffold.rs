@@ -56,7 +56,7 @@ fn sample_spec(
     fail_rel: &str,
     pass_rel: &str,
     doc_rel: &str,
-) -> Result<ScaffoldSpec, enforcer_core::error::DecodeError> {
+) -> Result<ScaffoldSpec, enforcer_domain::boundary::decode_error::DecodeError> {
     Ok(ScaffoldSpec {
         rule_id: "RR-77.1".parse()?,
         title: "No temp-dir frobnicating".to_owned(),

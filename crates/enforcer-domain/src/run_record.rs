@@ -128,9 +128,9 @@ mod tests {
         ExitStatus, FindingCounts, RunRecord, RunRecordParams, RUN_RECORD_EVENT_TYPE,
         RUN_RECORD_SCHEMA_VERSION,
     };
+    use crate::boundary::decode_error::DecodeError;
     use crate::ids::RuleId;
     use crate::severity::Severity;
-    use enforcer_core::error::DecodeError;
 
     fn rule(id: &str) -> Result<RuleId, DecodeError> {
         id.parse()

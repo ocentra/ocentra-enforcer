@@ -22,7 +22,7 @@
 //! PHP's cURL binding, and the shell `curl` CLI itself), scanned line by
 //! line exactly like the sibling `net_tls.rs` legacy-protocol validator.
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;

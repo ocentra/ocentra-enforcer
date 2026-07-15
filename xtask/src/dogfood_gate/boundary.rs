@@ -189,7 +189,7 @@ fn plan_structure_report(root: &Path) -> u64 {
             enforcer_domain::ids::RuleId,
             enforcer_domain::ids::RuleId,
         ),
-        enforcer_core::error::DecodeError,
+        enforcer_domain::boundary::decode_error::DecodeError,
     > = Ok((
         match "PLAN-CAPSULE.1".parse() {
             Ok(id) => id,

@@ -31,7 +31,7 @@ pub enum MemoryError {
     InvalidPath {
         path: String,
         #[source]
-        source: enforcer_core::error::DecodeError,
+        source: enforcer_domain::boundary::decode_error::DecodeError,
     },
 
     /// The append-only log's hash chain failed verification against its

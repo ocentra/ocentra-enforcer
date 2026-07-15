@@ -10,7 +10,7 @@
 //! - CLI-only harnesses (opencode/aider): the `Tier::T3` `deferred: no mcp
 //!   surface` label, writing zero files.
 //! - `remaining-adapters-detect`: c02's `detect_harnesses` enumerates all
-//!   six [`enforcer_install::detect::HarnessId`]s, and `enforcer_install::core::doctor`
+//!   six [`enforcer_domain::ids::HarnessId`]s, and `enforcer_install::core::doctor`
 //!   aggregates one [`enforcer_install::report::VerifyReport`] per adapter
 //!   across the full six-adapter set.
 

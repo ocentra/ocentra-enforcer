@@ -3,7 +3,7 @@
 //! layers to run SQL directly) and `CF-DI-1.1`/`CFML-DI-1.1` (WireBox DI:
 //! no manual `createObject`/`new` construction of collaborators).
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};

@@ -3,7 +3,7 @@
 //! and `DART-STYLE-2.1` (scored: string interpolation over
 //! concatenation).
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};

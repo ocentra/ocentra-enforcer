@@ -15,7 +15,8 @@
 //! recorded_honesty_matrix_property_holds_for_every_stage_shape` drives
 //! the shared honesty check this parser applies.
 
-use enforcer_core::error::{DecodeError, Result};
+use enforcer_core::error::Result;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::ids::CorrelationId;
 
 use crate::security_pipeline::observability::{

@@ -93,13 +93,14 @@ fn read_fixture(repo_root: &Path, rel: &str) -> HarnessResult<String> {
 /// surfaced as [`HarnessError::FixtureRead`] rather than a panic, keeping
 /// this crate `unwrap`/`expect`-free per workspace lint policy.
 fn fixture_rel_path(rel: &str) -> HarnessResult<RelPath> {
-    rel.parse()
-        .map_err(
-            |decode_error: enforcer_core::error::DecodeError| HarnessError::FixtureRead {
+    rel.parse().map_err(
+        |decode_error: enforcer_domain::boundary::decode_error::DecodeError| {
+            HarnessError::FixtureRead {
                 path: rel.to_owned(),
                 source: std::io::Error::new(std::io::ErrorKind::InvalidInput, decode_error),
-            },
-        )
+            }
+        },
+    )
 }
 
 #[cfg(test)]

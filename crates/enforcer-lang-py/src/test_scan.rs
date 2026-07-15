@@ -3,7 +3,7 @@
 //! file shape (skip/focus markers, weak assertions) rather than general
 //! source bans, matching the `rules/rules.json` `validator` partition.
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_validator::validator::Validator;
 
 use crate::line_marker::{Guard, LineMarkerValidator, WeakAssertionValidator};

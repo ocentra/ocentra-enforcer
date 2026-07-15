@@ -81,7 +81,7 @@
 // this family across a generated corpus and asserts the harness invariant:
 // each emitted finding carries exactly its own validator's rule id.
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
@@ -164,7 +164,8 @@ const TEST_CASE_OPENERS: &[&str] = &["it(", "test(", "it.only(", "test.only("];
 // ---------------------------------------------------------------------
 
 /// Markers proving a test asserts ONLY the happy/success path.
-const SUCCESS_ONLY_MARKERS: &[&str] = &["expect(res.ok).toBe(true)", ".ok).toBe(true)", "toBe(200)"];
+const SUCCESS_ONLY_MARKERS: &[&str] =
+    &["expect(res.ok).toBe(true)", ".ok).toBe(true)", "toBe(200)"];
 
 /// Markers proving a test asserts an operation is refused somewhere in the
 /// file (the `asserts-rejection` required-presence property).
@@ -243,8 +244,16 @@ const TEST_DOUBLE_CALL_MARKERS: &[&str] = &[
 /// [`crate::rules::money_critical`]'s value-touching vocabulary, narrowed
 /// to the identifiers a test-double target would plausibly name.
 const MONEY_DOMAIN_MARKERS: &[&str] = &[
-    "ledger", "balance", "credit", "debit", "transfer", "payment", "settlement", "invoice",
-    "payout", "wallet",
+    "ledger",
+    "balance",
+    "credit",
+    "debit",
+    "transfer",
+    "payment",
+    "settlement",
+    "invoice",
+    "payout",
+    "wallet",
 ];
 
 /// How many lines after a [`TEST_DOUBLE_CALL_MARKERS`] hit to also scan for
@@ -436,7 +445,11 @@ fn check_shared_state_reset(rule_id: &RuleId, input: &ValidationInput<'_>) -> Ve
 
 /// Markers for a trivially-true assertion that would pass regardless of
 /// whether the protected logic ran at all.
-const TRIVIAL_MARKERS: &[&str] = &["toHaveBeenCalled()", "expect(true).toBe(true)", "assert(true)"];
+const TRIVIAL_MARKERS: &[&str] = &[
+    "toHaveBeenCalled()",
+    "expect(true).toBe(true)",
+    "assert(true)",
+];
 
 /// Markers proving a test also asserts on the ACTUAL protected outcome (a
 /// result value or a specific rejection), not just that some call happened.

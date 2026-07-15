@@ -5,7 +5,7 @@
 //! mirroring `enforcer-lang-common::rules::fsm`'s dominant shape rather
 //! than a full AST parse (this crate has no tree-sitter/AST dependency).
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};

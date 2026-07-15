@@ -111,7 +111,7 @@ impl FailureModeTestValidator {
     /// Build the validator, parsing its `RuleId` literal at construction
     /// (parse-at-boundary, mirroring every other bespoke validator in this
     /// crate).
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "RESIL-FAILURE-MODE-TEST.1".parse()?,
         })
@@ -196,7 +196,7 @@ const ATOMIC_WRITE_CONFIDENCE: f64 = 0.7;
 
 impl AtomicWriteValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "RESIL-ATOMIC-WRITE.1".parse()?,
         })
@@ -291,7 +291,7 @@ pub struct IoTimeoutValidator {
 
 impl IoTimeoutValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "RESIL-IO-TIMEOUT.1".parse()?,
         })
@@ -341,7 +341,8 @@ impl Validator for IoTimeoutValidator {
 
 /// Build every `resilience` family validator this crate owns (d10): one T1
 /// required-test obligation plus two T2 scored smells.
-pub fn validators() -> Result<Vec<Box<dyn Validator>>, enforcer_core::error::DecodeError> {
+pub fn validators(
+) -> Result<Vec<Box<dyn Validator>>, enforcer_domain::boundary::decode_error::DecodeError> {
     Ok(vec![
         Box::new(FailureModeTestValidator::new()?),
         Box::new(AtomicWriteValidator::new()?),
@@ -363,7 +364,7 @@ mod tests {
 
     #[test]
     fn three_validators_registered_with_unique_rule_ids(
-    ) -> Result<(), enforcer_core::error::DecodeError> {
+    ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
         let vs = validators()?;
         assert_eq!(vs.len(), 3);
         let mut seen = std::collections::BTreeSet::new();

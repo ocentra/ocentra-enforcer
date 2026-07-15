@@ -27,7 +27,8 @@
 
 use std::path::Path;
 
-use enforcer_core::error::{DecodeError, Error};
+use enforcer_core::error::Error;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::{Finding, ScanScope};
 use enforcer_domain::paths::RelPath;
 use enforcer_domain::severity::Severity;

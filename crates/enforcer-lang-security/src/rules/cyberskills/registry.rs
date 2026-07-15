@@ -6,7 +6,7 @@
 //! cluster is a distinct rule family (`CYBER-*` prefix) with its own count,
 //! not a `SEC-*` row, so it must not perturb that completeness assertion.
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_validator::validator::Validator;
 
 use super::auth_jwt::JwtSecurityValidator;

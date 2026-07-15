@@ -17,7 +17,7 @@
 //! [`boundary`] child module, which also owns the ONE resolution point
 //! ([`boundary::resolve`]: flag > env > default `AgentInline`) and the
 //! serde impls. An unrecognized token there is a typed
-//! [`crate::error::DecodeError`], never a silent fallback to a guessed
+//! [`enforcer_domain::boundary::decode_error::DecodeError`], never a silent fallback to a guessed
 //! variant.
 //!
 //! # The UI/server gate

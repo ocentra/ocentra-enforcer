@@ -15,10 +15,8 @@
 //! `enforcer-proof` (arc-17) reuses this primitive for its tamper-evident
 //! journal envelope; core owns only the primitive.
 
+use enforcer_domain::hashes::SHA256_PREFIX;
 use sha2::Digest;
-
-/// Digest string prefix identifying the algorithm.
-pub const DIGEST_PREFIX: &str = "sha256:";
 
 /// Compute the digest for one link: SHA-256 over the previous digest (or
 /// nothing, for the genesis link) followed by the payload bytes.
@@ -29,8 +27,8 @@ pub fn link_digest(prev_digest: Option<&str>, payload: &[u8]) -> String {
     }
     hasher.update(payload);
     let raw = hasher.finalize();
-    let mut hex = String::with_capacity(DIGEST_PREFIX.len() + raw.len() * 2);
-    hex.push_str(DIGEST_PREFIX);
+    let mut hex = String::with_capacity(SHA256_PREFIX.len() + raw.len() * 2);
+    hex.push_str(SHA256_PREFIX);
     for byte in raw {
         use std::fmt::Write as _;
         // Writing to a String cannot fail; ignore the Infallible result.
@@ -77,7 +75,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::{link_digest, verify_chain, ChainBreak, DIGEST_PREFIX};
+    use super::{link_digest, verify_chain, ChainBreak};
+    use enforcer_domain::hashes::SHA256_PREFIX;
 
     fn build_chain(payloads: &[&[u8]]) -> Vec<String> {
         let mut digests = Vec::new();
@@ -95,8 +94,8 @@ mod tests {
         let a = link_digest(None, b"payload");
         let b = link_digest(None, b"payload");
         assert_eq!(a, b);
-        assert!(a.starts_with(DIGEST_PREFIX));
-        assert_eq!(a.len(), DIGEST_PREFIX.len() + 64);
+        assert!(a.starts_with(SHA256_PREFIX));
+        assert_eq!(a.len(), SHA256_PREFIX.len() + 64);
     }
 
     #[test]

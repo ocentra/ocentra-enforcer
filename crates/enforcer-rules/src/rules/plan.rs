@@ -44,14 +44,14 @@ fn record(spec: RecordSpec<'_>) -> Result<RuleRecord, crate::RuleLoadError> {
         doc_anchor_fragment,
     } = spec;
     Ok(RuleRecord {
-        rule_id: rule_id
-            .parse()
-            .map_err(|e: enforcer_core::error::DecodeError| {
+        rule_id: rule_id.parse().map_err(
+            |e: enforcer_domain::boundary::decode_error::DecodeError| {
                 crate::RuleLoadError::MalformedRecord {
                     rule_id: rule_id.to_owned(),
                     reason: e.to_string(),
                 }
-            })?,
+            },
+        )?,
         version: 1,
         title: title.to_owned(),
         tier: Tier::T1,

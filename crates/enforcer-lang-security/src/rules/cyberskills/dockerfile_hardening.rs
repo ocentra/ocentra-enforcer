@@ -20,7 +20,7 @@
 //! HEALTHCHECK presence) are deliberately NOT emitted here — over-flagging
 //! would erode a prevention gate — and are tracked as follow-ups.
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;

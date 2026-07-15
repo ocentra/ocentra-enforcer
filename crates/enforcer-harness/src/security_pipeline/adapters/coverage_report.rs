@@ -16,7 +16,8 @@
 //! coverage_floor_gate_property_over_a_percentage_grid` drives this
 //! parser over a generated percentage grid.
 
-use enforcer_core::error::{DecodeError, Result};
+use enforcer_core::error::Result;
+use enforcer_domain::boundary::decode_error::DecodeError;
 
 use crate::security_pipeline::coverage::{CoverageMetrics, CoverageOutcome, CoveragePct};
 

@@ -380,7 +380,7 @@ mod tests {
 
     #[test]
     fn deleted_artifact_yields_missing_artifact_violation(
-    ) -> Result<(), enforcer_core::error::DecodeError> {
+    ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
         let mut run = base_run("abc", ProofStatus::Passed);
         run.artifacts.push(ArtifactRecord {
             name: "summary.md".to_owned(),

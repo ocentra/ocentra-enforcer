@@ -33,7 +33,7 @@ struct FsmLookup {
 }
 
 impl FsmLookup {
-    fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         let mut by_id = BTreeMap::new();
         for validator in enforcer_lang_common::rules::fsm::validators()? {
             by_id.insert(validator.rule_id().clone(), validator);

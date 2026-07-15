@@ -30,7 +30,7 @@ pub struct FmtCapturedIdentValidator {
 impl FmtCapturedIdentValidator {
     /// Build the validator, parsing its own `RuleId` literal at
     /// construction (parse-at-boundary).
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "RUST-FMT-CAPTURED-IDENT".parse()?,
         })

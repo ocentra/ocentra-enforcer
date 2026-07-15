@@ -121,7 +121,7 @@ pub const FEEDBACK_DECISION_EVENT_TYPE: &str = "harnessFeedbackDecision";
 /// fingerprint is stable across process runs and independent of transient
 /// fields like `run_id`.
 // `link_digest` always emits the branded wire form (`sha256:<64 lowercase
-// hex>` — see `enforcer_core::hash_chain::DIGEST_PREFIX` and its SHA-256
+// hex>` — see `enforcer_domain::hashes::SHA256_PREFIX` and its SHA-256
 // hex-encoding loop), so the `expect` below can never actually fire; scoped
 // `#[allow(clippy::expect_used)]` on a provably infallible parse of a
 // known-well-formed value is the established pattern in this workspace
@@ -224,7 +224,7 @@ mod tests {
         }
     }
 
-    fn spec() -> Result<ScaffoldSpec, enforcer_core::error::DecodeError> {
+    fn spec() -> Result<ScaffoldSpec, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(ScaffoldSpec {
             rule_id: "RR-95.1".parse()?,
             title: "No mismatched frobnication".to_owned(),

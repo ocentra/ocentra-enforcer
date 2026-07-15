@@ -37,7 +37,7 @@
 //! Remediation guidance ("Replace all == with === (strict comparison)...
 //! Use hash_equals() for timing-safe hash comparison").
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;

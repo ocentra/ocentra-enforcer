@@ -10,8 +10,7 @@
 //!
 //! Rules of this crate:
 //! - Every identifier is a branded newtype validating on construction
-//!   (fallible `TryFrom`/`FromStr` returning
-//!   [`enforcer_core::error::DecodeError`]); no public raw-string
+//!   (fallible `TryFrom`/`FromStr` returning [`error::DecodeError`]); no public raw-string
 //!   constructor exists, so no invalid value can be constructed.
 //! - Wire casing is camelCase on MCP/UI-facing types (locked decision).
 //! - UI-facing types derive `ts_rs::TS` so arc-24's export bin and
@@ -23,6 +22,7 @@
 //! - No `pub use` barrels: consumers path through the modules directly,
 //!   e.g. `enforcer_domain::ids::RuleId`.
 
+pub mod boundary;
 pub mod findings;
 pub mod hashes;
 pub mod ids;

@@ -85,9 +85,10 @@ pub mod rules;
 /// `enforcer-lang-common` itself, and this crate only supplies CFML
 /// `appliesTo`/fixtures for them; re-registering them here would double
 /// them up in any consumer that links both crates.
-pub fn all_validators(
-) -> Result<Vec<Box<dyn enforcer_validator::validator::Validator>>, enforcer_core::error::DecodeError>
-{
+pub fn all_validators() -> Result<
+    Vec<Box<dyn enforcer_validator::validator::Validator>>,
+    enforcer_domain::boundary::decode_error::DecodeError,
+> {
     let mut validators = Vec::new();
     validators.extend(rules::arch::all()?);
     validators.extend(rules::security::all()?);

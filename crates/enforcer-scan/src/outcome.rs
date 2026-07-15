@@ -11,7 +11,7 @@
 //! silent option — every candidate handed to the engine must produce one
 //! of these two variants.
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 
 /// A non-empty skip reason. Parsed at the boundary: constructing a
 /// [`SkipReason`] from an empty or all-whitespace string fails, so
@@ -75,7 +75,11 @@ impl std::fmt::Display for SkipReason {
 /// resolve to exactly one of these — there is no code path that drops a
 /// target without recording either `Ran` or `Skipped`.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ts_rs::TS)]
-#[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum Outcome {
     /// The target was dispatched to at least a router decision and
     /// validators actually ran against it (`validator_count` may be zero

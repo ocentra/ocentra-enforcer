@@ -31,7 +31,7 @@ pub struct DecoderNegativeCaseValidator {
 
 impl DecoderNegativeCaseValidator {
     /// Build the validator.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: RULE_ID.parse()?,
         })

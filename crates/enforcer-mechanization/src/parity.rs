@@ -351,7 +351,7 @@ mod tests {
         rule_id: &str,
         tier: Tier,
         tags: Vec<String>,
-    ) -> Result<RuleRecord, enforcer_core::error::DecodeError> {
+    ) -> Result<RuleRecord, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(RuleRecord {
             rule_id: rule_id.parse()?,
             version: 1,

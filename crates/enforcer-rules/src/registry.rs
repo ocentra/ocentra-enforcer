@@ -158,7 +158,9 @@ mod tests {
     use super::{FixtureRef, RuleRecord, RuleRegistry, ValidatorRef};
     use enforcer_domain::severity::Tier;
 
-    fn sample(rule_id: &str) -> Result<RuleRecord, enforcer_core::error::DecodeError> {
+    fn sample(
+        rule_id: &str,
+    ) -> Result<RuleRecord, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(RuleRecord {
             rule_id: rule_id.parse()?,
             version: 1,

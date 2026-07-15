@@ -197,7 +197,7 @@ mod tests {
     use super::{scaffold_rule, ScaffoldSpec};
     use enforcer_domain::severity::Tier;
 
-    fn sample_spec() -> Result<ScaffoldSpec, enforcer_core::error::DecodeError> {
+    fn sample_spec() -> Result<ScaffoldSpec, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(ScaffoldSpec {
             rule_id: "RR-42.1".parse()?,
             title: "No frobnicating".to_owned(),

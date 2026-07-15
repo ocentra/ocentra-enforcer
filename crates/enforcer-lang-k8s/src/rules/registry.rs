@@ -5,7 +5,7 @@
 //! this crate's own spec table since `rules/rules.json` carries no
 //! `language == "k8s"` rows yet (arc-12 introduces the family).
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::ids::RuleId;
 use enforcer_validator::validator::Validator;
 use std::fmt;

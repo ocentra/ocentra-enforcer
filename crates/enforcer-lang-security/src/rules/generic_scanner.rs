@@ -28,7 +28,7 @@
 //! positive shape, and a hit is suppressed if the marker pattern ALSO
 //! matches the same line — the two-regex equivalent of the JS `&& !`.
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use regex::Regex;
 
 use super::spec::{MatchTarget, RuleSpec};

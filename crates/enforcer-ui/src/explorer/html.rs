@@ -296,7 +296,10 @@ mod tests {
     use enforcer_domain::severity::Tier;
     use enforcer_rules::registry::{FixtureRef, RuleRecord, RuleRegistry, ValidatorRef};
 
-    fn record(rule_id: &str, tier: Tier) -> Result<RuleRecord, enforcer_core::error::DecodeError> {
+    fn record(
+        rule_id: &str,
+        tier: Tier,
+    ) -> Result<RuleRecord, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(RuleRecord {
             rule_id: rule_id.parse()?,
             version: 1,

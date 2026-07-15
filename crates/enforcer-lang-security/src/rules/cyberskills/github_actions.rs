@@ -43,7 +43,7 @@
 //!    `github.event.pull_request.head.sha`/`.head.ref` runs untrusted fork
 //!    code with the base repo's privileged `GITHUB_TOKEN`.
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;

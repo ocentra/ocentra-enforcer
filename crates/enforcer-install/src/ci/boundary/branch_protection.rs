@@ -5,15 +5,15 @@
 
 use std::collections::BTreeSet;
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::ids::GitHubCheckContext;
 use serde::{Deserialize, Serialize};
 
+use super::super::branch_protection::{DesiredProtection, RefusalReason, Verification};
 use super::super::branch_protection_domain::{
     BypassAllowance, ContextRequirement, ObservedBranchProtection, PullRequestRequirement,
     RequiredChecksHealth, UpToDateRequirement,
 };
-use super::super::branch_protection::{DesiredProtection, RefusalReason, Verification};
 
 /// Raw workflow declaration used only to derive GitHub check contexts.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -180,27 +180,28 @@ impl TryFrom<LiveProtectionStateDto> for ObservedBranchProtection {
 
     fn try_from(dto: LiveProtectionStateDto) -> Result<Self, Self::Error> {
         let contexts = match dto.required_status_checks.as_ref() {
-            Some(checks) => {
-                checks
-                    .contexts
-                    .iter()
-                    .cloned()
-                    .map(GitHubCheckContext::try_from)
-                    .collect::<Result<BTreeSet<_>, _>>()?
-            }
+            Some(checks) => checks
+                .contexts
+                .iter()
+                .cloned()
+                .map(GitHubCheckContext::try_from)
+                .collect::<Result<BTreeSet<_>, _>>()?,
             None => BTreeSet::new(),
         };
-        let up_to_date = match dto.required_status_checks.as_ref().map(|checks| checks.strict) {
+        let up_to_date = match dto
+            .required_status_checks
+            .as_ref()
+            .map(|checks| checks.strict)
+        {
             Some(true) => UpToDateRequirement::Required,
             Some(false) | None => UpToDateRequirement::NotRequired,
         };
-        let required_checks = if dto.required_status_checks.is_some()
-            && dto.required_checks_passing == Some(true)
-        {
-            RequiredChecksHealth::Passing
-        } else {
-            RequiredChecksHealth::RedOrPending
-        };
+        let required_checks =
+            if dto.required_status_checks.is_some() && dto.required_checks_passing == Some(true) {
+                RequiredChecksHealth::Passing
+            } else {
+                RequiredChecksHealth::RedOrPending
+            };
 
         Ok(ObservedBranchProtection::new(
             contexts,
@@ -239,8 +240,8 @@ mod tests {
         RequiredStatusChecksDto, WorkflowJobDeclaration,
     };
     use crate::ci::branch_protection_domain::{
-        BypassAllowance, ContextRequirement, ObservedBranchProtection,
-        PullRequestRequirement, RequiredChecksHealth, UpToDateRequirement,
+        BypassAllowance, ContextRequirement, ObservedBranchProtection, PullRequestRequirement,
+        RequiredChecksHealth, UpToDateRequirement,
     };
 
     fn pass_dto() -> LiveProtectionStateDto {
@@ -258,8 +259,7 @@ mod tests {
     }
 
     #[test]
-    fn github_read_dto_round_trip(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn github_read_dto_round_trip() -> Result<(), Box<dyn std::error::Error>> {
         let wire = serde_json::to_string(&pass_dto())?;
         let dto: LiveProtectionStateDto = serde_json::from_str(&wire)?;
         let observed = ObservedBranchProtection::try_from(dto)?;
@@ -321,11 +321,17 @@ mod tests {
             allow_deletions: false,
         };
         let write_json = serde_json::to_string(&write)?;
-        assert_eq!(serde_json::from_str::<BranchProtectionWriteDto>(&write_json)?, write);
+        assert_eq!(
+            serde_json::from_str::<BranchProtectionWriteDto>(&write_json)?,
+            write
+        );
 
         let live = pass_dto();
         let live_json = serde_json::to_string(&live)?;
-        assert_eq!(serde_json::from_str::<LiveProtectionStateDto>(&live_json)?, live);
+        assert_eq!(
+            serde_json::from_str::<LiveProtectionStateDto>(&live_json)?,
+            live
+        );
 
         let report = BranchProtectionReportDto {
             branch: "main".to_owned(),
@@ -336,7 +342,10 @@ mod tests {
             refusal_codes: Vec::new(),
         };
         let report_json = serde_json::to_string(&report)?;
-        assert_eq!(serde_json::from_str::<BranchProtectionReportDto>(&report_json)?, report);
+        assert_eq!(
+            serde_json::from_str::<BranchProtectionReportDto>(&report_json)?,
+            report
+        );
         Ok(())
     }
 }

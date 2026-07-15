@@ -3,38 +3,7 @@
 //! (`enforcer-domain`, `enforcer-events`, `enforcer-config`) return instead
 //! of stringly-typed errors.
 
-/// Structured decode/validation failure raised at a parse boundary.
-///
-/// Boundary parsers return this instead of a bare `String` so callers can
-/// route on the failing `path` and render precise diagnostics.
-#[derive(Debug, thiserror::Error, PartialEq, Eq, Clone)]
-#[error("decode/validation failed at `{path}`: {reason}")]
-pub struct DecodeError {
-    /// Dotted path to the failing field, e.g. `config.rules[3].id`.
-    pub path: String,
-    /// Human-readable reason for the failure.
-    pub reason: String,
-    /// Optional hint about the offending input (already redacted upstream).
-    pub input_hint: Option<String>,
-}
-
-impl DecodeError {
-    /// Build a decode error for a field path with a reason.
-    pub fn new(path: impl Into<String>, reason: impl Into<String>) -> Self {
-        Self {
-            path: path.into(),
-            reason: reason.into(),
-            input_hint: None,
-        }
-    }
-
-    /// Attach a redacted hint about the offending input.
-    #[must_use]
-    pub fn with_input_hint(mut self, hint: impl Into<String>) -> Self {
-        self.input_hint = Some(hint.into());
-        self
-    }
-}
+use enforcer_domain::boundary::decode_error::DecodeError;
 
 /// The shared workspace error type. Every crate's fallible API funnels into
 /// this (or a crate-local error that converts into it).

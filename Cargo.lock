@@ -1062,10 +1062,10 @@ dependencies = [
 name = "enforcer-domain"
 version = "0.1.0"
 dependencies = [
- "enforcer-core",
  "serde",
  "serde_json",
  "sha2",
+ "thiserror 1.0.69",
  "ts-rs",
 ]
 

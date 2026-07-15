@@ -22,7 +22,9 @@ fn manifest_dir() -> std::path::PathBuf {
     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
 
-fn wired_record(rule_id: &str) -> Result<RuleRecord, enforcer_core::error::DecodeError> {
+fn wired_record(
+    rule_id: &str,
+) -> Result<RuleRecord, enforcer_domain::boundary::decode_error::DecodeError> {
     Ok(RuleRecord {
         rule_id: rule_id.parse()?,
         version: 1,

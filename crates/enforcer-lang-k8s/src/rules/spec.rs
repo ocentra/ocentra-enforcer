@@ -41,14 +41,16 @@ pub struct K8sRuleSpec {
 impl K8sRuleSpec {
     /// Parse the catalog literal into the branded rule identifier used by
     /// validators and registry consumers.
-    pub fn rule_id(&self) -> Result<RuleId, enforcer_core::error::DecodeError> {
+    pub fn rule_id(&self) -> Result<RuleId, enforcer_domain::boundary::decode_error::DecodeError> {
         self.rule_id.parse()
     }
 
     /// Build the [`PatternValidator`] this spec describes. Fails closed
     /// (propagates the parse error) rather than panicking when
     /// `self.rule_id` is not a well-formed [`RuleId`] literal.
-    pub fn build(&self) -> Result<PatternValidator, enforcer_core::error::DecodeError> {
+    pub fn build(
+        &self,
+    ) -> Result<PatternValidator, enforcer_domain::boundary::decode_error::DecodeError> {
         let rule_id = self.rule_id()?;
         Ok(PatternValidator::new(
             rule_id,
@@ -57,7 +59,6 @@ impl K8sRuleSpec {
             self.markers.to_vec(),
         ))
     }
-
 }
 
 /// Every `K8S-*` rule's static spec, grouped by family:

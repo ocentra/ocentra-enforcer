@@ -3,7 +3,7 @@
 //! reported as a runtime *finding* is promoted here to a typed error raised
 //! at load time — invalid config never reaches the engine as a live value.
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 
 /// Load-time failure for a project config or profile.
 #[derive(Debug, thiserror::Error, PartialEq, Eq, Clone)]

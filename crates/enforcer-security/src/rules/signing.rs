@@ -42,7 +42,7 @@
 //!   (`log*(...correlationId...)` / `logger.*(...correlationId...)`) at
 //!   or near the sign site.
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;

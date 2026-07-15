@@ -4,7 +4,7 @@
 //! `rules/rules.json`'s `language == "iac"` count (8) — one entry per rule
 //! id, no orphans, no duplicates.
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_validator::validator::Validator;
 
 use super::cloudformation;

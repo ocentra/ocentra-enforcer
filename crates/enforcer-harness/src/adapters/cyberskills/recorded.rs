@@ -10,7 +10,8 @@
 //! engine-bound skills are actually needed") — this module is the seam a
 //! future live-process adapter would also parse its own stdout through.
 
-use enforcer_core::error::{DecodeError, Result};
+use enforcer_core::error::Result;
+use enforcer_domain::boundary::decode_error::DecodeError;
 
 use super::seam::{AdapterOutcome, EngineFinding};
 

@@ -7,7 +7,7 @@
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::ScanScope;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::paths::RelPath;

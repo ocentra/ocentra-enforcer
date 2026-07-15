@@ -3,7 +3,7 @@
 //! `throw Exception('msg')`, and never rendering a raw exception to the
 //! user.
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};

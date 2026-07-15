@@ -71,7 +71,7 @@ pub struct MandatoryFsmValidator {
 
 impl MandatoryFsmValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FSM-1.1".parse()?,
         })
@@ -130,7 +130,7 @@ pub struct ExplicitTransitionsMapValidator {
 
 impl ExplicitTransitionsMapValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FSM-EXPLICITMAP.1".parse()?,
         })
@@ -183,7 +183,7 @@ pub struct FsmCanonicalLayoutValidator {
 
 impl FsmCanonicalLayoutValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FSM-LAYOUT.1".parse()?,
         })
@@ -231,7 +231,7 @@ pub struct StatusStringLiteralForbiddenValidator {
 
 impl StatusStringLiteralForbiddenValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FSM-LITERALENUM.1".parse()?,
         })
@@ -279,7 +279,7 @@ pub struct EnumLocationStrEnumOnlyValidator {
 
 impl EnumLocationStrEnumOnlyValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FSM-ENUMLOC.1".parse()?,
         })
@@ -330,7 +330,7 @@ pub struct EnumParseNoFallbackValidator {
 
 impl EnumParseNoFallbackValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FSM-ENUMPARSE.1".parse()?,
         })
@@ -372,7 +372,7 @@ pub struct ValidateBeforeMutateValidator {
 
 impl ValidateBeforeMutateValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FSM-VALIDATEMUTATE.1".parse()?,
         })
@@ -423,7 +423,7 @@ pub struct TerminalStateNoOutgoingValidator {
 
 impl TerminalStateNoOutgoingValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FSM-TERMINAL.1".parse()?,
         })
@@ -472,7 +472,7 @@ pub struct FsmSingletonStatelessValidator {
 
 impl FsmSingletonStatelessValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FSM-SINGLETONSTATELESS.1".parse()?,
         })
@@ -526,7 +526,7 @@ pub struct FsmTransitionCoverageValidator {
 
 impl FsmTransitionCoverageValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "FSM-COVERAGE.1".parse()?,
         })
@@ -573,7 +573,8 @@ impl Validator for FsmTransitionCoverageValidator {
 }
 
 /// Build every `FSM` family validator this crate owns (d16).
-pub fn validators() -> Result<Vec<Box<dyn Validator>>, enforcer_core::error::DecodeError> {
+pub fn validators(
+) -> Result<Vec<Box<dyn Validator>>, enforcer_domain::boundary::decode_error::DecodeError> {
     Ok(vec![
         Box::new(MandatoryFsmValidator::new()?),
         Box::new(ExplicitTransitionsMapValidator::new()?),
@@ -602,7 +603,7 @@ mod tests {
 
     #[test]
     fn ten_validators_registered_with_unique_rule_ids(
-    ) -> Result<(), enforcer_core::error::DecodeError> {
+    ) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
         let vs = validators()?;
         assert_eq!(vs.len(), 10);
         let mut seen = std::collections::BTreeSet::new();

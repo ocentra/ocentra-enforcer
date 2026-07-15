@@ -361,9 +361,11 @@ mod tests {
             }
             let planned_changes = if self.change_pending {
                 let path: RepoRoot = format!("/fixtures/{}.json", self.key).try_into().map_err(
-                    |e: enforcer_core::error::DecodeError| InstallError::MalformedConfig {
-                        path: format!("/fixtures/{}.json", self.key),
-                        reason: e.to_string(),
+                    |e: enforcer_domain::boundary::decode_error::DecodeError| {
+                        InstallError::MalformedConfig {
+                            path: format!("/fixtures/{}.json", self.key),
+                            reason: e.to_string(),
+                        }
                     },
                 )?;
                 vec![PlannedChange {
@@ -811,9 +813,11 @@ mod tests {
             }
             fn plan(&self, _ctx: &RequestContext) -> InstallResult<InstallReport> {
                 let path: RepoRoot = self.target.display().to_string().try_into().map_err(
-                    |e: enforcer_core::error::DecodeError| InstallError::MalformedConfig {
-                        path: self.target.display().to_string(),
-                        reason: e.to_string(),
+                    |e: enforcer_domain::boundary::decode_error::DecodeError| {
+                        InstallError::MalformedConfig {
+                            path: self.target.display().to_string(),
+                            reason: e.to_string(),
+                        }
                     },
                 )?;
                 Ok(InstallReport {

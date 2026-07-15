@@ -56,7 +56,7 @@ impl ErrorHandlingValidator {
     /// Build the validator, parsing its own `RuleId` literal at
     /// construction (parse-at-boundary, mirroring
     /// [`super::no_reexports::NoReexportsValidator::new`]).
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "T1-RUSTERR.1".parse()?,
         })

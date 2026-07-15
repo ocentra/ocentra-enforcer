@@ -41,95 +41,15 @@
 //! field) WITH the [`Evidence`] that led to that conclusion — never
 //! silently guessed `true`/`Yes`.
 //!
-//! # Deviation note (workpack c02, ownership)
-//!
-//! The workpack floats [`HarnessId`] as "a branded shared identifier
-//! newtype" but this workpack's `owns:` line grants only
-//! `crates/enforcer-install/src/detect.rs` (+ its fixtures) — it does NOT
-//! grant a workspace identity module. Per the workpack's own
-//! fallback instruction ("otherwise define crate-locally and flag"),
-//! [`HarnessId`] is defined here, crate-local, using the exact same
-//! parse-at-boundary/no-bare-string-constructor shape as the
-//! `enforcer_domain::ids::branded_string!` family (`RuleId`, `HubName`,
-//! `LaneId`, ...) so a future promotion into a shared identity module is a pure
-//! move, not a redesign. Flagged for the orchestrator/hub: promote
-//! `HarnessId` (and `Cap`/`Support` if desired workspace-wide) into
-//! that shared identity module in a follow-up that owns that file.
-
 // BOUNDARY-INVARIANT: raw environment, filesystem, and serialized harness
 // state enter only here; every observation is normalized into typed detection
 // records before a caller can make an install or orchestration decision.
 // boundaryOwnerNote: c02 owns the harness discovery transport boundary.
 // Negative malformed/invalid harness identifiers are rejected by `HarnessId`.
-use enforcer_core::error::DecodeError;
+use enforcer_domain::{boundary::decode_error::DecodeError, ids::HarnessId};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-
-// ---------------------------------------------------------------------
-// HarnessId — crate-local branded newtype (see module doc deviation note)
-// ---------------------------------------------------------------------
-
-/// Branded harness identifier (e.g. `"claude"`, `"codex"`, `"gemini"`).
-/// Validates on construction; no bare-string constructor, matching the
-/// validated identifier shape (parse-at-boundary, camelCase-safe
-/// on the wire via `serde(try_from = "String", into = "String")`).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(try_from = "String", into = "String")]
-pub struct HarnessId(String);
-
-impl HarnessId {
-    /// View the validated inner value.
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl TryFrom<String> for HarnessId {
-    type Error = DecodeError;
-
-    fn try_from(raw: String) -> Result<Self, DecodeError> {
-        validate_harness_id(&raw)?;
-        Ok(Self(raw))
-    }
-}
-
-impl std::str::FromStr for HarnessId {
-    type Err = DecodeError;
-
-    fn from_str(raw: &str) -> Result<Self, DecodeError> {
-        Self::try_from(raw.to_owned())
-    }
-}
-
-impl From<HarnessId> for String {
-    fn from(value: HarnessId) -> String {
-        value.0
-    }
-}
-
-impl std::fmt::Display for HarnessId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-fn validate_harness_id(raw: &str) -> Result<(), DecodeError> {
-    let ok = !raw.is_empty()
-        && raw.len() <= 64
-        && raw
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
-    if ok {
-        Ok(())
-    } else {
-        Err(DecodeError::new(
-            "harnessId",
-            "expected lowercase kebab-case (e.g. `claude`, `codex`, `kilocode`)",
-        ))
-    }
-}
 
 /// Every known harness this module probes for, in the fixed order the
 /// workpack lists them. Adding a new harness (future workpack) is a
@@ -708,9 +628,9 @@ pub type TempHomeFs = RealFs;
 #[cfg(test)]
 mod tests {
     use super::{
-        detect_harnesses, Cap, DetectedHarness, EnvSource, HarnessId, MapEnv, RealFs, Support,
-        KNOWN_HARNESS_IDS,
+        detect_harnesses, Cap, DetectedHarness, MapEnv, RealFs, Support, KNOWN_HARNESS_IDS,
     };
+    use enforcer_domain::ids::HarnessId;
     use std::fs;
     use std::path::{Path, PathBuf};
 

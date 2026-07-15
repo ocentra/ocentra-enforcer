@@ -2,7 +2,7 @@
 //! (`CF-SEC-2.1`, CWE-79), hardcoded secrets (`CF-SEC-4.1`, CWE-798), and
 //! information disclosure (`CF-SEC-3.1`, CWE-209).
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};

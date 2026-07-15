@@ -620,9 +620,9 @@ pub fn closeout(
     for (lane_str, mut paths) in by_lane {
         paths.sort();
         paths.dedup();
-        let lane: LaneId = lane_str
-            .parse()
-            .map_err(|e: enforcer_core::error::DecodeError| CoordinationError::from(e))?;
+        let lane: LaneId = lane_str.parse().map_err(
+            |e: enforcer_domain::boundary::decode_error::DecodeError| CoordinationError::from(e),
+        )?;
         let event = append_event(
             hub,
             AppendEventArgs {

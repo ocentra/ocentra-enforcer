@@ -31,7 +31,7 @@ impl EslintJsonValidator {
     /// `RULE_ID` is a compile-time constant, so its parse cannot receive
     /// invalid, empty, oversized, or malformed caller input. The external
     /// `tests/eslint_json.rs` fixture proves invalid ESLint wiring is rejected.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: RULE_ID.parse()?,
         })

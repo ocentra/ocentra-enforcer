@@ -118,7 +118,8 @@ const DOC_PARITY_RULE_ID: &str = "RR-9.1";
 /// pinned by [`tests::doc_parity_rule_id_literal_is_valid`] — callers
 /// propagate the error with `?` per this crate's `unwrap_used`/
 /// `expect_used`-denied lint policy rather than assume infallibility.
-fn doc_parity_finding_rule_id() -> Result<RuleId, enforcer_core::error::DecodeError> {
+fn doc_parity_finding_rule_id(
+) -> Result<RuleId, enforcer_domain::boundary::decode_error::DecodeError> {
     DOC_PARITY_RULE_ID.parse()
 }
 
@@ -137,7 +138,7 @@ pub fn check_doc_against_registry(
     doc_path: &RelPath,
     source: &str,
     registry: &RuleRegistry,
-) -> Result<Vec<Finding>, enforcer_core::error::DecodeError> {
+) -> Result<Vec<Finding>, enforcer_domain::boundary::decode_error::DecodeError> {
     let self_id = doc_parity_finding_rule_id()?;
     Ok(extract_imperative_bullets(source)
         .into_iter()

@@ -3,7 +3,7 @@
 //! (locked decision); `ts_rs::TS` derives feed the arc-24 Rust->TS
 //! pipeline.
 
-use enforcer_core::error::DecodeError;
+use crate::boundary::decode_error::DecodeError;
 
 use crate::ids::RuleId;
 use crate::paths::RelPath;
@@ -102,7 +102,7 @@ pub struct Report {
 #[cfg(test)]
 mod tests {
     use super::{Finding, Report, ScanScope, Severity, Violation};
-    use enforcer_core::error::DecodeError;
+    use crate::boundary::decode_error::DecodeError;
 
     fn sample_finding(severity: Severity) -> Result<Finding, DecodeError> {
         Ok(Finding {

@@ -1,8 +1,11 @@
-//! Branded digest newtypes. Matches the `enforcer-core` hash-chain wire
+//! Branded digest newtypes. Owns the shared hash-chain wire
 //! form: `sha256:` prefix + 64 lowercase hex characters.
 
-use enforcer_core::error::DecodeError;
+use crate::boundary::decode_error::DecodeError;
 use sha2::Digest as _;
+
+/// Digest string prefix identifying the SHA-256 wire representation.
+pub const SHA256_PREFIX: &str = "sha256:";
 
 /// Branded SHA-256 digest (`sha256:<64 lowercase hex>`).
 #[derive(
@@ -29,9 +32,7 @@ impl Sha256 {
 
     /// The 64-char hex payload without the `sha256:` prefix.
     pub fn hex(&self) -> &str {
-        self.0
-            .get(enforcer_core::hash_chain::DIGEST_PREFIX.len()..)
-            .unwrap_or_default()
+        self.0.get(SHA256_PREFIX.len()..).unwrap_or_default()
     }
 
     /// Hash `bytes` and mint the branded digest directly (`sha256:<64 lowercase
@@ -44,9 +45,9 @@ impl Sha256 {
         let mut hasher = sha2::Sha256::new();
         hasher.update(bytes);
         let raw = hasher.finalize();
-        let prefix_len = enforcer_core::hash_chain::DIGEST_PREFIX.len();
+        let prefix_len = SHA256_PREFIX.len();
         let mut hex = String::with_capacity(prefix_len + raw.len() * 2);
-        hex.push_str(enforcer_core::hash_chain::DIGEST_PREFIX);
+        hex.push_str(SHA256_PREFIX);
         for byte in raw {
             use std::fmt::Write as _;
             // Writing to a String cannot fail; ignore the Infallible result.
@@ -60,7 +61,7 @@ impl TryFrom<String> for Sha256 {
     type Error = DecodeError;
 
     fn try_from(raw: String) -> Result<Self, DecodeError> {
-        let Some(hex) = raw.strip_prefix(enforcer_core::hash_chain::DIGEST_PREFIX) else {
+        let Some(hex) = raw.strip_prefix(SHA256_PREFIX) else {
             return Err(DecodeError::new("sha256", "missing `sha256:` prefix"));
         };
         let ok = hex.len() == 64
@@ -101,14 +102,13 @@ impl std::fmt::Display for Sha256 {
 #[cfg(test)]
 mod tests {
     use super::Sha256;
-    use enforcer_core::error::DecodeError;
+    use crate::boundary::decode_error::DecodeError;
 
     #[test]
-    fn accepts_core_hash_chain_output() -> Result<(), DecodeError> {
-        // Real digest produced by the core primitive this brand wraps.
-        let digest = enforcer_core::hash_chain::link_digest(None, b"payload");
-        let branded: Sha256 = digest.parse()?;
-        assert_eq!(branded.as_str(), digest);
+    fn accepts_domain_minted_hash_output() -> Result<(), DecodeError> {
+        let minted = Sha256::of(b"payload");
+        let branded: Sha256 = minted.as_str().parse()?;
+        assert_eq!(branded.as_str(), minted.as_str());
         assert_eq!(branded.hex().len(), 64);
         Ok(())
     }

@@ -60,7 +60,8 @@ impl From<&Error> for ExitCode {
 #[cfg(test)]
 mod tests {
     use super::ExitCode;
-    use crate::error::{DecodeError, Error};
+    use crate::error::Error;
+    use enforcer_domain::boundary::decode_error::DecodeError;
 
     #[test]
     fn exit_codes_round_trip_both_ways() {

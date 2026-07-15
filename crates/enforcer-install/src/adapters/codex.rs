@@ -150,15 +150,14 @@ impl CodexAdapter {
     }
 
     fn repo_root(path: &Path) -> InstallResult<RepoRoot> {
-        path.display()
-            .to_string()
-            .try_into()
-            .map_err(
-                |e: enforcer_core::error::DecodeError| InstallError::MalformedConfig {
+        path.display().to_string().try_into().map_err(
+            |e: enforcer_domain::boundary::decode_error::DecodeError| {
+                InstallError::MalformedConfig {
                     path: path.display().to_string(),
                     reason: e.to_string(),
-                },
-            )
+                }
+            },
+        )
     }
 
     /// Read `config.toml` as a format-preserving [`DocumentMut`], defaulting
@@ -371,21 +370,23 @@ impl CodexAdapter {
             });
         }
 
-        let before = existing.get(..begin_idx).ok_or_else(|| {
-            InstallError::ManagedBlockInvalid {
-                path: path.to_owned(),
-                marker: "ocentra-enforcer".to_owned(),
-                reason: "begin marker offset is not a UTF-8 boundary".to_owned(),
-            }
-        })?;
+        let before =
+            existing
+                .get(..begin_idx)
+                .ok_or_else(|| InstallError::ManagedBlockInvalid {
+                    path: path.to_owned(),
+                    marker: "ocentra-enforcer".to_owned(),
+                    reason: "begin marker offset is not a UTF-8 boundary".to_owned(),
+                })?;
         let after_offset = end_idx + GLOBAL_AGENTS_END.len();
-        let after = existing.get(after_offset..).ok_or_else(|| {
-            InstallError::ManagedBlockInvalid {
-                path: path.to_owned(),
-                marker: "ocentra-enforcer".to_owned(),
-                reason: "end marker offset is not a UTF-8 boundary".to_owned(),
-            }
-        })?;
+        let after =
+            existing
+                .get(after_offset..)
+                .ok_or_else(|| InstallError::ManagedBlockInvalid {
+                    path: path.to_owned(),
+                    marker: "ocentra-enforcer".to_owned(),
+                    reason: "end marker offset is not a UTF-8 boundary".to_owned(),
+                })?;
         let after = after.trim_start_matches('\n');
         Ok(format!("{before}{rendered}{after}"))
     }
@@ -874,8 +875,8 @@ fn remove_global_agents_block(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        remove_global_agents_block, CodexAdapter, InstallError, SERVER_NAME, GLOBAL_AGENTS_END,
-        GLOBAL_AGENTS_START,
+        remove_global_agents_block, CodexAdapter, InstallError, GLOBAL_AGENTS_END,
+        GLOBAL_AGENTS_START, SERVER_NAME,
     };
     use crate::cli_contract::RequestContext;
     use crate::core::HarnessAdapter;

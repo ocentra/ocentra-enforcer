@@ -4,7 +4,7 @@
 //! required field / unjustified `response.data!`), and
 //! `DART-FORMMAP-1.1` (form state as an untyped map).
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};

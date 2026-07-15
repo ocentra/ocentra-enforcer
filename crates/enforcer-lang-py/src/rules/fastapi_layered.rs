@@ -117,7 +117,7 @@ pub struct NoRepoInRoutersValidator {
 
 impl NoRepoInRoutersValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "PYFA-1.1".parse()?,
         })
@@ -168,7 +168,7 @@ pub struct NoSessionInServicesValidator {
 
 impl NoSessionInServicesValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "PYFA-2.1".parse()?,
         })
@@ -221,7 +221,7 @@ pub struct NoTransactionInServicesValidator {
 
 impl NoTransactionInServicesValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "PYFA-3.1".parse()?,
         })
@@ -270,7 +270,7 @@ pub struct NoOrmModelsInServicesValidator {
 
 impl NoOrmModelsInServicesValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "PYFA-4.1".parse()?,
         })
@@ -316,7 +316,7 @@ pub struct NoSqlalchemyInRoutersValidator {
 
 impl NoSqlalchemyInRoutersValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "PYFA-5.1".parse()?,
         })
@@ -364,7 +364,7 @@ pub struct HttpExceptionLocationValidator {
 
 impl HttpExceptionLocationValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "PYFA-6.1".parse()?,
         })
@@ -410,7 +410,7 @@ pub struct NoReposInWorkflowsValidator {
 
 impl NoReposInWorkflowsValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "PYFA-7.1".parse()?,
         })
@@ -460,7 +460,7 @@ pub struct ModelsMappedValidator {
 
 impl ModelsMappedValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "PYFA-8.1".parse()?,
         })
@@ -506,7 +506,7 @@ pub struct DomainPurityValidator {
 
 impl DomainPurityValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "PYFA-9.1".parse()?,
         })
@@ -554,7 +554,7 @@ pub struct NoSyncHttpValidator {
 
 impl NoSyncHttpValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "PYFA-10.1".parse()?,
         })
@@ -614,7 +614,7 @@ pub struct NoDirectRepoInstantiationValidator {
 
 impl NoDirectRepoInstantiationValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "PYFA-11.1".parse()?,
         })
@@ -666,7 +666,7 @@ pub struct PlaintextPasswordValidator {
 
 impl PlaintextPasswordValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "PYFA-12.1".parse()?,
         })
@@ -723,7 +723,7 @@ pub struct InsecureRandomTokenValidator {
 
 impl InsecureRandomTokenValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "PYFA-12.2".parse()?,
         })
@@ -779,7 +779,7 @@ pub struct CorsWildcardValidator {
 
 impl CorsWildcardValidator {
     /// Build the validator, parsing its `RuleId` literal at construction.
-    pub fn new() -> Result<Self, enforcer_core::error::DecodeError> {
+    pub fn new() -> Result<Self, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(Self {
             rule_id: "PYFA-12.3".parse()?,
         })
@@ -825,7 +825,8 @@ impl Validator for CorsWildcardValidator {
 
 /// Build every validator this module registers, in the order the workpack
 /// lists them.
-pub fn validators() -> Result<Vec<Box<dyn Validator>>, enforcer_core::error::DecodeError> {
+pub fn validators(
+) -> Result<Vec<Box<dyn Validator>>, enforcer_domain::boundary::decode_error::DecodeError> {
     Ok(vec![
         Box::new(NoRepoInRoutersValidator::new()?),
         Box::new(NoSessionInServicesValidator::new()?),

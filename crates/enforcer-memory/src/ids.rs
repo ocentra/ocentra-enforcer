@@ -95,7 +95,7 @@ impl ProjectId {
         // full 64-char digest would just make store directory names
         // unwieldy for no correctness benefit.
         let hex = digest
-            .strip_prefix(enforcer_core::hash_chain::DIGEST_PREFIX)
+            .strip_prefix(enforcer_domain::hashes::SHA256_PREFIX)
             .unwrap_or(&digest);
         Self(hex.get(..16).unwrap_or(hex).to_owned())
     }

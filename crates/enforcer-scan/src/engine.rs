@@ -101,10 +101,11 @@ impl FamilyValidators {
 /// `enforcer-lang-*` crate's registry.
 ///
 /// # Errors
-/// Returns [`enforcer_core::error::DecodeError`] if any family registry
+/// Returns [`enforcer_domain::boundary::decode_error::DecodeError`] if any family registry
 /// fails to build (a malformed rule spec, a duplicate rule id) — fails
 /// closed rather than silently running with a partial registry.
-pub fn build_family_validators() -> Result<FamilyValidators, enforcer_core::error::DecodeError> {
+pub fn build_family_validators(
+) -> Result<FamilyValidators, enforcer_domain::boundary::decode_error::DecodeError> {
     // `enforcer-lang-rust` (arc-06) has not landed an aggregate registry
     // yet (only the two hosted baseline validators exist as concrete
     // modules) — wire them directly; a later arc-06 feature pack adding

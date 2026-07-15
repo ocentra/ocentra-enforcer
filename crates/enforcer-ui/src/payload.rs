@@ -145,7 +145,7 @@ pub fn validate_action_request(body: &serde_json::Value) -> Result<(), Malformed
 
 #[cfg(test)]
 mod tests {
-    use enforcer_core::error::DecodeError;
+    use enforcer_domain::boundary::decode_error::DecodeError;
     use enforcer_domain::findings::{Finding, Report, ScanScope, Violation};
     use enforcer_domain::ids::RuleId;
     use enforcer_domain::paths::RelPath;

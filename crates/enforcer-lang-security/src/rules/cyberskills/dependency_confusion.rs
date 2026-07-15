@@ -27,7 +27,7 @@
 //! neither find every claimable name the registry probe would (no network)
 //! nor apply the vendor's `--secure-namespaces` skip list.
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::Finding;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;

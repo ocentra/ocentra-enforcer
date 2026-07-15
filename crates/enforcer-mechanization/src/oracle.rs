@@ -93,7 +93,9 @@ mod tests {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
     }
 
-    fn record(rule_id: &str) -> Result<RuleRecord, enforcer_core::error::DecodeError> {
+    fn record(
+        rule_id: &str,
+    ) -> Result<RuleRecord, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(RuleRecord {
             rule_id: rule_id.parse()?,
             version: 1,

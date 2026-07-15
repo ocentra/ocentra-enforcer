@@ -7,7 +7,7 @@
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
-use enforcer_core::error::DecodeError;
+use enforcer_domain::boundary::decode_error::DecodeError;
 use enforcer_domain::findings::ScanScope;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::paths::RelPath;
@@ -163,9 +163,10 @@ fn malformed_and_invalid_records_stay_silent() -> Result<(), ProofFailure> {
 #[test]
 fn fully_covered_unit_stays_clean_across_both_validators() -> Result<(), ProofFailure> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let source = std::fs::read_to_string(manifest_dir.join(
-        "tests/fixtures/required_test_categories/endpoint_a/good/all_seven/manifest.json",
-    ))?;
+    let source =
+        std::fs::read_to_string(manifest_dir.join(
+            "tests/fixtures/required_test_categories/endpoint_a/good/all_seven/manifest.json",
+        ))?;
     let record_path: RelPath = "crates/x/required-test-categories.json".parse()?;
     for validator in [
         Box::new(RequiredTestCategoriesSevenValidator::new()?) as Box<dyn Validator>,
@@ -191,9 +192,10 @@ fn orphan_unit_is_silent_under_the_seven_category_validator() -> Result<(), Proo
     // REQ-TESTCAT-SEVEN.1 (which only inspects present units) must stay
     // silent — this is exclusively REQ-TESTCAT-MAP.1's fail case.
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let source = std::fs::read_to_string(manifest_dir.join(
-        "tests/fixtures/required_test_categories/orphan/bad/unit_no_tests/manifest.json",
-    ))?;
+    let source = std::fs::read_to_string(
+        manifest_dir
+            .join("tests/fixtures/required_test_categories/orphan/bad/unit_no_tests/manifest.json"),
+    )?;
     let record_path: RelPath = "crates/x/required-test-categories.json".parse()?;
     let validator = RequiredTestCategoriesSevenValidator::new()?;
     let findings = validator.validate(ValidationInput {

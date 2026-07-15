@@ -60,7 +60,7 @@ use crate::validator::{check_parallel_safety, OwnsRecord};
 fn overlap_probe_rule_id() -> PlanResult<RuleId> {
     "ORCH-PARALLEL-PROBE"
         .parse()
-        .map_err(|decode_err: enforcer_core::error::DecodeError| PlanError::GraphInvalid {
+        .map_err(|decode_err: enforcer_domain::boundary::decode_error::DecodeError| PlanError::GraphInvalid {
             reason: format!(
                 "internal: ORCH-PARALLEL-PROBE rule id literal is no longer format-valid: {decode_err}"
             ),
