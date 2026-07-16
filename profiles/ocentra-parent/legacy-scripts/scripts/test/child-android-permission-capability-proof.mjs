@@ -232,7 +232,9 @@ async function assertScriptWiring() {
   const packageJson = JSON.parse(await readRepoFile('package.json'));
   const schemaDomainPackage = JSON.parse(await readRepoFile('packages/schema-domain/package.json'));
   const script = packageJson.scripts['test:child-android-permission-capability-proof'];
-  if (script !== `node scripts/test/${proofMode}.mjs`) {
+  const expectedScript =
+    `node scripts/enforcer/run-ocentra-enforcer.mjs proof run --proof ocentra-parent.${proofMode}`;
+  if (script !== expectedScript) {
     throw new Error('Missing root test:child-android-permission-capability-proof script.');
   }
   if (!schemaDomainPackage.exports['./child-android-permission-capability-proof']) {
