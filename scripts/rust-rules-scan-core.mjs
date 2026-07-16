@@ -172,7 +172,7 @@ Usage:
   ocentra-enforcer doctor [options]
   ocentra-enforcer explain <RULE_ID>
   ocentra-enforcer run --root <repo> --tool <tool> -- <command...>
-  ocentra-enforcer runs <list|summary|diagnostics|last-failure|artifact|prune|reset> [options]
+  ocentra-enforcer runs <list|summary|diagnostics|last-failure|triage|artifact|prune|reset> [options]
   ocentra-enforcer proof <route|run|status|inventory|migrate-legacy|import-legacy|parity|claim|last-failure|diagnostics|artifact|reset|prune|export> [options]
   ocentra-enforcer coordination <ledger-command> [--hub <hub>] [--state-root <path>] [options]
   ocentra-enforcer coordination closeout --lane <lane> [--thread-id <thread>] [--all-owned] [--json]

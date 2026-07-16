@@ -19,6 +19,7 @@ import {
   rustMessageToDiagnostic,
   sarifSeverity,
   sortDiagnostics,
+  triageCiText,
 } from './harness-parsers.mjs';
 
 const DEFAULT_HARNESS_CONFIG = Object.freeze({
@@ -165,6 +166,22 @@ export function lastFailure(args = {}) {
   if (!failedRun) return { ok: true, found: false, message: 'No failed harness run found.' };
   const diagnostics = runDiagnostics({ ...args, root, runId: failedRun.runId, limit: args.diagnosticLimit ?? 10 }).diagnostics;
   return { ok: true, found: true, run: failedRun, diagnostics };
+}
+
+export function triageCiLog(args = {}) {
+  const root = path.resolve(args.root ?? process.cwd());
+  if (!args.file) throw new Error('runs triage requires --file <ci-log-path>.');
+  const absolute = path.resolve(root, args.file);
+  if (!isInsideRoot(root, absolute)) {
+    throw new Error(`CI log path escapes repository root: ${args.file}`);
+  }
+  if (!fs.existsSync(absolute)) throw new Error(`CI log does not exist: ${args.file}`);
+  const report = triageCiText({
+    root,
+    tool: args.tool ?? 'ci',
+    text: redactSecrets(fs.readFileSync(absolute, 'utf8')),
+  });
+  return { ...report, log: normalizeRel(root, absolute) };
 }
 
 export function readArtifact(args = {}) {

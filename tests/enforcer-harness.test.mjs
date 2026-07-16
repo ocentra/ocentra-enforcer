@@ -98,6 +98,48 @@ test("harness persists raw logs, NDJSON diagnostics, summaries, and last failure
   assert.match(artifactReport.text, /TS2322/u);
 });
 
+test("CI triage ranks a missing Rust module path above exit-code noise", () => {
+  const project = makeProject();
+  const logPath = path.join(project, "agent-service-clippy.log");
+  fs.writeFileSync(
+    logPath,
+    [
+      "2026-07-16T01:50:17.0097879Z ##[group]Run cargo clippy -p ocentra-parent-agent-service --all-targets -- -D warnings",
+      "2026-07-16T01:51:48.6742092Z error: couldn't read `crates/agent-service/tests/unit/screen_ai_service_event_subscription_live_view/../live_view_service_runtime_tests.rs`: No such file or directory (os error 2)",
+      "2026-07-16T01:51:48.6766642Z    --> crates/agent-service/tests/unit/screen_ai_runtime.rs:284:5",
+      "2026-07-16T01:51:48.6770506Z error: could not compile `ocentra-parent-agent-service` (test \"screen_ai_runtime\") due to 1 previous error",
+      "2026-07-16T01:51:48.6771821Z warning: build failed, waiting for other jobs to finish...",
+      "2026-07-16T01:51:49.4413471Z ##[error]Process completed with exit code 101.",
+    ].join("\n"),
+    "utf8",
+  );
+
+  const result = run(project, [
+    "runs",
+    "triage",
+    "--json",
+    "--tool",
+    "cargo-clippy",
+    "--file",
+    path.basename(logPath),
+  ]);
+  assert.equal(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.found, true);
+  assert.equal(report.rootCause.category, "missing-source-file");
+  assert.equal(
+    report.rootCause.referencedFrom.file,
+    "crates/agent-service/tests/unit/screen_ai_runtime.rs",
+  );
+  assert.equal(report.rootCause.referencedFrom.line, 284);
+  assert.equal(
+    report.command,
+    "cargo clippy -p ocentra-parent-agent-service --all-targets -- -D warnings",
+  );
+  assert.equal(report.downstreamNoise.length, 3);
+  assert.doesNotMatch(report.rootCause.message, /exit code 101/u);
+});
+
 test("harness retention prunes old successful runs but keeps bounded recent metadata", () => {
   const project = makeProject();
   fs.writeFileSync(
