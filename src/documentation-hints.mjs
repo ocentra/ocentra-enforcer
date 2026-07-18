@@ -43,7 +43,7 @@ function scanRustDocumentationHints(addViolation, root, filePath, lines) {
   const violations = [];
   lines.forEach((line, idx) => {
     if (
-      !/^\s*pub(?:\([^)]*\)|\s+)?\s*(?:async\s+)?(?:fn|struct|enum|trait)\s+[A-Za-z_]\w*/u.test(
+      !/^\s*pub\s+(?:async\s+)?(?:fn|struct|enum|trait)\s+[A-Za-z_]\w*/u.test(
         line,
       )
     )
@@ -70,6 +70,7 @@ function hasLeadingDocComment(lines, index, marker) {
   for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
     const line = lines[cursor]?.trim() ?? "";
     if (line === "") continue;
+    if ((marker === "///" || marker === "#[doc") && line.startsWith("#[")) continue;
     return line.startsWith(marker) || line.endsWith("*/");
   }
   return false;

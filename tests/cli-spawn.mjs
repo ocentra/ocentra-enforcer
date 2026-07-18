@@ -24,7 +24,15 @@ export function spawnCli(command, args, options = {}) {
   }
 
   const stdout = fs.readFileSync(stdoutPath, "utf8");
-  const stderr = fs.readFileSync(stderrPath, "utf8");
+  const capturedStderr = fs.readFileSync(stderrPath, "utf8");
+  const spawnDiagnostic = result.error?.code === "ETIMEDOUT"
+    ? `spawnCli timed out after ${options.timeout}ms: ${path.basename(command)} ${args.slice(0, 12).join(" ")}`
+    : result.error
+      ? `spawnCli failed (${result.error.code ?? "unknown"}): ${result.error.message}`
+      : "";
+  const stderr = [capturedStderr.trimEnd(), spawnDiagnostic]
+    .filter(Boolean)
+    .join("\n");
   return {
     ...result,
     stdout,

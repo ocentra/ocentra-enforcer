@@ -57,6 +57,7 @@ function commitFixture(project) {
 test('boundary DTO evidence recognizes underscore-separated Rust test names', () => {
   const project = makeProject({
     'src/boundary/dto.rs': `
+      // BOUNDARY-INVARIANT: this module owns the external DTO wire shape.
       #[derive(serde::Serialize, serde::Deserialize)]
       pub struct InputDto { pub value: String }
 
@@ -65,18 +66,26 @@ test('boundary DTO evidence recognizes underscore-separated Rust test names', ()
       impl TryFrom<InputDto> for DomainValue {
         type Error = ();
 
-        fn try_from(_dto: InputDto) -> Result<Self, Self::Error> {
-          Ok(Self)
+        fn try_from(dto: InputDto) -> Result<Self, Self::Error> {
+          if dto.value.is_empty() { Err(()) } else { Ok(Self) }
         }
       }
 
       #[cfg(test)]
       mod tests {
         #[test]
-        fn wire_round_trip_is_preserved() {}
+        fn wire_round_trip_is_preserved() {
+          let value = InputDto { value: "valid".to_owned() };
+          let encoded = serde_json::to_vec(&value).unwrap();
+          let decoded: InputDto = serde_json::from_slice(&encoded).unwrap();
+          assert_eq!(decoded.value, value.value);
+        }
 
         #[test]
-        fn invalid_payload_is_rejected() {}
+        fn invalid_payload_is_rejected() {
+          let result = DomainValue::try_from(InputDto { value: String::new() });
+          assert!(result.is_err());
+        }
       }
     `,
   });
@@ -438,6 +447,9 @@ pub struct SerializedState {
 }
 `,
     'src/no_conversion_dto.rs': `
+pub struct Missing;
+
+#[derive(Deserialize)]
 pub struct MissingDto {
     pub id: String,
 }
@@ -589,6 +601,155 @@ criterion = "0.5.1"
   }
 });
 
+test('Rust domain signature classifier distinguishes owned conversion APIs from raw domain leaks', () => {
+  const project = makeProject({
+    'rust-rules.config.json': JSON.stringify({
+      requireCargoDeny: false,
+      rustRoots: ['src'],
+    }),
+    'src/canonical.rs': `
+#[doc = "BRAND-INVARIANT: every usize is a valid exact zero-inclusive count."]
+pub struct ZeroCount(usize);
+
+impl From<usize> for ZeroCount {
+    fn from(value: usize) -> Self { Self(value) }
+}
+
+impl PartialEq<usize> for ZeroCount {
+    fn eq(&self, other: &usize) -> bool { self.0 == *other }
+}
+
+impl std::ops::Add<usize> for ZeroCount {
+    type Output = usize;
+    fn add(self, rhs: usize) -> Self::Output { self.0 + rhs }
+}
+
+impl ZeroCount {
+    pub const fn get(self) -> usize { self.0 }
+    pub const fn is_zero(self) -> bool { self.0 == 0 }
+    pub const fn should_emit(self, configured_min: Self) -> bool {
+        self.0 >= configured_min.0
+    }
+}
+
+pub struct Bytes(Vec<u8>);
+impl<const N: usize> PartialEq<&[u8; N]> for Bytes {
+    fn eq(&self, other: &&[u8; N]) -> bool { self.0.as_slice() == *other }
+}
+
+#[doc = "BRAND-INVARIANT: values from zero through one hundred are valid percentages."]
+pub struct Percentage(u8);
+
+impl Percentage {
+    pub fn new(value: u8) -> Result<Self, &'static str> {
+        if value <= 100 { Ok(Self(value)) } else { Err("invalid percentage") }
+    }
+
+    pub const fn value(self) -> u8 { self.0 }
+}
+
+#[doc = "BRAND-INVARIANT: the string has already passed label validation."]
+pub struct Label(String);
+
+impl Label {
+    pub fn try_new(value: String) -> Result<Self, &'static str> {
+        if value.is_empty() { Err("invalid label") } else { Ok(Self(value)) }
+    }
+
+    pub fn as_str(&self) -> &str { &self.0 }
+}
+
+impl std::ops::Deref for Label {
+    type Target = str;
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+#[doc = "BRAND-INVARIANT: empty text is valid report output; the wrapper preserves presentation ownership."]
+pub struct RenderedReport(String);
+impl From<String> for RenderedReport {
+    fn from(value: String) -> Self { Self(value) }
+}
+
+#[doc = "BRAND-INVARIANT: the boolean stores one named domain state."]
+pub struct ReadyState(bool);
+impl ReadyState {
+    pub const fn get(self) -> bool { self.0 }
+}
+`,
+    'src/raw_domain.rs': `
+pub type RawCount = usize;
+
+pub struct InvalidCount(usize);
+impl From<usize> for InvalidCount {
+    fn from(value: usize) -> Self { Self(value) }
+}
+
+#[doc = "BRAND-INVARIANT: labels are required to be non-empty."]
+pub struct InvalidLabel(String);
+impl From<String> for InvalidLabel {
+    fn from(value: String) -> Self { Self(value) }
+}
+
+#[doc = "BRAND-INVARIANT: labels are required to be non-empty."]
+pub struct PublicInvalidLabel(pub String);
+
+pub struct DomainService;
+impl DomainService {
+    pub fn increment_by(&mut self, amount: u32) { let _ = amount; }
+    pub fn raw_total(&self) -> u64 { 0 }
+    pub fn get_ready(&self, key: &str) -> bool { !key.is_empty() }
+}
+
+pub trait RawDomainContract {
+    fn replace_count(&mut self, count: u32);
+}
+`,
+  });
+
+  const result = runGateArgs(project, [
+    'scan',
+    '--json',
+    '--languages',
+    'rust',
+    '--files',
+    'src/canonical.rs',
+    'src/raw_domain.rs',
+  ]);
+  const report = JSON.parse(result.stdout);
+  const canonicalBoundaryFindings = report.violations.filter(
+    (violation) =>
+      violation.file === 'src/canonical.rs'
+      && ['RR-4.12', 'RR-6.1', 'RR-6.2', 'RR-6.5', 'RR-6.44'].includes(violation.ruleId),
+  );
+  assert.deepEqual(canonicalBoundaryFindings, [], result.stdout);
+
+  const rawDomainIds = new Set(
+    report.violations
+      .filter((violation) => violation.file === 'src/raw_domain.rs')
+      .map((violation) => violation.ruleId),
+  );
+  assert.equal(rawDomainIds.has('RR-6.2'), true, result.stdout);
+  assert.equal(rawDomainIds.has('RR-6.5'), true, result.stdout);
+  assert.equal(rawDomainIds.has('RR-6.44'), true, result.stdout);
+  assert.equal(rawDomainIds.has('RR-4.12'), true, result.stdout);
+  assert.equal(
+    report.violations.some(
+      (violation) => violation.ruleId === 'RR-6.44' && violation.detail.includes('InvalidLabel'),
+    ),
+    true,
+    result.stdout,
+  );
+  assert.equal(
+    report.violations.some(
+      (violation) =>
+        violation.ruleId === 'RR-6.44'
+        && violation.detail.includes('PublicInvalidLabel'),
+    ),
+    true,
+    result.stdout,
+  );
+});
+
 test('awaiting a Tokio lock acquisition is not reported as awaiting while holding a guard', () => {
   const project = makeProject({
     'rust-rules.config.json': JSON.stringify({
@@ -619,6 +780,9 @@ test('Rust slice type declarations are not reported as unchecked indexing', () =
     'src/lib.rs': `
 pub fn values<'a>() -> &'a [u8] { &[] }
 pub fn names() -> &'static [&'static str] { &[] }
+pub fn sort_paths(paths: &mut [TracedPath]) { paths.sort_by_key(|path| path.depth); }
+pub fn normalize(vector: &mut [f32]) { vector.fill(0.0); }
+pub fn read(buf: &mut [u8]) -> usize { buf.len() }
 pub fn first(values: Vec<u8>) -> u8 { values[0] }
 `,
   });
@@ -627,6 +791,66 @@ pub fn first(values: Vec<u8>) -> u8 { values[0] }
   const indexing = report.violations.filter((violation) => violation.ruleId === 'RR-5.3');
   assert.equal(indexing.length, 1, result.stdout);
   assert.match(indexing[0].source, /values\[0\]/u);
+});
+
+test('boundary serde classification is scoped to each adjacent struct attributes', () => {
+  const project = makeProject({
+    'rust-rules.config.json': JSON.stringify({
+      requireCargoDeny: false,
+      rustRoots: ['src'],
+    }),
+    'src/boundary.rs': `
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct EventDto {
+    pub value: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct EventWire {
+    pub value: String,
+}
+
+pub struct NotWiredError {
+    pub message: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct MissingSuffix {
+    pub value: String,
+}
+`,
+  });
+  const result = runGateArgs(project, ['scan', '--json', '--files', 'src/boundary.rs']);
+  const report = JSON.parse(result.stdout);
+  const violations = report.violations.filter((violation) => violation.ruleId === 'RR-14.21');
+  assert.equal(violations.length, 1, result.stdout);
+  assert.match(violations[0].detail, /MissingSuffix/u);
+});
+
+test('base64 domain classification requires an executable raw-string shape', () => {
+  const project = makeProject({
+    'rust-rules.config.json': JSON.stringify({
+      requireCargoDeny: false,
+      rustRoots: ['src'],
+    }),
+    'src/redaction.rs': `
+/// Redacts base64-looking secrets before persistence.
+pub struct Redactor {
+    pattern: String,
+}
+`,
+    'src/domain.rs': `
+pub struct UnsafePayload {
+    pub payload_base64: String,
+}
+`,
+  });
+  const result = runGateArgs(project, ['scan', '--json', '--files', 'src/redaction.rs', 'src/domain.rs']);
+  const report = JSON.parse(result.stdout);
+  const violations = report.violations.filter((violation) => violation.ruleId === 'RR-14.28');
+  assert.equal(violations.length, 1, result.stdout);
+  assert.equal(violations[0].file, 'src/domain.rs');
+  assert.match(violations[0].source, /payload_base64/u);
 });
 
 test('workspace dependency users inherit the root dependency justification', () => {

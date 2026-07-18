@@ -22,6 +22,7 @@ import {
 } from "./rust-rules-source-patterns.mjs";
 import {
   collectFunctionSignatures,
+  enclosingRustScope,
   functionName,
   functionParams,
   normalizedNameTokens,
@@ -29,6 +30,7 @@ import {
   braceDelta,
   hasStringLiteral,
 } from "./rust-rules-source-helpers.mjs";
+
 import {
   isTestFile,
   isRawTypeBoundary,
@@ -41,6 +43,14 @@ import {
 } from "./rust-rules-source-classification.mjs";
 import { applyLateRustFileRules } from "./rust-rules-source-late-rules.mjs";
 import { applySignatureRules } from "./rust-rules-source-signature-rules.mjs";
+
+function secretValueTypeName(line) {
+  const match = line.match(/\b(?:struct|enum)\s+(?<name>[A-Z][A-Za-z0-9_]*)/u);
+  const name = match?.groups?.name ?? "";
+  if (!/(?:Secret|Credential|Password|(?:Api|Access|Refresh|Auth|Bearer|Session|Csrf|Oauth|Personal)Token|(?:Private|Secret|Signing|Encryption|Decryption|Api)Key)/u.test(name)) return "";
+  if (/(?:Validator|Validation|Rule|Detector|Scanner)$/u.test(name)) return "";
+  return name;
+}
 
 const { ID_LIKE_NAME_RE, PATH_LIKE_NAME_RE, TIME_LIKE_NAME_RE, URL_LIKE_NAME_RE } =
   NAME_PATTERNS;
@@ -60,73 +70,56 @@ const { FIELD_RE, PUBLIC_FIELD_RE, PUBLIC_SERDE_STRUCT_RE } =
 // "RR-14.20" "RR-14.21" "RR-14.23" "RR-14.24" "RR-14.25" "RR-14.26" "RR-14.28"
 // "RR-8.30"
 
-function isTestFunctionSignature(lines, index) {
-  for (let cursor = index - 1; cursor >= 0 && cursor >= index - 4; cursor -= 1) {
-    if (/^\s*#\[(?:test|tokio::test|async_std::test)\b/u.test(lines[cursor])) {
-      return true;
-    }
-    if (/^\s*(?:pub\s+)?(?:async\s+)?fn\b/u.test(lines[cursor])) break;
-  }
-  return false;
+import {
+  hasDefaultRationale,
+  isTestFunctionSignature,
+  transportRecordLineMask,
+} from "./rust-rules-source-line-masks.mjs";
+import { inlineTestLineMask } from "./rust-rules-source-test-line-masks.mjs";
+import {
+  publicRecordLineMask,
+  recordFieldLineMask,
+} from "./rust-rules-source-record-line-masks.mjs";
+
+function finishProfilePhase(timings, name, startedAt) {
+  if (!timings) return startedAt;
+  const finishedAt = performance.now();
+  timings[name] = finishedAt - startedAt;
+  return finishedAt;
 }
 
-function inlineTestLineMask(lines) {
-  const testLines = Array(lines.length).fill(false);
-  let pendingTestFunction = false;
-  let pendingTestModule = false;
-  let activeTestDepth = null;
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
-    if (activeTestDepth !== null) {
-      testLines[index] = true;
-      activeTestDepth += braceDelta(line);
-      if (activeTestDepth <= 0) activeTestDepth = null;
-      continue;
-    }
-    if (/^\s*#\[cfg\(test\)\]/u.test(line)) {
-      testLines[index] = true;
-      pendingTestModule = true;
-      continue;
-    }
-    if (/^\s*#\[(?:test|tokio::test|async_std::test)\b/u.test(line)) {
-      testLines[index] = true;
-      pendingTestFunction = true;
-      continue;
-    }
-    if (pendingTestModule) {
-      testLines[index] = true;
-      if (/\bmod\s+[A-Za-z_][A-Za-z0-9_]*\b/u.test(line)) {
-        const depth = braceDelta(line);
-        if (depth > 0) activeTestDepth = depth;
-        pendingTestModule = false;
-      }
-      continue;
-    }
-    if (pendingTestFunction) {
-      testLines[index] = true;
-      if (/\bfn\s+[A-Za-z_][A-Za-z0-9_]*\b/u.test(line)) {
-        const depth = braceDelta(line);
-        if (depth > 0) activeTestDepth = depth;
-        pendingTestFunction = false;
-      }
-    }
-  }
-  return testLines;
-}
-
-function scanRustFile(root, filePath, config) {
+function scanRustFile(root, filePath, config, options = {}) {
+  const timings = options.timings ?? null;
+  const cacheFilePredicates = options.cacheFilePredicates !== false;
+  const profileStartedAt = timings ? performance.now() : 0;
+  let phaseStartedAt = profileStartedAt;
   const rel = normalizeRel(root, filePath);
   const violations = [];
   const source = fs.readFileSync(filePath, "utf8");
+  phaseStartedAt = finishProfilePhase(timings, "read", phaseStartedAt);
   const masked = maskRustCode(source);
+  phaseStartedAt = finishProfilePhase(timings, "mask", phaseStartedAt);
   const originalLines = source.split(/\r?\n/u);
   const maskedLines = masked.split(/\r?\n/u);
+  const maskedLineOffsets = [];
+  let maskedOffset = 0;
+  for (const maskedLine of maskedLines) {
+    maskedLineOffsets.push(maskedOffset);
+    maskedOffset += maskedLine.length + 1;
+  }
+  phaseStartedAt = finishProfilePhase(timings, "split", phaseStartedAt);
   const isTestSource = isTestFile(rel, config);
   const inlineTestLines = inlineTestLineMask(originalLines);
+  const recordFieldLines = recordFieldLineMask(maskedLines);
+  const publicRecordLines = publicRecordLineMask(maskedLines);
+  const transportRecordLines = transportRecordLineMask(maskedLines);
+  phaseStartedAt = finishProfilePhase(timings, "lineMasks", phaseStartedAt);
   const isBoundary = isBoundaryModulePath(rel, config);
   const isConfigurationBoundary = isConfigurationBoundaryModulePath(rel);
   const isStringOwner = isRawStringOwner(rel, config);
   const isPrimitiveOwner = isDomainPrimitiveOwner(rel, config);
+  const isLanguageAnalyzer =
+    /(?:^|\/)crates\/enforcer-(?:lang-[^/]+|literal-scan)\/src\//u.test(rel);
   const enforceRuntimeStrings =
     config.enforceRuntimeStringLiterals &&
     !isTestSource &&
@@ -136,6 +129,10 @@ function scanRustFile(root, filePath, config) {
     !isTestSource &&
     !isConfigurationBoundary &&
     !isSerializedDomainOwner(rel, config);
+  const hasAsyncSyntax = /\basync\s+fn\b|\.await\b/u.test(masked);
+  const hasRedactionRationale = /\bRedacted\b|REDACTED|redact/u.test(source);
+  const hasRetryRationale = /\bRetryPolicy\b|BACKOFF-JUSTIFICATION|RETRY-JUSTIFICATION/u.test(source);
+  const hasCpuOffloadRationale = /\bspawn_blocking\b|CPU-JUSTIFICATION|worker/u.test(source);
   const fileName = path.basename(filePath);
   const badModuleFileNames = new Set([
     "utils.rs",
@@ -513,7 +510,7 @@ function scanRustFile(root, filePath, config) {
       );
     }
 
-    if (!isBoundary && /\.unwrap_or_default\s*\(\s*\)/u.test(line)) {
+    if (!isBoundary && !isLanguageAnalyzer && /\.unwrap_or_default\s*\(\s*\)/u.test(line)) {
       addViolation(
         violations,
         root,
@@ -647,7 +644,7 @@ function scanRustFile(root, filePath, config) {
       /\b[A-Za-z_][A-Za-z0-9_\.]*\s*\[[^\]\n]+\]/u.test(line) &&
       !/\b(?:vec|format|println|assert|assert_eq|assert_ne)!\s*\[/u.test(line) &&
       !/\bfor\s+[A-Za-z_][A-Za-z0-9_]*\s+in\s+\[/u.test(line) &&
-      !/&(?:'[A-Za-z_][A-Za-z0-9_]*\s*)?\[\s*(?:&\s*)?(?:'[A-Za-z_][A-Za-z0-9_]*\s*)?[A-Za-z_][A-Za-z0-9_<>:,\s]*\]/u.test(line)
+      !/&(?:'[A-Za-z_][A-Za-z0-9_]*\s*)?(?:mut\s+)?\[\s*(?:&\s*)?(?:'[A-Za-z_][A-Za-z0-9_]*\s*)?[A-Za-z_][A-Za-z0-9_<>:,\s]*\]/u.test(line)
     ) {
       addViolation(
         violations,
@@ -679,8 +676,12 @@ function scanRustFile(root, filePath, config) {
     }
 
     const typeAliasMatch = line.match(TYPE_ALIAS_RAW_RE);
+    const aliasScope = typeAliasMatch
+      ? enclosingRustScope(masked, maskedLineOffsets[idx] ?? 0)
+      : null;
     if (
       typeAliasMatch &&
+      aliasScope?.kind !== "trait-impl" &&
       (RAW_STRING_TYPE_RE.test(typeAliasMatch[1]) ||
         RAW_PRIMITIVE_TYPE_RE.test(typeAliasMatch[1]))
     ) {
@@ -750,7 +751,7 @@ function scanRustFile(root, filePath, config) {
         maskedLines
           .slice(idx + 1, idx + 4)
           .find((candidate) => candidate.trim() !== "" && !/^\s*#\[/u.test(candidate)) ?? "";
-      if (/(?:Secret|Token|Key|Credential|Password)/u.test(nextLine)) {
+      if (secretValueTypeName(nextLine)) {
         addViolation(
           violations,
           root,
@@ -763,7 +764,9 @@ function scanRustFile(root, filePath, config) {
       }
     }
 
-    if (/(?:Secret|Token|Key|Credential|Password)/u.test(line) && /\b(?:struct|enum)\b/u.test(line) && !/\bRedacted\b|REDACTED|redact/u.test(source)) {
+    if (secretValueTypeName(line) && !(cacheFilePredicates
+      ? hasRedactionRationale
+      : /\bRedacted\b|REDACTED|redact/u.test(source))) {
       addViolation(
         violations,
         root,
@@ -776,12 +779,13 @@ function scanRustFile(root, filePath, config) {
     }
 
     if (
+      recordFieldLines[idx] &&
       /^\s*(?:pub(?:\([^)]*\))?\s+)?[A-Za-z_][A-Za-z0-9_]*\s*:\s*/u.test(
         line,
       ) &&
       (RAW_STRING_TYPE_RE.test(line) || RAW_PRIMITIVE_TYPE_RE.test(line))
     ) {
-      if (!isBoundary && /^\s*pub(?:\([^)]*\))?\s+/u.test(line)) {
+      if (!isBoundary && !transportRecordLines[idx] && /^\s*pub\s+/u.test(line)) {
         addViolation(
           violations,
           root,
@@ -793,6 +797,9 @@ function scanRustFile(root, filePath, config) {
         );
       } else if (
         !isBoundary &&
+        !transportRecordLines[idx] &&
+        !isLanguageAnalyzer &&
+        publicRecordLines[idx] &&
         !contextHas(originalLines, idx, "BRAND-INVARIANT:", 6)
       ) {
         addViolation(
@@ -808,7 +815,7 @@ function scanRustFile(root, filePath, config) {
     }
 
     const fieldMatch = line.match(FIELD_RE);
-    if (!isBoundary && fieldMatch?.groups) {
+    if (!isBoundary && !transportRecordLines[idx] && !isLanguageAnalyzer && recordFieldLines[idx] && fieldMatch?.groups) {
       const fieldName = fieldMatch.groups.name;
       const fieldType = fieldMatch.groups.type;
       if (/\bBTreeMap\s*<\s*String\s*,/u.test(fieldType)) {
@@ -996,7 +1003,9 @@ function scanRustFile(root, filePath, config) {
     }
 
     if (
-      /\basync\s+fn\b|\.await\b/u.test(masked) &&
+      (cacheFilePredicates
+        ? hasAsyncSyntax
+        : /\basync\s+fn\b|\.await\b/u.test(masked)) &&
       /\bstd::sync::(?:Mutex|RwLock)\b|\bstd::thread::sleep\b|\bstd::fs::|\bstd::net::/u.test(
         line,
       )
@@ -1079,7 +1088,9 @@ function scanRustFile(root, filePath, config) {
       );
     }
 
-    if (/\b(?:retry|retries|Retry)\b/u.test(line) && /\b(?:loop|while|for)\b/u.test(line) && !/\bRetryPolicy\b|BACKOFF-JUSTIFICATION|RETRY-JUSTIFICATION/u.test(source)) {
+    if (/\b(?:retry|retries|Retry)\b/u.test(line) && /\b(?:loop|while|for)\b/u.test(line) && !(cacheFilePredicates
+      ? hasRetryRationale
+      : /\bRetryPolicy\b|BACKOFF-JUSTIFICATION|RETRY-JUSTIFICATION/u.test(source))) {
       addViolation(
         violations,
         root,
@@ -1103,7 +1114,11 @@ function scanRustFile(root, filePath, config) {
       );
     }
 
-    if ((/\basync\s+fn\b|\.await\b/u.test(masked)) && /\b(?:for|while)\b/u.test(line) && /\b(?:hash|compress|encode|decode|sort|parse|render|compute)\b/iu.test(line) && !/\bspawn_blocking\b|CPU-JUSTIFICATION|worker/u.test(source)) {
+    if ((cacheFilePredicates
+      ? hasAsyncSyntax
+      : /\basync\s+fn\b|\.await\b/u.test(masked)) && /\b(?:for|while)\b/u.test(line) && /\b(?:hash|compress|encode|decode|sort|parse|render|compute)\b/iu.test(line) && !(cacheFilePredicates
+      ? hasCpuOffloadRationale
+      : /\bspawn_blocking\b|CPU-JUSTIFICATION|worker/u.test(source))) {
       addViolation(
         violations,
         root,
@@ -1132,6 +1147,7 @@ function scanRustFile(root, filePath, config) {
 
     if (
       /\.(?:send|get|post|put|patch|delete|request)\s*\([^;\n]*\)\s*\.await\b/u.test(line) &&
+      !/\btokio::time::sleep\s*\(/u.test(line) &&
       !/(?:timeout|Timeout|deadline)/u.test(line)
     ) {
       addViolation(
@@ -1145,7 +1161,9 @@ function scanRustFile(root, filePath, config) {
       );
     }
 
-    if (/^\s*loop\s*\{/u.test(line) && /\basync\s+fn\b|\.await\b/u.test(masked) && !contextHas(originalLines, idx, "CANCEL", 8)) {
+    if (/^\s*loop\s*\{/u.test(line) && (cacheFilePredicates
+      ? hasAsyncSyntax
+      : /\basync\s+fn\b|\.await\b/u.test(masked)) && !contextHas(originalLines, idx, "CANCEL", 8)) {
       addViolation(
         violations,
         root,
@@ -1226,6 +1244,7 @@ function scanRustFile(root, filePath, config) {
 
     if (
       !isBoundary &&
+      !transportRecordLines[idx] &&
       /^\s*#\[derive\([^#\]]*\bDeserialize\b[^#\]]*\)\]/u.test(line)
     ) {
       addViolation(
@@ -1239,7 +1258,7 @@ function scanRustFile(root, filePath, config) {
       );
     }
 
-    if (!isBoundary && /^\s*#\[derive\([^#\]]*\bSerialize\b[^#\]]*\)\]/u.test(line) && !contextHas(originalLines, idx, "SERIALIZATION-DOC:", 8)) {
+    if (!isBoundary && !transportRecordLines[idx] && /^\s*#\[derive\([^#\]]*\bSerialize\b[^#\]]*\)\]/u.test(line) && !contextHas(originalLines, idx, "SERIALIZATION-DOC:", 8)) {
       addViolation(
         violations,
         root,
@@ -1251,7 +1270,7 @@ function scanRustFile(root, filePath, config) {
       );
     }
 
-    if (!isConfigurationBoundary && /^\s*#\[serde\([^#\]]*\bdefault\b[^#\]]*\)\]/u.test(line) && !contextHas(originalLines, idx, "DEFAULT-JUSTIFICATION:", 4)) {
+    if (!isConfigurationBoundary && /^\s*#\[serde\([^#\]]*\bdefault\b[^#\]]*\)\]/u.test(line) && !hasDefaultRationale(originalLines, idx)) {
       addViolation(
         violations,
         root,
@@ -1424,6 +1443,7 @@ function scanRustFile(root, filePath, config) {
       );
     }
   });
+  phaseStartedAt = finishProfilePhase(timings, "lineRules", phaseStartedAt);
 
   if (!isBoundary) {
     for (const match of source.matchAll(/\bstruct\s+([A-Z][A-Za-z0-9_]*)[^{;]*\{([\s\S]*?)^\s*\}/gmu)) {
@@ -1445,19 +1465,28 @@ function scanRustFile(root, filePath, config) {
       const lineNo = lineNumberAtIndex(source, match.index);
       const attrs = match.groups?.attrs ?? "";
       const body = match.groups?.body ?? "";
-      if (!/\bDebug\b/u.test(attrs) || !/\b(?:thiserror::)?Error\b/u.test(attrs)) {
+      const errorName = match.groups?.name ?? "Error";
+      const manualErrorImpl = new RegExp(
+        `impl(?:<[^>]+>)?\\s+(?:std::error::|error::)?Error\\s+for\\s+${escapeRegExp(errorName)}(?:<[^>]+>)?\\b`,
+        "u",
+      ).test(source);
+      if (!/\bDebug\b/u.test(attrs) || (!/\b(?:thiserror::)?Error\b/u.test(attrs) && !manualErrorImpl)) {
         addViolation(
           violations,
           root,
           filePath,
           lineNo,
           "RR-4.20",
-          `Error enum ${match.groups?.name ?? "Error"} does not derive Debug and Error.`,
+          `Error enum ${errorName} does not derive Debug or implement Error.`,
           originalLines[lineNo - 1] ?? null,
         );
       }
+      const manualSourceImpl = manualErrorImpl && new RegExp(
+        `impl(?:<[^>]+>)?\\s+(?:std::error::|error::)?Error\\s+for\\s+${escapeRegExp(errorName)}(?:<[^>]+>)?[\\s\\S]*?fn\\s+source\\s*\\(`,
+        "u",
+      ).test(source);
       for (const variant of body.matchAll(/^\s*(?<attrs>(?:#\[[^\]]+\]\s*)*)[A-Z][A-Za-z0-9_]*\s*\(\s*(?<type>(?:std::)?[A-Za-z_:]+Error)\s*\)/gmu)) {
-        if (!/\b(?:source|from)\b/u.test(variant.groups?.attrs ?? "")) {
+        if (!/\b(?:source|from)\b/u.test(variant.groups?.attrs ?? "") && !manualSourceImpl) {
           addViolation(
             violations,
             root,
@@ -1518,6 +1547,8 @@ function scanRustFile(root, filePath, config) {
     }
   }
 
+  phaseStartedAt = finishProfilePhase(timings, "fileRules", phaseStartedAt);
+
   applySignatureRules({
     masked,
     originalLines,
@@ -1528,7 +1559,9 @@ function scanRustFile(root, filePath, config) {
     isConfigurationBoundary,
     isStringOwner,
     isPrimitiveOwner,
+    isLanguageAnalyzer,
   });
+  phaseStartedAt = finishProfilePhase(timings, "signatureRules", phaseStartedAt);
 
   applyLateRustFileRules({
     source,
@@ -1540,7 +1573,11 @@ function scanRustFile(root, filePath, config) {
     isBoundary,
     isConfigurationBoundary,
     isTestSource,
+    cacheProofEvidence: options.cacheProofEvidence !== false,
+    proofEvidenceCache: options.proofEvidenceCache ?? null,
   });
+  finishProfilePhase(timings, "lateRules", phaseStartedAt);
+  if (timings) timings.total = performance.now() - profileStartedAt;
 
   return violations;
 }

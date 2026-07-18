@@ -329,6 +329,27 @@ test("warning failOn can promote advisories without changing rule severity", () 
   assert.deepEqual(parsed.failOn, ["error", "warning"]);
 });
 
+test("Rust documentation hints ignore crate-internal APIs", () => {
+  const project = makeProject({
+    "src/lib.rs": "pub(crate) fn internal_helper() {}\n",
+  });
+
+  const result = run(project, [
+    "scan",
+    "--json",
+    "--languages",
+    "rust,common",
+    "--files",
+    "src/lib.rs",
+  ]);
+  const parsed = report(result);
+  assert.equal(
+    parsed.findings.some((finding) => finding.ruleId === "DOC-1.1"),
+    false,
+    result.stdout || result.stderr,
+  );
+});
+
 test("immutable disabled rules are still reported and config-lockdown flags the bypass", () => {
   const project = makeProject({
     "ocentra-enforcer.config.json": JSON.stringify({

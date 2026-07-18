@@ -9,6 +9,7 @@ import {
 } from "./enforcer-schemas-core.mjs";
 import { SeveritySchema } from "./enforcer-schemas-rules.mjs";
 
+/** Defines optional per-rule policy override fields. */
 export const PolicyOverrideSchema = Schema.Struct({
   enabled: OptionalBoolean,
   severity: Schema.optional(SeveritySchema),
@@ -24,6 +25,7 @@ export const PolicyOverrideSchema = Schema.Struct({
   localAllowed: OptionalBoolean,
 });
 
+/** Defines the required fields for a policy waiver. */
 export const WaiverSchema = Schema.Struct({
   ruleId: Schema.String,
   waiverId: Schema.String,
@@ -38,6 +40,7 @@ export const WaiverSchema = Schema.Struct({
   visible: OptionalBoolean,
 });
 
+/** Defines source-shape limits scoped by language and roots. */
 export const SourceShapePolicySchema = Schema.Struct({
   roots: OptionalStringArray,
   extensions: OptionalStringArray,
@@ -52,6 +55,7 @@ export const SourceShapePolicySchema = Schema.Struct({
   maxTypes: OptionalNumber,
 });
 
+/** Defines path-scoped overrides for source-shape limits. */
 export const SourceShapeOverrideSchema = Schema.Struct({
   path: OptionalString,
   paths: OptionalStringArray,
@@ -68,6 +72,7 @@ export const SourceShapeOverrideSchema = Schema.Struct({
   maxTypes: OptionalNumber,
 });
 
+/** Defines allowed and forbidden imports for configured roots. */
 export const ImportBoundaryPolicySchema = Schema.Struct({
   roots: OptionalStringArray,
   forbiddenImports: OptionalStringArray,
@@ -75,6 +80,7 @@ export const ImportBoundaryPolicySchema = Schema.Struct({
   message: OptionalString,
 });
 
+/** Defines configuration for literal-risk scanning. */
 export const LiteralRiskPolicySchema = Schema.Struct({
   minScore: OptionalNumber,
   includeLow: OptionalBoolean,
@@ -87,6 +93,7 @@ export const LiteralRiskPolicySchema = Schema.Struct({
   hardRuleIds: OptionalStringArray,
 });
 
+/** Defines the complete Enforcer configuration document. */
 export const ConfigSchema = Schema.Struct({
   schemaVersion: OptionalNumber,
   profileName: OptionalString,
@@ -101,6 +108,7 @@ export const ConfigSchema = Schema.Struct({
   cargoTestThreads: OptionalNullableNumber,
   allowUnsafeCode: OptionalBoolean,
   allowBuildRs: OptionalBoolean,
+  allowedBuildRsPaths: OptionalStringArray,
   allowGitDependencies: OptionalBoolean,
   allowPathDependencies: OptionalBoolean,
   publicReexportPolicy: Schema.optional(

@@ -1,0 +1,18 @@
+{
+  "Resources": {
+    "ReadOnlyPolicy": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": "s3:GetObject",
+              "Resource": "arn:aws:s3:::example-logs-bucket/*"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

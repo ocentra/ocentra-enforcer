@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 // rustMessageToDiagnostic filePath messages generalDiagnostics pyright
 // ruff mypy pytest parsed.runs SARIF result dedupeDiagnostics fingerprint
 import { normalizeRel } from './path-utils.mjs';
+import { matchesRunQuery } from './harness-storage.mjs';
 import {
   dedupeDiagnostics,
   parseDiagnostics,
@@ -42,6 +43,7 @@ const SECRET_REDACTION_PATTERNS = [
   /-----BEGIN (?:RSA |OPENSSH |EC |DSA |)?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |OPENSSH |EC |DSA |)?PRIVATE KEY-----/gu,
 ];
 
+/** Executes the configured harness command and records its result. */
 export function runHarness(args = {}) {
   const root = path.resolve(args.root ?? process.cwd());
   const command = args.command ?? [];
@@ -133,6 +135,7 @@ export function runHarness(args = {}) {
   return { ok: exitCode === 0, summary, diagnostics };
 }
 
+/** Lists stored harness runs matching an optional query. */
 export function listRuns(args = {}) {
   const root = path.resolve(args.root ?? process.cwd());
   return allRuns(root, args.harness)
@@ -142,12 +145,14 @@ export function listRuns(args = {}) {
     .slice(0, args.limit ?? 20);
 }
 
+/** Summarizes recorded harness runs for a query. */
 export function runSummary(args = {}) {
   const root = path.resolve(args.root ?? process.cwd());
   if (args.runId) return readSummary(root, args.runId, args.harness);
   return listRuns({ ...args, root, limit: 1 })[0] ?? null;
 }
 
+/** Returns diagnostics for one recorded harness run. */
 export function runDiagnostics(args = {}) {
   const root = path.resolve(args.root ?? process.cwd());
   const run = runSummary(args);
@@ -160,6 +165,7 @@ export function runDiagnostics(args = {}) {
   return { ok: true, runId: run.runId, diagnostics: filtered };
 }
 
+/** Returns the most recent recorded harness failure. */
 export function lastFailure(args = {}) {
   const root = path.resolve(args.root ?? process.cwd());
   const failedRun = listRuns({ ...args, root, limit: args.limit ?? 50 }).find((run) => run.status === 'failed');
@@ -168,6 +174,7 @@ export function lastFailure(args = {}) {
   return { ok: true, found: true, run: failedRun, diagnostics };
 }
 
+/** Extracts actionable diagnostics from a CI log artifact. */
 export function triageCiLog(args = {}) {
   const root = path.resolve(args.root ?? process.cwd());
   if (!args.file) throw new Error('runs triage requires --file <ci-log-path>.');
@@ -184,6 +191,7 @@ export function triageCiLog(args = {}) {
   return { ...report, log: normalizeRel(root, absolute) };
 }
 
+/** Reads a stored harness artifact by run and artifact identity. */
 export function readArtifact(args = {}) {
   const root = path.resolve(args.root ?? process.cwd());
   const harnessConfig = normalizeHarnessConfig(args.harness);
@@ -206,6 +214,7 @@ export function readArtifact(args = {}) {
   };
 }
 
+/** Removes recorded harness runs matching an optional query. */
 export function resetRuns(args = {}) {
   const root = path.resolve(args.root ?? process.cwd());
   const removed = [];
@@ -218,6 +227,7 @@ export function resetRuns(args = {}) {
   return { ok: true, root, removed };
 }
 
+/** Prunes stored harness runs according to retention arguments. */
 export function pruneRuns(args = {}) {
   const root = path.resolve(args.root ?? process.cwd());
   const harnessConfig = normalizeHarnessConfig(args.harness);
@@ -408,17 +418,6 @@ function writeDuckDbStatus(root, storageRoot) {
 
 function storageDirFromSummary(summary) {
   return summary.storage?.root ?? LEGACY_STORAGE_DIR;
-}
-
-function matchesRunQuery(run, args) {
-  if (args.runId && run.runId !== args.runId) return false;
-  if (args.status && run.status !== args.status) return false;
-  if (args.tool && run.tool !== args.tool) return false;
-  if (args.crateName && run.crateName !== args.crateName) return false;
-  if (args.packageName && run.packageName !== args.packageName) return false;
-  if (args.domain && run.domain !== args.domain) return false;
-  if (args.tag && !(run.tags ?? []).includes(args.tag)) return false;
-  return true;
 }
 
 function normalizeTags(tags = []) {

@@ -63,6 +63,29 @@ test('scanner-backed checks respect explicit file scope', () => {
   assert.deepEqual(report.violations, []);
 });
 
+test('check reexports excludes governed fixture corpora and vendored sources only', () => {
+  const project = makeProject({
+    'src/index.ts': 'export * from "./owned.js";\n',
+    'src/owned.ts': 'export const owned = true;\n',
+    'crates/example/fixtures/source-scan/ts-1-1/fail.ts': 'export * from "./fixture.js";\n',
+    'crates/example/fixtures/source-scan/ts-1-1/pass.ts': 'export * from "./fixture-pass.js";\n',
+    'crates/example/vendor/dependency/index.ts': 'export * from "./dependency.js";\n',
+  });
+  const result = run(project, [
+    'check',
+    'reexports',
+    '--json',
+    '--files',
+    'src/index.ts',
+    'crates/example/fixtures/source-scan/ts-1-1/fail.ts',
+    'crates/example/fixtures/source-scan/ts-1-1/pass.ts',
+    'crates/example/vendor/dependency/index.ts',
+  ]);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.deepEqual(report.violations.map((violation) => violation.file), ['src/index.ts']);
+});
+
 test('check no-naked-domain-strings ignores generated TypeScript DTO folders', () => {
   const project = makeProject({
     'packages/schema-domain/src/generated/contracts.ts': 'export type GeneratedDeviceId = string;\n',
@@ -341,6 +364,54 @@ test('check generated-artifacts --tracked ignores untracked output paths', () =>
   assert.equal(result.status, 0, result.stdout || result.stderr);
   const report = JSON.parse(result.stdout);
   assert.equal(report.ok, true);
+});
+
+test('check generated-artifacts --tracked catches isolated Cargo and packet output directories', () => {
+  const project = makeProject({
+    'package.json': JSON.stringify({ name: 'generated-isolated-fixture', version: '1.0.0' }),
+    'target-proof/debug/output.bin': 'generated\n',
+    '.tmp-proof/report.json': '{}\n',
+  });
+  git(project, ['init', '-q']);
+  git(project, ['add', 'package.json', 'target-proof/debug/output.bin', '.tmp-proof/report.json']);
+  const result = run(project, ['check', 'generated-artifacts', '--tracked', '--json']);
+  assert.notEqual(result.status, 0, result.stdout || result.stderr);
+  const report = JSON.parse(result.stdout);
+  const files = new Set(report.violations.map((violation) => violation.file));
+  assert.equal(files.has('target-proof/debug/output.bin'), true);
+  assert.equal(files.has('.tmp-proof/report.json'), true);
+});
+
+test('check generated-artifacts --tracked preserves legitimate target-like names', () => {
+  const project = makeProject({
+    'package.json': JSON.stringify({ name: 'generated-legitimate-fixture', version: '1.0.0' }),
+    'targeting/proof.json': '{}\n',
+    'target-proof.rs': 'fn target_proof() {}\n',
+    '.tmpkeeper/report.json': '{}\n',
+  });
+  git(project, ['init', '-q']);
+  git(project, ['add', 'package.json', 'targeting/proof.json', 'target-proof.rs', '.tmpkeeper/report.json']);
+  const result = run(project, ['check', 'generated-artifacts', '--tracked', '--json']);
+  assert.equal(result.status, 0, result.stdout || result.stderr);
+  assert.equal(JSON.parse(result.stdout).ok, true);
+});
+
+test('check generated-artifacts --tracked preserves governed fixture inputs', () => {
+  const project = makeProject({
+    'package.json': JSON.stringify({ name: 'generated-fixture-input', version: '1.0.0' }),
+    'tests/fixtures/security/coverage/below-floor.json': '{}\n',
+    'crates/example/fixtures/ignored/dist/bundle.ts': 'export const fixture = true;\n',
+  });
+  git(project, ['init', '-q']);
+  git(project, [
+    'add',
+    'package.json',
+    'tests/fixtures/security/coverage/below-floor.json',
+    'crates/example/fixtures/ignored/dist/bundle.ts',
+  ]);
+  const result = run(project, ['check', 'generated-artifacts', '--tracked', '--json']);
+  assert.equal(result.status, 0, result.stdout || result.stderr);
+  assert.equal(JSON.parse(result.stdout).ok, true);
 });
 
 test('check literal-risk returns hard findings and warnings from the Rust scanner', () => {

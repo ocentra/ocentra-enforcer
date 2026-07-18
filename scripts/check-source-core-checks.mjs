@@ -3,6 +3,7 @@ import path from "node:path";
 import { matchesAnyGlob, normalizeRel, repoAbsolute } from "../src/path-utils.mjs";
 import { runGenericScan } from "../src/generic-scanners.mjs";
 import { scanAdditionalTypeScriptFile } from "../src/source-policy-scanners.mjs";
+import { collectSecretPolicyFindings } from "./check-source-core-policy-checks.mjs";
 import {
   collectContractScanFiles,
   enforceRequiredMirrorCoverage,
@@ -11,7 +12,6 @@ import {
   importSpecifier,
   isGeneratedArtifactPath,
   isNonBlockingContractPath,
-  isSecretScanExemptFixturePath,
   isUnderRoots,
   loadContract,
   missingRequiredContractPaths,
@@ -19,7 +19,6 @@ import {
   resolveContractConfigPath,
   scopeFilesByExtensions,
   scopeRelativeFiles,
-  stagedFiles,
   trackedScopeFiles,
 } from "./check-source-core-helpers.mjs";
 
@@ -226,7 +225,14 @@ function collectReexportFindings(root, config, scope = { mode: "all" }) {
     languages: ["rust", "typescript", "common"],
   });
   const allowedRuleIds = new Set(["RR-7.2", "RR-7.3", "TS-1.1"]);
-  return (report.violations ?? []).filter((entry) => allowedRuleIds.has(entry.ruleId));
+  return (report.violations ?? []).filter(
+    (entry) => allowedRuleIds.has(entry.ruleId) && !isContextualReexportEvidence(entry.file),
+  );
+}
+
+function isContextualReexportEvidence(file) {
+  const rel = String(file ?? "").replaceAll("\\", "/");
+  return /(?:^|\/)(?:vendor|fixtures)\//u.test(rel);
 }
 
 function collectSecretFindings(
@@ -235,32 +241,7 @@ function collectSecretFindings(
   scope = { mode: "all" },
   args = {},
 ) {
-  if (args.staged === true) {
-    const files = stagedFiles(root);
-    if (files.length === 0) return [];
-    const genericReport = runGenericScan({
-      root,
-      scope: { mode: "files", files },
-      config,
-      languages: ["common"],
-    });
-    return (genericReport.violations ?? []).filter(
-      (entry) =>
-        (entry.ruleId === "SEC-1.1" || entry.ruleId === "SEC-1.2") &&
-        !isSecretScanExemptFixturePath(String(entry.file ?? "")),
-    );
-  }
-  const genericReport = runGenericScan({
-    root,
-    scope,
-    config,
-    languages: ["common"],
-  });
-  return (genericReport.violations ?? []).filter(
-    (entry) =>
-      (entry.ruleId === "SEC-1.1" || entry.ruleId === "SEC-1.2") &&
-      !isSecretScanExemptFixturePath(String(entry.file ?? "")),
-  );
+  return collectSecretPolicyFindings(root, config, scope, args);
 }
 
 function collectImportBoundaryFindings(root, config, scope = { mode: "all" }) {

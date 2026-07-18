@@ -11,6 +11,8 @@ import {
   applyPackagedWaivers,
   loadPackagedWaiverRegistry,
 } from "../src/packaged-waivers.mjs";
+import { decodePackagedWaiverDocument } from "../src/decoder-packaged-waivers.mjs";
+import { MalformedPackagedWaiverDocumentError } from "../src/error-malformed-packaged-waiver-document.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CLI = path.join(ROOT, "scripts", "ocentra-enforcer.mjs");
@@ -32,6 +34,27 @@ function projectFile(project, relativePath, content) {
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, content, "utf8");
 }
+
+test("packaged waiver decoder returns typed evidence for malformed JSON", () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-packaged-waivers-"));
+  const file = path.join(directory, "waivers.json");
+  fs.writeFileSync(file, '{"waivers":[', "utf8");
+
+  assert.throws(
+    () => decodePackagedWaiverDocument(file),
+    (error) => {
+      assert.equal(error instanceof MalformedPackagedWaiverDocumentError, true);
+      assert.equal(error.name, "MalformedPackagedWaiverDocumentError");
+      assert.equal(error.registryPath, file);
+      assert.equal(error.cause instanceof SyntaxError, true);
+      assert.equal(
+        error.message,
+        `Cannot load packaged waiver registry ${file}: ${error.cause.message}`,
+      );
+      return true;
+    },
+  );
+});
 
 test("path-scoped packaged waiver only marks its exact finding", () => {
   const waivers = loadPackagedWaiverRegistry(registryFile({

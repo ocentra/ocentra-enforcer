@@ -640,8 +640,10 @@ const RULES_VALUE = Object.freeze({
   },
 });
 
+/** Exposes the immutable registry metadata keyed by rule identifier. */
 export const RULES = RULES_VALUE;
 
+/** Provides the baseline strict Enforcer configuration. */
 export const DEFAULT_CONFIG = Object.freeze({
   schemaVersion: 2,
   profileName: "strict",
@@ -679,6 +681,7 @@ export const DEFAULT_CONFIG = Object.freeze({
     ".turbo",
     ".wrangler",
     ".enforce",
+    ".tmp",
     "target",
     "node_modules",
     ".next",
@@ -739,9 +742,12 @@ export const DEFAULT_CONFIG = Object.freeze({
     "wiremock",
   ],
   allowedGitDependencies: [],
+  allowedBuildRsPaths: [],
 });
 
+/** Identifies configuration arrays merged across layered profiles. */
 export const MERGED_ARRAY_CONFIG_KEYS = new Set(["ignoreDirs", "ignoreFileGlobs"]);
+/** Lists architecture checks enabled by the default policy. */
 export const DEFAULT_ARCHITECTURE_POLICY_CHECKS = Object.freeze([
   "reexports",
   "validation-bypass",
@@ -755,6 +761,7 @@ export const DEFAULT_ARCHITECTURE_POLICY_CHECKS = Object.freeze([
   "cross-platform-script-commands",
   "generated-artifacts",
 ]);
+/** Maps verification modes to their required check suites. */
 export const VERIFY_MODE_CHECKS = Object.freeze({
   fast: ["rule-coverage", "policy-integrity"],
   local: [

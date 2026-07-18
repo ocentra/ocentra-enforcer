@@ -1,8 +1,28 @@
 import { lineNumberAt } from "./rust-rules-path-core.mjs";
+import {
+  blockHeader,
+  nearestEnclosingBrace,
+} from "./rust-rules-source-signature-helpers.mjs";
 export {
   functionName,
   functionParams,
 } from "./rust-rules-source-signature-text.mjs";
+
+/** Finds the Rust scope enclosing a source index. */
+export function enclosingRustScope(masked, index) {
+  const braceIndex = nearestEnclosingBrace(masked, index);
+  const header = blockHeader(masked, braceIndex);
+  if (/^(?:unsafe\s+)?impl\b/u.test(header)) {
+    return {
+      kind: /\bfor\b/u.test(header) ? "trait-impl" : "inherent-impl",
+      header,
+    };
+  }
+  if (/^(?:pub(?:\([^)]*\))?\s+)?(?:unsafe\s+)?trait\b/u.test(header)) {
+    return { kind: "trait", header };
+  }
+  return { kind: "other", header };
+}
 
 function findSignatureEnd(masked, startIndex) {
   let end = startIndex;
@@ -40,6 +60,7 @@ function findSignatureEnd(masked, startIndex) {
   return end;
 }
 
+/** Collects Rust function signatures from masked source text. */
 export function collectFunctionSignatures(masked) {
   const signatures = [];
   const fnRe =
@@ -51,6 +72,7 @@ export function collectFunctionSignatures(masked) {
       text: masked.slice(match.index, end),
       index: match.index,
       line: lineNumberAt(masked, match.index),
+      scope: enclosingRustScope(masked, match.index),
     });
     fnRe.lastIndex = Math.max(fnRe.lastIndex, end);
   }

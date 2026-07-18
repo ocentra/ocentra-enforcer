@@ -25,20 +25,23 @@ export {
 export { scanRustFile };
 export {
   scanWorkspaceFiles,
-  manifestPathsForScope,
-  nearestCargoManifest,
+  runScanner,
+} from "./rust-rules-cargo-runner.mjs";
+export {
   scanCargoManifest,
   dependencyNameFromManifestLine,
   dependencyRequirementFromManifestLine,
   workspacePackageNamesFromManifests,
-  loadCargoMetadata,
-  scanCargoMetadata,
-  runScanner,
+} from "./rust-rules-cargo-manifest-dependencies.mjs";
+export {
   commandExists,
   runCommand,
+  configuredCargoCommand,
+} from "./rust-rules-cargo-command.mjs";
+export {
   shouldRunCargoForScope,
   cargoPackageArgs,
-  configuredCargoCommand,
+  cargoFmtArgs,
   strongestEnabledSeverity,
   runCargoGates,
-} from "./rust-rules-cargo-scan.mjs";
+} from "./rust-rules-cargo-gates.mjs";

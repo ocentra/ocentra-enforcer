@@ -9,7 +9,8 @@ import {
   nakedDomainAliasPattern,
   zodSourcePatterns,
 } from './source-policy-scanner-shared.mjs';
-import { isTypeScriptTypedPath } from './source-policy-paths.mjs';
+import { isConfigBoundaryPath, isTypeScriptTypedPath } from './source-policy-paths.mjs';
+import { isGeneratedSourceFile } from './source-policy-helpers.mjs';
 import { maskJavaScriptLine } from './source-policy-text.mjs';
 
 const SOURCE_RULES = [
@@ -19,7 +20,7 @@ const SOURCE_RULES = [
     ruleId: 'TS-6.13',
     label: 'TypeScript default export found',
     pattern: defaultExportPattern,
-    skipWhen: (rel) => !isTypeScriptTypedPath(rel),
+    skipWhen: (rel) => !isTypeScriptTypedPath(rel) || isConfigBoundaryPath(rel),
   },
   { ruleId: 'TS-6.14', label: 'Index barrel re-export found', pattern: barrelReexportPattern },
   {
@@ -62,6 +63,8 @@ function scanRuleSet(root, filePath, rel, lines, rules) {
   return violations;
 }
 
+/** Scans TypeScript source-only rules for one source file. */
 export function scanTypeScriptSourceRulesOnly(root, filePath, rel, lines) {
+  if (isGeneratedSourceFile(lines)) return [];
   return scanRuleSet(root, filePath, rel, lines, SOURCE_RULES);
 }

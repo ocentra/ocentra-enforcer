@@ -223,7 +223,7 @@ function markdownAnchor(heading) {
 function collectFixtureEvidence(packRoot) {
   const evidence = new Map();
   const fixtureRoot = path.join(packRoot, "tests", "fixtures", "enforcer");
-  for (const file of collectSourceFiles(fixtureRoot, [".mjs", ".js", ".ts", ".tsx", ".rs", ".py", ".json", ".toml", ".txt", ".md", ".yml", ".yaml"])) {
+  for (const file of collectSourceFiles(fixtureRoot, [".mjs", ".js", ".ts", ".tsx", ".rs", ".py", ".json", ".toml", ".tf", ".txt", ".md", ".yml", ".yaml"])) {
     const fixtureRel = normalizeRel(packRoot, file);
     const ruleId = ruleIdFromFixturePath(fixtureRel);
     if (!ruleId) continue;
@@ -649,9 +649,22 @@ function importSpecifier(line) {
 }
 
 function isGeneratedArtifactPath(rel) {
+  const normalized = rel.replaceAll("\\\\", "/");
+  if (/(?:^|\/)fixtures\//u.test(normalized)) return false;
+  const directorySegments = normalized
+    .split("/")
+    .filter(Boolean)
+    .slice(0, -1);
   return (
     /^(?:output|test-results|playwright-report)\//u.test(rel) ||
-    /(?:^|\/)(?:dist|build|coverage)\//u.test(rel)
+    /(?:^|\/)(?:dist|build|coverage)\//u.test(rel) ||
+    directorySegments.some(
+      (segment) =>
+        segment === "target" ||
+        segment.startsWith("target-") ||
+        segment === ".tmp" ||
+        segment.startsWith(".tmp-"),
+    )
   );
 }
 

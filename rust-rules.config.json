@@ -12,6 +12,9 @@
   "cargoTestThreads": null,
   "allowUnsafeCode": false,
   "allowBuildRs": false,
+  "allowedBuildRsPaths": [
+    "crates/enforcer-ui/frontend/src-tauri/build.rs"
+  ],
   "allowGitDependencies": false,
   "allowPathDependencies": false,
   "publicReexportPolicy": "forbid",

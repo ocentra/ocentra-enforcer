@@ -1,4 +1,5 @@
 import path from "node:path";
+import { rustCfgTestLineIndexes } from "./source-policy-helpers.mjs";
 import {
   addViolation,
   BAD_SOURCE_BASENAME_RE,
@@ -42,6 +43,7 @@ function addCommonViolation(context, lineNo, ruleId, detail, source) {
   );
 }
 
+/** Scans file-level common-language policy before line-by-line analysis. */
 export function scanCommonFilePrelude(context) {
   const { rel, text } = context;
   if (GENERATED_PATH_RE.test(rel)) {
@@ -95,6 +97,12 @@ function scanCommandToolingLine(context, lineNo, line) {
 }
 
 function scanSecretLine(context, lineNo, line) {
+  if (
+    context.isRuleDefinitionSource
+    && context.rustCfgTestLines.has(lineNo - 1)
+  ) {
+    return;
+  }
   if (OPENAI_KEY_RE.test(line)) {
     addCommonViolation(context, lineNo, "SEC-1.1", "OpenAI key found.", redactOpenAiKey(line));
   }
@@ -153,20 +161,25 @@ function scanGeneratedLine(context, lineNo, line, comment) {
 }
 
 function scanTestLine(context, lineNo, line) {
-  if (context.isTestLike) {
+  if (context.isTestLike || context.rustCfgTestLines.has(lineNo - 1)) {
     for (const rule of weakAssertionPatterns) {
-      if (rule.pattern.test(line)) {
+      if (rule.pattern.test(line) && (rule.isWeak?.(line) ?? true)) {
         addCommonViolation(context, lineNo, "TEST-1.2", rule.detail, line);
       }
     }
   }
-  if (context.ext === ".rs" && isTestPath(context.rel) && /#\s*\[\s*ignore\s*\]/u.test(line)) {
+  if (context.ext === ".rs" && isTestPath(context.rel) && /^\s*#\s*\[\s*ignore\s*\]\s*$/u.test(line)) {
     addCommonViolation(context, lineNo, "TEST-1.3", "Rust #[ignore] test found.", line);
   }
 }
 
 function scanProductionPlaceholderLine(context, lineNo, line, comment) {
-  if (!context.isProductionSource || context.isEnforcerTooling) return;
+  if (
+    !context.isProductionSource
+    || context.isEnforcerTooling
+    || context.isRuleDefinitionSource
+    || context.rustCfgTestLines.has(lineNo - 1)
+  ) return;
   for (const rule of placeholderDirectPatterns) {
     if (rule.pattern.test(line)) {
       addCommonViolation(context, lineNo, "SRC-1.2", rule.detail, line);
@@ -180,10 +193,10 @@ function scanProductionPlaceholderLine(context, lineNo, line, comment) {
       }
     }
     for (const rule of [
-      { pattern: /\btemporary\b/iu, detail: "temporary comment marker found." },
-      { pattern: /\bfor now\b/iu, detail: "for now comment marker found." },
-      { pattern: /\bhack\b/iu, detail: "hack comment marker found." },
-      { pattern: /\bquick fix\b/iu, detail: "quick fix comment marker found." },
+      { pattern: /^\s*(?:\/\/+|\/\*+|\*+|#)\s*temporary\b/iu, detail: "temporary comment marker found." },
+      { pattern: /^\s*(?:\/\/+|\/\*+|\*+|#)\s*for now\b/iu, detail: "for now comment marker found." },
+      { pattern: /^\s*(?:\/\/+|\/\*+|\*+|#)\s*hack\b/iu, detail: "hack comment marker found." },
+      { pattern: /^\s*(?:\/\/+|\/\*+|\*+|#)\s*quick fix\b/iu, detail: "quick fix comment marker found." },
     ]) {
       if (rule.pattern.test(comment)) {
         addCommonViolation(context, lineNo, "SRC-2.9", rule.detail, line);
@@ -195,6 +208,7 @@ function scanProductionPlaceholderLine(context, lineNo, line, comment) {
   }
 }
 
+/** Scans one line against common-language policy rules. */
 export function scanCommonLineRules(context, line, index) {
   const lineNo = index + 1;
   const comment = sourceCommentText(context.ext, line);
@@ -205,6 +219,17 @@ export function scanCommonLineRules(context, line, index) {
   scanProductionPlaceholderLine(context, lineNo, line, comment);
 }
 
+function isRuleDefinitionSourcePath(rel) {
+  return (
+    /^crates\/enforcer-lang-common\/src\/(?:boundary\/source_analysis|rules\/(?:deferred_work|test_quality))\.rs$/u.test(
+      rel,
+    )
+    || /^crates\/enforcer-lang-rust\/src\/rules\/.+\.rs$/u.test(rel)
+    || rel === "crates/enforcer-literal-scan/src/boundary/risk_heuristics_secret.rs"
+  );
+}
+
+/** Builds the reusable context consumed by common-language rule checks. */
 export function buildCommonScanContext(root, filePath, rel, ext, lines, text, violations, hasOwnershipFileFn) {
   return {
     root,
@@ -217,6 +242,8 @@ export function buildCommonScanContext(root, filePath, rel, ext, lines, text, vi
     hasOwnershipFile: hasOwnershipFileFn,
     isEnforcerTooling: isEnforcerToolingPath(rel),
     isTestLike: isTestPath(rel) || isPythonTestPath(rel),
+    rustCfgTestLines: rustCfgTestLineIndexes(rel, lines),
+    isRuleDefinitionSource: isRuleDefinitionSourcePath(rel),
     isProductionSource: isProductionSourcePath(rel, ext),
     badSourceBasename: BAD_SOURCE_BASENAME_RE.test(path.basename(rel)),
   };

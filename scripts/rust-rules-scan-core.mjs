@@ -73,6 +73,12 @@ import {
 
 import * as RustRulesPathCore from "./rust-rules-path-core.mjs";
 import * as RustRulesEngine from "./rust-rules-scan-engine.mjs";
+import { manifestPathsForScope } from "./rust-rules-cargo-manifest-discovery.mjs";
+import {
+  loadCargoMetadata,
+  scanCargoMetadata,
+} from "./rust-rules-cargo-metadata.mjs";
+import { nearestCargoManifest } from "./rust-rules-workspace-partitioning.mjs";
 const {
   normalizeRel,
   toPosix,
@@ -103,14 +109,10 @@ const {
 const {
   scanRustFile,
   scanWorkspaceFiles,
-  manifestPathsForScope,
-  nearestCargoManifest,
   scanCargoManifest,
   dependencyNameFromManifestLine,
   dependencyRequirementFromManifestLine,
   workspacePackageNamesFromManifests,
-  loadCargoMetadata,
-  scanCargoMetadata,
   runScanner,
   commandExists,
   runCommand,

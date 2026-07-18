@@ -167,6 +167,8 @@ test("MCP server lists tools, explains rules, and scans a scoped file", async (t
     (tool) => tool.name === "ocentra_enforcer_coordination_closeout",
   );
   assert.deepEqual(closeoutTool.inputSchema.properties.action.enum, ["closeout"]);
+  assert.equal(closeoutTool.inputSchema.properties.allOwned.type, "boolean");
+  assert.equal(closeoutTool.inputSchema.properties.allLanes.type, "boolean");
   assert.equal(closeoutTool.inputSchema.properties.releaseOwned.type, "boolean");
   assert.equal(closeoutTool.inputSchema.properties.repairStale.type, "boolean");
 

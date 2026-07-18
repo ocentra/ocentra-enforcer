@@ -233,12 +233,20 @@ function buildReport({ root, config, checkName, findings, scope = null }) {
 }
 
 function collectPolicyFiles(root, config, policy, scope = { mode: "all" }) {
+  const entries = policyTraversalEntries(root, config, policy, scope);
   return collectFiles(
     root,
-    scopeEntries(root, scope, config),
+    entries,
     config,
     (file) => isUnderRoots(normalizeRel(root, file), policy.roots ?? []),
   );
+}
+
+function policyTraversalEntries(root, config, policy, scope = { mode: "all" }) {
+  if (scope.mode === "all" || scope.mode === "workspace") {
+    return policy.roots ?? [];
+  }
+  return scopeEntries(root, scope, config);
 }
 
 function childDirs(dir) {
@@ -705,9 +713,22 @@ function importSpecifier(line) {
 }
 
 function isGeneratedArtifactPath(rel) {
+  const normalized = rel.replaceAll("\\\\", "/");
+  if (/(?:^|\/)fixtures\//u.test(normalized)) return false;
+  const directorySegments = normalized
+    .split("/")
+    .filter(Boolean)
+    .slice(0, -1);
   return (
     /^(?:output|test-results|playwright-report)\//u.test(rel) ||
-    /(?:^|\/)(?:dist|build|coverage|generated)\//u.test(rel)
+    /(?:^|\/)(?:dist|build|coverage|generated)\//u.test(rel) ||
+    directorySegments.some(
+      (segment) =>
+        segment === "target" ||
+        segment.startsWith("target-") ||
+        segment === ".tmp" ||
+        segment.startsWith(".tmp-"),
+    )
   );
 }
 
@@ -814,6 +835,7 @@ export {
   collectCoveredContractPaths,
   collectFixtureEvidence,
   collectPolicyFiles,
+  policyTraversalEntries,
   collectRegistryDocFindings,
   collectRegistryRuleMetadataFindings,
   collectRoutedDocRuleIds,

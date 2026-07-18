@@ -18,7 +18,7 @@ const nakedDomainAliasPattern =
 const anyTypePattern =
   /(?::\s*any\b|<\s*any\s*>|\bArray\s*<\s*any\s*>|\bRecord\s*<\s*string\s*,\s*any\s*>|\bas\s+any\b)/u;
 const unknownEscapePattern =
-  /(?:export\s+(?:type|interface|function|const|let|class)\b.*\bunknown\b|:\s*unknown\b|Promise\s*<\s*unknown\s*>)/u;
+  /(?:export\s+(?:type|interface|function|const|let|class)\b.*\bunknown\b|Promise\s*<\s*unknown\s*>)/u;
 const typeAssertionPattern =
   /\bas\s+(?!const\b|never\b|unknown\b)[A-Za-z_$][\w$]*(?:<[^>]+>)?(?:\[\])?/u;
 const doubleAssertionPattern = /\bas\s+unknown\s+as\s+[A-Za-z_$][\w$]*/u;
@@ -54,10 +54,10 @@ const timerPattern = /\b(?:setTimeout|setInterval)\s*\(/u;
 const dynamicImportPattern = /\bimport\s*\(/u;
 const childProcessPattern = /\b(?:from\s+['"]node:child_process['"]|from\s+['"]child_process['"]|require\(\s*['"](?:node:)?child_process['"]\s*\))/u;
 const dynamicCodePattern = /\b(?:eval|Function)\s*\(/u;
-const rawDtoSpreadPattern = /\.\.\.\s*(?:raw|dto|payload|json|input|data|[A-Za-z_$][\w$]*(?:Dto|DTO|Payload|Json|JSON|Input|Data))\b/u;
+const rawDtoSpreadPattern = /\{[^}\n]*\.\.\.\s*(?:raw|dto|payload|json|input|data|[A-Za-z_$][\w$]*(?:Dto|DTO|Payload|Json|JSON|Input|Data))\b/u;
 const anySpreadPattern = /\.\.\.\s*[A-Za-z_$][\w$]*Any\b|\.\.\.\s*\([^)]*\s+as\s+any\s*\)/u;
 const exportedFunctionNoReturnPattern =
-  /^\s*export\s+(?:async\s+)?function\s+[A-Za-z_$][\w$]*\s*\([^)]*\)\s*(?!:\s*[^={]+[={;])/u;
+  /^\s*export\s+(?:async\s+)?function\s+[A-Za-z_$][\w$]*\s*\(.*\)\s*\{/u;
 const exportedArrowNoReturnPattern =
   /^\s*export\s+const\s+[A-Za-z_$][\w$]*\s*=\s*(?:async\s*)?\([^)]*\)\s*=>/u;
 const exportedObjectLiteralPattern = /^\s*export\s+const\s+[A-Za-z_$][\w$]*\s*=\s*\{/u;

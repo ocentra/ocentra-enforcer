@@ -6,27 +6,45 @@ import { fileURLToPath } from "node:url";
 import { normalizeRel, repoAbsolute } from "./path-utils.mjs";
 import { buildLiteralRiskScanCommand } from "./literal-risk-command.mjs";
 import { buildLiteralRiskOptions } from "./literal-risk-options.mjs";
-import { mapLiteralRiskFindings as mapLiteralRiskFindingsImpl } from "./literal-risk-findings.mjs";
+import {
+  compactLiteralRiskReport,
+  mapLiteralRiskFindings as mapLiteralRiskFindingsImpl,
+} from "./literal-risk-findings.mjs";
+import { runJsonProcessToFile } from "./literal-risk-process.mjs";
 
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const PACK_ROOT = path.resolve(path.join(path.dirname(SCRIPT_PATH), ".."));
-const LITERAL_SCAN_ROOT = path.join(PACK_ROOT, "Tools", "ocentra-literal-scan");
-const LITERAL_SCAN_MANIFEST = path.join(LITERAL_SCAN_ROOT, "Cargo.toml");
-const LITERAL_SCAN_TARGET = path.join(LITERAL_SCAN_ROOT, "target");
 const BINARY_NAME =
   process.platform === "win32"
-    ? "ocentra-literal-scan.exe"
-    : "ocentra-literal-scan";
+    ? "enforcer-literal-scan.exe"
+    : "enforcer-literal-scan";
 
-function builtBinaryCandidates() {
+/** Resolves the executable and configuration paths for literal scanning. */
+export function resolveLiteralScannerLayout(
+  packRoot = PACK_ROOT,
+  env = process.env,
+) {
+  const root = path.join(path.resolve(packRoot), "crates", "enforcer-literal-scan");
+  const manifest = path.join(root, "Cargo.toml");
+  if (!fs.existsSync(manifest)) {
+    throw new Error(`Literal-risk scanner crate is missing: ${manifest}`);
+  }
+  const configuredTarget = String(env.CARGO_TARGET_DIR ?? "").trim();
+  const target = configuredTarget
+    ? path.resolve(packRoot, configuredTarget)
+    : path.join(path.resolve(packRoot), "target");
+  return { root, manifest, target };
+}
+
+function builtBinaryCandidates(layout) {
   return [
-    path.join(LITERAL_SCAN_TARGET, "debug", BINARY_NAME),
-    path.join(LITERAL_SCAN_TARGET, "release", BINARY_NAME),
+    path.join(layout.target, "debug", BINARY_NAME),
+    path.join(layout.target, "release", BINARY_NAME),
   ];
 }
 
-function resolveBuiltBinary() {
-  return builtBinaryCandidates().find((candidate) => fs.existsSync(candidate));
+function resolveBuiltBinary(layout) {
+  return builtBinaryCandidates(layout).find((candidate) => fs.existsSync(candidate));
 }
 
 function newestSourceMtimeMs(dir) {
@@ -45,31 +63,27 @@ function newestSourceMtimeMs(dir) {
   return newest;
 }
 
-function isBinaryFresh(binaryPath) {
+function isBinaryFresh(binaryPath, layout) {
   const binaryMtime = fs.statSync(binaryPath).mtimeMs;
-  return binaryMtime >= newestSourceMtimeMs(LITERAL_SCAN_ROOT);
+  return binaryMtime >= newestSourceMtimeMs(layout.root);
 }
 
 function ensureBuiltBinary() {
-  const existingBinary = resolveBuiltBinary();
-  if (existingBinary && isBinaryFresh(existingBinary)) return existingBinary;
-  if (!fs.existsSync(LITERAL_SCAN_MANIFEST)) {
-    throw new Error(
-      `Literal-risk scanner crate is missing: ${LITERAL_SCAN_MANIFEST}`,
-    );
-  }
+  const layout = resolveLiteralScannerLayout();
+  const existingBinary = resolveBuiltBinary(layout);
+  if (existingBinary && isBinaryFresh(existingBinary, layout)) return existingBinary;
   const build = spawnSync(
     "cargo",
     [
       "build",
       "--quiet",
       "--manifest-path",
-      LITERAL_SCAN_MANIFEST,
+      layout.manifest,
       "--bin",
-      "ocentra-literal-scan",
+      "enforcer-literal-scan",
     ],
     {
-      cwd: LITERAL_SCAN_ROOT,
+      cwd: PACK_ROOT,
       encoding: "utf8",
       shell: false,
       maxBuffer: 64 * 1024 * 1024,
@@ -85,10 +99,10 @@ function ensureBuiltBinary() {
       `literal-risk scanner build failed with exit ${build.status ?? "unknown"}.\n${build.stdout ?? ""}\n${build.stderr ?? ""}`.trim(),
     );
   }
-  const builtBinary = resolveBuiltBinary();
+  const builtBinary = resolveBuiltBinary(layout);
   if (!builtBinary) {
     throw new Error(
-      `literal-risk scanner build completed but produced no binary under ${LITERAL_SCAN_TARGET}`,
+      `literal-risk scanner build completed but produced no binary under ${layout.target}`,
     );
   }
   return builtBinary;
@@ -101,6 +115,7 @@ function resolveScannerInvocation() {
   };
 }
 
+/** Runs the literal scanner and normalizes its report for callers. */
 export function runLiteralRiskScan({
   root,
   files = [],
@@ -119,11 +134,8 @@ export function runLiteralRiskScan({
     scannerOptions,
     explicitFiles,
   );
-  const result = spawnSync(invocation.command, command, {
+  const result = runJsonProcessToFile(invocation.command, command, {
     cwd: rootPath,
-    encoding: "utf8",
-    shell: false,
-    maxBuffer: 64 * 1024 * 1024,
   });
   if (result.error) {
     throw new Error(
@@ -134,7 +146,7 @@ export function runLiteralRiskScan({
   const stderr = result.stderr ?? "";
   let report;
   try {
-    report = JSON.parse(stdout || "{}");
+    report = compactLiteralRiskReport(JSON.parse(stdout || "{}"));
   } catch (error) {
     throw new Error(
       `literal-risk scanner emitted invalid JSON: ${error.message}\n${stdout}\n${stderr}`,
@@ -151,6 +163,7 @@ export function runLiteralRiskScan({
   };
 }
 
+/** Maps literal-scanner output into enforcer findings. */
 export function mapLiteralRiskFindings(scan, root, options = {}) {
   return mapLiteralRiskFindingsImpl(scan, root, options);
 }
