@@ -14,6 +14,10 @@ import { initIdentity, loadIdentity, resolveLane } from "./vendor/identity.js";
 import { resolveLedgerRoot } from "./vendor/root.js";
 import { normalizeClaimPaths } from "./vendor/claim-policy.js";
 import { buildCoordinationContext } from "./vendor/context.js";
+import {
+  claimIdentityKey,
+  claimsReleasedByEvent,
+} from "./vendor/materialize-claim-identity.js";
 import { buildStreamManifest } from "./vendor/manifest.js";
 import { notify } from "./vendor/notify.js";
 import { addPeer, loadPeerRegistry, removePeer, resolvePeer } from "./vendor/peers.js";
@@ -324,61 +328,40 @@ export async function coordinationRelease(args = {}) {
   const root = coordinationRoot(args);
   const config = await loadIdentity(root);
   const lane = parseLaneId(args.lane ?? config.defaultLane);
-  let paths = pathList(args.paths).map((entry) => parseClaimPath(entry));
-  let matchedClaimCount = 0;
-  if (paths.length === 0) {
-    const state = await materializeLive(root);
-    const filters = closeoutFilters(args, config, lane);
-    const claims = matchingCloseoutClaims(state.ownership.activeClaims, filters);
-    matchedClaimCount = claims.length;
-    paths = unique(claims.flatMap((claim) => claim.paths ?? []));
-    if (paths.length === 0) {
-      return {
-        ok: true,
-        root,
-        lane,
-        matchedClaimCount,
-        releasedPaths: [],
-        notificationEvents: [],
-        nextStep: "No active claims matched the selected lane/thread/worktree release scope.",
-      };
-    }
-  }
+  const requestedPaths = pathList(args.paths).map((entry) => parseClaimPath(entry));
   const releaseContextValue = releaseContext(args);
+  const stateBefore = await materializeLive(root);
+  const selection = selectReleaseClaims(stateBefore, args, config, lane, requestedPaths, releaseContextValue);
+  if (selection.paths.length === 0) {
+    return {
+      ok: true,
+      root,
+      lane,
+      matchedClaimCount: 0,
+      releasedPaths: [],
+      notificationEvents: [],
+      nextStep: "No active claims matched the selected lane/thread/worktree release scope.",
+    };
+  }
   const event = await appendEvent(root, config, lane, {
     type: "release",
-    paths,
+    paths: selection.paths,
     ...(args.reason ? { reason: parseUserText(args.reason) } : {}),
     ...(releaseContextValue === undefined ? {} : { context: releaseContextValue }),
   });
-  const state = await materializeLive(root);
-  const notificationEvents = [];
-  const notifiedLanes = new Set();
-  for (const intent of nextEditIntentsForPaths(state.ownership.editIntents ?? [], paths)) {
-    if (intent.lane === lane || notifiedLanes.has(intent.lane)) continue;
-    notifiedLanes.add(intent.lane);
-    notificationEvents.push(
-      await appendEvent(root, config, lane, {
-        type: "message",
-        to: parseMessageAddress(intent.lane),
-        body: parseUserText(
-          `Released ${paths.join(", ")}. Re-read the file before claiming and editing; queued intent ${intent.eventId}.`,
-        ),
-        context: contextFor({
-          ...args,
-          releaseEventId: event.id,
-          editIntentId: intent.eventId,
-          notificationKind: "editIntentReleased",
-        }),
-      }),
-    );
-  }
+  const stateAfter = await materializeLive(root);
+  const activeClaimKeys = new Set(stateAfter.ownership.activeClaims.map(claimIdentityKey));
+  const releasedClaims = selection.claims.filter((claim) => !activeClaimKeys.has(claimIdentityKey(claim)));
+  const releasedPaths = unique(releasedClaims.flatMap((claim) => claim.paths ?? []));
+  const notificationEvents = await appendReleaseNotifications(
+    root, config, lane, args, event, stateAfter, releasedPaths,
+  );
   return {
     ok: true,
     root,
     lane,
-    matchedClaimCount,
-    releasedPaths: paths,
+    matchedClaimCount: selection.claims.length,
+    releasedPaths,
     event,
     notificationEvents,
   };
@@ -714,6 +697,59 @@ function blockingOwnersFor(blockers) {
         .map((owner) => [owner.writer, owner]),
     ).values(),
   ];
+}
+
+function selectReleaseClaims(state, args, config, lane, requestedPaths, context) {
+  const isPathless = requestedPaths.length === 0;
+  const candidates = isPathless
+    ? matchingCloseoutClaims(state.ownership.activeClaims, closeoutFilters(args, config, lane))
+    : state.ownership.activeClaims;
+  const candidatePaths = isPathless
+    ? unique(candidates.flatMap((claim) => claim.paths ?? []))
+    : requestedPaths;
+  const selectionEvent = {
+    writer: writerId(config.nodeId, lane),
+    lane,
+    paths: candidatePaths,
+    eventId: "__release__",
+    context,
+  };
+  const selectedClaims = claimsReleasedByEvent(candidates, selectionEvent);
+  const paths = isPathless
+    ? unique(selectedClaims.flatMap((claim) => claim.paths ?? []))
+    : requestedPaths;
+  return {
+    paths,
+    claims: claimsReleasedByEvent(state.ownership.activeClaims, { ...selectionEvent, paths }),
+  };
+}
+
+async function appendReleaseNotifications(root, config, lane, args, event, state, paths) {
+  const notificationEvents = [];
+  for (const intent of nextEditIntentsForPaths(state.ownership.editIntents ?? [], paths)) {
+    const decision = blockersForRequest(
+      state.ownership.activeClaims,
+      intent,
+      intent.context?.operation ?? "edit",
+    );
+    if (decision.blockers.length > 0) continue;
+    notificationEvents.push(
+      await appendEvent(root, config, lane, {
+        type: "message",
+        to: parseMessageAddress(intent.lane),
+        body: parseUserText(
+          `Released ${paths.join(", ")}. Re-read the file before claiming and editing; queued intent ${intent.eventId}.`,
+        ),
+        context: contextFor({
+          ...args,
+          releaseEventId: event.id,
+          editIntentId: intent.eventId,
+          notificationKind: "editIntentReleased",
+        }),
+      }),
+    );
+  }
+  return notificationEvents;
 }
 
 function nextEditIntentsForPaths(editIntents, paths) {

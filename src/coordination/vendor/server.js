@@ -36,6 +36,29 @@ export async function startPeerServer(root, portOrOptions) {
         close: () => new Promise((resolve, reject) => server.close((error) => error === undefined ? resolve() : reject(error))),
     };
 }
+
+/** Execute the claim command boundary and return its transport-neutral status. */
+export async function executeClaimCommand(root, body) {
+    const result = await coordinationClaim({
+        ...body,
+        stateRoot: root,
+        lane: requiredString(body, "lane"),
+        paths: requiredClaimPaths(body),
+    });
+    return { status: result.ok ? 200 : 409, result };
+}
+
+/** Execute the release command boundary and return its transport-neutral status. */
+export async function executeReleaseCommand(root, body) {
+    const result = await coordinationRelease({
+        ...body,
+        stateRoot: root,
+        lane: requiredString(body, "lane"),
+        paths: requiredClaimPaths(body),
+    });
+    return { status: 200, result };
+}
+
 async function routeRequest(root, request, response, options) {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
     if (request.method === "GET" && url.pathname === "/health") {
@@ -208,22 +231,13 @@ async function routeCommand(root, request, response, command) {
         return;
     }
     if (command === "claim") {
-        const result = await coordinationClaim({
-            ...body,
-            stateRoot: root,
-            lane: requiredString(body, "lane"),
-            paths: requiredClaimPaths(body),
-        });
-        sendJson(response, result.ok ? 200 : 409, result);
+        const outcome = await executeClaimCommand(root, body);
+        sendJson(response, outcome.status, outcome.result);
         return;
     }
     if (command === "release") {
-        const result = await coordinationRelease({
-            ...body, stateRoot: root,
-            lane: requiredString(body, "lane"),
-            paths: requiredClaimPaths(body),
-        });
-        sendJson(response, 200, result);
+        const outcome = await executeReleaseCommand(root, body);
+        sendJson(response, outcome.status, outcome.result);
         return;
     }
     if (command === "resolve") {

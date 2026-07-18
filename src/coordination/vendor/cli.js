@@ -257,13 +257,17 @@ async function commandClaim(argv) {
         throw new Error("usage: ledger claim <lane> <path> [more paths...] [--reason <reason>]");
     }
     const reason = optionValue(argv, "--reason");
-    print(await coordinationClaim({
+    const result = await coordinationClaim({
         stateRoot: root,
         root: process.cwd(),
         lane: laneRaw,
         paths: rawPaths,
         reason,
-    }));
+    });
+    print(result);
+    if (!result.ok) {
+        process.exitCode = 1;
+    }
 }
 async function commandRelease(argv) {
     const [laneRaw, ...rest] = argv;

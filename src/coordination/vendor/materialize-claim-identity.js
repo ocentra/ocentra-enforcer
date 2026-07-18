@@ -1,4 +1,4 @@
-import { enrichClaim } from "./lock-policy.js";
+import { enrichClaim, normalizeCoordinationPath, pathOverlaps } from "./lock-policy.js";
 
 export function claimIdentityKey(claim) {
   const enriched = enrichClaim(claim);
@@ -15,20 +15,32 @@ export function claimIdentityKey(claim) {
 }
 
 export function applyReleaseEvent(activeClaims, event, overlappingPaths) {
-  for (const path of event.paths ?? []) {
-    const releaseClaim = {
-      writer: event.writer,
-      lane: event.lane,
-      paths: [path],
-      eventId: event.id,
-      ...(event.context === undefined ? {} : { context: event.context }),
-    };
-    for (const [key, claim] of activeClaims) {
-      if (releaseMatchesClaim(releaseClaim, claim, overlappingPaths)) {
-        activeClaims.delete(key);
-      }
+  for (const [key, claim] of activeClaims) {
+    if (releaseEventMatchesClaim(event, claim, overlappingPaths)) {
+      activeClaims.delete(key);
     }
   }
+}
+
+/** Return the active claims that replaying one release event would remove. */
+export function claimsReleasedByEvent(activeClaims, event) {
+  return activeClaims.filter((claim) => releaseEventMatchesClaim(event, claim));
+}
+
+function releaseEventMatchesClaim(event, activeClaim, overlappingPaths = defaultOverlappingPaths) {
+  return (event.paths ?? []).some((path) =>
+    releaseMatchesClaim(
+      {
+        writer: event.writer,
+        lane: event.lane,
+        paths: [path],
+        eventId: event.id,
+        ...(event.context === undefined ? {} : { context: event.context }),
+      },
+      activeClaim,
+      overlappingPaths,
+    ),
+  );
 }
 
 function releaseMatchesClaim(releaseClaim, activeClaim, overlappingPaths) {
@@ -38,6 +50,7 @@ function releaseMatchesClaim(releaseClaim, activeClaim, overlappingPaths) {
   if (overlappingPaths(release.paths, active.paths).length === 0) return false;
   const context = releaseClaim.context ?? {};
   if (context.explicitReleaseScope !== true) return true;
+  if (activeClaim.context === undefined) return true;
   const releaseHasExplicitOwner = hasMeaningfulContext(context, "codexThreadId", "codexSessionId");
   const activeHasExplicitOwner = hasMeaningfulContext(
     activeClaim.context ?? {},
@@ -60,6 +73,13 @@ function releaseMatchesClaim(releaseClaim, activeClaim, overlappingPaths) {
     return false;
   }
   return true;
+}
+
+function defaultOverlappingPaths(left, right) {
+  const normalizedRight = right.map(normalizeCoordinationPath);
+  return left
+    .map(normalizeCoordinationPath)
+    .filter((leftPath) => normalizedRight.some((rightPath) => pathOverlaps(leftPath, rightPath)));
 }
 
 function sameReleaseProject(release, active) {

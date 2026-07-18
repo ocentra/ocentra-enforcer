@@ -8,13 +8,18 @@ import {
   coordinationClaim,
   coordinationCloseout,
   coordinationGuard,
+  coordinationInbox,
   coordinationInit,
   coordinationRelease,
   coordinationStatus,
 } from "../src/coordination/api.mjs";
 import { buildCoordinationContext } from "../src/coordination/vendor/context.js";
 import { loadIdentity } from "../src/coordination/vendor/identity.js";
-import { startPeerServer } from "../src/coordination/vendor/server.js";
+import { streamPath } from "../src/coordination/vendor/paths.js";
+import {
+  executeClaimCommand,
+  executeReleaseCommand,
+} from "../src/coordination/vendor/server.js";
 import { appendEvent } from "../src/coordination/vendor/stream.js";
 
 test("same-lane sibling threads cannot claim the same exact path", async () => {
@@ -189,6 +194,37 @@ test("derived project claims retain scoped release compatibility", async () => {
     paths: ["src/owned.ts"],
     codexThreadId: "thread-derived",
   });
+  assert.equal((await coordinationStatus({ stateRoot })).state.ownership.activeClaims.length, 0);
+});
+
+test("a scoped API release can clear a contextless legacy claim", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-contextless-release-"));
+  const targetRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-contextless-release-target-"));
+  fs.mkdirSync(path.join(targetRoot, "src"), { recursive: true });
+  fs.writeFileSync(path.join(targetRoot, "src", "owned.ts"), "export const owned = true;\n");
+  await coordinationInit({ stateRoot, hub: "contextless-release-hub", lane: "codex-a" });
+  const config = await loadIdentity(stateRoot);
+  await appendEvent(stateRoot, config, "codex-a", {
+    type: "claim",
+    paths: ["src/owned.ts"],
+    reason: "pre-context legacy claim",
+  });
+  const legacyStream = streamPath(stateRoot, config.nodeId, "codex-a");
+  const legacyEvent = JSON.parse(fs.readFileSync(legacyStream, "utf8"));
+  delete legacyEvent.context;
+  fs.writeFileSync(legacyStream, `${JSON.stringify(legacyEvent)}\n`);
+  const before = await coordinationStatus({ stateRoot });
+  assert.equal(Object.hasOwn(before.state.ownership.activeClaims[0], "context"), false);
+
+  const release = await coordinationRelease({
+    stateRoot,
+    root: targetRoot,
+    lane: "codex-a",
+    paths: ["src/owned.ts"],
+    codexThreadId: "thread-upgraded",
+  });
+  assert.equal(release.matchedClaimCount, 1);
+  assert.deepEqual(release.releasedPaths, ["src/owned.ts"]);
   assert.equal((await coordinationStatus({ stateRoot })).state.ownership.activeClaims.length, 0);
 });
 
@@ -458,6 +494,104 @@ test("explicit project boundaries are decisive for claims, guards, and releases"
   );
 });
 
+test("pathless release reports only claims matched by its derived worktree scope", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-pathless-release-"));
+  const worktreeA = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-pathless-release-a-"));
+  const worktreeB = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-pathless-release-b-"));
+  await coordinationInit({ stateRoot, hub: "pathless-release-hub", lane: "codex-a" });
+  const config = await loadIdentity(stateRoot);
+  for (const [worktreeRoot, claimedPath] of [[worktreeA, "src/a.ts"], [worktreeB, "src/b.ts"]]) {
+    await appendEvent(stateRoot, config, "codex-a", {
+      type: "claim",
+      paths: [claimedPath],
+      context: buildCoordinationContext({
+        cwd: worktreeRoot,
+        repoRoot: worktreeRoot,
+        worktreeRoot,
+        gitRemote: "https://github.com/example/shared.git",
+        branch: "feature/shared",
+        codexThreadId: "thread-shared",
+        operation: "edit",
+        lockKind: "writeLock",
+      }),
+    });
+  }
+
+  const previousCwd = process.cwd();
+  let release;
+  try {
+    process.chdir(worktreeA);
+    release = await coordinationRelease({
+      stateRoot,
+      lane: "codex-a",
+      codexThreadId: "thread-shared",
+    });
+  } finally {
+    process.chdir(previousCwd);
+  }
+  assert.equal(release.matchedClaimCount, 1);
+  assert.deepEqual(release.event.paths, ["src/a.ts"]);
+  assert.deepEqual(release.releasedPaths, ["src/a.ts"]);
+  const after = await coordinationStatus({ stateRoot });
+  assert.equal(after.state.ownership.activeClaims.length, 1);
+  assert.deepEqual(after.state.ownership.activeClaims[0].paths, ["src/b.ts"]);
+});
+
+test("no-op release stays silent and owner release wakes a same-lane sibling intent", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-sibling-intent-"));
+  const targetRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-sibling-intent-target-"));
+  fs.mkdirSync(path.join(targetRoot, "src"), { recursive: true });
+  fs.writeFileSync(path.join(targetRoot, "src", "owned.ts"), "export const owned = true;\n");
+  await coordinationInit({ stateRoot, hub: "sibling-intent-hub", lane: "codex-a" });
+  await coordinationClaim({
+    stateRoot,
+    root: targetRoot,
+    lane: "codex-a",
+    paths: ["src/owned.ts"],
+    branch: "feature/shared",
+    codexThreadId: "thread-owner",
+  });
+  const intent = await coordinationClaim({
+    stateRoot,
+    root: targetRoot,
+    lane: "codex-a",
+    paths: ["src/owned.ts"],
+    branch: "feature/shared",
+    codexThreadId: "thread-waiting",
+    onConflict: "intent",
+  });
+  assert.equal(intent.intentQueued, true);
+
+  const noOp = await coordinationRelease({
+    stateRoot,
+    root: targetRoot,
+    lane: "codex-a",
+    paths: ["src/owned.ts"],
+    branch: "feature/shared",
+    codexThreadId: "thread-unrelated",
+  });
+  assert.equal(noOp.matchedClaimCount, 0);
+  assert.deepEqual(noOp.releasedPaths, []);
+  assert.deepEqual(noOp.notificationEvents, []);
+  assert.equal((await coordinationInbox({ stateRoot, lane: "codex-a" })).inbox.length, 0);
+
+  const ownerRelease = await coordinationRelease({
+    stateRoot,
+    root: targetRoot,
+    lane: "codex-a",
+    paths: ["src/owned.ts"],
+    branch: "feature/shared",
+    codexThreadId: "thread-owner",
+  });
+  assert.equal(ownerRelease.matchedClaimCount, 1);
+  assert.deepEqual(ownerRelease.releasedPaths, ["src/owned.ts"]);
+  assert.equal(ownerRelease.notificationEvents.length, 1);
+  assert.equal(ownerRelease.notificationEvents[0].to, "codex-a");
+  assert.equal(ownerRelease.notificationEvents[0].context.editIntentId, intent.event.id);
+  const inbox = await coordinationInbox({ stateRoot, lane: "codex-a" });
+  assert.match(inbox.inbox[0].body, /Re-read the file/u);
+});
+
 test("scoped release stays inside its writer and worktree", async () => {
   const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-release-boundary-"));
   const worktreeA = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-release-boundary-a-"));
@@ -512,12 +646,12 @@ test("scoped release stays inside its writer and worktree", async () => {
   );
 });
 
-test("HTTP claim and release commands preserve sibling ownership", async () => {
-  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-http-owner-"));
-  const targetRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-http-owner-target-"));
+test("claim command handlers preserve sibling ownership", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-command-owner-"));
+  const targetRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-command-owner-target-"));
   fs.mkdirSync(path.join(targetRoot, "src"), { recursive: true });
   fs.writeFileSync(path.join(targetRoot, "src", "owned.ts"), "export const owned = true;\n");
-  await coordinationInit({ stateRoot, hub: "http-owner-hub", lane: "codex-a" });
+  await coordinationInit({ stateRoot, hub: "command-owner-hub", lane: "codex-a" });
   await coordinationClaim({
     stateRoot,
     root: targetRoot,
@@ -527,35 +661,27 @@ test("HTTP claim and release commands preserve sibling ownership", async () => {
     branch: "feature/shared",
     codexThreadId: "thread-a",
   });
-  const server = await startPeerServer(stateRoot, { host: "127.0.0.1", port: 0 });
-  const command = (name, codexThreadId) =>
-    fetch(`${server.url}/commands/${name}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        lane: "codex-a",
-        root: targetRoot,
-        paths: ["src/owned.ts"],
-        projectId: "same-project",
-        branch: "feature/shared",
-        codexThreadId,
-      }),
-    });
-  try {
-    const siblingRelease = await command("release", "thread-b");
-    assert.equal(siblingRelease.status, 200);
-    assert.equal((await coordinationStatus({ stateRoot })).state.ownership.activeClaims.length, 1);
+  const commandBody = (codexThreadId) => ({
+    lane: "codex-a",
+    root: targetRoot,
+    paths: ["src/owned.ts"],
+    projectId: "same-project",
+    branch: "feature/shared",
+    codexThreadId,
+  });
+  const siblingRelease = await executeReleaseCommand(stateRoot, commandBody("thread-b"));
+  assert.equal(siblingRelease.status, 200);
+  assert.deepEqual(siblingRelease.result.releasedPaths, []);
+  assert.equal((await coordinationStatus({ stateRoot })).state.ownership.activeClaims.length, 1);
 
-    const siblingClaim = await command("claim", "thread-b");
-    assert.equal(siblingClaim.status, 409);
-    assert.equal((await siblingClaim.json()).blockingOwners[0].codexThreadId, "thread-a");
+  const siblingClaim = await executeClaimCommand(stateRoot, commandBody("thread-b"));
+  assert.equal(siblingClaim.status, 409);
+  assert.equal(siblingClaim.result.blockingOwners[0].codexThreadId, "thread-a");
 
-    const ownerRelease = await command("release", "thread-a");
-    assert.equal(ownerRelease.status, 200);
-    assert.equal((await coordinationStatus({ stateRoot })).state.ownership.activeClaims.length, 0);
-  } finally {
-    await server.close();
-  }
+  const ownerRelease = await executeReleaseCommand(stateRoot, commandBody("thread-a"));
+  assert.equal(ownerRelease.status, 200);
+  assert.deepEqual(ownerRelease.result.releasedPaths, ["src/owned.ts"]);
+  assert.equal((await coordinationStatus({ stateRoot })).state.ownership.activeClaims.length, 0);
 });
 
 test("owner identity never crosses writer, worktree, or branch context", async () => {
