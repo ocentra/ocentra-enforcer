@@ -1,13 +1,17 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { getActiveTasks, getWorkers, materialize } from "./materialize.js";
+import { getActiveTasks, getWorkers, materialize, materializedToJson } from "./materialize.js";
 import { buildStreamManifest } from "./manifest.js";
 import { loadPeerRegistry } from "./peers.js";
 import { buildPresenceMatrix } from "./presence.js";
 import { viewsDir } from "./paths.js";
+import { liveStreamOffsets } from "./live-deltas.js";
+import { sameCheckpointTail } from "./live-checkpoint.js";
+import { samePrefixDigest } from "./live-prefix.js";
+import { inspectLedger } from "./doctor.js";
 
 export async function rebuildCoordinationIndex(root, options = {}) {
-    const state = await materialize(root);
+    const { audit, state, liveStreams } = await readStableCheckpoint(root);
     const presence = buildPresenceMatrix(root, state, options);
     const streams = await buildStreamManifest(root);
     const peers = await loadPeerRegistry(root);
@@ -15,11 +19,15 @@ export async function rebuildCoordinationIndex(root, options = {}) {
     await mkdir(dbRoot, { recursive: true });
     await mkdir(viewsDir(root), { recursive: true });
     const index = {
-        ok: true,
+        ok: audit.ok,
         root,
         generatedAt: new Date().toISOString(),
         backend: "json",
         dashboard: state.dashboard,
+        audit,
+        state: materializedToJson(state),
+        orderCursor: state.orderCursor,
+        liveStreams,
         presence,
         ownership: state.ownership,
         workers: getWorkers(state),
@@ -32,7 +40,7 @@ export async function rebuildCoordinationIndex(root, options = {}) {
     await writeFile(join(dbRoot, "coordination-index.json"), `${JSON.stringify(index, null, 2)}\n`);
     const sqlite = await writeOptionalSqliteIndex(root, presence, streams);
     const status = {
-        ok: true,
+        ok: audit.ok,
         root,
         generatedAt: index.generatedAt,
         jsonIndex: "db/coordination-index.json",
@@ -44,9 +52,47 @@ export async function rebuildCoordinationIndex(root, options = {}) {
             workers: index.workers.length,
             activeTasks: index.activeTasks.length,
         },
+        auditDiagnosticCount: audit.diagnostics.length,
     };
     await writeFile(join(dbRoot, "coordination-index-status.json"), `${JSON.stringify(status, null, 2)}\n`);
     return status;
+}
+
+async function readStableCheckpoint(root) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+            const before = await liveStreamOffsets(root);
+            if (before === null) {
+                continue;
+            }
+            const audit = await inspectLedger(root);
+            const state = await materialize(root);
+            const after = await liveStreamOffsets(root);
+            if (after !== null && sameOffsets(before, after)) {
+                return { audit, state, liveStreams: after };
+            }
+        }
+        catch (error) {
+            if (!isMissingPath(error)) {
+                throw error;
+            }
+        }
+    }
+    throw new Error("ledger changed during index rebuild; retry after writers are quiet");
+}
+
+function isMissingPath(error) {
+    return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
+}
+
+function sameOffsets(left, right) {
+    if (left.length !== right.length) {
+        return false;
+    }
+    return left.every((entry, index) => entry.stream === right[index].stream
+        && entry.byteLength === right[index].byteLength
+        && samePrefixDigest(entry.digest, right[index].digest)
+        && sameCheckpointTail(entry.tail, right[index].tail));
 }
 
 async function writeOptionalSqliteIndex(root, presence, streams) {

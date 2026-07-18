@@ -8,7 +8,7 @@ import {
   materializedToJson,
 } from "./vendor/materialize.js";
 import { ensureDaemon } from "./vendor/daemon.js";
-import { inspectLedger } from "./vendor/doctor.js";
+import { inspectLiveLedger } from "./vendor/doctor.js";
 import { guardLedger } from "./vendor/guard.js";
 import { initIdentity, loadIdentity, resolveLane } from "./vendor/identity.js";
 import { resolveLedgerRoot } from "./vendor/root.js";
@@ -19,6 +19,7 @@ import { notify } from "./vendor/notify.js";
 import { addPeer, loadPeerRegistry, removePeer, resolvePeer } from "./vendor/peers.js";
 import { buildPresenceMatrix } from "./vendor/presence.js";
 import { rebuildCoordinationIndex } from "./vendor/read-index.js";
+import { materializeLive } from "./vendor/live-state.js";
 import {
   repairLegacyHashCompatibility,
   repairSequenceBreaks,
@@ -64,7 +65,7 @@ export async function coordinationInit(args = {}) {
 
 export async function coordinationStatus(args = {}) {
   const root = coordinationRoot(args);
-  const state = await materialize(root);
+  const state = await materializeLive(root);
   return {
     ok: true,
     root,
@@ -74,12 +75,12 @@ export async function coordinationStatus(args = {}) {
 
 export async function coordinationHealth(args = {}) {
   const root = coordinationRoot(args);
-  const inspection = await inspectLedger(root);
+  const inspection = await inspectLiveLedger(root);
   const changedPaths = normalizeHealthPaths(args);
   const focused = changedPaths.length > 0 && args.focused !== false;
   let state;
   try {
-    state = await materialize(root);
+    state = await materializeLive(root);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return {
@@ -115,12 +116,14 @@ export async function coordinationHealth(args = {}) {
     };
   }
   const conflicts = state.ownership.hardConflicts ?? state.ownership.conflicts;
+  const checkpointAudit = state.checkpointAudit ?? { ok: true, diagnostics: [] };
+  const diagnostics = [...checkpointAudit.diagnostics, ...inspection.diagnostics];
   const blockingConflicts = focused
     ? conflicts.filter((conflict) => conflictTouchesPaths(conflict, changedPaths))
     : conflicts;
   const warnings = state.warnings;
   const guard = await tryGuard(root, args);
-  const corruptDiagnostics = inspection.diagnostics.filter(
+  const corruptDiagnostics = diagnostics.filter(
     (diagnostic) =>
       /hash|sequence|previous|pointer|malformed|corrupt|lock/iu.test(
         diagnostic.message ?? JSON.stringify(diagnostic),
@@ -130,17 +133,17 @@ export async function coordinationHealth(args = {}) {
     session.expiresAt ? Date.parse(session.expiresAt) < Date.now() : false,
   );
   const mustRepairLedger =
-    !inspection.ok || corruptDiagnostics.length > 0 || warnings.length > 0;
+    !inspection.ok || !checkpointAudit.ok || corruptDiagnostics.length > 0 || warnings.length > 0;
   const pathLockDenied = guard.result?.ok === false;
   return {
     ok: !mustRepairLedger && !pathLockDenied && blockingConflicts.length === 0,
     root,
-    canInspect: inspection.ok,
+    canInspect: inspection.ok && checkpointAudit.ok,
     canLockPaths: !mustRepairLedger && (guard.result?.blockers?.length ?? blockingConflicts.length) === 0,
     canWriteClaimedPaths: guard.result?.ok ?? !mustRepairLedger,
     mustWait: pathLockDenied || blockingConflicts.length > 0,
     mustRepairLedger,
-    diagnostics: compactDiagnostics(inspection.diagnostics, args.limit),
+    diagnostics: compactDiagnostics(diagnostics, args.limit),
     warnings,
     conflicts: compactConflicts(blockingConflicts, args.limit),
     conflictCount: blockingConflicts.length,
@@ -170,16 +173,14 @@ export async function coordinationHealth(args = {}) {
 
 export async function coordinationPresence(args = {}) {
   const root = coordinationRoot(args);
-  const state = await materialize(root);
-  const presence = buildPresenceMatrix(root, state, { limit: args.limit });
-  await rebuildCoordinationIndex(root, { limit: args.limit });
-  return presence;
+  const state = await materializeLive(root);
+  return buildPresenceMatrix(root, state, { limit: args.limit });
 }
 
 export async function coordinationInbox(args = {}) {
   const root = coordinationRoot(args);
   const lane = parseLaneId(args.lane ?? (await loadIdentity(root)).defaultLane);
-  const state = await materialize(root);
+  const state = await materializeLive(root);
   const inbox = state.lanes.get(lane)?.inbox ?? [];
   return {
     ok: true,
@@ -236,7 +237,7 @@ export async function coordinationClaim(args = {}) {
     ...(args.reason ? { reason: parseUserText(args.reason) } : {}),
     context: claimContext,
   });
-  const state = await materialize(root);
+  const state = await materializeLive(root);
   const decision = blockersForRequest(state.ownership.activeClaims, request, claimContext.operation);
   if (decision.blockers.length > 0) {
     const onConflict = normalizeOnConflict(args.onConflict, claimContext.onConflict);
@@ -293,7 +294,7 @@ export async function coordinationRelease(args = {}) {
   let paths = pathList(args.paths).map((entry) => parseClaimPath(entry));
   let matchedClaimCount = 0;
   if (paths.length === 0) {
-    const state = await materialize(root);
+    const state = await materializeLive(root);
     const filters = closeoutFilters(args, config, lane);
     const claims = matchingCloseoutClaims(state.ownership.activeClaims, filters);
     matchedClaimCount = claims.length;
@@ -317,7 +318,7 @@ export async function coordinationRelease(args = {}) {
     ...(args.reason ? { reason: parseUserText(args.reason) } : {}),
     ...(releaseContextValue === undefined ? {} : { context: releaseContextValue }),
   });
-  const state = await materialize(root);
+  const state = await materializeLive(root);
   const notificationEvents = [];
   const notifiedLanes = new Set();
   for (const intent of nextEditIntentsForPaths(state.ownership.editIntents ?? [], paths)) {
@@ -359,7 +360,7 @@ export async function coordinationCloseout(args = {}) {
   const releaseOwned = args.releaseOwned !== false;
   const repairStale = args.repairStale !== false;
   const filters = closeoutFilters(args, config, lane);
-  let state = await materialize(root);
+  let state = await materializeLive(root);
   const initialClaims = matchingCloseoutClaims(state.ownership.activeClaims, filters);
   const releaseEvents = [];
   if (releaseOwned && initialClaims.length > 0) {
@@ -380,7 +381,7 @@ export async function coordinationCloseout(args = {}) {
         }),
       );
     }
-    state = await materialize(root);
+    state = await materializeLive(root);
   }
   const afterReleaseClaims = matchingCloseoutClaims(state.ownership.activeClaims, filters);
   let staleRepairEvent = null;
@@ -399,7 +400,7 @@ export async function coordinationCloseout(args = {}) {
         closeoutClaimCount: afterReleaseClaims.length,
       }),
     });
-    state = await materialize(root);
+    state = await materializeLive(root);
   }
   const remainingClaims = matchingCloseoutClaims(state.ownership.activeClaims, filters);
   const index = await rebuildCoordinationIndex(root, { limit });
@@ -471,13 +472,13 @@ export async function coordinationReport(args = {}) {
 
 export async function coordinationWorkers(args = {}) {
   const root = coordinationRoot(args);
-  const state = await materialize(root);
+  const state = await materializeLive(root);
   return { ok: true, root, workers: getWorkers(state) };
 }
 
 export async function coordinationTasks(args = {}) {
   const root = coordinationRoot(args);
-  const state = await materialize(root);
+  const state = await materializeLive(root);
   return { ok: true, root, tasks: getActiveTasks(state) };
 }
 

@@ -4,13 +4,17 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { syncBuiltinESMExports } from "node:module";
 import test from "node:test";
 
 import {
+  coordinationAck,
   coordinationClaim,
+  coordinationCompact,
   coordinationGuard,
   coordinationHealth,
   coordinationInbox,
+  coordinationIndex,
   coordinationInit,
   coordinationMessage,
   coordinationPresence,
@@ -19,9 +23,13 @@ import {
 } from "../src/coordination/api.mjs";
 import { loadIdentity } from "../src/coordination/vendor/identity.js";
 import { appendEvent } from "../src/coordination/vendor/stream.js";
+import { inspectLedger } from "../src/coordination/vendor/doctor.js";
+import { materialize, materializedToJson } from "../src/coordination/vendor/materialize.js";
+import { streamPath } from "../src/coordination/vendor/paths.js";
 import {
   assertCoordinationHashCompatibility,
   coordinationHashCompatibility,
+  hashForEvent,
 } from "../src/coordination/vendor/events.js";
 
 const PACK_ROOT = path.resolve(
@@ -38,6 +46,283 @@ test("coordination hash compatibility self-test excludes extension context", () 
   assert.notEqual(compatibility.actualWireHash, compatibility.extensionHash);
   assert.doesNotThrow(() => assertCoordinationHashCompatibility());
 });
+
+test("compacted archive uses an indexed checkpoint for hot health and claims", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-hot-read-"));
+  const targetRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-hot-read-target-"));
+  fs.mkdirSync(path.join(targetRoot, "src"), { recursive: true });
+  fs.writeFileSync(path.join(targetRoot, "src", "live.rs"), "fn live() {}\n");
+  await coordinationInit({ stateRoot, hub: "hot-read-hub", lane: "codex-a" });
+  const config = await loadIdentity(stateRoot);
+  for (let index = 0; index < 12; index += 1) {
+    await appendEvent(stateRoot, config, "codex-a", {
+      type: "report",
+      summary: `archived history ${index}`,
+    });
+  }
+  const compacted = await coordinationCompact({ stateRoot, keepLatest: 1 });
+  assert.equal(compacted.compactedStreams.length, 1);
+  const archiveDir = path.join(stateRoot, "archive", "streams");
+  const archivedStream = fs.readdirSync(archiveDir)[0];
+  const archiveFile = path.join(archiveDir, archivedStream, fs.readdirSync(path.join(archiveDir, archivedStream))[0]);
+  fs.writeFileSync(archiveFile, "{broken archive for explicit audit}\n");
+
+  const originalReadFile = fs.promises.readFile;
+  let archiveReads = 0;
+  fs.promises.readFile = async (file, ...args) => {
+    if (path.resolve(String(file)).startsWith(`${path.resolve(archiveDir)}${path.sep}`)) archiveReads += 1;
+    return originalReadFile(file, ...args);
+  };
+  syncBuiltinESMExports();
+  try {
+    const health = await coordinationHealth({ stateRoot, lane: "codex-a" });
+    assert.equal(health.ok, true);
+    assert.equal(health.dashboard.eventCount, 12);
+
+    const owner = await coordinationClaim({
+      stateRoot,
+      root: targetRoot,
+      lane: "codex-hot-owner",
+      paths: ["src/live.rs"],
+      reason: "hot owner claim",
+    });
+    assert.equal(owner.ok, true);
+    const blocked = await coordinationClaim({
+      stateRoot,
+      root: targetRoot,
+      lane: "codex-hot-intent",
+      paths: ["src/live.rs"],
+      reason: "hot queued edit",
+      onConflict: "intent",
+    });
+    assert.equal(blocked.ok, false);
+    assert.equal(blocked.intentQueued, true);
+  } finally {
+    fs.promises.readFile = originalReadFile;
+    syncBuiltinESMExports();
+  }
+  assert.equal(archiveReads, 0);
+
+  const audit = await inspectLedger(stateRoot);
+  assert.equal(audit.ok, false);
+  assert.ok(audit.diagnostics.some((diagnostic) => /ignored malformed final line/u.test(diagnostic.message)));
+  assert.ok(audit.diagnostics.some((diagnostic) => /first event does not start a stream chain/u.test(diagnostic.message)));
+});
+
+test("indexed hot state falls back when a same-size checkpoint stream tail changes", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-checkpoint-tail-"));
+  await coordinationInit({ stateRoot, hub: "checkpoint-tail", lane: "codex-a" });
+  const config = await loadIdentity(stateRoot);
+  await appendEvent(stateRoot, config, "codex-a", { type: "report", summary: "checkpoint-before" });
+  await coordinationIndex({ stateRoot });
+  const stream = streamPath(stateRoot, config.nodeId, "codex-a");
+  const original = fs.readFileSync(stream, "utf8");
+  const event = JSON.parse(original);
+  const replacement = { ...event, summary: "checkpoint-after " };
+  replacement.hash = hashForEvent(replacement);
+  const rewritten = `${JSON.stringify(replacement)}\n`;
+  assert.equal(Buffer.byteLength(rewritten), Buffer.byteLength(original));
+  fs.writeFileSync(stream, rewritten);
+
+  const hot = await coordinationStatus({ stateRoot });
+  assert.equal(hot.state.workers[event.writer].summary, "checkpoint-after ");
+});
+
+test("indexed hot state falls back when a non-tail context rewrite preserves wire hashes", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-checkpoint-prefix-"));
+  await coordinationInit({ stateRoot, hub: "checkpoint-prefix", lane: "codex-a" });
+  const config = await loadIdentity(stateRoot);
+  await appendEvent(stateRoot, config, "codex-a", {
+    type: "claim",
+    paths: ["src/prefix.rs"],
+    reason: "prefix claim",
+    context: { branch: "before" },
+  });
+  await appendEvent(stateRoot, config, "codex-a", { type: "report", summary: "checkpoint tail" });
+  await coordinationIndex({ stateRoot });
+  const stream = streamPath(stateRoot, config.nodeId, "codex-a");
+  const original = fs.readFileSync(stream, "utf8");
+  const events = original.trim().split("\n").map((line) => JSON.parse(line));
+  const originalHash = events[0].hash;
+  events[0].context.branch = "after_";
+  const rewritten = `${events.map((event) => JSON.stringify(event)).join("\n")}\n`;
+  assert.equal(events[0].hash, originalHash);
+  assert.equal(Buffer.byteLength(rewritten), Buffer.byteLength(original));
+  fs.writeFileSync(stream, rewritten);
+
+  const hot = await coordinationStatus({ stateRoot });
+  const canonical = materializedToJson(await materialize(stateRoot));
+  assert.deepEqual(withoutGeneratedAt(hot.state), withoutGeneratedAt(canonical));
+  assert.equal(hot.state.ownership.activeClaims[0].context.branch, "after_");
+});
+
+test("index rebuild retries when a same-size non-tail rewrite changes the checkpoint prefix", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-checkpoint-race-"));
+  await coordinationInit({ stateRoot, hub: "checkpoint-race", lane: "codex-a" });
+  const config = await loadIdentity(stateRoot);
+  await appendEvent(stateRoot, config, "codex-a", {
+    type: "claim",
+    paths: ["src/race.rs"],
+    reason: "race claim",
+    context: { branch: "before" },
+  });
+  await appendEvent(stateRoot, config, "codex-a", { type: "report", summary: "checkpoint tail" });
+  const stream = streamPath(stateRoot, config.nodeId, "codex-a");
+  const originalOpen = fs.promises.open;
+  let streamOpens = 0;
+  fs.promises.open = async (file, ...args) => {
+    if (path.resolve(String(file)) === path.resolve(stream)) {
+      streamOpens += 1;
+      if (streamOpens === 2) {
+        const events = fs.readFileSync(stream, "utf8").trim().split("\n").map((line) => JSON.parse(line));
+        events[0].context.branch = "after_";
+        fs.writeFileSync(stream, `${events.map((event) => JSON.stringify(event)).join("\n")}\n`);
+      }
+    }
+    return originalOpen(file, ...args);
+  };
+  syncBuiltinESMExports();
+  try {
+    await coordinationIndex({ stateRoot });
+  } finally {
+    fs.promises.open = originalOpen;
+    syncBuiltinESMExports();
+  }
+  const hot = await coordinationStatus({ stateRoot });
+  assert.ok(streamOpens >= 4);
+  assert.equal(hot.state.ownership.activeClaims[0].context.branch, "after_");
+});
+
+test("indexed hot state falls back when a delta predates the checkpoint order cursor", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-order-cursor-"));
+  const targetRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-order-target-"));
+  fs.mkdirSync(path.join(targetRoot, "src"));
+  fs.writeFileSync(path.join(targetRoot, "src", "order.rs"), "fn order() {}\n");
+  await coordinationInit({ stateRoot, hub: "order-cursor", lane: "codex-a" });
+  await coordinationClaim({ stateRoot, root: targetRoot, lane: "codex-a", paths: ["src/order.rs"], reason: "initial claim" });
+  await coordinationRelease({ stateRoot, root: targetRoot, lane: "codex-a", paths: ["src/order.rs"], reason: "future release" });
+  const config = await loadIdentity(stateRoot);
+  const stream = streamPath(stateRoot, config.nodeId, "codex-a");
+  const events = fs.readFileSync(stream, "utf8").trim().split("\n").map((line) => JSON.parse(line));
+  events.at(-1).ts = "2999-01-01T00:00:00.000Z";
+  events.at(-1).hash = hashForEvent(events.at(-1));
+  fs.writeFileSync(stream, `${events.map((event) => JSON.stringify(event)).join("\n")}\n`);
+  await coordinationIndex({ stateRoot });
+  await coordinationClaim({ stateRoot, root: targetRoot, lane: "codex-a", paths: ["src/order.rs"], reason: "normal claim" });
+
+  const hot = await coordinationStatus({ stateRoot });
+  const canonical = materializedToJson(await materialize(stateRoot));
+  assert.deepEqual(withoutGeneratedAt(hot.state), withoutGeneratedAt(canonical));
+  assert.equal(hot.state.ownership.activeClaims.length, 0);
+});
+
+test("indexed hot state deduplicates post-checkpoint events and matches representative deltas", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-delta-parity-"));
+  const targetRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-delta-target-"));
+  fs.mkdirSync(path.join(targetRoot, "src"));
+  fs.writeFileSync(path.join(targetRoot, "src", "delta.rs"), "fn delta() {}\n");
+  await coordinationInit({ stateRoot, hub: "delta-parity", lane: "codex-a" });
+  const config = await loadIdentity(stateRoot);
+  await appendEvent(stateRoot, config, "codex-a", { type: "report", summary: "checkpoint" });
+  await coordinationIndex({ stateRoot });
+  const message = await coordinationMessage({ stateRoot, from: "codex-a", to: "codex-b", body: "delta message" });
+  await coordinationAck({ stateRoot, lane: "codex-b", messageId: message.event.id });
+  await appendEvent(stateRoot, config, "codex-b", { type: "task.update", taskId: "delta-task", taskState: "started", summary: "delta task" });
+  await coordinationClaim({ stateRoot, root: targetRoot, lane: "codex-a", paths: ["src/delta.rs"], reason: "delta claim" });
+  fs.writeFileSync(
+    path.join(stateRoot, "streams", "duplicate-message.ndjson"),
+    `${JSON.stringify(message.event)}\n`,
+  );
+
+  const hot = await coordinationStatus({ stateRoot });
+  const canonical = materializedToJson(await materialize(stateRoot));
+  assert.deepEqual(withoutGeneratedAt(hot.state), withoutGeneratedAt(canonical));
+  assert.equal(hot.state.dashboard.duplicateCount, 1);
+  assert.equal(hot.state.lanes["codex-b"].inbox.length, 1);
+  assert.equal(hot.state.lanes["codex-b"].inbox[0].ackedBy.length, 1);
+  assert.equal(hot.state.tasks["delta-task"].active, true);
+  assert.equal(hot.state.ownership.activeClaims.length, 1);
+});
+
+test("indexed hot state refreshes TTL-derived heartbeat and session state without deltas", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-ttl-parity-"));
+  await coordinationInit({ stateRoot, hub: "ttl-parity", lane: "codex-a" });
+  const config = await loadIdentity(stateRoot);
+  await appendEvent(stateRoot, config, "codex-a", { type: "heartbeat", state: "online", summary: "short heartbeat", ttlSeconds: 1 });
+  await appendEvent(stateRoot, config, "codex-a", { type: "session.claim", sessionId: "short-session", ttlSeconds: 1 });
+  const stream = streamPath(stateRoot, config.nodeId, "codex-a");
+  const events = fs.readFileSync(stream, "utf8").trim().split("\n").map((line) => JSON.parse(line));
+  events[0].ts = "2000-01-01T00:00:00.000Z";
+  events[0].hash = hashForEvent(events[0]);
+  events[1].ts = "2000-01-01T00:00:00.000Z";
+  events[1].prevHash = events[0].hash;
+  events[1].hash = hashForEvent(events[1]);
+  fs.writeFileSync(stream, `${events.map((event) => JSON.stringify(event)).join("\n")}\n`);
+  await coordinationIndex({ stateRoot });
+  const indexPath = path.join(stateRoot, "db", "coordination-index.json");
+  const index = JSON.parse(fs.readFileSync(indexPath, "utf8"));
+  index.state.lanes["codex-a"].heartbeat.stale = false;
+  index.state.workers[`${config.nodeId}.codex-a`].heartbeat.stale = false;
+  index.state.workers[`${config.nodeId}.codex-a`].state = "idle";
+  index.state.workers[`${config.nodeId}.codex-a`].free = true;
+  index.state.sessions["codex-a"] = {
+    lane: "codex-a",
+    writer: `${config.nodeId}.codex-a`,
+    sessionId: "short-session",
+    claimedAt: events[1].ts,
+    ttlSeconds: 1,
+    expiresAt: "2000-01-01T00:00:01.000Z",
+    stale: false,
+    eventId: events[1].id,
+  };
+  fs.writeFileSync(indexPath, `${JSON.stringify(index, null, 2)}\n`);
+
+  const hot = await coordinationStatus({ stateRoot });
+  const canonical = materializedToJson(await materialize(stateRoot));
+  assert.deepEqual(withoutGeneratedAt(hot.state), withoutGeneratedAt(canonical));
+  const worker = hot.state.workers[`${config.nodeId}.codex-a`];
+  assert.equal(hot.state.lanes["codex-a"].heartbeat.stale, true);
+  assert.equal(worker.state, "offline");
+  assert.equal(worker.free, false);
+  assert.deepEqual(hot.state.sessions, {});
+});
+
+test("transient live-stream ENOENT falls back and index rebuild retries", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-live-race-"));
+  await coordinationInit({ stateRoot, hub: "live-race", lane: "codex-a" });
+  const config = await loadIdentity(stateRoot);
+  await appendEvent(stateRoot, config, "codex-a", { type: "report", summary: "race checkpoint" });
+  await coordinationIndex({ stateRoot });
+  const stream = streamPath(stateRoot, config.nodeId, "codex-a");
+  const originalOpen = fs.promises.open;
+  let failures = 2;
+  fs.promises.open = async (file, ...args) => {
+    if (failures > 0 && path.resolve(String(file)) === path.resolve(stream)) {
+      failures -= 1;
+      const error = new Error("stream rotated");
+      error.code = "ENOENT";
+      throw error;
+    }
+    return originalOpen(file, ...args);
+  };
+  syncBuiltinESMExports();
+  try {
+    const hot = await coordinationStatus({ stateRoot });
+    const canonical = materializedToJson(await materialize(stateRoot));
+    assert.deepEqual(withoutGeneratedAt(hot.state), withoutGeneratedAt(canonical));
+    const rebuilt = await coordinationIndex({ stateRoot });
+    assert.equal(rebuilt.ok, true);
+  } finally {
+    fs.promises.open = originalOpen;
+    syncBuiltinESMExports();
+  }
+});
+
+function withoutGeneratedAt(state) {
+  const copy = structuredClone(state);
+  delete copy.dashboard.generatedAt;
+  return copy;
+}
 
 test("coordination API initializes generic external state and guards exact claims", async () => {
   const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-coord-"));
