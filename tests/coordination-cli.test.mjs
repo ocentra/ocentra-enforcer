@@ -527,9 +527,10 @@ test("coordination CLI owns hub compatibility aliases without product repo wrapp
   );
   assert.equal(claim.status, 0, claim.stderr);
   const claimResult = JSON.parse(claim.stdout);
+  const canonicalTargetRoot = fs.realpathSync.native(targetRoot);
   assert.equal(claimResult.event.type, "claim");
-  assert.equal(claimResult.event.context.repoRoot, targetRoot);
-  assert.equal(claimResult.event.context.worktreeRoot, targetRoot);
+  assert.equal(claimResult.event.context.repoRoot, canonicalTargetRoot);
+  assert.equal(claimResult.event.context.worktreeRoot, canonicalTargetRoot);
   assert.equal(claimResult.event.context.codexThreadId, "compat-thread-a");
 
   const siblingClaim = spawnCli(

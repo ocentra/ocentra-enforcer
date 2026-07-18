@@ -567,18 +567,12 @@ test("pathless release matches a legacy claim serialized through a symlinked wor
     },
   });
 
-  const previousCwd = process.cwd();
-  let release;
-  try {
-    process.chdir(realWorktree);
-    release = await coordinationRelease({
-      stateRoot,
-      lane: "codex-a",
-      codexThreadId: "thread-alias",
-    });
-  } finally {
-    process.chdir(previousCwd);
-  }
+  const release = await coordinationRelease({
+    stateRoot,
+    root: aliasWorktree,
+    lane: "codex-a",
+    codexThreadId: "thread-alias",
+  });
 
   assert.equal(release.matchedClaimCount, 1);
   assert.deepEqual(release.releasedPaths, ["src/alias.ts"]);
@@ -750,7 +744,9 @@ test("scoped release stays inside its writer and worktree", async () => {
   const after = await coordinationStatus({ stateRoot });
   assert.equal(after.state.ownership.activeClaims.length, 2);
   assert.equal(
-    after.state.ownership.activeClaims.some((claim) => claim.context.worktreeRoot === worktreeB),
+    after.state.ownership.activeClaims.some(
+      (claim) => claim.context.worktreeRoot === fs.realpathSync.native(worktreeB),
+    ),
     true,
   );
   assert.equal(

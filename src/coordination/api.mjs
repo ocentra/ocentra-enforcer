@@ -13,7 +13,7 @@ import { guardLedger } from "./vendor/guard.js";
 import { initIdentity, loadIdentity, resolveLane } from "./vendor/identity.js";
 import { resolveLedgerRoot } from "./vendor/root.js";
 import { normalizeClaimPaths } from "./vendor/claim-policy.js";
-import { buildCoordinationContext } from "./vendor/context.js";
+import { buildCoordinationContext, canonicalExistingCoordinationPath } from "./vendor/context.js";
 import {
   claimIdentityKey,
   claimsReleasedByEvent,
@@ -889,7 +889,7 @@ function closeoutFilters(args, config, lane) {
     codexThreadId: args.codexThreadId ?? args.threadId,
     codexSessionId: args.codexSessionId ?? args.sessionId,
     projectId: args.projectId,
-    worktreeRoot: rootFilter === undefined ? undefined : path.resolve(rootFilter),
+    worktreeRoot: rootFilter === undefined ? undefined : canonicalExistingCoordinationPath(path.resolve(rootFilter)),
     includeAllLanes: args.allOwned === true || args.allLanes === true,
   };
 }
@@ -905,7 +905,9 @@ function matchingCloseoutClaims(claims, filters) {
     if (filters.projectId !== undefined && context.projectId !== filters.projectId) return false;
     if (
       filters.worktreeRoot !== undefined &&
-      path.resolve(context.worktreeRoot ?? context.repoRoot ?? "") !== filters.worktreeRoot
+      canonicalExistingCoordinationPath(
+        path.resolve(context.worktreeRoot ?? context.repoRoot ?? ""),
+      ) !== filters.worktreeRoot
     ) {
       return false;
     }
