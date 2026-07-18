@@ -1,12 +1,12 @@
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { arch, hostname, platform, release, userInfo } from "node:os";
 import { basename, resolve } from "node:path";
 
 export function buildCoordinationContext(input = {}) {
-    const cwd = resolve(input.cwd ?? process.cwd());
-    const repoRoot = resolve(input.repoRoot ?? input.root ?? gitValue(cwd, ["rev-parse", "--show-toplevel"]) ?? cwd);
-    const worktreeRoot = resolve(input.worktreeRoot ?? gitValue(repoRoot, ["rev-parse", "--show-toplevel"]) ?? repoRoot);
+    const cwd = canonicalExistingCoordinationPath(resolve(input.cwd ?? process.cwd()));
+    const repoRoot = canonicalExistingCoordinationPath(resolve(input.repoRoot ?? input.root ?? gitValue(cwd, ["rev-parse", "--show-toplevel"]) ?? cwd));
+    const worktreeRoot = canonicalExistingCoordinationPath(resolve(input.worktreeRoot ?? gitValue(repoRoot, ["rev-parse", "--show-toplevel"]) ?? repoRoot));
     const gitRemote = input.gitRemote ?? gitValue(worktreeRoot, ["config", "--get", "remote.origin.url"]) ?? null;
     const explicitProjectId = Object.hasOwn(input, "explicitProjectId")
         ? input.explicitProjectId
@@ -43,6 +43,18 @@ export function buildCoordinationContext(input = {}) {
         notificationKind: input.notificationKind,
     };
     return Object.fromEntries(Object.entries(context).filter((entry) => entry[1] !== undefined));
+}
+
+/** Resolve local aliases while preserving serialized paths that do not exist on this machine. */
+export function canonicalExistingCoordinationPath(value) {
+    const candidate = String(value ?? "").trim();
+    if (candidate.length === 0 || !existsSync(candidate)) return candidate;
+    try {
+        return realpathSync.native(candidate);
+    }
+    catch {
+        return candidate;
+    }
 }
 
 function gitValue(cwd, args) {

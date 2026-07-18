@@ -11,11 +11,11 @@ const VENDOR_CLI = path.join(
 
 export async function runCoordinationCli(rawArgs = process.argv.slice(2)) {
   const { args, hub, stateRoot } = parseGlobalCoordinationArgs(rawArgs);
+  if (args.some((arg) => ["--help", "-h"].includes(arg))) {
+    printCoordinationHelp(args[0]);
+    return;
+  }
   if (isCompatCommand(args[0])) {
-    if (args.slice(1).some((arg) => ["--help", "-h"].includes(arg))) {
-      printCompatHelp(args[0]);
-      return;
-    }
     await runCompatCommand(args[0], args.slice(1), { hub, stateRoot });
     return;
   }
@@ -345,7 +345,7 @@ function compatForwardedFlags(args, names) {
   return args.filter((arg) => names.includes(arg));
 }
 
-function printCompatHelp(command) {
+function printCoordinationHelp(command) {
   console.log(`Usage: ocentra-enforcer coordination ${command} [options]`);
 }
 

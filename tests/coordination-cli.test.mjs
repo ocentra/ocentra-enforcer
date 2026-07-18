@@ -715,6 +715,16 @@ test("coordination compatibility help is read-only while bare ack keeps ack-late
   const acknowledgedInbox = await coordinationInbox({ stateRoot, lane: "codex-a", all: true });
   assert.equal(acknowledgedInbox.inbox[0].ackedBy.length, 1);
   assert.match(acknowledgedInbox.inbox[0].ackedBy[0], /\.codex-a$/u);
+
+  const bareFree = spawnCli(
+    process.execPath,
+    [CLI, "coordination", "lanes:free", "--state-root", stateRoot, "--hub", "compat-help", "--lane", "codex-a"],
+    { cwd: PACK_ROOT, encoding: "utf8" },
+  );
+  assert.equal(bareFree.status, 0, bareFree.stderr);
+  const freeEvent = JSON.parse(bareFree.stdout);
+  assert.equal(freeEvent.type, "worker.update");
+  assert.equal(freeEvent.summary, "lane released");
 });
 
 test("coordination compatibility reads use the indexed live checkpoint", async () => {

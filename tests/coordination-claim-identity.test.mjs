@@ -537,6 +537,119 @@ test("pathless release reports only claims matched by its derived worktree scope
   assert.deepEqual(after.state.ownership.activeClaims[0].paths, ["src/b.ts"]);
 });
 
+test("pathless release matches a legacy claim serialized through a symlinked worktree alias", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-alias-release-state-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-alias-release-root-"));
+  const realWorktree = path.join(root, "real-worktree");
+  const aliasWorktree = path.join(root, "alias-worktree");
+  fs.mkdirSync(realWorktree);
+  fs.symlinkSync(realWorktree, aliasWorktree, process.platform === "win32" ? "junction" : "dir");
+  await coordinationInit({ stateRoot, hub: "alias-release-hub", lane: "codex-a" });
+  const config = await loadIdentity(stateRoot);
+  const legacyContext = buildCoordinationContext({
+    cwd: realWorktree,
+    repoRoot: realWorktree,
+    worktreeRoot: realWorktree,
+    gitRemote: "https://github.com/example/alias.git",
+    branch: "feature/alias",
+    codexThreadId: "thread-alias",
+    operation: "edit",
+    lockKind: "writeLock",
+  });
+  await appendEvent(stateRoot, config, "codex-a", {
+    type: "claim",
+    paths: ["src/alias.ts"],
+    context: {
+      ...legacyContext,
+      cwd: aliasWorktree,
+      repoRoot: aliasWorktree,
+      worktreeRoot: aliasWorktree,
+    },
+  });
+
+  const previousCwd = process.cwd();
+  let release;
+  try {
+    process.chdir(realWorktree);
+    release = await coordinationRelease({
+      stateRoot,
+      lane: "codex-a",
+      codexThreadId: "thread-alias",
+    });
+  } finally {
+    process.chdir(previousCwd);
+  }
+
+  assert.equal(release.matchedClaimCount, 1);
+  assert.deepEqual(release.releasedPaths, ["src/alias.ts"]);
+  const after = await coordinationStatus({ stateRoot });
+  assert.equal(after.state.ownership.activeClaims.length, 0);
+});
+
+test("partial release of a grouped legacy claim reports truth and transfers only the released path", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-grouped-release-state-"));
+  const targetRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-grouped-release-root-"));
+  fs.mkdirSync(path.join(targetRoot, "src"));
+  fs.writeFileSync(path.join(targetRoot, "src", "policy.ts"), "export const policy = true;\n");
+  fs.writeFileSync(path.join(targetRoot, "src", "sibling.ts"), "export const sibling = true;\n");
+  await coordinationInit({ stateRoot, hub: "grouped-release-hub", lane: "policy-receipt-worker" });
+  const config = await loadIdentity(stateRoot);
+  const legacyContext = buildCoordinationContext({
+    cwd: targetRoot,
+    repoRoot: targetRoot,
+    worktreeRoot: targetRoot,
+    gitRemote: "https://github.com/example/legacy-policy.git",
+    branch: "feature/policy",
+    codexThreadId: "root-thread",
+    operation: "edit",
+    lockKind: "writeLock",
+  });
+  delete legacyContext.explicitProjectId;
+  const groupedClaim = await appendEvent(stateRoot, config, "policy-receipt-worker", {
+    type: "claim",
+    paths: ["src/policy.ts", "src/sibling.ts"],
+    reason: "legacy grouped policy claim",
+    context: legacyContext,
+  });
+
+  const release = await coordinationRelease({
+    stateRoot,
+    root: targetRoot,
+    lane: "policy-receipt-worker",
+    paths: ["src/policy.ts"],
+    branch: "feature/policy",
+    codexThreadId: "root-thread",
+  });
+  assert.equal(release.matchedClaimCount, 1);
+  assert.deepEqual(release.event.paths, ["src/policy.ts"]);
+  assert.deepEqual(release.releasedPaths, ["src/policy.ts"]);
+
+  const afterRelease = await coordinationStatus({ stateRoot });
+  assert.equal(afterRelease.state.ownership.activeClaims.length, 1);
+  assert.equal(afterRelease.state.ownership.activeClaims[0].eventId, groupedClaim.id);
+  assert.deepEqual(afterRelease.state.ownership.activeClaims[0].paths, ["src/sibling.ts"]);
+
+  const transferred = await coordinationClaim({
+    stateRoot,
+    root: targetRoot,
+    lane: "policy-successor",
+    paths: ["src/policy.ts"],
+    branch: "feature/policy",
+    codexThreadId: "successor-thread",
+  });
+  assert.equal(transferred.ok, true);
+  const siblingStillBlocked = await coordinationClaim({
+    stateRoot,
+    root: targetRoot,
+    lane: "policy-successor",
+    paths: ["src/sibling.ts"],
+    branch: "feature/policy",
+    codexThreadId: "successor-thread",
+  });
+  assert.equal(siblingStillBlocked.ok, false);
+  assert.equal(siblingStillBlocked.blockingOwners[0].eventId, groupedClaim.id);
+});
+
 test("no-op release stays silent and owner release wakes a same-lane sibling intent", async () => {
   const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-sibling-intent-"));
   const targetRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-sibling-intent-target-"));

@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { coordinationClaim, coordinationRelease } from "../api.mjs";
 import { parseClaimPath, parseEventId, parseLaneId, parseMessageAddress, parsePeerName, parsePullRequestUrl, parseSessionId, parseStatusState, parseTaskId, parseTaskState, parseUserText, parseWorkerState, parseWriterId, } from "./domain.js";
 import { ensureDaemon } from "./daemon.js";
+import { runCoordinationCommandWithHelp } from "./coordination-help.js";
 import { inspectLedger } from "./doctor.js";
 import { guardLedger } from "./guard.js";
 import { initIdentity, loadIdentity, resolveLane } from "./identity.js";
@@ -22,7 +23,7 @@ import { syncFromHttpPeer } from "./sync/http.js";
 import { syncFromPeer } from "./sync/local.js";
 const args = process.argv.slice(2);
 const root = resolveLedgerRoot();
-await main(args);
+await runCoordinationCommandWithHelp(args, main);
 async function main(argv) {
     const [command, ...rest] = argv;
     switch (command) {
