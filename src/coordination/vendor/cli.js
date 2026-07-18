@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readdir, stat } from "node:fs/promises";
 import { resolve } from "node:path";
+import { coordinationClaim, coordinationRelease } from "../api.mjs";
 import { parseClaimPath, parseEventId, parseLaneId, parseMessageAddress, parsePeerName, parsePullRequestUrl, parseSessionId, parseStatusState, parseTaskId, parseTaskState, parseUserText, parseWorkerState, parseWriterId, } from "./domain.js";
 import { ensureDaemon } from "./daemon.js";
 import { inspectLedger } from "./doctor.js";
@@ -19,7 +20,6 @@ import { startPeerServer } from "./server.js";
 import { appendEvent } from "./stream.js";
 import { syncFromHttpPeer } from "./sync/http.js";
 import { syncFromPeer } from "./sync/local.js";
-import { normalizeClaimPaths } from "./claim-policy.js";
 const args = process.argv.slice(2);
 const root = resolveLedgerRoot();
 await main(args);
@@ -256,13 +256,13 @@ async function commandClaim(argv) {
     if (laneRaw === undefined || rawPaths.length === 0) {
         throw new Error("usage: ledger claim <lane> <path> [more paths...] [--reason <reason>]");
     }
-    const config = await loadIdentity(root);
-    const paths = await normalizeClaimPaths(process.cwd(), rawPaths);
     const reason = optionValue(argv, "--reason");
-    print(await appendEvent(root, config, parseLaneId(laneRaw), {
-        type: "claim",
-        paths,
-        ...(reason === undefined ? {} : { reason: parseUserText(reason) }),
+    print(await coordinationClaim({
+        stateRoot: root,
+        root: process.cwd(),
+        lane: laneRaw,
+        paths: rawPaths,
+        reason,
     }));
 }
 async function commandRelease(argv) {
@@ -271,10 +271,11 @@ async function commandRelease(argv) {
     if (laneRaw === undefined || paths.length === 0) {
         throw new Error("usage: ledger release <lane> <path> [more paths...]");
     }
-    const config = await loadIdentity(root);
-    print(await appendEvent(root, config, parseLaneId(laneRaw), {
-        type: "release",
-        paths: paths.map((path) => parseClaimPath(path)),
+    print(await coordinationRelease({
+        stateRoot: root,
+        root: process.cwd(),
+        lane: laneRaw,
+        paths,
     }));
 }
 async function commandResolve(argv) {

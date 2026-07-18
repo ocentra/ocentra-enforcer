@@ -7,6 +7,7 @@ export function claimIdentityKey(claim) {
     enriched.ownerKey,
     enriched.projectKey,
     enriched.worktreeKey,
+    enriched.branchKey,
     enriched.lockKind,
     enriched.pathKeys.join("|"),
     enriched.claimGroup ?? "",
@@ -37,22 +38,40 @@ function releaseMatchesClaim(releaseClaim, activeClaim, overlappingPaths) {
   if (overlappingPaths(release.paths, active.paths).length === 0) return false;
   const context = releaseClaim.context ?? {};
   if (context.explicitReleaseScope !== true) return true;
-  if (hasMeaningfulContext(context, "codexThreadId", "codexSessionId") && release.ownerKey !== active.ownerKey) {
+  const releaseHasExplicitOwner = hasMeaningfulContext(context, "codexThreadId", "codexSessionId");
+  const activeHasExplicitOwner = hasMeaningfulContext(
+    activeClaim.context ?? {},
+    "codexThreadId",
+    "codexSessionId",
+  );
+  if (
+    releaseHasExplicitOwner !== activeHasExplicitOwner ||
+    (releaseHasExplicitOwner && release.ownerKey !== active.ownerKey)
+  ) {
     return false;
   }
-  if (hasMeaningfulContext(context, "projectId", "repoRoot", "gitRemote") && !sameReleaseProject(release, active)) {
-    return false;
-  }
-  if (hasMeaningfulContext(context, "worktreeRoot", "repoRoot") && release.worktreeKey !== active.worktreeKey) {
+  if (
+    (hasMeaningfulContext(context, "projectId", "repoRoot", "gitRemote") &&
+      !sameReleaseProject(release, active)) ||
+    (hasMeaningfulContext(context, "worktreeRoot", "repoRoot") &&
+      release.worktreeKey !== active.worktreeKey) ||
+    (hasMeaningfulContext(context, "branch") && release.branchKey !== active.branchKey)
+  ) {
     return false;
   }
   return true;
 }
 
 function sameReleaseProject(release, active) {
-  if (release.projectKey === active.projectKey) return true;
-  if (release.gitRemoteKey !== null && release.gitRemoteKey === active.gitRemoteKey) return true;
-  return release.repoRootKey !== null && release.repoRootKey === active.repoRootKey;
+  const bothDeclareProject =
+    hasMeaningfulContext(release.context ?? {}, "explicitProjectId") &&
+    hasMeaningfulContext(active.context ?? {}, "explicitProjectId");
+  if (bothDeclareProject) return release.projectKey === active.projectKey;
+  return (
+    release.projectKey === active.projectKey ||
+    (release.gitRemoteKey !== null && release.gitRemoteKey === active.gitRemoteKey) ||
+    (release.repoRootKey !== null && release.repoRootKey === active.repoRootKey)
+  );
 }
 
 function hasMeaningfulContext(context, ...keys) {

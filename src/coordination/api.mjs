@@ -397,20 +397,18 @@ export async function coordinationCloseout(args = {}) {
   const initialClaims = matchingCloseoutClaims(state.ownership.activeClaims, filters);
   const releaseEvents = [];
   if (releaseOwned && initialClaims.length > 0) {
-    for (const [claimLane, claims] of claimsByLane(initialClaims)) {
-      const paths = unique(claims.flatMap((claim) => claim.paths ?? []));
+    for (const claim of initialClaims) {
+      const paths = unique(claim.paths ?? []);
       if (paths.length === 0) continue;
       releaseEvents.push(
-        await appendEvent(root, config, parseLaneId(claimLane), {
+        await appendEvent(root, config, parseLaneId(claim.lane), {
           type: "release",
           paths,
           reason: parseUserText(args.reason ?? "coordination closeout release"),
-          context: contextFor({
-            ...args,
-            closeoutAction: "release",
-            closeoutLane: lane,
-            closeoutClaimCount: claims.length,
-          }),
+          context: {
+            ...(claim.context ?? {}),
+            explicitReleaseScope: true,
+          },
         }),
       );
     }
@@ -461,11 +459,14 @@ export async function coordinationCloseout(args = {}) {
 
 export async function coordinationGuard(args = {}) {
   const root = coordinationRoot(args);
+  const config = await loadIdentity(root);
+  const lane = args.lane ?? config.defaultLane;
   const requestedPaths = pathList(args.paths);
   const changedPaths =
     requestedPaths.length > 0 ? requestedPaths : pathList(args.changedPaths);
   const result = await guardLedger(root, {
-    lane: args.lane ?? (await loadIdentity(root)).defaultLane,
+    lane,
+    writer: writerId(config.nodeId, lane),
     changedPaths,
     root: args.root,
     repoRoot: args.repoRoot ?? args.root,
@@ -876,14 +877,6 @@ function matchingCloseoutClaims(claims, filters) {
   });
 }
 
-function claimsByLane(claims) {
-  const grouped = new Map();
-  for (const claim of claims) {
-    grouped.set(claim.lane, [...(grouped.get(claim.lane) ?? []), claim]);
-  }
-  return grouped.entries();
-}
-
 function publicCloseoutFilters(filters) {
   return {
     lane: filters.lane,
@@ -940,17 +933,7 @@ function contextFor(args = {}) {
 }
 
 function releaseContext(args = {}) {
-  const scoped = [
-    args.root,
-    args.cwd,
-    args.repoRoot,
-    args.worktreeRoot,
-    args.projectId,
-    args.gitRemote,
-    args.codexThreadId,
-    args.codexSessionId,
-  ].some((value) => value !== undefined);
-  return scoped ? { ...contextFor(args), explicitReleaseScope: true } : undefined;
+  return { ...contextFor(args), explicitReleaseScope: true };
 }
 
 async function syncPeer(root, peer, args) {

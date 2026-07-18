@@ -8,12 +8,16 @@ export function buildCoordinationContext(input = {}) {
     const repoRoot = resolve(input.repoRoot ?? input.root ?? gitValue(cwd, ["rev-parse", "--show-toplevel"]) ?? cwd);
     const worktreeRoot = resolve(input.worktreeRoot ?? gitValue(repoRoot, ["rev-parse", "--show-toplevel"]) ?? repoRoot);
     const gitRemote = input.gitRemote ?? gitValue(worktreeRoot, ["config", "--get", "remote.origin.url"]) ?? null;
+    const explicitProjectId = Object.hasOwn(input, "explicitProjectId")
+        ? input.explicitProjectId
+        : input.projectId ?? process.env.OCENTRA_PROJECT_ID ?? null;
     const context = {
         machine: input.machine ?? hostname(),
         user: input.user ?? currentUser(),
         os: input.os ?? `${platform()} ${release()} ${arch()}`,
         hub: input.hub ?? process.env.OCENTRA_COORDINATION_HUB ?? process.env.OCENTRA_ENFORCER_HUB ?? null,
         projectId: input.projectId ?? process.env.OCENTRA_PROJECT_ID ?? deriveProjectId(gitRemote, repoRoot),
+        explicitProjectId,
         repoRoot,
         worktreeRoot,
         gitRemote,

@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { coordinationClaim, coordinationRelease } from "../api.mjs";
 import { dashboardHtml } from "./dashboard.js";
 import { parseClaimPath, parseEventId, parseLaneId, parseMessageAddress, parsePullRequestUrl, parseStatusState, parseTaskId, parseTaskState, parseUserText, parseWorkerState, parseWriterId, } from "./domain.js";
 import { loadIdentity, resolveLane } from "./identity.js";
@@ -207,22 +208,22 @@ async function routeCommand(root, request, response, command) {
         return;
     }
     if (command === "claim") {
-        const lane = parseLaneId(requiredString(body, "lane"));
-        const reason = optionalString(body, "reason");
-        const event = await appendEvent(root, config, lane, {
-            type: "claim",
+        const result = await coordinationClaim({
+            ...body,
+            stateRoot: root,
+            lane: requiredString(body, "lane"),
             paths: requiredClaimPaths(body),
-            ...(reason === undefined ? {} : { reason: parseUserText(reason) }),
         });
-        sendJson(response, 200, { event });
+        sendJson(response, result.ok ? 200 : 409, result);
         return;
     }
     if (command === "release") {
-        const event = await appendEvent(root, config, parseLaneId(requiredString(body, "lane")), {
-            type: "release",
+        const result = await coordinationRelease({
+            ...body, stateRoot: root,
+            lane: requiredString(body, "lane"),
             paths: requiredClaimPaths(body),
         });
-        sendJson(response, 200, { event });
+        sendJson(response, 200, result);
         return;
     }
     if (command === "resolve") {

@@ -15,6 +15,7 @@ import {
   coordinationMessage,
   coordinationPeer,
   coordinationPresence,
+  coordinationStreams,
   coordinationSync,
   coordinationTaskUpdate,
   coordinationTasks,
@@ -486,6 +487,8 @@ test("coordination CLI owns hub compatibility aliases without product repo wrapp
       "codex-a",
       "--root",
       targetRoot,
+      "--codex-thread-id",
+      "compat-thread-a",
       "--paths",
       "README.md",
       "--reason",
@@ -494,7 +497,35 @@ test("coordination CLI owns hub compatibility aliases without product repo wrapp
     { cwd: PACK_ROOT, encoding: "utf8" },
   );
   assert.equal(claim.status, 0, claim.stderr);
-  assert.equal(JSON.parse(claim.stdout).event.type, "claim");
+  const claimResult = JSON.parse(claim.stdout);
+  assert.equal(claimResult.event.type, "claim");
+  assert.equal(claimResult.event.context.repoRoot, targetRoot);
+  assert.equal(claimResult.event.context.worktreeRoot, targetRoot);
+  assert.equal(claimResult.event.context.codexThreadId, "compat-thread-a");
+
+  const siblingClaim = spawnCli(
+    process.execPath,
+    [
+      CLI,
+      "coordination",
+      "hub:lock",
+      "--state-root",
+      stateRoot,
+      "--hub",
+      "compat-hub",
+      "--lane",
+      "codex-a",
+      "--root",
+      targetRoot,
+      "--codex-thread-id",
+      "compat-thread-b",
+      "--paths",
+      "README.md",
+    ],
+    { cwd: PACK_ROOT, encoding: "utf8" },
+  );
+  assert.equal(siblingClaim.status, 1, siblingClaim.stderr);
+  assert.equal(JSON.parse(siblingClaim.stdout).blockingOwners[0].codexThreadId, "compat-thread-a");
 
   const guard = spawnCli(
     process.execPath,
@@ -510,6 +541,8 @@ test("coordination CLI owns hub compatibility aliases without product repo wrapp
       "codex-a",
       "--root",
       targetRoot,
+      "--codex-thread-id",
+      "compat-thread-a",
       "--paths",
       "README.md",
     ],
@@ -517,6 +550,52 @@ test("coordination CLI owns hub compatibility aliases without product repo wrapp
   );
   assert.equal(guard.status, 0, guard.stderr);
   assert.equal(JSON.parse(guard.stdout).result.ok, true);
+
+  const siblingRelease = spawnCli(
+    process.execPath,
+    [
+      CLI,
+      "coordination",
+      "hub:unlock",
+      "--state-root",
+      stateRoot,
+      "--hub",
+      "compat-hub",
+      "--lane",
+      "codex-a",
+      "--root",
+      targetRoot,
+      "--codex-thread-id",
+      "compat-thread-b",
+      "--paths",
+      "README.md",
+    ],
+    { cwd: PACK_ROOT, encoding: "utf8" },
+  );
+  assert.equal(siblingRelease.status, 0, siblingRelease.stderr);
+
+  const stillBlocked = spawnCli(
+    process.execPath,
+    [
+      CLI,
+      "coordination",
+      "hub:lock",
+      "--state-root",
+      stateRoot,
+      "--hub",
+      "compat-hub",
+      "--lane",
+      "codex-a",
+      "--root",
+      targetRoot,
+      "--codex-thread-id",
+      "compat-thread-b",
+      "--paths",
+      "README.md",
+    ],
+    { cwd: PACK_ROOT, encoding: "utf8" },
+  );
+  assert.equal(stillBlocked.status, 1, stillBlocked.stderr);
 
   const release = spawnCli(
     process.execPath,
@@ -532,6 +611,8 @@ test("coordination CLI owns hub compatibility aliases without product repo wrapp
       "codex-a",
       "--root",
       targetRoot,
+      "--codex-thread-id",
+      "compat-thread-a",
       "--paths",
       "README.md",
     ],
@@ -539,6 +620,72 @@ test("coordination CLI owns hub compatibility aliases without product repo wrapp
   );
   assert.equal(release.status, 0, release.stderr);
   assert.equal(JSON.parse(release.stdout).event.type, "release");
+
+  const transferredClaim = spawnCli(
+    process.execPath,
+    [
+      CLI,
+      "coordination",
+      "hub:lock",
+      "--state-root",
+      stateRoot,
+      "--hub",
+      "compat-hub",
+      "--lane",
+      "codex-a",
+      "--root",
+      targetRoot,
+      "--codex-thread-id",
+      "compat-thread-b",
+      "--paths",
+      "README.md",
+    ],
+    { cwd: PACK_ROOT, encoding: "utf8" },
+  );
+  assert.equal(transferredClaim.status, 0, transferredClaim.stderr);
+});
+
+test("coordination compatibility help is read-only while bare ack keeps ack-latest compatibility", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-compat-help-"));
+  await coordinationInit({ stateRoot, hub: "compat-help", lane: "codex-a" });
+  await coordinationMessage({ stateRoot, hub: "compat-help", from: "primary", to: "codex-a", body: "leave unread" });
+  const before = await coordinationStreams({ stateRoot });
+  const beforeEventCount = before.streams.reduce((sum, stream) => sum + stream.eventCount, 0);
+
+  for (const [command, flag] of [["hub:ack", "--help"], ["hub:lock", "--help"], ["hub:unlock", "-h"]]) {
+    const result = spawnCli(
+      process.execPath,
+      [CLI, "coordination", command, "--state-root", stateRoot, "--hub", "compat-help", "--lane", "codex-a", flag],
+      { cwd: PACK_ROOT, encoding: "utf8" },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /^Usage: ocentra-enforcer coordination/u);
+  }
+
+  for (const command of ["hub:lock", "hub:unlock"]) {
+    const result = spawnCli(
+      process.execPath,
+      [CLI, "coordination", command, "--state-root", stateRoot, "--hub", "compat-help", "--lane", "codex-a"],
+      { cwd: PACK_ROOT, encoding: "utf8" },
+    );
+    assert.notEqual(result.status, 0, `${command} unexpectedly succeeded: ${result.stdout}`);
+  }
+
+  const after = await coordinationStreams({ stateRoot });
+  const afterEventCount = after.streams.reduce((sum, stream) => sum + stream.eventCount, 0);
+  const unreadInbox = await coordinationInbox({ stateRoot, lane: "codex-a", all: true });
+  assert.equal(afterEventCount, beforeEventCount);
+  assert.deepEqual(unreadInbox.inbox[0].ackedBy, []);
+
+  const bareAck = spawnCli(
+    process.execPath,
+    [CLI, "coordination", "hub:ack", "--state-root", stateRoot, "--hub", "compat-help", "--lane", "codex-a"],
+    { cwd: PACK_ROOT, encoding: "utf8" },
+  );
+  assert.equal(bareAck.status, 0, bareAck.stderr);
+  const acknowledgedInbox = await coordinationInbox({ stateRoot, lane: "codex-a", all: true });
+  assert.equal(acknowledgedInbox.inbox[0].ackedBy.length, 1);
+  assert.match(acknowledgedInbox.inbox[0].ackedBy[0], /\.codex-a$/u);
 });
 
 test("coordination compatibility reads use the indexed live checkpoint", async () => {
