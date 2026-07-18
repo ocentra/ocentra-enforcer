@@ -1,12 +1,22 @@
 import { readFile } from "node:fs/promises";
-import { basename } from "node:path";
+import { basename, join } from "node:path";
 import { assertEventHash, parseHubEvent } from "./events.js";
-import { listCanonicalStreamNames, streamSegments } from "./stream.js";
+import { listCanonicalStreamNames, listStreamFiles, streamSegments } from "./stream.js";
+import { streamsDir } from "./paths.js";
 export async function inspectLedger(root) {
+    return inspectStreams(root, await listCanonicalStreamNames(root), true);
+}
+export async function inspectLiveLedger(root) {
+    return inspectStreams(root, await listStreamFiles(root), false);
+}
+async function inspectStreams(root, streams, includeArchives) {
     const diagnostics = [];
-    for (const stream of await listCanonicalStreamNames(root)) {
+    for (const stream of streams) {
         const events = [];
-        for (const segment of await streamSegments(root, stream)) {
+        const segments = includeArchives
+            ? await streamSegments(root, stream)
+            : [{ streamName: stream, path: join(streamsDir(root), stream), archived: false }];
+        for (const segment of segments) {
             const lines = await readLines(segment.path);
             for (const [index, line] of lines.entries()) {
                 if (line.trim().length === 0) {
@@ -43,7 +53,7 @@ export async function inspectLedger(root) {
         for (const [index, event] of events.entries()) {
             const previous = events[index - 1];
             if (previous === undefined) {
-                if (event.seq !== 1 || event.prevEventId !== null || event.prevHash !== null) {
+                if (includeArchives && (event.seq !== 1 || event.prevEventId !== null || event.prevHash !== null)) {
                     diagnostics.push({
                         level: "error",
                         stream,
