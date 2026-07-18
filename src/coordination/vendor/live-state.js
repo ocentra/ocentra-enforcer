@@ -8,7 +8,13 @@ export async function materializeLive(root) {
         return materialize(root);
     }
     const cursor = index.orderCursor ?? index.state.orderCursor;
-    const deltas = await readLiveDeltas(root, index.liveStreams);
+    let deltas;
+    try {
+        deltas = await readLiveDeltas(root, index.liveStreams);
+    }
+    catch {
+        return materialize(root);
+    }
     if (deltas === null || deltas.events.some((event) => compareOrder(event, cursor) < 0)) {
         return materialize(root);
     }

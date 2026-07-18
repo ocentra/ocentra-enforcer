@@ -8,7 +8,7 @@ import {
   materializedToJson,
 } from "./vendor/materialize.js";
 import { ensureDaemon } from "./vendor/daemon.js";
-import { inspectLiveLedger } from "./vendor/doctor.js";
+import { inspectLedger, inspectLiveLedger } from "./vendor/doctor.js";
 import { guardLedger } from "./vendor/guard.js";
 import { initIdentity, loadIdentity, resolveLane } from "./vendor/identity.js";
 import { resolveLedgerRoot } from "./vendor/root.js";
@@ -19,6 +19,7 @@ import { notify } from "./vendor/notify.js";
 import { addPeer, loadPeerRegistry, removePeer, resolvePeer } from "./vendor/peers.js";
 import { buildPresenceMatrix } from "./vendor/presence.js";
 import { rebuildCoordinationIndex } from "./vendor/read-index.js";
+import { loadLiveIndex } from "./vendor/live-index.js";
 import { materializeLive } from "./vendor/live-state.js";
 import {
   repairLegacyHashCompatibility,
@@ -70,6 +71,38 @@ export async function coordinationStatus(args = {}) {
     ok: true,
     root,
     state: materializedToJson(state),
+  };
+}
+
+/** Return live status in the legacy compatibility report shape. */
+export async function coordinationCompatStatus(args = {}) {
+  const root = coordinationRoot(args);
+  const index = await loadLiveIndex(root);
+  if (index?.audit === undefined) {
+    const [state, inspection] = await Promise.all([
+      materialize(root),
+      inspectLedger(root),
+    ]);
+    return compatStatusReport(state, inspection);
+  }
+  const state = await materializeLive(root);
+  if (state.checkpointAudit === undefined) {
+    return compatStatusReport(state, await inspectLedger(root));
+  }
+  return compatStatusReport(state, await inspectLiveLedger(root), state.checkpointAudit);
+}
+
+function compatStatusReport(state, inspection, checkpointAudit = { ok: true, diagnostics: [] }) {
+  return {
+    ok:
+      inspection.ok &&
+      checkpointAudit.ok &&
+      state.warnings.length === 0 &&
+      state.ownership.conflicts.length === 0,
+    diagnostics: [...checkpointAudit.diagnostics, ...inspection.diagnostics],
+    warnings: state.warnings,
+    conflicts: state.ownership.conflicts,
+    dashboard: state.dashboard,
   };
 }
 
