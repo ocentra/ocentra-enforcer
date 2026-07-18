@@ -124,7 +124,7 @@ async function runCompatCommand(command, rawArgs, context) {
     case "lanes:status":
     case "hub:status":
     case "ledger:doctor":
-      await runNested(["doctor"], context);
+      await runCompatStatus(command, context);
       return;
     case "ledger:root":
     case "ledger:install":
@@ -137,17 +137,17 @@ async function runCompatCommand(command, rawArgs, context) {
       return;
     case "ledger:inbox":
     case "hub:inbox":
-      await runNested(["inbox", lane], context);
+      await runCompatInbox(lane, options, context);
       return;
     case "ledger:workers":
     case "hub:heartbeats":
-      await runNested(["workers"], context);
+      await runCompatCollection("workers", context);
       return;
     case "ledger:free":
       await runNested(["workers", "free"], context);
       return;
     case "ledger:tasks":
-      await runNested(["tasks", "active"], context);
+      await runCompatCollection("tasks", context);
       return;
     case "ledger:message":
       await runNested(["msg", required(options.lane ?? options.to ?? options._[0], "lane"), compatMessageBody(options)], context);
@@ -190,7 +190,7 @@ async function runCompatCommand(command, rawArgs, context) {
       await runNested(["release", "--lane", lane, "--paths", required(options.paths, "paths"), "--reason", options.reason ?? "released from coordination alias"], context);
       return;
     case "hub:watch":
-      await runNested(["inbox", lane], context);
+      await runCompatInbox(lane, options, context);
       return;
     case "hub:hook":
       await printHookContext(lane, context);
@@ -224,6 +224,41 @@ async function runNested(args, context) {
     ...(context.hub ? ["--hub", context.hub] : []),
     ...args,
   ]);
+}
+
+async function runCompatStatus(command, context) {
+  if (command === "ledger:doctor") {
+    await runNested(["doctor"], context);
+    return;
+  }
+  const { coordinationCompatStatus } = await import("./api.mjs");
+  const result = await coordinationCompatStatus(compatContextArgs(context));
+  console.log(JSON.stringify(result, null, 2));
+}
+
+async function runCompatCollection(kind, context) {
+  const { coordinationWorkers, coordinationTasks } = await import("./api.mjs");
+  const result = kind === "workers"
+    ? await coordinationWorkers(compatContextArgs(context))
+    : await coordinationTasks(compatContextArgs(context));
+  console.log(JSON.stringify(result[kind], null, 2));
+}
+
+async function runCompatInbox(lane, options, context) {
+  const { coordinationInbox } = await import("./api.mjs");
+  const result = await coordinationInbox({
+    lane,
+    all: options.all === true,
+    ...compatContextArgs(context),
+  });
+  console.log(JSON.stringify(result.inbox, null, 2));
+}
+
+function compatContextArgs(context) {
+  return {
+    ...(context.hub ? { hub: context.hub } : {}),
+    ...(context.stateRoot ? { stateRoot: context.stateRoot } : {}),
+  };
 }
 
 function compatLane(options) {

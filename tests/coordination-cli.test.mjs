@@ -7,13 +7,19 @@ import test from "node:test";
 import { spawnCli } from "./cli-spawn.mjs";
 
 import {
+  coordinationAck,
   coordinationClaim,
+  coordinationCompact,
   coordinationInbox,
   coordinationInit,
   coordinationMessage,
   coordinationPeer,
   coordinationPresence,
   coordinationSync,
+  coordinationTaskUpdate,
+  coordinationTasks,
+  coordinationWorkerUpdate,
+  coordinationWorkers,
 } from "../src/coordination/api.mjs";
 import { startPeerServer } from "../src/coordination/vendor/server.js";
 
@@ -22,6 +28,25 @@ const PACK_ROOT = path.resolve(
   "..",
 );
 const CLI = path.join(PACK_ROOT, "scripts", "rust-rules.mjs");
+
+function spawnCompat(stateRoot, command, extraArgs = []) {
+  const startedAt = performance.now();
+  const result = spawnCli(
+    process.execPath,
+    [
+      CLI,
+      "coordination",
+      command,
+      "--state-root",
+      stateRoot,
+      "--hub",
+      "compat-status",
+      ...extraArgs,
+    ],
+    { cwd: PACK_ROOT, encoding: "utf8" },
+  );
+  return { result, elapsedMs: performance.now() - startedAt };
+}
 
 test("coordination sync converges local roots and transfers HTTP suffixes only", async () => {
   const leftRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-sync-left-"));
@@ -514,6 +539,136 @@ test("coordination CLI owns hub compatibility aliases without product repo wrapp
   );
   assert.equal(release.status, 0, release.stderr);
   assert.equal(JSON.parse(release.stdout).event.type, "release");
+});
+
+test("coordination compatibility reads use the indexed live checkpoint", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-compat-status-"));
+  await coordinationInit({ stateRoot, hub: "compat-status", lane: "codex-a" });
+  let firstMessage;
+  for (let index = 0; index < 12; index += 1) {
+    const message = await coordinationMessage({
+      stateRoot,
+      to: "codex-a",
+      body: `indexed status ${index}`,
+    });
+    firstMessage ??= message;
+  }
+  await coordinationAck({ stateRoot, lane: "codex-a", messageId: firstMessage.event.id });
+  await coordinationWorkerUpdate({
+    stateRoot,
+    lane: "codex-a",
+    state: "working",
+    summary: "indexed worker",
+  });
+  await coordinationTaskUpdate({
+    stateRoot,
+    lane: "codex-a",
+    taskId: "indexed-task",
+    state: "started",
+    summary: "indexed task",
+  });
+  const compacted = await coordinationCompact({ stateRoot, keepLatest: 1 });
+  assert.equal(compacted.compactedStreams.length, 1);
+  const archiveRoot = path.join(stateRoot, "archive", "streams");
+  const streamDirectory = path.join(archiveRoot, fs.readdirSync(archiveRoot)[0]);
+  const archiveFile = path.join(streamDirectory, fs.readdirSync(streamDirectory)[0]);
+  fs.writeFileSync(archiveFile, "{broken archive reserved for explicit audit}\n");
+
+  for (const command of ["hub:status", "lanes:status"]) {
+    const { result, elapsedMs } = spawnCompat(stateRoot, command);
+    assert.equal(result.status, 0, result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.deepEqual(Object.keys(report), [
+      "ok",
+      "diagnostics",
+      "warnings",
+      "conflicts",
+      "dashboard",
+    ]);
+    assert.equal(report.ok, true);
+    assert.deepEqual(report.diagnostics, []);
+    assert.equal(report.dashboard.eventCount, 15);
+    assert.ok(elapsedMs < 5_000, `indexed ${command} took ${elapsedMs.toFixed(1)}ms`);
+  }
+
+  const expectedWorkers = (await coordinationWorkers({ stateRoot })).workers;
+  const expectedTasks = (await coordinationTasks({ stateRoot })).tasks;
+  const expectedInbox = (await coordinationInbox({ stateRoot, lane: "codex-a" })).inbox;
+  for (const [command, expected] of [
+    ["ledger:workers", expectedWorkers],
+    ["hub:heartbeats", expectedWorkers],
+    ["ledger:tasks", expectedTasks],
+    ["ledger:inbox", expectedInbox],
+    ["hub:inbox", expectedInbox],
+    ["hub:watch", expectedInbox],
+  ]) {
+    const { result, elapsedMs } = spawnCompat(stateRoot, command, ["--lane", "codex-a"]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), expected);
+    assert.ok(elapsedMs < 5_000, `indexed ${command} took ${elapsedMs.toFixed(1)}ms`);
+  }
+  const allInbox = spawnCompat(stateRoot, "hub:inbox", ["--lane", "codex-a", "--all"]);
+  assert.equal(JSON.parse(allInbox.result.stdout).length, 12);
+
+  const deepDoctor = spawnCompat(stateRoot, "ledger:doctor").result;
+  assert.equal(deepDoctor.status, 0, deepDoctor.stderr);
+  const deepReport = JSON.parse(deepDoctor.stdout);
+  assert.equal(deepReport.ok, false);
+  assert.ok(
+    deepReport.diagnostics.some((diagnostic) =>
+      /first event does not start a stream chain/u.test(diagnostic.message),
+    ),
+  );
+
+  const streamRoot = path.join(stateRoot, "streams");
+  const retainedEvent = fs.readFileSync(path.join(streamRoot, fs.readdirSync(streamRoot)[0]), "utf8");
+  fs.writeFileSync(archiveFile, retainedEvent);
+  fs.rmSync(path.join(stateRoot, "db", "coordination-index.json"));
+  const fallbackReport = JSON.parse(spawnCompat(stateRoot, "hub:status").result.stdout);
+  assert.equal(fallbackReport.ok, false);
+  assert.ok(
+    fallbackReport.diagnostics.some((diagnostic) =>
+      /first event does not start a stream chain/u.test(diagnostic.message),
+    ),
+  );
+});
+
+test("indexed compatibility reads tolerate an incomplete live append", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-compat-tail-"));
+  await coordinationInit({ stateRoot, hub: "compat-status", lane: "codex-a" });
+  await coordinationMessage({ stateRoot, to: "codex-a", body: "indexed inbox" });
+  await coordinationWorkerUpdate({
+    stateRoot,
+    lane: "codex-a",
+    state: "working",
+    summary: "indexed worker",
+  });
+  await coordinationTaskUpdate({
+    stateRoot,
+    lane: "codex-a",
+    taskId: "indexed-task",
+    state: "started",
+    summary: "indexed task",
+  });
+  await coordinationCompact({ stateRoot, keepLatest: 1 });
+  const expected = {
+    "ledger:workers": (await coordinationWorkers({ stateRoot })).workers,
+    "ledger:tasks": (await coordinationTasks({ stateRoot })).tasks,
+    "hub:inbox": (await coordinationInbox({ stateRoot, lane: "codex-a" })).inbox,
+  };
+  const streamRoot = path.join(stateRoot, "streams");
+  fs.appendFileSync(path.join(streamRoot, fs.readdirSync(streamRoot)[0]), "{\"partial\":");
+
+  const status = spawnCompat(stateRoot, "hub:status").result;
+  assert.equal(status.status, 0, status.stderr);
+  const statusReport = JSON.parse(status.stdout);
+  assert.equal(statusReport.ok, false);
+  assert.ok(statusReport.warnings.some((warning) => /ignored malformed final line/u.test(warning)));
+  for (const [command, value] of Object.entries(expected)) {
+    const result = spawnCompat(stateRoot, command, ["--lane", "codex-a"]).result;
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), value);
+  }
 });
 
 test("architecture CLI flags Rust public re-exports and skips clean files", () => {
