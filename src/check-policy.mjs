@@ -27,6 +27,7 @@ const KNOWN_CONFIG_KEYS = new Set([
   "cargoTestThreads",
   "allowUnsafeCode",
   "allowBuildRs",
+  "allowedBuildRsPaths",
   "allowGitDependencies",
   "allowPathDependencies",
   "publicReexportPolicy",

@@ -677,8 +677,8 @@
       "language": "common",
       "family": "source-shape",
       "severity": "error",
-      "title": "Boundary glob additions require waiver",
-      "snippet": "Add an explicit waiver or owner note for new boundary glob expansions.",
+      "title": "Boundary ownership globs must be structurally narrow",
+      "snippet": "Scope boundary ownership globs to a named code segment instead of a catch-all source tree.",
       "lockLevel": "immutable",
       "canDisable": false,
       "canDowngrade": false,
@@ -695,7 +695,7 @@
         "ocentra-enforcer.config.json"
       ],
       "triggers": [
-        "Boundary glob additions require waiver"
+        "Boundary ownership globs must be structurally narrow"
       ],
       "validator": "common/architecture",
       "doc": "rules/common/architecture.md#covered-rules"

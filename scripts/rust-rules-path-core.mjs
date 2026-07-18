@@ -60,9 +60,21 @@ function matchesAnyGlob(relPath, globs) {
   return globs.some((glob) => matchesGlob(relPath, glob));
 }
 
-function isIgnoredPath(relPath, config) {
+function hasGeneratedDirectorySegment(relPath, prefix, finalSegmentIsDirectory) {
+  const segments = relPath.split("/").filter(Boolean);
+  const directorySegments = finalSegmentIsDirectory
+    ? segments
+    : segments.slice(0, -1);
+  return directorySegments.some((segment) => segment.startsWith(prefix));
+}
+
+function isIgnoredPath(relPath, config, finalSegmentIsDirectory = false) {
   return (
     relPath.split("/").some((segment) => config.ignoreDirs.includes(segment)) ||
+    (config.ignoreDirs.includes("target") &&
+      hasGeneratedDirectorySegment(relPath, "target-", finalSegmentIsDirectory)) ||
+    (config.ignoreDirs.includes(".tmp") &&
+      hasGeneratedDirectorySegment(relPath, ".tmp-", finalSegmentIsDirectory)) ||
     matchesAnyGlob(relPath, config.ignoreFileGlobs)
   );
 }
@@ -98,7 +110,7 @@ function walkFiles(root, start, config, collect) {
   if (!fs.existsSync(start)) return;
   const stats = fs.statSync(start);
   const rel = normalizeRel(root, start);
-  if (isIgnoredPath(rel, config)) return;
+  if (isIgnoredPath(rel, config, stats.isDirectory())) return;
   if (stats.isDirectory()) {
     for (const entry of fs.readdirSync(start, { withFileTypes: true })) {
       walkFiles(root, path.join(start, entry.name), config, collect);

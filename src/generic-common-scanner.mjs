@@ -10,6 +10,7 @@ import {
   scanCommonLineRules,
 } from "./generic-common-line-rules.mjs";
 import { scanSourceOwnershipPolicy } from "./generic-common-source-ownership.mjs";
+import { scanBoundaryPolicyConfiguration } from "./generic-common-boundary-policy.mjs";
 import {
   scanPythonDocumentationHints,
   scanRustDocumentationHints,
@@ -40,6 +41,14 @@ export function scanCommonFile(root, filePath) {
   scanLines.forEach((line, idx) => {
     scanCommonLineRules(context, line, idx);
   });
+  scanBoundaryPolicyConfiguration(
+    violations,
+    root,
+    filePath,
+    rel,
+    text,
+    addViolation,
+  );
   if (context.isProductionSource) {
     violations.push(...scanSourceOwnershipPolicy(root, filePath, rel, lines));
   }

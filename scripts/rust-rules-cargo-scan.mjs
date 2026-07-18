@@ -19,6 +19,54 @@ import {
 } from "./rust-rules-path-core.mjs";
 import { scanRustFile } from "./rust-rules-source-scan.mjs";
 
+function advisoryPolicyValue(denyText, key) {
+  let section = "";
+  for (const rawLine of denyText.split(/\r?\n/u)) {
+    const line = rawLine.replace(/\s+#.*$/u, "").trim();
+    if (line.length === 0) continue;
+    const sectionMatch = /^\[([^\]]+)\]$/u.exec(line);
+    if (sectionMatch) {
+      section = sectionMatch[1];
+      continue;
+    }
+    if (section !== "advisories") continue;
+    const settingMatch = /^([A-Za-z0-9_-]+)\s*=\s*"([^"]+)"\s*$/u.exec(line);
+    if (settingMatch?.[1] === key) return settingMatch[2];
+  }
+  return null;
+}
+
+function isAllowedBuildScript(root, buildRs, config) {
+  if (config.allowBuildRs) return true;
+  const relativeBuildRs = normalizeRel(root, buildRs);
+  return (config.allowedBuildRsPaths ?? []).some((candidate) => {
+    const invalidCandidate =
+      typeof candidate !== "string" ||
+      candidate.length === 0 ||
+      candidate.includes("\\") ||
+      path.isAbsolute(candidate);
+    if (invalidCandidate) return false;
+    const normalizedCandidate = toPosix(candidate);
+    const invalidSegment = normalizedCandidate
+      .split("/")
+      .some((segment) => segment === "" || segment === "." || segment === "..");
+    if (normalizedCandidate.startsWith("/") || invalidSegment) return false;
+    return normalizedCandidate === relativeBuildRs;
+  });
+}
+
+function scanWorkspaceAdvisoryPolicy(root, violations) {
+  const denyPath = path.join(root, "deny.toml");
+  if (!fs.existsSync(denyPath)) return;
+  const denyText = fs.readFileSync(denyPath, "utf8");
+  if (advisoryPolicyValue(denyText, "yanked") !== "deny") {
+    addViolation(violations, root, denyPath, 1, "RR-9.23", 'deny.toml must deny yanked crate versions.');
+  }
+  if (!["all", "deny"].includes(advisoryPolicyValue(denyText, "unmaintained"))) {
+    addViolation(violations, root, denyPath, 1, "RR-9.24", 'deny.toml must deny unmaintained crates when advisory data is available.');
+  }
+}
+
 function scanWorkspaceFiles(root, config, scope) {
   const violations = [];
   const cargoToml = path.join(root, "Cargo.toml");
@@ -43,6 +91,8 @@ function scanWorkspaceFiles(root, config, scope) {
       );
     }
   }
+
+  scanWorkspaceAdvisoryPolicy(root, violations);
 
   const manifestPaths = manifestPathsForScope(root, config, scope);
   for (const manifest of manifestPaths) {
@@ -381,19 +431,8 @@ function scanCargoManifest(root, manifest, config, violations) {
     }
   }
 
-  const denyPath = path.join(root, "deny.toml");
-  if (fs.existsSync(denyPath)) {
-    const denyText = fs.readFileSync(denyPath, "utf8");
-    if (!/\byanked\s*=\s*"deny"/u.test(denyText)) {
-      addViolation(violations, root, denyPath, 1, "RR-9.23", 'deny.toml must deny yanked crate versions.');
-    }
-    if (!/\bunmaintained\s*=\s*"deny"/u.test(denyText)) {
-      addViolation(violations, root, denyPath, 1, "RR-9.24", 'deny.toml must deny unmaintained crates when advisory data is available.');
-    }
-  }
-
   const buildRs = path.join(path.dirname(manifest), "build.rs");
-  if (!config.allowBuildRs && fs.existsSync(buildRs)) {
+  if (!isAllowedBuildScript(root, buildRs, config) && fs.existsSync(buildRs)) {
     addViolation(
       violations,
       root,

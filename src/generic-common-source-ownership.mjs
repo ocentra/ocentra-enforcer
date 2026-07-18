@@ -15,7 +15,6 @@ import {
   isEnforcerToolingPath,
   isImportLikeLine,
   isTestPath,
-  rawConfigBoundaryText,
 } from "./generic-scanner-shared.mjs";
 
 function addSourceOwnershipViolation(violations, root, filePath, line, ruleId, detail, source) {
@@ -47,9 +46,6 @@ function scanBoundaryRules(violations, root, filePath, rel, lines, text) {
   const rawTypeCount = countTextMatches(text, /\b(?:Raw[A-Z]\w+|[A-Z]\w+(?:Dto|DTO|Payload|Body|Request))\b/g);
   if (rawTypeCount > 3) {
     addSourceOwnershipViolation(violations, root, filePath, 1, "BOUND-1.6", `boundary raw type count ${rawTypeCount} exceeds budget 3.`, rel);
-  }
-  if (!/\b(?:BOUNDARY-WAIVER|boundaryOwnerNote|waiverId)\b/u.test(text)) {
-    addSourceOwnershipViolation(violations, root, filePath, 1, "BOUND-1.7", "boundary file lacks waiver/owner marker for boundary expansion.", rel);
   }
   if (/^(?:utils?|helpers?)\./iu.test(rel.split("/").at(-1) ?? "")) {
     addSourceOwnershipViolation(violations, root, filePath, 1, "BOUND-1.8", "boundary file uses utility/helper filename.", rel);
@@ -86,9 +82,6 @@ function scanDomainAndArchitectureRules(violations, root, filePath, rel, lines, 
 
   if (domainFile && /(?:\/boundary|\/boundaries|\/transport|\/codec|\/decoder|\/adapter|\/adapters)/iu.test(importText)) {
     addSourceOwnershipViolation(violations, root, filePath, firstMatchingLine(lines, /(?:^\s*import\b|^\s*export\b.*\bfrom\b|^\s*(?:const|let|var)\s+\w+\s*=\s*require\(|^\s*use\s+)/u), "BOUND-1.4", "domain file imports boundary/adapter module.", rel);
-  }
-  if (!enforcerToolingFile && (rawConfigBoundaryText(text) || /rawTypeBoundaryGlobs/u.test(text)) && !/\b(?:boundaryOwnerNote|waiverId|BOUNDARY-WAIVER)\b/u.test(text)) {
-    addSourceOwnershipViolation(violations, root, filePath, 1, "BOUND-1.7", "boundary glob addition lacks waiver or owner note.", rel);
   }
   if (!enforcerToolingFile && (COPIED_BLOCK_RE.test(text) || hasLargeRepeatedBlock(lines))) {
     addSourceOwnershipViolation(violations, root, filePath, firstMatchingLine(lines, COPIED_BLOCK_RE), "SRC-2.11", "copied or repeated source block found.", rel);
