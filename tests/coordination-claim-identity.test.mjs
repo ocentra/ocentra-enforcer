@@ -15,6 +15,7 @@ import {
 } from "../src/coordination/api.mjs";
 import { buildCoordinationContext } from "../src/coordination/vendor/context.js";
 import { loadIdentity } from "../src/coordination/vendor/identity.js";
+import { materialize, materializedToJson } from "../src/coordination/vendor/materialize.js";
 import { streamPath } from "../src/coordination/vendor/paths.js";
 import {
   executeClaimCommand,
@@ -537,11 +538,12 @@ test("pathless release reports only claims matched by its derived worktree scope
   assert.deepEqual(after.state.ownership.activeClaims[0].paths, ["src/b.ts"]);
 });
 
-test("pathless release matches a legacy claim serialized through a symlinked worktree alias", async () => {
+test("targeted release replays a serialized legacy worktree alias without filesystem state", async () => {
   const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-alias-release-state-"));
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-alias-release-root-"));
   const realWorktree = path.join(root, "real-worktree");
   const aliasWorktree = path.join(root, "alias-worktree");
+  const unavailableAlias = path.join(root, "unavailable-alias");
   fs.mkdirSync(realWorktree);
   fs.symlinkSync(realWorktree, aliasWorktree, process.platform === "win32" ? "junction" : "dir");
   await coordinationInit({ stateRoot, hub: "alias-release-hub", lane: "codex-a" });
@@ -556,7 +558,7 @@ test("pathless release matches a legacy claim serialized through a symlinked wor
     operation: "edit",
     lockKind: "writeLock",
   });
-  await appendEvent(stateRoot, config, "codex-a", {
+  const claimEvent = await appendEvent(stateRoot, config, "codex-a", {
     type: "claim",
     paths: ["src/alias.ts"],
     context: {
@@ -566,18 +568,59 @@ test("pathless release matches a legacy claim serialized through a symlinked wor
       worktreeRoot: aliasWorktree,
     },
   });
+  assert.equal(claimEvent.context.worktreeRoot, fs.realpathSync.native(realWorktree));
 
-  const release = await coordinationRelease({
-    stateRoot,
-    root: aliasWorktree,
-    lane: "codex-a",
-    codexThreadId: "thread-alias",
-  });
+  const legacyStream = streamPath(stateRoot, config.nodeId, "codex-a");
+  const serializedEvents = fs
+    .readFileSync(legacyStream, "utf8")
+    .trim()
+    .split(/\r?\n/u)
+    .map((line) => JSON.parse(line));
+  const serializedClaim = serializedEvents.find((event) => event.id === claimEvent.id);
+  assert.ok(serializedClaim);
+  serializedClaim.context = {
+    ...serializedClaim.context,
+    cwd: aliasWorktree,
+    repoRoot: aliasWorktree,
+    worktreeRoot: aliasWorktree,
+  };
+  fs.writeFileSync(
+    legacyStream,
+    `${serializedEvents.map((event) => JSON.stringify(event)).join("\n")}\n`,
+  );
 
-  assert.equal(release.matchedClaimCount, 1);
-  assert.deepEqual(release.releasedPaths, ["src/alias.ts"]);
-  const after = await coordinationStatus({ stateRoot });
-  assert.equal(after.state.ownership.activeClaims.length, 0);
+  const before = materializedToJson(await materialize(stateRoot));
+  assert.equal(before.ownership.activeClaims.length, 1);
+  const presentedClaim = before.ownership.activeClaims[0];
+  assert.equal(presentedClaim.context.worktreeRoot, aliasWorktree);
+  assert.equal(
+    presentedClaim.worktreeKey,
+    aliasWorktree.replace(/\\/gu, "/").replace(/\/+/gu, "/").toLowerCase(),
+  );
+
+  let aliasUnavailable = false;
+  try {
+    const released = await coordinationRelease({
+      stateRoot,
+      root: aliasWorktree,
+      lane: "codex-a",
+      codexThreadId: "thread-alias",
+    });
+    assert.equal(released.matchedClaimCount, 1);
+    assert.deepEqual(released.releasedPaths, ["src/alias.ts"]);
+    assert.deepEqual(released.event.context.releaseClaimEventIds, [claimEvent.id]);
+
+    const availableReplay = materializedToJson(await materialize(stateRoot));
+    const availableActiveCount = availableReplay.ownership.activeClaims.length;
+    assert.equal(availableActiveCount, 0);
+
+    fs.renameSync(aliasWorktree, unavailableAlias);
+    aliasUnavailable = true;
+    const unavailableReplay = materializedToJson(await materialize(stateRoot));
+    assert.equal(unavailableReplay.ownership.activeClaims.length, availableActiveCount);
+  } finally {
+    if (aliasUnavailable) fs.renameSync(unavailableAlias, aliasWorktree);
+  }
 });
 
 test("partial release of a grouped legacy claim reports truth and transfers only the released path", async () => {

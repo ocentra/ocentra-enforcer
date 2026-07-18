@@ -38,6 +38,7 @@ export function buildCoordinationContext(input = {}) {
         blockingOwners: input.blockingOwners,
         blockerCount: input.blockerCount,
         releaseEventId: input.releaseEventId,
+        releaseClaimEventIds: input.releaseClaimEventIds,
         explicitReleaseScope: input.explicitReleaseScope,
         editIntentId: input.editIntentId,
         notificationKind: input.notificationKind,
@@ -55,6 +56,24 @@ export function canonicalExistingCoordinationPath(value) {
     catch {
         return candidate;
     }
+}
+
+/** Resolve aliases only while a local command selects serialized claims to target. */
+export function claimForLocalSelection(claim) {
+    if (claim.context === undefined) return claim;
+    const context = claim.context;
+    return {
+        ...claim,
+        context: {
+            ...context,
+            ...(context.repoRoot === undefined
+                ? {}
+                : { repoRoot: canonicalExistingCoordinationPath(context.repoRoot) }),
+            ...(context.worktreeRoot === undefined
+                ? {}
+                : { worktreeRoot: canonicalExistingCoordinationPath(context.worktreeRoot) }),
+        },
+    };
 }
 
 function gitValue(cwd, args) {

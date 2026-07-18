@@ -1,5 +1,4 @@
 import { protectedSingletonGroup } from "./lock-policy-singletons.js";
-import { canonicalExistingCoordinationPath } from "./context.js";
 
 const OPERATION_VALUES = new Set([
   // PUBLIC-API-BUDGET-JUSTIFICATION: lock policy exports operation helpers used by coordination health, claim, guard, and tests.
@@ -104,12 +103,10 @@ export function enrichClaim(claim) {
   const projectKey = normalizeKey(
     context.projectId ?? context.gitRemote ?? context.repoRoot ?? "legacy-unknown-project",
   );
-  const repoRootKey = optionalKey(canonicalExistingCoordinationPath(context.repoRoot));
+  const repoRootKey = optionalKey(context.repoRoot);
   const gitRemoteKey = optionalKey(context.gitRemote);
   const worktreeKey = normalizeKey(
-    canonicalExistingCoordinationPath(
-      context.worktreeRoot ?? context.repoRoot ?? "legacy-unknown-worktree",
-    ),
+    context.worktreeRoot ?? context.repoRoot ?? "legacy-unknown-worktree",
   );
   const branchKey = normalizeKey(context.branch ?? "unknown-branch");
   const ownerKey = logicalOwnerKey(claim.writer, context);

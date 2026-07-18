@@ -13,10 +13,11 @@ import { guardLedger } from "./vendor/guard.js";
 import { initIdentity, loadIdentity, resolveLane } from "./vendor/identity.js";
 import { resolveLedgerRoot } from "./vendor/root.js";
 import { normalizeClaimPaths } from "./vendor/claim-policy.js";
-import { buildCoordinationContext, canonicalExistingCoordinationPath } from "./vendor/context.js";
+import { buildCoordinationContext, canonicalExistingCoordinationPath, claimForLocalSelection } from "./vendor/context.js";
 import {
   claimIdentityKey,
   claimsReleasedByEvent,
+  releaseContextForClaims,
 } from "./vendor/materialize-claim-identity.js";
 import { buildStreamManifest } from "./vendor/manifest.js";
 import { notify } from "./vendor/notify.js";
@@ -347,7 +348,7 @@ export async function coordinationRelease(args = {}) {
     type: "release",
     paths: selection.paths,
     ...(args.reason ? { reason: parseUserText(args.reason) } : {}),
-    ...(releaseContextValue === undefined ? {} : { context: releaseContextValue }),
+    context: releaseContextForClaims(releaseContextValue, selection.claims),
   });
   const stateAfter = await materializeLive(root);
   const activeClaimKeys = new Set(stateAfter.ownership.activeClaims.map(claimIdentityKey));
@@ -388,10 +389,7 @@ export async function coordinationCloseout(args = {}) {
           type: "release",
           paths,
           reason: parseUserText(args.reason ?? "coordination closeout release"),
-          context: {
-            ...(claim.context ?? {}),
-            explicitReleaseScope: true,
-          },
+          context: releaseContextForClaims(claim.context, [claim]),
         }),
       );
     }
@@ -714,16 +712,19 @@ function selectReleaseClaims(state, args, config, lane, requestedPaths, context)
     eventId: "__release__",
     context,
   };
-  const selectedClaims = claimsReleasedByEvent(candidates, selectionEvent);
+  const selectedClaims = claimsReleasedByEvent(candidates, selectionEvent, claimForLocalSelection);
   const paths = isPathless
     ? unique(selectedClaims.flatMap((claim) => claim.paths ?? []))
     : requestedPaths;
   return {
     paths,
-    claims: claimsReleasedByEvent(state.ownership.activeClaims, { ...selectionEvent, paths }),
+    claims: claimsReleasedByEvent(
+      state.ownership.activeClaims,
+      { ...selectionEvent, paths },
+      claimForLocalSelection,
+    ),
   };
 }
-
 async function appendReleaseNotifications(root, config, lane, args, event, state, paths) {
   const notificationEvents = [];
   for (const intent of nextEditIntentsForPaths(state.ownership.editIntents ?? [], paths)) {

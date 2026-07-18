@@ -23,8 +23,19 @@ export function applyReleaseEvent(activeClaims, event, overlappingPaths) {
 }
 
 /** Return the active claims that replaying one release event would remove. */
-export function claimsReleasedByEvent(activeClaims, event) {
-  return activeClaims.filter((claim) => releaseEventMatchesClaim(event, claim));
+export function claimsReleasedByEvent(activeClaims, event, claimForMatch = (claim) => claim) {
+  return activeClaims.filter((claim) => releaseEventMatchesClaim(event, claimForMatch(claim)));
+}
+
+/** Record selected claim identities while retaining historical scoped release metadata. */
+export function releaseContextForClaims(context, claims) {
+  return {
+    ...(context ?? {}),
+    releaseClaimEventIds: [
+      ...new Set(claims.map((claim) => claim.eventId).filter((value) => typeof value === "string")),
+    ],
+    explicitReleaseScope: true,
+  };
 }
 
 function releaseEventMatchesClaim(event, activeClaim, overlappingPaths = defaultOverlappingPaths) {
@@ -50,6 +61,8 @@ function releaseMatchesClaim(releaseClaim, activeClaim, overlappingPaths) {
   if (overlappingPaths(release.paths, active.paths).length === 0) return false;
   const context = releaseClaim.context ?? {};
   if (context.explicitReleaseScope !== true) return true;
+  const targetEventIds = recordedReleaseClaimEventIds(context);
+  if (targetEventIds?.has(activeClaim.eventId)) return true;
   if (activeClaim.context === undefined) return true;
   const releaseHasExplicitOwner = hasMeaningfulContext(context, "codexThreadId", "codexSessionId");
   const activeHasExplicitOwner = hasMeaningfulContext(
@@ -73,6 +86,11 @@ function releaseMatchesClaim(releaseClaim, activeClaim, overlappingPaths) {
     return false;
   }
   return true;
+}
+
+function recordedReleaseClaimEventIds(context) {
+  if (!Array.isArray(context.releaseClaimEventIds)) return null;
+  return new Set(context.releaseClaimEventIds.filter((value) => typeof value === "string"));
 }
 
 function defaultOverlappingPaths(left, right) {
