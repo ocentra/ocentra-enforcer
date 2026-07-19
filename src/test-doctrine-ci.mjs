@@ -6,6 +6,7 @@
  * from one that actually gates merges.
  */
 import { readTextSafe } from "./test-doctrine-fs.mjs";
+import { stepBlocks, stripCommentLines } from "./test-doctrine-ci-text.mjs";
 
 const COVERAGE_THRESHOLD_RE = /--cov-fail-under|fail_under\s*=|coverageThreshold/i;
 
@@ -25,35 +26,6 @@ const CATEGORY_CI_PATTERNS = {
 
 const SERVICE_CONTAINER_RE = /services:\s*\n\s*(postgres|redis|mysql|rabbitmq|mongo)/i;
 const NON_BLOCKING_RE = /continue-on-error:\s*true|\|\|\s*true\b|allow_failure:\s*true/i;
-
-function stepBlocks(ciText) {
-  const lines = ciText.split(/\r?\n/);
-  const blocks = [];
-  let current = [];
-  for (const line of lines) {
-    if (/^\s*-\s+(name|run|uses):/.test(line) && current.length > 0) {
-      blocks.push(current.join("\n"));
-      current = [];
-    }
-    current.push(line);
-  }
-  if (current.length) blocks.push(current.join("\n"));
-  return blocks;
-}
-
-// Comments frequently reference tool names in prose (e.g. "gitleaks:allow" annotations
-// explaining a dummy secret) without the tool actually running there — strip full-line
-// comments before pattern-matching so mentions-in-prose don't count as invocations.
-function stripCommentLines(text) {
-  return text
-    .split("\n")
-    .filter((line) => !line.trim().startsWith("#"))
-    // YAML comments require a preceding space (or line start) — strip trailing
-    // inline comments too (e.g. `KEY: value  # gitleaks:allow`) without touching
-    // a bare `#` that isn't comment-introducing (no preceding whitespace).
-    .map((line) => line.replace(/\s#.*$/, ""))
-    .join("\n");
-}
 
 function evaluateCategory(category, blocks, wholeText, manifestText) {
   const patterns = CATEGORY_CI_PATTERNS[category];
@@ -83,7 +55,7 @@ function trackedPathsFallback(relPaths) {
   return new Set(relPaths);
 }
 
-// Blocks and the whole-file text must never cross a file boundary — a step's
+// Blocks and the whole-file text must never cross a file boundary â€” a step's
 // accumulated lines otherwise bleed into the next unrelated CI file when
 // texts are naively concatenated, misattributing that file's steps.
 function evaluateAll(fileTexts, manifestText) {

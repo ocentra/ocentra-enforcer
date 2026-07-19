@@ -12,46 +12,23 @@ const PACK_ROOT = path.resolve(
   "..",
 );
 const REGISTRY_PATH = path.join(PACK_ROOT, "rules", "rules.json");
-const SCRIPT_PATH = path.join(PACK_ROOT, "scripts", "rust-rules.mjs");
-const SCAN_CORE_PATH = path.join(
-  PACK_ROOT,
-  "scripts",
-  "rust-rules-scan-core.mjs",
-);
-const PATH_CORE_PATH = path.join(
-  PACK_ROOT,
-  "scripts",
-  "rust-rules-path-core.mjs",
-);
-const SCAN_ENGINE_PATH = path.join(
-  PACK_ROOT,
-  "scripts",
-  "rust-rules-scan-engine.mjs",
-);
-const SOURCE_SCAN_PATH = path.join(
-  PACK_ROOT,
-  "scripts",
-  "rust-rules-source-scan.mjs",
-);
-const CARGO_SCAN_PATH = path.join(
-  PACK_ROOT,
-  "scripts",
-  "rust-rules-cargo-scan.mjs",
-);
+const SCRIPTS_PATH = path.join(PACK_ROOT, "scripts");
 
 function loadRegistry() {
   return decodeRuleRegistry(JSON.parse(fs.readFileSync(REGISTRY_PATH, "utf8")));
 }
 
 function scannerRuleIds() {
-  const source = [
-    fs.readFileSync(SCRIPT_PATH, "utf8"),
-    fs.readFileSync(SCAN_CORE_PATH, "utf8"),
-    fs.readFileSync(PATH_CORE_PATH, "utf8"),
-    fs.readFileSync(SCAN_ENGINE_PATH, "utf8"),
-    fs.readFileSync(SOURCE_SCAN_PATH, "utf8"),
-    fs.readFileSync(CARGO_SCAN_PATH, "utf8"),
-  ].join("\n");
+  const scannerModules = fs
+    .readdirSync(SCRIPTS_PATH, { withFileTypes: true })
+    .filter(
+      (entry) =>
+        entry.isFile() && /^rust-rules(?:-|\.mjs$)/u.test(entry.name),
+    )
+    .map((entry) => path.join(SCRIPTS_PATH, entry.name));
+  const source = scannerModules
+    .map((modulePath) => fs.readFileSync(modulePath, "utf8"))
+    .join("\n");
   return [
     ...new Set(
       [...source.matchAll(/['"]RR-[0-9]+\.[0-9]+['"]/gu)].map(

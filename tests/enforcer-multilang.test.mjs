@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { spawnCli } from "./cli-spawn.mjs";
+import { scanRustDocumentationHints } from "../src/documentation-hints.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SCRIPT = path.join(ROOT, "scripts", "rust-rules.mjs");
@@ -62,6 +63,44 @@ function run(project, args) {
     encoding: "utf8",
   });
 }
+
+test("BOUND-1.2 accepts a raw boundary type converted by an adjacent boundary module", () => {
+  const project = makeProject({
+    "src/boundary/report.ts": `
+/** BOUNDARY-INVARIANT: transport reports are converted before domain use. */
+export interface BranchReportDto { rawPayload: Record<string, string>; }
+export const rawInput = "transport";
+// negative malformed report is rejected.
+`,
+    "src/boundary/report-payload.ts": `
+import type { BranchReportDto } from "./report";
+export function toDomain(value: BranchReportDto): { checked: true } { return { checked: true }; }
+`,
+  });
+  const pass = run(project, ["scan", "--json", "--languages", "typescript,common", "--files", "src/boundary/report.ts"]);
+  assert.equal(pass.status, 0, pass.stdout || pass.stderr);
+  fs.unlinkSync(path.join(project, "src", "boundary", "report-payload.ts"));
+  const fail = run(project, ["scan", "--json", "--languages", "typescript,common", "--files", "src/boundary/report.ts"]);
+  assert.notEqual(fail.status, 0, fail.stdout || fail.stderr);
+  assert.equal(JSON.parse(fail.stdout).violations.some((finding) => finding.ruleId === "BOUND-1.2"), true);
+});
+
+test("DOC-1.1 associates rustdoc across attributes and ignores restricted visibility", () => {
+  const findings = scanRustDocumentationHints(
+    (violations, root, file, line, ruleId, detail, source) => violations.push({ ruleId, line, detail, source }),
+    ".",
+    "src/example.rs",
+    [
+      "/// Public record documentation.",
+      "#[derive(Clone)]",
+      "pub struct PublicRecord;",
+      "pub(crate) fn crate_helper() {}",
+      "pub(super) struct ParentHelper;",
+      "pub fn undocumented() {}",
+    ],
+  );
+  assert.deepEqual(findings.map((finding) => finding.line), [6]);
+});
 
 test("TypeScript and common scanners catch source, test, generated, and secret policy violations", () => {
   const project = makeProject({

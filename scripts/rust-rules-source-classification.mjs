@@ -4,6 +4,10 @@ export function isTestFile(rel, config) {
   return matchesAnyGlob(rel, config.testFileGlobs);
 }
 
+export function isBenchmarkFile(rel) {
+  return /(?:^|\/)benches\/.+\.rs$/iu.test(rel);
+}
+
 export function isRawTypeBoundary(rel, config) {
   return matchesAnyGlob(rel, config.rawTypeBoundaryGlobs);
 }

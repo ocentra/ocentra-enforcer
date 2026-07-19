@@ -94,15 +94,21 @@ export function isIgnoredPath(relPath, config = {}, finalSegmentIsDirectory = fa
   );
 }
 
-export function walkFiles(root, start, config, collect) {
+export function walkFiles(root, start, config, collect, explicitScope = "") {
   if (!fs.existsSync(start)) return;
   const stats = fs.lstatSync(start);
   if (stats.isSymbolicLink()) return;
   const rel = normalizeRel(root, start);
-  if (rel !== '' && isIgnoredPath(rel, config, stats.isDirectory())) return;
+  const scopedRel =
+    explicitScope !== "" && rel.startsWith(`${explicitScope}/`)
+      ? rel.slice(explicitScope.length + 1)
+      : rel === explicitScope
+        ? ""
+        : rel;
+  if (scopedRel !== '' && isIgnoredPath(scopedRel, config, stats.isDirectory())) return;
   if (stats.isDirectory()) {
     for (const entry of fs.readdirSync(start, { withFileTypes: true })) {
-      walkFiles(root, path.join(start, entry.name), config, collect);
+      walkFiles(root, path.join(start, entry.name), config, collect, explicitScope);
     }
     return;
   }
@@ -113,9 +119,10 @@ export function collectFiles(root, entries, config, predicate) {
   const starts = entries.length > 0 ? entries.map((entry) => repoAbsolute(root, entry)) : [root];
   const files = [];
   for (const start of starts) {
+    const explicitScope = entries.length > 0 ? normalizeRel(root, start) : "";
     walkFiles(root, start, config, (file) => {
       if (predicate(file, normalizeRel(root, file))) files.push(file);
-    });
+    }, explicitScope);
   }
   return uniqueSorted(files);
 }

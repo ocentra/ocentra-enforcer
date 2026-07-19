@@ -8,6 +8,7 @@ import {
   functionName,
   functionParams,
 } from "./rust-rules-source-helpers.mjs";
+import { isTraitImplementationSignature } from "./rust-rules-source-signature-helpers.mjs";
 
 const { FALLIBLE_FN_NAME_RE } = NAME_PATTERNS;
 const { RAW_POINTER_RE, RAW_PRIMITIVE_TYPE_RE, RAW_STRING_TYPE_RE } =
@@ -181,6 +182,7 @@ function applyFallibleSignatureRules({
 
 function applyOwnerSensitiveSignatureRules({
   sigText,
+  sigName,
   params,
   root,
   filePath,
@@ -189,7 +191,10 @@ function applyOwnerSensitiveSignatureRules({
   violations,
   isStringOwner,
   isPrimitiveOwner,
+  isBenchmark,
+  isTraitImplementationSignature,
 }) {
+  if (isBenchmark || isTraitImplementationSignature) return;
   if (
     /\bfn\s+new\s*\(/u.test(sigText) &&
     (
@@ -221,7 +226,13 @@ function applyOwnerSensitiveSignatureRules({
     );
   }
 
-  if (!isPrimitiveOwner && RAW_PRIMITIVE_TYPE_RE.test(sigText)) {
+  const normalizedParams = params.replace(/\s+/gu, " ").trim();
+  const receiverOnly = /^(?:&\s*(?:'[_A-Za-z][_A-Za-z0-9]*\s+)?(?:mut\s+)?self|self)$/u.test(normalizedParams);
+  const conventionalCollectionQuery = receiverOnly && (
+    (sigName === "len" && /->\s*usize\b/u.test(sigText)) ||
+    (sigName === "is_empty" && /->\s*bool\b/u.test(sigText))
+  );
+  if (!isPrimitiveOwner && !conventionalCollectionQuery && RAW_PRIMITIVE_TYPE_RE.test(sigText)) {
     addSignatureViolation(
       violations,
       root,
@@ -243,6 +254,7 @@ export function applySignatureRules({
   isBoundary,
   isStringOwner,
   isPrimitiveOwner,
+  isBenchmark,
 }) {
   for (const sig of collectFunctionSignatures(masked)) {
     if (isBoundary) continue;
@@ -250,6 +262,7 @@ export function applySignatureRules({
     const originalSigFirstLine = originalLines[sig.line - 1] ?? sig.text;
     const sigName = functionName(sig.text);
     const params = functionParams(sig.text);
+    const traitImplementationSignature = isTraitImplementationSignature(masked, sig.index);
 
     applySimpleSignatureRules({
       sigText: sig.text,
@@ -271,6 +284,7 @@ export function applySignatureRules({
     });
     applyOwnerSensitiveSignatureRules({
       sigText: sig.text,
+      sigName,
       params,
       root,
       filePath,
@@ -279,6 +293,8 @@ export function applySignatureRules({
       violations,
       isStringOwner,
       isPrimitiveOwner,
+      isBenchmark,
+      isTraitImplementationSignature: traitImplementationSignature,
     });
   }
 }

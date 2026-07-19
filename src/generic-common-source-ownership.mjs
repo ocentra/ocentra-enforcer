@@ -21,12 +21,30 @@ function addSourceOwnershipViolation(violations, root, filePath, line, ruleId, d
   addViolation(violations, root, filePath, line, ruleId, detail, source);
 }
 
+function hasBoundaryConversion(text) {
+  return /\b(?:toDomain|fromRaw|parse|decode|validate)\w*\b|\bimpl\s+(?:TryFrom|From)\s*</u.test(text);
+}
+
+function hasSiblingBoundaryConversion(filePath, text) {
+  const rawTypes = [...text.matchAll(/\b([A-Z][A-Za-z0-9_]*(?:Dto|DTO|Payload|Body|Request))\b/gu)]
+    .map((match) => match[1]);
+  if (rawTypes.length === 0) return false;
+  const directory = path.dirname(filePath);
+  const extension = path.extname(filePath);
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    if (!entry.isFile() || entry.name === path.basename(filePath) || path.extname(entry.name) !== extension) continue;
+    const sibling = fs.readFileSync(path.join(directory, entry.name), "utf8");
+    if (hasBoundaryConversion(sibling) && rawTypes.some((name) => sibling.includes(name))) return true;
+  }
+  return false;
+}
+
 function scanBoundaryRules(violations, root, filePath, rel, lines, text) {
   if (!BOUNDARY_PATH_RE.test(rel)) return;
   if (!/\bBOUNDARY-INVARIANT:/u.test(text)) {
     addSourceOwnershipViolation(violations, root, filePath, 1, "BOUND-1.1", "boundary file lacks BOUNDARY-INVARIANT documentation.", rel);
   }
-  if (/\braw(?:Input|Dto|DTO|Payload|Body)?\b|:\s*(?:unknown|any|dict\[|Record<string,\s*unknown>)/u.test(text) && !/\b(?:toDomain|fromRaw|parse|decode|validate)\b/u.test(text)) {
+  if (/\braw(?:Input|Dto|DTO|Payload|Body)?\b|:\s*(?:unknown|any|dict\[|Record<string,\s*unknown>)/u.test(text) && !hasBoundaryConversion(text) && !hasSiblingBoundaryConversion(filePath, text)) {
     addSourceOwnershipViolation(violations, root, filePath, 1, "BOUND-1.2", "raw boundary input is not converted to a domain type.", rel);
   }
   if (/\b(?:if|switch|match)\b[\s\S]{0,120}\b(?:business|domain|role|plan|entitlement|policy)\b/iu.test(text)) {
@@ -43,7 +61,10 @@ function scanBoundaryRules(violations, root, filePath, rel, lines, text) {
   if (!/\b(?:invalid|malformed|negative|reject|throws?|pytest\.raises)\b/iu.test(text)) {
     addSourceOwnershipViolation(violations, root, filePath, 1, "BOUND-1.5", "boundary file lacks negative invalid-input coverage marker.", rel);
   }
-  const rawTypeCount = countTextMatches(text, /\b(?:Raw[A-Z]\w+|[A-Z]\w+(?:Dto|DTO|Payload|Body|Request))\b/g);
+  const rawTypeCount = countTextMatches(
+    text,
+    /^\s*(?:pub(?:\([^)]*\))?\s+)?(?:struct|enum|type|interface|class)\s+(?:Raw[A-Z]\w+|[A-Z]\w+(?:Dto|DTO|Payload|Body|Request))\b/gm,
+  );
   if (rawTypeCount > 3) {
     addSourceOwnershipViolation(violations, root, filePath, 1, "BOUND-1.6", `boundary raw type count ${rawTypeCount} exceeds budget 3.`, rel);
   }
@@ -154,3 +175,5 @@ export function scanSourceOwnershipPolicy(root, filePath, rel, lines) {
   scanDomainAndArchitectureRules(violations, root, filePath, rel, lines, text, importText);
   return violations;
 }
+import fs from "node:fs";
+import path from "node:path";
