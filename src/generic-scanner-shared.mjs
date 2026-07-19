@@ -365,10 +365,8 @@ function isPythonConfigBoundary(rel) {
   );
 }
 
-function scanPythonTestBlocks(root, filePath, lines) {
+function scanPythonTestFileCoverage(root, filePath, rel, text) {
   const violations = [];
-  const rel = normalizeRel(root, filePath);
-  const text = lines.join("\n");
   if (
     /(?:validator|parser|decoder|normalizer)/iu.test(rel) &&
     !/\b(?:invalid|malformed|bad input|reject|raises|pytest\.raises)\b/iu.test(
@@ -413,51 +411,87 @@ function scanPythonTestBlocks(root, filePath, lines) {
       rel,
     );
   }
+  return violations;
+}
+
+function pythonTestBody(lines, startIndex) {
+  const body = [];
+  for (let cursor = startIndex + 1; cursor < lines.length; cursor += 1) {
+    const candidate = lines[cursor] ?? "";
+    if (/^\s*def\s+test_/u.test(candidate)) break;
+    if (/^\S/u.test(candidate) && candidate.trim() !== "") break;
+    body.push(candidate);
+  }
+  return body;
+}
+
+function meaningfulPythonTestLines(body) {
+  return body.filter((entry) => {
+    const trimmed = entry.trim();
+    return trimmed !== "" && !trimmed.startsWith("#");
+  });
+}
+
+function scanPythonTestCase(root, filePath, lineNo, line, testName, body) {
+  const violations = [];
+  const meaningful = meaningfulPythonTestLines(body);
+  if (
+    meaningful.length === 0 ||
+    meaningful.every((entry) => entry.trim() === "pass")
+  ) {
+    addViolation(
+      violations,
+      root,
+      filePath,
+      lineNo,
+      "PY-6.3",
+      "empty Python test " + testName + " found.",
+      line,
+    );
+    return violations;
+  }
+  if (!meaningful.some((entry) => /^\s*assert\b/u.test(entry))) {
+    addViolation(
+      violations,
+      root,
+      filePath,
+      lineNo,
+      "PY-6.4",
+      "Python test " + testName + " has no assertion.",
+      line,
+    );
+  }
+  return violations;
+}
+
+function scanPythonTestCases(root, filePath, lines) {
+  const violations = [];
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index] ?? "";
     const match = line.match(
       /^\s*def\s+(test_[A-Za-z_]\w*)\s*\([^)]*\)\s*(?:->\s*[^:]+)?\s*:/u,
     );
     if (!match) continue;
-    const body = [];
-    for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
-      const candidate = lines[cursor] ?? "";
-      if (/^\s*def\s+test_/u.test(candidate)) break;
-      if (/^\S/u.test(candidate) && candidate.trim() !== "") break;
-      body.push(candidate);
-    }
-    const meaningful = body.filter((entry) => {
-      const trimmed = entry.trim();
-      return trimmed !== "" && !trimmed.startsWith("#");
-    });
-    if (
-      meaningful.length === 0 ||
-      meaningful.every((entry) => entry.trim() === "pass")
-    ) {
-      addViolation(
-        violations,
+    violations.push(
+      ...scanPythonTestCase(
         root,
         filePath,
         index + 1,
-        "PY-6.3",
-        `empty Python test ${match[1]} found.`,
         line,
-      );
-      continue;
-    }
-    if (!meaningful.some((entry) => /^\s*assert\b/u.test(entry))) {
-      addViolation(
-        violations,
-        root,
-        filePath,
-        index + 1,
-        "PY-6.4",
-        `Python test ${match[1]} has no assertion.`,
-        line,
-      );
-    }
+        match[1],
+        pythonTestBody(lines, index),
+      ),
+    );
   }
   return violations;
+}
+
+function scanPythonTestBlocks(root, filePath, lines) {
+  const rel = normalizeRel(root, filePath);
+  return [
+    ...scanPythonTestFileCoverage(root, filePath, rel, lines.join("\n")),
+    ...scanPythonTestCases(root, filePath, lines),
+  ];
 }
 
 function hasLargeRepeatedBlock(lines) {

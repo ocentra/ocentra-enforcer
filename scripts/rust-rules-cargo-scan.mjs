@@ -18,7 +18,11 @@ import {
   packageNameFromManifest,
 } from "./rust-rules-path-core.mjs";
 import { scanRustFile } from "./rust-rules-source-scan.mjs";
-import { clearProofEvidenceCache } from "./rust-rules-source-late-test-evidence.mjs";
+import { clearProofEvidenceCache } from "./rust-rules-source-test-evidence-cache.mjs";
+import {
+  loadCargoMetadata,
+  scanCargoMetadata,
+} from "./rust-rules-cargo-metadata.mjs";
 
 function advisoryPolicyValue(denyText, key) {
   let section = "";
@@ -481,170 +485,18 @@ function workspacePackageNamesFromManifests(root, config) {
   return names;
 }
 
-function loadCargoMetadata(root) {
-  const result = spawnSync(
-    "cargo",
-    ["metadata", "--no-deps", "--format-version", "1"],
-    {
-      cwd: root,
-      encoding: "utf8",
-      maxBuffer: 32 * 1024 * 1024,
-      shell: false,
-    },
-  );
-  if (result.error) throw result.error;
-  if ((result.status ?? 1) !== 0) return null;
-  return JSON.parse(result.stdout);
-}
-
-function scanCargoMetadata(root, config, scope) {
-  const violations = [];
-  if (!fs.existsSync(path.join(root, "Cargo.toml"))) return violations;
-  if (!commandExists("cargo")) return violations;
-  const metadata = loadCargoMetadata(root);
-  if (!metadata) return violations;
-  const workspaceRoot = toPosix(metadata.workspace_root);
-  const scopedManifests = new Set(
-    manifestPathsForScope(root, config, scope).map((manifest) =>
-      toPosix(manifest),
-    ),
-  );
-  const packageFilter =
-    scope.mode === "crate"
-      ? (packageInfo) => packageInfo.name === scope.crateName
-      : scope.mode === "files" || scope.mode === "diff"
-        ? (packageInfo) =>
-            scopedManifests.has(toPosix(packageInfo.manifest_path))
-        : () => true;
-  const packages = (metadata.packages ?? []).filter(packageFilter);
-  const workspacePackageNames = new Set((metadata.packages ?? []).map((packageInfo) => packageInfo.name));
-
-  for (const packageInfo of packages) {
-    const blockedForPackage = new Set(
-      config.blockedProtocolDependencies[packageInfo.name] ?? [],
-    );
-    for (const dependency of packageInfo.dependencies ?? []) {
-      if (
-        (dependency.source ?? "").startsWith("git+") &&
-        !config.allowedGitDependenciesSet.has(dependency.name)
-      ) {
-        addViolation(
-          violations,
-          root,
-          packageInfo.manifest_path,
-          1,
-          "RR-9.2",
-          "Git dependency found in cargo metadata.",
-        );
-      }
-
-      const dependencyPath = dependency.path ?? null;
-      if (dependencyPath !== null) {
-        const normalizedPath = toPosix(dependencyPath);
-        if (!normalizedPath.startsWith(workspaceRoot)) {
-          addViolation(
-            violations,
-            root,
-            packageInfo.manifest_path,
-            1,
-            "RR-9.4",
-            "Path dependency points outside the workspace root.",
-          );
-        }
-      }
-
-      if (dependencyPath === null && dependency.req.trim() === "*") {
-        addViolation(
-          violations,
-          root,
-          packageInfo.manifest_path,
-          1,
-          "RR-9.1",
-          "Wildcard registry dependency version found.",
-        );
-      }
-
-      if (blockedForPackage.has(dependency.name)) {
-        addViolation(
-          violations,
-          root,
-          packageInfo.manifest_path,
-          1,
-          "RR-9.4",
-          `${packageInfo.name} must not depend on ${dependency.name}.`,
-        );
-      }
-
-      if (
-        config.runtimeCratesSet.has(packageInfo.name) &&
-        config.testOnlyCratesSet.has(dependency.name) &&
-        dependency.kind !== "dev"
-      ) {
-        addViolation(
-          violations,
-          root,
-          packageInfo.manifest_path,
-          1,
-          "RR-9.29",
-          "Runtime crate depends on test-only crate outside dev-dependencies.",
-        );
-      }
-      if (workspacePackageNames.has(dependency.name) && dependency.path === null && dependency.source !== null) {
-        addViolation(
-          violations,
-          root,
-          packageInfo.manifest_path,
-          1,
-          "RR-9.26",
-          `Workspace member ${packageInfo.name} depends on ${dependency.name} by registry version instead of path/workspace linkage.`,
-        );
-      }
-    }
-  }
-
-  const directReqs = new Map();
-  for (const packageInfo of packages) {
-    for (const dependency of packageInfo.dependencies ?? []) {
-      if (
-        (dependency.path ?? null) !== null ||
-        dependency.kind === "dev" ||
-        (dependency.source ?? "").startsWith("git+")
-      )
-        continue;
-      if (!directReqs.has(dependency.name))
-        directReqs.set(dependency.name, new Set());
-      directReqs.get(dependency.name).add(dependency.req);
-    }
-  }
-  for (const [dependencyName, reqs] of directReqs) {
-    if (reqs.size > 1) {
-      addViolation(
-        violations,
-        root,
-        ".",
-        1,
-        "RR-9.5",
-        `Direct registry dependency ${dependencyName} uses multiple requirements: ${[...reqs].join(", ")}.`,
-      );
-      addViolation(
-        violations,
-        root,
-        ".",
-        1,
-        "RR-9.19",
-        `Direct registry dependency ${dependencyName} uses duplicate requirements: ${[...reqs].join(", ")}.`,
-      );
-    }
-  }
-
-  return violations;
-}
-
 function runScanner(root, config, scope) {
   clearProofEvidenceCache();
   const violations = [];
   violations.push(...scanWorkspaceFiles(root, config, scope));
-  violations.push(...scanCargoMetadata(root, config, scope));
+  violations.push(
+    ...scanCargoMetadata(
+      root,
+      config,
+      scope,
+      manifestPathsForScope(root, config, scope),
+    ),
+  );
   for (const filePath of scope.files) {
     violations.push(...scanRustFile(root, filePath, config));
     if (config.failFast && violations.length > 0) break;

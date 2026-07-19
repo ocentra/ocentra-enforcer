@@ -10,7 +10,7 @@ const { RAW_STRING_TYPE_RE } = RAW_TYPE_PATTERNS;
 
 function hasIntentionalDebug(attrs, name, source) {
   return /\bDebug\b/u.test(attrs) ||
-    new RegExp(`impl\\s+(?:std::fmt::|fmt::)?Debug\\s+for\\s+${escapeRegExp(name)}\\b`, "u").test(source);
+    new RegExp(`impl(?:\\s*<[^>{}]*>)?\\s+(?:std::fmt::|fmt::)?Debug\\s+for\\s+${escapeRegExp(name)}(?:\\s*<[^>{}]*>)?\\b`, "u").test(source);
 }
 
 function reportMissingDebug({
@@ -48,8 +48,9 @@ export function applyDomainDebugRules({
   filePath,
   violations,
   isBoundary,
+  isBenchmark,
 }) {
-  if (isBoundary) return;
+  if (isBoundary || isBenchmark) return;
   for (const match of source.matchAll(/(?<attrs>(?:^\s*#\[[^\]]+\]\s*\r?\n)*)^\s*pub\s+(?:struct|enum)\s+(?<name>[A-Z][A-Za-z0-9_]*)(?:\b|[<{(])/gmu)) {
     const name = match.groups?.name ?? "";
     if (/(?:Secret|Token|Key|Credential|Password)/u.test(name)) continue;

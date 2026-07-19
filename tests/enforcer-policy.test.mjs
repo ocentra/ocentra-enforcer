@@ -206,6 +206,9 @@ test("advisory documentation rule remains overridable", () => {
 });
 
 test("valid waivers are visible and suppress only waivable findings", () => {
+  const waiverExpires = new Date(
+    Date.now() + 7 * 24 * 60 * 60 * 1000,
+  ).toISOString().slice(0, 10);
   const project = makeProject({
     "ocentra-enforcer.config.json": JSON.stringify({
       schemaVersion: 1,
@@ -220,7 +223,7 @@ test("valid waivers are visible and suppress only waivable findings", () => {
           issue: "OCEN-123",
           reason: "temporary documentation rollout for this exact API file",
           scope: ["src/api.ts"],
-          expires: "2026-07-15",
+          expires: waiverExpires,
           remediation: "Add concise API docs when the public surface stabilizes.",
           ciAllowed: true,
           visible: true,

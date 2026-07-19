@@ -978,11 +978,11 @@ Required form: `/// BRAND-INVARIANT: <validation rule and semantic meaning>` nea
 **Rule:** Security advisories fail or warn according to deny.toml policy.
 
 <a id="rr-95"></a>
-### RR-9.5 — cargo-deny must check licenses
+### RR-9.5 — Direct dependency versions must not drift
 
-**Enforcement:** Hard: cargo-deny.
+**Enforcement:** Hard: scanner.
 
-**Rule:** Unapproved licenses fail.
+**Rule:** Direct registry dependency requirements must be aligned across workspace members.
 
 <a id="rr-96"></a>
 ### RR-9.6 — cargo-deny must check bans

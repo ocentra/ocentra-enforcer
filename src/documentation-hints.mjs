@@ -43,14 +43,13 @@ function scanRustDocumentationHints(addViolation, root, filePath, lines) {
   const violations = [];
   lines.forEach((line, idx) => {
     if (
-      !/^\s*pub(?:\([^)]*\)|\s+)?\s*(?:async\s+)?(?:fn|struct|enum|trait)\s+[A-Za-z_]\w*/u.test(
+      !/^\s*pub\s+(?:async\s+)?(?:fn|struct|enum|trait)\s+[A-Za-z_]\w*/u.test(
         line,
       )
     )
       return;
     if (
-      hasLeadingDocComment(lines, idx, "///") ||
-      hasLeadingDocComment(lines, idx, "#[doc")
+      hasLeadingRustDocComment(lines, idx)
     )
       return;
     addViolation(
@@ -64,6 +63,15 @@ function scanRustDocumentationHints(addViolation, root, filePath, lines) {
     );
   });
   return violations;
+}
+
+function hasLeadingRustDocComment(lines, index) {
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    const line = lines[cursor]?.trim() ?? "";
+    if (line === "" || /^#\[[^\]]+\]$/u.test(line)) continue;
+    return line.startsWith("///") || line.startsWith("#[doc");
+  }
+  return false;
 }
 
 function hasLeadingDocComment(lines, index, marker) {

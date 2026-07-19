@@ -31,6 +31,7 @@ import {
 } from "./rust-rules-source-helpers.mjs";
 import {
   isTestFile,
+  isBenchmarkFile,
   isRawTypeBoundary,
   isBoundaryModulePath,
   isConfigurationBoundaryModulePath,
@@ -77,7 +78,7 @@ function isTestFunctionSignature(lines, index) {
 function inlineTestLineMask(lines) {
   const testLines = Array(lines.length).fill(false);
   let pendingTestFunction = false;
-  let pendingTestModule = false;
+  let pendingTestItem = false;
   let activeTestDepth = null;
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
@@ -89,7 +90,7 @@ function inlineTestLineMask(lines) {
     }
     if (/^\s*#\[cfg\(test\)\]/u.test(line)) {
       testLines[index] = true;
-      pendingTestModule = true;
+      pendingTestItem = true;
       continue;
     }
     if (/^\s*#\[(?:test|tokio::test|async_std::test)\b/u.test(line)) {
@@ -97,12 +98,12 @@ function inlineTestLineMask(lines) {
       pendingTestFunction = true;
       continue;
     }
-    if (pendingTestModule) {
+    if (pendingTestItem) {
       testLines[index] = true;
-      if (/\bmod\s+[A-Za-z_][A-Za-z0-9_]*\b/u.test(line)) {
+      if (/\b(?:mod|struct|enum|trait|impl|fn)\b/u.test(line)) {
         const depth = braceDelta(line);
         if (depth > 0) activeTestDepth = depth;
-        pendingTestModule = false;
+        pendingTestItem = false;
       }
       continue;
     }
@@ -128,6 +129,12 @@ function scanRustFile(root, filePath, config) {
   const recordFieldLines = recordFieldLineMask(maskedLines);
   const publicRecordLines = publicRecordLineMask(maskedLines);
   const isTestSource = isTestFile(rel, config);
+  const isBenchmark = isBenchmarkFile(rel);
+  const signatureLines = new Set();
+  for (const signature of collectFunctionSignatures(masked)) {
+    const endLine = signature.line + signature.text.split(/\r?\n/u).length - 1;
+    for (let line = signature.line; line <= endLine; line += 1) signatureLines.add(line);
+  }
   const inlineTestLines = inlineTestLineMask(originalLines);
   const isBoundary = isBoundaryModulePath(rel, config);
   const isConfigurationBoundary = isConfigurationBoundaryModulePath(rel);
@@ -172,6 +179,9 @@ function scanRustFile(root, filePath, config) {
     const lineNo = idx + 1;
     const originalLine = originalLines[idx] ?? line;
     const isTestCode = isTestSource || inlineTestLines[idx];
+    const indexingCandidate = signatureLines.has(lineNo)
+      ? (line.includes("{") ? line.slice(line.indexOf("{") + 1) : "")
+      : line;
 
     if (
       /^\s*#!?\s*\[\s*(?:allow|expect)\s*\(/u.test(line) ||
@@ -650,10 +660,10 @@ function scanRustFile(root, filePath, config) {
 
     if (
       !isTestCode &&
-      /\b[A-Za-z_][A-Za-z0-9_\.]*\s*\[[^\]\n]+\]/u.test(line) &&
-      !/\b(?:vec|format|println|assert|assert_eq|assert_ne)!\s*\[/u.test(line) &&
-      !/\bfor\s+[A-Za-z_][A-Za-z0-9_]*\s+in\s+\[/u.test(line) &&
-      !/&(?:'[A-Za-z_][A-Za-z0-9_]*\s*)?\[\s*(?:&\s*)?(?:'[A-Za-z_][A-Za-z0-9_]*\s*)?[A-Za-z_][A-Za-z0-9_<>:,\s]*\]/u.test(line)
+      /\b[A-Za-z_][A-Za-z0-9_\.]*\s*\[[^\]\n]+\]/u.test(indexingCandidate) &&
+      !/\b(?:vec|format|println|assert|assert_eq|assert_ne)!\s*\[/u.test(indexingCandidate) &&
+      !/\bfor\s+[A-Za-z_][A-Za-z0-9_]*\s+in\s+\[/u.test(indexingCandidate) &&
+      !/&(?:'[A-Za-z_][A-Za-z0-9_]*\s*)?\[\s*(?:&\s*)?(?:'[A-Za-z_][A-Za-z0-9_]*\s*)?[A-Za-z_][A-Za-z0-9_<>:,\s]*\]/u.test(indexingCandidate)
     ) {
       addViolation(
         violations,
@@ -782,6 +792,7 @@ function scanRustFile(root, filePath, config) {
     }
 
     if (
+      !isBenchmark &&
       recordFieldLines[idx] &&
       /^\s*(?:pub(?:\([^)]*\))?\s+)?[A-Za-z_][A-Za-z0-9_]*\s*:\s*/u.test(
         line,
@@ -1535,6 +1546,7 @@ function scanRustFile(root, filePath, config) {
     isConfigurationBoundary,
     isStringOwner,
     isPrimitiveOwner,
+    isBenchmark,
   });
 
   applyLateRustFileRules({
@@ -1547,6 +1559,7 @@ function scanRustFile(root, filePath, config) {
     isBoundary,
     isConfigurationBoundary,
     isTestSource,
+    isBenchmark,
   });
 
   return violations;

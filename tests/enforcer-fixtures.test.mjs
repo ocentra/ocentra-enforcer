@@ -164,8 +164,13 @@ function makeTempProject() {
 function copyFixtureGroup(project, rels, language) {
   rels.forEach((rel, index) => {
     const ext = path.extname(rel);
-    let target = path.join(language, `fixture-${index}${ext}`);
-    if (rel.endsWith("ts-6.14-index-barrel.fail.ts")) target = path.join(language, "index.ts");
+    let target =
+      language === "typescript"
+        ? path.join(language, "src", "domain", `fixture-${index}${ext}`)
+        : path.join(language, `fixture-${index}${ext}`);
+    if (rel.endsWith("ts-6.14-index-barrel.fail.ts")) {
+      target = path.join(language, "src", "domain", "index.ts");
+    }
     if (rel.endsWith("ts-7.1-tsconfig-not-strict.fail.json")) target = "tsconfig.json";
     if (rel.endsWith("py-6.2-weak-assert.fail.py")) target = path.join(language, "tests", "test_fixture.py");
     copyFixture(project, rel, target);

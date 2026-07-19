@@ -31,7 +31,7 @@ export function applyTestStructureRules({
     if (/\b::(?:new|try_new|parse)\s*\(/u.test(body) && !hasBehavioralAssertion) {
       addViolation(violations, root, filePath, lineNo, "RR-12.25", "construction-only test lacks behavioral assertion.", originalLines[lineNo - 1] ?? null);
     }
-    if (/\b(?:toMatchSnapshot|insta::assert|snapshot)\b/iu.test(body) && /\b(?:\d{4}-\d{2}-\d{2}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}|random|uuid)\b/iu.test(originalBody) && !/\bREDACT|redact/u.test(originalBody)) {
+    if (/\b(?:toMatchSnapshot|insta::assert(?:_[A-Za-z0-9_]+)?|assert_snapshot)\b/iu.test(body) && /\b(?:\d{4}-\d{2}-\d{2}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}|random|uuid)\b/iu.test(originalBody) && !/\bREDACT|redact/u.test(originalBody)) {
       addViolation(violations, root, filePath, lineNo, "RR-12.26", "snapshot test includes volatile value without redaction.", originalLines[lineNo - 1] ?? null);
     }
   }

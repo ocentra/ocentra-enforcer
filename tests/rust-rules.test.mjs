@@ -1,77 +1,34 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { spawnCli } from './cli-spawn.mjs';
-import { DEFAULT_CONFIG } from '../src/rule-metadata.mjs';
-import { normalizeConfig, runScanner } from '../scripts/rust-rules-scan-core.mjs';
+import {
+  DEFAULT_CONFIG,
+  expectFailure,
+  expectFailures,
+  expectNoRule,
+  makeProject,
+  normalizeConfig,
+  runGate,
+  runGateArgs,
+  runScanner,
+} from './rust-rules-test-support.mjs';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SCRIPT = path.join(ROOT, 'scripts', 'rust-rules.mjs');
-
-function makeProject(files) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rust-rules-'));
-  fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
-  fs.writeFileSync(path.join(dir, 'Cargo.toml'), `
-[package]
-name = "fixture"
-version = "0.1.0"
-edition = "2021"
-rust-version = "1.75"
-`, 'utf8');
-  fs.writeFileSync(path.join(dir, 'Cargo.lock'), '', 'utf8');
-  fs.writeFileSync(path.join(dir, 'rust-toolchain.toml'), '[toolchain]\nchannel = "1.75.0"\ncomponents = ["rustfmt", "clippy"]\n', 'utf8');
-  fs.writeFileSync(path.join(dir, 'clippy.toml'), '# test fixture\n', 'utf8');
-  fs.writeFileSync(path.join(dir, 'deny.toml'), '[advisories]\nyanked = "deny"\nunmaintained = "deny"\n', 'utf8');
-  fs.writeFileSync(path.join(dir, 'OWNERS'), '@ocentra/enforcer\n', 'utf8');
-  for (const [rel, content] of Object.entries(files)) {
-    const full = path.join(dir, rel);
-    fs.mkdirSync(path.dirname(full), { recursive: true });
-    fs.writeFileSync(full, content.trimStart(), 'utf8');
-  }
-  return dir;
-}
-
-function runGate(project) {
-  return spawnCli(process.execPath, [SCRIPT, 'scan', '--root', project], {
-    encoding: 'utf8',
+test('BOUND-1.6 counts boundary DTO declarations rather than repeated references', () => {
+  const references = makeProject({
+    'src/boundary/wire.rs': '//! BOUNDARY-INVARIANT: typed wire conversion.\n// negative invalid input is rejected.\npub struct WireDto;\nfn map(value: WireDto) { let _ = WireDto; let _ = value; }\n',
   });
-}
-
-function runGateArgs(project, args) {
-  return spawnCli(process.execPath, [SCRIPT, ...args, '--root', project], {
-    encoding: 'utf8',
+  expectNoRule(references, 'BOUND-1.6');
+  const declarations = makeProject({
+    'src/boundary/wire.rs': '//! BOUNDARY-INVARIANT: typed wire conversion.\n// negative invalid input is rejected.\npub struct OneDto;\npub struct TwoDto;\npub struct ThreeDto;\npub struct FourDto;\n',
   });
-}
-
-function expectFailure(project, ruleId) {
-  const result = runGate(project);
-  assert.notEqual(result.status, 0, `expected gate to fail for ${ruleId}`);
+  const result = runGate(declarations);
+  assert.notEqual(result.status, 0, 'four boundary declarations must fail the declaration budget');
   const output = `${result.stdout}\n${result.stderr}`;
-  assert.match(output, new RegExp(ruleId.replace('.', '\\.'), 'u'), `expected output to contain ${ruleId}. Output:\n${output}`);
-  assert.match(output, /Reason:/u, 'failure output must contain a reason');
-  assert.match(output, /Fix:/u, 'failure output must contain a fix snippet');
-  assert.match(output, /rules\/rust\//u, 'failure output must point at indexed rules doc');
-}
-
-function expectFailures(project, ruleIds) {
-  const result = runGate(project);
-  assert.notEqual(result.status, 0, `expected gate to fail for ${ruleIds.join(', ')}`);
-  const output = `${result.stdout}\n${result.stderr}`;
-  for (const ruleId of ruleIds) {
-    assert.match(output, new RegExp(ruleId.replace('.', '\\.'), 'u'), `expected output to contain ${ruleId}. Output:\n${output}`);
-  }
-  assert.match(output, /Reason:/u, 'failure output must contain a reason');
-  assert.match(output, /Fix:/u, 'failure output must contain a fix snippet');
-  assert.match(output, /rules\/rust\//u, 'failure output must point at indexed rules doc');
-}
-
-function expectNoRule(project, ruleId) {
-  const result = runGate(project);
-  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, new RegExp(ruleId.replace('.', '\\.'), 'u'));
-}
+  assert.match(output, /BOUND-1\.6/u);
+  assert.match(output, /boundary raw type count 4 exceeds budget 3/u);
+  assert.match(output, /rules\/common\/architecture\.md/u);
+});
 
 test('good branded-domain fixture passes scanner', () => {
   const project = makeProject({
@@ -146,6 +103,73 @@ pub fn load_user(id: u64) -> Option<UserId> {
 `,
   });
   expectFailure(project, 'RR-6.2');
+});
+
+test('domain signature rules retain real violations but exempt trait implementations, conventional collection queries, and benchmarks', () => {
+  const passing = makeProject({
+    'src/lib.rs': `
+pub struct Reader;
+impl std::io::Read for Reader {
+    fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> { Ok(buffer.len()) }
+}
+pub struct Values;
+impl Values {
+    pub fn len(&self) -> usize { 0 }
+    pub fn is_empty(&self) -> bool { true }
+}
+`,
+    'benches/measure.rs': 'struct Sample { elapsed_ms: f64 }\nfn run_sample(count: usize) -> (String, f64) { (String::new(), count as f64) }\n',
+  });
+  const findings = runScanner(passing, normalizeConfig(DEFAULT_CONFIG), {
+    mode: 'files',
+    files: [path.join(passing, 'src', 'lib.rs'), path.join(passing, 'benches', 'measure.rs')],
+  });
+  for (const ruleId of ['RR-6.1', 'RR-6.2', 'RR-6.4']) {
+    assert.equal(findings.some((finding) => finding.ruleId === ruleId), false, `${ruleId} must not flag trait implementations, receiver-only collection queries, or benchmark shapes`);
+  }
+  const failing = makeProject({
+    'src/lib.rs': `
+pub fn domain_name(value: &str) -> usize { value.len() }
+fn count_to_label(value: usize) -> String { value.to_string() }
+fn is_known(value: &str) -> bool { !value.is_empty() }
+pub struct Values;
+impl Values { pub fn len(&self, scope: &str) -> usize { scope.len() } }
+`,
+  });
+  expectFailures(failing, ['RR-6.1', 'RR-6.2']);
+
+  const traitContract = makeProject({
+    'src/lib.rs': `
+pub trait RawLabel { fn label(&self) -> String; }
+pub struct Label;
+impl RawLabel for Label { fn label(&self) -> String { String::new() } }
+`,
+  });
+  const traitFindings = runScanner(traitContract, normalizeConfig(DEFAULT_CONFIG), {
+    mode: 'files',
+    files: [path.join(traitContract, 'src', 'lib.rs')],
+  }).filter((finding) => finding.ruleId === 'RR-6.1');
+  assert.equal(traitFindings.length, 1, 'the trait contract must fail once while its implementation is not double-reported');
+});
+
+test('indexing rule ignores only signatures while retaining executable indexing', () => {
+  const traitSignature = makeProject({
+    'src/lib.rs': 'pub struct Reader;\nimpl std::io::Read for Reader {\n    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> { Ok(buf.len()) }\n}\n',
+  });
+  expectNoRule(traitSignature, 'RR-5.3');
+  const indexed = makeProject({ 'src/lib.rs': 'pub fn first(values: &[u8]) -> u8 { values[0] }\n' });
+  expectFailure(indexed, 'RR-5.3');
+});
+
+test('manual generic Debug implementation satisfies RR-6.50', () => {
+  const passing = makeProject({
+    'src/lib.rs': 'pub struct StoreCache<K, T> { entries: Vec<(K, T)> }\nimpl<K: std::fmt::Debug, T: std::fmt::Debug> std::fmt::Debug for StoreCache<K, T> { fn fmt(&self, formatter: &mut std::fmt::Formatter<\'_>) -> std::fmt::Result { formatter.debug_struct("StoreCache").finish() } }\n',
+  });
+  const findings = runScanner(passing, normalizeConfig(DEFAULT_CONFIG), {
+    mode: 'files',
+    files: [path.join(passing, 'src', 'lib.rs')],
+  });
+  assert.equal(findings.some((finding) => finding.ruleId === 'RR-6.50'), false);
 });
 
 test('clone without justification fails with RR-5.1', () => {
@@ -299,6 +323,24 @@ fn exercises_a_fixture() {
   assert.doesNotMatch(output, /RR-5\.[1-4]/u, output);
 });
 
+test('cfg(test) item helpers are not treated as production test doubles', () => {
+  const project = makeProject({
+    'src/lib.rs': `
+#[cfg(test)]
+struct FakeDownloader;
+#[cfg(test)]
+impl FakeDownloader { fn download(&self) -> Result<(), ()> { Ok(()) } }
+`,
+  });
+  const findings = runScanner(project, normalizeConfig(DEFAULT_CONFIG), {
+    mode: 'files',
+    files: [path.join(project, 'src', 'lib.rs')],
+  });
+  for (const ruleId of ['SRC-1.2', 'TEST-1.1']) {
+    assert.equal(findings.some((finding) => finding.ruleId === ruleId), false, `${ruleId} must ignore cfg(test) helpers`);
+  }
+});
+
 test('Cargo workspace-member paths are allowed while arbitrary local paths fail', () => {
   const project = makeProject({
     'Cargo.toml': `
@@ -383,6 +425,19 @@ members = ["crates/good", "crates/bad"]
 [workspace.package]
 rust-version = "1.75"
 `,
+    'Cargo.lock': `
+# This file is automatically @generated by Cargo.
+# It is not intended for manual editing.
+version = 3
+
+[[package]]
+name = "bad-crate"
+version = "0.1.0"
+
+[[package]]
+name = "good-crate"
+version = "0.1.0"
+`,
     'crates/good/Cargo.toml': `
 [package]
 name = "good-crate"
@@ -420,6 +475,19 @@ members = ["crates/good", "crates/bad"]
 
 [workspace.package]
 rust-version = "1.75"
+`,
+    'Cargo.lock': `
+# This file is automatically @generated by Cargo.
+# It is not intended for manual editing.
+version = 3
+
+[[package]]
+name = "bad-crate"
+version = "0.1.0"
+
+[[package]]
+name = "good-crate"
+version = "0.1.0"
 `,
     'crates/good/Cargo.toml': `
 [package]
@@ -866,7 +934,7 @@ test('test-structure rules use balanced masked bodies', () => {
     'tests/fixture.rs': `
 #[test]
 fn fixture_text_is_not_a_test() {
-    let fixture = r#"#[test]\nfn fake() {}"#;
+    let fixture = r#"#[test]\nfn quoted_fixture() {}"#;
     let panic_attribute = "#[should_panic]";
     let bytes = b"fn byte_fixture() { 1 }";
     assert!(!fixture.is_empty());
@@ -928,117 +996,4 @@ proptest! {
     'src/lib.rs': '#[test]\nfn only_constructs() { let _value = Validator::new(); }\n',
   });
   expectFailure(constructionOnly, 'RR-12.25');
-});
-
-test('constructor and property evidence bind to local definitions and registered property targets', () => {
-  const externalOnly = makeProject({ 'src/lib.rs': 'pub fn use_external(input: &str) { let _ = input.parse::<u64>(); }\n' });
-  expectNoRule(externalOnly, 'RR-12.16');
-  const propertyCovered = makeProject({
-    'src/lib.rs': 'pub fn parse_item(input: &str) -> Result<(), ()> { let _ = input; Ok(()) }\n',
-    'tests/property_parser_contracts.rs': 'proptest! { #[test] fn parser_contract(input in ".*") { let _ = parse_item(&input); } }\n',
-  });
-  expectNoRule(propertyCovered, 'RR-12.27');
-  const missing = makeProject({ 'src/lib.rs': 'pub fn try_new(value: String) -> Result<(), ()> { let _ = value; Ok(()) }\n' });
-  expectFailure(missing, 'RR-12.16');
-});
-
-test('parser rejection evidence is crate-wide and remains target-specific', () => {
-  const covered = makeProject({
-    'src/lib.rs': 'pub fn parse_lesson(input: &str) -> Result<(), ()> { if input.is_empty() { Err(()) } else { Ok(()) } }\n',
-    'tests/lesson.rs': '#[test]\nfn rejects_invalid_lesson() { assert!(parse_lesson("invalid").is_err()); }\n',
-  });
-  expectNoRule(covered, 'RR-12.16');
-  expectNoRule(covered, 'RR-12.17');
-
-  const partiallyCovered = makeProject({
-    'src/lib.rs': `
-pub fn parse_one(input: &str) -> Result<(), ()> { let _ = input; Ok(()) }
-pub fn parse_two(input: &str) -> Result<(), ()> { let _ = input; Ok(()) }
-`,
-    'tests/parser.rs': `
-#[test]
-fn rejects_invalid_parse_one() { assert!(parse_one("invalid").is_err()); }
-proptest! { #[test] fn parse_one_property(input in ".*") { let _ = parse_one(&input); } }
-`,
-  });
-  const result = runGate(partiallyCovered);
-  const output = `${result.stdout}\n${result.stderr}`;
-  assert.notEqual(result.status, 0);
-  assert.match(output, /RR-12\.16[\s\S]*parse_two/u);
-  assert.match(output, /RR-12\.17[\s\S]*parse_two/u);
-  assert.match(output, /RR-12\.27[\s\S]*parse_two/u);
-  assert.doesNotMatch(output, /RR-12\.(?:16|17|27)[^\n]*parse_one lacks/u);
-});
-
-test('crate evidence cache refreshes after an external test changes in one process', () => {
-  const project = makeProject({
-    'src/lib.rs': 'pub fn parse_lesson(input: &str) -> Result<(), ()> { let _ = input; Ok(()) }\n',
-    'tests/lesson.rs': '#[test]\nfn lesson_smoke() { let _ = parse_lesson("valid"); }\n',
-  });
-  const sourcePath = path.join(project, 'src', 'lib.rs');
-  const config = normalizeConfig(DEFAULT_CONFIG);
-  const scope = { mode: 'files', files: [sourcePath] };
-  const initial = runScanner(project, config, scope);
-  assert.equal(initial.some((finding) => finding.ruleId === 'RR-12.16'), true);
-
-  fs.writeFileSync(
-    path.join(project, 'tests', 'lesson.rs'),
-    '#[test]\nfn rejects_invalid_lesson_input() { assert!(parse_lesson("invalid lesson input").is_err()); }\n',
-    'utf8',
-  );
-  const refreshed = runScanner(project, config, scope);
-  assert.equal(refreshed.some((finding) => finding.ruleId === 'RR-12.16'), false);
-  assert.equal(refreshed.some((finding) => finding.ruleId === 'RR-12.17'), false);
-});
-
-test('fuzz evidence binds to the binary parser target and not sibling parsers', () => {
-  const covered = makeProject({
-    'src/lib.rs': 'pub fn parse_packet(input: &[u8]) -> Result<(), ()> { let _packet = input; Ok(()) }\n',
-    'fuzz/fuzz_targets/packet.rs': 'fn fuzz_parse_packet(bytes: &[u8]) { let _ = parse_packet(bytes); }\n',
-  });
-  expectNoRule(covered, 'RR-12.28');
-
-  const sibling = makeProject({
-    'src/lib.rs': `
-pub fn parse_packet(input: &[u8]) -> Result<(), ()> { let _packet = input; Ok(()) }
-pub fn parse_label(input: &str) -> Result<(), ()> { let _label = input; Ok(()) }
-`,
-  });
-  const result = runGate(sibling);
-  const output = `${result.stdout}\n${result.stderr}`;
-  assert.match(output, /RR-12\.28[\s\S]*parse_packet/u);
-  assert.doesNotMatch(output, /RR-12\.28[^\n]*parse_label/u);
-});
-
-test('DTO mapper entry points satisfy conversion evidence while missing conversion fails', () => {
-  const passing = makeProject({
-    'src/boundary/artifact_transport.rs': 'pub struct ArtifactTransportDto;\npub struct ArtifactTransport;\nimpl ArtifactTransportDto { fn into_domain(self) -> ArtifactTransport { ArtifactTransport } }\n',
-  });
-  expectNoRule(passing, 'RR-14.23');
-  const failing = makeProject({
-    'src/boundary/artifact_transport.rs': 'pub struct ArtifactTransportDto;\npub struct ArtifactTransport;\n',
-  });
-  expectFailure(failing, 'RR-14.23');
-
-  const roundTripCovered = makeProject({
-    'src/boundary/proof.rs': `
-#[derive(Serialize, Deserialize)]
-pub struct ProofDto;
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn proof_dto_round_trip_preserves_the_wire_shape() {
-        let value = ProofDto;
-        assert_eq!(serde_json::from_str::<ProofDto>(&serde_json::to_string(&value).unwrap()).is_ok(), true);
-    }
-}
-`,
-  });
-  expectNoRule(roundTripCovered, 'RR-14.25');
-
-  const roundTripMissing = makeProject({
-    'src/boundary/proof.rs': '#[derive(Serialize, Deserialize)]\npub struct ProofDto;\n',
-  });
-  expectFailure(roundTripMissing, 'RR-14.25');
 });

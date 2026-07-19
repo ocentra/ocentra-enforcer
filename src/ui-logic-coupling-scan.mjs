@@ -1,15 +1,16 @@
 /*
  * UI/business-logic coupling scanner: finds presentation-layer files (pages,
  * components, views, screens) that call a business-logic/API module directly
- * instead of going through a dedicated hook/composable — the "button press
+ * instead of going through a dedicated hook/composable â€” the "button press
  * should not know about business logic" boundary. Signal-based (imports,
- * naming conventions), not an AST parser — this is a mechanical first pass;
+ * naming conventions), not an AST parser â€” this is a mechanical first pass;
  * every finding is evidence to review, not a certified defect.
  *
  * Reusable across any target repo: `scanUiLogicCoupling({ root })`.
  */
 import path from "node:path";
 import { walk, readTextSafe, relFiles } from "./test-doctrine-fs.mjs";
+import { classifyBinding, extractImports } from "./ui-logic-coupling-bindings.mjs";
 
 const DEFAULT_PRESENTATION_DIR_SEGMENTS = ["pages", "components", "views", "screens", "containers"];
 const DEFAULT_BUSINESS_LOGIC_IMPORT_PATTERNS = [
@@ -20,7 +21,6 @@ const DEFAULT_BUSINESS_LOGIC_IMPORT_PATTERNS = [
 ];
 const DEFAULT_EVENT_SOURCE_IMPORT_PATTERNS = [/\/lib\/ws(["'/]|$)/i, /\/lib\/socket/i, /\/realtime/i];
 const DATA_FETCH_PRIMITIVE_RE = /\b(useQuery|useMutation|useSWR|useInfiniteQuery|createQuery)\s*\(/;
-const ERROR_NAME_RE = /Error$/;
 const PRESENTATION_EXT_RE = /\.(tsx?|jsx?|vue)$/i;
 const TEST_FILE_RE = /\.(test|spec)\.[jt]sx?$/i;
 const HOOK_FILE_RE = /(^|\/)hooks\/|(^|\/)use[A-Z][^/]*\.(ts|tsx|js|jsx)$/;
@@ -31,32 +31,6 @@ function isPresentationFile(relPath, presentationDirSegments) {
   if (HOOK_FILE_RE.test(relPath)) return false;
   const segments = relPath.split("/");
   return presentationDirSegments.some((seg) => segments.includes(seg));
-}
-
-function extractImports(text) {
-  const imports = [];
-  const namedRe = /import\s+(?:type\s+)?\{([^}]+)\}\s+from\s+["']([^"']+)["']/g;
-  const defaultRe = /import\s+(?:type\s+)?(\w+)\s+from\s+["']([^"']+)["']/g;
-  let m;
-  while ((m = namedRe.exec(text))) {
-    const names = m[1].split(",").map((s) => s.trim().split(/\s+as\s+/)[0].trim()).filter(Boolean);
-    imports.push({ names, source: m[2] });
-  }
-  while ((m = defaultRe.exec(text))) {
-    imports.push({ names: [m[1]], source: m[2] });
-  }
-  return imports;
-}
-
-function classifyBinding(name, text) {
-  const callRe = new RegExp(`\\b${name}\\.\\w+\\s*\\(`);
-  const hasCall = callRe.test(text);
-  if (!hasCall) return "none";
-  if (ERROR_NAME_RE.test(name)) {
-    const nonInstanceofCallRe = new RegExp(`(?<!instanceof\\s+)\\b${name}\\.\\w+\\s*\\(`);
-    if (!nonInstanceofCallRe.test(text)) return "info";
-  }
-  return "hard";
 }
 
 function scanFile(relPath, text, businessLogicPatterns, eventSourcePatterns) {
@@ -111,7 +85,7 @@ function scanUiLogicCoupling({
       why: "Lets a UI shell be replaced (web/mobile/desktop) without touching business logic, lets business logic be tested without rendering anything, and gives the boundary something to contract-test instead of testing everything through the UI.",
     },
     caveat:
-      "Mechanical, signal-based (import paths + naming conventions) — not an AST parser. "
+      "Mechanical, signal-based (import paths + naming conventions) â€” not an AST parser. "
       + "Every finding is evidence for human/AI review, not a certified defect. Run a second pass "
       + "before treating any 'hard' finding as confirmed.",
     findings,
