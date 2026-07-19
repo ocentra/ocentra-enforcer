@@ -43,6 +43,9 @@ pub const DEFAULT_MODEL_SERVICE_PORT: u16 = 8766;
 pub const DEFAULT_MIN_CHAT_TOKENS_PER_SECOND: f64 = 10.0;
 pub const TARGET_CHAT_TOKENS_PER_SECOND_LOW: f64 = 40.0;
 pub const TARGET_CHAT_TOKENS_PER_SECOND_HIGH: f64 = 60.0;
+pub const DEFAULT_MIN_CHAT_TOKENS_PER_SECOND_LIMIT: u32 = 10;
+pub const TARGET_CHAT_TOKENS_PER_SECOND_LOW_LIMIT: u32 = 40;
+pub const TARGET_CHAT_TOKENS_PER_SECOND_HIGH_LIMIT: u32 = 60;
 pub const DEFAULT_DEVICE_PROBE_TIMEOUT_MS: u64 = 5_000;
 pub const DEFAULT_MODEL_PROBE_TIMEOUT_MS: u64 = 120_000;
 
@@ -781,9 +784,9 @@ pub fn default_model_runtime_probe_plan() -> ModelRuntimeProbePlanDto {
         provider_probe_timeout_ms: DEFAULT_DEVICE_PROBE_TIMEOUT_MS,
         model_probe_timeout_ms: DEFAULT_MODEL_PROBE_TIMEOUT_MS,
         kill_on_timeout: true,
-        minimum_chat_tokens_per_second: DEFAULT_MIN_CHAT_TOKENS_PER_SECOND as u32,
-        target_chat_tokens_per_second_low: TARGET_CHAT_TOKENS_PER_SECOND_LOW as u32,
-        target_chat_tokens_per_second_high: TARGET_CHAT_TOKENS_PER_SECOND_HIGH as u32,
+        minimum_chat_tokens_per_second: DEFAULT_MIN_CHAT_TOKENS_PER_SECOND_LIMIT,
+        target_chat_tokens_per_second_low: TARGET_CHAT_TOKENS_PER_SECOND_LOW_LIMIT,
+        target_chat_tokens_per_second_high: TARGET_CHAT_TOKENS_PER_SECOND_HIGH_LIMIT,
     }
 }
 

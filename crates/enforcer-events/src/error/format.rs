@@ -19,7 +19,15 @@ pub(super) fn fmt_eventing_error(
         | EventingError::InvalidVersion
         | EventingError::PayloadEncode { .. }
         | EventingError::InvalidHandlerPolicy { .. }
-        | EventingError::InvalidQueuePolicy { .. } => config::fmt_config_error(error, formatter),
+        | EventingError::HandlerPolicyTimeoutMustBePositive
+        | EventingError::HandlerPolicyMaxAttemptsMustBePositive
+        | EventingError::HandlerPolicyProducedNoAttempt
+        | EventingError::InvalidQueuePolicy { .. }
+        | EventingError::QueuePolicyCapacityMustBePositive
+        | EventingError::QueuePolicyQueuedRequiresCapacity
+        | EventingError::QueuePolicyTtlMustBePositive
+        | EventingError::QueuePolicyCapacityNotConfigured
+        | EventingError::QueuePolicyDropOldestRequiresQueuedEvent => config::fmt_config_error(error, formatter),
         EventingError::PayloadDecode { .. }
         | EventingError::ContractMismatch { .. }
         | EventingError::DuplicateEventContract { .. } => {
@@ -37,6 +45,7 @@ pub(super) fn fmt_eventing_error(
         | EventingError::DuplicateInFlight { .. }
         | EventingError::DuplicateIdempotencyKey { .. } => queue::fmt_queue_error(error, formatter),
         EventingError::InvalidRequestOptions { .. }
+        | EventingError::RequestOptionsTimeoutMustBePositive
         | EventingError::DuplicateRequest { .. }
         | EventingError::RequestTimedOut { .. }
         | EventingError::RequestResponseEncode { .. }

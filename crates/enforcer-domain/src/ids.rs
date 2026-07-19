@@ -723,7 +723,9 @@ fn validate_threat_id(raw: &str) -> Result<(), DecodeError> {
     // OWASP Top-10 slot (`A03:2021`).
     let mitre = raw.strip_prefix('T').is_some_and(|rest| {
         let mut halves = rest.splitn(2, '.');
-        let base = halves.next().unwrap_or_default();
+        let Some(base) = halves.next() else {
+            return false;
+        };
         let sub = halves.next();
         base.len() == 4
             && base.chars().all(|c| c.is_ascii_digit())
@@ -734,7 +736,9 @@ fn validate_threat_id(raw: &str) -> Result<(), DecodeError> {
         .is_some_and(|rest| !rest.is_empty() && rest.chars().all(|c| c.is_ascii_digit()));
     let owasp = raw.strip_prefix('A').is_some_and(|rest| {
         let mut halves = rest.splitn(2, ':');
-        let slot = halves.next().unwrap_or_default();
+        let Some(slot) = halves.next() else {
+            return false;
+        };
         let year = halves.next();
         slot.len() == 2
             && slot.chars().all(|c| c.is_ascii_digit())
@@ -1022,7 +1026,10 @@ impl BuiltInPythonRule {
         };
         // ALLOC-JUSTIFICATION: RuleId owns the canonical value across validator
         // construction and finding production.
-        RuleId(value.to_owned())
+        RuleId(
+            // ALLOC-JUSTIFICATION: RuleId owns the selected built-in catalogue identifier.
+            value.to_owned(),
+        )
     }
 }
 
@@ -1059,7 +1066,10 @@ impl BuiltInLiteralRule {
             Self::Lit1Rule9 => "LIT-1.9",
             Self::Lit2Rule1 => "LIT-2.1",
         };
-        RuleId(value.to_owned())
+        RuleId(
+            // ALLOC-JUSTIFICATION: RuleId owns the selected built-in catalogue identifier.
+            value.to_owned(),
+        )
     }
 }
 

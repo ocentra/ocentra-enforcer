@@ -23,6 +23,7 @@ use enforcer_domain::severity::{Severity, Tier};
 use enforcer_domain::telemetry_types::SourceLine;
 use enforcer_harness::parsers::HarnessDiagnostic;
 use enforcer_mechanization::feedback::ingest_and_classify;
+use enforcer_mechanization::feedback::{boundary::FeedbackDecisionDto, FeedbackDecisionRecord};
 use enforcer_mechanization::oracle::accept_rule;
 use enforcer_mechanization::scaffold::ScaffoldSpec;
 use enforcer_validator::validator::{ValidationInput, Validator};
@@ -200,5 +201,21 @@ fn proposed_rules_are_non_blocking_in_a_scan() -> Result<(), Box<dyn std::error:
         .get(&proposed.scaffold.record.rule_id)
         .is_none());
 
+    Ok(())
+}
+
+#[test]
+fn feedback_decision_dto_rejects_invalid_persisted_classification(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let wire: FeedbackDecisionDto = serde_json::from_value(serde_json::json!({
+        "schemaVersion": 1,
+        "eventType": "harness.feedback.decision",
+        "inputFingerprint": format!("sha256:{}", "0".repeat(64)),
+        "tool": "cargo",
+        "sourceRuleId": "E0308",
+        "classification": "unsupported",
+        "proposed": false
+    }))?;
+    assert!(FeedbackDecisionRecord::try_from(wire).is_err());
     Ok(())
 }

@@ -88,7 +88,7 @@ async fn family_subscriber_receives_typed_enum_variants_without_downcast(
                 let DecisionFamilyEvent::Approved(payload) = context.payload() else {
                     return Err(EventingError::InvalidValue {
                         field: enforcer_domain::events_types::EventErrorField::from_diagnostic(
-                            "family_variant",
+                            "family_variant".to_owned(),
                         ),
                         value: EventErrorReason::parse(
                             "approved subscriber received a non-approved variant",
@@ -113,7 +113,7 @@ async fn family_subscriber_receives_typed_enum_variants_without_downcast(
                 let DecisionFamilyEvent::Rejected(payload) = context.payload() else {
                     return Err(EventingError::InvalidValue {
                         field: enforcer_domain::events_types::EventErrorField::from_diagnostic(
-                            "family_variant",
+                            "family_variant".to_owned(),
                         ),
                         value: EventErrorReason::parse(
                             "rejected subscriber received a non-rejected variant",
@@ -208,7 +208,7 @@ fn record_payload(
 ) -> Result<(), EventingError> {
     let Ok(mut guard) = received.lock() else {
         return Err(EventingError::InvalidValue {
-            field: enforcer_domain::events_types::EventErrorField::from_diagnostic("received"),
+            field: enforcer_domain::events_types::EventErrorField::from_diagnostic("received".to_owned()),
             value: EventErrorReason::parse("mutex poisoned")?,
         });
     };

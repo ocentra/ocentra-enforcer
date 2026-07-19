@@ -631,8 +631,8 @@ fn rewrite_text(raw: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        migrate, scan, ConfigFormat, ConfigTarget, FindingKind, MigrationFindingDto,
-        MigrationOutcomeDto, RewrittenFileDto, LEGACY_ALIAS_TOOL_PREFIX,
+        migrate, scan, ConfigFormat, ConfigTarget, FindingKind, MigrationFinding,
+        MigrationFindingDto, MigrationOutcomeDto, RewrittenFile, RewrittenFileDto, LEGACY_ALIAS_TOOL_PREFIX,
         LEGACY_CANONICAL_TOOL_PREFIX, LEGACY_SERVER_NAME,
     };
     use crate::error::{InstallError, InstallResult};
@@ -951,5 +951,22 @@ mod tests {
         assert_eq!(round_trip_finding.harness, "codex");
         assert!(round_trip_rewrite.backup_path.ends_with(".bak"));
         Ok(())
+    }
+
+    #[test]
+    fn migration_dtos_reject_invalid_paths_and_empty_report_details() {
+        let invalid_finding = MigrationFindingDto {
+            harness: "codex".to_owned(),
+            path: "relative/config.toml".to_owned(),
+            kind: FindingKind::LegacyServerRegistration,
+            detail: String::new(),
+        };
+        assert!(MigrationFinding::try_from(invalid_finding).is_err());
+
+        let invalid_rewrite = RewrittenFileDto {
+            path: "relative/config.toml".to_owned(),
+            backup_path: "relative/config.toml.bak".to_owned(),
+        };
+        assert!(RewrittenFile::try_from(invalid_rewrite).is_err());
     }
 }

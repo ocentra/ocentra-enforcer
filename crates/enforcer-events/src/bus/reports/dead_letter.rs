@@ -20,8 +20,8 @@ pub fn dead_letter_recorded_event_type() -> Result<EventType, EventingError> {
     // ALLOC-JUSTIFICATION: the validated event type is retained by the dead-letter contract.
     EventType::try_new(DEAD_LETTER_RECORDED_EVENT_TYPE.to_owned()).map_err(|_decode_error| {
         EventingError::invalid_value(
-            EventErrorField::from_diagnostic("event_type"),
-            EventErrorReason::from_diagnostic(DEAD_LETTER_RECORDED_EVENT_TYPE),
+            EventErrorField::from_diagnostic("event_type".to_owned()),
+            EventErrorReason::from_diagnostic(DEAD_LETTER_RECORDED_EVENT_TYPE.to_owned()),
         )
     })
 }
@@ -113,8 +113,8 @@ impl DomainEvent for DeadLetterEvent {
         // ALLOC-JUSTIFICATION: the aggregate key is retained independently of the source event id.
         AggregateKey::try_new(self.original_event_id.as_str().to_owned()).map_err(|_decode_error| {
             EventingError::invalid_value(
-                EventErrorField::from_diagnostic("aggregate_key"),
-                EventErrorReason::from_diagnostic(self.original_event_id.as_str()),
+                EventErrorField::from_diagnostic("aggregate_key".to_owned()),
+                EventErrorReason::from_diagnostic(self.original_event_id.as_str().to_owned()),
             )
         })
     }
@@ -139,7 +139,8 @@ impl DomainEvent for DeadLetterEvent {
         // CLONE-JUSTIFICATION: validation consumes the candidate while diagnostics retain it on failure.
         IdempotencyKey::try_new(value.clone()).map_err(|_decode_error| {
             EventingError::invalid_value(
-                EventErrorField::from_diagnostic("idempotency_key"),
+                // ALLOC-JUSTIFICATION: the typed error owns the canonical diagnostic field after conversion fails.
+                EventErrorField::from_diagnostic("idempotency_key".to_owned()),
                 EventErrorReason::from_diagnostic(value),
             )
         })

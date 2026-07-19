@@ -9,7 +9,7 @@ export function callHasDirectRejection(body, call) {
   const statement = statementAt(body, call.start);
   const localEnd = call.end - (body.lastIndexOf(";", call.start - 1) + 1);
   const tail = statement.slice(localEnd);
-  if (/^\s*\.(?:err|expect_err|is_err|unwrap_err)\s*\(/u.test(tail)) return true;
+  if (/^\s*\.(?:err|expect_err|is_err|unwrap_err|is_none)\s*\(/u.test(tail)) return true;
   const prefix = statement.slice(0, localEnd);
   return (/\bmatches\s*!\s*\([^;]*$/u.test(prefix) && /^\s*,\s*Err\b/u.test(tail))
     || (/\bassert_eq\s*!\s*\([^;]*$/u.test(prefix) && /^\s*,\s*Err\b/u.test(tail));

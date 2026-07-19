@@ -7,7 +7,7 @@ pub(crate) fn python_string_prefix_len(rest: &str) -> usize {
             break;
         }
     }
-    let next = rest[len..].chars().next();
+    let next = rest.get(len..).and_then(|suffix| suffix.chars().next());
     if matches!(next, Some('"') | Some('\'')) {
         len
     } else {

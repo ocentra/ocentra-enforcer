@@ -68,13 +68,18 @@ mod tests {
 
     #[test]
     fn coverage_dto_round_trip() -> Result<(), Box<dyn std::error::Error>> {
+        let skip = SkipRecordDto {
+            file: "src/lib.rs".parse::<RelPath>()?,
+            reason: SkipReason::try_new("unmatched extension".to_owned())?,
+        };
+        let skip_wire = serde_json::to_string(&skip)?;
+        let restored_skip: SkipRecordDto = serde_json::from_str(&skip_wire)?;
+        assert_eq!(restored_skip, skip);
+
         let dto = CoverageDto {
             ran_count: ScanTargetCount::from_count(1),
             skipped_count: ScanTargetCount::from_count(1),
-            skips: vec![SkipRecordDto {
-                file: "src/lib.rs".parse::<RelPath>()?,
-                reason: SkipReason::try_new("unmatched extension".to_owned())?,
-            }],
+            skips: vec![skip],
         };
         let wire = serde_json::to_string(&dto)?;
         let restored: CoverageDto = serde_json::from_str(&wire)?;

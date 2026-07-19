@@ -79,3 +79,21 @@ impl TryFrom<ProjectProofRunSummaryDto> for ProjectProofRunSummary {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{ProjectProofRunSummary, ProjectProofRunSummaryDto};
+
+    #[test]
+    fn project_proof_run_summary_dto_rejects_an_invalid_path() -> serde_json::Result<()> {
+        let dto: ProjectProofRunSummaryDto = serde_json::from_value(serde_json::json!({
+            "path":"../escape", "proofRun":null, "freshness":"current",
+            "artifacts":{"declared":0,"present":0,"missing":0,"totalBytes":0}, "parseError":null
+        }))?;
+        assert!(matches!(
+            ProjectProofRunSummary::try_from(dto),
+            Err(enforcer_core::error::Error::Decode(_))
+        ));
+        Ok(())
+    }
+}

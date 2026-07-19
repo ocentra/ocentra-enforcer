@@ -76,7 +76,8 @@ impl EventMetadata {
         // CLONE-JUSTIFICATION: parsing consumes its candidate while the error retains the rejected timestamp.
         let observed_at = RecordedAt::try_new(observed_at.clone()).map_err(|_decode_error| {
             EventingError::invalid_value(
-                EventErrorField::from_diagnostic("recorded_at"),
+                // ALLOC-JUSTIFICATION: the typed error owns the canonical diagnostic field after timestamp conversion fails.
+                EventErrorField::from_diagnostic("recorded_at".to_owned()),
                 EventErrorReason::from_diagnostic(observed_at),
             )
         })?;

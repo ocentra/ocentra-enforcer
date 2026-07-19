@@ -41,7 +41,7 @@ async fn clear_for_test_reports_and_resets_local_bus_state(
         |_| async {
             Err(EventingError::EmptyValue {
                 field: enforcer_domain::events_types::EventErrorField::from_diagnostic(
-                    "lifecycle_clear_failure",
+                    "lifecycle_clear_failure".to_owned(),
                 ),
             })
         },

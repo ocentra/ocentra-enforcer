@@ -1,4 +1,3 @@
-use enforcer_domain::events_types::EventErrorReason;
 use enforcer_domain::events_types::{
     EventCount, EventDuration, NoSubscriberQueuePolicy, QueueDisposition, QueueIdempotencyState,
     QueueOverflowPolicy,
@@ -22,11 +21,7 @@ impl EventQueuePolicy {
     pub fn no_subscriber_queue(capacity: EventCount) -> Result<Self, EventingError> {
         let capacity = capacity
             .as_nonzero()
-            .ok_or_else(|| EventingError::InvalidQueuePolicy {
-                reason: EventErrorReason::from_diagnostic(
-                    "queue capacity must be greater than zero",
-                ),
-            })?;
+            .ok_or(EventingError::QueuePolicyCapacityMustBePositive)?;
         Ok(Self {
             capacity: Some(capacity),
             no_subscriber: NoSubscriberQueuePolicy::Queue,
@@ -42,11 +37,7 @@ impl EventQueuePolicy {
         policy: NoSubscriberQueuePolicy,
     ) -> Result<Self, EventingError> {
         if matches!(policy, NoSubscriberQueuePolicy::Queue) && self.capacity.is_none() {
-            return Err(EventingError::InvalidQueuePolicy {
-                reason: EventErrorReason::from_diagnostic(
-                    "queued no-subscriber policy requires bounded capacity",
-                ),
-            });
+            return Err(EventingError::QueuePolicyQueuedRequiresCapacity);
         }
         self.no_subscriber = policy;
         Ok(self)
@@ -61,9 +52,7 @@ impl EventQueuePolicy {
     /// Executes the with ttl event-runtime operation.
     pub fn with_ttl(mut self, ttl: EventDuration) -> Result<Self, EventingError> {
         if ttl.value().is_zero() {
-            return Err(EventingError::InvalidQueuePolicy {
-                reason: EventErrorReason::from_diagnostic("queue ttl must be greater than zero"),
-            });
+            return Err(EventingError::QueuePolicyTtlMustBePositive);
         }
         self.ttl = Some(ttl);
         Ok(self)

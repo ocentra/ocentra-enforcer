@@ -160,6 +160,19 @@ impl Validator for WafSqliSignatureValidator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
+        // WAF signatures describe observed requests, not implementation text
+        // which happens to name or document them. Preserve log-like evidence
+        // of arbitrary names, but never interpret source code as an access log.
+        let file_name = input.file.as_str().to_ascii_lowercase();
+        if [
+            ".rs", ".ts", ".tsx", ".js", ".jsx", ".py", ".java", ".kt", ".go", ".c", ".cc", ".cpp",
+            ".cs", ".php", ".rb", ".swift",
+        ]
+        .iter()
+        .any(|extension| file_name.ends_with(extension))
+        {
+            return Vec::new();
+        }
         let mut findings = Vec::new();
         for (index, line) in input.source.as_str().lines().enumerate() {
             let line_number = u32::try_from(index).unwrap_or(u32::MAX).saturating_add(1);

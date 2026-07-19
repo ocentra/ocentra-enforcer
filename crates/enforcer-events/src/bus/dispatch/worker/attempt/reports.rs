@@ -1,6 +1,5 @@
 use crate::boundary::stored_event_persistence::StoredEventEnvelope;
 use crate::error::EventingError;
-use enforcer_domain::events_types::EventErrorReason;
 use enforcer_domain::events_types::{EventCount, HandlerOutcome, SubscriberId, TargetHandler};
 
 use super::super::super::super::{
@@ -41,11 +40,7 @@ pub(super) fn dispatch_exhausted_report(
             target_handler,
         },
         HandlerOutcome::Failed,
-        Some(EventingError::InvalidHandlerPolicy {
-            reason: EventErrorReason::from_diagnostic(
-                "handler execution policy produced no attempt",
-            ),
-        }),
+        Some(EventingError::HandlerPolicyProducedNoAttempt),
         EventCount::ZERO,
     )
 }

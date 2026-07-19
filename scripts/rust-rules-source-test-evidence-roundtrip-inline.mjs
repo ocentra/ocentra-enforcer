@@ -4,7 +4,6 @@ import { DECODE_OPERATION, ENCODE_OPERATION, EQUALITY_ASSERTION } from "./rust-r
 import {
   decodesType,
   equalityAssertionMentions,
-  equalityAssertionReferences,
   isTargetValue,
   projectsDecodedTarget,
   referencesVariable,
@@ -52,7 +51,7 @@ export function hasInlineRoundTrip(body, targetName, decoders) {
       const comparesValues = rustSemicolonStatements(remaining).some((statement) =>
         isTargetValue(original, targetName)
           ? equalityAssertionMentions(statement, original.name, decoded.name)
-          : equalityAssertionReferences(statement, original.name, decoded.name));
+          : equalityAssertionMentions(statement, original.name, decoded.name));
       if (comparesValues && (
         decodesType(decoded, targetName)
         || projectsDecodedTarget(remaining, decoded.name, targetName)
@@ -80,9 +79,7 @@ export function hasInlineRoundTrip(body, targetName, decoders) {
       for (const decoded of decodedValues) {
         const remaining = body.slice(decoded.index);
         const comparesValues = rustSemicolonStatements(remaining).some((statement) =>
-          isTargetValue(original, targetName)
-            ? equalityAssertionMentions(statement, original.name, decoded.name)
-            : equalityAssertionReferences(statement, original.name, decoded.name));
+          equalityAssertionMentions(statement, original.name, decoded.name));
         if (comparesValues && (
           decodesType(decoded, targetName)
           || projectsDecodedTarget(remaining, decoded.name, targetName)

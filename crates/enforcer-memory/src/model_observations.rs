@@ -235,17 +235,17 @@ pub fn record_model_runtime_observation_in_store(
         ObservationLogEntryDto {
             schema_version: crate::boundary::log_schema::SCHEMA_VERSION,
             seq: seq.into(),
-            id,
+            id: id.into(),
             lesson_id: observation.lesson_id.retained().into(),
             rule_id: observation.rule_id.retained().map(Into::into),
             fault_class: observation.fault_class.retained().map(Into::into),
             repo_context: observation.repo_context.retained().into(),
-            clean: observation.clean.is_clean(),
+            clean: observation.clean,
             source_surface: observation.source_surface.retained().into(),
             ts: observation.ts.retained().into(),
             supersedes_seq: None,
-            payload_kind: Some(payload_kind),
-            payload: Some(payload),
+            payload_kind: Some(payload_kind.into()),
+            payload: Some(payload.into()),
         }
     })?;
     Ok(assigned_id)
@@ -262,10 +262,10 @@ pub fn project_model_runtime_observations_from_store(
             .entries
             .into_iter()
             .map(|entry| ModelRuntimeObservationRecordDto {
-                schema_version: entry.schema_version,
-                observed_at: entry.observed_at,
-                source: entry.source,
-                run_id: entry.run_id,
+                schema_version: entry.schema_version.into(),
+                observed_at: entry.observed_at.into(),
+                source: entry.source.into(),
+                run_id: entry.run_id.into(),
                 candidate: entry.candidate,
             })
             .collect());
@@ -286,7 +286,7 @@ fn project_model_runtime_observations_from_legacy_observation_log(
             continue;
         }
         if let Some(payload) = entry.payload {
-            records.push(serde_json::from_value(payload)?);
+            records.push(serde_json::from_value(payload.into())?);
         }
     }
     Ok(records)

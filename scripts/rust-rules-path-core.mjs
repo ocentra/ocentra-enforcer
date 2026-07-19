@@ -285,7 +285,7 @@ function maskRustCode(source) {
         continue;
       }
       if (ch === "'") {
-        if (/^'[A-Za-z_][A-Za-z0-9_]*\b/u.test(source.slice(i))) {
+        if (/^'[A-Za-z_][A-Za-z0-9_]*\b(?!')/u.test(source.slice(i))) {
           out += ch;
           continue;
         }

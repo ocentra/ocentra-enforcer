@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -51,4 +51,17 @@ test('workflow contract validator rejects missing and mutable gates', () => {
 
 test('checked-in workflows satisfy the reusable contract', () => {
   assert.deepEqual(verifyWorkflowContract(process.cwd()), []);
+});
+
+test('workflow contract rejects a branch-local scanner labelled as frozen', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'enforcer-ci-frozen-scanner-'));
+  cpSync(path.join(process.cwd(), '.github'), path.join(root, '.github'), { recursive: true });
+  const dogfood = path.join(root, '.github', 'workflows', 'dogfood.yml');
+  const localScanner = readFileSync(dogfood, 'utf8').replace(
+    'node "$FROZEN_SCANNER_DIR/scripts/rust-rules.mjs" scan --root "$GITHUB_WORKSPACE" --languages rust --workspace',
+    'node scripts/rust-rules.mjs scan --root . --languages rust --workspace',
+  );
+  writeFileSync(dogfood, localScanner);
+  const failures = verifyWorkflowContract(root);
+  assert.ok(failures.some((failure) => failure.includes('branch-local scanner')));
 });

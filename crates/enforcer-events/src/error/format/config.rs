@@ -26,9 +26,23 @@ pub(super) fn fmt_config_error(
         EventingError::InvalidHandlerPolicy { reason } => {
             write!(formatter, "invalid event handler policy: {reason}")
         }
+        EventingError::HandlerPolicyTimeoutMustBePositive => {
+            formatter.write_str("invalid event handler policy: timeout must be greater than zero")
+        }
+        EventingError::HandlerPolicyMaxAttemptsMustBePositive => {
+            formatter.write_str("invalid event handler policy: max_attempts must be greater than zero")
+        }
+        EventingError::HandlerPolicyProducedNoAttempt => {
+            formatter.write_str("invalid event handler policy: handler execution policy produced no attempt")
+        }
         EventingError::InvalidQueuePolicy { reason } => {
             write!(formatter, "invalid event queue policy: {reason}")
         }
+        EventingError::QueuePolicyCapacityMustBePositive => formatter.write_str("invalid event queue policy: queue capacity must be greater than zero"),
+        EventingError::QueuePolicyQueuedRequiresCapacity => formatter.write_str("invalid event queue policy: queued no-subscriber policy requires bounded capacity"),
+        EventingError::QueuePolicyTtlMustBePositive => formatter.write_str("invalid event queue policy: queue ttl must be greater than zero"),
+        EventingError::QueuePolicyCapacityNotConfigured => formatter.write_str("invalid event queue policy: queue capacity is not configured"),
+        EventingError::QueuePolicyDropOldestRequiresQueuedEvent => formatter.write_str("invalid event queue policy: drop-oldest overflow requires a queued event"),
         _ => {
             debug_assert!(false, "core config formatter received non-config error");
             formatter.write_str("eventing config error")

@@ -46,8 +46,24 @@ pub enum EventingError {
     HandlerTimedOut { subscriber_id: SubscriberId },
     #[error("invalid event handler policy: {reason}")]
     InvalidHandlerPolicy { reason: EventErrorReason },
+    #[error("invalid event handler policy: timeout must be greater than zero")]
+    HandlerPolicyTimeoutMustBePositive,
+    #[error("invalid event handler policy: max_attempts must be greater than zero")]
+    HandlerPolicyMaxAttemptsMustBePositive,
+    #[error("invalid event handler policy: handler execution policy produced no attempt")]
+    HandlerPolicyProducedNoAttempt,
     #[error("invalid event queue policy: {reason}")]
     InvalidQueuePolicy { reason: EventErrorReason },
+    #[error("invalid event queue policy: queue capacity must be greater than zero")]
+    QueuePolicyCapacityMustBePositive,
+    #[error("invalid event queue policy: queued no-subscriber policy requires bounded capacity")]
+    QueuePolicyQueuedRequiresCapacity,
+    #[error("invalid event queue policy: queue ttl must be greater than zero")]
+    QueuePolicyTtlMustBePositive,
+    #[error("invalid event queue policy: queue capacity is not configured")]
+    QueuePolicyCapacityNotConfigured,
+    #[error("invalid event queue policy: drop-oldest overflow requires a queued event")]
+    QueuePolicyDropOldestRequiresQueuedEvent,
     #[error("no subscriber for event type: {event_type}", event_type = event_type.as_str())]
     NoSubscriber { event_type: EventType },
     #[error(
@@ -69,6 +85,8 @@ pub enum EventingError {
     DuplicateIdempotencyKey { idempotency_key: IdempotencyKey },
     #[error("invalid event request options: {reason}")]
     InvalidRequestOptions { reason: EventErrorReason },
+    #[error("invalid event request options: request timeout must be greater than zero")]
+    RequestOptionsTimeoutMustBePositive,
     #[error("duplicate request id: {request_id}", request_id = request_id.as_str())]
     DuplicateRequest { request_id: RequestId },
     #[error("event request timed out: {request_id}", request_id = request_id.as_str())]
@@ -155,7 +173,8 @@ impl EventingError {
 
     pub(crate) fn journal_io(path: &JournalPath, error: &std::io::Error) -> Self {
         Self::JournalIo {
-            path: EventErrorPath::from_diagnostic(path.as_str()),
+            // ALLOC-JUSTIFICATION: EventErrorPath owns the journal location after the borrowed path is released.
+            path: EventErrorPath::from_diagnostic(path.as_str().to_owned()),
             // ALLOC-JUSTIFICATION: EventingError owns the I/O diagnostic after the borrowed std error expires.
             reason: EventErrorReason::from_diagnostic(error.to_string()),
         }
@@ -172,7 +191,8 @@ impl EventingError {
 impl From<DecodeError> for EventingError {
     fn from(error: DecodeError) -> Self {
         Self::InvalidValue {
-            field: EventErrorField::from_diagnostic("decoded_value"),
+            // ALLOC-JUSTIFICATION: EventErrorField owns the stable decode field in the returned error.
+            field: EventErrorField::from_diagnostic("decoded_value".to_owned()),
             // ALLOC-JUSTIFICATION: EventingError owns the decode diagnostic independently of the consumed DecodeError.
             value: EventErrorReason::from_diagnostic(error.to_string()),
         }

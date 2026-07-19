@@ -261,3 +261,17 @@ fn profile_shape() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+#[test]
+fn profile_dto_rejects_invalid_typed_profile_name() -> Result<(), Box<dyn std::error::Error>> {
+    let manifest = manifest_dir();
+    let repo_root = manifest
+        .parent()
+        .and_then(|p| p.parent())
+        .ok_or("enforcer-security should be nested two levels under the workspace root")?;
+    let raw = std::fs::read_to_string(repo_root.join("profiles/money-critical-security.json"))?;
+    let mut dto: MechanizedProfileDto = serde_json::from_str(&raw)?;
+    dto.profile_name = " ".to_owned();
+    assert!(MechanizedProfile::try_from(dto).is_err());
+    Ok(())
+}

@@ -74,6 +74,7 @@ impl std::str::FromStr for Sha256 {
     type Err = DecodeError;
 
     fn from_str(raw: &str) -> Result<Self, DecodeError> {
+        // ALLOC-JUSTIFICATION: Sha256 owns canonical digest text after parsing a borrowed value.
         Self::try_from(raw.to_owned())
     }
 }

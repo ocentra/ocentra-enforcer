@@ -202,20 +202,20 @@ pub fn record_procedural_in_store(
         ObservationLogEntryDto {
             schema_version: SCHEMA_VERSION,
             seq: seq.into(),
-            id,
+            id: id.into(),
             // CLONE-JUSTIFICATION: the native procedural record remains owned for subsequent append and graph ingestion.
-            lesson_id: input.lesson_id.as_str().retained(),
+            lesson_id: input.lesson_id.as_str().into(),
             rule_id: None,
-            fault_class: Some(input.outcome.as_str().retained()),
+            fault_class: Some(input.outcome.as_str().into()),
             // CLONE-JUSTIFICATION: the native procedural record remains owned for subsequent append and graph ingestion.
-            repo_context: input.detail.as_str().retained(),
-            clean: input.outcome.is_success(),
-            source_surface: "procedural-memory".retained(),
+            repo_context: input.detail.as_str().into(),
+            clean: input.outcome.is_success().into(),
+            source_surface: "procedural-memory".into(),
             // CLONE-JUSTIFICATION: the native procedural record remains owned for subsequent append and graph ingestion.
-            ts: input.ts.as_str().retained(),
+            ts: input.ts.as_str().into(),
             supersedes_seq: None,
-            payload_kind: Some("procedural-memory".retained()),
-            payload: Some(payload),
+            payload_kind: Some("procedural-memory".into()),
+            payload: Some(payload.into()),
         }
     })?;
     let Some(record) = assigned_record else {
@@ -289,19 +289,19 @@ pub fn record_route_choice_in_store(
         ObservationLogEntryDto {
             schema_version: SCHEMA_VERSION,
             seq: seq.into(),
-            id,
-            lesson_id: ProceduralLessonReference::default().into(),
+            id: id.into(),
+            lesson_id: "".into(),
             rule_id: None,
-            fault_class: Some("route-choice".retained()),
+            fault_class: Some("route-choice".into()),
             // CLONE-JUSTIFICATION: the native route trace remains owned for subsequent append and graph ingestion.
-            repo_context: input.query.as_str().retained(),
-            clean: true,
-            source_surface: "route-choice".retained(),
+            repo_context: input.query.as_str().into(),
+            clean: true.into(),
+            source_surface: "route-choice".into(),
             // CLONE-JUSTIFICATION: the native route trace remains owned for subsequent append and graph ingestion.
-            ts: input.ts.as_str().retained(),
+            ts: input.ts.as_str().into(),
             supersedes_seq: None,
-            payload_kind: Some("route-choice".retained()),
-            payload: Some(payload),
+            payload_kind: Some("route-choice".into()),
+            payload: Some(payload.into()),
         }
     })?;
     let Some(trace) = assigned_trace else {
@@ -363,7 +363,7 @@ fn replay_route_traces_from_native_log(
             id: entry.id.into(),
             query: entry.query.into(),
             route: entry.route.into(),
-            confidence: RouteConfidence::normalized(entry.confidence),
+            confidence: entry.confidence,
             ts: entry.ts.into(),
         };
         if !graph
@@ -388,7 +388,7 @@ fn replay_procedural_and_routes_from_legacy_observation_log(
         match (entry.payload_kind.as_deref(), entry.payload) {
             (Some("procedural-memory"), Some(payload)) => {
                 let record: ProceduralRecord =
-                    serde_json::from_value::<ProceduralRecordDto>(payload)?.into();
+                    serde_json::from_value::<ProceduralRecordDto>(payload.into())?.into();
                 if !graph.procedural_records().iter().any(|r| r.id == record.id) {
                     graph.ingest_procedural(record);
                     count += 1;
@@ -396,7 +396,7 @@ fn replay_procedural_and_routes_from_legacy_observation_log(
             }
             (Some("route-choice"), Some(payload)) => {
                 let mut trace: RouteTrace =
-                    serde_json::from_value::<RouteTraceDto>(payload)?.into();
+                    serde_json::from_value::<RouteTraceDto>(payload.into())?.into();
                 trace.confidence = RouteConfidence::normalized(trace.confidence.get());
                 if !graph.route_traces().iter().any(|r| r.id == trace.id) {
                     graph.ingest_route_trace(trace);

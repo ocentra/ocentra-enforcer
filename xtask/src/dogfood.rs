@@ -38,7 +38,7 @@
 //! effectful surfaces -- config-glob translation, toolchain subprocess
 //! spawning -- live in [`boundary`].
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use enforcer_domain::findings::Report;
 use enforcer_domain::paths::RepoRoot;
@@ -130,11 +130,12 @@ fn scan_crates(
         .to_string_lossy()
         .parse()
         .map_err(DogfoodError::from_display)?;
-    let resolved = scope::resolve(
-        &ScopeRequest::Paths(vec![PathBuf::from("crates")]),
-        &repo_root_brand,
-    )
-    .map_err(DogfoodError::from_display)?;
+    // The file vector is already restricted to crates/** above.  Keep the
+    // engine scope as workspace semantics: `Paths(["crates"])` means an
+    // explicit user request and deliberately forces detector-authoring files
+    // to be scanned, which is not the synthetic dogfood selection here.
+    let resolved =
+        scope::resolve(&ScopeRequest::All, &repo_root_brand).map_err(DogfoodError::from_display)?;
     let validators = engine::build_family_validators().map_err(DogfoodError::from_display)?;
     Ok(engine::run(&resolved, crate_files, &validators))
 }

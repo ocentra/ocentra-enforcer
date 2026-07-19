@@ -263,8 +263,8 @@ pub fn index_status<'a>(
         let state = match check_index_freshness(&manifest_path, log_length) {
             Ok(None) => FreshnessState::NoIndexBuilt,
             Ok(Some(manifest)) => FreshnessState::Fresh {
-                built_at: manifest.built_at,
-                watermark: manifest.source_high_watermark,
+                built_at: manifest.built_at.into(),
+                watermark: manifest.source_high_watermark.get(),
             },
             Err(MemoryError::StaleIndex {
                 manifest_watermark,

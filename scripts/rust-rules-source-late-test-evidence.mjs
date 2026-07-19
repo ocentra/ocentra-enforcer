@@ -52,9 +52,9 @@ function createEvidenceContext(root, filePath, source, crateEvidenceCache) {
 }
 
 function applyConversionAndRegressionEvidence(context) {
-  const { source, originalLines, root, filePath, violations, evidenceContext } = context;
+  const { source, masked, originalLines, root, filePath, violations, evidenceContext } = context;
   const conversions = /\bTryFrom\s*<\s*(?:[A-Za-z_][A-Za-z0-9_]*::)*(?<dto>[A-Z][A-Za-z0-9_]*(?:Dto|Request|Response|Envelope))\s*>\s+for\s+(?<domain>[A-Z][A-Za-z0-9_]*)/gu;
-  for (const match of source.matchAll(conversions)) {
+  for (const match of masked.matchAll(conversions)) {
     const dtoName = match.groups?.dto ?? "";
     const domainName = match.groups?.domain ?? "";
     if (hasConversionRejectionEvidence(

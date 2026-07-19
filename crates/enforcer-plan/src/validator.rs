@@ -580,9 +580,9 @@ mod tests {
     use enforcer_domain::boundary::validation::{ValidationSource, ValidationSourceText};
     use enforcer_domain::findings::ScanScope;
     use enforcer_domain::ids::{LaneId, RuleId};
-    use enforcer_domain::paths::{RelPath, RepoRoot};
+    use enforcer_domain::paths::RepoRoot;
     use enforcer_validator::{harness::run_fixture_parity, validator::ValidationInput};
-    use proptest::proptest;
+    use proptest::{prop_assert, proptest};
 
     fn manifest_dir() -> Result<RepoRoot, Box<dyn std::error::Error>> {
         Ok(RepoRoot::try_from(env!("CARGO_MANIFEST_DIR").to_owned())?)
@@ -621,7 +621,7 @@ mod tests {
             if let Ok(workpack_id) = "property-workpack".parse::<LaneId>() {
                 let source = ValidationSourceText::try_new(source);
                 let parsed = parse_owns_record(workpack_id.clone(), &source);
-                prop_assert!(match parsed {
+                let preserves_ownership_invariants = match parsed {
                     Ok(None) => true,
                     Ok(Some(record)) => {
                         record.workpack_id == workpack_id
@@ -630,7 +630,8 @@ mod tests {
                     Err(DecodeError { path, .. }) => {
                         path == "planOwnershipPattern" || path == "laneId"
                     }
-                });
+                };
+                prop_assert!(preserves_ownership_invariants);
             }
         }
     }

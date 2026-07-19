@@ -62,7 +62,7 @@ impl TryFrom<JournalAppendDto> for JournalAppend {
             sequence: enforcer_domain::events_types::JournalSequence::try_new(
                 NonZeroU64::new(value.sequence).ok_or_else(|| {
                     EventingError::invalid_value(
-                        EventErrorField::from_diagnostic("journal_sequence"),
+                        EventErrorField::from_diagnostic("journal_sequence".to_owned()),
                         EventErrorReason::from_diagnostic(String::from(
                             "journal sequence must be positive",
                         )),
@@ -75,7 +75,7 @@ impl TryFrom<JournalAppendDto> for JournalAppend {
                     let raw = hash.clone();
                     raw.try_into().map_err(|_decode_error| {
                         EventingError::invalid_value(
-                            EventErrorField::from_diagnostic("journal_hash"),
+                            EventErrorField::from_diagnostic("journal_hash".to_owned()),
                             EventErrorReason::from_diagnostic(hash),
                         )
                     })
@@ -87,7 +87,7 @@ impl TryFrom<JournalAppendDto> for JournalAppend {
                     let raw = hash.clone();
                     raw.try_into().map_err(|_decode_error| {
                         EventingError::invalid_value(
-                            EventErrorField::from_diagnostic("journal_hash"),
+                            EventErrorField::from_diagnostic("journal_hash".to_owned()),
                             EventErrorReason::from_diagnostic(hash),
                         )
                     })

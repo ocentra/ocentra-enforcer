@@ -75,6 +75,7 @@ impl TryFrom<String> for CrateName {
 impl std::str::FromStr for CrateName {
     type Err = DecodeError;
     fn from_str(value: &str) -> Result<Self, Self::Err> {
+        // ALLOC-JUSTIFICATION: CrateName owns validated text after parsing a borrowed CLI/config token.
         Self::try_new(value.to_owned())
     }
 }

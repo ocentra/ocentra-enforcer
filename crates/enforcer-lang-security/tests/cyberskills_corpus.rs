@@ -186,6 +186,29 @@ fn corpus_path_traversal() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn path_traversal_ignores_prose_words_that_only_contain_req(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let validator = PathTraversalValidator::new()?;
+    let file: RelPath = "spec.rs".parse()?;
+    let prose = "/// the first file (frequently a whole namespace subtree)";
+    let prose_findings = validator.validate(ValidationInput {
+        file: &file,
+        source: enforcer_domain::boundary::validation::ValidationSource::from_text(prose),
+        scope: ScanScope::Files,
+    });
+    assert!(prose_findings.is_empty());
+
+    let dangerous = "open(request_path)";
+    let dangerous_findings = validator.validate(ValidationInput {
+        file: &file,
+        source: enforcer_domain::boundary::validation::ValidationSource::from_text(dangerous),
+        scope: ScanScope::Files,
+    });
+    assert_eq!(dangerous_findings.len(), 1);
+    Ok(())
+}
+
+#[test]
 fn corpus_insecure_deser() -> Result<(), Box<dyn std::error::Error>> {
     let family: Vec<Box<dyn Validator>> = vec![Box::new(InsecureDeserializationValidator::new()?)];
     assert_family("insecure_deser.json", "app.py", &family)
@@ -303,6 +326,32 @@ fn corpus_dependency_confusion() -> Result<(), Box<dyn std::error::Error>> {
 fn corpus_waf_sqli() -> Result<(), Box<dyn std::error::Error>> {
     let family: Vec<Box<dyn Validator>> = vec![Box::new(WafSqliSignatureValidator::new()?)];
     assert_family("waf_sqli.json", "access.log", &family)
+}
+
+#[test]
+fn waf_sqli_treats_log_evidence_but_not_source_code_as_a_waf_input(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let validator = WafSqliSignatureValidator::new()?;
+    let source_file: RelPath = "crates/product/src/query.rs".parse()?;
+    let source_findings = validator.validate(ValidationInput {
+        file: &source_file,
+        source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+            "// UNION SELECT is a WAF signature",
+        ),
+        scope: ScanScope::Files,
+    });
+    assert!(source_findings.is_empty());
+
+    let log_file: RelPath = "evidence/waf/access.log".parse()?;
+    let log_findings = validator.validate(ValidationInput {
+        file: &log_file,
+        source: enforcer_domain::boundary::validation::ValidationSource::from_text(
+            "GET /?q=UNION SELECT password FROM users",
+        ),
+        scope: ScanScope::Files,
+    });
+    assert_eq!(log_findings.len(), 1);
+    Ok(())
 }
 
 #[test]

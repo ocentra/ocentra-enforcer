@@ -97,7 +97,7 @@ fn request_completion_outcome_from_token(
         "late" => Ok(RequestCompletionOutcome::Late),
         _ => Err(EventingError::invalid_value(
             enforcer_domain::events_types::EventErrorField::from_diagnostic(
-                "request_completion_outcome",
+                "request_completion_outcome".to_owned(),
             ),
             EventErrorReason::from_diagnostic(value),
         )),

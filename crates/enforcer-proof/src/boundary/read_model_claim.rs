@@ -47,3 +47,20 @@ impl TryFrom<ProjectClaimSummaryDto> for ProjectClaimSummary {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{ProjectClaimSummary, ProjectClaimSummaryDto};
+
+    #[test]
+    fn project_claim_summary_dto_rejects_an_invalid_registry_path() -> serde_json::Result<()> {
+        let dto: ProjectClaimSummaryDto = serde_json::from_value(serde_json::json!({
+            "registryPath":"../escape", "state":"blocked", "requiredProofIds":[], "claim":null, "error":null
+        }))?;
+        assert!(matches!(
+            ProjectClaimSummary::try_from(dto),
+            Err(enforcer_core::error::Error::Decode(_))
+        ));
+        Ok(())
+    }
+}

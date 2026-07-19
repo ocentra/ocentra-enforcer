@@ -2,10 +2,17 @@ use super::support::{test_event_for_type, TestText, OTHER_EVENT_TYPE, TEST_EVENT
 use enforcer_domain::events_types::{
     EventNamespace, EventTopologyStatus, EventType, SourceComponent, SubscriberId, TargetHandler,
 };
+use enforcer_events::boundary::topology_presentation::EventTopologyManifestResponse;
+use enforcer_events::boundary::topology_contract_presentation::{
+    EventTopologyContractResponse, EventTopologySubscriberTargetResponse,
+};
+use enforcer_events::boundary::request_persistence::RequestCompletionReportResponse;
 use enforcer_events::contract_registry::EventContractRegistry;
+use enforcer_events::envelope::EventContract;
+use enforcer_events::request::RequestCompletionReport;
 use enforcer_events::topology::{
     EventTopologyEntry, EventTopologyFamilyVariant, EventTopologyManifest, EventTopologyPublisher,
-    EventTopologySubscriber,
+    EventTopologySubscriber, EventTopologySubscriberTarget,
 };
 use serde_json::Value;
 
@@ -203,6 +210,79 @@ fn topology_manifest_serializes_canonical_eventing_entry_keys(
     let response = manifest.presentation();
     let recovered = EventTopologyManifest::try_from(response.clone())?;
     assert_eq!(recovered.presentation(), response);
+    Ok(())
+}
+
+#[test]
+fn topology_presentation_rejects_invalid_contract_and_subscriber_values(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let registry = topology_registry()?;
+    let manifest = EventTopologyManifest::from_registry(
+        &registry,
+        &[publisher(
+            TestText(TEST_EVENT_TYPE.to_owned()),
+            TestText(COVERED_PUBLISHER.to_owned()),
+        )?],
+        &[subscriber(
+            TestText(TEST_EVENT_TYPE.to_owned()),
+            TestText(COVERED_SUBSCRIBER.to_owned()),
+        )?],
+        &[],
+        &[],
+    );
+    let invalid_contract = EventContract::try_from(EventTopologyContractResponse {
+        event_type: String::new(),
+        schema_version: 1,
+    });
+    assert!(matches!(
+        invalid_contract,
+        Err(enforcer_events::error::EventingError::InvalidValue { field, .. })
+            if field.as_str() == "decoded_value"
+    ));
+
+    let mut invalid: EventTopologyManifestResponse = manifest.presentation();
+    invalid.entries[0].subscribers[0].target_handler = "invalid handler".to_owned();
+    let invalid_subscriber = EventTopologySubscriberTarget::try_from(
+        EventTopologySubscriberTargetResponse {
+            subscriber_id: COVERED_SUBSCRIBER.to_owned(),
+            target_handler: "invalid handler".to_owned(),
+        },
+    );
+    assert!(matches!(
+        invalid_subscriber,
+        Err(enforcer_events::error::EventingError::InvalidValue { field, .. })
+            if field.as_str() == "decoded_value"
+    ));
+
+    let invalid_entry: enforcer_events::boundary::topology_presentation::EventTopologyEntryResponse = invalid.entries.remove(0);
+    let invalid_entry = EventTopologyEntry::try_from(invalid_entry);
+    assert!(matches!(
+        invalid_entry,
+        Err(enforcer_events::error::EventingError::InvalidValue { field, .. })
+            if field.as_str() == "decoded_value"
+    ));
+
+    let mut invalid_manifest: EventTopologyManifestResponse = manifest.presentation();
+    invalid_manifest.entries[0].contract.event_type.clear();
+    let invalid_manifest = EventTopologyManifest::try_from(invalid_manifest);
+    assert!(matches!(
+        invalid_manifest,
+        Err(enforcer_events::error::EventingError::InvalidValue { field, .. })
+            if field.as_str() == "decoded_value"
+    ));
+
+    assert_eq!(
+        RequestCompletionReport::try_from(RequestCompletionReportResponse {
+            request_id: "request-1".to_owned(),
+            outcome: "invalid".to_owned(),
+        }),
+        Err(enforcer_events::error::EventingError::InvalidValue {
+            field: enforcer_domain::events_types::EventErrorField::parse(
+                "request_completion_outcome",
+            )?,
+            value: enforcer_domain::events_types::EventErrorReason::parse("invalid")?,
+        })
+    );
     Ok(())
 }
 

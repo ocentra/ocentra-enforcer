@@ -74,11 +74,14 @@ impl ArtifactManifest {
             id.as_str().into(),
             ArtifactManifestEntryDto {
                 schema_version: SCHEMA_VERSION,
-                id: id.as_str().retained(),
+                id: enforcer_domain::memory_types::ArtifactId::from_content(content.as_ref()),
                 rel_path: rel_path.map(Into::into),
                 byte_len: match GraphArtifactByteCount::try_from(content.as_ref().len()) {
-                    Ok(byte_count) => byte_count.into(),
-                    Err(_) => u64::MAX,
+                    Ok(byte_count) => byte_count,
+                    Err(_) => return Err(MemoryError::ModelRuntime {
+                        operation: "write-artifact".into(),
+                        reason: "artifact byte count exceeds the supported range".into(),
+                    }),
                 },
                 ts: ts.into(),
             },
@@ -146,7 +149,7 @@ pub fn check_index_freshness(
     current_log_length: impl Into<IndexManifestWatermark>,
 ) -> Result<Option<IndexManifestDto>> {
     let path = path.into();
-    let current_log_length = current_log_length.into().get();
+    let current_log_length = current_log_length.into();
     if !path.exists() {
         return Ok(None);
     }
@@ -158,8 +161,8 @@ pub fn check_index_freshness(
     if manifest.source_high_watermark < current_log_length {
         return Err(MemoryError::StaleIndex {
             path: path.to_path_buf().into(),
-            manifest_watermark: manifest.source_high_watermark.into(),
-            log_length: current_log_length.into(),
+            manifest_watermark: manifest.source_high_watermark.get().into(),
+            log_length: current_log_length.get().into(),
         });
     }
     Ok(Some(manifest))
@@ -180,7 +183,7 @@ pub fn write_index_manifest(
     let manifest = IndexManifestDto {
         schema_version: SCHEMA_VERSION,
         source_log: source_log.into(),
-        source_high_watermark: source_high_watermark.get(),
+        source_high_watermark,
         built_at: built_at.into(),
     };
     let json = serde_json::to_string_pretty(&manifest)?;

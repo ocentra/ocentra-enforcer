@@ -50,9 +50,9 @@ impl TryFrom<InstallReportText> for ProjectCiCommand {
                 .split("&&")
                 .any(|part| part.is_empty() || part.contains('&'))
         {
-            return Err(InstallError::MalformedConfig {
-                path: WORKFLOW_PATH.to_owned(),
-                reason: "CI commands must be non-empty single-line argument text; only alphanumeric characters, spaces, . _ - / : =, and paired && are allowed".to_owned(),
+            return Err(InstallError::InvalidCiCommand {
+                path: WORKFLOW_PATH,
+                reason: "CI commands must be non-empty single-line argument text; only alphanumeric characters, spaces, . _ - / : =, and paired && are allowed",
             });
         }
         Ok(Self(value))

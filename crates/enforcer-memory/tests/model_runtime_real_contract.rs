@@ -62,7 +62,8 @@ fn huggingface_repo_metadata_wire_shape_decodes_and_roundtrips() -> TestResult {
 }
 
 #[test]
-fn runtime_dto_domain_boundary_conversions_round_trip() -> TestResult {
+fn runtime_dto_domain_boundary_conversions_round_trip_and_reject_invalid_empty_root() -> TestResult
+{
     let cache_policy = ModelCacheRootPolicyDto {
         mode: ModelCacheRootMode::DevRepoLocal,
         root: std::path::PathBuf::from("repo-root/.cache/model"),

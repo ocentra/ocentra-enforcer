@@ -212,7 +212,7 @@ async fn manual_clock_stops_retry_when_deadline_expires_between_attempts(
                 handler_clock.sleep(Duration::from_millis(1).into()).await;
                 Err(EventingError::EmptyValue {
                     field: enforcer_domain::events_types::EventErrorField::from_diagnostic(
-                        "manual_clock_deadline_retry",
+                        "manual_clock_deadline_retry".to_owned(),
                     ),
                 })
             }

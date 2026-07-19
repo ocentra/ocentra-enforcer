@@ -174,10 +174,11 @@ pub fn tokenize_identifier(
     let name = name.into();
     let mut tokens = SimilarityIdentifierLexemes::new();
     let mut current = String::new();
-    let chars: Vec<char> = name.as_str().chars().collect();
-    for (i, &c) in chars.iter().enumerate() {
+    let mut previous = None;
+    for c in name.as_str().chars() {
         let is_delim = matches!(c, '.' | '/' | '_' | '-' | ' ' | '(' | ')' | ',' | ':');
-        let is_camel_break = i > 0 && c.is_ascii_uppercase() && chars[i - 1].is_ascii_lowercase();
+        let is_camel_break = c.is_ascii_uppercase()
+            && previous.is_some_and(|previous: char| previous.is_ascii_lowercase());
         if is_delim || is_camel_break {
             if !current.is_empty() {
                 tokens.push(std::mem::take(&mut current).into());
@@ -189,6 +190,7 @@ pub fn tokenize_identifier(
         if c.is_alphanumeric() {
             current.push(c.to_ascii_lowercase());
         }
+        previous = Some(c);
     }
     if !current.is_empty() {
         tokens.push(current.into());
@@ -208,7 +210,8 @@ fn jaccard<T: Ord>(a: &BTreeSet<T>, b: &BTreeSet<T>) -> f64 {
     if union == 0 {
         0.0
     } else {
-        intersection as f64 / union as f64
+        f64::from(u32::try_from(intersection).unwrap_or(u32::MAX))
+            / f64::from(u32::try_from(union).unwrap_or(u32::MAX))
     }
 }
 
@@ -218,7 +221,7 @@ fn jaccard<T: Ord>(a: &BTreeSet<T>, b: &BTreeSet<T>) -> f64 {
 fn file_ext(rel_path: &SimilarityPath) -> SimilarityPath {
     let rel_path = rel_path.as_str();
     match rel_path.rfind('.') {
-        Some(idx) => rel_path.get(idx..).unwrap_or("").into(),
+        Some(idx) => rel_path.get(idx..).map_or_else(|| "".into(), Into::into),
         None => "".into(),
     }
 }

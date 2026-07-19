@@ -179,7 +179,7 @@ fn topology_status_from_token(
         "no-subscriber" => Ok(EventTopologyStatus::NoSubscriber),
         "accepted-one-sided" => Ok(EventTopologyStatus::AcceptedOneSided),
         _ => Err(crate::error::EventingError::invalid_value(
-            EventErrorField::from_diagnostic("event_topology_status"),
+            EventErrorField::from_diagnostic("event_topology_status".to_owned()),
             EventErrorReason::from_diagnostic(value),
         )),
     }

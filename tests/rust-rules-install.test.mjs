@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { spawnCli } from './cli-spawn.mjs';
 import { checkStagedRatchet } from '../scripts/precommit-ratchet.mjs';
+import { maskRustCode } from '../scripts/rust-rules-path-core.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'rust-rules.mjs');
@@ -684,6 +685,12 @@ impl From<usize> for InvalidCount {
     fn from(value: usize) -> Self { Self(value) }
 }
 
+#[doc = "BRAND-INVARIANT: every usize is a valid exact zero-inclusive count."]
+pub struct WrongRawConversion(usize);
+impl From<u32> for WrongRawConversion {
+    fn from(value: u32) -> Self { Self(value as usize) }
+}
+
 #[doc = "BRAND-INVARIANT: labels are required to be non-empty."]
 pub struct InvalidLabel(String);
 impl From<String> for InvalidLabel {
@@ -748,6 +755,25 @@ pub trait RawDomainContract {
     true,
     result.stdout,
   );
+  assert.equal(
+    report.violations.some(
+      (violation) => violation.ruleId === 'RR-6.44' && violation.detail.includes('WrongRawConversion'),
+    ),
+    true,
+    result.stdout,
+  );
+});
+
+test('Rust masking preserves code after byte character literals and masks comments and strings', () => {
+  const source = `
+const ASCII_A: u8 = b'a';
+// impl From<usize> for CommentOnly {}
+const TEXT: &str = "impl From<usize> for StringOnly {}";
+impl From<usize> for TotalCount {}
+`;
+  const masked = maskRustCode(source);
+  assert.match(masked, /impl From<usize> for TotalCount/u);
+  assert.doesNotMatch(masked, /CommentOnly|StringOnly/u);
 });
 
 test('awaiting a Tokio lock acquisition is not reported as awaiting while holding a guard', () => {

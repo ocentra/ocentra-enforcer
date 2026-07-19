@@ -167,12 +167,12 @@ pub fn append_observation_payload_to_store(
         ObservationLogEntryDto {
             schema_version: SCHEMA_VERSION,
             seq: seq.into(),
-            id,
+            id: id.into(),
             lesson_id: observation.lesson_id.into(),
             rule_id: observation.rule_id.map(Into::into),
             fault_class: observation.fault_class.map(Into::into),
             repo_context: observation.repo_context.into(),
-            clean: observation.clean.is_clean(),
+            clean: observation.clean,
             source_surface: observation.source_surface.into(),
             ts: observation.ts.into(),
             supersedes_seq: None,
@@ -223,7 +223,7 @@ pub fn replay_incident_observations_from_store(
         ) {
             continue;
         }
-        if graph.nodes().iter().any(|node| node.id() == entry.id) {
+        if graph.nodes().iter().any(|node| node.id().as_str() == entry.id.as_str()) {
             continue;
         }
         graph.ingest_incident(incident_from_entry(&entry));
@@ -248,7 +248,7 @@ fn incident_from_observation(id: IngestIncidentId, observation: Observation) -> 
 fn incident_from_entry(entry: &ObservationLogEntryDto) -> Incident {
     Incident {
         // CLONE-JUSTIFICATION: the graph-owned incident outlives this borrowed durable log entry.
-        id: entry.id.clone().into(),
+        id: entry.id.as_str().into(),
         // CLONE-JUSTIFICATION: the graph-owned incident outlives this borrowed durable log entry.
         lesson_id: entry.lesson_id.clone().into(),
         // CLONE-JUSTIFICATION: the graph-owned incident outlives this borrowed durable log entry.

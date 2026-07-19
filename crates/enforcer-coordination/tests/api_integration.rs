@@ -6,8 +6,8 @@
 use std::path::Path;
 
 use enforcer_coordination::api::{
-    acknowledge_message, claim_all, closeout, init, normalize_owns_paths, open, release,
-    send_message, CallerContext, ClaimRequestArgs, CloseoutFilters, Hub,
+    acknowledge_message, claim_all, closeout, init, load_identity, normalize_owns_paths, open,
+    release, send_message, CallerContext, ClaimRequestArgs, CloseoutFilters, Hub,
 };
 use enforcer_coordination::events::boundary::HubEventResponse;
 use enforcer_coordination::ledger::active_claims;
@@ -46,6 +46,24 @@ fn init_is_idempotent() -> Result<(), Box<dyn std::error::Error>> {
     let first = init(dir.path(), &hub, &lane)?;
     let second = init(dir.path(), &hub, &lane)?;
     assert_eq!(first, second);
+    Ok(())
+}
+
+#[test]
+fn load_identity_rejects_a_blank_persisted_hub_name() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempdir()?;
+    let identity_dir = dir.path().join("identity");
+    std::fs::create_dir_all(&identity_dir)?;
+    std::fs::write(
+        identity_dir.join("node.json"),
+        r#"{"hub":" ","nodeId":"node","nodeName":"node","defaultLane":"main","createdAt":"2026-07-19T00:00:00.000Z"}"#,
+    )?;
+
+    let error = load_identity(dir.path()).expect_err("blank persisted hub must be rejected");
+    assert_eq!(
+        error.to_string(),
+        "coordination decode error: decode/validation failed at `hubName`: expected lowercase kebab-case (e.g. `enforcer-rust-build`)"
+    );
     Ok(())
 }
 

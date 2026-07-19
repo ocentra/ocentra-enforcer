@@ -346,3 +346,83 @@ const DIAGNOSTIC: &str = "unsafe block requires a safety explanation";
   const result = runGate(project);
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
 });
+
+test('tuple slice type annotations do not trigger unchecked indexing', () => {
+  const project = makeProject({
+    'src/lib.rs': `
+fn resolve(items: &[(String, usize)]) -> Option<&usize> {
+    items.iter().map(|(_, index)| index).next()
+}
+`,
+  });
+  const result = runGate(project);
+  const output = `${result.stdout}\n${result.stderr}`;
+  assert.doesNotMatch(output, /RR-5\.3/u, output);
+});
+
+test('Option parser rejection evidence accepts is_none assertions', () => {
+  const project = makeProject({
+    'src/lib.rs': `
+fn parse_optional(input: &str) -> Option<&str> {
+    (!input.is_empty()).then_some(input)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_optional;
+
+    #[test]
+    fn parse_optional_rejects_empty_input() {
+        assert!(parse_optional("").is_none());
+    }
+
+    #[test]
+    fn parse_optional_handles_oversized_input() {
+        assert!(parse_optional("accepted").is_some());
+    }
+}
+`,
+  });
+  const result = runGate(project);
+  const output = `${result.stdout}\n${result.stderr}`;
+  assert.doesNotMatch(output, /RR-12\.(?:16|17)/u, output);
+});
+
+test('conversion syntax inside a string literal does not require DTO evidence', () => {
+  const project = makeProject({
+    'src/lib.rs': `
+const SOURCE: &str = "impl TryFrom<WidgetDto> for Widget {}";
+`,
+  });
+  const result = runGate(project);
+  const output = `${result.stdout}\n${result.stderr}`;
+  assert.doesNotMatch(output, /RR-12\.18/u, output);
+});
+
+test('persisted DTO rejection evidence accepts a public boundary integration test', () => {
+  const project = makeProject({
+    'src/lib.rs': `
+struct HubConfigResponse {
+    hub: String,
+    node_id: String,
+}
+struct HubConfig;
+impl TryFrom<HubConfigResponse> for HubConfig {
+    type Error = ();
+    fn try_from(_: HubConfigResponse) -> Result<Self, Self::Error> { Err(()) }
+}
+`,
+    'tests/api_integration.rs': `
+#[test]
+fn load_identity_rejects_invalid_persisted_hub_config() {
+    let raw = r#"{"hub": " " , "nodeId": "node"}"#;
+    let result: Result<(), ()> = Err(());
+    let _error = result.expect_err("invalid persisted hub config must be rejected");
+    assert!(raw.contains("hub"));
+}
+`,
+  });
+  const result = runGate(project);
+  const output = `${result.stdout}\n${result.stderr}`;
+  assert.doesNotMatch(output, /RR-12\.18/u, output);
+});

@@ -25,7 +25,8 @@ pub(super) fn request_publish_result(
 ) -> Result<PublishReport, EventingError> {
     result.map_err(|error| {
         EventingError::invalid_value(
-            EventErrorField::from_diagnostic("request_publish_task"),
+            // ALLOC-JUSTIFICATION: EventErrorField owns the static boundary key in the returned typed error.
+            EventErrorField::from_diagnostic("request_publish_task".to_owned()),
             // ALLOC-JUSTIFICATION: the join failure must become owned diagnostic state after the task error is dropped.
             EventErrorReason::from_diagnostic(error.to_string()),
         )

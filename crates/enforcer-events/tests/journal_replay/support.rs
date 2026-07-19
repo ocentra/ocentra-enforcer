@@ -78,7 +78,7 @@ pub(super) async fn subscribe_log_handler(
                     .map_err(|e| EventingError::InvalidHandlerPolicy {
                         reason: EventErrorReason::from_diagnostic(e.to_string()),
                     })?;
-                log.push(JournalLine::from_diagnostic("handler"));
+                log.push(JournalLine::from_diagnostic("handler".to_owned()));
                 Ok(())
             }
         },
@@ -133,7 +133,7 @@ pub(super) async fn read_lines(
     let lines = tokio::fs::read_to_string(journal_file_path(&path))
         .await?
         .lines()
-        .map(JournalLine::from_diagnostic)
+        .map(|line| JournalLine::from_diagnostic(line.to_owned()))
         .collect::<Vec<_>>();
     Ok(JournalLines(lines))
 }

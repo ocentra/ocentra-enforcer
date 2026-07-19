@@ -10,6 +10,9 @@ pub(super) fn fmt_request_error(
         EventingError::InvalidRequestOptions { reason } => {
             write!(formatter, "invalid event request options: {reason}")
         }
+        EventingError::RequestOptionsTimeoutMustBePositive => {
+            formatter.write_str("invalid event request options: request timeout must be greater than zero")
+        }
         EventingError::DuplicateRequest { request_id } => {
             write!(formatter, "duplicate request id: {}", request_id.as_str())
         }

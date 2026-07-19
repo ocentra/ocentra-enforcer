@@ -82,7 +82,7 @@ impl OperationalGraph {
     pub fn apply(&mut self, entry: &GraphEventLogEntryDto) -> Result<()> {
         let already_applied: bool = self.conn.query_row(
             "SELECT EXISTS(SELECT 1 FROM applied_events WHERE seq = ?1)",
-            [entry.seq],
+            [u64::from(entry.seq)],
             |row| row.get(0),
         )?;
         if already_applied {
@@ -93,19 +93,19 @@ impl OperationalGraph {
                 self.conn.execute(
                     "INSERT INTO nodes (node_id, node_kind, last_seq) VALUES (?1, ?2, ?3)
                      ON CONFLICT(node_id) DO UPDATE SET node_kind = excluded.node_kind, last_seq = excluded.last_seq",
-                    (node_id.as_str(), node_kind.as_str(), entry.seq),
+                    (node_id.as_str(), node_kind.as_str(), u64::from(entry.seq)),
                 )?;
             }
             GraphEventKind::EdgeAdded { from, to, label } => {
                 self.conn.execute(
                     "INSERT INTO edges (from_id, to_id, label, seq) VALUES (?1, ?2, ?3, ?4)
                      ON CONFLICT(from_id, to_id, label) DO UPDATE SET seq = excluded.seq",
-                    (from.as_str(), to.as_str(), label.as_str(), entry.seq),
+                    (from.as_str(), to.as_str(), label.as_str(), u64::from(entry.seq)),
                 )?;
             }
         }
         self.conn
-            .execute("INSERT INTO applied_events (seq) VALUES (?1)", [entry.seq])?;
+            .execute("INSERT INTO applied_events (seq) VALUES (?1)", [u64::from(entry.seq)])?;
         Ok(())
     }
 

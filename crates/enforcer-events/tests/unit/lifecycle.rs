@@ -151,7 +151,7 @@ async fn nested_publish_uses_context_publisher_without_deadlock(
             )
             .map_err(|e| EventingError::InvalidValue {
                 field: enforcer_domain::events_types::EventErrorField::from_diagnostic(
-                    "nested_event",
+                    "nested_event".to_owned(),
                 ),
                 value: enforcer_domain::events_types::EventErrorReason::from_diagnostic(
                     e.to_string(),
@@ -163,7 +163,7 @@ async fn nested_publish_uses_context_publisher_without_deadlock(
             )
             .map_err(|e| EventingError::InvalidValue {
                 field: enforcer_domain::events_types::EventErrorField::from_diagnostic(
-                    "nested_metadata",
+                    "nested_metadata".to_owned(),
                 ),
                 value: enforcer_domain::events_types::EventErrorReason::from_diagnostic(
                     e.to_string(),
@@ -248,7 +248,7 @@ async fn sync_subscriber_adapter_uses_typed_dispatch_path(
                 let Ok(mut guard) = handled_clone.lock() else {
                     return Err(EventingError::EmptyValue {
                         field: enforcer_domain::events_types::EventErrorField::from_diagnostic(
-                            "sync_handled_lock_poisoned",
+                            "sync_handled_lock_poisoned".to_owned(),
                         ),
                     });
                 };

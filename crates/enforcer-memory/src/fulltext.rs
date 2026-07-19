@@ -54,7 +54,7 @@ use crate::ranking::ScoredCandidate;
 use crate::search::document::SearchDocument;
 use enforcer_domain::memory_types::{
     DocumentKind, MemoryFullTextInput, MemoryFullTextLimit, MemoryFullTextQuery,
-    MemoryFullTextToken, ParserSourceText,
+    MemoryFullTextToken, MemorySearchDocumentId, MemorySearchDocumentSnippet, ParserSourceText,
 };
 use rusqlite::Connection;
 use std::collections::HashMap;
@@ -103,7 +103,9 @@ fn split_identifier(word: ParserSourceText<'_>) -> Vec<MemoryFullTextToken> {
         }
         let is_boundary = i > 0
             && c.is_uppercase()
-            && (chars[i - 1].is_lowercase() || chars[i - 1].is_ascii_digit());
+            && chars
+                .get(i.saturating_sub(1))
+                .is_some_and(|previous| previous.is_lowercase() || previous.is_ascii_digit());
         if is_boundary && !current.is_empty() {
             pieces.push(std::mem::take(&mut current).into());
         }
@@ -124,7 +126,7 @@ pub struct FullTextIndex {
     conn: Mutex<Connection>,
     /// `id -> (kind, snippet)` so `search` can hand back full
     /// [`ScoredCandidate`] rows without a second lookup table.
-    docs: HashMap<String, (DocumentKind, String)>,
+    docs: HashMap<MemorySearchDocumentId, (DocumentKind, MemorySearchDocumentSnippet)>,
 }
 
 impl FullTextIndex {
@@ -153,8 +155,8 @@ impl FullTextIndex {
                 stmt.execute(rusqlite::params![document.id.as_str(), terms])
                     .map_err(MemoryError::Sqlite)?;
                 docs.insert(
-                    document.id.retained_display(),
-                    (document.kind, document.snippet.retained_display()),
+                    document.id.retained_display().into(),
+                    (document.kind, document.snippet.retained_display().into()),
                 );
             }
         }
@@ -222,7 +224,8 @@ impl FullTextIndex {
         let mut out = Vec::new();
         for row in rows {
             let (doc_id, bm25) = row.map_err(MemoryError::Sqlite)?;
-            let Some((kind, _snippet)) = self.docs.get(&doc_id) else {
+            let document_id = MemorySearchDocumentId::from(doc_id);
+            let Some((kind, _snippet)) = self.docs.get(&document_id) else {
                 continue;
             };
             // FTS5 bm25() is a cost (lower = better); negate then boost
@@ -230,7 +233,7 @@ impl FullTextIndex {
             // better" convention holds across fulltext/vector/rerank.
             let score = (-bm25) * f64::from(kind.label_boost());
             out.push(ScoredCandidate {
-                doc_id: doc_id.into(),
+                doc_id: document_id.as_str().into(),
                 score: score.into(),
             });
         }

@@ -134,7 +134,7 @@ async fn concurrent_dispatch_records_handler_dead_letter_without_losing_journal(
         |_| async {
             Err(EventingError::InvalidValue {
                 field: enforcer_domain::events_types::EventErrorField::from_diagnostic(
-                    "handler_failure",
+                    "handler_failure".to_owned(),
                 ),
                 value: enforcer_domain::events_types::EventErrorReason::parse("handler_failure")?,
             })

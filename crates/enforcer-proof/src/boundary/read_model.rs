@@ -64,3 +64,22 @@ impl TryFrom<ProjectProofSnapshotDto> for ProjectProofSnapshot {
 pub fn read_project_proof_snapshot(root: &Path) -> Result<ProjectProofSnapshotDto> {
     crate::read_model::read_project_proof_snapshot(root).map(Into::into)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{ProjectProofSnapshot, ProjectProofSnapshotDto};
+
+    #[test]
+    fn project_proof_snapshot_dto_rejects_an_invalid_proof_root() -> serde_json::Result<()> {
+        let dto: ProjectProofSnapshotDto = serde_json::from_value(serde_json::json!({
+            "proofRoot":"../escape", "currentGit":{"commit":"abcdef0","branch":"rust-build","dirty":false},
+            "journal":{"path":".enforce/proofs/events.ndjson","state":"verified","recordCount":0,"latestEventType":null,"latestProofId":null,"latestTimestamp":null,"error":null},
+            "runs":[], "claim":{"registryPath":"proofs.json","state":"blocked","requiredProofIds":[],"claim":null,"error":null}
+        }))?;
+        assert!(matches!(
+            ProjectProofSnapshot::try_from(dto),
+            Err(enforcer_core::error::Error::Decode(_))
+        ));
+        Ok(())
+    }
+}

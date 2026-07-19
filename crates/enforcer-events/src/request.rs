@@ -1,4 +1,3 @@
-use enforcer_domain::events_types::EventErrorReason;
 use std::{
     collections::{BTreeMap, VecDeque},
     sync::{Arc, Mutex, PoisonError},
@@ -44,11 +43,7 @@ impl RequestOptions {
     /// Executes the with timeout event-runtime operation.
     pub fn with_timeout(timeout: EventDuration) -> Result<Self, EventingError> {
         if timeout.value().is_zero() {
-            return Err(EventingError::InvalidRequestOptions {
-                reason: EventErrorReason::from_diagnostic(
-                    "request timeout must be greater than zero",
-                ),
-            });
+            return Err(EventingError::RequestOptionsTimeoutMustBePositive);
         }
         Ok(Self { timeout })
     }

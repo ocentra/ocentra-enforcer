@@ -80,6 +80,18 @@ fn hub_and_lane_ids_validate() -> Result<(), DecodeError> {
 }
 
 #[test]
+fn threat_ids_accept_supported_formats_without_panicking() -> Result<(), DecodeError> {
+    for raw in ["T1059", "T1059.001", "CWE-79", "A03:2021"] {
+        let value: ThreatId = parse(raw)?;
+        assert_eq!(value.as_str(), raw);
+    }
+    for raw in ["T", "T1059.", "A", "A03", "A03:"] {
+        assert_rejected::<ThreatId>(raw, "threatId")?;
+    }
+    Ok(())
+}
+
+#[test]
 fn harness_id_validates_at_the_shared_boundary() -> Result<(), DecodeError> {
     for valid in ["claude", "codex", "kilocode", "agent-2"] {
         assert_eq!(parse::<HarnessId>(valid)?.as_str(), valid);

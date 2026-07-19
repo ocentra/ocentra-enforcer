@@ -52,3 +52,21 @@ impl TryFrom<ProjectJournalSummaryDto> for ProjectJournalSummary {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{ProjectJournalSummary, ProjectJournalSummaryDto};
+
+    #[test]
+    fn project_journal_summary_dto_rejects_an_invalid_journal_path() -> serde_json::Result<()> {
+        let dto: ProjectJournalSummaryDto = serde_json::from_value(serde_json::json!({
+            "path":"../escape", "state":"verified", "recordCount":0,
+            "latestEventType":null, "latestProofId":null, "latestTimestamp":null, "error":null
+        }))?;
+        assert!(matches!(
+            ProjectJournalSummary::try_from(dto),
+            Err(enforcer_core::error::Error::Decode(_))
+        ));
+        Ok(())
+    }
+}

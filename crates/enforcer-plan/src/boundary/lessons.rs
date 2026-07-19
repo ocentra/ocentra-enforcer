@@ -234,17 +234,11 @@ fn parse_seed_row(line: &str) -> Option<SeedRow> {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct MemoryStreamRecord {
     pub(crate) id: String,
-    #[serde(default)]
     pub(crate) date: Option<String>,
-    #[serde(default)]
     pub(crate) domain: Option<String>,
-    #[serde(default)]
     pub(crate) observed: Option<String>,
-    #[serde(default)]
     pub(crate) lesson: Option<String>,
-    #[serde(default)]
     pub(crate) ships_via: Option<String>,
-    #[serde(default)]
     pub(crate) landed_at: Option<String>,
 }
 

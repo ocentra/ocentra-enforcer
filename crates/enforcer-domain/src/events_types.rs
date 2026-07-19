@@ -116,6 +116,7 @@ event_text_identifier!(EventType, "event_type", taxonomy);
 impl EventType {
     /// Canonical event type emitted for one coordination fix-loop decision.
     pub fn coordination_fix_loop_decision() -> Self {
+        // ALLOC-JUSTIFICATION: EventType owns its canonical emitted taxonomy value.
         Self("coordination.fix_loop.decision".to_owned())
     }
 }
@@ -248,8 +249,7 @@ impl EventErrorReason {
     /// Build an infallible diagnostic reason while preserving the non-blank invariant.
     #[must_use]
     #[doc = "Build a diagnostic event-error reason with a stable fallback."]
-    pub fn from_diagnostic(value: impl Into<String>) -> Self {
-        let value = value.into();
+    pub fn from_diagnostic(value: String) -> Self {
         if value.trim().is_empty() {
             Self(String::from("unspecified event error"))
         } else {
@@ -262,8 +262,7 @@ impl EventErrorPath {
     /// Build an infallible diagnostic path while preserving the non-blank invariant.
     #[must_use]
     #[doc = "Build a diagnostic event-error path with a stable fallback."]
-    pub fn from_diagnostic(value: impl Into<String>) -> Self {
-        let value = value.into();
+    pub fn from_diagnostic(value: String) -> Self {
         if value.trim().is_empty() {
             Self(String::from("unknown event error path"))
         } else {
@@ -276,8 +275,7 @@ impl EventErrorField {
     /// Build an infallible diagnostic field with a stable valid fallback.
     #[must_use]
     #[doc = "Build a diagnostic event-error field with a stable fallback."]
-    pub fn from_diagnostic(value: impl Into<String>) -> Self {
-        let value = value.into();
+    pub fn from_diagnostic(value: String) -> Self {
         match Self::try_new(value) {
             Ok(field) => field,
             Err(_) => Self(String::from("decoded_value")),
@@ -289,8 +287,7 @@ impl JournalPath {
     /// Build an infallible diagnostic journal path while preserving the non-blank invariant.
     #[must_use]
     #[doc = "Build a diagnostic journal path with a stable fallback."]
-    pub fn from_diagnostic(value: impl Into<String>) -> Self {
-        let value = value.into();
+    pub fn from_diagnostic(value: String) -> Self {
         if value.trim().is_empty() {
             Self(String::from("unknown journal path"))
         } else {
@@ -303,8 +300,7 @@ impl JournalLine {
     /// Build an infallible diagnostic journal line while preserving the non-blank invariant.
     #[must_use]
     #[doc = "Build a diagnostic journal line with a stable fallback."]
-    pub fn from_diagnostic(value: impl Into<String>) -> Self {
-        let value = value.into();
+    pub fn from_diagnostic(value: String) -> Self {
         if value.trim().is_empty() {
             Self(String::from("unavailable journal line"))
         } else {

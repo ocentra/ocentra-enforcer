@@ -160,21 +160,28 @@ fn normalize_source_tokens(body: ParserSourceText<'_>) -> MemoryFingerprintLexem
     tokens.into()
 }
 
-fn structural_trigrams(tokens: &[MemoryFingerprintLexeme]) -> Vec<String> {
+fn structural_trigrams(tokens: &[MemoryFingerprintLexeme]) -> Vec<MemoryFingerprintLexeme> {
     tokens
         .windows(3)
-        .map(|window| format!("{}|{}|{}", window[0], window[1], window[2]))
+        .filter_map(|window| match window {
+            [first, second, third] => Some(MemoryFingerprintLexeme::from(format!(
+                "{first}|{second}|{third}"
+            ))),
+            _ => None,
+        })
         .collect()
 }
 
-fn minhash_hex(trigrams: &[String]) -> String {
+fn minhash_hex(trigrams: &[MemoryFingerprintLexeme]) -> String {
     let seeds = minhash_seeds();
     let mut minimums = [u32::MAX; MINHASH_K];
     for trigram in trigrams {
         for (index, seed) in seeds.iter().enumerate() {
             let hash = seeded_trigram_hash(trigram.as_bytes(), *seed);
-            if hash < minimums[index] {
-                minimums[index] = hash;
+            if let Some(minimum) = minimums.get_mut(index) {
+                if hash < *minimum {
+                    *minimum = hash;
+                }
             }
         }
     }
@@ -199,12 +206,14 @@ fn minhash_seeds() -> [u64; MINHASH_K] {
 }
 
 fn seeded_trigram_hash(bytes: &[u8], seed: u64) -> u32 {
-    let mut hash = 0x811c_9dc5u32 ^ (seed as u32);
+    let lower_seed = u32::try_from(seed & u64::from(u32::MAX)).unwrap_or(0);
+    let mut hash = 0x811c_9dc5u32 ^ lower_seed;
     for byte in bytes {
         hash ^= u32::from(*byte);
         hash = hash.wrapping_mul(0x0100_0193);
     }
-    hash ^ ((seed >> 32) as u32)
+    let upper_seed = u32::try_from(seed >> 32).unwrap_or(0);
+    hash ^ upper_seed
 }
 
 fn body_shingles(normalized: &str) -> BTreeSet<String> {

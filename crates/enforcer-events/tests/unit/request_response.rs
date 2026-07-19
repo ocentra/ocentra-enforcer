@@ -22,7 +22,7 @@ fn request_options_reject_zero_event_duration() {
     let result = RequestOptions::with_timeout(enforcer_domain::events_types::EventDuration::ZERO);
     assert!(matches!(
         result,
-        Err(EventingError::InvalidRequestOptions { .. })
+        Err(EventingError::RequestOptionsTimeoutMustBePositive)
     ));
 }
 
@@ -447,7 +447,7 @@ async fn durable_result_event_pattern_remains_separate_from_local_completion(
                     )
                     .map_err(|e| EventingError::InvalidValue {
                         field: enforcer_domain::events_types::EventErrorField::from_diagnostic(
-                            "request_result_metadata",
+                            "request_result_metadata".to_owned(),
                         ),
                         value: enforcer_domain::events_types::EventErrorReason::from_diagnostic(
                             e.to_string(),

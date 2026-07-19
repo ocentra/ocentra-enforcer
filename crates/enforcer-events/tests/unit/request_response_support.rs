@@ -105,7 +105,7 @@ impl EventResponseContract for TestResponse {
         if self.decision.trim().is_empty() {
             return Err(EventingError::EmptyValue {
                 field: enforcer_domain::events_types::EventErrorField::from_diagnostic(
-                    "test_response_decision",
+                    "test_response_decision".to_owned(),
                 ),
             });
         }

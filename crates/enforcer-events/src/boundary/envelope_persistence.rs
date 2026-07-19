@@ -20,7 +20,7 @@ where
 {
     T::try_from(value.clone()).map_err(|_decode_error| {
         crate::error::EventingError::invalid_value(
-            enforcer_domain::events_types::EventErrorField::from_diagnostic(field),
+            enforcer_domain::events_types::EventErrorField::from_diagnostic(field.to_owned()),
             enforcer_domain::events_types::EventErrorReason::from_diagnostic(value),
         )
     })

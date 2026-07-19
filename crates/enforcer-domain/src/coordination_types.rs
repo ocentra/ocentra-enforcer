@@ -28,6 +28,7 @@ fn identity_spelling(raw: &str) -> IdentitySpelling {
 }
 
 /// A coordination node identifier, e.g. `node_<uuid-no-dashes>`.
+#[doc = "BRAND-INVARIANT: a node identity is validated to 1..=96 safe coordination characters."]
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct NodeId(String);
 

@@ -1,4 +1,3 @@
-use enforcer_domain::events_types::EventErrorReason;
 use std::sync::PoisonError;
 
 use enforcer_domain::events_types::{
@@ -19,9 +18,7 @@ impl EventQueue {
         now: EventClockInstant,
     ) -> Result<NoSubscriberQueueDecision, EventingError> {
         let Some(capacity) = self.policy.capacity() else {
-            return Err(EventingError::InvalidQueuePolicy {
-                reason: EventErrorReason::from_diagnostic("queue capacity is not configured"),
-            });
+            return Err(EventingError::QueuePolicyCapacityNotConfigured);
         };
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
         // CLONE-JUSTIFICATION: The queued envelope retains its event id while the queue index owns a separate lookup key.
@@ -109,11 +106,7 @@ fn drop_oldest_and_dead_letter(
     now: EventClockInstant,
 ) -> Result<NoSubscriberQueueDecision, EventingError> {
     let Some(dropped) = state.queued.pop_front() else {
-        return Err(EventingError::InvalidQueuePolicy {
-            reason: EventErrorReason::from_diagnostic(
-                "drop-oldest overflow requires a queued event",
-            ),
-        });
+        return Err(EventingError::QueuePolicyDropOldestRequiresQueuedEvent);
     };
     state.queued_event_ids.remove(&dropped.stored.event_id);
     state.queued_keys.remove(&dropped.stored.idempotency_key);

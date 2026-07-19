@@ -48,7 +48,7 @@ use crate::error::Result;
 use crate::owned_boundary::Retained;
 use crate::store::Store;
 use enforcer_domain::memory_types::{
-    EdgeProvenance, IngestSourceSurface, IngestTimestamp, ProceduralLessonReference, TraceNodeId,
+    EdgeProvenance, IngestSourceSurface, IngestTimestamp, TraceNodeId,
     TraceObservationCount, TraceStoreRecordCount, TraceUnresolvedCallee, TraceUnresolvedCaller,
 };
 use std::collections::BTreeMap;
@@ -125,18 +125,18 @@ pub fn ingest_trace_records_into_store(
         store.append_observation_entry(|seq| ObservationLogEntryDto {
             schema_version: SCHEMA_VERSION,
             seq: seq.into(),
-            id: format!("trace-{seq:04}"),
-            lesson_id: ProceduralLessonReference::default().into(),
+            id: format!("trace-{seq:04}").into(),
+            lesson_id: "".into(),
             rule_id: None,
-            fault_class: Some("runtime-trace".retained()),
-            repo_context: format!("{} -> {}", record.caller, record.callee),
-            clean: true,
+            fault_class: Some("runtime-trace".into()),
+            repo_context: format!("{} -> {}", record.caller, record.callee).into(),
+            clean: true.into(),
             // CLONE-JUSTIFICATION: emitted observation outlives the borrowed batch.
-            source_surface: batch.source_surface.as_str().retained(),
-            ts: batch.ts.as_str().retained(),
+            source_surface: batch.source_surface.as_str().into(),
+            ts: batch.ts.as_str().into(),
             supersedes_seq: None,
-            payload_kind: Some("runtime-trace".retained()),
-            payload: Some(payload),
+            payload_kind: Some("runtime-trace".into()),
+            payload: Some(payload.into()),
         })?;
     }
     trace_store.ingest(graph, batch.records);
@@ -155,7 +155,7 @@ pub fn replay_trace_records_from_store(
             continue;
         }
         if let Some(payload) = entry.payload {
-            records.push(serde_json::from_value::<TraceRecordDto>(payload)?.into());
+            records.push(serde_json::from_value::<TraceRecordDto>(payload.into())?.into());
         }
     }
     trace_store.ingest(graph, &records);

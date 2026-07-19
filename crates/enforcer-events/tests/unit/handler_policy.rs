@@ -17,7 +17,7 @@ async fn retry_attempt(attempts: Arc<AtomicUsize>) -> Result<(), EventingError> 
     if previous == 0 {
         Err(EventingError::EmptyValue {
             field: enforcer_domain::events_types::EventErrorField::from_diagnostic(
-                "retryable_handler_failure",
+                "retryable_handler_failure".to_owned(),
             ),
         })
     } else {

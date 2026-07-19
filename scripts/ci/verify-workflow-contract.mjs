@@ -14,7 +14,12 @@ export function verifyWorkflowContract(root) {
       'needs: [plan-impacted, impacted, workspace, local-parity, policy, dogfood]',
     ]],
     ['workflows/dogfood.yml', [
-      'rust-rules.mjs scan --root . --languages rust --workspace',
+      'FROZEN_SAFETY_SCANNER_COMMIT: c078c5ceb7318caa295ca26a9496354c238a3b8f',
+      'FROZEN_SCANNER_DIR: ${{ runner.temp }}/frozen-safety-scanner',
+      'git -C "$FROZEN_SCANNER_DIR" fetch --depth=1 origin "$FROZEN_SAFETY_SCANNER_COMMIT"',
+      'test "$(git -C "$FROZEN_SCANNER_DIR" rev-parse HEAD)" = "$FROZEN_SAFETY_SCANNER_COMMIT"',
+      'npm ci --ignore-scripts --prefix "$FROZEN_SCANNER_DIR"',
+      'node "$FROZEN_SCANNER_DIR/scripts/rust-rules.mjs" scan --root "$GITHUB_WORKSPACE" --languages rust --workspace',
       'verify-workflow-contract.mjs', 'dogfood-manifest',
     ]],
     ['workflows/release.yml', [
@@ -39,6 +44,10 @@ export function verifyWorkflowContract(root) {
     }
     for (const needle of needles) {
       if (!content.includes(needle)) failures.push(`${name}: missing contract marker ${needle}`);
+    }
+    if (name === 'workflows/dogfood.yml'
+      && /node\s+(?:\.\/)?scripts\/rust-rules\.mjs\b/u.test(content)) {
+      failures.push(`${name}: frozen gate must not execute the branch-local scanner`);
     }
     if (/uses:\s+[^\s]+@v\d+/u.test(content)) {
       failures.push(`${name}: action reference uses a mutable major-version tag`);

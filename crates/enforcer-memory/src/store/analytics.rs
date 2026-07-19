@@ -45,8 +45,10 @@
 
 use crate::boundary::log_schema::ObservationLogEntryDto;
 use crate::error::Result;
-use crate::owned_boundary::{Retained, RetainedDisplay};
-use enforcer_domain::memory_types::{MemoryAnalyticsObservationCount, MemoryAnalyticsRepoContext};
+use crate::owned_boundary::RetainedDisplay;
+use enforcer_domain::memory_types::{
+    IngestRepoContext, MemoryAnalyticsObservationCount, MemoryAnalyticsRepoContext,
+};
 
 /// One aggregate analytics answer: counts of clean vs. non-clean
 /// observations, grouped by `repo_context`. Intentionally the simplest
@@ -87,17 +89,17 @@ impl AnalyticsReadModel for InProcessAnalytics {
     }
 
     fn counts_by_repo_context(&self) -> Result<Vec<RepoContextCounts>> {
-        let mut by_context: std::collections::BTreeMap<String, RepoContextCounts> =
+        let mut by_context: std::collections::BTreeMap<IngestRepoContext, RepoContextCounts> =
             std::collections::BTreeMap::new();
         for entry in &self.entries {
             let bucket = by_context
-                .entry(entry.repo_context.retained())
+                .entry(entry.repo_context.retained_display().into())
                 .or_insert_with(|| RepoContextCounts {
                     repo_context: entry.repo_context.retained_display().into(),
                     clean: 0.into(),
                     findings: 0.into(),
                 });
-            if entry.clean {
+            if entry.clean.is_clean() {
                 bucket.clean += 1;
             } else {
                 bucket.findings += 1;

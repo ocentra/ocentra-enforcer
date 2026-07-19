@@ -348,7 +348,9 @@ fn is_hf_cache_path(value: &str) -> bool {
     // looks like a random high-entropy blob rather than a legitimate cache
     // directory component (e.g. a base64url-style secret smuggled in as
     // "hf/<secret>").
-    let rest = &value[3..];
+    let Some(rest) = value.get(3..) else {
+        return false;
+    };
     if rest.split('/').any(looks_high_entropy_secret) {
         return false;
     }
@@ -423,12 +425,12 @@ fn find_prefixed_run<'a>(value: &'a str, prefix: &str) -> Option<&'a str> {
         })
         .map(|(idx, _)| idx)
         .unwrap_or(rest.len());
-    Some(&rest[..end])
+    rest.get(..end)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::is_secret_like;
 
     #[test]
     fn env_style_runtime_config_names_are_not_secret_like() {

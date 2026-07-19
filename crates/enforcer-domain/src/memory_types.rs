@@ -77,11 +77,19 @@ impl ArtifactId {
     }
 }
 
+impl From<Sha256> for ArtifactId {
+    fn from(value: Sha256) -> Self {
+        Self::from_digest(value)
+    }
+}
+
 impl std::fmt::Display for ArtifactId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.0.as_str())
     }
 }
+
+transparent_memory_wire!(ArtifactId, Sha256);
 
 /// Deterministic filesystem-safe key for one normalized repository store.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -106,6 +114,7 @@ impl ProjectId {
             .as_str()
             .strip_prefix(SHA256_PREFIX)
             .unwrap_or(digest.as_str());
+        // ALLOC-JUSTIFICATION: ProjectId owns the stable, fixed-width digest prefix.
         Self(hex.get(..16).unwrap_or(hex).to_owned())
     }
 
@@ -988,9 +997,68 @@ impl From<Seq> for u64 {
     }
 }
 
+impl From<u64> for Seq {
+    fn from(value: u64) -> Self {
+        Self::from_log_position(value)
+    }
+}
+
 impl std::fmt::Display for Seq {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(formatter, "{}", self.0)
+    }
+}
+
+transparent_memory_wire!(Seq, u64);
+
+/// Persisted wire-schema version for the append-only Memory logs.
+/// SERIALIZATION-DOC: this value is serialized only by the Memory log persistence boundary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
+#[serde(transparent)]
+#[doc = "BRAND-INVARIANT: this is the schema version selected by the Memory persistence boundary."]
+pub struct MemoryLogSchemaVersionWire(u32);
+
+/// Domain name for the wire-owned Memory log schema version.
+pub type MemoryLogSchemaVersion = MemoryLogSchemaVersionWire;
+
+impl MemoryLogSchemaVersion {
+    /// The initial, currently supported Memory log schema.
+    pub const INITIAL: Self = Self(1);
+
+    /// Creates a supported Memory log schema version.
+    pub fn try_new(value: u32) -> Result<Self, DecodeError> {
+        if value == Self::INITIAL.0 {
+            Ok(Self(value))
+        } else {
+            Err(DecodeError::new(
+                "memoryLogSchemaVersion",
+                "expected the currently supported schema version",
+            ))
+        }
+    }
+}
+
+impl From<MemoryLogSchemaVersion> for u32 {
+    fn from(value: MemoryLogSchemaVersion) -> Self {
+        value.0
+    }
+}
+
+impl TryFrom<u32> for MemoryLogSchemaVersion {
+    type Error = DecodeError;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        Self::try_new(value)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for MemoryLogSchemaVersion {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = u32::deserialize(deserializer)?;
+        Self::try_new(value).map_err(serde::de::Error::custom)
     }
 }
 
@@ -1718,6 +1786,18 @@ owned_memory_text!(
 owned_memory_text!(
     #[doc = "Timestamp retained by a procedural-memory or route-trace record."]
     MemoryObservationTimestamp
+);
+owned_memory_text!(
+    #[doc = "Stable identity assigned to one durable Memory log entry."]
+    MemoryLogEntryId
+);
+owned_memory_text!(
+    #[doc = "Runtime source that emitted one model observation."]
+    ModelRuntimeObservationSource
+);
+owned_memory_text!(
+    #[doc = "Runtime execution identity attached to one model observation."]
+    ModelRuntimeObservationRunId
 );
 owned_memory_text!(
     #[doc = "Project identity persisted in a Memory store marker."]
@@ -2675,6 +2755,16 @@ owned_memory_text!(
     #[doc = "Serialized structured payload attached to one durable Memory observation."]
     IngestObservationPayload
 );
+
+/// Structured payload carried by a durable Memory observation log entry.
+/// SERIALIZATION-DOC: JSON is retained solely as opaque data at the Memory log boundary.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
+#[doc = "BRAND-INVARIANT: this opaque JSON is owned by the Memory observation boundary."]
+pub struct MemoryObservationPayloadWire(serde_json::Value);
+
+/// Domain name for the wire-owned opaque observation payload.
+pub type MemoryObservationPayload = MemoryObservationPayloadWire;
 owned_memory_text!(
     #[doc = "Canonical qualified symbol name returned by source-snippet retrieval."]
     SnippetQualifiedName
@@ -4203,6 +4293,8 @@ impl From<u64> for IndexManifestWatermark {
     }
 }
 
+transparent_memory_wire!(IndexManifestWatermark, u64);
+
 /// Monotonic instant injected into the open-store cache.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct StoreCacheInstant(pub(crate) std::time::Instant);
@@ -4635,15 +4727,26 @@ impl<'a> From<&'a str> for StreamingCacheSegmentInput<'a> {
 pub struct StreamingCachePathSegment(String);
 
 impl StreamingCachePathSegment {
+    /// Create a filesystem-safe cache segment after enforcing its invariant.
+    pub fn try_new(value: String) -> Result<Self, crate::boundary::decode_error::DecodeError> {
+        if !value.is_empty()
+            && !matches!(value.as_str(), "." | "..")
+            && value
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
+        {
+            Ok(Self(value))
+        } else {
+            Err(crate::boundary::decode_error::DecodeError::new(
+                "streamingCachePathSegment",
+                "must be non-empty, must not be a path-navigation marker, and may contain only ASCII alphanumeric, dash, underscore, or dot characters",
+            ))
+        }
+    }
+
     /// View the sanitized path segment.
     pub fn as_str(&self) -> &str {
         &self.0
-    }
-}
-
-impl From<String> for StreamingCachePathSegment {
-    fn from(value: String) -> Self {
-        Self(value)
     }
 }
 
@@ -5336,6 +5439,8 @@ impl From<IngestClean> for bool {
     }
 }
 
+transparent_memory_wire!(IngestClean, bool);
+
 impl PartialEq<bool> for IngestClean {
     fn eq(&self, other: &bool) -> bool {
         self.0 == *other
@@ -5907,6 +6012,7 @@ impl std::str::FromStr for SourceHash {
     type Err = DecodeError;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
+        // ALLOC-JUSTIFICATION: SourceHash owns validated text after parsing a borrowed hash.
         Self::try_new(value.to_owned())
     }
 }
@@ -5954,6 +6060,7 @@ impl std::str::FromStr for CommitId {
     type Err = DecodeError;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
+        // ALLOC-JUSTIFICATION: CommitId owns validated text after parsing a borrowed object id.
         Self::try_new(value.to_owned())
     }
 }

@@ -53,7 +53,7 @@ impl PathTraversalValidator {
         // A word containing one of the request-derived name fragments
         // called out in the workpack.
         let request_var_regex = Regex::new(
-            r"(?i)\b\w*(?:request|req|params|query|filename|user)\w*\b",
+            r"(?i)\b(?:request|req|params|query|filename|user)(?:[_A-Z][A-Za-z0-9_]*|\b)",
         )
         .map_err(|err| crate::boundary::regex::decode("cyberskillsPathTraversalRequestVar", err))?;
         Ok(Self {

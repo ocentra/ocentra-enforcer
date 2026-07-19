@@ -5,12 +5,13 @@ use enforcer_domain::memory_types::{
     GraphEventKind, GraphQueryResultRow, GraphQueryVariable, GraphSearchMode,
     GraphSymbolKindSnapshot, LanguageTag, LayerCategory, Level, LlamaCppBackendHint,
     LlamaCppLifecycleAction, LlamaCppLifecycleState, LlamaCppProbeKind, LocalRuntimeKind,
-    MemoryAnalysisNodeId, MemoryProjectStoreRoot, MemoryProofPrefixStatus, MemoryStorePath,
-    MemoryWatchFileCount, ModelRuntimeObservationKind, NodeLabel, OrtWorkerLifecycleState,
-    OrtWorkerTask, ProceduralOutcome, ProviderKind, ReceiverHint, RecurrenceNegativeKind,
-    ResourceClass, RiskLabel, RouteConfidence, RuntimeActivityState, RuntimeOwnershipMode, Seq,
-    SkipPhase, SnippetAbsolutePath, SnippetIncludeNeighbors, SnippetMatchMethod,
-    SnippetSourceBytes, TaskOutcome, VectorSearchLimit, VectorStaleReason,
+    MemoryAnalysisNodeId, MemoryLogSchemaVersion, MemoryProjectStoreRoot, MemoryProofPrefixStatus,
+    MemoryStorePath, MemoryWatchFileCount, ModelRuntimeObservationKind, NodeLabel,
+    OrtWorkerLifecycleState, OrtWorkerTask, ProceduralOutcome, ProviderKind, ReceiverHint,
+    RecurrenceNegativeKind, ResourceClass, RiskLabel, RouteConfidence, RuntimeActivityState,
+    RuntimeOwnershipMode, Seq, SkipPhase, SnippetAbsolutePath, SnippetIncludeNeighbors,
+    SnippetMatchMethod, SnippetSourceBytes, StreamingCachePathSegment, TaskOutcome,
+    VectorSearchLimit, VectorStaleReason,
 };
 use proptest::prelude::any;
 use proptest::{prop_assert, prop_assert_eq, proptest};
@@ -21,6 +22,30 @@ fn memory_sequence_is_monotonic_and_preserves_its_wire_value() {
     assert_eq!(u64::from(first), 1);
     assert_eq!(u64::from(first.next()), 2);
     assert_eq!(first.to_string(), "1");
+}
+
+#[test]
+fn memory_log_schema_version_accepts_only_supported_wire_values() {
+    assert_eq!(
+        MemoryLogSchemaVersion::try_new(1),
+        Ok(MemoryLogSchemaVersion::INITIAL)
+    );
+    assert!(MemoryLogSchemaVersion::try_new(0).is_err());
+    assert!(MemoryLogSchemaVersion::try_new(2).is_err());
+    assert!(serde_json::from_str::<MemoryLogSchemaVersion>("0").is_err());
+    assert!(serde_json::from_str::<MemoryLogSchemaVersion>("2").is_err());
+}
+
+#[test]
+fn streaming_cache_path_segment_accepts_only_safe_nonempty_components(
+) -> Result<(), enforcer_domain::boundary::decode_error::DecodeError> {
+    let segment = StreamingCachePathSegment::try_new("artifact-v1.2_3".to_owned())?;
+    assert_eq!(segment.as_str(), "artifact-v1.2_3");
+    assert!(StreamingCachePathSegment::try_new(String::new()).is_err());
+    assert!(StreamingCachePathSegment::try_new(".".to_owned()).is_err());
+    assert!(StreamingCachePathSegment::try_new("..".to_owned()).is_err());
+    assert!(StreamingCachePathSegment::try_new("../escape".to_owned()).is_err());
+    Ok(())
 }
 
 #[test]

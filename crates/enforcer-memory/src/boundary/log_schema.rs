@@ -1,3 +1,5 @@
+//! BOUNDARY-INVARIANT: this module only transports canonical domain values; wire primitives are decoded into their domain brands at this boundary.
+//!
 //! Wire shapes for the x06.1 store: append-only log records, the
 //! content-addressed artifact manifest, and index manifests carrying a
 //! source high-watermark. Kept separate from `crate::record`
@@ -10,12 +12,21 @@ use serde::{Deserialize, Serialize};
 use crate::model_observations::ModelRuntimeObservationCandidate;
 use crate::observations::{ProceduralRecord, RouteTrace};
 use crate::traces::TraceRecord;
-use enforcer_domain::memory_types::{GraphEventKind, ProceduralOutcome, RouteConfidence};
+use enforcer_domain::memory_types::{
+    ArtifactId, ArtifactManifestRelativePath, ArtifactManifestTimestamp, GraphArtifactByteCount,
+    GraphEventKind, IndexManifestBuiltAt, IndexManifestSourceLog, IndexManifestWatermark,
+    IngestClean, IngestFaultClass, IngestLessonId, IngestObservationPayloadKind,
+    IngestRepoContext, IngestRuleId, IngestSourceSurface, IngestTimestamp, MemoryLogEntryId,
+    MemoryLogSchemaVersion, MemoryObservationPayload, MemoryObservationTimestamp,
+    ModelRuntimeObservationRunId, ModelRuntimeObservationSource, ProceduralDetail,
+    ProceduralLessonReference, ProceduralOutcome, ProceduralRecordId, RetrievalRoute,
+    RouteConfidence, RouteTraceId, RouteTraceQuery, Seq, TraceNodeId, TraceObservationCount,
+};
 
 /// Current schema version for every shape in this module. Bumped only on
 /// a wire-incompatible change; readers must reject an unknown version
 /// rather than guess at a shape.
-pub const SCHEMA_VERSION: u32 = 1;
+pub const SCHEMA_VERSION: MemoryLogSchemaVersion = MemoryLogSchemaVersion::INITIAL;
 
 // ROUNDTRIP-TEST: tests::legacy_and_runtime_payload_dtos_preserve_domain_values
 
@@ -23,36 +34,36 @@ pub const SCHEMA_VERSION: u32 = 1;
 /// observation (mirrors `crate::ingest::Observation` but is the
 /// on-disk/at-rest wire shape the store persists, independent of the
 /// in-memory `Incident` type).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ObservationLogEntryDto {
-    pub schema_version: u32,
+    pub schema_version: MemoryLogSchemaVersion,
     /// Monotonic sequence number assigned by the log on append.
-    pub seq: u64,
-    pub id: String,
-    pub lesson_id: String,
+    pub seq: Seq,
+    pub id: MemoryLogEntryId,
+    pub lesson_id: IngestLessonId,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub rule_id: Option<String>,
+    pub rule_id: Option<IngestRuleId>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub fault_class: Option<String>,
-    pub repo_context: String,
-    pub clean: bool,
-    pub source_surface: String,
-    pub ts: String,
+    pub fault_class: Option<IngestFaultClass>,
+    pub repo_context: IngestRepoContext,
+    pub clean: IngestClean,
+    pub source_surface: IngestSourceSurface,
+    pub ts: IngestTimestamp,
     /// Id of an earlier entry this one supersedes (a correction), or
     /// `None` for a fresh observation. Append-only: superseding never
     /// deletes or edits the earlier row, it only records the relation.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub supersedes_seq: Option<u64>,
+    pub supersedes_seq: Option<Seq>,
     /// Optional typed payload discriminator for non-incident learning
     /// observations, for example model-runtime or route-choice records.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub payload_kind: Option<String>,
+    pub payload_kind: Option<IngestObservationPayloadKind>,
     /// Raw typed payload for replayable projection records. The
     /// top-level incident fields stay populated so older readers still
     /// have a useful observation row even when they ignore this payload.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub payload: Option<serde_json::Value>,
+    pub payload: Option<MemoryObservationPayload>,
 }
 
 /// One append-only graph-event-log entry: a structural change to the
@@ -62,64 +73,64 @@ pub struct ObservationLogEntryDto {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GraphEventLogEntryDto {
-    pub schema_version: u32,
-    pub seq: u64,
-    pub id: String,
+    pub schema_version: MemoryLogSchemaVersion,
+    pub seq: Seq,
+    pub id: MemoryLogEntryId,
     #[serde(with = "graph_event_wire")]
     pub event: GraphEventKind,
-    pub ts: String,
+    pub ts: MemoryObservationTimestamp,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub supersedes_seq: Option<u64>,
+    pub supersedes_seq: Option<Seq>,
 }
 
 /// One append-only procedural-memory log entry.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProceduralLogEntryDto {
-    pub schema_version: u32,
-    pub seq: u64,
-    pub id: String,
-    pub lesson_id: String,
+    pub schema_version: MemoryLogSchemaVersion,
+    pub seq: Seq,
+    pub id: ProceduralRecordId,
+    pub lesson_id: ProceduralLessonReference,
     pub outcome: ProceduralOutcome,
-    pub detail: String,
-    pub ts: String,
+    pub detail: ProceduralDetail,
+    pub ts: MemoryObservationTimestamp,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub supersedes_seq: Option<u64>,
+    pub supersedes_seq: Option<Seq>,
 }
 
 /// One append-only route-trace log entry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RouteTraceLogEntryDto {
-    pub schema_version: u32,
-    pub seq: u64,
-    pub id: String,
-    pub query: String,
-    pub route: String,
-    pub confidence: f64,
-    pub ts: String,
+    pub schema_version: MemoryLogSchemaVersion,
+    pub seq: Seq,
+    pub id: RouteTraceId,
+    pub query: RouteTraceQuery,
+    pub route: RetrievalRoute,
+    pub confidence: RouteConfidence,
+    pub ts: MemoryObservationTimestamp,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub supersedes_seq: Option<u64>,
+    pub supersedes_seq: Option<Seq>,
 }
 
 /// Legacy observation payload for a procedural record.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct ProceduralRecordDto {
-    pub id: String,
-    pub lesson_id: String,
+    pub id: ProceduralRecordId,
+    pub lesson_id: ProceduralLessonReference,
     pub outcome: ProceduralOutcome,
-    pub detail: String,
-    pub ts: String,
+    pub detail: ProceduralDetail,
+    pub ts: MemoryObservationTimestamp,
 }
 
 impl From<ProceduralRecordDto> for ProceduralRecord {
     fn from(value: ProceduralRecordDto) -> Self {
         Self {
-            id: value.id.into(),
-            lesson_id: value.lesson_id.into(),
+            id: value.id,
+            lesson_id: value.lesson_id,
             outcome: value.outcome,
-            detail: value.detail.into(),
-            ts: value.ts.into(),
+            detail: value.detail,
+            ts: value.ts,
         }
     }
 }
@@ -127,21 +138,21 @@ impl From<ProceduralRecordDto> for ProceduralRecord {
 /// Legacy observation payload for a route trace.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub(crate) struct RouteTraceDto {
-    pub id: String,
-    pub query: String,
-    pub route: String,
-    pub confidence: f64,
-    pub ts: String,
+    pub id: RouteTraceId,
+    pub query: RouteTraceQuery,
+    pub route: RetrievalRoute,
+    pub confidence: RouteConfidence,
+    pub ts: MemoryObservationTimestamp,
 }
 
 impl From<RouteTraceDto> for RouteTrace {
     fn from(value: RouteTraceDto) -> Self {
         Self {
-            id: value.id.into(),
-            query: value.query.into(),
-            route: value.route.into(),
-            confidence: RouteConfidence::normalized(value.confidence),
-            ts: value.ts.into(),
+            id: value.id,
+            query: value.query,
+            route: value.route,
+            confidence: value.confidence,
+            ts: value.ts,
         }
     }
 }
@@ -150,17 +161,19 @@ impl From<RouteTraceDto> for RouteTrace {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct TraceRecordDto {
-    pub caller: String,
-    pub callee: String,
-    pub count: u64,
+    pub caller: TraceNodeId,
+    pub callee: TraceNodeId,
+    pub count: TraceObservationCount,
 }
 
 impl From<&TraceRecord> for TraceRecordDto {
     fn from(value: &TraceRecord) -> Self {
         Self {
-            caller: String::from(value.caller.as_str()),
-            callee: String::from(value.callee.as_str()),
-            count: value.count.get(),
+            // CLONE-JUSTIFICATION: the DTO owns an independent persisted copy of the borrowed trace record.
+            caller: value.caller.clone(),
+            // CLONE-JUSTIFICATION: the DTO owns an independent persisted copy of the borrowed trace record.
+            callee: value.callee.clone(),
+            count: value.count,
         }
     }
 }
@@ -168,9 +181,9 @@ impl From<&TraceRecord> for TraceRecordDto {
 impl From<TraceRecordDto> for TraceRecord {
     fn from(value: TraceRecordDto) -> Self {
         Self {
-            caller: value.caller.into(),
-            callee: value.callee.into(),
-            count: value.count.into(),
+            caller: value.caller,
+            callee: value.callee,
+            count: value.count,
         }
     }
 }
@@ -179,14 +192,14 @@ impl From<TraceRecordDto> for TraceRecord {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModelObservationLogEntryDto {
-    pub schema_version: u32,
-    pub seq: u64,
-    pub observed_at: String,
-    pub source: String,
-    pub run_id: String,
+    pub schema_version: MemoryLogSchemaVersion,
+    pub seq: Seq,
+    pub observed_at: MemoryObservationTimestamp,
+    pub source: ModelRuntimeObservationSource,
+    pub run_id: ModelRuntimeObservationRunId,
     pub candidate: ModelRuntimeObservationCandidate,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub supersedes_seq: Option<u64>,
+    pub supersedes_seq: Option<Seq>,
 }
 
 mod graph_event_wire {
@@ -309,17 +322,17 @@ mod tests {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArtifactManifestEntryDto {
-    pub schema_version: u32,
+    pub schema_version: MemoryLogSchemaVersion,
     /// `sha256:<64 hex>` -- the artifact's content-addressed id.
-    pub id: String,
+    pub id: ArtifactId,
     /// Repo-relative path this artifact was produced from/for, if any.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub rel_path: Option<String>,
+    pub rel_path: Option<ArtifactManifestRelativePath>,
     /// Byte length of the stored content, recorded independently of the
     /// content itself so a truncated read is detectable without
     /// rehashing.
-    pub byte_len: u64,
-    pub ts: String,
+    pub byte_len: GraphArtifactByteCount,
+    pub ts: ArtifactManifestTimestamp,
 }
 
 /// An index manifest: records the append-only log's length ("source
@@ -329,12 +342,12 @@ pub struct ArtifactManifestEntryDto {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IndexManifestDto {
-    pub schema_version: u32,
+    pub schema_version: MemoryLogSchemaVersion,
     /// Which log this index was built from (e.g. `"observation"`,
     /// `"graph-event"`).
-    pub source_log: String,
+    pub source_log: IndexManifestSourceLog,
     /// The log length (next `Seq` to be assigned) at the moment this
     /// index was built.
-    pub source_high_watermark: u64,
-    pub built_at: String,
+    pub source_high_watermark: IndexManifestWatermark,
+    pub built_at: IndexManifestBuiltAt,
 }

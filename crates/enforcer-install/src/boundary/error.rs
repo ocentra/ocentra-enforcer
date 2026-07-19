@@ -29,6 +29,15 @@ pub enum InstallError {
         reason: String,
     },
 
+    /// A generated-project CI command violates the intentionally narrow shell-safe grammar.
+    #[error("invalid CI command at `{path}`: {reason}")]
+    InvalidCiCommand {
+        /// Fixed generated workflow location.
+        path: &'static str,
+        /// Fixed grammar requirement violated by the caller value.
+        reason: &'static str,
+    },
+
     /// A read or write against the filesystem failed outside the
     /// dry-run path (dry-run never touches disk; see [`crate::request_context`]).
     #[error("filesystem operation failed at `{path}`: {reason}")]

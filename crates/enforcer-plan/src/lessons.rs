@@ -934,73 +934,62 @@ pub fn run_doctor(
 /// / `[harness]` tag (rows L13+ per the ledger's own doctrine); rows
 /// without a tag default to `Harness` (the ledger's stated default for
 /// "the rest" of the untagged seed rows).
-fn memory_record_to_lesson(raw: &MemoryStreamRecord) -> Option<Result<LessonRecord, PlanError>> {
+fn memory_record_to_lesson(raw: MemoryStreamRecord) -> Option<Result<LessonRecord, PlanError>> {
     // Only fold in memory-stream records that look like a lesson capture
     // (carry both an id starting with `L`/`mem-` shape AND a lesson body) —
     // ordinary provenance/status records in the same stream are silently
     // skipped, not erred on, since this importer's job is lesson rows, not
     // full memory-stream validation.
-    if !raw.id.starts_with('L') {
+    let MemoryStreamRecord {
+        id,
+        date,
+        domain,
+        observed,
+        lesson,
+        ships_via,
+        landed_at,
+    } = raw;
+    if !id.starts_with('L') {
         return None;
     }
-    // CLONE-JUSTIFICATION: conversion consumes a lesson body while the raw
-    // transport record remains borrowed for the remaining validated fields.
-    let raw_lesson = raw.lesson.clone()?;
+    let raw_lesson = lesson?;
     Some((|| -> Result<LessonRecord, PlanError> {
-        // ALLOC-JUSTIFICATION: each decode failure owns a stable boundary
-        // name and message after the transport record is no longer borrowed.
-        let lesson: LessonText =
-            raw_lesson
-                .parse()
-                .map_err(|error: DecodeError| PlanError::Io {
-                    path: artifact_path("memory stream".into()),
-                    reason: diagnostic_detail(error.to_string()),
-                })?;
-        // CLONE-JUSTIFICATION: optional transport evidence becomes an owned
-        // validated value while the raw DTO remains borrowed.
-        let observed: ObservedEvidence =
-            raw.observed
-                .clone()
-                .unwrap_or_default()
-                .parse()
-                .map_err(|error: DecodeError| PlanError::Io {
-                    path: artifact_path("memory stream".into()),
-                    reason: diagnostic_detail(error.to_string()),
-                })?;
-        let id: LessonId = raw.id.parse().map_err(|e: DecodeError| PlanError::Io {
-            path: artifact_path("memory stream".into()),
-            reason: diagnostic_detail(e.to_string()),
-        })?;
-        // CLONE-JUSTIFICATION: route classification needs an owned value
-        // independent of the raw transport input.
-        let ships_via = file_content(raw.ships_via.clone().unwrap_or_default());
-        let landed_at_cell = file_content(raw.landed_at.clone().unwrap_or_default());
+        let lesson: LessonText = raw_lesson.parse().map_err(PlanError::SeedDecode)?;
+        let observed: ObservedEvidence = match observed {
+            Some(value) => value,
+            None => String::new(),
+        }
+        .parse()
+        .map_err(PlanError::SeedDecode)?;
+        let id: LessonId = id.parse().map_err(PlanError::SeedDecode)?;
+        let ships_via = file_content(match ships_via {
+            Some(value) => value,
+            None => String::new(),
+        });
+        let landed_at_cell = file_content(match landed_at {
+            Some(value) => value,
+            None => String::new(),
+        });
         let landed_at = if landed_at_cell.as_str().trim().is_empty() {
             Vec::new()
         } else {
             vec![landed_at_cell
                 .as_str()
                 .parse()
-                .map_err(|e: DecodeError| PlanError::Io {
-                    path: artifact_path("memory stream".into()),
-                    reason: diagnostic_detail(e.to_string()),
-                })?]
+                .map_err(PlanError::SeedDecode)?]
         };
-        let domain = match raw.domain.as_deref() {
+        let domain = match domain.as_deref() {
             Some("code") => LessonDomain::Code,
             _ => sniff_domain(&observed),
         };
         Ok(LessonRecord {
             id,
-            date: raw
-                .date
-                .clone()
-                .unwrap_or_default()
-                .parse()
-                .map_err(|error: DecodeError| PlanError::Io {
-                    path: artifact_path("memory stream".into()),
-                    reason: diagnostic_detail(error.to_string()),
-                })?,
+            date: match date {
+                Some(value) => value,
+                None => String::new(),
+            }
+            .parse()
+            .map_err(PlanError::SeedDecode)?,
             domain,
             observed,
             lesson,
@@ -1150,7 +1139,7 @@ pub fn import_seed_corpus(
             let Ok(raw) = decode_memory_stream_record(trimmed) else {
                 continue;
             };
-            let Some(result) = memory_record_to_lesson(&raw) else {
+            let Some(result) = memory_record_to_lesson(raw) else {
                 continue;
             };
             candidates.push(SeedImportCandidate {

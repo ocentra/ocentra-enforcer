@@ -90,7 +90,7 @@ impl Store {
         let marker_path = root.join(STORE_MARKER_FILE);
         if !marker_path.exists() {
             let marker = StoreMarkerDto {
-                schema_version: crate::boundary::log_schema::SCHEMA_VERSION,
+                schema_version: crate::boundary::log_schema::SCHEMA_VERSION.into(),
                 project_id: project_id.as_str().into(),
                 repo_root: repo_root.as_str().retained(),
                 initialized_at: now.as_str().retained(),
@@ -185,21 +185,21 @@ impl Store {
     pub fn read_observation_entries(&self) -> Result<ReadOutcome<ObservationLogEntryDto>> {
         read_verified(
             self.observation_log_path().as_path(),
-            |entry: &ObservationLogEntryDto| Seq::from_log_position(entry.seq),
+            |entry: &ObservationLogEntryDto| entry.seq,
         )
     }
 
     pub fn read_procedural_entries(&self) -> Result<ReadOutcome<ProceduralLogEntryDto>> {
         read_verified(
             self.procedural_log_path().as_path(),
-            |entry: &ProceduralLogEntryDto| Seq::from_log_position(entry.seq),
+            |entry: &ProceduralLogEntryDto| entry.seq,
         )
     }
 
     pub fn read_route_trace_entries(&self) -> Result<ReadOutcome<RouteTraceLogEntryDto>> {
         read_verified(
             self.route_trace_log_path().as_path(),
-            |entry: &RouteTraceLogEntryDto| Seq::from_log_position(entry.seq),
+            |entry: &RouteTraceLogEntryDto| entry.seq,
         )
     }
 
@@ -208,14 +208,14 @@ impl Store {
     ) -> Result<ReadOutcome<ModelObservationLogEntryDto>> {
         read_verified(
             self.model_observation_log_path().as_path(),
-            |entry: &ModelObservationLogEntryDto| Seq::from_log_position(entry.seq),
+            |entry: &ModelObservationLogEntryDto| entry.seq,
         )
     }
 
     pub fn read_graph_event_entries(&self) -> Result<ReadOutcome<GraphEventLogEntryDto>> {
         read_verified(
             self.graph_event_log_path().as_path(),
-            |entry: &GraphEventLogEntryDto| Seq::from_log_position(entry.seq),
+            |entry: &GraphEventLogEntryDto| entry.seq,
         )
     }
 
@@ -252,12 +252,12 @@ impl Store {
         let entry = ObservationLogEntryDto {
             schema_version: SCHEMA_VERSION,
             seq: seq.into(),
-            id,
+            id: id.into(),
             lesson_id: observation.lesson_id.into(),
             rule_id: observation.rule_id.map(Into::into),
             fault_class: observation.fault_class.map(Into::into),
             repo_context: observation.repo_context.into(),
-            clean: observation.clean.is_clean(),
+            clean: observation.clean,
             source_surface: observation.source_surface.into(),
             ts: observation.ts.into(),
             supersedes_seq: None,
@@ -315,11 +315,11 @@ impl Store {
     ) -> Result<ModelObservationLogEntryDto> {
         let seq = self.model_observation_log.high_watermark();
         let entry = ModelObservationLogEntryDto {
-            schema_version: record.schema_version,
+            schema_version: record.schema_version.into(),
             seq: seq.into(),
-            observed_at: record.observed_at,
-            source: record.source,
-            run_id: record.run_id,
+            observed_at: record.observed_at.into(),
+            source: record.source.into(),
+            run_id: record.run_id.into(),
             candidate: record.candidate,
             supersedes_seq: None,
         };
@@ -339,7 +339,7 @@ impl Store {
         let entry = GraphEventLogEntryDto {
             schema_version: SCHEMA_VERSION,
             seq: seq.into(),
-            id: format!("evt-{seq:04}"),
+            id: format!("evt-{seq:04}").into(),
             event,
             ts: ts.into().into(),
             supersedes_seq: None,

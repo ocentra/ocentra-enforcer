@@ -1,4 +1,4 @@
-use enforcer_domain::events_types::{EventCount, EventDuration, EventErrorReason};
+use enforcer_domain::events_types::{EventCount, EventDuration};
 use std::num::NonZeroUsize;
 
 use crate::error::EventingError;
@@ -17,18 +17,12 @@ impl HandlerExecutionPolicy {
         max_attempts: EventCount,
     ) -> Result<Self, EventingError> {
         if matches!(timeout, Some(duration) if duration.value().is_zero()) {
-            return Err(EventingError::InvalidHandlerPolicy {
-                reason: EventErrorReason::from_diagnostic("timeout must be greater than zero"),
-            });
+            return Err(EventingError::HandlerPolicyTimeoutMustBePositive);
         }
         let max_attempts =
             max_attempts
                 .as_nonzero()
-                .ok_or_else(|| EventingError::InvalidHandlerPolicy {
-                    reason: EventErrorReason::from_diagnostic(
-                        "max_attempts must be greater than zero",
-                    ),
-                })?;
+                .ok_or(EventingError::HandlerPolicyMaxAttemptsMustBePositive)?;
         Ok(Self {
             timeout,
             max_attempts,

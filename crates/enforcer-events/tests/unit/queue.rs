@@ -24,8 +24,8 @@ fn failing_journal_result(
 ) -> Result<JournalAppend, EventingError> {
     if call == fail_once_on {
         return Err(EventingError::JournalIo {
-            path: EventErrorPath::from_diagnostic("failing-journal"),
-            reason: EventErrorReason::from_diagnostic("intentional one-shot append failure"),
+            path: EventErrorPath::from_diagnostic("failing-journal".to_owned()),
+            reason: EventErrorReason::from_diagnostic("intentional one-shot append failure".to_owned()),
         });
     }
 
@@ -574,9 +574,9 @@ impl EventJournal for FailingJournal {
                     Ok(guard) => guard,
                     Err(_) => {
                         return Err(EventingError::JournalIo {
-                            path: EventErrorPath::from_diagnostic("failing-journal"),
+                            path: EventErrorPath::from_diagnostic("failing-journal".to_owned()),
                             reason: EventErrorReason::from_diagnostic(
-                                "failing journal lock poisoned",
+                                "failing journal lock poisoned".to_owned(),
                             ),
                         })
                     }

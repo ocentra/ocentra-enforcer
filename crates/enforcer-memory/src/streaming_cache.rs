@@ -228,8 +228,8 @@ pub fn stream_file_into_chunks_with_size(
         std::num::NonZeroU64::new(total_size).unwrap_or(std::num::NonZeroU64::MIN),
     );
 
-    let artifact_segment = safe_segment(artifact_id.as_str().into());
-    let path_segment = safe_segment(relative_path.as_str().into());
+    let artifact_segment = safe_segment(artifact_id.as_str().into())?;
+    let path_segment = safe_segment(relative_path.as_str().into())?;
     let artifact_root = cache_root
         .join(artifact_segment.as_str())
         .join(path_segment.as_str());
@@ -404,7 +404,7 @@ fn safe_join(
     Ok(root.join(relative.as_str()).into())
 }
 
-fn safe_segment(value: StreamingCacheSegmentInput<'_>) -> StreamingCachePathSegment {
+fn safe_segment(value: StreamingCacheSegmentInput<'_>) -> Result<StreamingCachePathSegment> {
     let value = value.as_str();
     let mut out = String::with_capacity(value.len());
     for ch in value.chars() {
@@ -414,16 +414,25 @@ fn safe_segment(value: StreamingCacheSegmentInput<'_>) -> StreamingCachePathSegm
             out.push('-');
         }
     }
-    if out.is_empty() {
-        "artifact".retained().into()
+    let sanitized = if out.is_empty() {
+        "artifact".retained()
     } else {
-        out.into()
-    }
+        out
+    };
+    StreamingCachePathSegment::try_new(sanitized).map_err(|_| {
+        model_error(
+            "sanitize-streaming-cache-path-segment",
+            "sanitizer produced an invalid path segment",
+        )
+    })
 }
 
-fn model_error(operation: &'static str, reason: impl Into<String>) -> MemoryError {
+fn model_error(
+    operation: &'static str,
+    reason: impl Into<enforcer_domain::memory_types::MemoryErrorReason>,
+) -> MemoryError {
     MemoryError::ModelRuntime {
         operation: operation.into(),
-        reason: reason.into().into(),
+        reason: reason.into(),
     }
 }
