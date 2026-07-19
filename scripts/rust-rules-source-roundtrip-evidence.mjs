@@ -1,5 +1,5 @@
 import { escapeRegExp, maskRustCode } from "./rust-rules-path-core.mjs";
-import { cargoCrateSources } from "./rust-rules-source-test-evidence-cache.mjs";
+import { withProofEvidenceIndex } from "./rust-rules-source-test-evidence-cache.mjs";
 import { collectTestFunctions } from "./rust-rules-source-test-structure-helpers.mjs";
 import {
   roundTripsTargetDataflow,
@@ -67,23 +67,53 @@ function testRoundTripsTarget(testBody, target, helperNames) {
   return roundTripsTargetDataflow(testBody, target);
 }
 
+function roundTripEvidenceIndex(candidates) {
+  const indexedCandidates = candidates.map((candidate) => ({
+    ...candidate,
+    masked: maskRustCode(candidate.source),
+  }));
+  const maskedSources = indexedCandidates.map((candidate) => candidate.masked);
+  return {
+    candidates: indexedCandidates.map((candidate) => ({
+      ...candidate,
+      testFunctions: collectTestFunctions(candidate.source, candidate.masked),
+    })),
+    helperNames: roundTripHelperNames(maskedSources),
+    resultByDtoName: new Map(),
+    targetsByDtoName: new Map(),
+  };
+}
+
 /** Checks crate-local executable tests for target-specific round-trip behavior. */
 export function hasRoundTripEvidence(root, filePath, source, dtoName) {
-  const candidates = cargoCrateSources(root, filePath, source).map(
-    (candidate) => ({ ...candidate, masked: maskRustCode(candidate.source) }),
+  const index = withProofEvidenceIndex(
+    root,
+    filePath,
+    source,
+    roundTripEvidenceIndex,
   );
-  const maskedSources = candidates.map((candidate) => candidate.masked);
-  const targets = roundTripTargets(maskedSources, dtoName);
-  const helperNames = roundTripHelperNames(maskedSources);
-  return candidates.some((candidate) =>
-    collectTestFunctions(candidate.source, candidate.masked).some(
+  if (index.resultByDtoName.has(dtoName)) {
+    return index.resultByDtoName.get(dtoName);
+  }
+  let targets = index.targetsByDtoName.get(dtoName);
+  if (!targets) {
+    targets = roundTripTargets(
+      index.candidates.map((candidate) => candidate.masked),
+      dtoName,
+    );
+    index.targetsByDtoName.set(dtoName, targets);
+  }
+  const result = index.candidates.some((candidate) =>
+    candidate.testFunctions.some(
       (testFunction) => {
         const body = candidate.masked.slice(
           testFunction.bodyStart,
           testFunction.bodyEnd,
         );
         return [...targets].some((target) =>
-          testRoundTripsTarget(body, target, helperNames));
+          testRoundTripsTarget(body, target, index.helperNames));
       },
     ));
+  index.resultByDtoName.set(dtoName, result);
+  return result;
 }

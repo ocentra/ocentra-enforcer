@@ -11,6 +11,12 @@ import {
   runGate,
   runScanner,
 } from './rust-rules-test-support.mjs';
+import {
+  clearProofEvidenceCache,
+  proofEvidenceCacheStats,
+  resetProofEvidenceCacheStats,
+} from '../scripts/rust-rules-source-test-evidence-cache.mjs';
+import { hasRoundTripEvidence } from '../scripts/rust-rules-source-roundtrip-evidence.mjs';
 test('constructor and property evidence bind to local definitions and registered property targets', () => {
   const externalOnly = makeProject({ 'src/lib.rs': 'pub fn use_external(input: &str) { let _ = input.parse::<u64>(); }\n' });
   expectNoRule(externalOnly, 'RR-12.16');
@@ -77,6 +83,42 @@ test('crate evidence cache refreshes after an external test changes in one proce
   const refreshed = runScanner(project, config, scope);
   assert.equal(refreshed.some((finding) => finding.ruleId === 'RR-12.16'), false);
   assert.equal(refreshed.some((finding) => finding.ruleId === 'RR-12.17'), false);
+});
+
+test('round-trip proof evidence builds one crate index per source snapshot and rebuilds after clear', () => {
+  const project = makeProject({
+    'src/boundary/proof.rs': `
+#[derive(Serialize, Deserialize, PartialEq)]
+pub struct FirstDto;
+#[derive(Serialize, Deserialize, PartialEq)]
+pub struct SecondDto;
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn first_and_second_dto_round_trip() {
+        let first = FirstDto;
+        let first_wire = serde_json::to_string(&first).unwrap();
+        let first_back = serde_json::from_str::<FirstDto>(&first_wire).unwrap();
+        assert_eq!(first_back, first);
+        let second = SecondDto;
+        let second_wire = serde_json::to_string(&second).unwrap();
+        let second_back = serde_json::from_str::<SecondDto>(&second_wire).unwrap();
+        assert_eq!(second_back, second);
+    }
+}
+`,
+  });
+  const sourcePath = path.join(project, 'src', 'boundary', 'proof.rs');
+  const source = fs.readFileSync(sourcePath, 'utf8');
+
+  resetProofEvidenceCacheStats();
+  assert.equal(hasRoundTripEvidence(project, sourcePath, source, 'FirstDto'), true);
+  assert.equal(hasRoundTripEvidence(project, sourcePath, source, 'SecondDto'), true);
+  assert.equal(proofEvidenceCacheStats().indexBuilds, 1);
+
+  clearProofEvidenceCache();
+  assert.equal(hasRoundTripEvidence(project, sourcePath, source, 'FirstDto'), true);
+  assert.equal(proofEvidenceCacheStats().indexBuilds, 2);
 });
 
 test('fuzz evidence binds to the binary parser target and not sibling parsers', () => {
