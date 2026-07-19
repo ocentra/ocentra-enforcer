@@ -59,7 +59,8 @@ impl From<InstallError> for InstallCommandFailure {
             InstallError::InvalidDomain(_)
             | InstallError::MalformedConfig { .. }
             | InstallError::ManagedBlockInvalid { .. }
-            | InstallError::UnknownAdapter { .. } => FailureClass::Config,
+            | InstallError::UnknownAdapter { .. }
+            | InstallError::InvalidCiCommand { .. } => FailureClass::Config,
             InstallError::Io { .. }
             | InstallError::BackupFailed { .. }
             | InstallError::UnsupportedTarget { .. }

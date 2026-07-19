@@ -22,6 +22,13 @@ pub struct QuarantinedRow {
 /// All `enforcer-memory` store/log/schema errors.
 #[derive(Debug, thiserror::Error)]
 pub enum MemoryError {
+    /// A persisted Memory log entry declared a schema version this build does not support.
+    #[error("invalid persisted Memory log schema version: {source}")]
+    InvalidLogSchemaVersion {
+        #[source]
+        source: enforcer_domain::boundary::decode_error::DecodeError,
+    },
+
     /// Opening a store for a project directory that has never been
     /// initialized (no existing store root) — the store MUST NOT create
     /// a fresh "ghost" database for a project it does not already know

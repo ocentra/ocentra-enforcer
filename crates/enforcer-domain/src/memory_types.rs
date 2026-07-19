@@ -2765,6 +2765,18 @@ pub struct MemoryObservationPayloadWire(serde_json::Value);
 
 /// Domain name for the wire-owned opaque observation payload.
 pub type MemoryObservationPayload = MemoryObservationPayloadWire;
+
+impl From<serde_json::Value> for MemoryObservationPayloadWire {
+    fn from(value: serde_json::Value) -> Self {
+        Self(value)
+    }
+}
+
+impl From<MemoryObservationPayloadWire> for serde_json::Value {
+    fn from(value: MemoryObservationPayloadWire) -> Self {
+        value.0
+    }
+}
 owned_memory_text!(
     #[doc = "Canonical qualified symbol name returned by source-snippet retrieval."]
     SnippetQualifiedName

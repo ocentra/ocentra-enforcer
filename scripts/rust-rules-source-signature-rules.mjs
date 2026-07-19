@@ -125,9 +125,13 @@ function applySimpleSignatureRules({
   source,
   violations,
   isPrivateLanguageHelper,
+  scope,
 }) {
   for (const rule of SIMPLE_SIGNATURE_RULES) {
     if (isPrivateLanguageHelper && rule.ruleId.startsWith("RR-6.")) continue;
+    if (rule.ruleId === "RR-6.34"
+      && scope.kind === "trait-impl"
+      && /\bfor\s+[A-Z][A-Za-z0-9_]*Wire\b/u.test(scope.header)) continue;
     if (!rule.matches(sigText)) continue;
     addSignatureViolation(
       violations,
@@ -323,6 +327,7 @@ export function applySignatureRules({
       source: originalSigFirstLine,
       violations,
       isPrivateLanguageHelper,
+      scope: sig.scope,
     });
     applyFallibleSignatureRules({
       sigText: sig.text,
