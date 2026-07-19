@@ -4,16 +4,16 @@
 //! matches the workpack (5 T1 blocking rules, ADBP_PARITY_MATRIX rows
 //! FRONT-01..FRONT-05).
 
+use enforcer_domain::rules_types::{RuleCatalogJson, RuleCatalogSource};
 use enforcer_rules::loader::parse_catalog;
 
 const LAYERED_FRONTEND_JSON: &str = include_str!("../rules/layered-frontend.json");
 
 fn layered_frontend_records(
 ) -> Result<Vec<enforcer_rules::registry::RuleRecord>, Box<dyn std::error::Error>> {
-    Ok(parse_catalog(
-        LAYERED_FRONTEND_JSON,
-        "rules/layered-frontend.json",
-    )?)
+    let raw = RuleCatalogJson::try_from(LAYERED_FRONTEND_JSON.to_owned())?;
+    let source = RuleCatalogSource::try_from("rules/layered-frontend.json".to_owned())?;
+    Ok(parse_catalog(&raw, &source)?)
 }
 
 #[test]
@@ -28,7 +28,7 @@ fn layered_frontend_catalog_loads_into_registry_with_no_duplicates(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let records = layered_frontend_records()?;
     let registry = enforcer_rules::loader::load_registry_from_records(records)?;
-    assert_eq!(registry.len(), 5);
+    assert_eq!(registry.iter().count(), 5);
     Ok(())
 }
 
@@ -37,24 +37,25 @@ fn every_layered_frontend_record_links_to_enforcer_lang_ts_with_full_linkage(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let records = layered_frontend_records()?;
     for record in &records {
-        assert_eq!(record.validator.crate_name, "enforcer-lang-ts");
+        assert_eq!(record.validator.crate_name.as_str(), "enforcer-lang-ts");
         assert!(record
             .validator
             .path
+            .as_str()
             .starts_with("rules::layered_frontend::"));
-        assert!(!record.fixtures.fail.is_empty());
-        assert!(!record.fixtures.pass.is_empty());
         assert!(record
             .fixtures
             .fail
+            .as_str()
             .starts_with("crates/enforcer-lang-ts/tests/fixtures/layered_frontend/"));
         assert!(record
             .fixtures
             .pass
+            .as_str()
             .starts_with("crates/enforcer-lang-ts/tests/fixtures/layered_frontend/"));
-        assert!(record
-            .doc_anchor
-            .contains("d12-layered-and-frontend-ruleids.md"));
+        assert!(record.doc_anchor.as_str().starts_with(
+            "docs/plans/enforcer-selfhost-plan/workpacks/d12-layered-and-frontend-ruleids.md"
+        ));
     }
     Ok(())
 }

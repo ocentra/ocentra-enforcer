@@ -20,5 +20,10 @@ enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 # substrate without reimplementing policy parsing in this data crate.
 enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
 
+[dev-dependencies]
+# DEPENDENCY-JUSTIFICATION: property tests exercise strict JSON boundary
+# decoding across generated whitespace and unknown-field inputs.
+proptest = "1.9.0"
+
 [lints]
 workspace = true

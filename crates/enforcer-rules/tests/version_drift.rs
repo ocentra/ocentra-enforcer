@@ -8,7 +8,8 @@
 //! registry today (anti-vacuous: this is not fixture-only).
 
 use enforcer_domain::rules_types::{
-    RuleCatalogJson, RuleCatalogSource, RuleManifest, RuleManifestJson,
+    RuleCatalogJson, RuleCatalogSource, RuleManifest, RuleManifestJson, RuleManifestSchemaVersion,
+    VersionDriftStatus,
 };
 use enforcer_rules::loader::parse_catalog;
 use enforcer_rules::registry::RuleRegistry;
@@ -75,13 +76,15 @@ fn unchanged_registry_passes_against_the_pinned_manifest() -> Result<(), Box<dyn
     // Cosmetic-only changes (title/tag rename) relative to the baseline
     // catalog must NOT trip drift.
     let registry = registry_from(UNCHANGED_CATALOG)?;
-    let drift = check_registry_drift(&manifest, &registry);
+    let drift = check_registry_drift(&manifest, &registry)?;
     assert_eq!(drift.len(), 2);
     assert!(
-        drift.iter().all(|entry| !entry.outcome.is_drift()),
+        drift
+            .iter()
+            .all(|entry| entry.outcome.status() == VersionDriftStatus::Clean),
         "cosmetic-only changes must not be reported as drift: {drift:?}"
     );
-    assert!(drift_findings(&drift).is_empty());
+    assert!(drift_findings(&drift)?.is_empty());
     Ok(())
 }
 
@@ -89,30 +92,32 @@ fn unchanged_registry_passes_against_the_pinned_manifest() -> Result<(), Box<dyn
 fn content_change_without_version_bump_fails_closed() -> Result<(), Box<dyn std::error::Error>> {
     let manifest = manifest_from(BASELINE_MANIFEST)?;
     let registry = registry_from(CONTENT_CHANGE_NO_BUMP_CATALOG)?;
-    let drift = check_registry_drift(&manifest, &registry);
+    let drift = check_registry_drift(&manifest, &registry)?;
 
     let vdrift_2 = drift
         .iter()
         .find(|e| e.rule_id.as_str() == "T1-VDRIFT.2")
         .ok_or("expected a T1-VDRIFT.2 drift entry")?;
     assert_eq!(vdrift_2.outcome, ManifestDrift::HashChangedVersionNotBumped);
-    assert!(vdrift_2.outcome.is_drift());
+    assert!(vdrift_2.outcome.status() == VersionDriftStatus::Drifted);
 
     // T1-VDRIFT.1 is untouched in this fixture and must stay clean.
     let vdrift_1 = drift
         .iter()
         .find(|e| e.rule_id.as_str() == "T1-VDRIFT.1")
         .ok_or("expected a T1-VDRIFT.1 drift entry")?;
-    assert!(!vdrift_1.outcome.is_drift());
+    assert!(vdrift_1.outcome.status() == VersionDriftStatus::Clean);
 
-    let findings = drift_findings(&drift);
+    let findings = drift_findings(&drift)?;
     assert_eq!(findings.len(), 1, "exactly one rule drifted");
     assert_eq!(findings[0].rule_id.as_str(), "T1-VDRIFT.2");
     assert!(findings[0]
         .detail
+        .as_str()
         .starts_with("`T1-VDRIFT.2`'s validator/fixtures/doc-anchor changed"));
     assert!(findings[0]
         .detail
+        .as_str()
         .ends_with("re-run the manifest generator to pin the new hash."));
     Ok(())
 }
@@ -121,26 +126,27 @@ fn content_change_without_version_bump_fails_closed() -> Result<(), Box<dyn std:
 fn version_bump_without_content_change_fails_closed() -> Result<(), Box<dyn std::error::Error>> {
     let manifest = manifest_from(BASELINE_MANIFEST)?;
     let registry = registry_from(HOLLOW_BUMP_CATALOG)?;
-    let drift = check_registry_drift(&manifest, &registry);
+    let drift = check_registry_drift(&manifest, &registry)?;
 
     let vdrift_1 = drift
         .iter()
         .find(|e| e.rule_id.as_str() == "T1-VDRIFT.1")
         .ok_or("expected a T1-VDRIFT.1 drift entry")?;
     assert_eq!(vdrift_1.outcome, ManifestDrift::VersionBumpedHashUnchanged);
-    assert!(vdrift_1.outcome.is_drift());
+    assert!(vdrift_1.outcome.status() == VersionDriftStatus::Drifted);
 
     let vdrift_2 = drift
         .iter()
         .find(|e| e.rule_id.as_str() == "T1-VDRIFT.2")
         .ok_or("expected a T1-VDRIFT.2 drift entry")?;
-    assert!(!vdrift_2.outcome.is_drift());
+    assert!(vdrift_2.outcome.status() == VersionDriftStatus::Clean);
 
-    let findings = drift_findings(&drift);
+    let findings = drift_findings(&drift)?;
     assert_eq!(findings.len(), 1, "exactly one rule drifted");
     assert_eq!(findings[0].rule_id.as_str(), "T1-VDRIFT.1");
     assert!(findings[0]
         .detail
+        .as_str()
         .starts_with("`T1-VDRIFT.1`'s RuleRecord.version was bumped"));
     Ok(())
 }
@@ -149,20 +155,22 @@ fn version_bump_without_content_change_fails_closed() -> Result<(), Box<dyn std:
 fn matched_version_and_hash_bump_together_passes() -> Result<(), Box<dyn std::error::Error>> {
     let manifest = manifest_from(BASELINE_MANIFEST)?;
     let registry = registry_from(LEGITIMATE_BUMP_CATALOG)?;
-    let drift = check_registry_drift(&manifest, &registry);
+    let drift = check_registry_drift(&manifest, &registry)?;
 
     let vdrift_2 = drift
         .iter()
         .find(|e| e.rule_id.as_str() == "T1-VDRIFT.2")
         .ok_or("expected a T1-VDRIFT.2 drift entry")?;
     assert_eq!(vdrift_2.outcome, ManifestDrift::HashChangedVersionBumped);
-    assert!(!vdrift_2.outcome.is_drift());
+    assert!(vdrift_2.outcome.status() == VersionDriftStatus::Clean);
 
     assert!(
-        drift.iter().all(|entry| !entry.outcome.is_drift()),
+        drift
+            .iter()
+            .all(|entry| entry.outcome.status() == VersionDriftStatus::Clean),
         "a matched version+hash bump must pass cleanly: {drift:?}"
     );
-    assert!(drift_findings(&drift).is_empty());
+    assert!(drift_findings(&drift)?.is_empty());
     Ok(())
 }
 
@@ -176,12 +184,16 @@ fn version_alone_or_hash_alone_never_passes_without_the_other(
     let manifest = manifest_from(BASELINE_MANIFEST)?;
 
     let hash_only = registry_from(CONTENT_CHANGE_NO_BUMP_CATALOG)?;
-    let hash_only_drift = check_registry_drift(&manifest, &hash_only);
-    assert!(hash_only_drift.iter().any(|e| e.outcome.is_drift()));
+    let hash_only_drift = check_registry_drift(&manifest, &hash_only)?;
+    assert!(hash_only_drift
+        .iter()
+        .any(|entry| entry.outcome.status() == VersionDriftStatus::Drifted));
 
     let version_only = registry_from(HOLLOW_BUMP_CATALOG)?;
-    let version_only_drift = check_registry_drift(&manifest, &version_only);
-    assert!(version_only_drift.iter().any(|e| e.outcome.is_drift()));
+    let version_only_drift = check_registry_drift(&manifest, &version_only)?;
+    assert!(version_only_drift
+        .iter()
+        .any(|entry| entry.outcome.status() == VersionDriftStatus::Drifted));
 
     Ok(())
 }
@@ -199,13 +211,13 @@ fn removing_a_pinned_rule_without_updating_the_manifest_fails_closed(
         .ok_or("expected T1-VDRIFT.1 in the baseline fixture")?];
     let registry = RuleRegistry::from_records(one_record)?;
 
-    let drift = check_registry_drift(&manifest, &registry);
+    let drift = check_registry_drift(&manifest, &registry)?;
     let missing = drift
         .iter()
         .find(|e| e.rule_id.as_str() == "T1-VDRIFT.2")
         .ok_or("expected a T1-VDRIFT.2 drift entry")?;
     assert_eq!(missing.outcome, ManifestDrift::MissingFromRegistry);
-    assert!(missing.outcome.is_drift());
+    assert!(missing.outcome.status() == VersionDriftStatus::Drifted);
     Ok(())
 }
 
@@ -232,17 +244,19 @@ fn the_real_shipped_manifest_matches_the_real_shipped_baseline_registry(
     let registry = real_baseline_registry()?;
     let recomputed = build_manifest(
         &registry,
-        enforcer_domain::rules_types::RuleManifestSchemaVersion::new(1)?,
-    );
+        RuleManifestSchemaVersion::try_new(std::num::NonZeroU32::MIN),
+    )?;
     let pinned = manifest_from(REAL_MANIFEST)?;
     assert_eq!(
         pinned, recomputed,
         "rule-version-manifest.json is stale relative to the real shipped baseline catalogs"
     );
 
-    let drift = check_registry_drift(&pinned, &registry);
+    let drift = check_registry_drift(&pinned, &registry)?;
     assert!(
-        drift.iter().all(|entry| !entry.outcome.is_drift()),
+        drift
+            .iter()
+            .all(|entry| entry.outcome.status() == VersionDriftStatus::Clean),
         "real shipped registry must currently pass its own pinned manifest: {drift:?}"
     );
     Ok(())
@@ -254,7 +268,7 @@ fn the_real_shipped_manifest_matches_the_real_shipped_baseline_registry(
 fn the_real_shipped_manifest_has_no_orphans_or_gaps() -> Result<(), Box<dyn std::error::Error>> {
     let registry = real_baseline_registry()?;
     let pinned = manifest_from(REAL_MANIFEST)?;
-    let drift = check_registry_drift(&pinned, &registry);
+    let drift = check_registry_drift(&pinned, &registry)?;
     assert!(
         !drift
             .iter()

@@ -4,13 +4,16 @@
 //! matches the workpack (1 T1 blocking required-test obligation, 2 T2
 //! scored smells).
 
+use enforcer_domain::rules_types::{RuleCatalogJson, RuleCatalogSource};
 use enforcer_rules::loader::parse_catalog;
 
 const RESILIENCE_JSON: &str = include_str!("../rules/resilience.json");
 
 fn resilience_records(
 ) -> Result<Vec<enforcer_rules::registry::RuleRecord>, Box<dyn std::error::Error>> {
-    Ok(parse_catalog(RESILIENCE_JSON, "rules/resilience.json")?)
+    let raw = RuleCatalogJson::try_from(RESILIENCE_JSON.to_owned())?;
+    let source = RuleCatalogSource::try_from("rules/resilience.json".to_owned())?;
+    Ok(parse_catalog(&raw, &source)?)
 }
 
 #[test]
@@ -25,7 +28,7 @@ fn resilience_catalog_loads_into_registry_with_no_duplicates(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let records = resilience_records()?;
     let registry = enforcer_rules::loader::load_registry_from_records(records)?;
-    assert_eq!(registry.len(), 3);
+    assert_eq!(registry.iter().count(), 3);
     Ok(())
 }
 
@@ -34,19 +37,26 @@ fn every_resilience_record_links_to_enforcer_lang_common_with_full_linkage(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let records = resilience_records()?;
     for record in &records {
-        assert_eq!(record.validator.crate_name, "enforcer-lang-common");
-        assert!(record.validator.path.starts_with("rules::resilience::"));
-        assert!(!record.fixtures.fail.is_empty());
-        assert!(!record.fixtures.pass.is_empty());
+        assert_eq!(record.validator.crate_name.as_str(), "enforcer-lang-common");
+        assert!(record
+            .validator
+            .path
+            .as_str()
+            .starts_with("rules::resilience::"));
         assert!(record
             .fixtures
             .fail
+            .as_str()
             .starts_with("crates/enforcer-lang-common/tests/fixtures/resilience/"));
         assert!(record
             .fixtures
             .pass
+            .as_str()
             .starts_with("crates/enforcer-lang-common/tests/fixtures/resilience/"));
-        assert!(record.doc_anchor.contains("d10-resilience-auditor.md"));
+        assert!(record
+            .doc_anchor
+            .as_str()
+            .starts_with("docs/plans/enforcer-selfhost-plan/workpacks/d10-resilience-auditor.md"));
     }
     Ok(())
 }

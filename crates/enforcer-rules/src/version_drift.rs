@@ -19,7 +19,7 @@
 //!
 //! # Whole-registry manifest drift (d13)
 //!
-//! [`check_drift`]/[`has_drift`] above are the PAIRWISE oracle arc-04
+//! [`check_drift`] above is the PAIRWISE oracle arc-04
 //! shipped: one baseline record vs one candidate record. d13 adds the
 //! WHOLE-REGISTRY layer on top: [`RuleManifest`] is a versioned,
 //! `serde`-typed record (parsed at the boundary via
@@ -46,7 +46,7 @@ use enforcer_domain::hashes::Sha256;
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::rules_types::{
     RuleFailureReason, RuleManifest, RuleManifestEntry, RuleManifestJson,
-    RuleManifestSchemaVersion, VersionDriftOutcome,
+    RuleManifestSchemaVersion, RuleParityChange, VersionDriftOutcome, VersionDriftStatus,
 };
 use enforcer_domain::severity::Severity;
 
@@ -56,10 +56,15 @@ use crate::registry::{RuleRecord, RuleRegistry};
 /// SAME rule id. `title` and `tags` are cosmetic and intentionally
 /// excluded — only `validator`, `fixtures`, and `doc_anchor` are parity
 /// artifacts per doctrine.
-fn parity_content_changed(baseline: &RuleRecord, candidate: &RuleRecord) -> bool {
-    baseline.validator != candidate.validator
+fn parity_change(baseline: &RuleRecord, candidate: &RuleRecord) -> RuleParityChange {
+    if baseline.validator != candidate.validator
         || baseline.fixtures != candidate.fixtures
         || baseline.doc_anchor != candidate.doc_anchor
+    {
+        RuleParityChange::Changed
+    } else {
+        RuleParityChange::Unchanged
+    }
 }
 
 /// Compare a baseline record against a candidate record for the same rule
@@ -70,21 +75,15 @@ pub fn check_drift(baseline: &RuleRecord, candidate: &RuleRecord) -> VersionDrif
     if baseline.rule_id != candidate.rule_id {
         return VersionDriftOutcome::RuleIdMismatch;
     }
-    let content_changed = parity_content_changed(baseline, candidate);
+    let content_changed = parity_change(baseline, candidate);
     let version_bumped = candidate.version > baseline.version;
 
     match (content_changed, version_bumped) {
-        (false, false) => VersionDriftOutcome::Unchanged,
-        (true, true) => VersionDriftOutcome::ContentChangedVersionBumped,
-        (true, false) => VersionDriftOutcome::ContentChangedVersionNotBumped,
-        (false, true) => VersionDriftOutcome::VersionBumpedContentUnchanged,
+        (RuleParityChange::Unchanged, false) => VersionDriftOutcome::Unchanged,
+        (RuleParityChange::Changed, true) => VersionDriftOutcome::ContentChangedVersionBumped,
+        (RuleParityChange::Changed, false) => VersionDriftOutcome::ContentChangedVersionNotBumped,
+        (RuleParityChange::Unchanged, true) => VersionDriftOutcome::VersionBumpedContentUnchanged,
     }
-}
-
-/// Convenience: `true` when [`check_drift`] reports a fail-closed
-/// violation for this baseline/candidate pair.
-pub fn has_drift(baseline: &RuleRecord, candidate: &RuleRecord) -> bool {
-    check_drift(baseline, candidate).is_drift()
 }
 
 /// Manifest load/parse failure: malformed JSON, or JSON that parsed but
@@ -121,7 +120,7 @@ pub fn decode_manifest(raw: &RuleManifestJson) -> Result<RuleManifest, ManifestE
 /// serialized deterministically as canonical JSON. Cosmetic fields
 /// (`title`, `tags`) are excluded so a title rename does not force a hash
 /// (and therefore version) bump, mirroring the pairwise oracle above.
-pub fn hash_record(record: &RuleRecord) -> Sha256 {
+pub fn hash_record(record: &RuleRecord) -> Result<Sha256, ManifestError> {
     crate::boundary::version_drift::hash_record(record)
 }
 
@@ -141,17 +140,18 @@ pub fn hash_record(record: &RuleRecord) -> Sha256 {
 pub fn build_manifest(
     registry: &RuleRegistry,
     schema_version: RuleManifestSchemaVersion,
-) -> RuleManifest {
+) -> Result<RuleManifest, ManifestError> {
     let entries = registry
         .iter()
         .map(|record| {
-            (
+            Ok((
+                // CLONE-JUSTIFICATION: the manifest key owns the id retained by the registry record.
                 record.rule_id.clone(),
-                RuleManifestEntry::new(record.version, hash_record(record)),
-            )
+                RuleManifestEntry::new(record.version, hash_record(record)?),
+            ))
         })
-        .collect();
-    RuleManifest::new(schema_version, entries)
+        .collect::<Result<_, ManifestError>>()?;
+    Ok(RuleManifest::new(schema_version, entries))
 }
 
 /// Outcome of comparing one pinned [`RuleManifestEntry`] against the
@@ -187,11 +187,15 @@ impl ManifestDrift {
     /// [`ManifestDrift::Unchanged`] and [`ManifestDrift::HashChangedVersionBumped`]
     /// (a legitimate, matched version+hash bump) are the only two CLEAN
     /// shapes; every other variant fails closed.
-    pub fn is_drift(&self) -> bool {
-        !matches!(
+    pub fn status(&self) -> VersionDriftStatus {
+        if matches!(
             self,
             ManifestDrift::Unchanged | ManifestDrift::HashChangedVersionBumped
-        )
+        ) {
+            VersionDriftStatus::Clean
+        } else {
+            VersionDriftStatus::Drifted
+        }
     }
 }
 
@@ -211,7 +215,7 @@ pub struct ManifestDriftEntry {
 pub fn check_registry_drift(
     manifest: &RuleManifest,
     registry: &RuleRegistry,
-) -> Vec<ManifestDriftEntry> {
+) -> Result<Vec<ManifestDriftEntry>, ManifestError> {
     let mut rule_ids: std::collections::BTreeSet<&RuleId> = manifest.rule_ids().collect();
     rule_ids.extend(registry.iter().map(|record| &record.rule_id));
 
@@ -221,11 +225,11 @@ pub fn check_registry_drift(
             let pinned = manifest.entry(rule_id);
             let live = registry.get(rule_id);
             let outcome = match (pinned, live) {
-                (None, None) => unreachable!("rule_id came from one of the two sets"),
+                (None, None) => ManifestDrift::MissingFromManifest,
                 (Some(_), None) => ManifestDrift::MissingFromRegistry,
                 (None, Some(_)) => ManifestDrift::MissingFromManifest,
                 (Some(entry), Some(record)) => {
-                    let recomputed = hash_record(record);
+                    let recomputed = hash_record(record)?;
                     let hash_changed = recomputed != *entry.hash();
                     // Three-way version comparison, not boolean: a version
                     // DECREASE with an unchanged hash is distinguished from
@@ -251,36 +255,44 @@ pub fn check_registry_drift(
                     }
                 }
             };
-            ManifestDriftEntry {
+            Ok(ManifestDriftEntry {
+                // CLONE-JUSTIFICATION: each drift entry owns the id borrowed from the union set.
                 rule_id: rule_id.clone(),
                 outcome,
-            }
+            })
         })
         .collect()
 }
 
 /// Repo-relative path the drift [`Finding`]s below point at: the manifest
-/// is the file an author fixes (either by re-pinning the hash+version, or
+/// is the file an author updates (either by re-pinning the hash+version, or
 /// by reverting the unintended registry content change).
 const MANIFEST_FILE: &str = "crates/enforcer-rules/rule-version-manifest.json";
 
-/// Render every fail-closed [`ManifestDriftEntry`] (per [`ManifestDrift::is_drift`])
+/// Render every fail-closed [`ManifestDriftEntry`] (per [`ManifestDrift::status`])
 /// as a [`Finding`] naming the offending rule id with a terse `Fix:` hint.
 /// Entries that are [`ManifestDrift::Unchanged`] produce no finding.
-pub fn drift_findings(entries: &[ManifestDriftEntry]) -> Vec<Finding> {
+pub fn drift_findings(entries: &[ManifestDriftEntry]) -> Result<Vec<Finding>, DecodeError> {
     entries
         .iter()
-        .filter(|entry| entry.outcome.is_drift())
-        .filter_map(|entry| {
-            let file: enforcer_domain::paths::RelPath = MANIFEST_FILE.parse().ok()?;
-            let (detail, fix) = drift_message(entry);
-            Some(Finding {
+        .filter(|entry| entry.outcome.status() == VersionDriftStatus::Drifted)
+        .map(|entry| {
+            let file: enforcer_domain::paths::RelPath = MANIFEST_FILE.parse()?;
+            let title = enforcer_domain::findings::FindingTitle::new(
+                // ALLOC-JUSTIFICATION: each emitted finding owns its durable title.
+                "Rule registry drifted from its pinned version manifest".to_owned(),
+            )?;
+            let detail = drift_detail(entry)?;
+            let line =
+                enforcer_domain::telemetry_types::SourceLine::try_new(std::num::NonZeroU32::MIN);
+            Ok(Finding {
+                // CLONE-JUSTIFICATION: each finding owns the canonical id borrowed from its drift entry.
                 rule_id: entry.rule_id.clone(),
                 severity: Severity::Error,
-                title: "Rule registry drifted from its pinned version manifest".to_owned(),
-                detail: format!("{detail} Fix: {fix}"),
+                title,
+                detail,
                 file,
-                line: 1,
+                line: enforcer_domain::findings::FindingLine::known(line),
                 snippet: None,
             })
         })
@@ -291,62 +303,38 @@ pub fn drift_findings(entries: &[ManifestDriftEntry]) -> Vec<Finding> {
 /// rule id and the concrete corrective action. Never called with
 /// [`ManifestDrift::Unchanged`] or [`ManifestDrift::HashChangedVersionBumped`]
 /// — [`drift_findings`] filters both clean variants out via
-/// [`ManifestDrift::is_drift`] before reaching this function.
-fn drift_message(entry: &ManifestDriftEntry) -> (String, String) {
+/// [`ManifestDrift::status`] before reaching this function.
+fn drift_detail(
+    entry: &ManifestDriftEntry,
+) -> Result<enforcer_domain::findings::FindingDetail, DecodeError> {
     let rule_id = &entry.rule_id;
-    match &entry.outcome {
-        ManifestDrift::Unchanged => (
-            format!("`{rule_id}` is unchanged (unreachable: not a drift outcome)."),
-            "no action needed.".to_owned(),
+    let detail = match &entry.outcome {
+        ManifestDrift::Unchanged => format!("`{rule_id}` is unchanged. Fix: no action needed."),
+        ManifestDrift::HashChangedVersionBumped => {
+            format!("`{rule_id}` changed and its manifest entry is current. Fix: no action needed.")
+        }
+        ManifestDrift::HashUnchangedVersionMismatch => format!(
+            "`{rule_id}`'s content hash matches but its pinned `version` in rule-version-manifest.json does not match the live RuleRecord.version. Fix: re-pin `{rule_id}` in rule-version-manifest.json with the version that matches its current record."
         ),
-        ManifestDrift::HashChangedVersionBumped => (
-            format!(
-                "`{rule_id}` changed and its manifest entry is up to date (unreachable: not a drift outcome)."
-            ),
-            "no action needed.".to_owned(),
+        ManifestDrift::HashChangedVersionNotBumped => format!(
+            "`{rule_id}`'s validator/fixtures/doc-anchor changed but its RuleRecord.version was not bumped, so rule-version-manifest.json's pinned hash no longer matches. Fix: bump `{rule_id}`'s `version` in its rule catalog record AND re-run the manifest generator to pin the new hash."
         ),
-        ManifestDrift::HashUnchangedVersionMismatch => (
-            format!(
-                "`{rule_id}`'s content hash matches but its pinned `version` in rule-version-manifest.json does not match the live RuleRecord.version."
-            ),
-            format!(
-                "re-pin `{rule_id}` in rule-version-manifest.json with the version that matches its current record."
-            ),
+        ManifestDrift::VersionBumpedHashUnchanged => format!(
+            "`{rule_id}`'s RuleRecord.version was bumped but its validator/fixtures/doc-anchor content did not change (hollow bump). Fix: revert the unexplained `version` bump on `{rule_id}`, or make the intended content change before bumping."
         ),
-        ManifestDrift::HashChangedVersionNotBumped => (
-            format!(
-                "`{rule_id}`'s validator/fixtures/doc-anchor changed but its RuleRecord.version was not bumped, so rule-version-manifest.json's pinned hash no longer matches."
-            ),
-            format!(
-                "bump `{rule_id}`'s `version` in its rule catalog record AND re-run the manifest generator to pin the new hash."
-            ),
+        ManifestDrift::MissingFromRegistry => format!(
+            "`{rule_id}` is pinned in rule-version-manifest.json but no longer loads from any rule catalog. Fix: remove `{rule_id}` from rule-version-manifest.json, or restore its catalog record."
         ),
-        ManifestDrift::VersionBumpedHashUnchanged => (
-            format!(
-                "`{rule_id}`'s RuleRecord.version was bumped but its validator/fixtures/doc-anchor content did not change (hollow bump)."
-            ),
-            format!(
-                "revert the unexplained `version` bump on `{rule_id}`, or make the intended content change before bumping."
-            ),
+        ManifestDrift::MissingFromManifest => format!(
+            "`{rule_id}` loads from a rule catalog but has no pinned entry in rule-version-manifest.json. Fix: add a `{rule_id}` entry to rule-version-manifest.json pinning its current version+hash."
         ),
-        ManifestDrift::MissingFromRegistry => (
-            format!(
-                "`{rule_id}` is pinned in rule-version-manifest.json but no longer loads from any rule catalog."
-            ),
-            format!("remove `{rule_id}` from rule-version-manifest.json, or restore its catalog record."),
-        ),
-        ManifestDrift::MissingFromManifest => (
-            format!(
-                "`{rule_id}` loads from a rule catalog but has no pinned entry in rule-version-manifest.json."
-            ),
-            format!("add a `{rule_id}` entry to rule-version-manifest.json pinning its current version+hash."),
-        ),
-    }
+    };
+    enforcer_domain::findings::FindingDetail::new(detail)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{check_drift, has_drift};
+    use super::check_drift;
     use crate::registry::{FixtureRef, RuleRecord, ValidatorRef};
     use enforcer_domain::rules_types::VersionDriftOutcome;
     use enforcer_domain::{
@@ -357,7 +345,7 @@ mod tests {
     fn base() -> Result<RuleRecord, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(RuleRecord {
             rule_id: "RR-3.1".parse()?,
-            version: RuleVersion::new(1)?,
+            version: RuleVersion::try_new(std::num::NonZeroU32::MIN),
             title: "Base rule".parse()?,
             tier: Tier::T1,
             validator: ValidatorRef {
@@ -382,7 +370,6 @@ mod tests {
             check_drift(&baseline, &candidate),
             VersionDriftOutcome::Unchanged
         );
-        assert!(!has_drift(&baseline, &candidate));
         Ok(())
     }
 
@@ -392,12 +379,13 @@ mod tests {
         let baseline = base()?;
         let mut candidate = baseline.clone();
         candidate.doc_anchor = "docs/rules/SAMPLE.md#SAMPLE-2".parse()?;
-        candidate.version = RuleVersion::new(2)?;
+        candidate.version = RuleVersion::try_new(
+            std::num::NonZeroU32::new(2).ok_or("test rule version must be nonzero")?,
+        );
         assert_eq!(
             check_drift(&baseline, &candidate),
             VersionDriftOutcome::ContentChangedVersionBumped
         );
-        assert!(!has_drift(&baseline, &candidate));
         Ok(())
     }
 
@@ -412,7 +400,6 @@ mod tests {
             check_drift(&baseline, &candidate),
             VersionDriftOutcome::ContentChangedVersionNotBumped
         );
-        assert!(has_drift(&baseline, &candidate));
         Ok(())
     }
 
@@ -422,7 +409,10 @@ mod tests {
         let baseline = base()?;
         let mut candidate = baseline.clone();
         candidate.validator.path = "sample::OtherValidator".parse()?;
-        assert!(has_drift(&baseline, &candidate));
+        assert_eq!(
+            check_drift(&baseline, &candidate),
+            VersionDriftOutcome::ContentChangedVersionNotBumped
+        );
         Ok(())
     }
 
@@ -431,13 +421,14 @@ mod tests {
     {
         let baseline = base()?;
         let mut candidate = baseline.clone();
-        candidate.version = RuleVersion::new(2)?;
+        candidate.version = RuleVersion::try_new(
+            std::num::NonZeroU32::new(2).ok_or("test rule version must be nonzero")?,
+        );
         // No validator/fixtures/doc_anchor change — a hollow bump.
         assert_eq!(
             check_drift(&baseline, &candidate),
             VersionDriftOutcome::VersionBumpedContentUnchanged
         );
-        assert!(has_drift(&baseline, &candidate));
         Ok(())
     }
 
@@ -454,7 +445,6 @@ mod tests {
             check_drift(&baseline, &candidate),
             VersionDriftOutcome::Unchanged
         );
-        assert!(!has_drift(&baseline, &candidate));
         Ok(())
     }
 
@@ -462,15 +452,18 @@ mod tests {
     fn version_decrease_with_content_change_fails_closed() -> Result<(), Box<dyn std::error::Error>>
     {
         let mut baseline = base()?;
-        baseline.version = RuleVersion::new(5)?;
+        baseline.version = RuleVersion::try_new(
+            std::num::NonZeroU32::new(5).ok_or("test rule version must be nonzero")?,
+        );
         let mut candidate = baseline.clone();
-        candidate.version = RuleVersion::new(4)?;
+        candidate.version = RuleVersion::try_new(
+            std::num::NonZeroU32::new(4).ok_or("test rule version must be nonzero")?,
+        );
         candidate.doc_anchor = "docs/rules/SAMPLE.md#SAMPLE-3".parse()?;
         assert_eq!(
             check_drift(&baseline, &candidate),
             VersionDriftOutcome::ContentChangedVersionNotBumped
         );
-        assert!(has_drift(&baseline, &candidate));
         Ok(())
     }
 
@@ -483,7 +476,6 @@ mod tests {
             check_drift(&baseline, &candidate),
             VersionDriftOutcome::RuleIdMismatch
         );
-        assert!(has_drift(&baseline, &candidate));
         Ok(())
     }
 }
@@ -495,17 +487,38 @@ mod manifest_tests {
     };
     use crate::registry::{FixtureRef, RuleRecord, RuleRegistry, ValidatorRef};
     use enforcer_domain::{
-        rules_types::{RuleManifestSchemaVersion, RuleParameters, RuleVersion},
+        ids::RuleId,
+        rules_types::{RuleManifestSchemaVersion, RuleParameters, RuleVersion, VersionDriftStatus},
         severity::Tier,
     };
 
-    fn sample(
-        rule_id: &str,
-        version: u32,
+    macro_rules! sample {
+        ($rule_id:literal, $version:literal) => {
+            sample_record(
+                $rule_id.parse()?,
+                rule_version(
+                    std::num::NonZeroU32::new($version)
+                        .ok_or("test rule version must be nonzero")?,
+                ),
+            )
+        };
+    }
+
+    fn rule_version(value: std::num::NonZeroU32) -> RuleVersion {
+        RuleVersion::try_new(value)
+    }
+
+    fn schema_version(value: std::num::NonZeroU32) -> RuleManifestSchemaVersion {
+        RuleManifestSchemaVersion::try_new(value)
+    }
+
+    fn sample_record(
+        rule_id: RuleId,
+        version: RuleVersion,
     ) -> Result<RuleRecord, enforcer_domain::boundary::decode_error::DecodeError> {
         Ok(RuleRecord {
-            rule_id: rule_id.parse()?,
-            version: RuleVersion::new(version)?,
+            rule_id,
+            version,
             title: "Sample rule".parse()?,
             tier: Tier::T1,
             validator: ValidatorRef {
@@ -525,28 +538,28 @@ mod manifest_tests {
     #[test]
     fn hash_record_is_deterministic_and_ignores_cosmetic_fields(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let a = sample("RR-9.1", 1)?;
+        let a = sample!("RR-9.1", 1)?;
         let mut b = a.clone();
         b.title = "Renamed title".parse()?;
         b.tags = vec!["extra".parse()?];
-        assert_eq!(hash_record(&a), hash_record(&b));
+        assert_eq!(hash_record(&a)?, hash_record(&b)?);
         Ok(())
     }
 
     #[test]
     fn hash_record_changes_when_a_parity_artifact_changes() -> Result<(), Box<dyn std::error::Error>>
     {
-        let a = sample("RR-9.1", 1)?;
+        let a = sample!("RR-9.1", 1)?;
         let mut b = a.clone();
         b.doc_anchor = "docs/rules/SAMPLE.md#SAMPLE-2".parse()?;
-        assert_ne!(hash_record(&a), hash_record(&b));
+        assert_ne!(hash_record(&a)?, hash_record(&b)?);
         Ok(())
     }
 
     #[test]
     fn hash_record_produces_a_valid_sha256_brand() -> Result<(), Box<dyn std::error::Error>> {
-        let record = sample("RR-9.1", 1)?;
-        let digest = hash_record(&record);
+        let record = sample!("RR-9.1", 1)?;
+        let digest = hash_record(&record)?;
         assert_eq!(digest.hex().len(), 64);
         assert!(digest.as_str().starts_with("sha256:"));
         Ok(())
@@ -558,175 +571,184 @@ mod manifest_tests {
             enforcer_domain::rules_types::RuleManifestJson::try_from("{not json".to_owned())
                 .map_err(super::ManifestError::from)
                 .and_then(|raw| decode_manifest(&raw));
-        assert!(outcome.is_err());
+        assert!(matches!(outcome, Err(super::ManifestError::Parse(_))));
     }
 
     #[test]
     fn manifest_parse_rejects_zero_schema_version() -> Result<(), Box<dyn std::error::Error>> {
-        let record = sample("RR-9.1", 1)?;
-        let hash = hash_record(&record);
+        let record = sample!("RR-9.1", 1)?;
+        let hash = hash_record(&record)?;
         let raw = format!(
             r#"{{"schemaVersion":0,"entries":{{"RR-9.1":{{"version":1,"hash":"{hash}"}}}}}}"#,
         );
         let raw = enforcer_domain::rules_types::RuleManifestJson::try_from(raw)?;
-        assert!(decode_manifest(&raw).is_err());
+        assert!(matches!(
+            decode_manifest(&raw),
+            Err(super::ManifestError::Invalid(_))
+        ));
         Ok(())
     }
 
     #[test]
     fn manifest_round_trips_through_serde() -> Result<(), Box<dyn std::error::Error>> {
-        let record = sample("RR-9.1", 1)?;
-        let hash = hash_record(&record);
+        let record = sample!("RR-9.1", 1)?;
+        let hash = hash_record(&record)?;
         let raw = format!(
             r#"{{"schemaVersion":1,"entries":{{"RR-9.1":{{"version":1,"hash":"{hash}"}}}}}}"#,
         );
         let raw = enforcer_domain::rules_types::RuleManifestJson::try_from(raw)?;
         let manifest = decode_manifest(&raw)?;
-        assert_eq!(manifest.schema_version().value(), 1);
+        assert_eq!(manifest.schema_version().value().get(), 1);
         let entry = manifest
             .entry(&"RR-9.1".parse()?)
             .ok_or("expected RR-9.1 entry")?;
-        assert_eq!(entry.version().value(), 1);
+        assert_eq!(entry.version().value().get(), 1);
         assert_eq!(entry.hash(), &hash);
         Ok(())
     }
 
     #[test]
     fn build_manifest_pins_every_loaded_record() -> Result<(), Box<dyn std::error::Error>> {
-        let registry = RuleRegistry::from_records(vec![sample("RR-9.1", 1)?, sample("RR-9.2", 3)?])
-            .map_err(|e| e.to_string())?;
-        let manifest = build_manifest(&registry, RuleManifestSchemaVersion::new(1)?);
-        assert_eq!(manifest.len(), 2);
+        let registry =
+            RuleRegistry::from_records(vec![sample!("RR-9.1", 1)?, sample!("RR-9.2", 3)?])?;
+        let manifest = build_manifest(&registry, schema_version(std::num::NonZeroU32::MIN))?;
+        assert_eq!(manifest.rule_ids().count(), 2);
         let entry = manifest
             .entry(&"RR-9.2".parse()?)
             .ok_or("expected RR-9.2 entry")?;
-        assert_eq!(entry.version().value(), 3);
+        assert_eq!(entry.version().value().get(), 3);
         Ok(())
     }
 
     #[test]
     fn unchanged_registry_matches_its_own_generated_manifest(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let registry =
-            RuleRegistry::from_records(vec![sample("RR-9.1", 1)?]).map_err(|e| e.to_string())?;
-        let manifest = build_manifest(&registry, RuleManifestSchemaVersion::new(1)?);
-        let drift = check_registry_drift(&manifest, &registry);
+        let registry = RuleRegistry::from_records(vec![sample!("RR-9.1", 1)?])?;
+        let manifest = build_manifest(&registry, schema_version(std::num::NonZeroU32::MIN))?;
+        let drift = check_registry_drift(&manifest, &registry)?;
         assert_eq!(drift.len(), 1);
         assert_eq!(drift[0].outcome, ManifestDrift::Unchanged);
-        assert!(!drift[0].outcome.is_drift());
+        assert!(drift[0].outcome.status() == VersionDriftStatus::Clean);
         Ok(())
     }
 
     #[test]
     fn content_change_without_version_bump_fails_closed_against_manifest(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let baseline_registry =
-            RuleRegistry::from_records(vec![sample("RR-9.1", 1)?]).map_err(|e| e.to_string())?;
-        let manifest = build_manifest(&baseline_registry, RuleManifestSchemaVersion::new(1)?);
+        let baseline_registry = RuleRegistry::from_records(vec![sample!("RR-9.1", 1)?])?;
+        let manifest = build_manifest(
+            &baseline_registry,
+            schema_version(std::num::NonZeroU32::MIN),
+        )?;
 
         // Candidate registry: doc_anchor changed, version left at 1 — the
         // seeded drift the acceptance block requires this test to prove.
-        let mut drifted = sample("RR-9.1", 1)?;
+        let mut drifted = sample!("RR-9.1", 1)?;
         drifted.doc_anchor = "docs/rules/SAMPLE.md#SAMPLE-2".parse()?;
-        let candidate_registry =
-            RuleRegistry::from_records(vec![drifted]).map_err(|e| e.to_string())?;
+        let candidate_registry = RuleRegistry::from_records(vec![drifted])?;
 
-        let drift = check_registry_drift(&manifest, &candidate_registry);
+        let drift = check_registry_drift(&manifest, &candidate_registry)?;
         assert_eq!(drift.len(), 1);
         assert_eq!(drift[0].outcome, ManifestDrift::HashChangedVersionNotBumped);
-        assert!(drift[0].outcome.is_drift());
+        assert!(drift[0].outcome.status() == VersionDriftStatus::Drifted);
 
-        let findings = super::drift_findings(&drift);
+        let findings = super::drift_findings(&drift)?;
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].rule_id, "RR-9.1".parse()?);
-        assert!(findings[0].detail.contains("Fix:"));
-        assert!(findings[0].detail.contains("RR-9.1"));
+        assert!(findings[0].detail.as_str().contains("Fix:"));
+        assert!(findings[0].detail.as_str().contains("RR-9.1"));
         Ok(())
     }
 
     #[test]
     fn version_bump_without_content_change_fails_closed_against_manifest(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let baseline_registry =
-            RuleRegistry::from_records(vec![sample("RR-9.1", 1)?]).map_err(|e| e.to_string())?;
-        let manifest = build_manifest(&baseline_registry, RuleManifestSchemaVersion::new(1)?);
+        let baseline_registry = RuleRegistry::from_records(vec![sample!("RR-9.1", 1)?])?;
+        let manifest = build_manifest(
+            &baseline_registry,
+            schema_version(std::num::NonZeroU32::MIN),
+        )?;
 
         // Candidate registry: version bumped, no parity-artifact content
         // change at all — a hollow bump, the acceptance block's other
         // required seeded-fail scenario.
-        let bumped = sample("RR-9.1", 2)?;
-        let candidate_registry =
-            RuleRegistry::from_records(vec![bumped]).map_err(|e| e.to_string())?;
+        let bumped = sample!("RR-9.1", 2)?;
+        let candidate_registry = RuleRegistry::from_records(vec![bumped])?;
 
-        let drift = check_registry_drift(&manifest, &candidate_registry);
+        let drift = check_registry_drift(&manifest, &candidate_registry)?;
         assert_eq!(drift.len(), 1);
         assert_eq!(drift[0].outcome, ManifestDrift::VersionBumpedHashUnchanged);
-        assert!(drift[0].outcome.is_drift());
+        assert!(drift[0].outcome.status() == VersionDriftStatus::Drifted);
 
-        let findings = super::drift_findings(&drift);
+        let findings = super::drift_findings(&drift)?;
         assert_eq!(findings.len(), 1);
-        assert!(findings[0].detail.contains("hollow bump") || findings[0].detail.contains("Fix:"));
+        assert!(
+            findings[0].detail.as_str().contains("hollow bump")
+                || findings[0].detail.as_str().contains("Fix:")
+        );
         Ok(())
     }
 
     #[test]
     fn matched_version_and_hash_bump_together_passes() -> Result<(), Box<dyn std::error::Error>> {
-        let baseline_registry =
-            RuleRegistry::from_records(vec![sample("RR-9.1", 1)?]).map_err(|e| e.to_string())?;
-        let manifest = build_manifest(&baseline_registry, RuleManifestSchemaVersion::new(1)?);
+        let baseline_registry = RuleRegistry::from_records(vec![sample!("RR-9.1", 1)?])?;
+        let manifest = build_manifest(
+            &baseline_registry,
+            schema_version(std::num::NonZeroU32::MIN),
+        )?;
 
         // Legitimate change: content changed AND version bumped together.
-        let mut bumped = sample("RR-9.1", 2)?;
+        let mut bumped = sample!("RR-9.1", 2)?;
         bumped.doc_anchor = "docs/rules/SAMPLE.md#SAMPLE-2".parse()?;
-        let candidate_registry =
-            RuleRegistry::from_records(vec![bumped]).map_err(|e| e.to_string())?;
+        let candidate_registry = RuleRegistry::from_records(vec![bumped])?;
 
-        let drift = check_registry_drift(&manifest, &candidate_registry);
+        let drift = check_registry_drift(&manifest, &candidate_registry)?;
         assert_eq!(drift.len(), 1);
         assert_eq!(drift[0].outcome, ManifestDrift::HashChangedVersionBumped);
-        assert!(!drift[0].outcome.is_drift());
-        assert!(super::drift_findings(&drift).is_empty());
+        assert!(drift[0].outcome.status() == VersionDriftStatus::Clean);
+        assert!(super::drift_findings(&drift)?.is_empty());
         Ok(())
     }
 
     #[test]
     fn rule_id_removed_from_registry_without_manifest_update_fails_closed(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let baseline_registry =
-            RuleRegistry::from_records(vec![sample("RR-9.1", 1)?]).map_err(|e| e.to_string())?;
-        let manifest = build_manifest(&baseline_registry, RuleManifestSchemaVersion::new(1)?);
-        let empty_registry = RuleRegistry::from_records(vec![]).map_err(|e| e.to_string())?;
+        let baseline_registry = RuleRegistry::from_records(vec![sample!("RR-9.1", 1)?])?;
+        let manifest = build_manifest(
+            &baseline_registry,
+            schema_version(std::num::NonZeroU32::MIN),
+        )?;
+        let empty_registry = RuleRegistry::from_records(vec![])?;
 
-        let drift = check_registry_drift(&manifest, &empty_registry);
+        let drift = check_registry_drift(&manifest, &empty_registry)?;
         assert_eq!(drift.len(), 1);
         assert_eq!(drift[0].outcome, ManifestDrift::MissingFromRegistry);
-        assert!(drift[0].outcome.is_drift());
+        assert!(drift[0].outcome.status() == VersionDriftStatus::Drifted);
         Ok(())
     }
 
     #[test]
     fn rule_id_added_to_registry_without_manifest_update_fails_closed(
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let empty_registry = RuleRegistry::from_records(vec![]).map_err(|e| e.to_string())?;
-        let manifest = build_manifest(&empty_registry, RuleManifestSchemaVersion::new(1)?);
+        let empty_registry = RuleRegistry::from_records(vec![])?;
+        let manifest = build_manifest(&empty_registry, schema_version(std::num::NonZeroU32::MIN))?;
 
-        let candidate_registry =
-            RuleRegistry::from_records(vec![sample("RR-9.1", 1)?]).map_err(|e| e.to_string())?;
+        let candidate_registry = RuleRegistry::from_records(vec![sample!("RR-9.1", 1)?])?;
 
-        let drift = check_registry_drift(&manifest, &candidate_registry);
+        let drift = check_registry_drift(&manifest, &candidate_registry)?;
         assert_eq!(drift.len(), 1);
         assert_eq!(drift[0].outcome, ManifestDrift::MissingFromManifest);
-        assert!(drift[0].outcome.is_drift());
+        assert!(drift[0].outcome.status() == VersionDriftStatus::Drifted);
         Ok(())
     }
 
     #[test]
     fn manifest_entry_preserves_branded_values() -> Result<(), Box<dyn std::error::Error>> {
         let entry = enforcer_domain::rules_types::RuleManifestEntry::new(
-            RuleVersion::new(3)?,
-            hash_record(&sample("RR-9.1", 3)?),
+            rule_version(std::num::NonZeroU32::new(3).ok_or("test rule version must be nonzero")?),
+            hash_record(&sample!("RR-9.1", 3)?)?,
         );
-        assert_eq!(entry.version().value(), 3);
+        assert_eq!(entry.version().value().get(), 3);
         Ok(())
     }
 
@@ -739,24 +761,25 @@ mod manifest_tests {
         // entry itself pins version 5 while the live record still reads
         // 5 too in `sample`, so seed the mismatch on the manifest side by
         // building it from a higher-version baseline than the live record.
-        let higher_version_registry =
-            RuleRegistry::from_records(vec![sample("RR-9.1", 5)?]).map_err(|e| e.to_string())?;
-        let manifest = build_manifest(&higher_version_registry, RuleManifestSchemaVersion::new(1)?);
+        let higher_version_registry = RuleRegistry::from_records(vec![sample!("RR-9.1", 5)?])?;
+        let manifest = build_manifest(
+            &higher_version_registry,
+            schema_version(std::num::NonZeroU32::MIN),
+        )?;
 
-        let lower_version_registry =
-            RuleRegistry::from_records(vec![sample("RR-9.1", 3)?]).map_err(|e| e.to_string())?;
+        let lower_version_registry = RuleRegistry::from_records(vec![sample!("RR-9.1", 3)?])?;
 
-        let drift = check_registry_drift(&manifest, &lower_version_registry);
+        let drift = check_registry_drift(&manifest, &lower_version_registry)?;
         assert_eq!(drift.len(), 1);
         assert_eq!(
             drift[0].outcome,
             ManifestDrift::HashUnchangedVersionMismatch
         );
-        assert!(drift[0].outcome.is_drift());
+        assert!(drift[0].outcome.status() == VersionDriftStatus::Drifted);
 
-        let findings = super::drift_findings(&drift);
+        let findings = super::drift_findings(&drift)?;
         assert_eq!(findings.len(), 1);
-        assert!(findings[0].detail.contains("Fix:"));
+        assert!(findings[0].detail.as_str().contains("Fix:"));
         Ok(())
     }
 }

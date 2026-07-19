@@ -576,6 +576,54 @@
         "tags": ["cyberskills", "wave1", "container", "docker-daemon", "hardening"]
     },
     {
+        "ruleId": "CYBER-FILELESS-MALWARE.1",
+        "version": 1,
+        "title": "Command, log, and persistence text must flag fileless-malware LOLBin and in-memory execution indicators",
+        "tier": "T2",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::fileless_malware::FilelessMalwareValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/detect.fileless-malware/bad/suspicious.ps1",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/detect.fileless-malware/good/admin.ps1"
+        },
+        "docAnchor": "rules/common/fileless-malware.md#cyber-fileless-malware1",
+        "tags": ["cyberskills", "fileless", "powershell", "wmi", "lolbin", "detection"]
+    },
+    {
+        "ruleId": "CYBER-FILELESS-TELEMETRY.1",
+        "version": 1,
+        "title": "Fileless investigations must declare the required Sysmon, PowerShell, retention, and tooling baseline",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::fileless_malware::FilelessTelemetryBaselineValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/detect.fileless-telemetry/bad/baseline.json",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/detect.fileless-telemetry/good/baseline.json"
+        },
+        "docAnchor": "rules/common/fileless-malware.md#cyber-fileless-telemetry1",
+        "tags": ["cyberskills", "fileless", "sysmon", "powershell", "telemetry", "baseline"]
+    },
+    {
+        "ruleId": "CYBER-FILELESS-REPORT.1",
+        "version": 1,
+        "title": "Fileless-malware reports must preserve acquisition evidence, artifacts, IOCs, and the complete attack-chain assessment",
+        "tier": "T1",
+        "validator": {
+            "crateName": "enforcer-lang-security",
+            "path": "rules::cyberskills::fileless_malware::FilelessAnalysisReportValidator"
+        },
+        "fixtures": {
+            "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/detect.fileless-report/bad/report.txt",
+            "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/detect.fileless-report/good/report.txt"
+        },
+        "docAnchor": "rules/common/fileless-malware.md#cyber-fileless-report1",
+        "tags": ["cyberskills", "fileless", "incident-response", "report", "evidence", "attack-chain"]
+    },
+    {
         "ruleId": "CYBER-MCP-POISON.1",
         "version": 1,
         "title": "MCP tool metadata must not embed prompt-injection/exfiltration directives or hidden Unicode (tool poisoning)",

@@ -6,9 +6,16 @@
 
 use std::path::{Path, PathBuf};
 
+use enforcer_domain::rules_types::{RuleCatalogJson, RuleCatalogSource};
 use enforcer_rules::loader::{load_registry_from_records, parse_catalog};
 
 const CYBERSKILLS_ADAPTERS_JSON: &str = include_str!("../rules/cyberskills-adapters.json");
+
+fn load_catalog() -> Result<Vec<enforcer_rules::registry::RuleRecord>, Box<dyn std::error::Error>> {
+    let raw = RuleCatalogJson::try_from(CYBERSKILLS_ADAPTERS_JSON.to_owned())?;
+    let source = RuleCatalogSource::try_from("rules/cyberskills-adapters.json".to_owned())?;
+    Ok(parse_catalog(&raw, &source)?)
+}
 
 fn repo_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
     // CARGO_MANIFEST_DIR is `<repo>/crates/enforcer-rules`.
@@ -20,7 +27,7 @@ fn repo_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
 #[test]
 fn cyberskills_adapters_catalog_loads_and_every_record_resolves(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let records = parse_catalog(CYBERSKILLS_ADAPTERS_JSON, "rules/cyberskills-adapters.json")?;
+    let records = load_catalog()?;
     assert_eq!(
         records.len(),
         1,
@@ -28,20 +35,23 @@ fn cyberskills_adapters_catalog_loads_and_every_record_resolves(
     );
 
     let registry = load_registry_from_records(records)?;
-    assert_eq!(registry.len(), 1);
+    assert_eq!(registry.iter().count(), 1);
 
     let root = repo_root()?;
     let rule_id = "CYBER-ADAPTER-SCA-SEVERITY.1".parse()?;
     let record = registry
         .get(&rule_id)
         .ok_or("expected CYBER-ADAPTER-SCA-SEVERITY.1 to load")?;
-    assert!(!record.validator.crate_name.is_empty());
-    assert!(!record.validator.path.is_empty());
-    assert!(!record.doc_anchor.is_empty());
+    assert_eq!(record.validator.crate_name.as_str(), "enforcer-harness");
+    assert_eq!(
+        record.validator.path.as_str(),
+        "adapters::cyberskills::gate::SeverityThresholdGate"
+    );
+    assert_eq!(record.doc_anchor.as_str(), "docs/plans/enforcer-selfhost-plan/workpacks/h12-cyberskills-python-adapters.md#requirement-checklist");
     assert_eq!(record.tier, enforcer_domain::severity::Tier::T2);
 
-    let fail_path = root.join(&record.fixtures.fail);
-    let pass_path = root.join(&record.fixtures.pass);
+    let fail_path = root.join(record.fixtures.fail.as_str());
+    let pass_path = root.join(record.fixtures.pass.as_str());
     assert!(
         Path::new(&fail_path).is_file(),
         "fail fixture missing on disk: {}",
@@ -59,9 +69,11 @@ fn cyberskills_adapters_catalog_loads_and_every_record_resolves(
 #[test]
 fn cyberskills_adapters_catalog_has_no_duplicate_or_malformed_records(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let records = parse_catalog(CYBERSKILLS_ADAPTERS_JSON, "rules/cyberskills-adapters.json")?;
+    let records = load_catalog()?;
     let mut clone_of_first = records.clone();
     clone_of_first.push(records[0].clone());
-    assert!(load_registry_from_records(clone_of_first).is_err());
+    assert!(
+        matches!(load_registry_from_records(clone_of_first), Err(enforcer_rules::RuleLoadError::DuplicateRuleId { rule_id }) if rule_id.as_str() == "CYBER-ADAPTER-SCA-SEVERITY.1")
+    );
     Ok(())
 }

@@ -8,9 +8,16 @@
 
 use std::path::{Path, PathBuf};
 
+use enforcer_domain::rules_types::{RuleCatalogJson, RuleCatalogSource};
 use enforcer_rules::loader::{load_registry_from_records, parse_catalog};
 
 const CYBERSKILLS_JSON: &str = include_str!("../rules/cyberskills.json");
+
+fn load_catalog() -> Result<Vec<enforcer_rules::registry::RuleRecord>, Box<dyn std::error::Error>> {
+    let raw = RuleCatalogJson::try_from(CYBERSKILLS_JSON.to_owned())?;
+    let source = RuleCatalogSource::try_from("rules/cyberskills.json".to_owned())?;
+    Ok(parse_catalog(&raw, &source)?)
+}
 
 fn repo_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
     // CARGO_MANIFEST_DIR is `<repo>/crates/enforcer-rules`.
@@ -21,15 +28,15 @@ fn repo_root() -> Result<PathBuf, Box<dyn std::error::Error>> {
 
 #[test]
 fn cyberskills_catalog_loads_and_every_record_resolves() -> Result<(), Box<dyn std::error::Error>> {
-    let records = parse_catalog(CYBERSKILLS_JSON, "rules/cyberskills.json")?;
+    let records = load_catalog()?;
     assert_eq!(
         records.len(),
-        38,
-        "expected 12 h11 + 26 Wave-1/Wave-C/Wave-D/Wave-E cyberskills rule records"
+        41,
+        "expected 41 native cyberskills rule records"
     );
 
     let registry = load_registry_from_records(records)?;
-    assert_eq!(registry.len(), 38);
+    assert_eq!(registry.iter().count(), 41);
 
     let expected_ids = [
         "CYBER-FRONTMATTER.1",
@@ -69,6 +76,9 @@ fn cyberskills_catalog_loads_and_every_record_resolves() -> Result<(), Box<dyn s
         "CYBER-OAUTH.1",
         "CYBER-DOCKER-DAEMON.1",
         "CYBER-MCP-POISON.1",
+        "CYBER-FILELESS-MALWARE.1",
+        "CYBER-FILELESS-TELEMETRY.1",
+        "CYBER-FILELESS-REPORT.1",
         "CYBER-WEBSOCKET.1",
     ];
 
@@ -78,12 +88,39 @@ fn cyberskills_catalog_loads_and_every_record_resolves() -> Result<(), Box<dyn s
         let record = registry
             .get(&rule_id)
             .ok_or_else(|| format!("expected {id} to load"))?;
-        assert!(!record.validator.crate_name.is_empty());
-        assert!(!record.validator.path.is_empty());
-        assert!(!record.doc_anchor.is_empty());
+        assert!(
+            record
+                .validator
+                .crate_name
+                .as_str()
+                .starts_with("enforcer-"),
+            "{id} must name an enforcer-owned validator crate"
+        );
+        assert!(
+            record.validator.path.as_str().starts_with("rules::")
+                || record.validator.path.as_str().starts_with("cyberskills::"),
+            "{id} must point to a known validator namespace"
+        );
+        if id.starts_with("CYBER-FILELESS-") {
+            assert!(
+                record
+                    .doc_anchor
+                    .as_str()
+                    .starts_with("rules/common/fileless-malware.md#"),
+                "{id} must route to the product fileless-malware rule documentation"
+            );
+        } else {
+            assert!(
+                record
+                    .doc_anchor
+                    .as_str()
+                    .starts_with("docs/plans/enforcer-selfhost-plan/workpacks/h11-"),
+                "{id} must retain its h11 workpack anchor"
+            );
+        }
 
-        let fail_path = root.join(&record.fixtures.fail);
-        let pass_path = root.join(&record.fixtures.pass);
+        let fail_path = root.join(record.fixtures.fail.as_str());
+        let pass_path = root.join(record.fixtures.pass.as_str());
         assert!(
             Path::new(&fail_path).is_file(),
             "fail fixture missing on disk for {id}: {}",
@@ -108,9 +145,11 @@ fn cyberskills_catalog_loads_and_every_record_resolves() -> Result<(), Box<dyn s
 #[test]
 fn cyberskills_catalog_has_no_duplicate_or_malformed_records(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let records = parse_catalog(CYBERSKILLS_JSON, "rules/cyberskills.json")?;
+    let records = load_catalog()?;
     let mut clone_of_first = records.clone();
     clone_of_first.push(records[0].clone());
-    assert!(load_registry_from_records(clone_of_first).is_err());
+    assert!(
+        matches!(load_registry_from_records(clone_of_first), Err(enforcer_rules::RuleLoadError::DuplicateRuleId { rule_id }) if rule_id.as_str() == "CYBER-FRONTMATTER.1")
+    );
     Ok(())
 }

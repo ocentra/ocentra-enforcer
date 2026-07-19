@@ -5,16 +5,28 @@
 //! malformed/duplicate record is rejected, and a seeded d13 version-drift
 //! fails closed.
 
-use enforcer_domain::rules_types::VersionDriftOutcome;
-use enforcer_domain::rules_types::{RuleCatalogJson, RuleCatalogSource};
+use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::rules_types::{
+    RuleCatalogJson, RuleCatalogSource, RuleVersion, VersionDriftOutcome,
+};
 use enforcer_rules::loader::{load_registry_from_records, parse_catalog};
-use enforcer_rules::version_drift::{check_drift, has_drift};
+use enforcer_rules::version_drift::check_drift;
 use enforcer_rules::RuleLoadError;
 
 const DENY_WALL_JSON: &str = include_str!("../rules/deny-wall.json");
 const NO_REEXPORTS_JSON: &str = include_str!("../rules/no-reexports.json");
 const OCENTRA_PARENT_POSTURE_JSON: &str = include_str!("../rules/ocentra-parent-posture.json");
 const DEFERRED_WORK_GATE_JSON: &str = include_str!("../rules/deferred-work-gate.json");
+
+fn next_rule_version(version: RuleVersion) -> Result<RuleVersion, DecodeError> {
+    let next = version
+        .value()
+        .get()
+        .checked_add(1)
+        .and_then(std::num::NonZeroU32::new)
+        .ok_or_else(|| DecodeError::new("ruleVersion", "next version must be representable"))?;
+    Ok(RuleVersion::try_new(next))
+}
 
 fn catalog(
     raw: &str,
@@ -53,7 +65,7 @@ fn baseline_catalogs_load_into_one_registry() -> Result<(), Box<dyn std::error::
     let registry = load_registry_from_records(records)?;
     // 1 deny-wall + 1 no-reexports + 4 ocentra-parent posture + 1
     // deferred-work-gate records.
-    assert_eq!(registry.len(), 7);
+    assert_eq!(registry.iter().count(), 7);
     Ok(())
 }
 
@@ -64,21 +76,21 @@ fn deferred_work_gate_record_loads_and_is_linked_to_lang_common_validator(
     let registry = load_registry_from_records(records)?;
     let rule_id = "DEFER-1.1".parse()?;
     let record = registry.get(&rule_id).ok_or("expected DEFER-1.1 to load")?;
-    assert_eq!(record.validator.crate_name, "enforcer-lang-common");
+    assert_eq!(record.validator.crate_name.as_str(), "enforcer-lang-common");
     assert_eq!(
-        record.validator.path,
+        record.validator.path.as_str(),
         "rules::deferred_work::DeferredWorkValidator"
     );
     assert_eq!(
-        record.fixtures.fail,
+        record.fixtures.fail.as_str(),
         "crates/enforcer-lang-common/tests/fixtures/deferred_work/bad/fail.rs"
     );
     assert_eq!(
-        record.fixtures.pass,
+        record.fixtures.pass.as_str(),
         "crates/enforcer-lang-common/tests/fixtures/deferred_work/good/pass.rs"
     );
     assert_eq!(
-        record.doc_anchor,
+        record.doc_anchor.as_str(),
         "docs/plans/enforcer-selfhost-plan/workpacks/d03-deferred-work-gate.md#requirement-checklist"
     );
     Ok(())
@@ -92,18 +104,21 @@ fn deny_wall_record_loads_and_resolves() -> Result<(), Box<dyn std::error::Error
     let record = registry
         .get(&rule_id)
         .ok_or("expected T1-DENYWALL.1 to load")?;
-    assert_eq!(record.validator.crate_name, "enforcer-lang-rust");
-    assert_eq!(record.validator.path, "workspace_lints::DenyWallValidator");
+    assert_eq!(record.validator.crate_name.as_str(), "enforcer-lang-rust");
     assert_eq!(
-        record.fixtures.fail,
+        record.validator.path.as_str(),
+        "workspace_lints::DenyWallValidator"
+    );
+    assert_eq!(
+        record.fixtures.fail.as_str(),
         "crates/enforcer-lang-rust/fixtures/deny-wall/fail_missing_lints.rs"
     );
     assert_eq!(
-        record.fixtures.pass,
+        record.fixtures.pass.as_str(),
         "crates/enforcer-lang-rust/fixtures/deny-wall/pass_opts_in.rs"
     );
     assert_eq!(
-        record.doc_anchor,
+        record.doc_anchor.as_str(),
         "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent"
     );
     assert_eq!(record.tier, enforcer_domain::severity::Tier::T1);
@@ -119,8 +134,11 @@ fn no_reexports_record_loads_and_is_linked_to_lang_rust_validator(
     let record = registry
         .get(&rule_id)
         .ok_or("expected T1-NOREEXPORT.1 to load")?;
-    assert_eq!(record.validator.crate_name, "enforcer-lang-rust");
-    assert_eq!(record.validator.path, "no_reexports::NoReexportsValidator");
+    assert_eq!(record.validator.crate_name.as_str(), "enforcer-lang-rust");
+    assert_eq!(
+        record.validator.path.as_str(),
+        "no_reexports::NoReexportsValidator"
+    );
     Ok(())
 }
 
@@ -161,11 +179,23 @@ fn ocentra_parent_posture_yields_all_four_expected_records(
         let record = registry
             .get(&rule_id)
             .ok_or_else(|| format!("expected {id} to load"))?;
-        assert_eq!(record.validator.path, validator_path, "{id} validator");
-        assert_eq!(record.fixtures.fail, fail_fixture, "{id} fail fixture");
-        assert_eq!(record.fixtures.pass, pass_fixture, "{id} pass fixture");
         assert_eq!(
-            record.doc_anchor,
+            record.validator.path.as_str(),
+            validator_path,
+            "{id} validator"
+        );
+        assert_eq!(
+            record.fixtures.fail.as_str(),
+            fail_fixture,
+            "{id} fail fixture"
+        );
+        assert_eq!(
+            record.fixtures.pass.as_str(),
+            pass_fixture,
+            "{id} pass fixture"
+        );
+        assert_eq!(
+            record.doc_anchor.as_str(),
             "docs/plans/enforcer-selfhost-plan/RUST_ARCHITECTURE.md#borrows-from-ocentraparent",
             "{id} documentation anchor"
         );
@@ -177,7 +207,7 @@ fn ocentra_parent_posture_yields_all_four_expected_records(
         .get(&"T1-PARENTPOSTURE.1".parse()?)
         .ok_or("expected T1-PARENTPOSTURE.1")?;
     assert!(
-        matches!(reexport_posture.params.get("publicReexportPolicy"), Some(enforcer_domain::rules_types::RuleParameter::Text(value)) if value == "forbid")
+        matches!(reexport_posture.params.get("publicReexportPolicy"), Some(enforcer_domain::rules_types::RuleParameter::Text(value)) if value.as_str() == "forbid")
     );
 
     // blockedProtocolDependencies posture record references the
@@ -186,7 +216,7 @@ fn ocentra_parent_posture_yields_all_four_expected_records(
         .get(&"T1-PARENTPOSTURE.4".parse()?)
         .ok_or("expected T1-PARENTPOSTURE.4")?;
     assert!(
-        matches!(dependency_posture.params.get("configSubstrate"), Some(enforcer_domain::rules_types::RuleParameter::Text(value)) if value.contains("CargoDependencyPolicy"))
+        matches!(dependency_posture.params.get("configSubstrate"), Some(enforcer_domain::rules_types::RuleParameter::Text(value)) if value.as_str().contains("CargoDependencyPolicy"))
     );
 
     Ok(())
@@ -267,7 +297,6 @@ fn seeded_version_drift_fails_closed_on_content_change_without_bump(
         check_drift(&baseline, &candidate),
         VersionDriftOutcome::ContentChangedVersionNotBumped
     );
-    assert!(has_drift(&baseline, &candidate));
     Ok(())
 }
 
@@ -283,14 +312,12 @@ fn seeded_version_drift_fails_closed_on_hollow_version_bump(
 
     // Seed a drift: bump `version` with no matching fixture/anchor change.
     let mut candidate = baseline.clone();
-    candidate.version =
-        enforcer_domain::rules_types::RuleVersion::new(baseline.version.value() + 1)?;
+    candidate.version = next_rule_version(baseline.version)?;
 
     assert_eq!(
         check_drift(&baseline, &candidate),
         VersionDriftOutcome::VersionBumpedContentUnchanged
     );
-    assert!(has_drift(&baseline, &candidate));
     Ok(())
 }
 
@@ -306,13 +333,11 @@ fn legitimate_version_bump_matching_content_change_is_clean(
 
     let mut candidate = baseline.clone();
     candidate.fixtures.fail = format!("{}.v2", baseline.fixtures.fail).parse()?;
-    candidate.version =
-        enforcer_domain::rules_types::RuleVersion::new(baseline.version.value() + 1)?;
+    candidate.version = next_rule_version(baseline.version)?;
 
     assert_eq!(
         check_drift(&baseline, &candidate),
         VersionDriftOutcome::ContentChangedVersionBumped
     );
-    assert!(!has_drift(&baseline, &candidate));
     Ok(())
 }

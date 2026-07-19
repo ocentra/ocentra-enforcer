@@ -3,13 +3,16 @@
 //! non-empty validator/fixture/doc-anchor linkage, and the tier split
 //! matches the workpack (3 T1 blocking rules, 5 T2 scored rules).
 
+use enforcer_domain::rules_types::{RuleCatalogJson, RuleCatalogSource};
 use enforcer_rules::loader::parse_catalog;
 
 const TEST_QUALITY_JSON: &str = include_str!("../rules/test-quality.json");
 
 fn test_quality_records(
 ) -> Result<Vec<enforcer_rules::registry::RuleRecord>, Box<dyn std::error::Error>> {
-    Ok(parse_catalog(TEST_QUALITY_JSON, "rules/test-quality.json")?)
+    let raw = RuleCatalogJson::try_from(TEST_QUALITY_JSON.to_owned())?;
+    let source = RuleCatalogSource::try_from("rules/test-quality.json".to_owned())?;
+    Ok(parse_catalog(&raw, &source)?)
 }
 
 #[test]
@@ -24,7 +27,7 @@ fn test_quality_catalog_loads_into_registry_with_no_duplicates(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let records = test_quality_records()?;
     let registry = enforcer_rules::loader::load_registry_from_records(records)?;
-    assert_eq!(registry.len(), 8);
+    assert_eq!(registry.iter().count(), 8);
     Ok(())
 }
 
@@ -33,21 +36,25 @@ fn every_test_quality_record_links_to_enforcer_lang_common_with_full_linkage(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let records = test_quality_records()?;
     for record in &records {
-        assert_eq!(record.validator.crate_name, "enforcer-lang-common");
-        assert!(record.validator.path.starts_with("rules::test_quality::"));
-        assert!(!record.fixtures.fail.is_empty());
-        assert!(!record.fixtures.pass.is_empty());
+        assert_eq!(record.validator.crate_name.as_str(), "enforcer-lang-common");
+        assert!(record
+            .validator
+            .path
+            .as_str()
+            .starts_with("rules::test_quality::"));
         assert!(record
             .fixtures
             .fail
+            .as_str()
             .starts_with("crates/enforcer-lang-common/tests/fixtures/test_quality/"));
         assert!(record
             .fixtures
             .pass
+            .as_str()
             .starts_with("crates/enforcer-lang-common/tests/fixtures/test_quality/"));
-        assert!(record
-            .doc_anchor
-            .contains("d23-test-companion-and-quality.md"));
+        assert!(record.doc_anchor.as_str().starts_with(
+            "docs/plans/enforcer-selfhost-plan/workpacks/d23-test-companion-and-quality.md"
+        ));
     }
     Ok(())
 }

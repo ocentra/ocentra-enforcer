@@ -41,32 +41,39 @@
 //! No `pub use` barrels (workspace doctrine): consumers path through the
 //! modules directly, e.g. `enforcer_rules::registry::RuleRegistry`.
 
+pub mod boundary;
 pub mod loader;
 pub mod registry;
 pub mod rules;
 pub mod version_drift;
 pub mod waiver;
 
+use enforcer_domain::ids::RuleId;
+use enforcer_domain::rules_types::{RuleCatalogSource, RuleFailureReason};
+
 /// Load-time / structural failure for the rule registry.
 #[derive(Debug, thiserror::Error, PartialEq, Eq, Clone)]
 pub enum RuleLoadError {
+    /// A JSON boundary value could not convert into its canonical rule type.
+    #[error("rule catalog boundary conversion failed: {reason}")]
+    Boundary { reason: RuleFailureReason },
     /// The rule catalog's bytes were not valid JSON, or a record did not
     /// decode into [`registry::RuleRecord`]'s typed shape.
     #[error("rule catalog parse failed at `{path}`: {reason}")]
     Parse {
         /// Source path of the offending catalog file.
-        path: String,
+        path: RuleCatalogSource,
         /// Underlying decode/parse reason.
-        reason: String,
+        reason: RuleFailureReason,
     },
 
     /// The catalog file could not be read from disk.
     #[error("failed to read rule catalog `{path}`: {reason}")]
     Io {
         /// Path that failed to read.
-        path: String,
+        path: RuleCatalogSource,
         /// Underlying I/O failure description.
-        reason: String,
+        reason: RuleFailureReason,
     },
 
     /// Two records in the same catalog declared the same [`RuleId`]
@@ -74,19 +81,17 @@ pub enum RuleLoadError {
     #[error("duplicate ruleId `{rule_id}` in rule catalog")]
     DuplicateRuleId {
         /// The colliding rule id, verbatim.
-        rule_id: String,
-    },
-
-    /// A record's linkage fields (validator/fixtures/doc-anchor/title) are
-    /// structurally empty or otherwise malformed.
-    #[error("malformed rule record `{rule_id}`: {reason}")]
-    MalformedRecord {
-        /// The offending rule id, verbatim.
-        rule_id: String,
-        /// Human-readable reason for the rejection.
-        reason: String,
+        rule_id: RuleId,
     },
 }
 
 /// Result alias for `enforcer-rules` load/validate operations.
 pub type RuleResult<T> = std::result::Result<T, RuleLoadError>;
+
+/// Convert a displayable boundary failure into the canonical non-empty reason.
+#[must_use]
+pub fn boundary_reason(value: impl std::fmt::Display) -> RuleFailureReason {
+    // ALLOC-JUSTIFICATION: the typed failure owns rendered boundary diagnostics.
+    let text = value.to_string();
+    RuleFailureReason::from_diagnostic(text)
+}

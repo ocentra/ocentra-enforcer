@@ -14,7 +14,12 @@
 //! Doc anchor: this plan's own workpack,
 //! `docs/plans/enforcer-selfhost-plan/workpacks/b02-plan-structure-validator.md`.
 
+use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Tier;
+use enforcer_domain::{
+    paths::RelPath,
+    rules_types::{RuleDocAnchor, RuleParameters, RuleTag, RuleTitle, RuleVersion, ValidatorPath},
+};
 
 use crate::registry::{FixtureRef, RuleRecord, ValidatorRef};
 
@@ -24,48 +29,99 @@ const DOC_ANCHOR: &str =
 /// Grouped constructor arguments for one [`RuleRecord`] (clippy
 /// `too_many_arguments`: five-plus positional `&str`s is exactly the
 /// shape that lint exists to catch).
-#[derive(Clone, Copy)]
-struct RecordSpec<'a> {
-    rule_id: &'a str,
-    title: &'a str,
-    validator_path: &'a str,
-    fail_fixture: &'a str,
-    pass_fixture: &'a str,
-    doc_anchor_fragment: &'a str,
+struct RecordSpec {
+    rule_id: RuleId,
+    title: RuleTitle,
+    validator_path: ValidatorPath,
+    fail_fixture: RelPath,
+    pass_fixture: RelPath,
+    doc_anchor: RuleDocAnchor,
 }
 
-fn record(spec: RecordSpec<'_>) -> Result<RuleRecord, crate::RuleLoadError> {
+macro_rules! plan_spec {
+    (
+        rule_id: $rule_id:literal,
+        title: $title:literal,
+        validator_path: $validator_path:literal,
+        fail_fixture: $fail_fixture:literal,
+        pass_fixture: $pass_fixture:literal,
+        doc_anchor_fragment: $fragment:literal,
+    ) => {
+        RecordSpec {
+            rule_id: $rule_id
+                .parse()
+                .map_err(|error| crate::RuleLoadError::Boundary {
+                    reason: crate::boundary_reason(error),
+                })?,
+            title: $title
+                .parse()
+                .map_err(|error| crate::RuleLoadError::Boundary {
+                    reason: crate::boundary_reason(error),
+                })?,
+            validator_path: $validator_path.parse().map_err(|error| {
+                crate::RuleLoadError::Boundary {
+                    reason: crate::boundary_reason(error),
+                }
+            })?,
+            fail_fixture: $fail_fixture.parse().map_err(|error| {
+                crate::RuleLoadError::Boundary {
+                    reason: crate::boundary_reason(error),
+                }
+            })?,
+            pass_fixture: $pass_fixture.parse().map_err(|error| {
+                crate::RuleLoadError::Boundary {
+                    reason: crate::boundary_reason(error),
+                }
+            })?,
+            doc_anchor: format!("{DOC_ANCHOR}#{}", $fragment)
+                .parse()
+                .map_err(|error| crate::RuleLoadError::Boundary {
+                    reason: crate::boundary_reason(error),
+                })?,
+        }
+    };
+}
+
+fn record(spec: RecordSpec) -> Result<RuleRecord, crate::RuleLoadError> {
     let RecordSpec {
         rule_id,
         title,
         validator_path,
         fail_fixture,
         pass_fixture,
-        doc_anchor_fragment,
+        doc_anchor,
     } = spec;
     Ok(RuleRecord {
-        rule_id: rule_id.parse().map_err(
-            |e: enforcer_domain::boundary::decode_error::DecodeError| {
-                crate::RuleLoadError::MalformedRecord {
-                    rule_id: rule_id.to_owned(),
-                    reason: e.to_string(),
-                }
-            },
-        )?,
-        version: 1,
-        title: title.to_owned(),
+        rule_id,
+        version: RuleVersion::try_new(std::num::NonZeroU32::MIN),
+        title,
         tier: Tier::T1,
         validator: ValidatorRef {
-            crate_name: "enforcer-plan".to_owned(),
-            path: validator_path.to_owned(),
+            crate_name: "enforcer-plan".parse().map_err(|error| {
+                crate::RuleLoadError::Boundary {
+                    reason: crate::boundary_reason(error),
+                }
+            })?,
+            path: validator_path,
         },
         fixtures: FixtureRef {
-            fail: fail_fixture.to_owned(),
-            pass: pass_fixture.to_owned(),
+            fail: fail_fixture,
+            pass: pass_fixture,
         },
-        doc_anchor: format!("{DOC_ANCHOR}#{doc_anchor_fragment}"),
-        tags: vec!["plan".to_owned(), "structure".to_owned()],
-        params: serde_json::Value::Null,
+        doc_anchor,
+        tags: vec![
+            "plan"
+                .parse::<RuleTag>()
+                .map_err(|error| crate::RuleLoadError::Boundary {
+                    reason: crate::boundary_reason(error),
+                })?,
+            "structure"
+                .parse::<RuleTag>()
+                .map_err(|error| crate::RuleLoadError::Boundary {
+                    reason: crate::boundary_reason(error),
+                })?,
+        ],
+        params: RuleParameters::default(),
     })
 }
 
@@ -77,7 +133,7 @@ fn record(spec: RecordSpec<'_>) -> Result<RuleRecord, crate::RuleLoadError> {
 /// `cargo test`), not only by a consumer that happens to load the catalog.
 pub fn plan_rule_records() -> Result<Vec<RuleRecord>, crate::RuleLoadError> {
     Ok(vec![
-        record(RecordSpec {
+        record(plan_spec! {
             rule_id: "PLAN-CAPSULE.1",
             title: "Workpack carries the exact agent-capsule marker block",
             validator_path: "validator::PlanCapsuleValidator",
@@ -85,7 +141,7 @@ pub fn plan_rule_records() -> Result<Vec<RuleRecord>, crate::RuleLoadError> {
             pass_fixture: "tests/fixtures/plan-validator/capsule/pass/workpack.md",
             doc_anchor_fragment: "PLAN-CAPSULE",
         })?,
-        record(RecordSpec {
+        record(plan_spec! {
             rule_id: "PLAN-SKELETON.1",
             title: "Workpack carries the required section headings, in order",
             validator_path: "validator::PlanSkeletonValidator",
@@ -93,7 +149,7 @@ pub fn plan_rule_records() -> Result<Vec<RuleRecord>, crate::RuleLoadError> {
             pass_fixture: "tests/fixtures/plan-validator/skeleton/pass/workpack.md",
             doc_anchor_fragment: "PLAN-SKELETON",
         })?,
-        record(RecordSpec {
+        record(plan_spec! {
             rule_id: "PLAN-FRONTMATTER.1",
             title: "Workpack owns/deps/tier frontmatter is present and well-formed",
             validator_path: "validator::PlanFrontmatterValidator",
@@ -101,7 +157,7 @@ pub fn plan_rule_records() -> Result<Vec<RuleRecord>, crate::RuleLoadError> {
             pass_fixture: "tests/fixtures/plan-validator/frontmatter/pass/workpack.md",
             doc_anchor_fragment: "PLAN-FRONTMATTER",
         })?,
-        record(RecordSpec {
+        record(plan_spec! {
             rule_id: "PLAN-PARALLEL.1",
             title: "No-dep-edge workpacks declare disjoint owns globs",
             validator_path: "validator::check_parallel_safety",
@@ -109,7 +165,7 @@ pub fn plan_rule_records() -> Result<Vec<RuleRecord>, crate::RuleLoadError> {
             pass_fixture: "tests/fixtures/plan-validator/parallel-safety/disjoint-a.md",
             doc_anchor_fragment: "PLAN-PARALLEL-SAFETY",
         })?,
-        record(RecordSpec {
+        record(plan_spec! {
             rule_id: "PLAN-RESUME.1",
             title: "Plan carries live resume-state (Where-We-Are + checklist/progress + prev/next)",
             validator_path: "validator::PlanResumeStateValidator",
@@ -117,7 +173,7 @@ pub fn plan_rule_records() -> Result<Vec<RuleRecord>, crate::RuleLoadError> {
             pass_fixture: "tests/fixtures/plan-validator/resume-state/pass/RESUME_STATE.md",
             doc_anchor_fragment: "PLAN-RESUME-STATE",
         })?,
-        record(RecordSpec {
+        record(plan_spec! {
             rule_id: "PLAN-DRIFT.1",
             title:
                 "Requirement Checklist does not contradict this workpack's own Where-We-Are (L24)",
@@ -138,12 +194,7 @@ mod tests {
         let records = plan_rule_records()?;
         assert_eq!(records.len(), 6, "expected six PLAN-* records");
         for record in &records {
-            assert!(!record.validator.crate_name.is_empty());
-            assert!(!record.validator.path.is_empty());
-            assert!(!record.fixtures.fail.is_empty());
-            assert!(!record.fixtures.pass.is_empty());
-            assert!(!record.doc_anchor.is_empty());
-            assert_eq!(record.validator.crate_name, "enforcer-plan");
+            assert_eq!(record.validator.crate_name.as_str(), "enforcer-plan");
         }
         Ok(())
     }
@@ -153,7 +204,7 @@ mod tests {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let records = plan_rule_records()?;
         let registry = crate::registry::RuleRegistry::from_records(records)?;
-        assert_eq!(registry.len(), 6);
+        assert_eq!(registry.iter().count(), 6);
         for id in [
             "PLAN-CAPSULE.1",
             "PLAN-SKELETON.1",
@@ -163,7 +214,11 @@ mod tests {
             "PLAN-DRIFT.1",
         ] {
             let rule_id = id.parse()?;
-            assert!(registry.get(&rule_id).is_some(), "expected {id} to load");
+            assert_eq!(
+                registry.get(&rule_id).map(|record| &record.rule_id),
+                Some(&rule_id),
+                "expected {id} to load"
+            );
         }
         Ok(())
     }
@@ -182,10 +237,10 @@ mod tests {
         for record in &records {
             let fail_path = workspace_root
                 .join("crates/enforcer-plan")
-                .join(&record.fixtures.fail);
+                .join(record.fixtures.fail.as_str());
             let pass_path = workspace_root
                 .join("crates/enforcer-plan")
-                .join(&record.fixtures.pass);
+                .join(record.fixtures.pass.as_str());
             assert!(
                 fail_path.is_file(),
                 "{}: fail fixture missing at {}",
