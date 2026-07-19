@@ -114,13 +114,13 @@ fn index_status_reports_ready_once_the_operational_graph_has_nodes() -> Projects
         graph
             .apply(&GraphEventLogEntryDto {
                 schema_version: SCHEMA_VERSION,
-                seq: 0,
-                id: "evt-0000".to_owned(),
+                seq: 0.into(),
+                id: "evt-0000".to_owned().into(),
                 event: GraphEventKind::NodeAdded {
                     node_id: "file:lib.rs".into(),
                     node_kind: "file".into(),
                 },
-                ts: "2026-07-05T00:00:00Z".to_owned(),
+                ts: "2026-07-05T00:00:00Z".to_owned().into(),
                 supersedes_seq: None,
             })
             .map_err(ProjectsError::Memory)?;
@@ -152,14 +152,14 @@ fn index_status_detects_a_stale_index_after_the_log_grows() -> ProjectsResult<()
         .append_with_seq(|seq| ObservationLogEntryDto {
             schema_version: SCHEMA_VERSION,
             seq: seq.into(),
-            id: "obs-test-0000".to_owned(),
-            lesson_id: "L1".to_owned(),
+            id: "obs-test-0000".to_owned().into(),
+            lesson_id: "L1".to_owned().into(),
             rule_id: None,
             fault_class: None,
-            repo_context: "crates/enforcer-memory".to_owned(),
-            clean: true,
-            source_surface: "test".to_owned(),
-            ts: "2026-07-05T00:00:00Z".to_owned(),
+            repo_context: "crates/enforcer-memory".to_owned().into(),
+            clean: true.into(),
+            source_surface: "test".to_owned().into(),
+            ts: "2026-07-05T00:00:00Z".to_owned().into(),
             supersedes_seq: None,
             payload_kind: None,
             payload: None,

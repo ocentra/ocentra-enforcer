@@ -75,7 +75,7 @@ fn stale_index_is_rejected_and_fresh_index_is_accepted() -> Result<()> {
             reason: "fresh manifest unexpectedly absent".to_string().into(),
         }
     })?;
-    assert_eq!(manifest.source_high_watermark, 5);
+    assert_eq!(manifest.source_high_watermark, 5.into());
 
     // Log grew past the manifest's recorded watermark: stale.
     let outcome = check_index_freshness(&manifest_path, 8);

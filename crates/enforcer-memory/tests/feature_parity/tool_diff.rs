@@ -971,12 +971,12 @@ fn populate_store_from_candidate_graph(
             enforcer_memory::boundary::log_schema::GraphEventLogEntryDto {
                 schema_version: enforcer_memory::boundary::log_schema::SCHEMA_VERSION,
                 seq: seq.into(),
-                id: format!("evt-node-{seq}"),
+                id: format!("evt-node-{seq}").into(),
                 event: enforcer_domain::memory_types::GraphEventKind::NodeAdded {
                     node_id: node_id.into(),
                     node_kind: node_kind.into(),
                 },
-                ts: "2026-07-06T00:00:00Z".to_string(),
+                ts: "2026-07-06T00:00:00Z".to_string().into(),
                 supersedes_seq: None,
             }
         })?;
@@ -996,13 +996,13 @@ fn populate_store_from_candidate_graph(
             enforcer_memory::boundary::log_schema::GraphEventLogEntryDto {
                 schema_version: enforcer_memory::boundary::log_schema::SCHEMA_VERSION,
                 seq: seq.into(),
-                id: format!("evt-edge-{seq}"),
+                id: format!("evt-edge-{seq}").into(),
                 event: enforcer_domain::memory_types::GraphEventKind::EdgeAdded {
                     from: call_edge.from_file_id.clone().into(),
                     to: to_id.into(),
                     label: "calls".into(),
                 },
-                ts: "2026-07-06T00:00:00Z".to_string(),
+                ts: "2026-07-06T00:00:00Z".to_string().into(),
                 supersedes_seq: None,
             }
         })?;
@@ -1017,7 +1017,7 @@ fn populate_store_from_candidate_graph(
     let outcome = enforcer_memory::log::read_verified::<
         enforcer_memory::boundary::log_schema::GraphEventLogEntryDto,
     >(&log_path, |e| {
-        enforcer_domain::memory_types::Seq::from_log_position(e.seq)
+        e.seq
     })?;
     let sqlite_path = stores_dir
         .path()

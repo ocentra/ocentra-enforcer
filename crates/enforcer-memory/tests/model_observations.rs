@@ -261,11 +261,13 @@ fn model_runtime_observation_persists_to_store_and_graph() -> Result<(), Box<dyn
     );
     assert_eq!(
         entries.entries[0].payload.as_ref().and_then(|payload| {
+            let payload = serde_json::to_value(payload).ok()?;
             payload
                 .pointer("/candidate/observationKind")
                 .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
         }),
-        Some("degraded-fallback")
+        Some("degraded-fallback".to_owned())
     );
     let native_entries = store.read_model_observation_entries()?;
     assert_eq!(native_entries.entries.len(), 1);
@@ -331,17 +333,17 @@ fn projection_falls_back_to_legacy_observation_payloads_when_native_log_is_empty
     store.append_observation_entry(|seq| ObservationLogEntryDto {
         schema_version: SCHEMA_VERSION,
         seq: seq.into(),
-        id: format!("obs-{seq:04}"),
-        lesson_id: String::new(),
+        id: format!("obs-{seq:04}").into(),
+        lesson_id: String::new().into(),
         rule_id: None,
-        fault_class: Some("degraded-fallback".to_string()),
-        repo_context: "Qwen/Qwen3-Embedding-0.6B".to_string(),
-        clean: false,
-        source_surface: "x06-model-runtime-proof".to_string(),
-        ts: "2026-07-05T12:00:00Z".to_string(),
+        fault_class: Some("degraded-fallback".to_string().into()),
+        repo_context: "Qwen/Qwen3-Embedding-0.6B".to_string().into(),
+        clean: false.into(),
+        source_surface: "x06-model-runtime-proof".to_string().into(),
+        ts: "2026-07-05T12:00:00Z".to_string().into(),
         supersedes_seq: None,
-        payload_kind: Some("model-runtime:degraded-fallback".to_string()),
-        payload: Some(payload),
+        payload_kind: Some("model-runtime:degraded-fallback".to_string().into()),
+        payload: Some(payload.into()),
     })?;
 
     let native_entries = store.read_model_observation_entries()?;

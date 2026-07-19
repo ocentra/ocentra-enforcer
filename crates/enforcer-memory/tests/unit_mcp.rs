@@ -165,35 +165,35 @@ fn query_graph_prefers_store_projection_when_stores_dir_is_available() -> TestRe
     store.append_graph_event_entry(|seq| GraphEventLogEntryDto {
         schema_version: SCHEMA_VERSION,
         seq: seq.into(),
-        id: format!("evt-node-file-{seq}"),
+        id: format!("evt-node-file-{seq}").into(),
         event: GraphEventKind::NodeAdded {
             node_id: file_id.clone().into(),
             node_kind: "File".into(),
         },
-        ts: "2026-07-07T00:00:00Z".to_owned(),
+        ts: "2026-07-07T00:00:00Z".into(),
         supersedes_seq: None,
     })?;
     store.append_graph_event_entry(|seq| GraphEventLogEntryDto {
         schema_version: SCHEMA_VERSION,
         seq: seq.into(),
-        id: format!("evt-node-symbol-{seq}"),
+        id: format!("evt-node-symbol-{seq}").into(),
         event: GraphEventKind::NodeAdded {
             node_id: symbol_id.clone().into(),
             node_kind: "Function".into(),
         },
-        ts: "2026-07-07T00:00:00Z".to_owned(),
+        ts: "2026-07-07T00:00:00Z".into(),
         supersedes_seq: None,
     })?;
     store.append_graph_event_entry(|seq| GraphEventLogEntryDto {
         schema_version: SCHEMA_VERSION,
         seq: seq.into(),
-        id: format!("evt-edge-contains-{seq}"),
+        id: format!("evt-edge-contains-{seq}").into(),
         event: GraphEventKind::EdgeAdded {
             from: file_id.clone().into(),
             to: symbol_id.clone().into(),
             label: "contains".into(),
         },
-        ts: "2026-07-07T00:00:00Z".to_owned(),
+        ts: "2026-07-07T00:00:00Z".into(),
         supersedes_seq: None,
     })?;
 

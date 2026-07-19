@@ -1549,17 +1549,17 @@
       "query": "Summarize last 20 commits for this module.",
       "expectedIds": [
         "module:enforcer-memory-src:last-20-commits:20",
-        "commit:3bdb534dd4f4",
-        "commit:d653bed1b9eb",
-        "commit:bf9e2e97a671",
-        "commit:055a67da37bc"
+        "commit:e041e49d4598",
+        "commit:603d46de6043",
+        "commit:71c11dd2f893",
+        "commit:5ca163c73ccc"
       ],
       "actualIds": [
         "module:enforcer-memory-src:last-20-commits:20",
-        "commit:3bdb534dd4f4",
-        "commit:d653bed1b9eb",
-        "commit:bf9e2e97a671",
-        "commit:055a67da37bc"
+        "commit:e041e49d4598",
+        "commit:603d46de6043",
+        "commit:71c11dd2f893",
+        "commit:5ca163c73ccc"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
@@ -1567,6 +1567,11 @@
       "sourceRefs": [
         "crates/enforcer-memory/src",
         "git:log:-20:crates/enforcer-memory/src",
+        "commit-summary:e041e49d4598:fix(memory): preserve validated wire boundaries",
+        "commit-summary:603d46de6043:fix(rust): enforce typed boundaries and scanner evidence",
+        "commit-summary:71c11dd2f893:test(memory): prove descriptor DTO equality",
+        "commit-summary:5ca163c73ccc:test(memory): prove tool descriptor wire round trip",
+        "commit-summary:dbae819ff306:chore(rust-build): checkpoint integrated migration state",
         "commit-summary:3bdb534dd4f4:refactor(domain): centralize decode error and harness id",
         "commit-summary:d653bed1b9eb:refactor(memory): isolate graph artifact transport",
         "commit-summary:bf9e2e97a671:test(memory): propagate record dto codec errors",
@@ -1581,12 +1586,7 @@
         "commit-summary:f387be37556c:fix(memory): reduce impact traversal clones",
         "commit-summary:8954e8f31f48:docs(memory): justify vector ownership clones",
         "commit-summary:d64357a1be33:docs(memory): justify cross-repository ownership copies",
-        "commit-summary:8aaaf17b8847:fix(memory): justify observation ownership clones",
-        "commit-summary:23b4b1e66237:fix(memory): guard cached callable indices",
-        "commit-summary:3193d4974c6a:fix(memory): validate snippet byte ranges",
-        "commit-summary:da0ea8f96764:fix(memory): guard source fingerprint ranges",
-        "commit-summary:1e48e6e074c0:refactor(memory): encapsulate artifact metadata values",
-        "commit-summary:553dac65b05f:refactor(memory): encapsulate architecture overview metrics"
+        "commit-summary:8aaaf17b8847:fix(memory): justify observation ownership clones"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -1596,17 +1596,17 @@
       "category": "Retrieval",
       "query": "Find files with highest churn.",
       "expectedIds": [
-        "churn:Cargo.lock:78",
-        "churn:proof/memory/x06-rag-qa.json:76",
+        "churn:Cargo.lock:79",
+        "churn:proof/memory/x06-rag-qa.json:77",
         "churn:proof/memory/x06-feature-parity.json:69",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:67",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:68",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:51"
       ],
       "actualIds": [
-        "churn:Cargo.lock:78",
-        "churn:proof/memory/x06-rag-qa.json:76",
+        "churn:Cargo.lock:79",
+        "churn:proof/memory/x06-rag-qa.json:77",
         "churn:proof/memory/x06-feature-parity.json:69",
-        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:67",
+        "churn:crates/enforcer-memory/tests/feature_parity/runners.rs:68",
         "churn:docs/plans/enforcer-selfhost-plan/TEST_PROOF_EXPECTATIONS.md:51"
       ],
       "recallAt5": 1.0,
@@ -4039,6 +4039,10 @@
         "crates/enforcer-proof/src/boundary/journal.rs",
         "crates/enforcer-proof/src/boundary/legacy_import.rs",
         "crates/enforcer-proof/src/boundary/project_read_model.rs",
+        "crates/enforcer-proof/src/boundary/read_model.rs",
+        "crates/enforcer-proof/src/boundary/read_model_claim.rs",
+        "crates/enforcer-proof/src/boundary/read_model_journal.rs",
+        "crates/enforcer-proof/src/boundary/read_model_run.rs",
         "crates/enforcer-proof/src/harness.rs",
         "crates/enforcer-rules/src/loader.rs",
         "crates/enforcer-rules/src/registry.rs",
@@ -4266,6 +4270,10 @@
         "crates/enforcer-proof/src/boundary/journal.rs",
         "crates/enforcer-proof/src/boundary/legacy_import.rs",
         "crates/enforcer-proof/src/boundary/project_read_model.rs",
+        "crates/enforcer-proof/src/boundary/read_model.rs",
+        "crates/enforcer-proof/src/boundary/read_model_claim.rs",
+        "crates/enforcer-proof/src/boundary/read_model_journal.rs",
+        "crates/enforcer-proof/src/boundary/read_model_run.rs",
         "crates/enforcer-proof/src/harness.rs",
         "crates/enforcer-rules/src/boundary/registry.rs",
         "crates/enforcer-rules/src/boundary/version_drift.rs",
@@ -4454,7 +4462,7 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "commit:eba0b130939a752b95363b7d2ceaad61af33fb68"
+        "commit:603d46de604334180c81fac7bc6765b94d51346b"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -4518,7 +4526,7 @@
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "commit:179c6ac8989988bacad50147cc039d7088d7ac00"
+        "commit:603d46de604334180c81fac7bc6765b94d51346b"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -4737,71 +4745,24 @@
       "category": "GitHistory",
       "query": "Which files were created in the most recent working session?",
       "expectedIds": [
-        "commit:eba0b130939a752b95363b7d2ceaad61af33fb68",
+        "commit:603d46de604334180c81fac7bc6765b94d51346b",
         "lane:rust-build",
-        "created-after:2026-07-19 00:18:13 -0400",
-        "created:crates/enforcer-domain/src/boundary/core.rs",
-        "created:crates/enforcer-domain/src/boundary/hash.rs"
+        "created-after:2026-07-19 14:18:43 -0400",
+        "created:crates/enforcer-scan/tests/native_detector_authoring.rs"
       ],
       "actualIds": [
-        "commit:eba0b130939a752b95363b7d2ceaad61af33fb68",
+        "commit:603d46de604334180c81fac7bc6765b94d51346b",
         "lane:rust-build",
-        "created-after:2026-07-19 00:18:13 -0400",
-        "created:crates/enforcer-domain/src/boundary/core.rs",
-        "created:crates/enforcer-domain/src/boundary/hash.rs"
+        "created-after:2026-07-19 14:18:43 -0400",
+        "created:crates/enforcer-scan/tests/native_detector_authoring.rs"
       ],
       "recallAt5": 1.0,
       "mrrAt10": 1.0,
       "ndcgAt10": 1.0,
       "sourceRefs": [
-        "commit:eba0b130939a752b95363b7d2ceaad61af33fb68",
+        "commit:603d46de604334180c81fac7bc6765b94d51346b",
         "lane:rust-build",
-        "crates/enforcer-domain/src/boundary/core.rs",
-        "crates/enforcer-domain/src/boundary/hash.rs",
-        "crates/enforcer-domain/src/boundary/json.rs",
-        "crates/enforcer-domain/src/boundary/mcp.rs",
-        "crates/enforcer-domain/src/boundary/memory_traits.rs",
-        "crates/enforcer-domain/src/boundary/records.rs",
-        "crates/enforcer-domain/src/boundary/scan.rs",
-        "crates/enforcer-domain/src/boundary/security.rs",
-        "crates/enforcer-domain/src/boundary/validation.rs",
-        "crates/enforcer-domain/src/cli_types.rs",
-        "crates/enforcer-domain/src/config_types.rs",
-        "crates/enforcer-domain/src/coordination_types.rs",
-        "crates/enforcer-domain/src/core_types.rs",
-        "crates/enforcer-domain/src/events_types.rs",
-        "crates/enforcer-domain/src/harness_types.rs",
-        "crates/enforcer-domain/src/install_types.rs",
-        "crates/enforcer-domain/src/mcp_types.rs",
-        "crates/enforcer-domain/src/mechanization_types.rs",
-        "crates/enforcer-domain/src/memory_types.rs",
-        "crates/enforcer-domain/src/plan_types.rs",
-        "crates/enforcer-domain/src/proof_types.rs",
-        "crates/enforcer-domain/src/scan_types.rs",
-        "crates/enforcer-domain/src/security_types.rs",
-        "crates/enforcer-domain/src/telemetry_types.rs",
-        "crates/enforcer-domain/src/ui_types.rs",
-        "crates/enforcer-domain/src/xtask_types.rs",
-        "crates/enforcer-domain/tests/boundary_mcp.rs",
-        "crates/enforcer-domain/tests/config_contracts.rs",
-        "crates/enforcer-domain/tests/coordination_types.rs",
-        "crates/enforcer-domain/tests/events_types.rs",
-        "crates/enforcer-domain/tests/finding_contracts.rs",
-        "crates/enforcer-domain/tests/harness_contracts.rs",
-        "crates/enforcer-domain/tests/hash_contracts.rs",
-        "crates/enforcer-domain/tests/id_catalog.rs",
-        "crates/enforcer-domain/tests/install_types.rs",
-        "crates/enforcer-domain/tests/mcp_types.rs",
-        "crates/enforcer-domain/tests/memory_types.rs",
-        "crates/enforcer-domain/tests/path_contracts.rs",
-        "crates/enforcer-domain/tests/plan_types.rs",
-        "crates/enforcer-domain/tests/record_contracts.rs",
-        "crates/enforcer-domain/tests/run_record_contracts.rs",
-        "crates/enforcer-domain/tests/scan_types.rs",
-        "crates/enforcer-domain/tests/security_types.rs",
-        "crates/enforcer-domain/tests/ui_types.rs",
-        "crates/enforcer-domain/tests/validation.rs",
-        "crates/enforcer-domain/tests/xtask_types.rs"
+        "crates/enforcer-scan/tests/native_detector_authoring.rs"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"
@@ -4881,7 +4842,7 @@
         "docs/plans/enforcer-selfhost-plan/workpacks/c09-remaining-harness-adapters.md",
         "docs/plans/enforcer-selfhost-plan/workpacks/c10-ci-integration-and-binary-bootstrap.md",
         "crates/enforcer-install",
-        "history-count:42"
+        "history-count:44"
       ],
       "verdict": "pass",
       "capabilityState": "degraded"

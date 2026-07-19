@@ -3058,7 +3058,7 @@ fn scan_engine_core_callees_probe(row: &QaRow) -> RowResult {
     let calls = [
         "read_file_utf8(&scope.repo_root, file)",
         "classify(file)",
-        "validators.applicable(family)",
+        "validators.applicable(family, file, scope)",
         "validator.validate(input)",
         "fold_report(scope.kind, all_findings)",
     ];
@@ -3186,7 +3186,7 @@ fn scan_hot_path_probe(row: &QaRow) -> RowResult {
             "pub fn run_with_inline_test_policy(",
             [
                 "classify(file)",
-                "validators.applicable(family)",
+                "validators.applicable(family, file, scope)",
                 "validator.validate(input)",
                 "fold_report(scope.kind, all_findings)",
             ]
@@ -5067,7 +5067,7 @@ fn mcp_route_lifecycle_probe(row: &QaRow) -> RowResult {
         || entry.id != route_id.as_str()
         || entry.query != "canonical wrapper lifecycle"
         || entry.route != "hybrid-search"
-        || (entry.confidence - 0.91).abs() > f64::EPSILON
+        || (entry.confidence.get() - 0.91).abs() > f64::EPSILON
         || entry.ts != "2026-07-16T00:00:01Z"
     {
         return unrunnable(
