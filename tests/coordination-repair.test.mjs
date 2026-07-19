@@ -47,7 +47,7 @@ test("coordination presence captures PC/project/worktree/thread context and writ
   assert.equal(presence.ok, true);
   assert.equal(presence.rows.length, 1);
   assert.equal(presence.rows[0].projectId, "presence-project");
-  assert.equal(presence.rows[0].worktreeRoot, path.resolve(targetRoot));
+  assert.equal(presence.rows[0].worktreeRoot, fs.realpathSync.native(targetRoot));
   assert.equal(presence.rows[0].codexThreadId, "thread-presence");
   assert.equal(
     presence.views.byClaimedPath["src/lib.rs"][0].codexSessionId,
