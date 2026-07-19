@@ -16,6 +16,7 @@ import {
 import { buildCoordinationContext } from "../src/coordination/vendor/context.js";
 import { loadIdentity } from "../src/coordination/vendor/identity.js";
 import { materialize, materializedToJson } from "../src/coordination/vendor/materialize.js";
+import { applyReleaseEvent } from "../src/coordination/vendor/materialize-claim-identity.js";
 import { streamPath } from "../src/coordination/vendor/paths.js";
 import {
   executeClaimCommand,
@@ -335,6 +336,67 @@ test("historical unscoped release events retain writer-wide replay semantics", a
   });
   const after = await coordinationStatus({ stateRoot });
   assert.equal(after.state.ownership.activeClaims.length, 0);
+});
+
+test("multi-path release evaluates each active claim once", () => {
+  const activeClaimCount = 128;
+  const releasedClaimIndex = 64;
+  const activeClaims = new Map();
+  for (let index = 0; index < activeClaimCount; index += 1) {
+    activeClaims.set("claim-" + index, {
+      writer: "node_release_perf.codex-a",
+      lane: "codex-a",
+      paths: ["src/claimed-" + index + ".ts"],
+      eventId: "claim-" + index,
+      context: {
+        projectId: "release-performance-project",
+        repoRoot: "C:/release-performance",
+        worktreeRoot: "C:/release-performance",
+        branch: "feature/release-performance",
+        codexThreadId: "thread-release-performance",
+        operation: "edit",
+        lockKind: "writeLock",
+      },
+    });
+  }
+  const releasePaths = Array.from(
+    { length: activeClaimCount },
+    (_, index) => "src/unclaimed-" + index + ".ts",
+  );
+  releasePaths[releasePaths.length - 1] = "src/claimed-" + releasedClaimIndex + ".ts";
+  let overlapCallCount = 0;
+  let largestReleasePathBatch = 0;
+
+  applyReleaseEvent(
+    activeClaims,
+    {
+      writer: "node_release_perf.codex-a",
+      lane: "codex-a",
+      paths: releasePaths,
+      eventId: "release-event",
+      context: {
+        projectId: "release-performance-project",
+        repoRoot: "C:/release-performance",
+        worktreeRoot: "C:/release-performance",
+        branch: "feature/release-performance",
+        codexThreadId: "thread-release-performance",
+        operation: "edit",
+        lockKind: "writeLock",
+        explicitReleaseScope: true,
+        releaseClaimEventIds: ["claim-" + releasedClaimIndex],
+      },
+    },
+    (left, right) => {
+      overlapCallCount += 1;
+      largestReleasePathBatch = Math.max(largestReleasePathBatch, left.length);
+      return left.filter((leftPath) => right.includes(leftPath));
+    },
+  );
+
+  assert.equal(activeClaims.size, activeClaimCount - 1);
+  assert.equal(activeClaims.has("claim-" + releasedClaimIndex), false);
+  assert.equal(overlapCallCount, activeClaimCount);
+  assert.equal(largestReleasePathBatch, activeClaimCount);
 });
 
 test("scoped release never crosses an explicit owner's branch", async () => {

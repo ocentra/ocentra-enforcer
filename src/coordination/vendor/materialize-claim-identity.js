@@ -15,8 +15,9 @@ export function claimIdentityKey(claim) {
 }
 
 export function applyReleaseEvent(activeClaims, event, overlappingPaths) {
+  const matchesRelease = releaseEventMatcher(event, overlappingPaths);
   for (const [key, claim] of activeClaims) {
-    if (releaseEventMatchesClaim(event, claim, overlappingPaths)) {
+    if (matchesRelease(claim)) {
       activeClaims.delete(key);
     }
   }
@@ -24,7 +25,8 @@ export function applyReleaseEvent(activeClaims, event, overlappingPaths) {
 
 /** Return the active claims that replaying one release event would remove. */
 export function claimsReleasedByEvent(activeClaims, event, claimForMatch = (claim) => claim) {
-  return activeClaims.filter((claim) => releaseEventMatchesClaim(event, claimForMatch(claim)));
+  const matchesRelease = releaseEventMatcher(event);
+  return activeClaims.filter((claim) => matchesRelease(claimForMatch(claim)));
 }
 
 /** Record selected claim identities while retaining historical scoped release metadata. */
@@ -38,54 +40,46 @@ export function releaseContextForClaims(context, claims) {
   };
 }
 
-function releaseEventMatchesClaim(event, activeClaim, overlappingPaths = defaultOverlappingPaths) {
-  return (event.paths ?? []).some((path) =>
-    releaseMatchesClaim(
-      {
-        writer: event.writer,
-        lane: event.lane,
-        paths: [path],
-        eventId: event.id,
-        ...(event.context === undefined ? {} : { context: event.context }),
-      },
-      activeClaim,
-      overlappingPaths,
-    ),
-  );
-}
-
-function releaseMatchesClaim(releaseClaim, activeClaim, overlappingPaths) {
-  const release = enrichClaim(releaseClaim);
-  const active = enrichClaim(activeClaim);
-  if (release.writer !== active.writer) return false;
-  if (overlappingPaths(release.paths, active.paths).length === 0) return false;
-  const context = releaseClaim.context ?? {};
-  if (context.explicitReleaseScope !== true) return true;
+function releaseEventMatcher(event, overlappingPaths = defaultOverlappingPaths) {
+  const release = enrichClaim({
+    writer: event.writer,
+    lane: event.lane,
+    paths: event.paths ?? [],
+    eventId: event.id,
+    ...(event.context === undefined ? {} : { context: event.context }),
+  });
+  const context = event.context ?? {};
   const targetEventIds = recordedReleaseClaimEventIds(context);
-  if (targetEventIds?.has(activeClaim.eventId)) return true;
-  if (activeClaim.context === undefined) return true;
   const releaseHasExplicitOwner = hasMeaningfulContext(context, "codexThreadId", "codexSessionId");
-  const activeHasExplicitOwner = hasMeaningfulContext(
-    activeClaim.context ?? {},
-    "codexThreadId",
-    "codexSessionId",
-  );
-  if (
-    releaseHasExplicitOwner !== activeHasExplicitOwner ||
-    (releaseHasExplicitOwner && release.ownerKey !== active.ownerKey)
-  ) {
-    return false;
-  }
-  if (
-    (hasMeaningfulContext(context, "projectId", "repoRoot", "gitRemote") &&
-      !sameReleaseProject(release, active)) ||
-    (hasMeaningfulContext(context, "worktreeRoot", "repoRoot") &&
-      release.worktreeKey !== active.worktreeKey) ||
-    (hasMeaningfulContext(context, "branch") && release.branchKey !== active.branchKey)
-  ) {
-    return false;
-  }
-  return true;
+  return (activeClaim) => {
+    const active = enrichClaim(activeClaim);
+    if (release.writer !== active.writer) return false;
+    if (overlappingPaths(release.paths, active.paths).length === 0) return false;
+    if (context.explicitReleaseScope !== true) return true;
+    if (targetEventIds?.has(activeClaim.eventId)) return true;
+    if (activeClaim.context === undefined) return true;
+    const activeHasExplicitOwner = hasMeaningfulContext(
+      activeClaim.context,
+      "codexThreadId",
+      "codexSessionId",
+    );
+    if (
+      releaseHasExplicitOwner !== activeHasExplicitOwner ||
+      (releaseHasExplicitOwner && release.ownerKey !== active.ownerKey)
+    ) {
+      return false;
+    }
+    if (
+      (hasMeaningfulContext(context, "projectId", "repoRoot", "gitRemote") &&
+        !sameReleaseProject(release, active)) ||
+      (hasMeaningfulContext(context, "worktreeRoot", "repoRoot") &&
+        release.worktreeKey !== active.worktreeKey) ||
+      (hasMeaningfulContext(context, "branch") && release.branchKey !== active.branchKey)
+    ) {
+      return false;
+    }
+    return true;
+  };
 }
 
 function recordedReleaseClaimEventIds(context) {
