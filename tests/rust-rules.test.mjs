@@ -5,6 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnCli } from './cli-spawn.mjs';
+import { DEFAULT_CONFIG } from '../src/rule-metadata.mjs';
+import { normalizeConfig, runScanner } from '../scripts/rust-rules-scan-core.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'rust-rules.mjs');
@@ -64,6 +66,11 @@ function expectFailures(project, ruleIds) {
   assert.match(output, /Reason:/u, 'failure output must contain a reason');
   assert.match(output, /Fix:/u, 'failure output must contain a fix snippet');
   assert.match(output, /rules\/rust\//u, 'failure output must point at indexed rules doc');
+}
+
+function expectNoRule(project, ruleId) {
+  const result = runGate(project);
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, new RegExp(ruleId.replace('.', '\\.'), 'u'));
 }
 
 test('good branded-domain fixture passes scanner', () => {
@@ -832,4 +839,206 @@ pub fn verify(result: Result<u64, ()>, value: Option<u64>) {
 `,
   });
   expectFailures(project, ['RR-12.22', 'RR-12.23', 'RR-14.16', 'RR-14.18']);
+});
+
+test('record-field rules ignore function parameters and expressions but retain record failures', () => {
+  const passing = makeProject({
+    'src/lib.rs': `
+use std::path::PathBuf;
+pub struct EmptyRecord {}
+pub fn label(title: &str) -> PathBuf { PathBuf::from(title) }
+`,
+  });
+  expectNoRule(passing, 'RR-6.4');
+  const failing = makeProject({ 'src/lib.rs': 'pub struct Record {\n    title: String,\n}\n' });
+  expectFailure(failing, 'RR-6.4');
+});
+
+test('unsafe evidence ignores quoted diagnostics but retains real unsafe code', () => {
+  const passing = makeProject({ 'src/lib.rs': 'pub const MESSAGE: &str = "unsafe operation";\n' });
+  expectNoRule(passing, 'RR-3.30');
+  const failing = makeProject({ 'src/lib.rs': 'pub unsafe fn raw() {}\n' });
+  expectFailures(failing, ['RR-3.30', 'RR-3.31', 'RR-12.30']);
+});
+
+test('test-structure rules use balanced masked bodies', () => {
+  const passing = makeProject({
+    'tests/fixture.rs': `
+#[test]
+fn fixture_text_is_not_a_test() {
+    let fixture = r#"#[test]\nfn fake() {}"#;
+    let panic_attribute = "#[should_panic]";
+    let bytes = b"fn byte_fixture() { 1 }";
+    assert!(!fixture.is_empty());
+    assert!(!panic_attribute.is_empty());
+    assert!(!bytes.is_empty());
+}
+
+#[test]
+fn following_test_remains_visible() {
+    assert_eq!(2 + 2, 4);
+}
+`,
+  });
+  expectNoRule(passing, 'RR-12.24');
+  expectNoRule(passing, 'RR-12.20');
+  const failing = makeProject({ 'src/lib.rs': '#[test]\nfn empty() {}\n' });
+  expectFailure(failing, 'RR-12.24');
+});
+
+test('construction-only tests accept delegated proof helpers but still reject construction alone', () => {
+  const delegatedProof = makeProject({
+    'src/lib.rs': `
+#[test]
+fn validator_fixture_has_behavioral_proof() -> Result<(), ()> {
+    let validator = Validator::new()?;
+    run_fixture_parity(&validator)?;
+    Ok(())
+}
+`,
+  });
+  expectNoRule(delegatedProof, 'RR-12.25');
+
+  const manifestDelegatedProof = makeProject({
+    'src/lib.rs': `
+#[test]
+fn validator_manifest_has_behavioral_proof() -> Result<(), ()> {
+    let validator = Validator::new()?;
+    run_manifest_fixture_parity(&validator, "bad", "good")?;
+    Ok(())
+}
+`,
+  });
+  expectNoRule(manifestDelegatedProof, 'RR-12.25');
+
+  const propertyAssertion = makeProject({
+    'src/lib.rs': `
+proptest! {
+    #[test]
+    fn constructor_property(value in 1_u8..10) {
+        let outcome = Validator::new(value);
+        prop_assert!(outcome.is_ok());
+    }
+}
+`,
+  });
+  expectNoRule(propertyAssertion, 'RR-12.25');
+
+  const constructionOnly = makeProject({
+    'src/lib.rs': '#[test]\nfn only_constructs() { let _value = Validator::new(); }\n',
+  });
+  expectFailure(constructionOnly, 'RR-12.25');
+});
+
+test('constructor and property evidence bind to local definitions and registered property targets', () => {
+  const externalOnly = makeProject({ 'src/lib.rs': 'pub fn use_external(input: &str) { let _ = input.parse::<u64>(); }\n' });
+  expectNoRule(externalOnly, 'RR-12.16');
+  const propertyCovered = makeProject({
+    'src/lib.rs': 'pub fn parse_item(input: &str) -> Result<(), ()> { let _ = input; Ok(()) }\n',
+    'tests/property_parser_contracts.rs': 'proptest! { #[test] fn parser_contract(input in ".*") { let _ = parse_item(&input); } }\n',
+  });
+  expectNoRule(propertyCovered, 'RR-12.27');
+  const missing = makeProject({ 'src/lib.rs': 'pub fn try_new(value: String) -> Result<(), ()> { let _ = value; Ok(()) }\n' });
+  expectFailure(missing, 'RR-12.16');
+});
+
+test('parser rejection evidence is crate-wide and remains target-specific', () => {
+  const covered = makeProject({
+    'src/lib.rs': 'pub fn parse_lesson(input: &str) -> Result<(), ()> { if input.is_empty() { Err(()) } else { Ok(()) } }\n',
+    'tests/lesson.rs': '#[test]\nfn rejects_invalid_lesson() { assert!(parse_lesson("invalid").is_err()); }\n',
+  });
+  expectNoRule(covered, 'RR-12.16');
+  expectNoRule(covered, 'RR-12.17');
+
+  const partiallyCovered = makeProject({
+    'src/lib.rs': `
+pub fn parse_one(input: &str) -> Result<(), ()> { let _ = input; Ok(()) }
+pub fn parse_two(input: &str) -> Result<(), ()> { let _ = input; Ok(()) }
+`,
+    'tests/parser.rs': `
+#[test]
+fn rejects_invalid_parse_one() { assert!(parse_one("invalid").is_err()); }
+proptest! { #[test] fn parse_one_property(input in ".*") { let _ = parse_one(&input); } }
+`,
+  });
+  const result = runGate(partiallyCovered);
+  const output = `${result.stdout}\n${result.stderr}`;
+  assert.notEqual(result.status, 0);
+  assert.match(output, /RR-12\.16[\s\S]*parse_two/u);
+  assert.match(output, /RR-12\.17[\s\S]*parse_two/u);
+  assert.match(output, /RR-12\.27[\s\S]*parse_two/u);
+  assert.doesNotMatch(output, /RR-12\.(?:16|17|27)[^\n]*parse_one lacks/u);
+});
+
+test('crate evidence cache refreshes after an external test changes in one process', () => {
+  const project = makeProject({
+    'src/lib.rs': 'pub fn parse_lesson(input: &str) -> Result<(), ()> { let _ = input; Ok(()) }\n',
+    'tests/lesson.rs': '#[test]\nfn lesson_smoke() { let _ = parse_lesson("valid"); }\n',
+  });
+  const sourcePath = path.join(project, 'src', 'lib.rs');
+  const config = normalizeConfig(DEFAULT_CONFIG);
+  const scope = { mode: 'files', files: [sourcePath] };
+  const initial = runScanner(project, config, scope);
+  assert.equal(initial.some((finding) => finding.ruleId === 'RR-12.16'), true);
+
+  fs.writeFileSync(
+    path.join(project, 'tests', 'lesson.rs'),
+    '#[test]\nfn rejects_invalid_lesson_input() { assert!(parse_lesson("invalid lesson input").is_err()); }\n',
+    'utf8',
+  );
+  const refreshed = runScanner(project, config, scope);
+  assert.equal(refreshed.some((finding) => finding.ruleId === 'RR-12.16'), false);
+  assert.equal(refreshed.some((finding) => finding.ruleId === 'RR-12.17'), false);
+});
+
+test('fuzz evidence binds to the binary parser target and not sibling parsers', () => {
+  const covered = makeProject({
+    'src/lib.rs': 'pub fn parse_packet(input: &[u8]) -> Result<(), ()> { let _packet = input; Ok(()) }\n',
+    'fuzz/fuzz_targets/packet.rs': 'fn fuzz_parse_packet(bytes: &[u8]) { let _ = parse_packet(bytes); }\n',
+  });
+  expectNoRule(covered, 'RR-12.28');
+
+  const sibling = makeProject({
+    'src/lib.rs': `
+pub fn parse_packet(input: &[u8]) -> Result<(), ()> { let _packet = input; Ok(()) }
+pub fn parse_label(input: &str) -> Result<(), ()> { let _label = input; Ok(()) }
+`,
+  });
+  const result = runGate(sibling);
+  const output = `${result.stdout}\n${result.stderr}`;
+  assert.match(output, /RR-12\.28[\s\S]*parse_packet/u);
+  assert.doesNotMatch(output, /RR-12\.28[^\n]*parse_label/u);
+});
+
+test('DTO mapper entry points satisfy conversion evidence while missing conversion fails', () => {
+  const passing = makeProject({
+    'src/boundary/artifact_transport.rs': 'pub struct ArtifactTransportDto;\npub struct ArtifactTransport;\nimpl ArtifactTransportDto { fn into_domain(self) -> ArtifactTransport { ArtifactTransport } }\n',
+  });
+  expectNoRule(passing, 'RR-14.23');
+  const failing = makeProject({
+    'src/boundary/artifact_transport.rs': 'pub struct ArtifactTransportDto;\npub struct ArtifactTransport;\n',
+  });
+  expectFailure(failing, 'RR-14.23');
+
+  const roundTripCovered = makeProject({
+    'src/boundary/proof.rs': `
+#[derive(Serialize, Deserialize)]
+pub struct ProofDto;
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn proof_dto_round_trip_preserves_the_wire_shape() {
+        let value = ProofDto;
+        assert_eq!(serde_json::from_str::<ProofDto>(&serde_json::to_string(&value).unwrap()).is_ok(), true);
+    }
+}
+`,
+  });
+  expectNoRule(roundTripCovered, 'RR-14.25');
+
+  const roundTripMissing = makeProject({
+    'src/boundary/proof.rs': '#[derive(Serialize, Deserialize)]\npub struct ProofDto;\n',
+  });
+  expectFailure(roundTripMissing, 'RR-14.25');
 });

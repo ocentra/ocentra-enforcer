@@ -679,6 +679,7 @@ export const DEFAULT_CONFIG = Object.freeze({
     ".turbo",
     ".wrangler",
     ".enforce",
+    ".tmp",
     "target",
     "node_modules",
     ".next",
@@ -739,6 +740,7 @@ export const DEFAULT_CONFIG = Object.freeze({
     "wiremock",
   ],
   allowedGitDependencies: [],
+  allowedBuildRsPaths: [],
 });
 
 export const MERGED_ARRAY_CONFIG_KEYS = new Set(["ignoreDirs", "ignoreFileGlobs"]);

@@ -41,6 +41,10 @@ import {
 } from "./rust-rules-source-classification.mjs";
 import { applyLateRustFileRules } from "./rust-rules-source-late-rules.mjs";
 import { applySignatureRules } from "./rust-rules-source-signature-rules.mjs";
+import {
+  publicRecordLineMask,
+  recordFieldLineMask,
+} from "./rust-rules-source-record-line-masks.mjs";
 
 const { ID_LIKE_NAME_RE, PATH_LIKE_NAME_RE, TIME_LIKE_NAME_RE, URL_LIKE_NAME_RE } =
   NAME_PATTERNS;
@@ -121,6 +125,8 @@ function scanRustFile(root, filePath, config) {
   const masked = maskRustCode(source);
   const originalLines = source.split(/\r?\n/u);
   const maskedLines = masked.split(/\r?\n/u);
+  const recordFieldLines = recordFieldLineMask(maskedLines);
+  const publicRecordLines = publicRecordLineMask(maskedLines);
   const isTestSource = isTestFile(rel, config);
   const inlineTestLines = inlineTestLineMask(originalLines);
   const isBoundary = isBoundaryModulePath(rel, config);
@@ -776,6 +782,7 @@ function scanRustFile(root, filePath, config) {
     }
 
     if (
+      recordFieldLines[idx] &&
       /^\s*(?:pub(?:\([^)]*\))?\s+)?[A-Za-z_][A-Za-z0-9_]*\s*:\s*/u.test(
         line,
       ) &&
@@ -808,7 +815,7 @@ function scanRustFile(root, filePath, config) {
     }
 
     const fieldMatch = line.match(FIELD_RE);
-    if (!isBoundary && fieldMatch?.groups) {
+    if (!isBoundary && recordFieldLines[idx] && fieldMatch?.groups) {
       const fieldName = fieldMatch.groups.name;
       const fieldType = fieldMatch.groups.type;
       if (/\bBTreeMap\s*<\s*String\s*,/u.test(fieldType)) {
@@ -1379,7 +1386,7 @@ function scanRustFile(root, filePath, config) {
           return;
         }
       } else {
-        const match = PUBLIC_FIELD_RE.exec(line);
+        const match = publicRecordLines[idx] ? PUBLIC_FIELD_RE.exec(line) : null;
         if (
           match &&
           isSuspiciousSerializedFieldName(match.groups.name) &&

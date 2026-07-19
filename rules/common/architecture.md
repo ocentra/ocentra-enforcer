@@ -8,7 +8,7 @@
 - `BOUND-1.4`: Domain modules cannot import boundary modules.
 - `BOUND-1.5`: Boundary modules require negative invalid-input tests.
 - `BOUND-1.6`: Boundary raw type count is budgeted.
-- `BOUND-1.7`: Boundary glob additions require a waiver or owner note.
+- `BOUND-1.7`: Boundary ownership globs must name a narrow code segment; catch-all source scopes are forbidden.
 - `BOUND-1.8`: Boundary files cannot be named `utils` or `helpers`.
 - `BOUND-1.9`: Boundary DTOs cannot leak into domain signatures.
 - `BOUND-1.10`: Boundary conversion functions must return typed errors.

@@ -8,6 +8,7 @@ export const DEFAULT_IGNORE_DIRS = [
   '.turbo',
   '.wrangler',
   '.enforce',
+  '.tmp',
   '.venv',
   '.ruff_cache',
   '.mypy_cache',
@@ -72,10 +73,25 @@ export function matchesAnyGlob(relPath, globs = []) {
   return globs.some((glob) => matchesGlob(relPath, glob));
 }
 
-export function isIgnoredPath(relPath, config = {}) {
+function hasGeneratedDirectorySegment(relPath, prefix, finalSegmentIsDirectory) {
+  const segments = relPath.split('/').filter(Boolean);
+  const directorySegments = finalSegmentIsDirectory
+    ? segments
+    : segments.slice(0, -1);
+  return directorySegments.some((segment) => segment.startsWith(prefix));
+}
+
+export function isIgnoredPath(relPath, config = {}, finalSegmentIsDirectory = false) {
   const ignoreDirs = config.ignoreDirs ?? DEFAULT_IGNORE_DIRS;
   const ignoreFileGlobs = config.ignoreFileGlobs ?? [];
-  return relPath.split('/').some((segment) => ignoreDirs.includes(segment)) || matchesAnyGlob(relPath, ignoreFileGlobs);
+  return (
+    relPath.split('/').some((segment) => ignoreDirs.includes(segment)) ||
+    (ignoreDirs.includes('target') &&
+      hasGeneratedDirectorySegment(relPath, 'target-', finalSegmentIsDirectory)) ||
+    (ignoreDirs.includes('.tmp') &&
+      hasGeneratedDirectorySegment(relPath, '.tmp-', finalSegmentIsDirectory)) ||
+    matchesAnyGlob(relPath, ignoreFileGlobs)
+  );
 }
 
 export function walkFiles(root, start, config, collect) {
@@ -83,7 +99,7 @@ export function walkFiles(root, start, config, collect) {
   const stats = fs.lstatSync(start);
   if (stats.isSymbolicLink()) return;
   const rel = normalizeRel(root, start);
-  if (rel !== '' && isIgnoredPath(rel, config)) return;
+  if (rel !== '' && isIgnoredPath(rel, config, stats.isDirectory())) return;
   if (stats.isDirectory()) {
     for (const entry of fs.readdirSync(start, { withFileTypes: true })) {
       walkFiles(root, path.join(start, entry.name), config, collect);

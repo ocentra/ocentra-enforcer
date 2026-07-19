@@ -101,6 +101,7 @@ export const ConfigSchema = Schema.Struct({
   cargoTestThreads: OptionalNullableNumber,
   allowUnsafeCode: OptionalBoolean,
   allowBuildRs: OptionalBoolean,
+  allowedBuildRsPaths: OptionalStringArray,
   allowGitDependencies: OptionalBoolean,
   allowPathDependencies: OptionalBoolean,
   publicReexportPolicy: Schema.optional(

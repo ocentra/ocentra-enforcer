@@ -835,7 +835,6 @@ export const a11 = 11;
     "BOUND-1.4",
     "BOUND-1.5",
     "BOUND-1.6",
-    "BOUND-1.7",
     "BOUND-1.8",
     "BOUND-1.9",
     "BOUND-1.10",
