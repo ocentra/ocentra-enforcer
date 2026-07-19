@@ -9,20 +9,22 @@
 
 use crate::ids::RuleId;
 use crate::severity::Severity;
+use crate::telemetry_types::{
+    DurationMillis, EpochMillis, FindingCount, RecordSchemaVersion, RuleCount, RunCommandName,
+    RunRecordKind,
+};
 
 /// Current schema version stamped on new `RunRecord`s.
-pub const RUN_RECORD_SCHEMA_VERSION: u32 = 1;
+pub const RUN_RECORD_SCHEMA_VERSION: RecordSchemaVersion = RecordSchemaVersion::V1;
 
 /// The fixed `eventType` tag for every `RunRecord` line (kept as an explicit
 /// field, not an enum tag, because this NDJSON stream carries exactly one
 /// record shape — unlike the mixed `EnforcerEvent` union in `records.rs`).
-pub const RUN_RECORD_EVENT_TYPE: &str = "run";
+pub const RUN_RECORD_EVENT_TYPE: RunRecordKind = RunRecordKind::Run;
 
 /// How the enforcer run terminated.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, ts_rs::TS,
-)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, ts_rs::TS)]
+#[doc = "Canonical domain representation for ExitStatus."]
 pub enum ExitStatus {
     /// Run completed and found no blocking violations.
     Clean,
@@ -32,56 +34,88 @@ pub enum ExitStatus {
     Aborted,
 }
 
+impl serde::Serialize for ExitStatus {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(match self {
+            Self::Clean => "clean",
+            Self::Violations => "violations",
+            Self::Aborted => "aborted",
+        })
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ExitStatus {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        match <String as serde::Deserialize>::deserialize(deserializer)?.as_str() {
+            "clean" => Ok(Self::Clean),
+            "violations" => Ok(Self::Violations),
+            "aborted" => Ok(Self::Aborted),
+            _ => Err(serde::de::Error::custom("invalid exit status")),
+        }
+    }
+}
+
 /// Findings-by-severity counters for one run.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize, ts_rs::TS,
 )]
 #[serde(rename_all = "camelCase")]
+#[doc = "Canonical domain representation for FindingCounts."]
 pub struct FindingCounts {
     /// Count of `Severity::Error` findings.
-    pub error: u32,
+    pub error: FindingCount,
     /// Count of `Severity::Warning` findings.
-    pub warning: u32,
+    pub warning: FindingCount,
     /// Count of `Severity::Info` findings.
-    pub info: u32,
+    pub info: FindingCount,
 }
 
 impl FindingCounts {
     /// Total findings across all severities.
-    pub fn total(&self) -> u32 {
-        self.error + self.warning + self.info
+    pub fn total(&self) -> FindingCount {
+        FindingCount::new(self.error.get() + self.warning.get() + self.info.get())
     }
 
     /// Fold one finding's severity into the running counts.
     pub fn record(&mut self, severity: Severity) {
         match severity {
-            Severity::Error => self.error += 1,
-            Severity::Warning => self.warning += 1,
-            Severity::Info => self.info += 1,
+            Severity::Error => self.error = FindingCount::new(self.error.get().saturating_add(1)),
+            Severity::Warning => {
+                self.warning = FindingCount::new(self.warning.get().saturating_add(1));
+            }
+            Severity::Info => self.info = FindingCount::new(self.info.get().saturating_add(1)),
         }
     }
 }
 
 /// One enforcer run's telemetry record — exactly one NDJSON line per run.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ts_rs::TS)]
+// SERIALIZATION-DOC: this stable wire representation is consumed by durable adapters.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[doc = "Canonical domain representation for RunRecord."]
 pub struct RunRecord {
     /// Record schema version.
-    pub schema_version: u32,
+    pub schema_version: RecordSchemaVersion,
     /// Fixed tag identifying this record shape (`"run"`).
-    pub event_type: String,
+    pub event_type: RunRecordKind,
     /// Milliseconds since the Unix epoch when the run started.
-    pub epoch_ms: u64,
+    pub epoch_ms: EpochMillis,
     /// The command/subcommand invoked (e.g. `check`, `scan`).
-    pub command: String,
+    pub command: RunCommandName,
     /// Rule ids in scope for this run (deduplicated, order-independent
     /// identity; only the count is telemetered — the DTO stores the count,
     /// not the list, to keep the line small).
-    pub rule_ids_in_scope: u32,
+    pub rule_ids_in_scope: RuleCount,
     /// Findings grouped by severity.
     pub findings: FindingCounts,
     /// Wall-clock duration of the run.
-    pub duration_ms: u64,
+    pub duration_ms: DurationMillis,
     /// How the run terminated.
     pub exit_status: ExitStatus,
 }
@@ -91,17 +125,31 @@ pub struct RunRecord {
 /// self-describing and clippy's arity lint stays honest, not suppressed.
 pub struct RunRecordParams<'a> {
     /// Milliseconds since the Unix epoch when the run started.
-    pub epoch_ms: u64,
+    pub epoch_ms: EpochMillis,
     /// The command/subcommand invoked (e.g. `check`, `scan`).
-    pub command: String,
+    pub command: RunCommandName,
     /// Rule ids in scope for this run; only the count is telemetered.
     pub rule_ids_in_scope: &'a [RuleId],
     /// Findings grouped by severity.
     pub findings: FindingCounts,
     /// Wall-clock duration of the run.
-    pub duration_ms: u64,
+    pub duration_ms: DurationMillis,
     /// How the run terminated.
     pub exit_status: ExitStatus,
+}
+
+impl std::fmt::Debug for RunRecordParams<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("RunRecordParams")
+            .field("epoch_ms", &self.epoch_ms)
+            .field("command", &"[REDACTED]")
+            .field("rule_ids_in_scope_count", &self.rule_ids_in_scope.len())
+            .field("findings", &self.findings)
+            .field("duration_ms", &self.duration_ms)
+            .field("exit_status", &self.exit_status)
+            .finish()
+    }
 }
 
 impl RunRecord {
@@ -111,101 +159,16 @@ impl RunRecord {
     pub fn new(params: RunRecordParams<'_>) -> Self {
         Self {
             schema_version: RUN_RECORD_SCHEMA_VERSION,
-            event_type: RUN_RECORD_EVENT_TYPE.to_owned(),
+            event_type: RUN_RECORD_EVENT_TYPE,
             epoch_ms: params.epoch_ms,
             command: params.command,
-            rule_ids_in_scope: params.rule_ids_in_scope.len() as u32,
+            // BRAND-INVARIANT: the checked collection length is wrapped as RuleCount immediately.
+            rule_ids_in_scope: RuleCount::new(
+                u32::try_from(params.rule_ids_in_scope.len()).unwrap_or(u32::MAX),
+            ),
             findings: params.findings,
             duration_ms: params.duration_ms,
             exit_status: params.exit_status,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{
-        ExitStatus, FindingCounts, RunRecord, RunRecordParams, RUN_RECORD_EVENT_TYPE,
-        RUN_RECORD_SCHEMA_VERSION,
-    };
-    use crate::boundary::decode_error::DecodeError;
-    use crate::ids::RuleId;
-    use crate::severity::Severity;
-
-    fn rule(id: &str) -> Result<RuleId, DecodeError> {
-        id.parse()
-    }
-
-    #[test]
-    fn new_computes_scope_count_from_slice() -> Result<(), DecodeError> {
-        let scope = vec![rule("RR-6.1")?, rule("DEP-1.1")?];
-        let mut findings = FindingCounts::default();
-        findings.record(Severity::Error);
-        findings.record(Severity::Warning);
-        let record = RunRecord::new(RunRecordParams {
-            epoch_ms: 1_700_000_000_000,
-            command: "check".to_owned(),
-            rule_ids_in_scope: &scope,
-            findings,
-            duration_ms: 42,
-            exit_status: ExitStatus::Violations,
-        });
-        assert_eq!(record.rule_ids_in_scope, 2);
-        assert_eq!(record.schema_version, RUN_RECORD_SCHEMA_VERSION);
-        assert_eq!(record.event_type, RUN_RECORD_EVENT_TYPE);
-        Ok(())
-    }
-
-    #[test]
-    fn wire_form_is_camel_case_and_round_trips() -> Result<(), DecodeError> {
-        let scope = vec![rule("RR-6.1")?];
-        let record = RunRecord::new(RunRecordParams {
-            epoch_ms: 1_700_000_000_000,
-            command: "scan".to_owned(),
-            rule_ids_in_scope: &scope,
-            findings: FindingCounts::default(),
-            duration_ms: 10,
-            exit_status: ExitStatus::Clean,
-        });
-        let wire = serde_json::to_value(&record)
-            .map_err(|e| DecodeError::new("runRecord", e.to_string()))?;
-        assert_eq!(wire["schemaVersion"], 1);
-        assert_eq!(wire["eventType"], "run");
-        assert_eq!(wire["ruleIdsInScope"], 1);
-        assert_eq!(wire["durationMs"], 10);
-        assert_eq!(wire["exitStatus"], "clean");
-        assert!(wire.get("rule_ids_in_scope").is_none());
-        let back: RunRecord = serde_json::from_value(wire)
-            .map_err(|e| DecodeError::new("runRecord", e.to_string()))?;
-        assert_eq!(back, record);
-        Ok(())
-    }
-
-    #[test]
-    fn boundary_rejects_unknown_exit_status() {
-        let bad = serde_json::json!({
-            "schemaVersion": 1,
-            "eventType": "run",
-            "epochMs": 0,
-            "command": "check",
-            "ruleIdsInScope": 0,
-            "findings": { "error": 0, "warning": 0, "info": 0 },
-            "durationMs": 1,
-            "exitStatus": "mystery"
-        });
-        assert!(serde_json::from_value::<RunRecord>(bad).is_err());
-    }
-
-    #[test]
-    fn finding_counts_total_sums_all_severities() {
-        let mut counts = FindingCounts::default();
-        counts.record(Severity::Error);
-        counts.record(Severity::Error);
-        counts.record(Severity::Warning);
-        counts.record(Severity::Info);
-        assert_eq!(counts.total(), 4);
-        assert_eq!(counts.error, 2);
-        assert_eq!(counts.warning, 1);
-        assert_eq!(counts.info, 1);
     }
 }

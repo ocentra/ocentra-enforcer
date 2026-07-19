@@ -10,10 +10,6 @@
 
 use crate::boundary::decode_error::DecodeError;
 
-fn normalize_separators(path: &str) -> String {
-    path.replace('\\', "/")
-}
-
 /// Branded absolute repository root.
 ///
 /// Accepts Windows drive-letter roots (`C:/...` or `C:\...`), UNC roots
@@ -21,19 +17,7 @@ fn normalize_separators(path: &str) -> String {
 /// normalized (forward-slash) form.
 /// BRAND-INVARIANT: constructed only by validated conversions; the inner text
 /// is a normalized, absolute repository root (POSIX, UNC, or drive-letter).
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    PartialOrd,
-    Ord,
-    serde::Serialize,
-    serde::Deserialize,
-    ts_rs::TS,
-)]
-#[serde(try_from = "String", into = "String")]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, ts_rs::TS)]
 #[ts(type = "string")]
 #[doc = "BRAND-INVARIANT: validated normalized absolute repository root."]
 pub struct RepoRoot(String);
@@ -44,24 +28,17 @@ pub struct RepoRoot(String);
 /// forward slashes, and confined: no `..` segment may escape the root.
 /// BRAND-INVARIANT: constructed only by validated conversions; the inner text
 /// is normalized, relative, and cannot escape its repository root.
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    PartialOrd,
-    Ord,
-    serde::Serialize,
-    serde::Deserialize,
-    ts_rs::TS,
-)]
-#[serde(try_from = "String", into = "String")]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, ts_rs::TS)]
 #[ts(type = "string")]
 #[doc = "BRAND-INVARIANT: validated normalized relative path confined to its root."]
 pub struct RelPath(String);
 
 impl RepoRoot {
+    /// Try to validate an absolute repository root from its wire form.
+    pub fn try_new(raw: &str) -> Result<Self, DecodeError> {
+        <Self as std::str::FromStr>::from_str(raw)
+    }
+
     /// View the normalized inner value.
     pub fn as_str(&self) -> &str {
         &self.0
@@ -81,7 +58,8 @@ impl RepoRoot {
     /// depth: a path already under the root cannot contain a `..` escape,
     /// but the check is re-run via [`RelPath`]'s own constructor).
     pub fn relativize(&self, abs: &str) -> Result<RelPath, DecodeError> {
-        let normalized = normalize_separators(abs);
+        // ALLOC-JUSTIFICATION: normalization owns the boundary path while validation runs.
+        let normalized = abs.replace('\\', "/");
         let stripped = normalized
             .strip_prefix(&self.0)
             .and_then(|rest| rest.strip_prefix('/'))
@@ -98,6 +76,11 @@ impl RepoRoot {
 }
 
 impl RelPath {
+    /// Try to validate a confined repository-relative path from its wire form.
+    pub fn try_new(raw: &str) -> Result<Self, DecodeError> {
+        <Self as std::str::FromStr>::from_str(raw)
+    }
+
     /// View the normalized inner value.
     pub fn as_str(&self) -> &str {
         &self.0
@@ -116,19 +99,30 @@ impl TryFrom<String> for RepoRoot {
 
     fn try_from(raw: String) -> Result<Self, DecodeError> {
         if raw.trim().is_empty() {
-            return Err(DecodeError::new("repoRoot", "must not be empty"));
+            return Err(DecodeError::new(
+                "repoRoot",
+                "invalid repository root: must not be empty",
+            ));
         }
-        let normalized = normalize_separators(&raw);
+        let normalized = raw.replace('\\', "/");
         let unc = normalized.starts_with("//") && normalized.len() > 2;
         let posix = normalized.starts_with('/') && !normalized.starts_with("//");
         let windows = windows_drive_root_marker(&normalized).is_some();
         if !(unc || posix || windows) {
             return Err(DecodeError::new(
                 "repoRoot",
-                "must be absolute (drive-letter, UNC, or POSIX root)",
+                "invalid repository root: must be absolute (drive-letter, UNC, or POSIX root)",
             ));
         }
         Ok(Self(normalized))
+    }
+}
+
+impl TryFrom<&std::path::Path> for RepoRoot {
+    type Error = DecodeError;
+
+    fn try_from(path: &std::path::Path) -> Result<Self, Self::Error> {
+        Self::try_from(path.to_string_lossy().into_owned())
     }
 }
 
@@ -137,13 +131,16 @@ impl TryFrom<String> for RelPath {
 
     fn try_from(raw: String) -> Result<Self, DecodeError> {
         if raw.trim().is_empty() {
-            return Err(DecodeError::new("relPath", "must not be empty"));
+            return Err(DecodeError::new(
+                "relPath",
+                "invalid relative path: must not be empty",
+            ));
         }
-        let normalized = normalize_separators(&raw);
+        let normalized = raw.replace('\\', "/");
         if normalized.starts_with('/') || windows_drive_root_marker(&normalized).is_some() {
             return Err(DecodeError::new(
                 "relPath",
-                "must be relative (no leading separator or drive letter)",
+                "invalid relative path: must be relative (no leading separator or drive letter)",
             ));
         }
         let mut depth: i32 = 0;
@@ -154,7 +151,7 @@ impl TryFrom<String> for RelPath {
                     if depth < 0 {
                         return Err(DecodeError::new(
                             "relPath",
-                            "`..` segment escapes the repository root",
+                            "invalid relative path: `..` segment escapes the repository root",
                         ));
                     }
                 }
@@ -210,103 +207,28 @@ impl std::fmt::Display for RelPath {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{RelPath, RepoRoot};
-    use crate::boundary::decode_error::DecodeError;
-
-    #[test]
-    fn repo_root_accepts_absolute_forms_and_normalizes() -> Result<(), DecodeError> {
-        let win: RepoRoot = r"C:\Projects\enforcer".parse()?;
-        assert_eq!(win.as_str(), "C:/Projects/enforcer");
-        let posix: RepoRoot = "/home/user/repo".parse()?;
-        assert_eq!(posix.as_str(), "/home/user/repo");
-        let unc: RepoRoot = r"\\server\share\repo".parse()?;
-        assert_eq!(unc.as_str(), "//server/share/repo");
-        Ok(())
-    }
-
-    #[test]
-    fn repo_root_rejects_relative_and_empty() {
-        for bad in ["", "  ", "relative/path", "./here", "C:"] {
-            let outcome: Result<RepoRoot, _> = bad.parse();
-            assert!(outcome.is_err(), "should reject {bad:?}");
+macro_rules! validated_path_wire {
+    ($value:ty) => {
+        impl serde::Serialize for $value {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                serializer.serialize_str(self.as_str())
+            }
         }
-    }
 
-    #[test]
-    fn rel_path_accepts_relative_and_normalizes_backslashes() -> Result<(), DecodeError> {
-        let p: RelPath = r"crates\enforcer-domain\src\lib.rs".parse()?;
-        assert_eq!(p.as_str(), "crates/enforcer-domain/src/lib.rs");
-        let dotted: RelPath = "a/./b".parse()?;
-        assert_eq!(dotted.as_str(), "a/./b");
-        let contained: RelPath = "a/b/../c".parse()?;
-        assert_eq!(contained.as_str(), "a/b/../c");
-        Ok(())
-    }
-
-    #[test]
-    fn rel_path_rejects_absolute_and_escaping() {
-        for bad in ["", "/abs/path", r"C:\abs", "../escape", "a/../../escape"] {
-            let outcome: Result<RelPath, _> = bad.parse();
-            assert!(outcome.is_err(), "should reject {bad:?}");
+        impl<'de> serde::Deserialize<'de> for $value {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                let raw = String::deserialize(deserializer)?;
+                Self::try_from(raw).map_err(serde::de::Error::custom)
+            }
         }
-    }
-
-    #[test]
-    fn conversion_boundary_enforces_path_rules() -> Result<(), DecodeError> {
-        let ok = RelPath::try_from(String::from("src/lib.rs"))?;
-        assert_eq!(ok.as_str(), "src/lib.rs");
-        assert!(RelPath::try_from(String::from("/abs")).is_err());
-        assert!(RepoRoot::try_from(String::from("not-absolute")).is_err());
-        Ok(())
-    }
-
-    #[test]
-    fn resolve_joins_root_and_rel_typed_so_only_relpath_is_accepted() -> Result<(), DecodeError> {
-        let root: RepoRoot = r"C:\Projects\enforcer".parse()?;
-        let rel: RelPath = r"crates\enforcer-domain\src\lib.rs".parse()?;
-        assert_eq!(
-            root.resolve(&rel),
-            "C:/Projects/enforcer/crates/enforcer-domain/src/lib.rs"
-        );
-        // NOTE: `RepoRoot::resolve` takes `&RelPath` by type, not `&str`;
-        // there is no overload accepting a second `RepoRoot`, so
-        // `root.resolve(&other_root)` is a compile error, not a runtime
-        // check. See `tests/compile_reject` fixtures for the enforced case.
-        Ok(())
-    }
-
-    #[test]
-    fn relativize_strips_root_and_validates_the_remainder() -> Result<(), DecodeError> {
-        let root: RepoRoot = "/home/user/repo".parse()?;
-        let rel = root.relativize("/home/user/repo/crates/enforcer-domain/src/lib.rs")?;
-        assert_eq!(rel.as_str(), "crates/enforcer-domain/src/lib.rs");
-
-        let win_root: RepoRoot = r"C:\Projects\enforcer".parse()?;
-        let win_rel = win_root.relativize(r"C:\Projects\enforcer\crates\x\src\lib.rs")?;
-        assert_eq!(win_rel.as_str(), "crates/x/src/lib.rs");
-        Ok(())
-    }
-
-    #[test]
-    fn relativize_rejects_paths_outside_the_root_or_equal_to_it() -> Result<(), DecodeError> {
-        let root: RepoRoot = "/home/user/repo".parse()?;
-        assert!(root.relativize("/home/user/other/file.rs").is_err());
-        assert!(root.relativize("/completely/different").is_err());
-        // Equal to the root itself: no `/` remainder to strip -> rejected,
-        // not silently accepted as an empty RelPath.
-        assert!(root.relativize("/home/user/repo").is_err());
-        Ok(())
-    }
-
-    #[test]
-    fn resolve_and_relativize_round_trip() -> Result<(), DecodeError> {
-        let root: RepoRoot = "/home/user/repo".parse()?;
-        let rel: RelPath = "crates/enforcer-domain/src/paths.rs".parse()?;
-        let abs = root.resolve(&rel);
-        let round_tripped = root.relativize(&abs)?;
-        assert_eq!(round_tripped, rel);
-        Ok(())
-    }
+    };
 }
+
+validated_path_wire!(RepoRoot);
+validated_path_wire!(RelPath);

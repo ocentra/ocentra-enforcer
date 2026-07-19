@@ -11,6 +11,7 @@
 /// Structured failure returned when a boundary rejects external input.
 #[derive(Debug, thiserror::Error, PartialEq, Eq, Clone)]
 #[error("decode/validation failed at `{path}`: {reason}")]
+#[doc = "A structured rejection produced while decoding untrusted boundary input."]
 pub struct DecodeError {
     /// Boundary field or logical location that rejected the input.
     pub path: String,

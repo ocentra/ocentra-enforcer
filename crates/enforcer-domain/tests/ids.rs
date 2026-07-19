@@ -1,6 +1,9 @@
 //! Black-box tests for branded identifier validation and serde boundaries.
 
 use enforcer_domain::boundary::decode_error::DecodeError;
+use enforcer_domain::events_types::{
+    EventCount, EventDeliveryCapabilityState, EventDeliveryClaimState, JournalSequence,
+};
 use enforcer_domain::ids::{
     CausationId, CorrelationId, HarnessId, HubName, LaneId, RuleId, ThreatId,
 };
@@ -23,6 +26,16 @@ fn assert_rejected<T: std::str::FromStr<Err = DecodeError>>(
             path,
             "expected invalid input to be rejected",
         )),
+    }
+}
+
+fn serde_rejection<T: serde::de::DeserializeOwned>(
+    raw: &str,
+    path: &str,
+) -> Result<serde_json::Error, DecodeError> {
+    match serde_json::from_str::<T>(raw) {
+        Err(error) => Ok(error),
+        Ok(_) => Err(DecodeError::new(path, "expected JSON value to be rejected")),
     }
 }
 
@@ -74,8 +87,7 @@ fn harness_id_validates_at_the_shared_boundary() -> Result<(), DecodeError> {
     for invalid in ["", "Codex", "has space", "a_b", "a/b"] {
         assert_rejected::<HarnessId>(invalid, "harnessId")?;
     }
-    let malformed = serde_json::from_str::<HarnessId>("\"Not Valid\"")
-        .expect_err("malformed harness id JSON must fail branded deserialization");
+    let malformed = serde_rejection::<HarnessId>("\"Not Valid\"", "harnessId")?;
     assert_eq!(malformed.classify(), serde_json::error::Category::Data);
     Ok(())
 }
@@ -100,11 +112,9 @@ fn coordination_id_brand_decode() -> Result<(), DecodeError> {
     assert_rejected::<LaneId>(&oversize_lane, "laneId")?;
     let max_lane = "a".repeat(64);
     assert_eq!(parse::<LaneId>(&max_lane)?.as_str(), max_lane);
-    let empty_hub = serde_json::from_str::<HubName>("\"\"")
-        .expect_err("empty hub JSON must fail branded deserialization");
+    let empty_hub = serde_rejection::<HubName>("\"\"", "hubName")?;
     assert_eq!(empty_hub.classify(), serde_json::error::Category::Data);
-    let escaped_lane = serde_json::from_str::<LaneId>("\"../escape\"")
-        .expect_err("escaped lane JSON must fail branded deserialization");
+    let escaped_lane = serde_rejection::<LaneId>("\"../escape\"", "laneId")?;
     assert_eq!(escaped_lane.classify(), serde_json::error::Category::Data);
     Ok(())
 }
@@ -148,10 +158,10 @@ fn threat_id_accepts_mitre_cwe_owasp_and_rejects_junk() -> Result<(), DecodeErro
 }
 
 #[test]
-fn serde_rejects_malformed_at_the_boundary() {
-    let outcome = serde_json::from_str::<RuleId>("\"not a rule id\"")
-        .expect_err("malformed rule id JSON must fail branded deserialization");
+fn serde_rejects_malformed_at_the_boundary() -> Result<(), DecodeError> {
+    let outcome = serde_rejection::<RuleId>("\"not a rule id\"", "ruleId")?;
     assert_eq!(outcome.classify(), serde_json::error::Category::Data);
+    Ok(())
 }
 
 #[test]
@@ -160,4 +170,43 @@ fn serde_round_trips_valid_ids() -> Result<(), serde_json::Error> {
     let wire = serde_json::to_string(&id)?;
     assert_eq!(wire, "\"RR-6.1\"");
     Ok(())
+}
+
+#[test]
+fn journal_sequence_requires_a_positive_position() -> Result<(), DecodeError> {
+    let sequence = JournalSequence::new(42)?;
+    assert_eq!(sequence.as_u64(), 42);
+
+    let invalid = match JournalSequence::new(0) {
+        Err(error) => error,
+        Ok(_) => {
+            return Err(DecodeError::new(
+                "journal_sequence",
+                "zero must be rejected",
+            ));
+        }
+    };
+    assert_eq!(invalid.path, "journal_sequence");
+    assert_ne!(invalid.reason, "");
+    Ok(())
+}
+
+#[test]
+fn event_count_tracks_monotonic_increment_and_non_negative_decrement() {
+    let one = EventCount::ZERO.incremented();
+    assert_eq!(one.as_nonzero(), Some(std::num::NonZeroUsize::MIN));
+    assert_eq!(one.decremented().as_nonzero(), None);
+    assert_eq!(EventCount::ZERO.decremented().as_nonzero(), None);
+}
+
+#[test]
+fn event_delivery_states_express_claims_and_capabilities_without_raw_booleans() {
+    assert_ne!(
+        EventDeliveryClaimState::Claimed,
+        EventDeliveryClaimState::NotClaimed
+    );
+    assert_ne!(
+        EventDeliveryCapabilityState::Available,
+        EventDeliveryCapabilityState::Unavailable
+    );
 }

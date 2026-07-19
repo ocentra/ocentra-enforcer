@@ -10,12 +10,14 @@ publish = false
 
 [dependencies]
 serde = { workspace = true }
+serde_json = { workspace = true }
 sha2 = { workspace = true }
 thiserror = { workspace = true }
 ts-rs = { workspace = true }
 
 [dev-dependencies]
-serde_json = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: property generators prove parser acceptance and rejection invariants.
+proptest = "=1.9.0"
 
 [lints]
 workspace = true
