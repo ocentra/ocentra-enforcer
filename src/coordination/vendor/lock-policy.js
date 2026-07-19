@@ -203,7 +203,6 @@ export function blockersForRequest(activeClaims, requestClaim, operation) {
 
   for (const active of activeClaims.map(enrichClaim)) {
     if (sameLogicalOwner(active, request)) continue;
-    if (!requestHasExplicitOwner(request.context ?? {}) && active.lane === request.lane) continue;
     const conflicts = classifyClaimPair(active, request);
     const hard = [
       ...conflicts.writeConflicts,
@@ -239,7 +238,7 @@ export function claimMatchesOperation(claim, path, operation, requestContext = {
   const enriched = enrichClaim(claim);
   const normalizedPath = normalizeCoordinationPath(path);
   const requested = enrichClaim({
-    writer: "__request__.lane",
+    writer: requestContext.writer ?? "__request__.lane",
     lane: requestContext.lane ?? "__request__",
     paths: [normalizedPath],
     eventId: "__request__",
@@ -374,18 +373,33 @@ function pathsForConflict(left, right, pathKeys) {
 }
 
 function sameProject(left, right) {
-  if (left.projectKey === right.projectKey) return true;
-  if (left.gitRemoteKey !== null && left.gitRemoteKey === right.gitRemoteKey) return true;
-  return left.repoRootKey !== null && left.repoRootKey === right.repoRootKey;
+  const bothDeclareProject =
+    meaningfulOwnerPart(left.context?.explicitProjectId) !== null &&
+    meaningfulOwnerPart(right.context?.explicitProjectId) !== null;
+  if (bothDeclareProject) return left.projectKey === right.projectKey;
+  return (
+    left.projectKey === right.projectKey ||
+    (left.gitRemoteKey !== null && left.gitRemoteKey === right.gitRemoteKey) ||
+    (left.repoRootKey !== null && left.repoRootKey === right.repoRootKey)
+  );
 }
 
 function sameLogicalOwner(left, right) {
+  if (
+    left.writer !== right.writer ||
+    left.lane !== right.lane ||
+    !sameProject(left, right) ||
+    !sameWorktree(left, right) ||
+    !sameBranch(left, right)
+  ) {
+    return false;
+  }
   const leftThread = meaningfulOwnerPart(left.context?.codexThreadId);
   const rightThread = meaningfulOwnerPart(right.context?.codexThreadId);
-  if (leftThread !== null && leftThread === rightThread && left.lane === right.lane) return true;
+  if (leftThread !== null && rightThread !== null) return leftThread === rightThread;
   const leftSession = meaningfulOwnerPart(left.context?.codexSessionId);
   const rightSession = meaningfulOwnerPart(right.context?.codexSessionId);
-  if (leftSession !== null && leftSession === rightSession && left.lane === right.lane) return true;
+  if (leftSession !== null && leftSession === rightSession) return true;
   return left.ownerKey === right.ownerKey;
 }
 
@@ -423,6 +437,8 @@ function logicalOwnerKey(writer, context) {
 
 function requestHasExplicitOwner(context) {
   return (
+    meaningfulOwnerPart(context.codexThreadId) !== null ||
+    meaningfulOwnerPart(context.codexSessionId) !== null ||
     meaningfulOwnerPart(context.explicitCodexThreadId) !== null ||
     meaningfulOwnerPart(context.explicitCodexSessionId) !== null
   );

@@ -9,6 +9,7 @@ import { liveStreamOffsets } from "./live-deltas.js";
 import { sameCheckpointTail } from "./live-checkpoint.js";
 import { samePrefixDigest } from "./live-prefix.js";
 import { inspectLedger } from "./doctor.js";
+import { COORDINATION_MATERIALIZER_VERSION } from "./live-index.js";
 
 export async function rebuildCoordinationIndex(root, options = {}) {
     const { audit, state, liveStreams } = await readStableCheckpoint(root);
@@ -23,6 +24,7 @@ export async function rebuildCoordinationIndex(root, options = {}) {
         root,
         generatedAt: new Date().toISOString(),
         backend: "json",
+        materializerVersion: COORDINATION_MATERIALIZER_VERSION,
         dashboard: state.dashboard,
         audit,
         state: materializedToJson(state),
@@ -44,6 +46,7 @@ export async function rebuildCoordinationIndex(root, options = {}) {
         root,
         generatedAt: index.generatedAt,
         jsonIndex: "db/coordination-index.json",
+        materializerVersion: COORDINATION_MATERIALIZER_VERSION,
         sqlite,
         counts: {
             presenceRows: presence.totalRows,

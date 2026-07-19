@@ -1,4 +1,3 @@
-import { normalizeCoordinationPath } from "./lock-policy.js";
 import { claimIdentityKey } from "./materialize-claim-identity.js";
 
 export function emptyMaterializedState() {
@@ -64,5 +63,5 @@ function acksFromLanes(lanes) {
 }
 
 function intentKey(intent) {
-    return `${intent.writer}:${intent.paths.map(normalizeCoordinationPath).join(",")}`;
+    return claimIdentityKey(intent);
 }

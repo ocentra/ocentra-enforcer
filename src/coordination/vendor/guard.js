@@ -79,7 +79,7 @@ export async function guardLedger(root, input) {
     const requestLockKind = operation === "push" ? "branchLease" : normalizeLockKind(input.lockKind, "writeLock");
     const decision = changedPaths.length > 0
         ? blockersForRequest(state.ownership.activeClaims, buildRequestClaim({
-            writer: `request.${lane}`,
+            writer: input.writer ?? `request.${lane}`,
             lane,
             paths: changedPaths,
             context: {
@@ -158,7 +158,11 @@ function addCommitClaimFindings(findings, state, lane, changedPaths, operation, 
         return;
     }
     for (const path of changedPaths) {
-        if (laneClaims.some((claim) => claimMatchesOperation(claim, path, operation, { ...requestContext, lane }))) continue;
+        if (laneClaims.some((claim) => claimMatchesOperation(claim, path, operation, {
+            ...requestContext,
+            lane,
+            writer: input.writer,
+        }))) continue;
         const ownerClaims = ownerClaimsForPath(state.ownership.activeClaims, path, lane);
         findings.push(ownerClaims.length > 0
             ? `changed path ${path} is claimed by ${ownerClaims.map(claimOwnerLabel).join(", ")}; lane ${lane} cannot write it`

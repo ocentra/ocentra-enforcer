@@ -1,10 +1,13 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
+export const COORDINATION_MATERIALIZER_VERSION = 2;
+
 export async function loadLiveIndex(root) {
     try {
         const parsed = JSON.parse(await readFile(join(root, "db", "coordination-index.json"), "utf8"));
         return parsed?.backend === "json"
+            && parsed.materializerVersion === COORDINATION_MATERIALIZER_VERSION
             && Array.isArray(parsed.liveStreams)
             && parsed.liveStreams.every((stream) => typeof stream.digest === "string"
                 && (stream.tail === null || (typeof stream.tail?.id === "string" && typeof stream.tail?.hash === "string")))

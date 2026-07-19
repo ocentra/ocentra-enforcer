@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { coordinationClaim, coordinationRelease } from "../api.mjs";
 import { dashboardHtml } from "./dashboard.js";
 import { parseClaimPath, parseEventId, parseLaneId, parseMessageAddress, parsePullRequestUrl, parseStatusState, parseTaskId, parseTaskState, parseUserText, parseWorkerState, parseWriterId, } from "./domain.js";
 import { loadIdentity, resolveLane } from "./identity.js";
@@ -34,6 +35,28 @@ export async function startPeerServer(root, portOrOptions) {
         url: `http://${host}:${actualPort}`,
         close: () => new Promise((resolve, reject) => server.close((error) => error === undefined ? resolve() : reject(error))),
     };
+}
+
+/** Execute the claim command boundary and return its transport-neutral status. */
+export async function executeClaimCommand(root, body) {
+    const result = await coordinationClaim({
+        ...body,
+        stateRoot: root,
+        lane: requiredString(body, "lane"),
+        paths: requiredClaimPaths(body),
+    });
+    return { status: result.ok ? 200 : 409, result };
+}
+
+/** Execute the release command boundary and return its transport-neutral status. */
+export async function executeReleaseCommand(root, body) {
+    const result = await coordinationRelease({
+        ...body,
+        stateRoot: root,
+        lane: requiredString(body, "lane"),
+        paths: requiredClaimPaths(body),
+    });
+    return { status: 200, result };
 }
 async function routeRequest(root, request, response, options) {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
@@ -207,22 +230,13 @@ async function routeCommand(root, request, response, command) {
         return;
     }
     if (command === "claim") {
-        const lane = parseLaneId(requiredString(body, "lane"));
-        const reason = optionalString(body, "reason");
-        const event = await appendEvent(root, config, lane, {
-            type: "claim",
-            paths: requiredClaimPaths(body),
-            ...(reason === undefined ? {} : { reason: parseUserText(reason) }),
-        });
-        sendJson(response, 200, { event });
+        const outcome = await executeClaimCommand(root, body);
+        sendJson(response, outcome.status, outcome.result);
         return;
     }
     if (command === "release") {
-        const event = await appendEvent(root, config, parseLaneId(requiredString(body, "lane")), {
-            type: "release",
-            paths: requiredClaimPaths(body),
-        });
-        sendJson(response, 200, { event });
+        const outcome = await executeReleaseCommand(root, body);
+        sendJson(response, outcome.status, outcome.result);
         return;
     }
     if (command === "resolve") {

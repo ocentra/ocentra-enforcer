@@ -21,6 +21,9 @@ export function streamPath(root, nodeId, lane) {
 export function lockPath(root, nodeId, lane) {
     return join(streamsDir(root), `${writerId(nodeId, lane)}.lock`);
 }
+export function ownershipLockPath(root) {
+    return join(streamsDir(root), ".ownership.lock");
+}
 export function writerFromStreamFile(fileName) {
     if (!fileName.endsWith(".ndjson")) {
         return undefined;
