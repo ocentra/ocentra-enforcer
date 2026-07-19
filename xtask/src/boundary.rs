@@ -119,10 +119,8 @@ fn run_dogfood_command(root: &Path, baseline_store: &Path, mode: ToolchainMode) 
                 emit(&format!("toolchain: {toolchain:?}"));
                 toolchain_green = matches!(toolchain.verdict(), DogfoodGateVerdict::Pass);
             }
-            if matches!(
-                outcome.rust_rule_scan.gate.passes(),
-                ReportOutcome::Clean
-            ) && toolchain_green
+            if matches!(outcome.rust_rule_scan.gate.passes(), ReportOutcome::Clean)
+                && toolchain_green
             {
                 ExitCode::SUCCESS
             } else {

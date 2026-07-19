@@ -243,10 +243,10 @@ pub fn run_dogfood(
 #[cfg(test)]
 mod tests {
     use super::{run_rust_rule_scan, write_baseline_snapshot};
-    use enforcer_domain::findings::ReportOutcome;
     use crate::boundary::testkit::{
         clean_body, second_violating_body, seed, seed_config, violating_body,
     };
+    use enforcer_domain::findings::ReportOutcome;
 
     #[test]
     fn hollow_scan_with_no_crates_dir_fails_closed() -> Result<(), std::io::Error> {
