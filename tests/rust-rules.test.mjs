@@ -922,6 +922,53 @@ pub fn label(title: &str) -> PathBuf { PathBuf::from(title) }
   expectFailure(failing, 'RR-6.4');
 });
 
+test('scanner accepts validated alias newtypes, documented transparent wires, and raw scanner parsers', () => {
+  const passing = makeProject({
+    'src/lib.rs': `
+pub struct MemoryLogSchemaVersionWire(u32);
+pub type MemoryLogSchemaVersion = MemoryLogSchemaVersionWire;
+impl MemoryLogSchemaVersion { pub fn try_new(value: u32) -> Result<Self, ()> { Ok(Self(value)) } }
+/// SERIALIZATION-DOC: retained at the persistence boundary.
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
+pub struct MemoryObservationPayloadWire(serde_json::Value);
+impl From<serde_json::Value> for MemoryObservationPayloadWire { fn from(value: serde_json::Value) -> Self { Self(value) } }
+`,
+    'crates/enforcer-lang-common/src/families/bound_1.rs': `
+fn raw_public_boundary_declarations(source: &str) -> usize { source.len() }
+fn raw_public_boundary_field(fields: &str) -> bool { !fields.is_empty() }
+`,
+  });
+  const config = normalizeConfig(DEFAULT_CONFIG);
+  const findings = runScanner(passing, config, {
+    mode: 'files',
+    files: [
+      path.join(passing, 'src', 'lib.rs'),
+      path.join(passing, 'crates', 'enforcer-lang-common', 'src', 'families', 'bound_1.rs'),
+    ],
+  });
+  for (const ruleId of ['RR-6.44', 'RR-14.16', 'RR-6.34']) {
+    assert.equal(findings.some((finding) => finding.ruleId === ruleId), false, `${ruleId} must allow the scoped scanner parity shapes`);
+  }
+  for (const ruleId of ['RR-6.1', 'RR-6.2']) {
+    assert.equal(
+      findings.some((finding) => finding.ruleId === ruleId && /bound_1\.rs$/u.test(finding.file)),
+      false,
+      `${ruleId} must allow raw scanner parser helper signatures`,
+    );
+  }
+
+  const failing = makeProject({
+    'src/lib.rs': `
+pub struct MissingValidation(u32);
+#[derive(serde::Deserialize)]
+pub struct UserDomain { pub id: String }
+fn raw_label(value: &str) -> bool { !value.is_empty() }
+`,
+  });
+  expectFailures(failing, ['RR-6.1', 'RR-6.2', 'RR-6.44', 'RR-14.16']);
+});
+
 test('unsafe evidence ignores quoted diagnostics but retains real unsafe code', () => {
   const passing = makeProject({ 'src/lib.rs': 'pub const MESSAGE: &str = "unsafe operation";\n' });
   expectNoRule(passing, 'RR-3.30');

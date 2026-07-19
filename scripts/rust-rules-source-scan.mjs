@@ -75,6 +75,26 @@ function isTestFunctionSignature(lines, index) {
   return false;
 }
 
+function isDocumentedTransparentWireDerive(lines, index) {
+  const hasSerializationDocumentation = lines
+    .slice(Math.max(0, index - 8), index)
+    .some((line) => /SERIALIZATION-DOC:/u.test(line));
+  if (!hasSerializationDocumentation) return false;
+  const declaration = lines.slice(index + 1, index + 5).join("\n");
+  return (
+    /#\[serde\(transparent\)\]/u.test(declaration) &&
+    /pub\s+struct\s+[A-Z][A-Za-z0-9_]*Wire\s*\(/u.test(declaration)
+  );
+}
+
+function documentedTransparentWireNames(source) {
+  const names = [];
+  for (const match of source.matchAll(/SERIALIZATION-DOC:[\s\S]*?#\[derive\([^\]]*Deserialize[^\]]*\)\][\s\S]*?#\[serde\(transparent\)\][\s\S]*?pub\s+struct\s+(?<name>[A-Z][A-Za-z0-9_]*Wire)\s*\(/gu)) {
+    if (match.groups?.name) names.push(match.groups.name);
+  }
+  return names;
+}
+
 function inlineTestLineMask(lines) {
   const testLines = Array(lines.length).fill(false);
   let pendingTestFunction = false;
@@ -140,6 +160,8 @@ function scanRustFile(root, filePath, config) {
   const isConfigurationBoundary = isConfigurationBoundaryModulePath(rel);
   const isStringOwner = isRawStringOwner(rel, config);
   const isPrimitiveOwner = isDomainPrimitiveOwner(rel, config);
+  const isScannerFamily = rel.startsWith("crates/enforcer-lang-common/src/families/");
+  const documentedWireNames = documentedTransparentWireNames(source);
   const enforceRuntimeStrings =
     config.enforceRuntimeStringLiterals &&
     !isTestSource &&
@@ -1244,7 +1266,8 @@ function scanRustFile(root, filePath, config) {
 
     if (
       !isBoundary &&
-      /^\s*#\[derive\([^#\]]*\bDeserialize\b[^#\]]*\)\]/u.test(line)
+      /^\s*#\[derive\([^#\]]*\bDeserialize\b[^#\]]*\)\]/u.test(line) &&
+      !isDocumentedTransparentWireDerive(originalLines, idx)
     ) {
       addViolation(
         violations,
@@ -1547,6 +1570,8 @@ function scanRustFile(root, filePath, config) {
     isStringOwner,
     isPrimitiveOwner,
     isBenchmark,
+    isScannerFamily,
+    documentedWireNames,
   });
 
   applyLateRustFileRules({

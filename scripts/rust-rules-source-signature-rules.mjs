@@ -125,8 +125,13 @@ function applySimpleSignatureRules({
   line,
   source,
   violations,
+  isDocumentedTransparentWireConversion,
 }) {
   for (const rule of SIMPLE_SIGNATURE_RULES) {
+    if (
+      rule.ruleId === "RR-6.34" &&
+      isDocumentedTransparentWireConversion
+    ) continue;
     if (!rule.matches(sigText)) continue;
     addSignatureViolation(
       violations,
@@ -193,6 +198,7 @@ function applyOwnerSensitiveSignatureRules({
   isPrimitiveOwner,
   isBenchmark,
   isTraitImplementationSignature,
+  isRawSourceParserHelper,
 }) {
   if (isBenchmark || isTraitImplementationSignature) return;
   if (
@@ -214,7 +220,7 @@ function applyOwnerSensitiveSignatureRules({
     );
   }
 
-  if (!isStringOwner && RAW_STRING_TYPE_RE.test(sigText)) {
+  if (!isStringOwner && !isRawSourceParserHelper && RAW_STRING_TYPE_RE.test(sigText)) {
     addSignatureViolation(
       violations,
       root,
@@ -232,7 +238,7 @@ function applyOwnerSensitiveSignatureRules({
     (sigName === "len" && /->\s*usize\b/u.test(sigText)) ||
     (sigName === "is_empty" && /->\s*bool\b/u.test(sigText))
   );
-  if (!isPrimitiveOwner && !conventionalCollectionQuery && RAW_PRIMITIVE_TYPE_RE.test(sigText)) {
+  if (!isPrimitiveOwner && !isRawSourceParserHelper && !conventionalCollectionQuery && RAW_PRIMITIVE_TYPE_RE.test(sigText)) {
     addSignatureViolation(
       violations,
       root,
@@ -255,6 +261,8 @@ export function applySignatureRules({
   isStringOwner,
   isPrimitiveOwner,
   isBenchmark,
+  isScannerFamily,
+  documentedWireNames,
 }) {
   for (const sig of collectFunctionSignatures(masked)) {
     if (isBoundary) continue;
@@ -263,6 +271,8 @@ export function applySignatureRules({
     const sigName = functionName(sig.text);
     const params = functionParams(sig.text);
     const traitImplementationSignature = isTraitImplementationSignature(masked, sig.index);
+    const implementationPrefix = masked.slice(Math.max(0, sig.index - 256), sig.index);
+    const wireImplementation = /impl\s+From\s*<\s*serde_json::Value\s*>\s+for\s+(?<name>[A-Z][A-Za-z0-9_]*Wire)\s*\{[^{}]*$/u.exec(implementationPrefix);
 
     applySimpleSignatureRules({
       sigText: sig.text,
@@ -271,6 +281,11 @@ export function applySignatureRules({
       line: sig.line,
       source: originalSigFirstLine,
       violations,
+      isDocumentedTransparentWireConversion:
+        traitImplementationSignature &&
+        sigName === "from" &&
+        /serde_json::Value/u.test(params) &&
+        documentedWireNames.includes(wireImplementation?.groups?.name ?? ""),
     });
     applyFallibleSignatureRules({
       sigText: sig.text,
@@ -295,6 +310,7 @@ export function applySignatureRules({
       isPrimitiveOwner,
       isBenchmark,
       isTraitImplementationSignature: traitImplementationSignature,
+      isRawSourceParserHelper: isScannerFamily && /^raw_[a-z0-9_]+$/u.test(sigName),
     });
   }
 }
