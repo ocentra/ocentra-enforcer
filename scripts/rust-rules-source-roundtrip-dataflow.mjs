@@ -29,6 +29,28 @@ function inputWasEncoded(testBody, input) {
   ).test(testBody);
 }
 
+/** Returns local values whose declared or inferred construction is target. */
+export function targetProjectionValues(testBody, target) {
+  const escapedTarget = escapeRegExp(target);
+  const values = new Set();
+  const typed = new RegExp(
+    `\\blet\\s+(?:mut\\s+)?(?<name>[A-Za-z_][A-Za-z0-9_]*)\\s*:\\s*${escapedTarget}\\b`,
+    "gu",
+  );
+  const inferred = new RegExp(
+    `\\blet\\s+(?:mut\\s+)?(?<name>[A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*${escapedTarget}\\s*(?:\\{|\\(|;|::)`,
+    "gu",
+  );
+  for (const match of testBody.matchAll(typed)) {
+    values.add(match.groups?.name ?? "");
+  }
+  for (const match of testBody.matchAll(inferred)) {
+    values.add(match.groups?.name ?? "");
+  }
+  values.delete("");
+  return values;
+}
+
 function assertedRoundTripInput(testBody, output) {
   const escapedOutput = escapeRegExp(output);
   const forward = new RegExp(

@@ -159,6 +159,64 @@ fn proof_dto_uses_the_verified_generic_round_trip_helper() {
   });
   expectNoRule(genericHelperCovered, 'RR-14.25');
 
+  const inferredGenericHelperCovered = makeProject({
+    'src/boundary/proof.rs': '#[derive(Serialize, Deserialize, PartialEq)]\npub struct ProofDto;\n',
+    'tests/proof_roundtrip.rs': `
+fn assert_json_round_trip<T>(value: &T)
+where T: Serialize + DeserializeOwned + PartialEq {
+    let wire = serde_json::to_string(value).unwrap();
+    let restored: T = serde_json::from_str(&wire).unwrap();
+    assert_eq!(&restored, value);
+}
+#[test]
+fn inferred_generic_helper_preserves_the_direct_projection() {
+    let proof = ProofDto;
+    assert_json_round_trip(&proof);
+}
+`,
+  });
+  expectNoRule(inferredGenericHelperCovered, 'RR-14.25');
+
+  const directGenericHelperCovered = makeProject({
+    'src/boundary/proof.rs': '#[derive(Serialize, Deserialize, PartialEq)]\npub struct ProofDto;\n',
+    'tests/proof_roundtrip.rs': `
+fn assert_json_round_trip<T>(value: &T)
+where T: Serialize + DeserializeOwned + PartialEq {
+    let wire = serde_json::to_string(value).unwrap();
+    let restored: T = serde_json::from_str(&wire).unwrap();
+    assert_eq!(&restored, value);
+}
+#[test]
+fn direct_generic_helper_preserves_the_projection() {
+    assert_json_round_trip(&ProofDto);
+}
+`,
+  });
+  expectNoRule(directGenericHelperCovered, 'RR-14.25');
+
+  const inferredGenericHelperCoversNestedProjection = makeProject({
+    'src/boundary/proof.rs': `
+#[derive(Serialize, Deserialize, PartialEq)]
+pub struct ChildDto;
+#[derive(Serialize, Deserialize, PartialEq)]
+pub struct ParentResponse { pub child: ChildDto }
+`,
+    'tests/proof_roundtrip.rs': `
+fn assert_json_round_trip<T>(value: &T)
+where T: Serialize + DeserializeOwned + PartialEq {
+    let wire = serde_json::to_string(value).unwrap();
+    let restored: T = serde_json::from_str(&wire).unwrap();
+    assert_eq!(&restored, value);
+}
+#[test]
+fn inferred_generic_helper_preserves_the_nested_projection() {
+    let response = ParentResponse { child: ChildDto };
+    assert_json_round_trip(&response);
+}
+`,
+  });
+  expectNoRule(inferredGenericHelperCoversNestedProjection, 'RR-14.25');
+
   const fakeGenericHelper = makeProject({
     'src/boundary/proof.rs': '#[derive(Serialize, Deserialize, PartialEq)]\npub struct ProofDto;\n',
     'tests/proof_roundtrip.rs': `
@@ -170,6 +228,41 @@ fn proof_dto_calls_a_helper_without_wire_behavior() {
 `,
   });
   expectFailure(fakeGenericHelper, 'RR-14.25');
+
+  const inferredHelperWithMismatchedType = makeProject({
+    'src/boundary/proof.rs': '#[derive(Serialize, Deserialize, PartialEq)]\npub struct ProofDto;\n',
+    'tests/proof_roundtrip.rs': `
+fn assert_json_round_trip<T>(value: &T)
+where T: Serialize + DeserializeOwned + PartialEq {
+    let wire = serde_json::to_string(value).unwrap();
+    let restored: T = serde_json::from_str(&wire).unwrap();
+    assert_eq!(&restored, value);
+}
+#[test]
+fn inferred_helper_cannot_use_a_mismatched_projection() {
+    let other = OtherDto;
+    assert_json_round_trip(&other);
+}
+`,
+  });
+  expectFailure(inferredHelperWithMismatchedType, 'RR-14.25');
+
+  const inferredHelperWithoutEquality = makeProject({
+    'src/boundary/proof.rs': '#[derive(Serialize, Deserialize, PartialEq)]\npub struct ProofDto;\n',
+    'tests/proof_roundtrip.rs': `
+fn assert_json_round_trip<T>(value: &T)
+where T: Serialize + DeserializeOwned {
+    let wire = serde_json::to_string(value).unwrap();
+    let _restored: T = serde_json::from_str(&wire).unwrap();
+}
+#[test]
+fn inferred_helper_without_equality_is_not_evidence() {
+    let proof = ProofDto;
+    assert_json_round_trip(&proof);
+}
+`,
+  });
+  expectFailure(inferredHelperWithoutEquality, 'RR-14.25');
 
   const unrelatedGenericHelperBehavior = makeProject({
     'src/boundary/proof.rs': '#[derive(Serialize, Deserialize, PartialEq)]\npub struct ProofDto;\n',
