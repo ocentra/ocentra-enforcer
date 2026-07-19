@@ -299,6 +299,8 @@ fn hub_event_response_round_trips_the_public_wire_contract(
     });
 
     let response: HubEventResponse = serde_json::from_value(wire.clone())?;
-    assert_eq!(serde_json::to_value(response)?, wire);
+    let decoded: HubEventResponse = serde_json::from_value(serde_json::to_value(&response)?)?;
+    assert_eq!(decoded, response);
+    assert_eq!(serde_json::to_value(decoded)?, wire);
     Ok(())
 }

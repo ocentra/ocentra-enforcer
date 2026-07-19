@@ -476,6 +476,7 @@ fn fix_loop_decision_response_round_trips_the_public_event_wire_shape() -> Resul
     let response = FixLoopDecisionEventResponse::from(event);
     let wire = serde_json::to_value(&response)?;
     let decoded: FixLoopDecisionEventResponse = serde_json::from_value(wire.clone())?;
+    assert_eq!(decoded, response);
     assert_eq!(serde_json::to_value(decoded)?, wire);
     assert_eq!(
         enforcer_coordination::fix_loop::FixLoopDecisionEvent::try_from(response)?,
