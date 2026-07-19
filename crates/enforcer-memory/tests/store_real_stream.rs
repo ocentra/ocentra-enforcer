@@ -92,14 +92,14 @@ fn real_stream_file_round_trips_through_the_store() -> Result<(), Box<dyn std::e
             .append_with_seq(|seq| ObservationLogEntryDto {
                 schema_version: SCHEMA_VERSION,
                 seq: seq.into(),
-                id: record.id().to_owned(),
-                lesson_id: record.id().to_owned(),
+                id: record.id().to_owned().into(),
+                lesson_id: record.id().to_owned().into(),
                 rule_id: None,
                 fault_class: None,
-                repo_context,
-                clean,
-                source_surface: "real-stream-ingest-test".to_owned(),
-                ts: record_wire.ts,
+                repo_context: repo_context.into(),
+                clean: clean.into(),
+                source_surface: "real-stream-ingest-test".into(),
+                ts: record_wire.ts.into(),
                 supersedes_seq: None,
                 payload_kind: None,
                 payload: None,
@@ -116,7 +116,7 @@ fn real_stream_file_round_trips_through_the_store() -> Result<(), Box<dyn std::e
     let log_path = store.observation_log_path();
     drop(store);
     let outcome = read_verified::<ObservationLogEntryDto>(&log_path, |e| {
-        enforcer_domain::memory_types::Seq::from_log_position(e.seq)
+        e.seq
     })?;
     assert!(
         outcome.quarantined.is_empty(),
@@ -127,12 +127,12 @@ fn real_stream_file_round_trips_through_the_store() -> Result<(), Box<dyn std::e
     for (record, entry) in records.iter().zip(outcome.entries.iter()) {
         assert_eq!(
             record.id(),
-            entry.id,
+            entry.id.as_str(),
             "read-back id must match the source record's id"
         );
         assert_eq!(
             record.to_dto().ts,
-            entry.ts,
+            entry.ts.as_str(),
             "read-back timestamp must match the source record's ts"
         );
     }
